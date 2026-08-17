@@ -1,0 +1,14 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "shot",
+  "Label": "shot",
+  "CreatedUtc": "2026-07-04T16:24:45.9734296Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY193",
+  "DurationSeconds": 0,
+  "Shots": [],
+  "Files": [
+    "monitor1_full.png"
+  ],
+  "OriginalFiles": []
+}

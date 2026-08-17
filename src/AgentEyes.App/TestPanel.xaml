@@ -1,0 +1,206 @@
+<Window x:Class="AgentEyes.App.TestPanel"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AgentEyes - Tests" Height="720" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource DkBg}" FontFamily="Segoe UI">
+    <Grid Margin="0">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="400"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ===== Left: test list ===== -->
+        <Border Grid.Column="0" Background="{StaticResource DkBar}"
+                BorderBrush="{StaticResource DkBorder}" BorderThickness="0,0,1,0">
+            <DockPanel Margin="18,16,18,16">
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="TESTS" Style="{StaticResource DkSection}"/>
+                    <TextBlock Text="You control the timing. Click Run, follow the card."
+                               Foreground="{StaticResource DkDim}" FontSize="12" Margin="0,6,0,12"/>
+                </StackPanel>
+                <ListBox x:Name="TestList" BorderThickness="0" Background="Transparent"
+                         ItemContainerStyle="{StaticResource DkRecentItem}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         SelectionChanged="TestList_SelectionChanged">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource DkCard}" CornerRadius="6" Padding="12,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Background="{Binding BadgeBrush}" CornerRadius="3" Padding="5,1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Badge}" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource DkText}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Desc}" FontSize="11" Foreground="{StaticResource DkDim}"
+                                                   TextWrapping="Wrap" Margin="0,3,0,0"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="Run" Style="{StaticResource DkMini}"
+                                            VerticalAlignment="Center" Width="56" Tag="{Binding Id}"
+                                            Click="RunTest_Click"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- ===== Right: detail ===== -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,24,20">
+
+                <!-- Idle hint -->
+                <TextBlock x:Name="IdleHint"
+                           Text="Pick a test on the left and click Run. Automatic tests report instantly; guided tests walk you through Start / Stop at your own pace."
+                           Foreground="{StaticResource DkDim}" TextWrapping="Wrap" FontSize="13"/>
+
+                <!-- Instruction card (guided) -->
+                <Border x:Name="InstructionCard" Visibility="Collapsed" Background="{StaticResource DkCard}"
+                        CornerRadius="6" Padding="20">
+                    <StackPanel>
+                        <TextBlock x:Name="InstrTitle" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock x:Name="InstrWhat" Foreground="{StaticResource DkDim}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        <Border Background="{StaticResource DkBg}" BorderBrush="{StaticResource DkBorder}" BorderThickness="1"
+                                CornerRadius="5" Padding="14" Margin="0,12,0,0">
+                            <TextBlock x:Name="InstrSteps" Foreground="{StaticResource DkText}" TextWrapping="Wrap"
+                                       FontSize="14" LineHeight="22"/>
+                        </Border>
+                        <Button x:Name="StartButton" Content="Start" Style="{StaticResource DkRecord}"
+                                Background="#1F9D55" Margin="0,16,0,0" Click="Start_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Recording card (guided, live) -->
+                <Border x:Name="RecordingCard" Visibility="Collapsed" Background="{StaticResource DkCard}"
+                        CornerRadius="6" Padding="20">
+                    <StackPanel>
+                        <TextBlock Text="RECORDING" Style="{StaticResource DkSection}" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="TimerText" Text="00:00" FontFamily="Consolas" FontSize="46"
+                                   FontWeight="Bold" Foreground="{StaticResource DkRed}"/>
+
+                        <TextBlock Text="MIC" Style="{StaticResource DkSection}" Margin="0,14,0,4"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <ProgressBar x:Name="MicMeter" Height="16" Minimum="0" Maximum="100"
+                                         Background="{StaticResource DkBg}" BorderThickness="0"
+                                         Foreground="{StaticResource DkGreen}"/>
+                            <TextBlock x:Name="MicMeterText" Grid.Column="1" Text="--" Margin="8,0,0,0"
+                                       FontFamily="Consolas" FontSize="12" Foreground="{StaticResource DkDim}" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <TextBlock Text="SYSTEM" Style="{StaticResource DkSection}" Margin="0,14,0,4"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <ProgressBar x:Name="SysMeter" Height="16" Minimum="0" Maximum="100"
+                                         Background="{StaticResource DkBg}" BorderThickness="0"
+                                         Foreground="{StaticResource DkAccent}"/>
+                            <TextBlock x:Name="SysMeterText" Grid.Column="1" Text="--" Margin="8,0,0,0"
+                                       FontFamily="Consolas" FontSize="12" Foreground="{StaticResource DkDim}" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <TextBlock x:Name="RecHint" TextWrapping="Wrap" Foreground="{StaticResource DkDim}"
+                                   FontSize="12" Margin="0,12,0,0"
+                                   Text="Watch the MIC meter move while you speak - if it stays flat, this mic is not hearing you."/>
+                        <Button x:Name="StopButton" Content="STOP" Style="{StaticResource DkRecord}"
+                                Margin="0,14,0,0" Click="Stop_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Result card -->
+                <Border x:Name="ResultCard" Visibility="Collapsed" Background="{StaticResource DkCard}"
+                        CornerRadius="6" Padding="20">
+                    <StackPanel>
+                        <TextBlock x:Name="ResultTitle" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                        <TextBlock x:Name="ResultSummary" FontWeight="Bold" Margin="0,4,0,8" FontSize="14"/>
+
+                        <ItemsControl x:Name="ChecksList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource DkBorder}" BorderThickness="0,0,0,1" Padding="0,5">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="170"/>
+                                                <ColumnDefinition Width="54"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Name}" Foreground="{StaticResource DkText}" FontSize="12"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="{Binding StatusBrush}"
+                                                       FontWeight="Bold" FontSize="12"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Detail}" Foreground="{StaticResource DkDim}"
+                                                       FontSize="12" TextWrapping="Wrap"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Transcript -->
+                        <StackPanel x:Name="TranscriptPanel" Visibility="Collapsed">
+                            <TextBlock Text="TRANSCRIPT" Style="{StaticResource DkSection}" Margin="0,14,0,4"/>
+                            <Border Background="{StaticResource DkBg}" BorderBrush="{StaticResource DkBorder}"
+                                    BorderThickness="1" CornerRadius="5" Padding="10">
+                                <TextBlock x:Name="TranscriptText" TextWrapping="Wrap" FontStyle="Italic"
+                                           Foreground="{StaticResource DkText}"/>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Tuning (tunable tests only) -->
+                        <StackPanel x:Name="TuningPanel" Visibility="Collapsed">
+                            <TextBlock Text="TUNE AND RETRY" Style="{StaticResource DkSection}" Margin="0,14,0,4"/>
+                            <CheckBox x:Name="GateCheck" Content="Noise gate on mic" Style="{StaticResource DkCheck}"
+                                      Margin="0,2,0,0" Click="Tuning_Changed"/>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                <TextBlock Text="Mic vol" VerticalAlignment="Center" Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <Slider x:Name="MicVol" Grid.Column="1" Minimum="0" Maximum="150" Value="100"
+                                        Margin="6,0" VerticalAlignment="Center" ValueChanged="Vol_Changed"/>
+                                <TextBlock x:Name="MicVolText" Grid.Column="2" Text="100%" Width="44"
+                                           FontFamily="Consolas" FontSize="11" Foreground="{StaticResource DkDim}"/>
+                                <TextBlock Grid.Row="1" Text="Sys vol" VerticalAlignment="Center" Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <Slider x:Name="SysVol" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="150" Value="70"
+                                        Margin="6,0" VerticalAlignment="Center" ValueChanged="Vol_Changed"/>
+                                <TextBlock x:Name="SysVolText" Grid.Row="1" Grid.Column="2" Text="70%" Width="44"
+                                           FontFamily="Consolas" FontSize="11" Foreground="{StaticResource DkDim}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Actions -->
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button x:Name="PlayButton" Content="Play" Style="{StaticResource DkMini}"
+                                    MinWidth="72" Click="Play_Click"/>
+                            <Button x:Name="OpenButton" Content="Open folder" Style="{StaticResource DkMini}"
+                                    MinWidth="96" Margin="8,0,0,0" Click="OpenFolder_Click"/>
+                            <Button x:Name="RunAgainButton" Content="Run again" Style="{StaticResource DkMini}"
+                                    MinWidth="88" Margin="8,0,0,0" Click="RunAgain_Click"/>
+                        </StackPanel>
+
+                        <!-- Verdict -->
+                        <StackPanel x:Name="ThumbPanel" Orientation="Horizontal" Margin="0,14,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Did this look/sound right?" VerticalAlignment="Center"
+                                       Foreground="{StaticResource DkDim}" FontSize="12"/>
+                            <Button x:Name="ThumbUp" Content="Yes" Style="{StaticResource DkMini}" MinWidth="56" Margin="8,0,0,0" Click="ThumbUp_Click"/>
+                            <Button x:Name="ThumbDown" Content="No" Style="{StaticResource DkMini}" MinWidth="56" Margin="8,0,0,0" Click="ThumbDown_Click"/>
+                            <TextBlock x:Name="ReportStatus" VerticalAlignment="Center" Margin="12,0,0,0"
+                                       Foreground="{StaticResource DkDim}" FontSize="11"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Busy line -->
+                <TextBlock x:Name="BusyText" Visibility="Collapsed" Margin="0,12,0,0"
+                           Foreground="{StaticResource DkDim}" FontStyle="Italic" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

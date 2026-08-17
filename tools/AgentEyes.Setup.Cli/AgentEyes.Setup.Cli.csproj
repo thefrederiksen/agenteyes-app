@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Installed to app\agenteyes-setup.exe; also the Add/Remove Programs UninstallString target. -->
+    <AssemblyName>agenteyes-setup</AssemblyName>
+    <RootNamespace>AgentEyes.Setup.Cli</RootNamespace>
+    <Version>1.4.4</Version>
+    <ApplicationIcon>..\..\assets\setup-icon.ico</ApplicationIcon>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AgentEyes.Setup.Engine\AgentEyes.Setup.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

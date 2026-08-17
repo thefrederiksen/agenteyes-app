@@ -1,0 +1,120 @@
+# Installer - architecture and status
+
+Status: v0.2.0 BUILT AND VERIFIED LOCALLY (cc-director-style setup system; Inno retired).
+Signing spec lives in docs/signing.md (issue #2) - still blocked on the CenCon Azure account.
+
+## Architecture (cc-director's model, adopted at v0.2.0)
+
+No installer framework. Three pieces share one brain, exactly like cc-director
+(D:\ReposFred\cc-director, tools/cc-director-setup*):
+
+| Piece | What it is | Where |
+|---|---|---|
+| Setup engine | manifest parse, plan, download, SHA-256 verify, stage, atomic swap with `.old` backup, installed-version bookkeeping, finalize (PATH/native-extraction dir/shortcuts/Run key/ARP), uninstall, Inno takeover | tools/AgentEyes.Setup.Engine |
+| Setup wizard (WPF) | what users download: `AgentEyes-Setup-win-x64.exe`. Welcome -> Options -> Install -> Complete; detects install vs update; force-install/repair semantics | tools/AgentEyes.Setup |
+| Setup CLI | headless `agenteyes-setup.exe`: components / status / plan / install / update / uninstall; installed to app\ so the Add/Remove Programs Uninstall button works | tools/AgentEyes.Setup.Cli |
+
+The tray app references the engine too: tray -> "Check for updates..." plans against
+the latest GitHub release, confirms with the user, swaps with `.old` backups, offers a
+restart (src/AgentEyes.App/UpdateChecker.cs). On-demand only - the product phones
+home for nothing, so update checks must be user-visible.
+
+### Components and assets
+
+Per-asset versioning is the point: an app release never re-ships the ~150 MB ffmpeg zip.
+
+| Component id | Asset | Installs to |
+|---|---|---|
+| app | AgentEyesApp-win-x64.exe | app\AgentEyesApp.exe |
+| cli | agenteyes-win-x64.exe | app\agenteyes.exe |
+| setup-cli | agenteyes-setup-cli-win-x64.exe | app\agenteyes-setup.exe |
+| ffmpeg | agenteyes-ffmpeg-win-x64.zip (versioned by ffmpeg, e.g. 8.0.1) | app\ffmpeg.exe + ffprobe.exe |
+
+All exes are self-contained single-file (compressed; zero prerequisites on the target).
+Layout is per-user, no admin: `%LOCALAPPDATA%\AgentEyes\app` plus
+`config\setup\installed.json` (versions actually placed), `bundle\` (native extraction
+cache, below) and `logs\`. User data in the root (config.json, presets) is NEVER touched
+by install/uninstall.
+
+### Native extraction dir - never %TEMP% (issue #120)
+
+Single-file publish uses `IncludeNativeLibrariesForSelfExtract`, so the .NET host unpacks
+the native DLLs (`wpfgfx_cor3.dll`, `PresentationNative_cor3.dll`, `D3DCompiler_47_cor3.dll`,
+`PenImc_cor3.dll`, `vcruntime140_cor3.dll`) on first launch. The host default is
+`%TEMP%\.net\<AppName>\<hash>\` - exactly what Storage Sense and Disk Cleanup empty. A cleaner
+deletes every one of those files that no running process holds open, and the host does NOT
+re-extract them on the next launch: the app is then permanently broken with
+`DllNotFoundException wpfgfx_cor3.dll` -> `XamlParseException`, until the extraction dir is
+deleted by hand.
+
+Finalization therefore sets the per-user variable
+`DOTNET_BUNDLE_EXTRACT_BASE_DIR=%LOCALAPPDATA%\AgentEyes\bundle` (same
+`SetEnvironmentVariable(User)` mechanism as the PATH entry, so `WM_SETTINGCHANGE` reaches
+Explorer and the shortcut/Run-key launches inherit it) and creates that directory. Uninstall
+clears the variable - only while it still points at this install - and deletes `bundle\`.
+The setup CLI drops the variable from the environment of the temp copy it relaunches for
+uninstall, so nothing inside `bundle\` is locked while it is being removed. A terminal opened
+before the install still needs reopening, the same caveat the PATH entry already carries.
+
+### Release shape
+
+`release-manifest.json` is cc-director's schema (top-level version/tag/date + per-asset
+version/size/sha256/platform), so tooling can be shared. `scripts/build-release.ps1`
+builds every asset + the manifest into `dist\release\`, which is a valid OFFLINE release:
+`agenteyes-setup install --release-dir dist\release` does a full install with no network.
+
+`.github/workflows/release.yml`: tag push `v*` -> tests -> build all assets (ffmpeg
+essentials build downloaded on the runner) -> completeness check (no silent drops) ->
+offline-install smoke test -> GitHub Release with the manifest. Cut a release with
+`scripts/new-release.ps1 <x.y.z>` (bumps all four csprojs, commits, tags), then push.
+
+### Inno v0.1 takeover
+
+The v0.1 Inno install lived in the same app dir as a ~280-file publish. Install (wizard
+or CLI) detects `unins000.exe`, deletes the Inno ARP key (`{7C2F4D7A-...}_is1`) and wipes
+app\ before placing the new single-file layout (app must be closed; fails loudly if not).
+The in-app updater refuses to update an Inno-era install and points at the wizard instead.
+Verified on this machine 2026-06-04: 279 files -> 5, registry clean, user data intact.
+
+### Icons
+
+The setup wizard/CLI use their OWN icon - `assets/setup-icon.ico` (green install arrow
+into a tray, same indigo tile family), generated by `scripts/make-setup-icon.ps1`. The
+app keeps `assets/icon.ico` (moon). Setup must never reuse the app icon.
+
+## Verified (2026-06-04, local)
+
+- Engine unit tests incl. offline end-to-end install/selective-update (tests/AgentEyes.Tests/SetupEngineTests.cs); full suite 94/94.
+- CLI offline install into a temp root (`--root` + `--no-finalize`): all 4 components, versions recorded.
+- Selective update 0.2.0 -> fake 0.2.1: 3 exes swapped with `.old` backups, ffmpeg correctly skipped by version.
+- Uninstall: removes app\, setup state, PATH entry, shortcuts, Run key, ARP entry; preserves user data; self-relocates to %TEMP% when run from inside app\.
+- Real Inno takeover install on this machine; installed agenteyes (`screens`, `shot`) and the tray app (REST API up, v0.2.0) work cold.
+- Wizard launches, detects update mode, renders all steps.
+
+## Open items
+
+1. **First GitHub Release**: push a `v0.2.0` tag once committed - until then "latest"
+   fetches 404 (wizard update check + in-app updater have nothing to talk to).
+2. **Signing (Phase 1 of the old plan, unchanged)**: Azure Artifact Signing under CenCon
+   (docs/signing.md), blocked on the Azure billing issue. When unblocked, a sign step
+   slots into build-release.ps1/release.yml after publish.
+3. **Rollback + pins**: engine's InstallSwapper.Rollback exists and is tested; the CLI
+   `rollback` command + pin store (cc-director's update-pins.json) are deliberately
+   deferred until auto-update exists.
+4. **winget** (needs signing + stable release URL).
+
+## Decisions log
+
+- v0.1 shipped on Inno Setup (2026-06-04, morning); replaced the same day by the full
+  cc-director model on Soren's direction - wizard + CLI + shared engine from the start,
+  not the earlier "Inno now, engine later" phasing. Inno files deleted (installer/,
+  scripts/build-installer.ps1).
+- Self-contained single-file with compression (vs cc-director's framework-dependent +
+  runtime auto-install): zero-prerequisite installs; sizes ~70-80 MB per exe.
+- ffmpeg ships as its own versioned component so app updates never re-download it;
+  bundled-beats-PATH order in FfmpegLocator unchanged.
+- Add/Remove Programs entry (HKCU) registered by the engine with UninstallString ->
+  installed agenteyes-setup.exe - replaces what Inno provided; cc-director doesn't do this,
+  kept as a deliberate improvement.
+- First cut of the in-app updater is on-demand only (tray menu), no background checks -
+  privacy posture.

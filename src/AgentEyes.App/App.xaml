@@ -1,0 +1,567 @@
+<Application x:Class="AgentEyes.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <!-- Palette (matches the AgentEyes docs: navy + gold) -->
+        <SolidColorBrush x:Key="Primary" Color="#1A365D"/>
+        <SolidColorBrush x:Key="PrimaryLight" Color="#2A4A7F"/>
+        <SolidColorBrush x:Key="Accent" Color="#D69E2E"/>
+        <SolidColorBrush x:Key="Panel" Color="#F7FAFC"/>
+        <SolidColorBrush x:Key="Border" Color="#CBD5E0"/>
+        <SolidColorBrush x:Key="Text" Color="#2D3748"/>
+        <SolidColorBrush x:Key="Muted" Color="#4A5568"/>
+        <SolidColorBrush x:Key="RecRed" Color="#C53030"/>
+
+        <Style x:Key="Section" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="0,14,0,4"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="RecordButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource RecRed}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MiniButton" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource Primary}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Margin" Value="3,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+
+        <!-- ================================================================
+             Dark theme for the main launcher window (same palette as the
+             setup wizard, so the product has ONE look). The Dk* keys are
+             additive: the older dialogs (PresetEditor, TestPanel, Settings)
+             still use the light keys above until they are restyled too.
+             ================================================================ -->
+        <!-- Issue #18: the Dk* keys now carry the redesign tokens so every window
+             rethemes at once. One accent (#4CC2FF); red only for record state. -->
+        <SolidColorBrush x:Key="DkBg" Color="#1C1E22"/>
+        <SolidColorBrush x:Key="DkBar" Color="#24262B"/>
+        <SolidColorBrush x:Key="DkCard" Color="#24262B"/>
+        <SolidColorBrush x:Key="DkBorder" Color="#33363D"/>
+        <SolidColorBrush x:Key="DkText" Color="#ECEEF1"/>
+        <SolidColorBrush x:Key="DkDim" Color="#9AA0AA"/>
+        <SolidColorBrush x:Key="DkMuted" Color="#6B7178"/>
+        <SolidColorBrush x:Key="DkAccent" Color="#4CC2FF"/>
+        <SolidColorBrush x:Key="DkGreen" Color="#22C55E"/>
+        <SolidColorBrush x:Key="DkRed" Color="#E5484D"/>
+
+        <!-- ================================================================
+             Redesign palette (issue #16, docs/design/redesign-mockup.html).
+             Neutral dark gray base, ONE accent (ice blue), red reserved
+             EXCLUSIVELY for the live-record state. Views adopt these as they
+             are rebuilt; the Dk* keys above retire when nothing uses them.
+             ================================================================ -->
+        <SolidColorBrush x:Key="RdWindow" Color="#1C1E22"/>
+        <SolidColorBrush x:Key="RdSurface" Color="#24262B"/>
+        <SolidColorBrush x:Key="RdStroke" Color="#33363D"/>
+        <SolidColorBrush x:Key="RdText" Color="#ECEEF1"/>
+        <SolidColorBrush x:Key="RdDim" Color="#9AA0AA"/>
+        <SolidColorBrush x:Key="RdMuted" Color="#6B7178"/>
+        <SolidColorBrush x:Key="RdAccent" Color="#4CC2FF"/>
+        <SolidColorBrush x:Key="RdRecord" Color="#E5484D"/>
+
+        <Style x:Key="DkSection" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource DkDim}"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+
+        <!-- Small dark button (the wizard's default button look) -->
+        <Style x:Key="DkMini" TargetType="Button">
+            <Setter Property="Background" Value="#33363D"/>
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#3D4148"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Square icon button (preview/play buttons on recent rows, player controls).
+             Content is a small vector Path - no icon image assets, no unicode glyphs. -->
+        <Style x:Key="DkIcon" TargetType="Button" BasedOn="{StaticResource DkMini}">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="24"/>
+        </Style>
+
+        <!-- Quiet text link (Edit preset / Show area / status-bar actions) -->
+        <Style x:Key="DkLink" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource DkAccent}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <TextBlock x:Name="T" Text="{TemplateBinding Content}"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   FontSize="{TemplateBinding FontSize}"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="T" Property="TextDecorations" Value="Underline"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The big record button -->
+        <Style x:Key="DkRecord" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource DkRed}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Height" Value="56"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The hero record button (issue #21): large tactile circle, red reserved
+             for record. Content text doubles as the UIA name (REC / STOP / CAPTURE)
+             so the GUI smoke test drives it unchanged. -->
+        <Style x:Key="DkRecordHero" TargetType="Button">
+            <Setter Property="Width" Value="132"/>
+            <Setter Property="Height" Value="132"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="21"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Ellipse x:Name="Disc">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush GradientOrigin="0.5,0.35">
+                                        <GradientStop Color="#F2585E" Offset="0"/>
+                                        <GradientStop Color="#E5484D" Offset="0.7"/>
+                                        <GradientStop Color="#C73A3F" Offset="1"/>
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                                <Ellipse.Effect>
+                                    <DropShadowEffect Color="#E5484D" BlurRadius="34" ShadowDepth="0" Opacity="0.35"/>
+                                </Ellipse.Effect>
+                            </Ellipse>
+                            <Ellipse Stroke="#33FFFFFF" StrokeThickness="1" Margin="7"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.045" ScaleY="1.045"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark ComboBox (the default chrome is unusably light on a dark panel) -->
+        <Style x:Key="DkComboItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#33363D"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DkCombo" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource DkComboItem}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="#24262B" BorderBrush="#33363D"
+                                                BorderThickness="1" CornerRadius="4">
+                                            <Path HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                  Margin="0,0,12,0" Data="M 0 0 L 4 4 L 8 0 Z" Fill="#9AA0AA"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Margin="12,0,30,0" VerticalAlignment="Center"
+                                              IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+                            <!-- PART_Popup is a named template part the ComboBox control wires its
+                                 open/close + item-click handling to. Without the name, clicking an
+                                 item does NOT commit the selection (field-tested the hard way). -->
+                            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
+                                   AllowsTransparency="True" StaysOpen="False">
+                                <Border Background="#24262B" BorderBrush="#33363D" BorderThickness="1"
+                                        CornerRadius="4" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="320"
+                                        Margin="0,2,0,0">
+                                    <ScrollViewer>
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary (accent) button for dialog OK/Save -->
+        <Style x:Key="DkPrimary" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource DkAccent}"/>
+            <!-- Dark text: white on the ice-blue accent has too little contrast -->
+            <Setter Property="Foreground" Value="#10222E"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="18,5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#2EA7E0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Dark text input -->
+        <Style x:Key="DkTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#24262B"/>
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="BorderBrush" Value="#33363D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#ECEEF1"/>
+            <Setter Property="SelectionBrush" Value="#264F78"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Dark password input (mirrors DkTextBox; retained for dialogs that need masked secrets) -->
+        <Style x:Key="DkPassword" TargetType="PasswordBox">
+            <Setter Property="Background" Value="#24262B"/>
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="BorderBrush" Value="#33363D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#ECEEF1"/>
+            <Setter Property="SelectionBrush" Value="#264F78"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Dark check/radio (text part; the glyph keeps system chrome, fine on dark) -->
+        <Style x:Key="DkCheck" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="DkRadio" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Dark tabs (settings dialog): flat strip with an accent underline on the active tab -->
+        <Style x:Key="DkTabItem" TargetType="TabItem">
+            <Setter Property="Foreground" Value="{StaticResource DkDim}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd" Background="Transparent" BorderThickness="0,0,0,2"
+                                BorderBrush="Transparent" Padding="14,7">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"
+                                              TextBlock.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource DkAccent}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DkTab" TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" BorderThickness="0,0,0,1" BorderBrush="{StaticResource DkBorder}">
+                                <TabPanel IsItemsHost="True" Background="Transparent"/>
+                            </Border>
+                            <!-- PART_SelectedContentHost: the name TabItemAutomationPeer looks for.
+                                 Without it, tab CONTENT is invisible to UI Automation (and to the
+                                 GUI smoke tests) - found the hard way. -->
+                            <ContentPresenter Grid.Row="1" x:Name="PART_SelectedContentHost"
+                                              ContentSource="SelectedContent" Margin="0,14,0,0"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Selectable list rows (the OBS-style preset list): clear selected state -->
+        <Style x:Key="DkSelectItem" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource DkText}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="12,8" CornerRadius="4" Margin="2,1">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2E3137"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2C4555"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================================================================
+             Shell rail (issue #18): 64px icon rail items. RadioButton-based
+             so checked = active view. Icon Paths inside bind their Fill to
+             the item Foreground, so hover/active recolor the glyph too.
+             ================================================================ -->
+        <Style x:Key="RailItem" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+            <Setter Property="Height" Value="58"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Background="Transparent">
+                            <Rectangle x:Name="Ind" Width="3" RadiusX="1.5" RadiusY="1.5" Margin="0,14"
+                                       HorizontalAlignment="Left" Fill="Transparent"/>
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ContentPresenter HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontSize="10" Margin="0,3,0,0"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{TemplateBinding Foreground}"/>
+                            </StackPanel>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource RdAccent}"/>
+                                <Setter TargetName="Ind" Property="Fill" Value="{StaticResource RdAccent}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The Record rail item: active state tints record-red, not accent -->
+        <Style x:Key="RailItemRecord" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+            <Setter Property="Height" Value="58"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Background="Transparent">
+                            <Rectangle x:Name="Ind" Width="3" RadiusX="1.5" RadiusY="1.5" Margin="0,14"
+                                       HorizontalAlignment="Left" Fill="Transparent"/>
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ContentPresenter HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontSize="10" Margin="0,3,0,0"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{TemplateBinding Foreground}"/>
+                            </StackPanel>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource RdRecord}"/>
+                                <Setter TargetName="Ind" Property="Fill" Value="{StaticResource RdRecord}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Rail bottom actions (Settings / Help): same look, plain buttons -->
+        <Style x:Key="RailAction" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+            <Setter Property="Height" Value="54"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ContentPresenter HorizontalAlignment="Center"/>
+                                <TextBlock Text="{TemplateBinding Tag}" FontSize="10" Margin="0,3,0,0"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{TemplateBinding Foreground}"/>
+                            </StackPanel>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Recent rows: full-width, soft hover, dark selection chrome (multi-select delete, issue #11) -->
+        <Style x:Key="DkRecentItem" TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="10,6" CornerRadius="4">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#24262B"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2C4555"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Application.Resources>
+</Application>

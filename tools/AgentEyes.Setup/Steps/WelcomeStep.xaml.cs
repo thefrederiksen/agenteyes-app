@@ -1,0 +1,54 @@
+using System.Windows;
+using System.Windows.Controls;
+using AgentEyesSetup.Services;
+
+namespace AgentEyesSetup.Steps;
+
+public partial class WelcomeStep : UserControl
+{
+    public WelcomeStep(bool isUpdate, string? installedVersion)
+    {
+        InitializeComponent();
+
+        if (isUpdate)
+        {
+            TitleText.Text = "Update AgentEyes";
+            DescriptionText.Text = "Checking for updates...";
+
+            if (installedVersion != null)
+            {
+                var displayVersion = installedVersion.Split('+')[0];
+                VersionInfoText.Text = $"Currently installed: v{displayVersion}";
+                VersionInfoText.Visibility = Visibility.Visible;
+            }
+        }
+
+        SetupLog.Write($"[WelcomeStep] Created: isUpdate={isUpdate}");
+    }
+
+    public void UpdateVersionInfo(string? installedVersion, string? latestVersion)
+    {
+        SetupLog.Write($"[WelcomeStep] UpdateVersionInfo: installed={installedVersion}, latest={latestVersion}");
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (installedVersion == null || latestVersion == null)
+                return;
+
+            var installedClean = installedVersion.Split('+')[0].TrimStart('v');
+            var latestClean = latestVersion.TrimStart('v');
+
+            if (installedClean == latestClean)
+            {
+                DescriptionText.Text = "No upgrade available. You can reinstall as a repair.";
+                VersionInfoText.Text = $"Installed: v{installedClean} (latest)";
+            }
+            else
+            {
+                DescriptionText.Text = $"Upgrade available: v{installedClean} -> v{latestClean}";
+                VersionInfoText.Text = $"Currently installed: v{installedClean}";
+            }
+            VersionInfoText.Visibility = Visibility.Visible;
+        });
+    }
+}

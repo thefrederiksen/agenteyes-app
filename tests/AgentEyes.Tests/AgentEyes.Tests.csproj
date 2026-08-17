@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <Platforms>x64</Platforms>
+    <RootNamespace>AgentEyes.Tests</RootNamespace>
+    <AssemblyName>AgentEyes.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- StopPathTests (issue #151) reads the App/Core SOURCE to prove that no caller bypasses the
+         one shared stop operation: a call site is a source fact, not a runtime one, so the repo root
+         is stamped in at build time rather than guessed from the working directory at run time. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>RepoRoot</_Parameter1>
+      <_Parameter2>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj" />
+    <ProjectReference Include="..\..\tools\AgentEyes.Setup.Engine\AgentEyes.Setup.Engine.csproj" />
+    <!-- AgentEyes.App is referenced ONLY so MSBuild builds it first and drops AgentEyesApp.dll next
+         to the tests. The WPF app is never loaded or started - ManifestWriterIlTests reads its IL as
+         bytes (issue #155, criterion 4), and the reference is what makes that a FRESH binary instead
+         of whatever is left in some bin directory. -->
+    <ProjectReference Include="..\..\src\AgentEyes.App\AgentEyes.App.csproj" />
+  </ItemGroup>
+
+</Project>

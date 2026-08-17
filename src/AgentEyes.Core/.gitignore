@@ -1,0 +1,7 @@
+# Build output
+bin/
+obj/
+
+# Recordings are local evidence/demos, never committed
+/recordings/
+recordings/

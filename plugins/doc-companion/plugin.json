@@ -1,0 +1,15 @@
+{
+  "id": "doc-companion",
+  "name": "Doc Companion",
+  "description": "Turns a recorded walkthrough into step-by-step documentation, illustrated with the screenshots captured during the recording.",
+  "version": "1.0.0",
+  "command": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".\\run.ps1", "{dir}"],
+  "settings": [
+    { "key": "docTitle", "label": "Document title", "type": "text",
+      "default": "How-to guide", "description": "Heading for the generated documentation." },
+    { "key": "audience", "label": "Written for", "type": "text",
+      "default": "end users", "description": "Who the guide is written for, e.g. 'end users', 'new engineers'." },
+    { "key": "includeScreenshots", "label": "Embed screenshots", "type": "bool",
+      "default": "true", "description": "Place the nearest captured screenshot under each step." }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "DisplayName": "A recording the user renamed",
+  "Title": "An example recording title",
+  "Description": "One line describing what the example recording is about.",
+  "AiCost": {
+    "Model": "example-org/example-model",
+    "PromptTokens": 166,
+    "CompletionTokens": 651,
+    "CostUsd": 0,
+    "IsEstimate": false,
+    "Basis": "DevThrottle usage (817 tokens)"
+  },
+  "CreatedUtc": "2026-08-12T00:39:13.8359807Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY2",
+  "Microphone": "Microphone (Example Audio Device) + (system)",
+  "DurationSeconds": 21.77,
+  "VideoFile": "recording.mp4",
+  "Transcript": "transcript.json",
+  "Walkthrough": "walkthrough.html",
+  "FfmpegCommand": "\"ffmpeg.exe\" -y -f gdigrab -framerate 30 -i desktop -c:v libx264 C:\\Recordings\\example\\raw.mp4",
+  "Transcripts": {
+    "en": "transcript.en.vtt",
+    "tr": "transcript.tr.vtt"
+  },
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 2,
+  "LastTitleAttemptUtc": "2026-08-11T15:11:33.2673728Z",
+  "ThumbAttempts": 1,
+  "Shots": [
+    {
+      "OffsetSeconds": 0,
+      "File": "shots/frame_001.png"
+    },
+    {
+      "OffsetSeconds": 5,
+      "File": "shots/frame_002.png"
+    },
+    {
+      "OffsetSeconds": 10,
+      "File": "shots/frame_003.png"
+    }
+  ],
+  "Files": [
+    "recording.mp4",
+    "recording.original.mp4",
+    "system.original.wav",
+    "transcript.tr.vtt"
+  ],
+  "OriginalFiles": [
+    "recording.original.mp4",
+    "system.original.wav"
+  ],
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-08-12T00:39:40.1234567Z"
+    },
+    "thumbnail": {
+      "State": "failed",
+      "Attempts": 3,
+      "LastAttemptUtc": "2026-08-12T00:39:44.1234567Z",
+      "Error": "ffmpeg exited with code 1"
+    },
+    "package": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-08-12T00:40:10.1234567Z"
+    },
+    "plugins": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-08-12T00:40:11.1234567Z"
+    }
+  }
+}

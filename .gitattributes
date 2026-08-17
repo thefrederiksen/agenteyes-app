@@ -1,0 +1,3 @@
+# RNNoise model weights: byte-for-byte as downloaded, no line-ending conversion
+# (the embedded-resource size check in RnnoiseModel.cs depends on a stable file).
+assets/models/*.rnnn -text

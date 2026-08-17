@@ -1,0 +1,22 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Label": "video",
+  "CreatedUtc": "2026-07-07T14:05:40.1234567Z",
+  "MonitorIndex": 2,
+  "MonitorName": "DISPLAY2",
+  "Microphone": "Microphone (Example Audio Device)",
+  "DurationSeconds": 184.62,
+  "VideoFile": "recording.mp4",
+  "Transcript": "transcript.json",
+  "Walkthrough": "walkthrough.html",
+  "Region": [10, 20, 1280, 720],
+  "Shots": [
+    { "OffsetSeconds": 0, "File": "shots/frame_001.png" },
+    { "OffsetSeconds": 5, "File": "shots/frame_002.png" }
+  ],
+  "Files": [
+    "recording.mp4"
+  ],
+  "OriginalFiles": []
+}

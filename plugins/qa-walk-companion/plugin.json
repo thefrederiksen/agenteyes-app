@@ -1,0 +1,15 @@
+{
+  "id": "qa-walk-companion",
+  "name": "QA Walk Companion",
+  "description": "Turns a QA walkthrough recording into a QA report listing the bugs the tester reported, read from the spoken transcript.",
+  "version": "1.0.0",
+  "command": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".\\run.ps1", "{dir}"],
+  "settings": [
+    { "key": "reportTitle", "label": "Report title", "type": "text",
+      "default": "QA walkthrough", "description": "Heading shown at the top of the generated report." },
+    { "key": "includeTranscript", "label": "Append the full transcript", "type": "bool",
+      "default": "true", "description": "Add the timestamped transcript below the bug list." },
+    { "key": "model", "label": "Model override (optional)", "type": "text",
+      "default": "", "description": "DevThrottle model id to use. Leave blank to use the app's default plugin model." }
+  ]
+}

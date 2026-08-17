@@ -1,0 +1,29 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Label": "video",
+  "CreatedUtc": "2027-01-02T03:04:05.6789012Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY2",
+  "DurationSeconds": 42.5,
+  "VideoFile": "recording.mp4",
+  "Transcript": "transcript.json",
+  "Transcripts": {
+    "en": "transcript.en.vtt"
+  },
+  "Shots": [],
+  "Files": [
+    "recording.mp4"
+  ],
+  "OriginalFiles": [],
+  "RetentionPolicy": "keep-30-days",
+  "SummaryModelVersion": 4,
+  "Chapters": [
+    { "OffsetSeconds": 0, "Heading": "Opening" },
+    { "OffsetSeconds": 30.5, "Heading": "The demo" }
+  ],
+  "Redaction": {
+    "State": "done",
+    "Regions": 3
+  }
+}

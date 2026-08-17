@@ -1,0 +1,48 @@
+<UserControl x:Class="AgentEyesSetup.Steps.WelcomeStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <Image Source="pack://application:,,,/product.png"
+               Width="96"
+               Height="96"
+               HorizontalAlignment="Center"
+               Margin="0,8,0,16"
+               RenderOptions.BitmapScalingMode="HighQuality" />
+
+        <TextBlock x:Name="TitleText"
+                   Text="Welcome to AgentEyes"
+                   Foreground="White"
+                   FontSize="24"
+                   FontWeight="SemiBold"
+                   HorizontalAlignment="Center" />
+
+        <TextBlock Text="Quiet screen recording for Windows"
+                   Foreground="{StaticResource AccentBrush}"
+                   FontSize="14"
+                   FontWeight="SemiBold"
+                   HorizontalAlignment="Center"
+                   Margin="0,6,0,0" />
+
+        <TextBlock x:Name="DescriptionText"
+                   Text="AgentEyes records your screen and microphone and captures screenshots. Installs per-user with no administrator rights; ffmpeg is bundled, so a fresh machine needs nothing preinstalled."
+                   Foreground="{StaticResource TextForeground}"
+                   FontSize="13"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   Margin="40,20,40,0"
+                   LineHeight="20" />
+
+        <TextBlock x:Name="VersionInfoText"
+                   Foreground="{StaticResource DimText}"
+                   FontSize="12"
+                   HorizontalAlignment="Center"
+                   Margin="0,16,0,0"
+                   Visibility="Collapsed" />
+
+        <TextBlock Text="Click Next to continue."
+                   Foreground="{StaticResource DimText}"
+                   FontSize="12"
+                   HorizontalAlignment="Center"
+                   Margin="0,28,0,0" />
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,809 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using AgentEyes.Audio;
+using AgentEyes.Video;
+using Drawing = System.Drawing;
+
+namespace AgentEyes
+{
+    internal enum AudioSourceKind { None, Mic, System, Mixed }
+
+    internal sealed class RecordStatus
+    {
+        public string State { get; set; } = "idle";   // idle | recording | finalizing
+        public string? Mode { get; set; }              // audio | video
+        public string? Source { get; set; }            // mic | system | mixed | none
+        public double ElapsedSeconds { get; set; }
+        public double Level { get; set; }              // 0..1 (peak)
+        public string? Dir { get; set; }
+
+        // DevThrottle account state (issue #129). Carried on /status so the sign-in indicator is
+        // verifiable without a screenshot - recording works signed out, but the AI stages do not.
+        public bool SignedIn { get; set; }
+        public string? AccountEmail { get; set; }
+
+        // Recordings still awaiting automatic transcription (issue #132). 0 means the library is
+        // fully transcribed; a non-zero value that never falls is a backfill that cannot proceed.
+        public int PendingTranscriptions { get; set; }
+
+        // The last stop that FAILED (issue #153). The service returns to idle after a failed stop so
+        // the user can record again, but it must not present that as a CLEAN idle: these three carry
+        // the failure until the next recording starts. LastStopFailed=false is the normal state.
+        public bool LastStopFailed { get; set; }
+
+        // Every failure from that stop on one line ("audio stop: ...; manifest save: ..."), not just
+        // the first one.
+        public string? LastStopError { get; set; }
+
+        // The directory of the recording whose stop failed - what to look at to recover it.
+        public string? LastStopDir { get; set; }
+    }
+
+    internal sealed class RecordResult
+    {
+        public string Dir { get; set; } = "";
+        public string? File { get; set; }
+        public double DurationSeconds { get; set; }
+        public int Shots { get; set; }
+    }
+
+    /// <summary>
+    /// The single owner of a capture session. Drives the engine (screenshot, audio, video, mux) and
+    /// holds session state. Used by the GUI, the tray, and the REST API so there is one implementation.
+    /// One active recording at a time; thread-safe start/stop.
+    /// </summary>
+    internal sealed class RecordingService
+    {
+        private readonly object _lock = new();
+        private volatile string _state = "idle";
+
+        private string? _dir;
+        private Manifest? _manifest;
+        private string _mode = "";
+        private AudioSourceKind _src;
+        private AudioMixOptions _opts = new();
+        private MonitorInfo? _monitor;
+        private Drawing.Rectangle _captureRect;
+
+        private AudioCapture? _audio;
+        private LoopbackCapture? _loop;
+        private FfmpegRecorder? _video;
+        private string? _micWav, _sysWav, _rawVideo;
+
+        /// <summary>
+        /// This session's OWN capture claim on <see cref="_dir"/> (issue #154, round 3) - the only
+        /// thing that can release it.
+        ///
+        /// The stop used to release by directory name, which removes whichever claim is on the
+        /// directory rather than this session's. That is harmless while the claim was granted and
+        /// destructive when it was not: a start that had been refused (a directory-name collision)
+        /// still ran that release and tore down the claim of the pipeline that refused it. A capture
+        /// that does not own its directory no longer starts at all, and a session that never claimed
+        /// carries a ticket that releases nothing.
+        /// </summary>
+        private RecordingClaimTicket _captureClaim;
+
+        private readonly Stopwatch _sw = new();
+        private volatile float _peakMic, _peakSys;
+        private volatile RecordingStopReport? _lastStopFailure;
+
+        public bool IsRecording => _state == "recording";
+
+        /// <summary>
+        /// The report from the most recent stop that FAILED (issue #153), or null when the last stop
+        /// was clean and when a new recording has started.
+        ///
+        /// A failed stop leaves the service idle - refusing to record again would punish the user for
+        /// a writer that misbehaved - but "idle" on its own used to be indistinguishable from a
+        /// healthy one, which is how a lost recording looked exactly like a recording that was never
+        /// made. This is that distinction, and it is on <c>/status</c> as well
+        /// (<see cref="RecordStatus.LastStopFailed"/>).
+        /// </summary>
+        public RecordingStopReport? LastStopFailure => _lastStopFailure;
+
+        /// <summary>
+        /// Raised (issue #107) after a recording session has fully stopped and state is back to
+        /// "idle", so the app can act on an AutoUpdate restart that was deferred while the session
+        /// was in progress. Raised on the thread that called <see cref="Stop"/>, AFTER the state
+        /// lock is released, so a subscriber may safely marshal to the UI thread and shut down.
+        /// </summary>
+        public event Action? RecordingStopped;
+
+        public float Level => Math.Max(_peakMic, _peakSys);
+        public float MicLevel => _peakMic;
+        public float SystemLevel => _peakSys;
+        public TimeSpan Elapsed => _sw.Elapsed;
+
+        public RecordStatus Status()
+        {
+            var failure = _lastStopFailure;
+            return new RecordStatus
+            {
+                State = _state,
+                Mode = _state == "idle" ? null : _mode,
+                Source = _state == "idle" ? null : _src.ToString().ToLowerInvariant(),
+                ElapsedSeconds = Math.Round(_sw.Elapsed.TotalSeconds, 2),
+                Level = Math.Round(Math.Max(_peakMic, _peakSys), 3),
+                Dir = _dir,
+                SignedIn = DevThrottle.AccountState.IsSignedIn,
+                AccountEmail = DevThrottle.AccountState.Email,
+                PendingTranscriptions = TranscriptionBacklog.FindPending(RecordingPaths.Root).Count,
+                LastStopFailed = failure != null,
+                LastStopError = failure?.Summary(),
+                LastStopDir = failure?.Dir,
+            };
+        }
+
+        // ---- one-shot screenshot (no session) -----------------------------
+
+        public string Screenshot(int screen, int[]? region)
+        {
+            var mon = Monitors.Require(screen);
+            string dir = RecordingPaths.NewDir("shot", "shot");
+            var manifest = NewManifest("shot", mon);
+            string file;
+            if (region is { Length: 4 })
+            {
+                var rect = new Drawing.Rectangle(region[0], region[1], region[2], region[3]);
+                file = Path.Combine(dir, "shots", $"region_{rect.Width}x{rect.Height}.png");
+                AgentEyes.Screenshot.CaptureRect(rect, file, copyToClipboard: true);
+                manifest.Region = region;
+            }
+            else
+            {
+                file = Path.Combine(dir, "shots", $"monitor{mon.Index}_full.png");
+                AgentEyes.Screenshot.CaptureMonitor(mon, file, copyToClipboard: true);
+            }
+            manifest.Files.Add(Path.GetFileName(file));
+            ManifestStore.Replace(dir, manifest);   // a directory this call just created (issue #155)
+            Log.Info($"screenshot -> {file}");
+            return file;
+        }
+
+        // ---- start audio (Mode A) -----------------------------------------
+
+        public void StartAudio(int screen, AudioSourceKind src, string? micFragment, AudioMixOptions opts)
+        {
+            lock (_lock)
+            {
+                if (_state != "idle") throw new UsageException("already recording");
+                var mon = Monitors.Require(screen);
+                if (src is not (AudioSourceKind.Mic or AudioSourceKind.System or AudioSourceKind.Mixed))
+                    throw new UsageException("audio requires source mic, system, or mixed");
+
+                // Resolve the microphone before touching disk - a bad device name (e.g. a preset
+                // saved over RDP referencing "Remote Audio") must fail cleanly, not leave an
+                // empty recording folder behind.
+                int mic = -1;
+                if (src is AudioSourceKind.Mic or AudioSourceKind.Mixed)
+                    mic = AudioCapture.ResolveDevice(Require(micFragment, "mic"));
+
+                Reset(mon, "audio", src, opts);
+                _dir = RecordingPaths.NewDir("audio", "audio");
+                _manifest = NewManifest("audio", mon);
+                _manifest.AudioFile = "audio.wav";
+
+                // Everything the recording's FIRST manifest needs is known before a single byte is
+                // captured (issue #155): which raw files this session will write, what the microphone
+                // is called, and whether the mux is deferred. Deciding it here - rather than at stop -
+                // is what lets the record reach disk before the media does.
+                if (src is AudioSourceKind.Mixed) _micWav = Path.Combine(_dir, "mic.wav");
+                if (src is AudioSourceKind.System or AudioSourceKind.Mixed) _sysWav = Path.Combine(_dir, "sys_native.wav");
+                _manifest.Microphone = src switch
+                {
+                    AudioSourceKind.Mic => AudioCapture.Devices()[mic].Name,
+                    AudioSourceKind.System => "(system loopback)",
+                    _ => $"{AudioCapture.Devices()[mic].Name} + (system)",
+                };
+                _manifest.PendingMux = BuildPendingMux(
+                    "audio", src, _micWav, _sysWav, rawVideo: null,
+                    finalFile: Path.Combine(_dir, "audio.wav"), rawDurationSeconds: 0, opts);
+
+                // Issue #155: the publish AND every writer start run inside ONE failure boundary
+                // (RecordingStartSequence). Mixed audio starts two writers, and the microphone is
+                // already capturing by the time the loopback can fail - a rollback that did not stop
+                // it left the microphone recording while the service reported idle.
+                string dir = _dir;
+                var steps = new List<RecordingStartStep>();
+                switch (src)
+                {
+                    case AudioSourceKind.Mic:
+                        steps.Add(new RecordingStartStep("microphone", () =>
+                        {
+                            _audio = new AudioCapture(mic);
+                            _audio.LevelChanged += p => _peakMic = p;
+                            _audio.Start(Path.Combine(dir, "audio.wav"));
+                        }));
+                        break;
+                    case AudioSourceKind.System:
+                        steps.Add(new RecordingStartStep("system loopback", () =>
+                        {
+                            _loop = new LoopbackCapture();
+                            _loop.LevelChanged += p => _peakSys = p;
+                            _loop.Start(_sysWav!);
+                        }));
+                        break;
+                    default: // Mixed
+                        steps.Add(new RecordingStartStep("microphone", () =>
+                        {
+                            _audio = new AudioCapture(mic);
+                            _audio.LevelChanged += p => _peakMic = p;
+                            _audio.Start(_micWav!);
+                        }));
+                        steps.Add(new RecordingStartStep("system loopback", () =>
+                        {
+                            _loop = new LoopbackCapture();
+                            _loop.LevelChanged += p => _peakSys = p;
+                            _loop.Start(_sysWav!);
+                        }));
+                        break;
+                }
+
+                StartSession(steps);
+
+                _sw.Restart();
+                _state = "recording";
+                Log.Info($"start audio src={src} dir={_dir}");
+            }
+        }
+
+        // ---- start video (Mode B) -----------------------------------------
+
+        public void StartVideo(int screen, AudioSourceKind src, string? micFragment, int[]? region,
+            AudioMixOptions opts, int fps)
+        {
+            lock (_lock)
+            {
+                if (_state != "idle") throw new UsageException("already recording");
+                var mon = Monitors.Require(screen);
+                Reset(mon, "video", src, opts);
+                var capture = region is { Length: 4 }
+                    ? new Drawing.Rectangle(region[0], region[1], region[2], region[3])
+                    : mon.Bounds;
+                _captureRect = capture;
+
+                // Resolve the microphone before touching disk - a bad device name (e.g. a preset
+                // saved over RDP referencing "Remote Audio") must fail cleanly, not leave an
+                // empty recording folder behind.
+                string? dshowMic = null;
+                if (src is AudioSourceKind.Mic or AudioSourceKind.Mixed)
+                    dshowMic = DeviceResolver.ResolveName(FfmpegDevices.ListAudio(), Require(micFragment, "mic"));
+
+                _dir = RecordingPaths.NewDir("video", "video");
+                _manifest = NewManifest("video", mon);
+                _manifest.VideoFile = "recording.mp4";
+                _manifest.Region = region;
+
+                // Mixed/system capture the system loopback and mux after; a mic-only recording
+                // gets a post pass too (no loopback!) when any mic processing (suppression,
+                // gate, leveling, volume) is on, so clean-voice applies to plain narration.
+                bool needLoopback = src is AudioSourceKind.Mixed or AudioSourceKind.System;
+                bool postMux = needLoopback || (src == AudioSourceKind.Mic && opts.MicProcessing);
+                string finalPath = Path.Combine(_dir, "recording.mp4");
+                string ffOut = postMux ? Path.Combine(_dir, "raw.mp4") : finalPath;
+                if (postMux) _rawVideo = ffOut;
+
+                _manifest.Microphone = src switch
+                {
+                    AudioSourceKind.Mixed => $"{dshowMic} + (system)",
+                    AudioSourceKind.System => "(system)",
+                    AudioSourceKind.Mic => dshowMic,
+                    _ => null,
+                };
+
+                // The raw file names and the deferred-mux plan are known before ffmpeg writes a
+                // frame (issue #155), so the recording's FIRST manifest can carry them - see
+                // BuildPendingMux. The ffmpeg command line is not known until the process starts;
+                // it is recorded at stop, which is the only field of this session that is.
+                if (needLoopback) _sysWav = Path.Combine(_dir, "sys_native.wav");
+                _manifest.PendingMux = BuildPendingMux(
+                    "video", src, micWav: null, _sysWav, _rawVideo,
+                    finalFile: finalPath, rawDurationSeconds: 0, opts);
+
+                // Issue #155: the publish AND every writer start run inside ONE failure boundary
+                // (RecordingStartSequence). ffmpeg is already writing frames by the time the loopback
+                // can fail - a rollback that did not stop it left the screen being recorded while the
+                // service reported idle.
+                var steps = new List<RecordingStartStep>
+                {
+                    new RecordingStartStep("video", () =>
+                    {
+                        _video = FfmpegRecorder.Start(capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut);
+                        _manifest!.FfmpegCommand = _video.CommandLine;
+                    }),
+                };
+
+                // ffmpeg owns the mic stream in video mode, so nothing in-process sees the samples.
+                // Open a monitor-only WaveIn capture (shared mode, no file) purely to drive the level
+                // meter. The meter is auxiliary: if the WaveIn name does not resolve (dshow-only
+                // fragment), log it loudly and record without one - so this step never fails the
+                // start, and the recording it would have metered is not thrown away for it.
+                if (src is AudioSourceKind.Mic or AudioSourceKind.Mixed)
+                {
+                    steps.Add(new RecordingStartStep("mic level meter", () =>
+                    {
+                        try
+                        {
+                            _audio = new AudioCapture(AudioCapture.ResolveDevice(micFragment!));
+                            _audio.LevelChanged += p => _peakMic = p;
+                            _audio.StartMonitor();
+                        }
+                        catch (Exception ex)
+                        {
+                            // The meter is auxiliary, but a half-started capture still owns the
+                            // device. Dropping the reference without disposing it would hold the
+                            // microphone open for the life of the process - the same "writer nobody
+                            // shut down" defect this whole boundary exists for (issue #155) - and it
+                            // escapes LiveWriters precisely because the field is being cleared here.
+                            try { _audio?.Dispose(); }
+                            catch (Exception disposeFailed)
+                            {
+                                Log.Error("[RecordingService] StartVideo: disposing the failed mic level meter failed", disposeFailed);
+                            }
+                            _audio = null;
+                            Log.Warn($"mic level meter unavailable for this recording: {ex.Message}");
+                        }
+                    }));
+                }
+
+                if (needLoopback)
+                {
+                    steps.Add(new RecordingStartStep("system loopback", () =>
+                    {
+                        _loop = new LoopbackCapture();
+                        _loop.LevelChanged += p => _peakSys = p;
+                        _loop.Start(_sysWav!);
+                    }));
+                }
+
+                StartSession(steps);
+
+                _sw.Restart();
+                _state = "recording";
+                Log.Info($"start video src={src} dir={_dir}");
+            }
+        }
+
+        // ---- marker screenshot during a session ---------------------------
+
+        public string MarkerShot()
+        {
+            lock (_lock)
+            {
+                if (_state != "recording") throw new UsageException("not recording");
+                var off = _sw.Elapsed;
+                var rect = _mode == "video" ? _captureRect : _monitor!.Bounds;
+                string shot = Path.Combine(_dir!, "shots", Timecodes.FileName(off));
+                AgentEyes.Screenshot.CaptureRect(rect, shot, copyToClipboard: false);
+                _manifest!.Shots.Add(new Manifest.ShotEntry
+                {
+                    OffsetSeconds = Math.Round(off.TotalSeconds, 2),
+                    File = Path.Combine("shots", Path.GetFileName(shot)).Replace('\\', '/'),
+                });
+                return shot;
+            }
+        }
+
+        // ---- stop & finalize ----------------------------------------------
+
+        /// <summary>
+        /// Stop the capture. Issue #77: the synchronous part does ONLY what makes the capture
+        /// durable - stop ffmpeg + the WAV writers (which flushes the raw files to disk), record
+        /// the deferred mux as <see cref="Manifest.PendingMux"/>, and write the manifest. It does
+        /// NOT run the audio mux or any ffprobe duration probe (those scale with recording length);
+        /// those move to <see cref="FinalizePending"/> on the background packaging pass. Returns as
+        /// soon as the raw files + manifest are on disk, so the HUD / <c>/status</c> goes ready in
+        /// fixed time regardless of how long the recording was.
+        ///
+        /// Issue #153 - the stop is FAILURE-ISOLATED. Every writer is stopped and disposed in its own
+        /// protected block by <see cref="RecordingStopSequence"/>, so one that throws can no longer
+        /// abandon the writers after it or the manifest save; the manifest is written even after a
+        /// writer failed, because the raw bytes are already on disk and the manifest is what makes
+        /// them recoverable. All failures are collected and then raised together as a
+        /// <see cref="RecordingStopFailedException"/> - a failed stop is reported to the caller, kept
+        /// in <see cref="LastStopFailure"/> and shown on <c>/status</c>, never silently turned into a
+        /// clean idle. <see cref="RecordingStopped"/> fires only on a clean stop, as before.
+        /// </summary>
+        public RecordResult Stop()
+        {
+            Log.Info("stop: begin (synchronous raw save only)");
+            // Flip to finalizing under lock, then flush the raw files outside the lock.
+            AudioCapture? audio; LoopbackCapture? loop; FfmpegRecorder? video;
+            string? micWav, sysWav, rawVideo, dir; Manifest? manifest; string mode; AudioSourceKind src; AudioMixOptions opts;
+            lock (_lock)
+            {
+                if (_state != "recording") throw new UsageException("not recording");
+                _state = "finalizing";
+                audio = _audio; loop = _loop; video = _video;
+                micWav = _micWav; sysWav = _sysWav; rawVideo = _rawVideo;
+                dir = _dir; manifest = _manifest; mode = _mode; src = _src; opts = _opts;
+                _audio = null; _loop = null; _video = null;
+                _micWav = _sysWav = _rawVideo = null;
+            }
+            _sw.Stop();
+            double elapsed = _sw.Elapsed.TotalSeconds;
+
+            string finalAudio = Path.Combine(dir!, "audio.wav");
+            string finalVideo = Path.Combine(dir!, "recording.mp4");
+
+            // Flush + close the raw capture. The instant these return the bytes are safe on disk;
+            // this is the only durable work that has to happen synchronously. Issue #153: each writer
+            // is its own named step, so one that throws stops neither the writers after it nor the
+            // manifest save.
+            var steps = new List<RecordingStopStep>();
+            if (audio != null) steps.Add(new RecordingStopStep("audio", audio.Stop, audio.Dispose));
+            if (loop != null) steps.Add(new RecordingStopStep("loopback", loop.Stop, loop.Dispose));
+            if (video != null) steps.Add(new RecordingStopStep("video", video.Stop, video.Dispose));
+
+            bool deferred = false;
+            void SaveManifest()
+            {
+                // The deferred mux, now with the measured duration. Built by the SAME helper the
+                // start used, so the record written at stop can never describe different work from
+                // the one already on disk. The raw files stay on disk until FinalizePending runs, so
+                // a kill in the deferred window loses nothing.
+                manifest!.PendingMux = BuildPendingMux(
+                    mode, src, micWav, sysWav, rawVideo,
+                    finalFile: mode == "audio" ? finalAudio : finalVideo,
+                    rawDurationSeconds: elapsed, opts);
+                deferred = manifest.PendingMux != null;
+
+                manifest.DurationSeconds = Math.Round(elapsed, 2);
+                if (manifest.AudioFile != null && !manifest.Files.Contains(manifest.AudioFile)) manifest.Files.Add(manifest.AudioFile);
+                if (manifest.VideoFile != null && !manifest.Files.Contains(manifest.VideoFile)) manifest.Files.Add(manifest.VideoFile);
+
+                // Issue #155: this is NOT the recording's first manifest write - StartAudio /
+                // StartVideo already wrote a valid record before the first byte was captured - so the
+                // stop is a read-modify-write of that file, applying only the fields this session
+                // owns. Two things follow, and both were defects when this was a whole-content
+                // Replace of a copy held for the length of the recording:
+                //  - an interrupted stop write leaves the START record intact, so the directory is
+                //    still a live, parseable, recoverable recording rather than raw media with no
+                //    manifest beside it;
+                //  - anything written to this manifest DURING the recording (a rename in the
+                //    Library, which is possible now that the recording is listed while it runs) is
+                //    not erased by the stop.
+                ManifestStore.Update(dir!, m =>
+                {
+                    m.DurationSeconds = manifest.DurationSeconds;
+                    m.PendingMux = manifest.PendingMux;
+                    m.FfmpegCommand = manifest.FfmpegCommand;
+                    // The shot index belongs to the session: only MarkerShot adds to it, and only
+                    // while this session is running, so the session's list IS the truth for it.
+                    m.Shots.Clear();
+                    foreach (var shot in manifest.Shots) m.Shots.Add(shot);
+                    foreach (string file in manifest.Files)
+                        if (!m.Files.Contains(file)) m.Files.Add(file);
+                });
+            }
+
+            RecordingStopReport report;
+            RecordResult result;
+            try
+            {
+                Log.Info($"stop: saving {(mode == "video" ? "video" : "audio")} (flush raw + writers)");
+                report = RecordingStopSequence.Run(
+                    dir!,
+                    steps,
+                    SaveManifest,
+                    () => RecoveryManifest.Save(manifest!, elapsed, dir!));
+                _lastStopFailure = report.Failed ? report : null;
+
+                string? outFile = manifest!.VideoFile != null ? finalVideo : (manifest.AudioFile != null ? finalAudio : null);
+                result = new RecordResult { Dir = dir!, File = outFile, DurationSeconds = Math.Round(elapsed, 2), Shots = manifest.Shots.Count };
+            }
+            finally
+            {
+                RecordingClaimTicket claim;
+                lock (_lock)
+                {
+                    _manifest = null; _dir = null; _monitor = null;
+                    _peakMic = _peakSys = 0;
+                    _state = "idle";
+
+                    // Taken UNDER the lock, with the rest of the session state (issue #154, round 3).
+                    // The instant _state goes back to "idle" another thread may start a recording,
+                    // and BeginSession writes this same field: reading it after the lock could hand
+                    // this stop the NEXT session's ticket and release a live capture's claim.
+                    claim = _captureClaim;
+                    _captureClaim = default;
+                }
+
+                // The capture no longer holds the recording (issue #155): the claim taken at start
+                // kept every automatic pass off a directory that was still being written to, and the
+                // post-recording sequence takes its own claim on the way in.
+                //
+                // Released through THIS session's ticket, not by directory name: releasing by name
+                // removes whichever claim happens to be there, which is how a session that never
+                // owned the directory used to remove the owner's claim. Released OUTSIDE the lock -
+                // the release announces itself to the queue, and that fan-out must not run under the
+                // service's state lock.
+                RecordingWorkset.Release(claim);
+            }
+
+            // Issue #153: a stop that lost anything is reported as a failure. The service is idle
+            // again (so the user can record), but LastStopFailure and /status say the last stop
+            // failed, the recording keeps a manifest on disk for the recovery passes, and the caller
+            // gets every failure rather than only the first. RecordingStopped is NOT raised - it
+            // means "a session ended cleanly"; a caller waiting on work being finished is released by
+            // PostRecording.WorkIdle instead.
+            if (report.Failed)
+            {
+                Log.Error($"stop: FAILED dir={dir} dur={elapsed:F1}s manifest={(report.HasManifest ? "on disk" : "MISSING")} - {report.Summary()}");
+                throw new RecordingStopFailedException(report);
+            }
+
+            Log.Info($"stop: return dir={dir} dur={elapsed:F1}s deferredMux={deferred} (HUD may close now)");
+
+            // State is idle and the lock is released: safe to notify listeners (issue #107) that the
+            // session ended, so a deferred update restart can now proceed.
+            RecordingStopped?.Invoke();
+            return result;
+        }
+
+        /// <summary>
+        /// Issue #77: complete the deferred audio mux / system downmix recorded by <see cref="Stop"/>
+        /// in <see cref="Manifest.PendingMux"/>. Runs the same ffmpeg work that the old synchronous
+        /// stop ran (byte-for-byte equivalent output), probes the final duration, then clears the
+        /// pending state and re-saves the manifest. Idempotent: a no-op when there is no pending mux
+        /// (so a kill before this runs leaves the raw files intact and a later package still finishes
+        /// the job). Called on the background packaging pass, ahead of transcription.
+        /// </summary>
+        public static void FinalizePending(string dir)
+        {
+            var manifest = Manifest.Load(dir);
+            var p = manifest.PendingMux;
+            if (p == null) { Log.Info($"finalize: no pending mux in {dir}"); return; }
+
+            string finalPath = Path.Combine(dir, p.FinalFile);
+            string? raw = p.RawVideo != null ? Path.Combine(dir, p.RawVideo) : null;
+            string? sys = p.SysWav != null ? Path.Combine(dir, p.SysWav) : null;
+            string? mic = p.MicWav != null ? Path.Combine(dir, p.MicWav) : null;
+            var src = ParseSource(p.Source);
+            double elapsed = p.RawDurationSeconds;
+
+            Log.Info($"finalize: begin mux {p.Mode} src={p.Source} dir={dir}");
+            if (p.Mode == "audio")
+            {
+                if (src == AudioSourceKind.System) Ffmpeg.Run(FfmpegArgs.ExtractWav(sys!, finalPath), "downmix loopback");
+                else if (src == AudioSourceKind.Mixed) AudioMix.MixWavs(mic!, sys!, finalPath, p.Options);
+            }
+            else
+            {
+                if (src == AudioSourceKind.Mixed) { AudioMix.MuxVideoMixed(raw!, sys!, finalPath, p.Options); elapsed = SafeDur(finalPath, elapsed); }
+                else if (src == AudioSourceKind.System) { AudioMix.MuxVideoSystemOnly(raw!, sys!, finalPath, p.Options.SystemGain); elapsed = SafeDur(finalPath, elapsed); }
+                else if (src == AudioSourceKind.Mic && raw != null) { AudioMix.ProcessVideoMic(raw, finalPath, p.Options); elapsed = SafeDur(finalPath, elapsed); }
+            }
+
+            // Issue #155: a recording recovered from its START manifest has no measured duration -
+            // the stop that would have written one never landed - so the muxed file itself is the
+            // only source of truth for it. A normal stop records the elapsed time and this is a
+            // no-op (the video branches above have always probed).
+            if (elapsed <= 0) elapsed = SafeDur(finalPath, 0);
+
+            // Issue #83: keep the untouched pre-processing capture (renamed to a ".original" backup)
+            // instead of deleting it, so over-removal by the clean-voice chain is recoverable.
+            var originals = OriginalBackup.Preserve(dir, p.Mode, src);
+
+            // Issue #155: apply only what the mux produced, to the manifest as it reads NOW. The
+            // load above happened before minutes of ffmpeg work; saving that copy would erase
+            // anything written in between (a rename, an attempt counter, a stage record).
+            ManifestStore.Update(dir, m =>
+            {
+                foreach (string name in originals)
+                {
+                    if (!m.OriginalFiles.Contains(name)) m.OriginalFiles.Add(name);
+                    if (!m.Files.Contains(name)) m.Files.Add(name);
+                }
+                m.DurationSeconds = Math.Round(elapsed, 2);
+                m.PendingMux = null;   // mux done; the final file now exists
+            });
+            Log.Info($"finalize: done dir={dir} dur={elapsed:F1}s");
+        }
+
+        // ---- helpers ------------------------------------------------------
+
+        /// <summary>
+        /// Publish the session that <see cref="StartAudio"/> / <see cref="StartVideo"/> has just set
+        /// up: claim the directory, then write the recording's FIRST manifest - before any capture
+        /// is started (issue #155).
+        ///
+        /// This is the fix for the stranding case the atomic write alone did not cover. The session
+        /// used to keep its manifest in memory for the whole recording and write it once, at stop.
+        /// That single write was therefore the FIRST write of the file, and a process death between
+        /// the flushed temp and the rename left raw media plus a manifest.json.&lt;id&gt;.tmp with no
+        /// manifest.json at all - a directory the Library excludes and every recovery pass skips,
+        /// which is exactly the raw-media-only stranding issues #151/#152/#153 exist to prevent.
+        /// With the record on disk first, the stop is an UPDATE of an existing file: an interrupted
+        /// stop leaves the start record, and the recording stays live and recoverable
+        /// (<see cref="Manifest.PendingMux"/> is already in it, so the deferred mux can still run).
+        ///
+        /// The claim is the other half of writing it early: a directory with a manifest.json is a
+        /// recording to every scan in the app, and this one is still being written to. The claim is
+        /// what keeps the automatic repair passes off it until <see cref="Stop"/> releases it.
+        /// </summary>
+        private void BeginSession()
+        {
+            Log.Info($"[RecordingService] BeginSession: dir={_dir}");
+
+            // Issue #154: capture is what the repair passes must yield to, so starting one is
+            // announced BEFORE any writer starts. A repair pass in flight sees the change at its next
+            // stage boundary and stands down instead of running ffmpeg against this recording's
+            // machine. This is how starting a recording interacts with the repair gate - capture
+            // never waits for repair, repair yields to capture.
+            //
+            // THE ORDER OF THESE TWO LINES IS THE GUARD (issue #154, QA round 1). The claim is taken
+            // FIRST and the epoch is bumped SECOND, and the pair is what makes
+            // RepairService.CaptureYielded complete for a repair pass that reads the epoch at ANY
+            // instant:
+            //  - read before the claim -> the bump happens after the read, so ChangedSince is true
+            //    from then on;
+            //  - read between the claim and the bump -> the claim is already held, so
+            //    RecordingWorkset.CaptureInProgress is true (and the bump still follows);
+            //  - read after the bump -> the claim was taken before it and is held until Stop (or the
+            //    start rollback) releases it, so CaptureInProgress is true for as long as this
+            //    capture lives.
+            // Announcing first left the reverse window - epoch already bumped, claim not yet taken -
+            // in which a live capture was invisible to both signals. That window is not theoretical:
+            // CaptureStarted writes a log line to disk before it returns.
+            //
+            // The three cases above hold while the claim is GRANTED - and this capture does not start
+            // at all without it (issue #154, round 3).
+            //
+            // A refusal means something ELSE already owns this directory: the previous session's
+            // pipeline, or a repair stage. It takes a directory-name collision to happen at all,
+            // because RecordingPaths.NewDir stamps to the SECOND with no collision suffix, so two
+            // recordings of the same mode started inside one second get the same directory. That NAME
+            // defect is issue #169 and is not fixed here - what is fixed here is what this method does
+            // when the premise it is built on is false.
+            //
+            // It used to log the refusal and carry on: bump the epoch, replace the owner's manifest,
+            // start writers into the owner's directory - and then, at stop, run an unconditional
+            // release that removed whichever claim was there, i.e. the OTHER owner's. Every one of
+            // those is damage done to a recording this session does not own. So the start fails
+            // instead, before anything is published and before any writer exists, and the rollback
+            // that follows can only release a claim this attempt actually holds (the ticket) and
+            // cannot remove a directory it did not create (RecordingStartSequence.Discard).
+            if (!RecordingWorkset.TryClaim(_dir!, RecordingWorkKind.Capture, "capture session", out _captureClaim))
+            {
+                string owner = RecordingWorkset.OwnerDescription(_dir!) ?? "(released while being read)";
+                Log.Error($"[RecordingService] BeginSession: {_dir} is already held by {owner} - this capture "
+                    + "will NOT start. The directory name collided: check RecordingPaths.NewDir (issue #169).");
+                throw new UsageException(
+                    $"the recording folder {Path.GetFileName(_dir)} is already in use by {owner} - "
+                    + "wait a second and start again");
+            }
+
+            CaptureSignal.CaptureStarted();
+
+            ManifestStore.Replace(_dir!, _manifest!);   // a directory this call just created (issue #155)
+        }
+
+        /// <summary>
+        /// Publish the session and start its writers inside one failure boundary (issue #155). See
+        /// <see cref="RecordingStartSequence"/> for what that boundary covers and why the rollback
+        /// order - writers down first, claim released second - is the whole point. The original
+        /// exception is rethrown to the caller either way.
+        /// </summary>
+        private void StartSession(IReadOnlyList<RecordingStartStep> steps)
+        {
+            RecordingStartSequence.Run(_dir!, BeginSession, steps, LiveWriters, ReleaseSession);
+        }
+
+        /// <summary>
+        /// The capture writers that exist RIGHT NOW, as stop steps. Read on the start-failure path,
+        /// after the step that threw, so it reports exactly what has to be shut down - a field is set
+        /// the moment its writer is constructed, so a writer whose Start threw is still in here and
+        /// still gets stopped and disposed.
+        /// </summary>
+        private IReadOnlyList<RecordingStopStep> LiveWriters()
+        {
+            var steps = new List<RecordingStopStep>();
+            if (_audio != null) steps.Add(new RecordingStopStep("audio", _audio.Stop, _audio.Dispose));
+            if (_loop != null) steps.Add(new RecordingStopStep("loopback", _loop.Stop, _loop.Dispose));
+            if (_video != null) steps.Add(new RecordingStopStep("video", _video.Stop, _video.Dispose));
+            return steps;
+        }
+
+        /// <summary>
+        /// Undo <see cref="BeginSession"/> when the start failed (issue #155). Called by
+        /// <see cref="RecordingStartSequence"/> AFTER every writer has been stopped and disposed -
+        /// never before, because releasing the claim publishes the directory to every automatic
+        /// repair pass in the app.
+        ///
+        /// The session fields are cleared FIRST and the directory is given up second: the service is
+        /// back to a clean idle even if removing the directory itself fails, and that failure is
+        /// reported by the sequence rather than swallowed here.
+        /// </summary>
+        private void ReleaseSession()
+        {
+            string? dir = _dir;
+            var claim = _captureClaim;
+            _audio = null; _loop = null; _video = null;
+            _micWav = _sysWav = _rawVideo = null;
+            _dir = null; _manifest = null; _monitor = null;
+            _captureClaim = default;
+            _peakMic = _peakSys = 0;
+
+            if (dir == null) return;
+
+            // The ticket is what says how much of this directory belongs to the failed start (issue
+            // #154, round 3). A start that never won the claim owns NOTHING here - not the claim, not
+            // the directory - and Discard must not release or remove either.
+            RecordingStartSequence.Discard(dir, claim);
+        }
+
+        /// <summary>
+        /// The deferred audio mux/downmix this session will need (issue #77), or null when the
+        /// capture writes its final file directly (mic-only audio; mic-only video with no
+        /// processing).
+        ///
+        /// Issue #155: this is built TWICE for one recording - at start into the first manifest with
+        /// no duration yet, and at stop with the measured one - so it lives in ONE method and the two
+        /// records cannot drift apart. Writing it at start is what makes an interrupted stop
+        /// recoverable: without this block, raw.mp4 + sys_native.wav are bytes nothing knows how to
+        /// turn into recording.mp4.
+        /// </summary>
+        private static Manifest.PendingMuxInfo? BuildPendingMux(
+            string mode, AudioSourceKind src, string? micWav, string? sysWav, string? rawVideo,
+            string finalFile, double rawDurationSeconds, AudioMixOptions opts)
+        {
+            bool deferred = mode == "audio"
+                ? src is AudioSourceKind.System or AudioSourceKind.Mixed
+                // mic-only video with no processing: ffmpeg wrote recording.mp4 directly.
+                : src is AudioSourceKind.System or AudioSourceKind.Mixed
+                  || (src == AudioSourceKind.Mic && rawVideo != null);
+            if (!deferred) return null;
+
+            return new Manifest.PendingMuxInfo
+            {
+                Mode = mode,
+                Source = src.ToString().ToLowerInvariant(),
+                RawVideo = rawVideo != null ? Path.GetFileName(rawVideo) : null,
+                MicWav = micWav != null ? Path.GetFileName(micWav) : null,
+                SysWav = sysWav != null ? Path.GetFileName(sysWav) : null,
+                FinalFile = Path.GetFileName(finalFile),
+                RawDurationSeconds = Math.Round(rawDurationSeconds, 2),
+                Options = opts,
+            };
+        }
+
+        private void Reset(MonitorInfo mon, string mode, AudioSourceKind src, AudioMixOptions opts)
+        {
+            _monitor = mon; _mode = mode; _src = src; _opts = opts;
+            _peakMic = _peakSys = 0;
+            _micWav = _sysWav = _rawVideo = null;
+            // Issue #153: the previous stop's failure belongs to the previous recording. It is
+            // reported until a new one starts, and this is that moment.
+            _lastStopFailure = null;
+        }
+
+        private static string Require(string? value, string what) =>
+            string.IsNullOrWhiteSpace(value) ? throw new UsageException($"{what} is required for this source") : value!;
+
+        private static Manifest NewManifest(string mode, MonitorInfo m) => new()
+        {
+            Mode = mode,
+            Label = mode,
+            CreatedUtc = DateTime.UtcNow.ToString("o"),
+            MonitorIndex = m.Index,
+            MonitorName = m.Name,
+        };
+
+        private static double SafeDur(string path, double fallback)
+        {
+            try { double d = MediaProbe.DurationSeconds(path); return d > 0 ? d : fallback; } catch { return fallback; }
+        }
+
+        public static AudioSourceKind ParseSource(string? s) => (s ?? "").ToLowerInvariant() switch
+        {
+            "mic" => AudioSourceKind.Mic,
+            "system" => AudioSourceKind.System,
+            "mixed" => AudioSourceKind.Mixed,
+            "none" => AudioSourceKind.None,
+            _ => AudioSourceKind.Mixed,
+        };
+    }
+}

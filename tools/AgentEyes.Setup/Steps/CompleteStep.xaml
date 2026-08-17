@@ -1,0 +1,126 @@
+<UserControl x:Class="AgentEyesSetup.Steps.CompleteStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBlock x:Name="HeadingText"
+                   Text="Setup Complete"
+                   Foreground="#22C55E"
+                   FontSize="22"
+                   FontWeight="SemiBold" />
+
+        <TextBlock x:Name="DescriptionText"
+                   Text="AgentEyes has been installed successfully."
+                   Foreground="{StaticResource TextForeground}"
+                   FontSize="13"
+                   Margin="0,12,0,24"
+                   LineHeight="20" />
+
+        <!-- Summary -->
+        <Border Background="#2A2D2E" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock Text="Summary"
+                           Foreground="White"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,12" />
+
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Components installed:"
+                               Foreground="#888888" FontSize="13" />
+                    <TextBlock x:Name="InstalledText"
+                               Grid.Column="1"
+                               Foreground="#22C55E" FontSize="13" FontWeight="SemiBold" />
+                </Grid>
+
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Skipped:"
+                               Foreground="#888888" FontSize="13" />
+                    <TextBlock x:Name="SkippedText"
+                               Grid.Column="1"
+                               Foreground="#888888" FontSize="13" />
+                </Grid>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Install path:"
+                               Foreground="#888888" FontSize="13" />
+                    <TextBlock x:Name="PathText"
+                               Grid.Column="1"
+                               Foreground="#AAAAAA" FontSize="12"
+                               TextWrapping="Wrap" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Launch button -->
+        <Button x:Name="LaunchButton"
+                Height="44"
+                HorizontalAlignment="Stretch"
+                Margin="0,8,0,16"
+                Cursor="Hand"
+                Click="LaunchButton_Click">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="#22C55E" CornerRadius="6"
+                            Padding="20,0">
+                        <TextBlock Text="Launch AgentEyes"
+                                   Foreground="White"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="0.9" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <!-- Note about terminal PATH -->
+        <TextBlock x:Name="PathNote"
+                   Text="NOTE: Open a new terminal for the agenteyes command to be available on PATH."
+                   Foreground="#666666"
+                   FontSize="11"
+                   TextWrapping="Wrap" />
+
+        <!-- Logs: a tiny corner link on success; the panel only shows itself expanded
+             when something failed. A clean install should LOOK clean. -->
+        <TextBlock x:Name="LogsToggle"
+                   Margin="0,16,0,0"
+                   FontSize="11"
+                   Foreground="#666666"
+                   Cursor="Hand"
+                   Text="Logs"
+                   MouseLeftButtonUp="LogsToggle_Click" />
+
+        <Border x:Name="ReportPanel" Background="#2A2D2E" CornerRadius="6" Padding="16"
+                Margin="0,8,0,0" Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock x:Name="ReportHeading"
+                           Text="Setup log"
+                           Foreground="White" FontSize="14" FontWeight="SemiBold" />
+                <TextBlock Text="The full setup log is saved here:"
+                           Foreground="#888888" FontSize="12" Margin="0,8,0,4" />
+                <TextBox x:Name="LogPathBox" IsReadOnly="True" FontSize="11"
+                         Background="#1E1E1E" Foreground="#AAAAAA" BorderThickness="0"
+                         TextWrapping="Wrap" Padding="6" />
+                <Button x:Name="OpenLogButton" Content="Open log folder" Padding="10,4"
+                        Margin="0,10,0,0" HorizontalAlignment="Left" Click="OpenLogButton_Click" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

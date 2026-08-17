@@ -1,0 +1,839 @@
+﻿<Window x:Class="AgentEyes.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AgentEyes" Height="720" Width="1280"
+        MinHeight="560" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource RdWindow}" FontFamily="Segoe UI">
+    <Window.Resources>
+        <!-- ===== Library (issue #19): shared context menu + grid/list templates ===== -->
+        <ContextMenu x:Key="RecentMenu" x:Shared="False">
+            <MenuItem Header="Preview" Click="Preview_Click" Visibility="{Binding PreviewVisibility}"/>
+            <MenuItem Header="Details..." Click="Details_Click"/>
+            <MenuItem Header="Rename..." Click="RenameRecording_Click"/>
+            <MenuItem Header="Export with subtitles..." Click="ExportSubtitles_Click"/>
+            <MenuItem Header="Delete" Click="DeleteRecording_Click"/>
+            <Separator/>
+            <MenuItem Header="Open folder" Click="OpenRecordingMenu_Click"/>
+            <MenuItem Header="Build walkthrough" Click="PackageRecordingMenu_Click"
+                      Visibility="{Binding WalkthroughVisibility}"/>
+        </ContextMenu>
+
+        <!-- Frameless chip button (issue #22): the chip border IS the button -->
+        <Style x:Key="ChipButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <ItemsPanelTemplate x:Key="LibraryWrapPanel">
+            <WrapPanel/>
+        </ItemsPanelTemplate>
+        <ItemsPanelTemplate x:Key="LibraryStackPanel">
+            <VirtualizingStackPanel/>
+        </ItemsPanelTemplate>
+
+        <!-- Card container: no full-width stretch, breathing room between cards -->
+        <Style x:Key="DkCardItem" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,12,12"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="8" Padding="6">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2A2D33"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#2C4555"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- The LIBRARY's containers (issue #178). They differ from the shared card/row styles in
+             exactly one way: every rendered library row carries the recording's DIRECTORY NAME as its
+             UI Automation id, which is a stable identity that survives a rename and cannot collide.
+             Verifying "the library is in recording-start order" means comparing the rendered order
+             against the manifests on disk, and the independent review of PR #179 showed that title +
+             minute-rounded date is not an identity - the owner's own library holds three pairs of
+             recordings that render an identical label, so a swapped pair compared equal.
+             It is DirName (the leaf) and never Dir (the full path): the UI Automation tree is
+             readable by every process on the desktop, so publishing the recording's absolute path
+             would leak the user's home directory out of a privacy-sensitive recorder for no gain -
+             the leaf is already unique within the library. The Capture gallery keeps the shared
+             styles: its items are not recordings and have no directory. -->
+        <Style x:Key="LibraryCardItem" TargetType="ListBoxItem" BasedOn="{StaticResource DkCardItem}">
+            <Setter Property="AutomationProperties.AutomationId" Value="{Binding DirName}"/>
+        </Style>
+        <Style x:Key="LibraryRowItem" TargetType="ListBoxItem" BasedOn="{StaticResource DkRecentItem}">
+            <Setter Property="AutomationProperties.AutomationId" Value="{Binding DirName}"/>
+        </Style>
+
+        <!-- ===== Card (grid mode): 16:9 thumb, badges, hover scrim + quick actions ===== -->
+        <DataTemplate x:Key="RecentCardTemplate">
+            <Grid x:Name="CardRoot" Width="236" Background="Transparent"
+                  ContextMenu="{StaticResource RecentMenu}" MouseUp="Card_MouseUp">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Thumbnail -->
+                <Border Grid.Row="0" Height="133" CornerRadius="6" Background="{StaticResource RdSurface}"
+                        BorderBrush="{StaticResource RdStroke}" BorderThickness="1">
+                    <Border.Clip>
+                        <RectangleGeometry Rect="0,0,234,133" RadiusX="6" RadiusY="6"/>
+                    </Border.Clip>
+                    <Grid>
+                        <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
+                        <!-- Placeholder until the thumb is generated/loaded -->
+                        <TextBlock Text="{Binding Badge}" Visibility="{Binding PlaceholderVisibility}"
+                                   FontSize="22" FontWeight="Bold" Foreground="{StaticResource RdMuted}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <!-- Type chip top-left -->
+                        <Border Background="{Binding BadgeBrush}" CornerRadius="3" Margin="7"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" Padding="5,1">
+                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                        </Border>
+                        <!-- Duration badge bottom-right -->
+                        <Border Background="#CC15171A" CornerRadius="3" Margin="7" Padding="5,1"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                            <TextBlock Text="{Binding Duration}" FontFamily="Consolas" FontSize="11" Foreground="White"/>
+                        </Border>
+                        <!-- Hover: play scrim -->
+                        <Grid x:Name="Scrim" Background="#55000000" Opacity="0" IsHitTestVisible="False"
+                              Visibility="{Binding PreviewVisibility}">
+                            <Border Background="#AA15171A" CornerRadius="24" Width="48" Height="48">
+                                <Path Data="{Binding IconGeometry}" Fill="White" Width="20" Height="20"
+                                      Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Margin="3,0,0,0"/>
+                            </Border>
+                        </Grid>
+                        <!-- Hover: quick actions -->
+                        <StackPanel x:Name="Quick" Orientation="Horizontal" Opacity="0" Margin="7,30,7,7"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top">
+                            <Button Style="{StaticResource DkIcon}" ToolTip="Open folder" Margin="0,0,4,0"
+                                    Tag="{Binding Dir}" Click="OpenFolder_Click">
+                                <Path Data="M1,2 L6,2 L8,4 L15,4 L15,13 L1,13 Z" Fill="{StaticResource RdText}"
+                                      Width="13" Height="10" Stretch="Uniform"/>
+                            </Button>
+                            <Button Style="{StaticResource DkIcon}" ToolTip="More" Click="CardMore_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="3" Height="3" Fill="{StaticResource RdText}" Margin="1,0"/>
+                                    <Ellipse Width="3" Height="3" Fill="{StaticResource RdText}" Margin="1,0"/>
+                                    <Ellipse Width="3" Height="3" Fill="{StaticResource RdText}" Margin="1,0"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <!-- Transcribing overlay -->
+                        <Grid Background="#99000000" Visibility="{Binding StatusVisibility}">
+                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <ProgressBar IsIndeterminate="True" Width="110" Height="4" BorderThickness="0"
+                                             Background="#33FFFFFF" Foreground="{StaticResource RdAccent}"/>
+                                <TextBlock Text="{Binding Status}" Foreground="White" FontSize="11"
+                                           Margin="0,8,0,0" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Title -->
+                <TextBlock Grid.Row="1" Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                           Foreground="{StaticResource RdText}" TextTrimming="CharacterEllipsis" Margin="2,8,2,0"/>
+                <!-- Metadata -->
+                <TextBlock Grid.Row="2" Text="{Binding Detail}" FontSize="11"
+                           Foreground="{StaticResource RdDim}" TextTrimming="CharacterEllipsis" Margin="2,2,2,0"/>
+                <!-- Artifact chips (issue #22): clickable - open the artifact -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="2,6,2,0">
+                    <!-- AI spend tag; "est" when estimated rather than measured from API usage -->
+                    <TextBlock Text="{Binding Cost}" FontFamily="Consolas" FontSize="10"
+                               Foreground="{StaticResource RdMuted}" VerticalAlignment="Center"
+                               Margin="0,0,8,0" Visibility="{Binding CostVisibility}"
+                               ToolTip="{Binding CostTip}"/>
+                    <Button Style="{StaticResource ChipButton}" Click="TranscriptChip_Click"
+                            ToolTip="View transcript and details" Visibility="{Binding TranscriptChipVisibility}">
+                        <Border BorderBrush="{StaticResource RdStroke}" BorderThickness="1" CornerRadius="9"
+                                Padding="7,2" Margin="0,0,6,0">
+                            <TextBlock Text="Transcript" FontSize="10" Foreground="{StaticResource RdDim}"/>
+                        </Border>
+                    </Button>
+                    <Button Style="{StaticResource ChipButton}" Click="WalkthroughChip_Click"
+                            ToolTip="Open walkthrough" Visibility="{Binding WalkthroughChipVisibility}">
+                        <Border BorderBrush="{StaticResource RdAccent}" BorderThickness="1" CornerRadius="9"
+                                Padding="7,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M5,0 L6.2,3.8 L10,5 L6.2,6.2 L5,10 L3.8,6.2 L0,5 L3.8,3.8 Z"
+                                      Fill="{StaticResource RdAccent}" Width="9" Height="9" Stretch="Uniform"
+                                      VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Text="Walkthrough" FontSize="10" Foreground="{StaticResource RdAccent}"/>
+                            </StackPanel>
+                        </Border>
+                    </Button>
+                    <!-- Placeholder while the transcription pass runs -->
+                    <Border BorderBrush="{StaticResource RdStroke}" BorderThickness="1" CornerRadius="9"
+                            Padding="7,2" Margin="0,0,6,0" Visibility="{Binding StatusVisibility}">
+                        <TextBlock Text="Processing..." FontSize="10" FontStyle="Italic"
+                                   Foreground="{StaticResource RdMuted}"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
+            <DataTemplate.Triggers>
+                <Trigger SourceName="CardRoot" Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Scrim" Property="Opacity" Value="1"/>
+                    <Setter TargetName="Quick" Property="Opacity" Value="1"/>
+                </Trigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- ===== Row (list mode): the compact pre-#19 layout ===== -->
+        <DataTemplate x:Key="RecentRowTemplate">
+            <!-- Fixed columns: badge | text | duration | actions. -->
+            <Grid Background="Transparent" ContextMenu="{StaticResource RecentMenu}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="46"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="96"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{Binding BadgeBrush}" CornerRadius="3"
+                        Width="38" Height="20" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Badge}" FontSize="10" FontWeight="Bold"
+                               Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="6,0,8,0" VerticalAlignment="Center">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Status}" FontSize="11"
+                                   FontStyle="Italic" Foreground="{StaticResource RdAccent}" Margin="8,0,0,0"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource RdText}" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Detail}" FontSize="11"
+                               Foreground="{StaticResource RdDim}" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock Text="{Binding Duration}" FontFamily="Consolas"
+                               FontSize="12" Foreground="{StaticResource RdDim}" HorizontalAlignment="Right"/>
+                    <!-- AI spend for this recording; "est" when estimated rather than from API usage -->
+                    <TextBlock Text="{Binding Cost}" FontFamily="Consolas" FontSize="10"
+                               Foreground="{StaticResource RdMuted}" HorizontalAlignment="Right"
+                               Margin="0,2,0,0" Visibility="{Binding CostVisibility}"
+                               ToolTip="{Binding CostTip}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource DkIcon}" Margin="0,0,6,0"
+                            Visibility="{Binding PreviewVisibility}"
+                            ToolTip="{Binding PreviewTip}" Click="Preview_Click">
+                        <Path Data="{Binding IconGeometry}" Fill="{StaticResource RdText}"
+                              Width="14" Height="14" Stretch="Uniform"/>
+                    </Button>
+                    <Button Content="Open" Style="{StaticResource DkMini}" Width="56"
+                            Tag="{Binding Dir}" Click="OpenFolder_Click"/>
+                    <Button Content="Walkthrough" Style="{StaticResource DkMini}" Width="92"
+                            Margin="6,0,0,0" Visibility="{Binding WalkthroughVisibility}"
+                            Tag="{Binding Dir}" Click="Package_Click"/>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+    <!-- Shell (issue #16/#18): 64px icon rail | top bar + view content. -->
+    <Grid Background="Transparent">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="64"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ============ ICON RAIL ============ -->
+        <Border Grid.Column="0" Background="{StaticResource RdSurface}"
+                BorderBrush="{StaticResource RdStroke}" BorderThickness="0,0,1,0">
+            <DockPanel LastChildFill="False">
+                <StackPanel DockPanel.Dock="Top" Margin="0,10,0,0">
+                    <RadioButton x:Name="RailRecord" Style="{StaticResource RailItemRecord}" Tag="Record"
+                                 GroupName="Rail" IsChecked="True" Checked="Rail_Checked"
+                                 ToolTip="Record" AutomationProperties.Name="Record view">
+                        <Grid Width="20" Height="20">
+                            <Ellipse Width="18" Height="18" StrokeThickness="1.8"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                            <Ellipse Width="8" Height="8"
+                                     Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                        </Grid>
+                    </RadioButton>
+                    <RadioButton x:Name="RailCapture" Style="{StaticResource RailItem}" Tag="Capture"
+                                 GroupName="Rail" Checked="Rail_Checked"
+                                 ToolTip="Capture - snip a region or the full screen (PrintScreen)"
+                                 AutomationProperties.Name="Capture view">
+                        <!-- camera/snip glyph -->
+                        <Grid Width="20" Height="20">
+                            <Path Data="M2,5 H6 L8,3 H12 L14,5 H18 V16 H2 Z" StrokeThickness="1.6"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                            <Ellipse Width="6" Height="6" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                     Margin="0,1,0,0"
+                                     Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                     StrokeThickness="1.6"/>
+                        </Grid>
+                    </RadioButton>
+                    <RadioButton x:Name="RailLibrary" Style="{StaticResource RailItem}" Tag="Library"
+                                 GroupName="Rail" Checked="Rail_Checked"
+                                 ToolTip="Library" AutomationProperties.Name="Library view">
+                        <Path Width="20" Height="20" Stretch="Uniform"
+                              Data="M3,3 h7 v7 h-7 Z M14,3 h7 v7 h-7 Z M3,14 h7 v7 h-7 Z M14,14 h7 v7 h-7 Z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                    </RadioButton>
+                    <RadioButton x:Name="RailDictionary" Style="{StaticResource RailItem}" Tag="Dictionary"
+                                 GroupName="Rail" Checked="Rail_Checked"
+                                 ToolTip="Dictionary - the terms transcription must get right"
+                                 AutomationProperties.Name="Dictionary view">
+                        <!-- open book -->
+                        <Grid Width="20" Height="20">
+                            <Path Data="M10,4 C8,2.6 5,2.2 2,3 v13 c3,-0.8 6,-0.4 8,1 c2,-1.4 5,-1.8 8,-1 V3 c-3,-0.8 -6,-0.4 -8,1 Z M10,4 v13"
+                                  StrokeThickness="1.6"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                        </Grid>
+                    </RadioButton>
+                </StackPanel>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,8">
+                    <!-- DevThrottle account state (issue #129). Always visible, so a stale key is
+                         noticed on the next glance instead of after a morning of lost transcripts.
+                         The badge (not colour alone) carries the not-signed-in state. -->
+                    <Button x:Name="RailAccount" Style="{StaticResource RailAction}" Tag="Account"
+                            Click="RailAccount_Click">
+                        <Grid Width="22" Height="20">
+                            <!-- person glyph -->
+                            <Path x:Name="RailAccountGlyph" Width="18" Height="18" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Data="M12,12 C14.2,12 16,10.2 16,8 C16,5.8 14.2,4 12,4 C9.8,4 8,5.8 8,8 C8,10.2 9.8,12 12,12 Z M12,14 C8.7,14 4,15.6 4,18.5 V20 H20 V18.5 C20,15.6 15.3,14 12,14 Z"
+                                  StrokeThickness="1.5"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <!-- state badge: hidden when signed in, warning "!" when not -->
+                            <Grid x:Name="RailAccountBadge" Width="11" Height="11"
+                                  HorizontalAlignment="Right" VerticalAlignment="Top"
+                                  Margin="0,-2,-2,0" Visibility="Collapsed">
+                                <Ellipse Fill="#E8A33D"/>
+                                <TextBlock Text="!" FontSize="8" FontWeight="Bold" Foreground="#1B1D21"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Grid>
+                    </Button>
+                    <Button x:Name="RailSettings" Style="{StaticResource RailAction}" Tag="Settings"
+                            Click="Settings_Click" ToolTip="Settings" AutomationProperties.Name="Settings">
+                        <Path Width="17" Height="17" Stretch="Uniform"
+                              Data="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+                    <Button x:Name="RailHelp" Style="{StaticResource RailAction}" Tag="Help"
+                            Click="Help_Click" ToolTip="Help" AutomationProperties.Name="Help">
+                        <TextBlock Text="?" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="About AgentEyes" Click="About_Click"/>
+                                <MenuItem Header="Diagnostics..." Click="Tests_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ============ TOP BAR + CONTENT ============ -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="52"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Contextual top bar: view title, live status, overflow menu -->
+            <Border Grid.Row="0" BorderBrush="{StaticResource RdStroke}" BorderThickness="0,0,0,1">
+                <DockPanel Margin="24,0,16,0">
+                    <TextBlock x:Name="ViewTitle" Text="Record" FontSize="16" FontWeight="SemiBold"
+                               Foreground="{StaticResource RdText}" VerticalAlignment="Center"/>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource DkIcon}" Click="Overflow_Click"
+                            ToolTip="More" AutomationProperties.Name="More" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="3" Height="3" Fill="{StaticResource RdText}" Margin="1,0"/>
+                            <Ellipse Width="3" Height="3" Fill="{StaticResource RdText}" Margin="1,0"/>
+                            <Ellipse Width="3" Height="3" Fill="{StaticResource RdText}" Margin="1,0"/>
+                        </StackPanel>
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Open recordings folder" Click="OpenRecordings_Click"/>
+                                <MenuItem Header="Check for updates..." Click="CheckUpdates_Click"/>
+                                <Separator/>
+                                <MenuItem Header="About AgentEyes" Click="About_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                    <!-- Library-only controls: search + grid/list toggle (issue #19) -->
+                    <StackPanel x:Name="LibraryControls" DockPanel.Dock="Right" Orientation="Horizontal"
+                                VerticalAlignment="Center" Visibility="Collapsed" Margin="0,0,10,0">
+                        <!-- Import an external video into the library (issue #103), wired to the #100
+                             VideoImport engine. Immediate feedback + off-UI-thread work in the handler. -->
+                        <Button x:Name="ImportVideoButton" Content="Import video" Style="{StaticResource DkMini}"
+                                Height="28" Margin="0,0,14,0" Click="ImportVideo_Click"
+                                ToolTip="Import an external video file (e.g. a Teams recording) into the library"
+                                AutomationProperties.Name="Import video"/>
+                        <!-- Running AI-cost total across the recordings shown -->
+                        <TextBlock x:Name="LibraryTotalText" Text="" FontSize="12"
+                                   Foreground="{StaticResource RdDim}" VerticalAlignment="Center"
+                                   Margin="0,0,14,0"/>
+                        <Grid Margin="0,0,10,0">
+                            <TextBox x:Name="SearchBox" Width="190" Height="28" Style="{StaticResource DkTextBox}"
+                                     TextChanged="Search_TextChanged" AutomationProperties.Name="Search library"/>
+                            <TextBlock x:Name="SearchHint" Text="Search" FontSize="12" Foreground="{StaticResource RdMuted}"
+                                       Margin="9,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                        </Grid>
+                        <Button x:Name="GridModeButton" Style="{StaticResource DkIcon}" ToolTip="Grid view"
+                                Click="LibraryGrid_Click" Margin="0,0,4,0">
+                            <Path Data="M0,0 h5 v5 h-5 Z M8,0 h5 v5 h-5 Z M0,8 h5 v5 h-5 Z M8,8 h5 v5 h-5 Z"
+                                  Fill="{StaticResource RdText}" Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+                        <Button x:Name="ListModeButton" Style="{StaticResource DkIcon}" ToolTip="List view" Opacity="0.45"
+                                Click="LibraryList_Click">
+                            <Path Data="M0,0 h13 v2.4 h-13 Z M0,5.3 h13 v2.4 h-13 Z M0,10.6 h13 v2.4 h-13 Z"
+                                  Fill="{StaticResource RdText}" Width="12" Height="12" Stretch="Uniform"/>
+                        </Button>
+                    </StackPanel>
+                    <TextBlock x:Name="StatusText" DockPanel.Dock="Right" Text="" FontSize="12"
+                               Foreground="{StaticResource RdDim}" VerticalAlignment="Center"
+                               Margin="16,0" TextTrimming="CharacterEllipsis" HorizontalAlignment="Right"/>
+                </DockPanel>
+            </Border>
+
+            <!-- View host: panels toggled by the rail (full split into UserControls is
+                 deliberate later work; same-named elements keep all code-behind intact) -->
+            <Grid Grid.Row="1">
+
+                <!-- ===== RECORD VIEW (issue #21): centered hero + preset split-dropdown ===== -->
+                <Grid x:Name="RecordPanel">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="560">
+
+                        <!-- Hero record button: content text is also the UIA name (REC/STOP/CAPTURE) -->
+                        <Button x:Name="RecordButton" Style="{StaticResource DkRecordHero}"
+                                Content="REC" Click="Record_Click" HorizontalAlignment="Center"/>
+
+                        <TextBlock x:Name="ElapsedText" Text="" FontFamily="Consolas" FontSize="15"
+                                   Foreground="{StaticResource DkRed}" FontWeight="Bold"
+                                   HorizontalAlignment="Center" Margin="0,12,0,0"/>
+
+                        <!-- Preset split-dropdown + show-area -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
+                            <Border Background="{StaticResource RdSurface}" BorderBrush="{StaticResource RdStroke}"
+                                    BorderThickness="1" CornerRadius="8">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="PresetMainButton" Click="PresetMenu_Click" Cursor="Hand"
+                                            Background="Transparent" BorderThickness="0" Padding="14,8"
+                                            AutomationProperties.Name="Active preset">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- monitor icon -->
+                                            <Path Data="M2,3 h16 v10 h-16 Z M8,16 h4 M6,18 h8" Stroke="{StaticResource RdDim}"
+                                                  StrokeThickness="1.5" Width="19" Height="17" Stretch="Uniform"
+                                                  VerticalAlignment="Center" Margin="0,0,11,0"/>
+                                            <StackPanel VerticalAlignment="Center" MaxWidth="270">
+                                                <TextBlock x:Name="PresetNameText" Text="" FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource RdText}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock x:Name="PresetSummaryText" Text="" FontSize="11"
+                                                           Foreground="{StaticResource RdDim}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Button>
+                                    <Rectangle Width="1" Fill="{StaticResource RdStroke}" Margin="2,8"/>
+                                    <Button x:Name="PresetMenuButton" Click="PresetMenu_Click" Cursor="Hand"
+                                            Background="Transparent" BorderThickness="0" Padding="12,0"
+                                            ToolTip="Choose preset" AutomationProperties.Name="Preset menu">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                        <Path Data="M0,0 L5,5 L10,0" Stroke="{StaticResource RdDim}" StrokeThickness="1.8"
+                                              Width="10" Height="6" Stretch="Uniform"/>
+                                        <Button.ContextMenu>
+                                            <ContextMenu/>
+                                        </Button.ContextMenu>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                            <Button x:Name="ShowAreaButton" Style="{StaticResource DkIcon}" Height="34" Width="36"
+                                    Margin="8,0,0,0" Click="ShowArea_Click" VerticalAlignment="Center"
+                                    ToolTip="Show the capture area" AutomationProperties.Name="Show area">
+                                <Path Data="M1,4 v-3 h3 M12,1 h3 v3 M15,10 v3 h-3 M4,13 h-3 v-3"
+                                      Stroke="{StaticResource RdText}" StrokeThickness="1.5"
+                                      Width="14" Height="12" Stretch="Uniform"/>
+                            </Button>
+                            <Button x:Name="EditPresetButton" Style="{StaticResource DkIcon}" Height="34" Width="36"
+                                    Margin="8,0,0,0" Click="EditCurrentPreset_Click" VerticalAlignment="Center"
+                                    ToolTip="Edit the active capture profile" AutomationProperties.Name="Edit active preset">
+                                <Path Data="M3,13 l1.5,-4.5 L12,1 l3,3 l-7.5,7.5 L3,13 Z M10.5,2.5 l3,3"
+                                      Stroke="{StaticResource RdText}" StrokeThickness="1.5"
+                                      Width="15" Height="14" Stretch="Uniform"/>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Capture summary (before REC): exactly what this preset records, so the
+                             mic/system/screen choice is unmistakable. Built in code from the preset. -->
+                        <StackPanel x:Name="CapturePanel" Margin="0,20,0,0">
+                            <StackPanel x:Name="CaptureChipsPanel" Orientation="Horizontal"
+                                        HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="CaptureScreenText" Text="" FontSize="11"
+                                       Foreground="{StaticResource RdDim}" HorizontalAlignment="Center"
+                                       Margin="0,16,0,0"/>
+                            <Canvas x:Name="MonitorStripCanvas" Width="320" Height="72"
+                                    HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                        </StackPanel>
+
+                        <!-- Capture level meters (during recording): proof the mic/system are heard -->
+                        <Grid x:Name="LevelPanel" Margin="60,18,60,0" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="32"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="MicLevelLabel" Text="MIC" FontSize="10" FontFamily="Consolas"
+                                       Foreground="{StaticResource RdMuted}" VerticalAlignment="Center"/>
+                            <ProgressBar Grid.Column="1" x:Name="MicLevelBar" Height="6" Minimum="0" Maximum="100"
+                                         Background="{StaticResource RdSurface}" BorderThickness="0"
+                                         Foreground="{StaticResource RdAccent}"/>
+                            <TextBlock Grid.Row="1" x:Name="SysLevelLabel" Text="SYS" FontSize="10" FontFamily="Consolas"
+                                       Foreground="{StaticResource RdMuted}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                            <ProgressBar Grid.Row="1" Grid.Column="1" x:Name="SysLevelBar" Height="6" Minimum="0" Maximum="100"
+                                         Background="{StaticResource RdSurface}" BorderThickness="0"
+                                         Foreground="{StaticResource RdAccent}" Margin="0,4,0,0"/>
+                        </Grid>
+
+                        <!-- Quiet AI line (sets up step 6) -->
+                        <TextBlock Text="Recordings are automatically transcribed and titled."
+                                   Foreground="{StaticResource RdMuted}" FontSize="11"
+                                   HorizontalAlignment="Center" Margin="0,22,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ===== LIBRARY VIEW (issue #19): one flat card list, empty state ===== -->
+                <Grid x:Name="LibraryPanel" Margin="24,4,24,16" Visibility="Collapsed">
+                    <!-- Issue #178: NO GroupStyle and no day headers. The library is one flat list,
+                         newest first, ordered by the recording start time in manifest.json. The day
+                         grouping that used to live here rendered each group's cards under another
+                         group's header; deleting the grouping makes that class of defect impossible
+                         rather than repairing it. Do not re-introduce a GroupStyle.
+
+                         Issue #175: the item template, the items panel, the container style AND the
+                         virtualization that panel supports are all set by ApplyLibraryMode (one place,
+                         one truth). They are deliberately NOT pinned here: grid mode swaps in a plain
+                         WrapPanel, which is not a VirtualizingPanel, so virtualization attached
+                         properties pinned on this ListBox would be a lie in grid mode. -->
+                    <ListBox x:Name="RecentList"
+                             Background="Transparent" BorderThickness="0"
+                             SelectionMode="Extended" KeyDown="RecentList_KeyDown"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ToolTip>
+                            <ToolTip Content="Click to preview - right-click for actions - Ctrl/Shift+click selects several, Delete removes the selection"/>
+                        </ListBox.ToolTip>
+                    </ListBox>
+
+                    <!-- Empty state -->
+                    <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Visibility="Collapsed">
+                        <Path Data="M3,3 h7 v7 h-7 Z M14,3 h7 v7 h-7 Z M3,14 h7 v7 h-7 Z M14,14 h7 v7 h-7 Z"
+                              Fill="{StaticResource RdStroke}" Width="56" Height="56" Stretch="Uniform"
+                              HorizontalAlignment="Center"/>
+                        <TextBlock Text="No recordings yet." FontSize="18" FontWeight="SemiBold"
+                                   Foreground="{StaticResource RdText}" HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                        <TextBlock Text="Everything you capture lands here, transcribed and titled automatically."
+                                   FontSize="12" Foreground="{StaticResource RdDim}" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                        <Button Content="Start your first recording" Style="{StaticResource DkPrimary}"
+                                HorizontalAlignment="Center" Margin="0,18,0,0" Padding="20,8" Click="GoRecord_Click"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ===== DICTIONARY VIEW (issue #37 follow-up): first-class rail destination.
+                     Corrects the terms recording transcription must get right. ===== -->
+                <Grid x:Name="DictionaryPanel" Visibility="Collapsed">
+                    <Grid HorizontalAlignment="Center" Width="680" Margin="0,24,0,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0"
+                                   Text="Your terms and the ways they get misheard. Every recording transcript is corrected automatically (titles and walkthroughs included). Only these exact misheard forms are ever rewritten - your words are never touched otherwise."
+                                   FontSize="12" Foreground="{StaticResource RdDim}" TextWrapping="Wrap" LineHeight="18"/>
+
+                        <!-- add term + search -->
+                        <Grid Grid.Row="1" Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="170"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <TextBox x:Name="DictNewTerm" Height="30" Style="{StaticResource DkTextBox}"
+                                         KeyDown="DictNewTerm_KeyDown" AutomationProperties.Name="New term"/>
+                                <TextBlock x:Name="DictNewTermHint" Text="Add a term (e.g. a product name)"
+                                           FontSize="11" Foreground="{StaticResource RdMuted}" Margin="9,0,0,0"
+                                           VerticalAlignment="Center" IsHitTestVisible="False"/>
+                            </Grid>
+                            <Button Grid.Column="1" Content="Add" Style="{StaticResource DkPrimary}" Height="30"
+                                    MinWidth="64" Margin="8,0" Click="DictAdd_Click"
+                                    AutomationProperties.Name="Add term"/>
+                            <Grid Grid.Column="2">
+                                <TextBox x:Name="DictSearch" Height="30" Style="{StaticResource DkTextBox}"
+                                         TextChanged="DictSearch_TextChanged" AutomationProperties.Name="Search dictionary"/>
+                                <TextBlock x:Name="DictSearchHint" Text="Search" FontSize="11"
+                                           Foreground="{StaticResource RdMuted}" Margin="9,0,0,0"
+                                           VerticalAlignment="Center" IsHitTestVisible="False"/>
+                            </Grid>
+                        </Grid>
+
+                        <!-- term list -->
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                            <ItemsControl x:Name="DictList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource RdStroke}" BorderThickness="0,0,0,1"
+                                                Padding="2,9,2,9">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Term}" FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="{StaticResource RdText}"/>
+                                                    <TextBlock Text="{Binding VariantsLabel}" FontSize="11"
+                                                               Foreground="{StaticResource RdDim}" TextWrapping="Wrap"
+                                                               Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                                                    <Button Content="+ misheard" Style="{StaticResource DkLink}" FontSize="11"
+                                                            Click="DictAddVariant_Click" ToolTip="Add a way this term gets misheard"/>
+                                                    <TextBlock Text="  |  " FontSize="11" Foreground="{StaticResource RdStroke}"/>
+                                                    <Button Content="Edit" Style="{StaticResource DkLink}" FontSize="11"
+                                                            Click="DictEdit_Click" ToolTip="Edit this term and its misheard forms"/>
+                                                    <TextBlock Text="  |  " FontSize="11" Foreground="{StaticResource RdStroke}"/>
+                                                    <Button Content="Delete" Style="{StaticResource DkLink}" FontSize="11"
+                                                            Click="DictDelete_Click"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <TextBlock Grid.Row="3" x:Name="DictEmptyText" Text="" FontSize="11" FontStyle="Italic"
+                                   Foreground="{StaticResource RdMuted}" Margin="0,10,0,0" Visibility="Collapsed"/>
+                    </Grid>
+                </Grid>
+
+                <!-- ===== CAPTURE VIEW (issue #64): snip gallery + shortcuts + picker ===== -->
+                <Grid x:Name="CaptureViewPanel" Margin="24,16,24,16" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Action bar: New capture (full screen) + Region snip -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                        <Button x:Name="NewCaptureButton" Content="New capture" Style="{StaticResource DkPrimary}"
+                                Padding="18,8" Click="NewCapture_Click"
+                                AutomationProperties.Name="New capture"/>
+                        <Button x:Name="RegionSnipButton" Content="Region snip" Style="{StaticResource DkMini}"
+                                Height="34" MinWidth="110" Margin="10,0,0,0" Click="RegionSnip_Click"
+                                AutomationProperties.Name="Region snip"/>
+                    </StackPanel>
+
+                    <!-- Shortcut settings: region + full-screen, each rebindable (issue #64) -->
+                    <Border Grid.Row="1" Background="{StaticResource RdSurface}" BorderBrush="{StaticResource RdStroke}"
+                            BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,16,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Global shortcuts" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource RdText}"/>
+                            <TextBlock Text="Snip from any app. The in-app overlay is used on Windows 10 and 11 alike (never the OS Snipping Tool). If Windows has claimed PrintScreen for its own tool, rebind here."
+                                       FontSize="11" Foreground="{StaticResource RdDim}" TextWrapping="Wrap"
+                                       LineHeight="17" Margin="0,4,0,0"/>
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Region" FontSize="12"
+                                           Foreground="{StaticResource RdDim}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="RegionShortcutText" Text=""
+                                           FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource RdText}"
+                                           VerticalAlignment="Center"
+                                           AutomationProperties.Name="Region shortcut"/>
+                                <Button Grid.Row="0" Grid.Column="2" Content="Rebind" Style="{StaticResource DkMini}"
+                                        Height="28" MinWidth="74" Click="RebindRegion_Click"
+                                        AutomationProperties.Name="Rebind region"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Full screen" FontSize="12"
+                                           Foreground="{StaticResource RdDim}" VerticalAlignment="Center" Margin="0,10,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="FullShortcutText" Text=""
+                                           FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource RdText}"
+                                           VerticalAlignment="Center" Margin="0,10,0,0"
+                                           AutomationProperties.Name="Full screen shortcut"/>
+                                <Button Grid.Row="1" Grid.Column="2" Content="Rebind" Style="{StaticResource DkMini}"
+                                        Height="28" MinWidth="74" Margin="0,10,0,0" Click="RebindFull_Click"
+                                        AutomationProperties.Name="Rebind full screen"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Save folder (issue #64, AC9/AC10): default = Windows Screenshots known folder;
+                         a chosen folder overrides it and persists across restart. -->
+                    <Border Grid.Row="2" Background="{StaticResource RdSurface}" BorderBrush="{StaticResource RdStroke}"
+                            BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Save folder" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource RdText}"/>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Background="{StaticResource RdWindow}"
+                                        BorderBrush="{StaticResource RdStroke}" BorderThickness="1"
+                                        CornerRadius="6" Padding="9,6" VerticalAlignment="Center">
+                                    <!-- No explicit AutomationProperties.Name: the TextBlock's UIA Name
+                                         is then its Text (the folder path), so QA can read the active
+                                         save folder back (AC9/AC10). AutomationId gives a stable lookup. -->
+                                    <TextBlock x:Name="CaptureSaveFolderText" Text="" FontSize="12"
+                                               Foreground="{StaticResource RdText}" TextTrimming="CharacterEllipsis"
+                                               AutomationProperties.AutomationId="CaptureSaveFolder"/>
+                                </Border>
+                                <Button Grid.Column="1" Content="Change..." Style="{StaticResource DkMini}"
+                                        Height="28" MinWidth="84" Margin="8,0,0,0" Click="CaptureBrowseFolder_Click"
+                                        AutomationProperties.Name="Change save folder"/>
+                                <Button Grid.Column="2" Content="Use default" Style="{StaticResource DkMini}"
+                                        Height="28" MinWidth="92" Margin="8,0,0,0" Click="CaptureDefaultFolder_Click"
+                                        AutomationProperties.Name="Use default save folder"/>
+                            </Grid>
+                            <TextBlock x:Name="CaptureSaveFolderDefaultHint"
+                                       Text="Default - the Windows Screenshots folder (the same place the Snipping Tool saves)."
+                                       FontSize="11" Foreground="{StaticResource RdDim}" Margin="0,6,0,0"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Monitor picker (issue #64, AC11): a clickable to-scale layout of the monitors,
+                         one target each. Collapses when there is only one monitor. -->
+                    <Border x:Name="CaptureMonitorSection" Grid.Row="3" Background="{StaticResource RdSurface}"
+                            BorderBrush="{StaticResource RdStroke}" BorderThickness="1" CornerRadius="8"
+                            Padding="16,12" Margin="0,12,0,0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="Capture a monitor" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource RdText}"/>
+                            <TextBlock x:Name="CaptureMonitorHint" Text="" FontSize="11"
+                                       Foreground="{StaticResource RdDim}" Margin="0,4,0,0"/>
+                            <Canvas x:Name="CaptureMonitorCanvas" Width="340" Height="92"
+                                    HorizontalAlignment="Left" Margin="0,10,0,0"
+                                    AutomationProperties.Name="Monitor picker"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Gallery of saved snips -->
+                    <Grid Grid.Row="4" Margin="0,16,0,0">
+                        <ListBox x:Name="CaptureList" Background="Transparent" BorderThickness="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 VirtualizingPanel.IsVirtualizing="True"
+                                 VirtualizingPanel.VirtualizationMode="Recycling"
+                                 AutomationProperties.Name="Captures">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource DkCardItem}"/>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Width="236" Background="Transparent">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Border Grid.Row="0" Height="133" CornerRadius="6"
+                                                Background="{StaticResource RdSurface}"
+                                                BorderBrush="{StaticResource RdStroke}" BorderThickness="1">
+                                            <Border.Clip>
+                                                <RectangleGeometry Rect="0,0,234,133" RadiusX="6" RadiusY="6"/>
+                                            </Border.Clip>
+                                            <Image Source="{Binding Thumb}" Stretch="UniformToFill"/>
+                                        </Border>
+                                        <TextBlock Grid.Row="1" Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource RdText}" TextTrimming="CharacterEllipsis"
+                                                   Margin="2,8,2,0"/>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="2,6,2,0">
+                                            <Button Content="Open" Style="{StaticResource DkLink}" FontSize="11"
+                                                    Click="CaptureOpen_Click"/>
+                                            <TextBlock Text="  |  " FontSize="11" Foreground="{StaticResource RdStroke}"/>
+                                            <Button Content="Copy" Style="{StaticResource DkLink}" FontSize="11"
+                                                    Click="CaptureCopy_Click"/>
+                                            <TextBlock Text="  |  " FontSize="11" Foreground="{StaticResource RdStroke}"/>
+                                            <Button Content="Reveal" Style="{StaticResource DkLink}" FontSize="11"
+                                                    Click="CaptureReveal_Click"/>
+                                            <TextBlock Text="  |  " FontSize="11" Foreground="{StaticResource RdStroke}"/>
+                                            <Button Content="Delete" Style="{StaticResource DkLink}" FontSize="11"
+                                                    Click="CaptureDelete_Click"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel x:Name="CaptureEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Visibility="Collapsed">
+                            <Path Data="M2,5 H6 L8,3 H12 L14,5 H18 V16 H2 Z" Stroke="{StaticResource RdStroke}"
+                                  StrokeThickness="1.6" Width="56" Height="48" Stretch="Uniform"
+                                  HorizontalAlignment="Center"/>
+                            <TextBlock Text="No captures yet." FontSize="18" FontWeight="SemiBold"
+                                       Foreground="{StaticResource RdText}" HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                            <TextBlock x:Name="CaptureEmptyHint" Text="" FontSize="12" Foreground="{StaticResource RdDim}"
+                                       HorizontalAlignment="Center" Margin="0,6,0,0" TextAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

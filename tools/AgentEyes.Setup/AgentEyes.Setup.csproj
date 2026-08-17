@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- The downloadable installer: AgentEyes-Setup-win-x64.exe (self-contained single file). -->
+    <AssemblyName>AgentEyes.Setup</AssemblyName>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <Version>1.4.4</Version>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- The setup deliberately has its OWN icon (install arrow), distinct from the app's moon. -->
+    <ApplicationIcon>..\..\assets\setup-icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="..\..\assets\setup-icon.ico" Link="app.ico" />
+    <!-- The app's icon, shown on the Welcome step (the product being installed). -->
+    <Resource Include="..\..\assets\icon-256.png" Link="product.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AgentEyes.Setup.Engine\AgentEyes.Setup.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

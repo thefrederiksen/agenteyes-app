@@ -1,0 +1,31 @@
+# Runtime QA output
+reports/
+
+# qa-record recordings (local evidence/demos, never committed)
+recordings/
+
+# .NET build output
+bin/
+obj/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# OS / editor
+Thumbs.db
+.DS_Store
+nul
+
+# Claude Code session state (local), but TRACK the CenCon agent skills
+.claude/*
+!.claude/skills/
+
+# Installer build output (setup exe + staging)
+dist/
+
+# Local scratch (dictation inputs, ad-hoc notes)
+.temp/

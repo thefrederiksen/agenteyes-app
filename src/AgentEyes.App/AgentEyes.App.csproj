@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>AgentEyes.App</RootNamespace>
+    <AssemblyName>AgentEyesApp</AssemblyName>
+    <Version>1.4.4</Version>
+    <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Platforms>x64</Platforms>
+    <ApplicationManifest>..\AgentEyes.Core\app.manifest</ApplicationManifest>
+    <!-- DPI awareness is declared in app.manifest (correct for our WPF + console hybrid).
+         WFAC010 is the WinForms-only analyzer nudging toward Application.SetHighDpiMode; N/A here. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- UI redesign (issue #16): Wpf.Ui controls and icons consumed a la carte.
+         Version pinned on purpose; do NOT merge its global theme dictionaries -
+         implicit styles would restyle every existing window. -->
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Issue #178: the library's date and ordering rules (RecentItem.StartLocal / DateLabel and
+         NewestFirstComparer) are BEHAVIOUR, and behaviour is tested by running it rather than by
+         reading the source that describes it. They live in this assembly with the window they serve,
+         so the test assembly is given access to them. AgentEyes.Core already does the same. -->
+    <InternalsVisibleTo Include="AgentEyes.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reuse the entire tested capture/packaging engine. -->
+    <ProjectReference Include="..\AgentEyes.Core\AgentEyes.Core.csproj" />
+    <!-- The shared setup engine drives the tray's "Check for updates". -->
+    <ProjectReference Include="..\..\tools\AgentEyes.Setup.Engine\AgentEyes.Setup.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

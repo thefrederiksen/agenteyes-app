@@ -1,0 +1,183 @@
+# Release pipeline (cc-director's model): pushing a v* tag builds every asset,
+# generates release-manifest.json (per-asset version/sha256/size), and publishes
+# a GitHub Release. The setup wizard/CLI and the in-app updater consume the
+# manifest from "latest".
+#
+# Signing: the four first-party exes are code-signed as "Center Consulting Inc."
+# via Azure Trusted Signing (docs/signing.md) BETWEEN publish and manifest, so
+# release-manifest.json records the SHA-256 of the SIGNED bytes. Signing is gated
+# on `vars.SIGNING_CERT_PROFILE != ''`; with the variable unset the pipeline
+# builds an UNSIGNED release with behavior identical to before.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Verify tag matches project version
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content src/AgentEyes.App/AgentEyes.App.csproj)).Project.PropertyGroup.Version
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          if ($version -ne $tag) { throw "tag ${{ github.ref_name }} does not match csproj version $version" }
+
+      - name: Run tests
+        shell: pwsh
+        run: dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release
+
+      - name: Download ffmpeg (essentials build)
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP/ffmpeg-essentials.zip"
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP/ffmpeg"
+          $bin = Get-ChildItem "$env:RUNNER_TEMP/ffmpeg" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $bin) { throw "ffmpeg.exe not found in the essentials zip" }
+          "FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      # Publish the four first-party exes + the ffmpeg zip into dist/release, but
+      # STOP before the manifest (-SkipManifest) so signing can slot in before
+      # the assets are hashed.
+      - name: Publish release assets (unsigned)
+        shell: pwsh
+        run: scripts/build-release.ps1 -FfmpegDir $env:FFMPEG_DIR -SkipManifest
+
+      # Sign ONLY the four first-party self-contained exes now in dist/release:
+      #   AgentEyesApp-win-x64.exe, agenteyes-win-x64.exe,
+      #   agenteyes-setup-cli-win-x64.exe, AgentEyes-Setup-win-x64.exe.
+      # filter=exe + the ffmpeg binaries being zipped (not loose exes) means the
+      # Gyan ffmpeg.exe/ffprobe.exe are NOT signed, and the Microsoft .NET runtime
+      # files are bundled inside the single-file exes, so nothing third-party is
+      # signed. No-op until the repo has SIGNING_CERT_PROFILE + the AZURE_* secrets.
+      - name: Sign first-party exes (Azure Trusted Signing)
+        if: ${{ vars.SIGNING_CERT_PROFILE != '' }}
+        uses: ./.github/actions/sign-windows
+        with:
+          folder: dist/release
+          filter: exe
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          certificate-profile-name: ${{ vars.SIGNING_CERT_PROFILE }}
+
+      # Hash the assets AS THEY NOW SIT (signed, if the step above ran) into
+      # release-manifest.json - the sha256 the setup engine verifies at install.
+      - name: Write release manifest (hashes signed binaries)
+        shell: pwsh
+        run: scripts/write-manifest.ps1
+
+      - name: Verify completeness
+        shell: pwsh
+        run: |
+          $required = @(
+            'AgentEyesApp-win-x64.exe',
+            'agenteyes-win-x64.exe',
+            'agenteyes-setup-cli-win-x64.exe',
+            'AgentEyes-Setup-win-x64.exe',
+            'agenteyes-ffmpeg-win-x64.zip',
+            'release-manifest.json'
+          )
+          $missing = $required | Where-Object { -not (Test-Path "dist/release/$_") }
+          if ($missing) { throw "missing release assets: $($missing -join ', ')" }
+          Get-ChildItem dist/release
+
+      - name: Smoke-test an offline install from the built release
+        shell: pwsh
+        run: |
+          $root = "$env:RUNNER_TEMP/agenteyes-install-test"
+          dist/release/agenteyes-setup-cli-win-x64.exe install --release-dir dist/release --root $root --no-finalize --json
+          if ($LASTEXITCODE -ne 0) { throw "offline install smoke test failed" }
+          if (-not (Test-Path "$root/app/AgentEyesApp.exe")) { throw "app exe missing after install" }
+          if (-not (Test-Path "$root/app/ffmpeg.exe")) { throw "bundled ffmpeg missing after install" }
+
+      # The source repo is PRIVATE; releases publish to the public releases-only
+      # repo (thefrederiksen/AgentEyes-releases) so the installer and the
+      # in-app updater can fetch them anonymously. RELEASES_TOKEN is a PAT with
+      # write access to that repo.
+      # A pre-release tag (one containing '-', e.g. v1.0.0-rc.1) publishes to the
+      # releases repo with --prerelease AND --latest=false, so GitHub's /releases/latest
+      # (which the in-app updater reads via ReleaseSource.FetchLatestAsync) does NOT
+      # resolve to it and stable installs never see it. A full-release tag (no '-') keeps
+      # today's exact command: $prerelease is empty, the splat contributes nothing, so
+      # no --prerelease is passed and the release becomes the repo's Latest as before.
+      - name: Publish release to the public releases repo
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          $files = Get-ChildItem dist/release | ForEach-Object { $_.FullName }
+          $prerelease = @()
+          if ("${{ github.ref_name }}" -like '*-*') { $prerelease = @('--prerelease', '--latest=false') }
+          gh release create "${{ github.ref_name }}" @files `
+            --repo thefrederiksen/AgentEyes-releases `
+            --title "AgentEyes ${{ github.ref_name }}" `
+            --notes "AgentEyes ${{ github.ref_name }}. Download AgentEyes-Setup-win-x64.exe and run it." `
+            @prerelease
+          if ($LASTEXITCODE -ne 0) { throw "publish to releases repo failed" }
+
+      # Publish the setup wizard + manifest to the PUBLIC DevThrottle repo under a
+      # DEDICATED FIXED tag (agenteyes-latest) so the DevThrottle website can offer a
+      # stable, anonymous AgentEyes download from exactly:
+      #   https://github.com/thefrederiksen/devthrottle/releases/download/agenteyes-latest/AgentEyes-Setup-win-x64.exe
+      # We attach ONLY to this dedicated release - never to DevThrottle's own version
+      # releases, and never via releases/latest (that resolves to the newest DevThrottle
+      # version release, which does not carry the AgentEyes asset). Create the release if
+      # it is missing, otherwise replace the assets in place (--clobber).
+      # Uses RELEASES_TOKEN - the same repo-scoped PAT already used to publish to
+      # thefrederiksen/AgentEyes-releases above. It must have write access to
+      # thefrederiksen/devthrottle as well (a classic repo-scoped PAT already does;
+      # a fine-grained token must list devthrottle with Contents:read+write). No
+      # separate DevThrottle-only token is required.
+      # SKIPPED for a pre-release tag (one containing '-', e.g. v1.0.0-rc.1): a testable
+      # -rc build must never touch the public DevThrottle download channel that the
+      # website hands to end users. Full-release tags (no '-') run this step unchanged.
+      - name: Publish AgentEyes installer to the public DevThrottle download channel
+        if: ${{ !contains(github.ref_name, '-') }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          $repo = 'thefrederiksen/devthrottle'
+          $tag = 'agenteyes-latest'
+          $assets = @(
+            'dist/release/AgentEyes-Setup-win-x64.exe',
+            'dist/release/release-manifest.json'
+          )
+          foreach ($a in $assets) { if (-not (Test-Path $a)) { throw "missing asset for DevThrottle publish: $a" } }
+          # --latest=false is REQUIRED: this dedicated tag must NEVER become the
+          # DevThrottle repo's "Latest" release. GitHub's default marks the newest
+          # release by date as Latest, and because this publish runs after DevThrottle's
+          # own v* releases it would otherwise steal the repo's latest pointer - which
+          # every DevThrottle installer/updater/tool-repair path reads via
+          # /releases/latest. That exact regression took the fleet down once; the flag
+          # is what enforces the "never via releases/latest" rule stated above.
+          gh release view $tag --repo $repo *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag @assets `
+              --repo $repo `
+              --latest=false `
+              --title "AgentEyes (latest)" `
+              --notes "Latest AgentEyes installer for Windows. Download AgentEyes-Setup-win-x64.exe and run it. Published automatically from the AgentEyes release pipeline."
+            if ($LASTEXITCODE -ne 0) { throw "creating $tag release on $repo failed" }
+          } else {
+            gh release upload $tag @assets --repo $repo --clobber
+            if ($LASTEXITCODE -ne 0) { throw "uploading assets to $tag on $repo failed" }
+            # Self-heal: force the flag off in case an earlier run (or a manual edit)
+            # left this release marked Latest. Uploading assets does not touch the flag.
+            gh release edit $tag --repo $repo --latest=false
+            if ($LASTEXITCODE -ne 0) { throw "resetting latest flag on $tag failed" }
+          }

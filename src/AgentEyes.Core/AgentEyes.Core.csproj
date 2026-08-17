@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- 10.0.19041.0 enables the Windows.Graphics.Capture WinRT projection used by the
+         Phase 3 video engine. WinForms + WPF are both on for monitor enumeration,
+         screenshots, the region overlay, and the (future) HUD. -->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>AgentEyes</RootNamespace>
+    <!-- The CLI ships as agenteyes.exe (short to type; a bare shadow.exe would collide with the
+         Windows RDP "shadow" concept). The WPF app owns the AgentEyesApp.exe name. -->
+    <AssemblyName>agenteyes</AssemblyName>
+    <Version>1.4.4</Version>
+    <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <Platforms>x64</Platforms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- DPI awareness is declared in app.manifest (correct for our WPF + console hybrid).
+         WFAC010 is the WinForms-only analyzer nudging toward Application.SetHighDpiMode; N/A here. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microphone capture (Mode A) -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
+
+    <!-- In-process transcription (Phase 4). Replaces the Python cc-whisper. Model downloaded once. -->
+    <PackageReference Include="Whisper.net" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+
+    <!-- Windows TTS - used only by the self-test harness to inject known spoken words. -->
+    <PackageReference Include="System.Speech" Version="8.0.0" />
+
+    <!-- DPAPI (CurrentUser) protection for the stored DevThrottle dt_ key (issue #87). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Let the test project and the WPF app see internal (engine) types. -->
+    <InternalsVisibleTo Include="AgentEyes.Tests" />
+    <InternalsVisibleTo Include="AgentEyesApp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- RNNoise model for ffmpeg's arnndn noise-suppression filter, extracted to
+         %LOCALAPPDATA%\AgentEyes\models at first use (see Audio\RnnoiseModel.cs). -->
+    <EmbeddedResource Include="..\..\assets\models\bd.rnnn" LogicalName="AgentEyes.Audio.bd.rnnn" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,48 @@
+<UserControl x:Class="AgentEyesSetup.Steps.OptionsStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBlock Text="Options"
+                   Foreground="White"
+                   FontSize="22"
+                   FontWeight="SemiBold" />
+
+        <TextBlock Text="A Start Menu shortcut is always created. Everything below is changeable later."
+                   Foreground="{StaticResource DimText}"
+                   FontSize="12"
+                   Margin="0,6,0,20" />
+
+        <Border Background="#2A2D2E" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+            <StackPanel>
+                <CheckBox x:Name="AutostartCheck" IsChecked="True">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="Start AgentEyes when I sign in" FontWeight="SemiBold" Foreground="White" /><LineBreak />
+                        <Run Text="Launches minimized to the tray, so quick recording is always ready." FontSize="12" />
+                    </TextBlock>
+                </CheckBox>
+            </StackPanel>
+        </Border>
+
+        <Border Background="#2A2D2E" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+            <StackPanel>
+                <CheckBox x:Name="PathCheck" IsChecked="True">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="Add the agenteyes command line tool to PATH" FontWeight="SemiBold" Foreground="White" /><LineBreak />
+                        <Run Text="Record, screenshot, and package from any terminal (open a new terminal after install)." FontSize="12" />
+                    </TextBlock>
+                </CheckBox>
+            </StackPanel>
+        </Border>
+
+        <Border Background="#2A2D2E" CornerRadius="6" Padding="16">
+            <StackPanel>
+                <CheckBox x:Name="DesktopCheck" IsChecked="True">
+                    <TextBlock TextWrapping="Wrap">
+                        <Run Text="Also create a desktop shortcut" FontWeight="SemiBold" Foreground="White" /><LineBreak />
+                        <Run Text="In addition to the Start Menu shortcut." FontSize="12" />
+                    </TextBlock>
+                </CheckBox>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
