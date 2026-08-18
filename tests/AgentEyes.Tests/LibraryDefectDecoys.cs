@@ -139,4 +139,45 @@ namespace AgentEyes.Tests.LibraryDefects
         public static void ThroughTheItemsControl(ItemsControl list) =>
             list.GroupStyle.Add(new GroupStyle());
     }
+
+    // ---- issue #3: bypasses of the library's coherence model ------------------
+
+    /// <summary>
+    /// The type that OWNS the library's rows, named so the rows scan's
+    /// "LibraryCoherence::" exclusion matches it here exactly as it does in the product.
+    ///
+    /// It is the NARROWNESS control: the scan must stay silent about the model touching its own
+    /// field, or it would report a defect on every correct route and be deleted within a week.
+    /// </summary>
+    internal sealed class LibraryCoherence
+    {
+        internal readonly ObservableCollection<object> _rows = new();
+
+        /// <summary>The model changing its own rows - never an offence.</summary>
+        public void ApplySnapshot(object row) => _rows.Add(row);
+    }
+
+    /// <summary>
+    /// The bypasses. Each one reaches the library's rows from OUTSIDE the model, in a spelling the
+    /// previous guard could not see: it recognized only Insert/Remove/Clear/Add, so a direct
+    /// <c>RemoveAt(0)</c> produced zero matcher hits and a move or an indexer assignment produced
+    /// none either. The last one is hidden behind a wrapper, which is how a text scan is usually
+    /// defeated.
+    ///
+    /// Nothing here is ever called. These methods exist to be READ, as IL, by CompiledCode.
+    /// </summary>
+    internal static class LibraryBypass
+    {
+        public static void RemoveAtDirectly(LibraryCoherence library) => library._rows.RemoveAt(0);
+
+        public static void MoveDirectly(LibraryCoherence library) => library._rows.Move(0, 1);
+
+        public static void AssignThroughTheIndexer(LibraryCoherence library, object row) =>
+            library._rows[0] = row;
+
+        public static void ThroughAWrapper(LibraryCoherence library, object row) =>
+            Wrapper(library._rows, row);
+
+        private static void Wrapper(ObservableCollection<object> rows, object row) => rows.Insert(0, row);
+    }
 }

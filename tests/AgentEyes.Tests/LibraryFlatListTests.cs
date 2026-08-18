@@ -45,6 +45,7 @@ namespace AgentEyes.Tests
     {
         private const string Xaml = @"src\AgentEyes.App\MainWindow.xaml";
         private const string CodeBehind = @"src\AgentEyes.App\MainWindow.xaml.cs";
+        private const string Coherence = @"src\AgentEyes.App\LibraryCoherence.cs";
 
         private readonly string _root;
 
@@ -323,20 +324,24 @@ namespace AgentEyes.Tests
         /// for something the view does on its own.
         ///
         /// Its limit, stated rather than hidden: this proves the card that is REFRESHED moves. A row
-        /// captured before an await can have been replaced by a reload while the await was running,
-        /// in which case the refresh updates an object the collection no longer holds. That is
-        /// failure mode 5 of issue #180 and is not addressed here.
+        /// captured before an await that a reload has since detached is failure mode 5 of issue #3
+        /// and is covered in LibraryCoherenceTests, not here.
         /// </summary>
         [Fact]
         public void ARecordingThatGainsAStartTime_MovesToItsPlace_WhenTheViewIsResorted()
         {
-            var late = RecentItem.From(Recording("z_video", null));                          // undated
-            var old = RecentItem.From(Recording("a_video", "2019-02-03T04:05:06.0000000Z"));
-
-            var rows = new RecentItemCollection();
-            rows.Add(old);
-            rows.Add(late);
-            var view = new System.Windows.Data.ListCollectionView(rows) { CustomSort = RecentItem.NewestFirst };
+            string undated = Recording("z_video", null);
+            var library = new LibraryCoherence();
+            library.ApplySnapshot(library.BeginSnapshot(), new List<RecentItem>
+            {
+                RecentItem.From(Recording("a_video", "2019-02-03T04:05:06.0000000Z")),
+                RecentItem.From(undated),
+            });
+            var late = library.Find(undated)!;
+            var view = new System.Windows.Data.ListCollectionView(library.Rows)
+            {
+                CustomSort = RecentItem.NewestFirst,
+            };
 
             Assert.Equal(new[] { "a_video", "z_video" }, Rendered(view));
 
@@ -366,22 +371,26 @@ namespace AgentEyes.Tests
         // ---- review finding 5: a full reload is ONE notification, not n ------
 
         /// <summary>
-        /// Replacing the library's rows raises a single Reset. Every Add used to raise its own
+        /// Loading the library's rows raises a single Reset. Every Add used to raise its own
         /// CollectionChanged, and the handler on it re-walks the collection to total the AI spend -
         /// O(n squared) UI-thread work for a list with no cap.
+        ///
+        /// Issue #3 moved the wholesale swap behind the coherence model, and the coalescing came with
+        /// it: the notifications raised while a snapshot is being merged are held back and settled
+        /// once. This is the same claim measured on the route that now does it.
         /// </summary>
         [Fact]
-        public void ReplacingEveryRow_RaisesOneResetRatherThanOneEventPerRow()
+        public void LoadingEveryRow_RaisesOneResetRatherThanOneEventPerRow()
         {
-            var rows = new RecentItemCollection();
+            var library = new LibraryCoherence();
             var events = new List<System.Collections.Specialized.NotifyCollectionChangedAction>();
-            rows.CollectionChanged += (_, e) => events.Add(e.Action);
+            library.Rows.CollectionChanged += (_, e) => events.Add(e.Action);
 
-            rows.ReplaceAll(Enumerable.Range(0, 60)
+            library.ApplySnapshot(library.BeginSnapshot(), Enumerable.Range(0, 60)
                 .Select(i => RecentItem.From(Recording($"r{i:D2}_video", "2026-08-17T08:03:32.0000000Z")))
                 .ToList());
 
-            Assert.Equal(60, rows.Count);
+            Assert.Equal(60, library.Rows.Count);
             Assert.Equal(new[] { System.Collections.Specialized.NotifyCollectionChangedAction.Reset }, events);
         }
 
@@ -728,11 +737,19 @@ namespace AgentEyes.Tests
         /// A card whose start time changed has moved in the sort order, and a collection view does
         /// not re-sort because a field changed - so every RefreshNaming call site must act on what it
         /// reports (issue #178, review finding 3).
+        ///
+        /// Issue #3 moved that call site: RefreshNaming is now reached through
+        /// <c>LibraryCoherence.Refresh</c>, which is the only route the window has to it, so this
+        /// guard reads the file that owns the call. It is a LITERAL STRING MATCH over that source and
+        /// claims nothing more: it sees that the one call site keeps the answer in <c>moved</c> and
+        /// raises <c>SortKeyChanged</c> on it. It cannot see a second route added through reflection
+        /// or a delegate, and the fail-closed half below is what stops it certifying a file that no
+        /// longer calls RefreshNaming at all.
         /// </summary>
         [Fact]
         public void EveryRefreshNamingCallSite_ReSortsTheLibraryWhenTheStartTimeMoved()
         {
-            var offenders = RefreshNamingCallSitesThatIgnoreTheResort(RepoSource.Read(CodeBehind));
+            var offenders = RefreshNamingCallSitesThatIgnoreTheResort(RepoSource.Read(Coherence));
 
             Assert.True(offenders.Count == 0,
                 "A RefreshNaming call site ignores the fact that the recording's start time changed, "
@@ -744,10 +761,10 @@ namespace AgentEyes.Tests
         [Fact]
         public void TheResortGuard_ReportsARefreshThatDoesNotResort()
         {
-            string code = RepoSource.Read(CodeBehind);
+            string code = RepoSource.Read(Coherence);
 
             Assert.NotEmpty(RefreshNamingCallSitesThatIgnoreTheResort(
-                code.Replace("if (row.RefreshNaming()) ResortLibrary();", "row.RefreshNaming();",
+                code.Replace("bool moved = row.RefreshNaming();", "row.RefreshNaming();",
                     StringComparison.Ordinal)));
         }
 
@@ -904,7 +921,9 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>Every RefreshNaming call site that throws away the "the sort key moved" answer
-        /// instead of re-sorting on it.</summary>
+        /// instead of re-sorting on it. A LITERAL match on the one shape the model uses - the answer
+        /// is kept in <c>moved</c> and <c>SortKeyChanged</c> is raised on it - and it claims no
+        /// more than that.</summary>
         private static IReadOnlyList<string> RefreshNamingCallSitesThatIgnoreTheResort(string code)
         {
             var sites = Regex.Matches(code, @"\.RefreshNaming\(\)");
@@ -912,9 +931,12 @@ namespace AgentEyes.Tests
                 throw new InvalidOperationException(
                     "Nothing calls RefreshNaming any more, so this guard would pass by finding nothing.");
 
+            bool actsOnIt = code.Contains("if (moved) SortKeyChanged?.Invoke();", StringComparison.Ordinal);
+
             return sites
-                .Where(site => !code.Substring(site.Index + site.Length)
-                                    .StartsWith(") ResortLibrary();", StringComparison.Ordinal))
+                .Where(site => !actsOnIt
+                               || !LineAt(code, site.Index)
+                                       .StartsWith("bool moved = ", StringComparison.Ordinal))
                 .Select(site => $"RefreshNaming at offset {site.Index}: {LineAt(code, site.Index)}")
                 .ToList();
         }
