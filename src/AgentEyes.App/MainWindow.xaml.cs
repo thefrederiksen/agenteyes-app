@@ -1540,7 +1540,8 @@ namespace AgentEyes.App
         {
             var dlg = new RecordingDetailWindow(item, _cfg,
                 rebuildWalkthrough: () => PackageDirAsync(item.Dir),
-                delete: () => DeleteRecordings(new List<RecentItem> { item }))
+                delete: () => DeleteRecordings(new List<RecentItem> { item }),
+                rename: name => _library.Rename(item, name))
             { Owner = this };
             dlg.ShowDialog();
         }
@@ -1793,34 +1794,36 @@ namespace AgentEyes.App
             UpdateEmptyState();
             StatusText.Text = count == 1 ? $"Deleting \"{title}\"..." : $"Deleting {count} recordings...";
 
-            _ = Ui.Run(() =>
-            {
-                int deleted = 0;
-                string? firstError = null;
-                var failed = new List<string>();
-                foreach (var dir in deletion.Directories)
-                {
-                    try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); deleted++; }
-                    catch (Exception ex)
-                    {
-                        Log.Error("delete " + dir, ex);
-                        firstError ??= ex.Message;
-                        failed.Add(dir);
-                    }
-                }
+            int deleted = 0;
+            string? firstError = null;
+            var failed = new List<string>();
 
-                // Settling the deletion is NOT optional and NOT conditional on it having succeeded:
-                // a deletion left unsettled would hide its recordings from every future reload, even
-                // the ones that can see the folder is still there. Whatever happened above, the
-                // model is told.
-                Ui.Post(() =>
+            // Ui.RunThenPost, NOT a bare Ui.Run: the settle below runs from that helper's FINALLY, so
+            // it happens even if this loop ever throws. Settling is not optional - a deletion left
+            // unsettled hides its recordings from every later reload, even ones that can plainly see
+            // the folder is still there - and until this was structural the comment saying so was
+            // only true by inspection of a fire-and-forget lambda whose exceptions went nowhere.
+            Ui.RunThenPost(
+                work: () =>
+                {
+                    foreach (var dir in deletion.Directories)
+                    {
+                        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); deleted++; }
+                        catch (Exception ex)
+                        {
+                            Log.Error("delete " + dir, ex);
+                            firstError ??= ex.Message;
+                            failed.Add(dir);
+                        }
+                    }
+                },
+                onDone: () =>
                 {
                     _library.CompleteDelete(deletion, failed);
                     StatusText.Text = firstError != null
                         ? $"Deleted {deleted} of {count} - {firstError}"
                         : count == 1 ? $"Deleted \"{title}\"." : $"Deleted {deleted} recordings.";
                 });
-            });
         }
 
         private void OpenRecordingMenu_Click(object sender, RoutedEventArgs e)

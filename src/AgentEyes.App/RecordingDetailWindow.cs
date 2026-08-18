@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
@@ -20,18 +20,31 @@ namespace AgentEyes.App
         private readonly Config _cfg;
         private readonly Func<Task> _rebuildWalkthrough;
         private readonly Action _delete;
+
+        /// <summary>
+        /// Applies a rename to the library, ordered against the reloads in flight (issue #3).
+        ///
+        /// It is a callback for the same reason <see cref="_delete"/> is: this dialog is handed
+        /// behaviour it does not own. It used to write RecentItem.Title straight onto the live
+        /// library row, which claimed no epoch, so a reload whose worker had already read the old
+        /// manifest landed afterwards and put the old name back - failure mode 4, on the one rename
+        /// route that never went through the model.
+        /// </summary>
+        private readonly Action<string> _rename;
         private readonly TextBox _title;
         private readonly TextBlock _status;
         private PreviewWindow? _player;
 
         private static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
-        internal RecordingDetailWindow(RecentItem item, Config cfg, Func<Task> rebuildWalkthrough, Action delete)
+        internal RecordingDetailWindow(RecentItem item, Config cfg, Func<Task> rebuildWalkthrough,
+            Action delete, Action<string> rename)
         {
             _item = item;
             _cfg = cfg;
             _rebuildWalkthrough = rebuildWalkthrough;
             _delete = delete;
+            _rename = rename ?? throw new ArgumentNullException(nameof(rename));
 
             Title = "Recording details";
             Width = 640; Height = 620;
@@ -221,7 +234,10 @@ namespace AgentEyes.App
                 // Off the UI thread: the write takes the recording's manifest lock and flushes to
                 // physical disk, so it can wait on whatever else is writing that recording.
                 await Task.Run(() => ManifestStore.Update(_item.Dir, m => m.DisplayName = name));
-                _item.Title = name;
+                // Through the library's coherence model, never onto the row directly (issue #3):
+                // the row was captured before that await, and the new name has to be stamped as
+                // newer than any reload still in flight or the next one to land reverts it.
+                _rename(name);
                 _status.Text = "Renamed.";
             }
             catch (Exception ex)

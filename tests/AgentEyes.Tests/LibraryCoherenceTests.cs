@@ -955,6 +955,188 @@ namespace AgentEyes.Tests
                     "AgentEyes.Tests.LibraryDefects.LibraryCoherence::", StringComparison.Ordinal));
         }
 
+        // ---- the ROW guard: criterion 8's other half ------------------------
+        //
+        // The guards above protect the COLLECTION - which rows are in the library, and who may add
+        // or remove one. They say nothing about writing a VALUE ON a row, and a rename is exactly
+        // that. QA round 2 found the consequence: two rename routes existed, one went through the
+        // model and the other wrote RecentItem.Title straight onto the live row, so an in-flight
+        // reload reverted it. That is failure mode 4 on the route nobody had enumerated.
+        //
+        // Ownership of a row's values therefore gets its own scan, in the same shape as the _rows
+        // scan: read every write to a RecentItem property out of the compiled assembly, and require
+        // the writer to be the card itself or the model.
+
+        /// <summary>Any write to a value on a library card.</summary>
+        private static bool IsARecentItemPropertyWrite(string callee, string ns) =>
+            callee.StartsWith(ns + "RecentItem::set_", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Every write to a card's value made by something that is neither the card nor the model.
+        ///
+        /// What it measures, exactly: a call to a <c>RecentItem</c> property SETTER from a method
+        /// outside RecentItem and outside LibraryCoherence. It is spelling-independent in the way IL
+        /// always is - an alias, a helper, a different local, a wrapper all compile to the same
+        /// setter token, and the writer is reported wherever it lives.
+        ///
+        /// What it does NOT see, stated rather than glossed: a write made through reflection, and a
+        /// write to a public FIELD. There are no public fields on RecentItem today - every value a
+        /// card binds is a property - which is what makes this scan complete for the type as it
+        /// stands, and would stop being true the day someone adds one.
+        /// </summary>
+        private static IReadOnlyList<CompiledCode.CallSite> RowWritesOutsideTheModel(string assembly, string ns)
+        {
+            var writes = CompiledCode.CallSites(assembly, callee => IsARecentItemPropertyWrite(callee, ns));
+
+            if (writes.Count == 0)
+                throw new InvalidOperationException(
+                    $"No method in {Path.GetFileName(assembly)} writes a RecentItem property, so this "
+                    + "guard would be scanning nothing and passing on absence.");
+
+            return writes
+                .Where(site => !site.Method.StartsWith(ns + "RecentItem::", StringComparison.Ordinal)
+                               && !site.Method.StartsWith(ns + "LibraryCoherence::", StringComparison.Ordinal)
+                               && !site.Method.StartsWith(ns + "LibraryCoherence/", StringComparison.Ordinal))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Criterion 8, the row half: nothing outside the card and the model writes a value on a
+        /// library row.
+        ///
+        /// A row write that does not go through LibraryCoherence claims no epoch, so nothing orders
+        /// it against the reloads in flight and the next one to land overwrites it. That is precisely
+        /// what happened to the Details dialog's rename.
+        /// </summary>
+        [Fact]
+        public void NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow()
+        {
+            var offenders = RowWritesOutsideTheModel(CompiledCode.AppAssembly, "AgentEyes.App.");
+
+            Assert.True(offenders.Count == 0,
+                "A method outside RecentItem and LibraryCoherence writes a value straight onto a "
+                + "library row, so it claims no epoch and an in-flight reload overwrites it (issue "
+                + "#3, failure mode 4). Route it through LibraryCoherence instead:" + Environment.NewLine
+                + string.Join(Environment.NewLine,
+                    offenders.Select(o => $"  {o.Method} -> {o.Callee}")));
+        }
+
+        /// <summary>
+        /// The negative control AND the narrowness control. The scan must report a compiled write
+        /// from outside - both the direct one and the one moved into a helper - and must stay silent
+        /// about the card and the model writing their own values, or it would report a defect on all
+        /// fifty-one legitimate writes and be deleted within a week.
+        ///
+        /// The helper case is reported as <c>RowBypass::Helper</c>, not as its caller
+        /// <c>ThroughAHelper</c>, because this scan names the method that CONTAINS the write. That is
+        /// sufficient here in a way it was not for the date guards: those started from a list of seed
+        /// methods, so a fallback could hide in a helper no seed named, whereas this scan reads EVERY
+        /// method in the assembly. The write has to live in some method, and every method is looked
+        /// at, so moving it behind a helper relocates the report rather than escaping it.
+        /// </summary>
+        [Fact]
+        public void TheRowWriteScan_ReportsAWriteFromOutside_AndIgnoresTheCardAndTheModel()
+        {
+            var reported = RowWritesOutsideTheModel(
+                CompiledCode.TestAssembly, "AgentEyes.Tests.LibraryDefects.");
+
+            foreach (string bypass in new[]
+                     {
+                         "AgentEyes.Tests.LibraryDefects.RowBypass::RenameDirectly",
+                         "AgentEyes.Tests.LibraryDefects.RowBypass::Helper",
+                     })
+                Assert.True(reported.Any(site => site.Method == bypass),
+                    $"The row-write scan does not report the compiled bypass in '{bypass}'. A guard "
+                    + "that cannot see the defect in a decoy cannot see it in the product either:"
+                    + Environment.NewLine
+                    + string.Join(Environment.NewLine, reported.Select(o => $"  {o.Method} -> {o.Callee}")));
+
+            Assert.DoesNotContain(reported,
+                site => site.Method.StartsWith(
+                    "AgentEyes.Tests.LibraryDefects.LibraryCoherence::", StringComparison.Ordinal));
+            Assert.DoesNotContain(reported,
+                site => site.Method.StartsWith(
+                    "AgentEyes.Tests.LibraryDefects.RecentItem::", StringComparison.Ordinal));
+        }
+
+        /// <summary>
+        /// WHY that guard exists, made concrete. This is NOT an acceptance criterion and NOT a claim
+        /// about intended behaviour - it is the mechanism the guard protects, pinned so the guard
+        /// cannot be dismissed as bureaucracy later.
+        ///
+        /// The two rename routes side by side on the same fixture: the value written straight onto
+        /// the row is reverted by a reload that read the manifest before it, and the identical rename
+        /// through the model survives. Nothing about the value differs - only the route.
+        /// </summary>
+        [Fact]
+        public void ARawRowWrite_IsRevertedByAnInFlightReload_WhileTheSameRenameThroughTheModelSurvives()
+        {
+            string dir = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+
+            var raw = Loaded(dir);
+            long rawInFlight = raw.BeginSnapshot();       // its worker read the OLD manifest
+            raw.Find(dir)!.Title = "The new name";        // exactly what a bypassing route does
+            raw.ApplySnapshot(rawInFlight, Snapshot(dir));
+
+            Assert.Equal("Monitor 0", raw.Find(dir)!.Title);   // the user's rename is gone
+
+            var routed = Loaded(dir);
+            long routedInFlight = routed.BeginSnapshot();
+            routed.Rename(routed.Find(dir)!, "The new name");
+            routed.ApplySnapshot(routedInFlight, Snapshot(dir));
+
+            Assert.Equal("The new name", routed.Find(dir)!.Title);
+        }
+
+        /// <summary>
+        /// The Details dialog's rename - the route QA found bypassing the model - pinned like every
+        /// other route: the dialog is HANDED the rename as a callback rather than performing it, and
+        /// the window's answer to that callback is the model.
+        ///
+        /// What pins each half, and what pins neither:
+        ///
+        /// * the dialog does not write the row - that is
+        ///   <see cref="NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow"/>, which reads
+        ///   every method in the assembly and is the strong, spelling-independent half;
+        /// * the dialog is given somewhere to send the rename instead - the constructor parameter,
+        ///   read by reflection here, so removing it fails this test;
+        /// * the window sends it to the model - read from IL.
+        ///
+        /// NOT pinned, stated because the gap is real: that <c>CommitRename</c> actually INVOKES the
+        /// callback. Invoking an <c>Action&lt;string&gt;</c> compiles to a member reference whose
+        /// parent is a generic TypeSpec, which <see cref="CompiledCode"/> deliberately reports as
+        /// null - so no call scan here can see it. A CommitRename that took the callback and dropped
+        /// it would fail no guard in this file; it would simply not rename, which is a visible
+        /// nothing-happened bug rather than the silent revert this issue is about.
+        /// </summary>
+        [Fact]
+        public void TheDetailsDialogsRename_IsHandedToTheModelRatherThanWrittenOnTheRow()
+        {
+            const string ns = "AgentEyes.App.";
+            var methods = CompiledCode.MethodNames(CompiledCode.AppAssembly);
+
+            foreach (string route in new[]
+                     { "RecordingDetailWindow::CommitRename", "MainWindow::OpenDetail" })
+                Assert.True(methods.Contains(ns + route, StringComparer.Ordinal),
+                    $"'{ns + route}' is not in AgentEyesApp.dll, so this guard is checking a route "
+                    + "that no longer exists and would pass by finding nothing.");
+
+            // The dialog has somewhere to send a rename other than the row.
+            var rename = typeof(RecordingDetailWindow)
+                .GetConstructors(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)
+                .SelectMany(ctor => ctor.GetParameters())
+                .SingleOrDefault(p => p.Name == "rename");
+
+            Assert.True(rename != null,
+                "RecordingDetailWindow no longer takes a 'rename' callback, so the Details dialog has "
+                + "nowhere to send a rename except the row itself (issue #3, failure mode 4).");
+            Assert.Equal(typeof(Action<string>), rename!.ParameterType);
+
+            // ...and the window's answer to that callback is the model.
+            Assert.Contains(ns + "LibraryCoherence::Rename",
+                CallsFrom(ns + "MainWindow::OpenDetail"));
+        }
+
         /// <summary>
         /// Criterion 8: every route that reads or changes the Library, enumerated, with the model
         /// member each one must reach - read from the compiled app assembly, so a route that stops
@@ -994,7 +1176,12 @@ namespace AgentEyes.Tests
                 // settled hides its recordings from every later reload (failure mode 6's cost), so
                 // "it calls Delete" is not enough to claim the route participates.
                 "LibraryCoherence::Delete", "LibraryCoherence::CompleteDelete",
+
+                // ...and the settle runs from RunThenPost's FINALLY rather than from the end of a
+                // fire-and-forget lambda, so a throw added to the delete loop later cannot skip it.
+                "Ui::RunThenPost",
             }),
+            ("MainWindow::OpenDetail", new[] { "LibraryCoherence::Rename" }),
             ("MainWindow::ImportVideo_Click", new[] { "MainWindow::LoadRecent" }),
             ("MainWindow::Search_TextChanged", new[] { "LibraryCoherence::get_Rows" }),
             ("MainWindow::ResortLibrary", new[] { "LibraryCoherence::get_Rows" }),

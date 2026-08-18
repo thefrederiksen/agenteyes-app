@@ -19,6 +19,22 @@ $log  = Join-Path $env:LOCALAPPDATA 'AgentEyes\logs'
 $crash = Join-Path $env:TEMP 'AgentEyes-crash.log'
 
 if (-not (Test-Path $exe)) { throw "branch build missing: $exe" }
+
+# The binary must be NEWER than the sources it claims to test. This is not paranoia: on 2026-08-18
+# this proof was run against a build still carrying a deliberately mutated ApplySnapshot, because the
+# source had been restored and not rebuilt. It reported 44 of 44 and looked like a pass. The only
+# thing that gave it away was an expected log line missing from the run - a clue that is easy to miss
+# and impossible to rely on. So the staleness is checked here instead of hoped about.
+$newestSource = Get-ChildItem (Join-Path $root 'src') -Recurse -Include *.cs, *.xaml |
+                Sort-Object LastWriteTime | Select-Object -Last 1
+$builtAt = (Get-Item $exe).LastWriteTime
+if ($newestSource -and $newestSource.LastWriteTime -gt $builtAt) {
+  throw ("STALE BUILD: $($newestSource.Name) was changed at $($newestSource.LastWriteTime) but " +
+         "AgentEyesApp.exe was built at $builtAt. Run 'dotnet build AgentEyes.sln -c Release' first - " +
+         "this run would be testing code you did not build.")
+}
+"build: $builtAt (newest source: $($newestSource.LastWriteTime))"
+
 if (Test-Path $crash) { Remove-Item $crash -Force }
 
 # What is actually on disk, right now (read only).

@@ -4,10 +4,71 @@
 
 Repo: `thefrederiksen/agenteyes-app`. Branch: `issue-3-library-coherence`. Base: `8d46403` (v1.4.8).
 
-**ROUND 2** - QA failed round 1 on criterion 6 and raised two guard-strength findings. All three are
-addressed; section 0 is the round-2 record and is the part to read first. I believe this is finished.
-Build clean, `dotnet test` 812/812, every round-2 guard demonstrated failing before it was trusted,
-and the running app re-verified against the owner's real 44-recording library.
+**ROUND 3** - QA passed everything from rounds 1 and 2 and failed criterion 8 on one route:
+`RecordingDetailWindow::CommitRename` wrote `RecentItem.Title` straight onto the live library row.
+QA's framing was the important part - the guards protected the COLLECTION, and this method mutated a
+ROW. Section 0a is the round-3 record. Build clean, `dotnet test` 816/816, the new guards demonstrated
+failing on the unmodified code before the fix, and the running app re-verified.
+
+---
+
+## 0a. Round 3 - the row-write defect, and the guard category that was missing
+
+QA's report: `docs/cencon/proof/issue-3/qa-report-round2.html`. It was right, and the framing is worth
+keeping: **every guard built for this issue protected the collection - which rows exist and who may
+add or remove one. None of them protected a VALUE ON a row.** A rename is a value on a row. Failure
+mode 4 has two rename routes; one was enumerated and owned, and the other was neither.
+
+### The route
+
+`RecordingDetailWindow` is handed `rebuildWalkthrough:` and `delete:` as callbacks because it does not
+own that behaviour. Rename was the exception: it wrote `_item.Title` itself, claiming no epoch, so a
+reload whose worker had already read the old manifest landed afterwards and put the old name back. It
+now takes a `rename:` callback like the others, and `MainWindow.OpenDetail` answers it with
+`_library.Rename(item, name)`.
+
+### The guard category
+
+`NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow` reads every write to a `RecentItem`
+property out of the compiled assembly and requires the writer to be the card or the model - the same
+shape as the `_rows` scan, one level down. It is stronger than the date guards of #178 in one specific
+way, and that is stated in the test: those started from a list of seed methods, so a defect could hide
+in a helper no seed named, whereas this reads EVERY method in the assembly. Moving the write behind a
+helper relocates the report rather than escaping it, which the decoy control demonstrates
+(`RowBypass::Helper` is what gets reported, not its caller).
+
+What it cannot see, stated in the test itself: a write through reflection, and a write to a public
+FIELD. There are no public fields on `RecentItem` today - every bound value is a property - which is
+what makes the scan complete for the type as it stands and would stop being true the day one is added.
+
+`TheDetailsDialogsRename_IsHandedToTheModelRatherThanWrittenOnTheRow` pins the replacement route, and
+names its own gap: it cannot see that `CommitRename` actually INVOKES the callback, because invoking
+an `Action<string>` compiles to a member reference with a generic TypeSpec parent, which
+`CompiledCode` reports as null by design. A `CommitRename` that took the callback and dropped it would
+fail no guard here - it would simply not rename, which is a visible nothing-happened bug rather than
+the silent revert this issue is about.
+
+### Hardening (QA's note, taken)
+
+The delete worker was `_ = Ui.Run(...)` with the settle as its last statement, so a throw added to
+that lambda later would be swallowed and the recordings would vanish with no diagnostic. It is now
+`Ui.RunThenPost`, whose `finally` runs the settle - the comment claiming the settle is unconditional
+is now true structurally rather than by inspection. The route table requires it, so reverting to
+`Ui.Run` fails a test.
+
+### A process error worth recording
+
+The first two round-3 running-app runs reported 44 of 44 and looked like passes. They were run
+against a binary that still contained a deliberately mutated `ApplySnapshot` - the source had been
+restored and NOT rebuilt. The only thing that gave it away was an expected `[LibraryCoherence]
+ApplySnapshot` line missing from the log while the rows rendered correctly; the mutated path returned
+before reaching it.
+
+That is exactly the stale-binary trap CLAUDE.md warns about, wearing new clothes, and noticing it
+depended on knowing what the log should say. `library-proof.ps1` now refuses to run when any source
+file is newer than `AgentEyesApp.exe`, with the message naming the file and both timestamps. That
+check was demonstrated firing (touch a source, run, get `STALE BUILD: LibraryCoherence.cs was changed
+at ... but AgentEyesApp.exe was built at ...`) before being trusted.
 
 ---
 
@@ -166,7 +227,8 @@ raises nothing at all.
 | `src/AgentEyes.App/LibraryCoherence.cs` | NEW - the model. Round 2: the `Removing`/`Removed` deletion lifecycle, `CompleteDelete`, `ReconcileFactsWithRows`, `RepairedDivergences`, `LibraryDeletion` |
 | `src/AgentEyes.App/RecentItemCollection.cs` | the gate + notification coalescing; `ReplaceAll` removed. Round 2: now a PRIVATE NESTED type of `LibraryCoherence` |
 | `src/AgentEyes.App/MainWindow.xaml.cs` | `_recent` -> `_library`; every route goes through the model; `RecentItem.AdoptFrom` + notification on every bound property. Round 2: `DeleteRecordings` settles the deletion, `LoadRecent` has an entry-point catch |
-| `tests/AgentEyes.Tests/LibraryCoherenceTests.cs` | NEW - 38 tests (30 in round 1, +8 in round 2) |
+| `src/AgentEyes.App/RecordingDetailWindow.cs` | round 3: takes a `rename:` callback instead of writing the row |
+| `tests/AgentEyes.Tests/LibraryCoherenceTests.cs` | NEW - 42 tests (30 round 1, +8 round 2, +4 round 3) |
 | `tests/AgentEyes.Tests/LibraryDefectDecoys.cs` | decoys for the new structural guard |
 | `tests/AgentEyes.Tests/LibraryFlatListTests.cs` | 3 tests retargeted onto the new owner of the behaviour |
 
@@ -180,11 +242,11 @@ something live, land the snapshot). Nothing races and hopes.
 | 1 | An older reload completing after a newer one does not install its stale snapshot | `AnOlderReload_LandingLast_DoesNotInstallItsStaleSnapshot`, `...DoesNotRemoveARecordingOnlyTheNewerReloadSaw` | `dotnet test --filter LibraryCoherenceTests` |
 | 2 | A live insert during an in-flight reload loses NEITHER the inserted row NOR the recording only the snapshot had | `AnInsertDuringAnInFlightReload_LosesNeitherTheInsertedRowNorTheSnapshotOnlyRecording`, `...DoesNotLoseTheRepairedTitleThatOnlyTheSnapshotCarried` | same. Note both tests assert BOTH halves, so either single-winner design fails them |
 | 3 | A reload whose worker throws does not blank or truncate the Library, and does not prevent a concurrent successful reload from landing | `AReloadWhoseWorkerThrows_DoesNotBlankOrTruncateTheLibrary`, `AFailedReload_DoesNotBlockAnOlderSuccessfulReloadFromLanding`, `AHungReload_NeverSettled_DoesNotStopLaterReloadsFromLanding`, `ASuccessfulReloadThatFoundNothing_EmptiesTheLibrary` | same |
-| 4 | A rename completing during an in-flight reload is not reverted by it | `ARenameDuringAnInFlightReload_IsNotRevertedByThatReload`, `ARefreshDuringAnInFlightReload_...`, `ALaterReload_StillUpdatesARenamedRow` | same |
+| 4 | A rename completing during an in-flight reload is not reverted by it | `ARenameDuringAnInFlightReload_IsNotRevertedByThatReload`, `ARefreshDuringAnInFlightReload_...`, `ALaterReload_StillUpdatesARenamedRow`; **round 3, the second rename route** `TheDetailsDialogsRename_IsHandedToTheModelRatherThanWrittenOnTheRow` and `ARawRowWrite_IsRevertedByAnInFlightReload_WhileTheSameRenameThroughTheModelSurvives` | same |
 | 5 | A row captured before an await and refreshed after a reload replaced it leaves no stale visible row | `ARowHeldAcrossAnAwait_IsStillTheLibrarysRowAfterAReloadCompleted`, `...WhenTheHeldOneIsDetached`, `StatusOnAHeldRow_...`, `RefreshingARowForADeletedRecording_...`, `AReloadLandingOnARow_DoesNotWipeItsLiveStatus` | same |
 | 6 | A reload starting after a UI delete but before the directory is removed does not resurrect the row | **Round 2, see section 0.** `AReloadStartingAfterTheDelete_WhileTheDirectoryIsStillBeingRemoved_DoesNotResurrectTheRow`, `ADeleteWithOneReloadAlreadyInFlight_...`, `AnUnrelatedSnapshotSettling_...`, `AReloadInFlightWhenTheDeletionSettled_...`, `AReloadAfterADeletionThatFAILED_ShowsTheRecordingAgain`, `ADeletionThatIsNeverSettled_KeepsHidingTheRecording`, `CompletingADeletion_DoesNotTombstoneARecordingReCreatedInTheSameFolder`, plus `AReloadThatStartedBeforeTheDirectoryWasRemoved_...` (the round-1 ordering, still covered) | same |
 | 7 | A structural guard proves every mutation route participates, and FAILS on a direct `RemoveAt`/`Move`/indexer mutation - demonstrated, not asserted | `EveryDirectMutationOfTheLibrarysRows_IsRefused` (11 spellings, each observed to throw), `TheGate_RefusesMutationsOnly_AndLeavesEveryReadWorking`, `TheModelAndItsRows_RefuseEveryCallFromAnotherThread`, `NoMethodOutsideTheCoherenceModel_TouchesTheLibrarysRows` + `TheRowsScan_ReportsEveryBypassOfTheModel`; **round 2** `TheGatedRowsCollection_CannotBeNamedOutsideTheModel` + `ADivergenceForcedIntoTheRows_IsRepairedRatherThanThrownOntoTheUiThread` | same. Section 5 below has the mutation evidence |
-| 8 | Enumerated proof that no route bypasses the model, including all three RepairService triggers | `EveryLibraryRoute_GoesThroughTheCoherenceModel` (12 routes read from the compiled assembly; `DeleteRecordings` must now reach `Delete` AND `CompleteDelete`), `EveryRepairServiceTrigger_ReachesTheLibraryOnlyThroughLibraryChanged`, `TheWholeApp_WritesLibraryChanged_AtExactlyTwoCallSites_TheSubscriptionAndTheTeardown` | same |
+| 8 | Enumerated proof that no route bypasses the model, including all three RepairService triggers | `EveryLibraryRoute_GoesThroughTheCoherenceModel` (13 routes read from the compiled assembly; `DeleteRecordings` must reach `Delete`, `CompleteDelete` AND `Ui::RunThenPost`), `EveryRepairServiceTrigger_ReachesTheLibraryOnlyThroughLibraryChanged`, `TheWholeApp_WritesLibraryChanged_AtExactlyTwoCallSites_...`; **round 3 - the ROW half** `NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow` + `TheRowWriteScan_ReportsAWriteFromOutside_AndIgnoresTheCardAndTheModel` | same |
 | 9 | `dotnet build -c Release` clean, `dotnet test -c Release` `Failed: 0` | - | section 6 |
 
 ### The route enumeration (criterion 8), in full
@@ -200,7 +262,8 @@ are checked, so a rename fails the test rather than silently checking nothing.
 | `MainWindow::StopAsync` | `Insert`, `SetStatus`, `Refresh` |
 | `MainWindow::PackageDirAsync` | `Find`, `SetStatus`, `Refresh` |
 | `MainWindow::RenameRecording_Click` | `Rename` |
-| `MainWindow::DeleteRecordings` | `Delete`, `CompleteDelete` |
+| `MainWindow::DeleteRecordings` | `Delete`, `CompleteDelete`, `Ui::RunThenPost` |
+| `MainWindow::OpenDetail` | `Rename` |
 | `MainWindow::ImportVideo_Click` | `MainWindow::LoadRecent` |
 | `MainWindow::Search_TextChanged`, `ResortLibrary`, `UpdateLibraryTotal`, `UpdateEmptyState` | `get_Rows` |
 
@@ -236,6 +299,12 @@ Stated rather than glossed, because an overclaiming guard has been rejected here
 - **The LibraryChanged call-site count** measures writes to that property in the compiled app, which
   is exact, plus two LITERAL STRING MATCHES on the source for the two roles. It cannot see a
   subscription made through reflection or a delegate stored elsewhere.
+- **The row-write scan** reads every write to a `RecentItem` PROPERTY out of the compiled assembly.
+  It cannot see a write through reflection, and it cannot see a write to a public FIELD - there are
+  none on RecentItem today, which is what makes it complete for the type as it stands.
+- **The Details-dialog route guard** pins that the dialog is GIVEN a rename callback and that the
+  window wires it to the model. It cannot see the callback being INVOKED: an `Action<string>` call is
+  a member reference with a generic TypeSpec parent, which CompiledCode reports as null by design.
 - **The retargeted re-sort guard** (`EveryRefreshNamingCallSite_ReSortsTheLibraryWhenTheStartTimeMoved`)
   is a LITERAL STRING MATCH over `LibraryCoherence.cs`, and says so in its own comment. It cannot see
   a second route added by reflection or a delegate; it throws rather than passing if nothing calls
@@ -282,6 +351,30 @@ Eight more, same discipline: constructed in the product code, watched go RED, re
 | R7b | The teardown DELETED and a rogue subscription added, so the call-site count stays at two | the same test, on the source half |
 | R8 | `DeleteRecordings` stops calling `CompleteDelete` | `EveryLibraryRoute_GoesThroughTheCoherenceModel` ("does not call 'LibraryCoherence::CompleteDelete'") |
 
+### Round 3
+
+Four more. The two product guards were confirmed RED on the unmodified round-2 code BEFORE the route
+was touched - `NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow` naming the offender
+exactly as QA did (`RecordingDetailWindow::CommitRename -> RecentItem::set_Title`) - and the decoy
+control was green at the same time, which is what proves the instrument was working rather than
+merely complaining.
+
+| # | The defect constructed | Tests that went RED |
+|---|---|---|
+| (pre-fix) | NOTHING - the new row guards run against the unmodified round-2 code | `NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow`, `TheDetailsDialogsRename_...` |
+| R9 | `CommitRename` writes the row directly again (the callback still present but unused) | the row-write scan, naming CommitRename |
+| R10 | The `rename:` callback wired to `item.Title = name` instead of the model | 3 red: the row-write scan (now naming `MainWindow::OpenDetail`, where the write moved), the route table, and the Details-dialog guard |
+| R11 | The `rename` callback removed from the dialog's constructor | `TheDetailsDialogsRename_...` ("no longer takes a 'rename' callback") |
+| R12 | The delete worker back to fire-and-forget `Ui.Run` | `EveryLibraryRoute_GoesThroughTheCoherenceModel` ("does not call 'Ui::RunThenPost'") |
+| R13 | A source file touched so it is newer than the build | `library-proof.ps1` refuses to run: "STALE BUILD: LibraryCoherence.cs was changed at ... but AgentEyesApp.exe was built at ..." |
+
+R10 is the one worth reading twice: the write was moved from the dialog into a lambda in the window,
+and the scan reported it there. That is the property that makes this a guard for the CATEGORY rather
+than for the one method QA found.
+
+**The discriminator was re-run again after round 3** (the merge itself did not change this round, but
+it was re-run rather than assumed): 12 red / 804 green, both failure-mode-1 tests still green.
+
 **The discriminator was re-run after the round-2 changes**, because they touch `ApplySnapshot`. The
 rejected "latest generation wins, drop the rest" design was re-applied to the new merge: 12 red / 800
 green, with BOTH criterion-2 tests red and BOTH failure-mode-1 tests still green. The separation QA
@@ -300,11 +393,11 @@ reported).
 
 ```
 dotnet build AgentEyes.sln -c Release   ->  Build succeeded.  0 Error(s)
-dotnet test  AgentEyes.sln -c Release   ->  Passed!  Failed: 0, Passed: 812, Skipped: 0, Total: 812
+dotnet test  AgentEyes.sln -c Release   ->  Passed!  Failed: 0, Passed: 816, Skipped: 0, Total: 816
 ```
 
-(801 on `main`; 804 after round 1; 812 after round 2 - +38 new for this issue in total, 1 round-1
-test replaced because it encoded the criterion-6 defect, 2 retargeted.)
+(801 on `main`; 804 after round 1; 812 after round 2; 816 after round 3 - +42 new for this issue in
+total, 1 round-1 test replaced because it encoded the criterion-6 defect, 2 retargeted.)
 
 ## 7. Running-app verification I already did
 
@@ -340,6 +433,31 @@ The owner's installed v1.4.8 was then restarted and confirmed back up
 (`/version` -> `AgentEyes 1.4.8`, `/status` -> `idle`, signed in). **It was restarted with `--tray`**;
 if the owner had a window open before, it is reachable from the tray icon.
 
+**Round 3 re-run** (same script, now with the stale-build check, after the rename-route fix):
+
+```
+build: 08/18/2026 18:18:40 (newest source: 08/18/2026 18:18:31)
+ON DISK: 44 recording folder(s) with a manifest.json
+RENDERED: 44 library row(s)
+MISSING FROM THE LIBRARY: 0
+IN THE LIBRARY BUT NOT ON DISK: 0
+18:18:50.350 [INFO] [LibraryCoherence] BeginSnapshot: epoch=1, in flight=1, rows=0
+18:18:51.077 [INFO] [LibraryCoherence] ApplySnapshot: epoch=1, snapshot=44, added=44, updated=0,
+                    removed=0, kept live=0, refused resurrection=0, rows=44
+no crash log (good)
+```
+
+No divergence line anywhere from the app (the ones in the log are from the test fixtures' deliberate
+reflection bypass, under `%TEMP%genteyes-coherence-*`), so `RepairedDivergences` stayed 0 on the
+real startup path.
+
+**The Details dialog's rename was NOT exercised against the owner's recordings, deliberately.**
+Renaming through that dialog writes `DisplayName` into a real manifest under
+`%USERPROFILE%\Videos\AgentEyes`, which is off limits. The route is proved structurally (the
+row-write scan plus the callback wiring) and behaviourally on temporary fixtures
+(`ARawRowWrite_IsRevertedByAnInFlightReload_WhileTheSameRenameThroughTheModelSurvives`, which runs
+both routes side by side). QA should not rename a real recording to check this either.
+
 **Round 2 re-run** (same script, same read-only guarantees, after the criterion-6 and gate changes):
 
 ```
@@ -365,7 +483,11 @@ was seen failing on the pre-fix code. QA should not delete a real recording to c
 
 ## 8. Suggested QA scope
 
-- **Start with criterion 6.** That is what failed last time. The three interleavings QA constructed
+- **Start with the row guard.** That is what failed last time. Re-run mutation R9 or R10 from
+  section 5 and confirm `NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow` turns red; R10
+  is the better one, because it checks the guard follows the write when it MOVES rather than only
+  catching it where you found it.
+- **Then criterion 6**, which failed the round before. The three interleavings QA constructed
   (N1, N2, N3) are now shipped as tests; re-run them, and re-run mutation R1a from section 5, which
   restores the round-1 epoch-bound tombstone and should turn all three red. If it does not, this fix
   is not doing what this note claims.
