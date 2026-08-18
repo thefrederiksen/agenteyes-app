@@ -342,20 +342,27 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void CompiledApp_RetiredChannelLiteralsAreExactlyThePluginRegistry()
+        public void CompiledApp_CarriesNoRetiredChannelLiteralAtAll()
         {
-            // The app still names the retired repo in ONE place - the plugin registry URL - and that
-            // is issue #186's scope, not this one. Pinning the exact set (rather than allowing "some"
-            // occurrences) means a SECOND one, such as a re-pointed update channel, fails here.
-            var values = CompiledCode.StringLiterals(CompiledCode.AppAssembly, IsRetiredChannelLiteral)
+            // Until issue #186 the app named the retired repo in ONE place - the plugin registry URL -
+            // and this test pinned that exact single occurrence. #186 re-pointed the registry at the
+            // consolidated repo, so the allowed set is now EMPTY: any occurrence at all fails here.
+            //
+            // The scanner is anchored first, so an empty offender list can never be produced by a scan
+            // that read nothing: AgentEyesApp.dll must yield a large literal count and must carry the
+            // consolidated name.
+            string app = CompiledCode.AppAssembly;
+            int total = CompiledCode.StringLiteralCount(app);
+            Assert.True(total > 50, $"Only {total} string literals were read from {app} - the scanner is broken.");
+            Assert.NotEmpty(CompiledCode.StringLiterals(app, v => v.Contains("agenteyes-app", StringComparison.Ordinal)));
+
+            var values = CompiledCode.StringLiterals(app, IsRetiredChannelLiteral)
                 .Select(s => s.Value)
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(v => v, StringComparer.Ordinal)
                 .ToArray();
 
-            Assert.Equal(
-                new[] { "https://raw.githubusercontent.com/thefrederiksen/AgentEyes-releases/main/plugins/registry.json" },
-                values);
+            Assert.Equal(Array.Empty<string>(), values);
         }
 
         private static bool IsRetiredChannelLiteral(string value) =>
