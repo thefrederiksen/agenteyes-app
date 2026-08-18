@@ -1,5 +1,11 @@
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
+
+// UpdateChannelTests substitutes ONLY the transport of the DEFAULT-constructed ReleaseSource
+// (see ReleaseSource.DefaultTransport), so the construction path every production caller takes is
+// the path under test. Nothing else in the engine is exposed by this.
+[assembly: InternalsVisibleTo("AgentEyes.Tests")]
 
 namespace AgentEyes.Setup.Engine;
 
@@ -16,21 +22,60 @@ public sealed record ResolvedRelease(ReleaseManifest Manifest, IReadOnlyDictiona
 /// </summary>
 public sealed class ReleaseSource
 {
-    private const string Owner = "thefrederiksen";
-    // Releases live in a PUBLIC releases-only repo (binaries, no source) so the
-    // installer/updater can fetch them anonymously; the source repo stays private.
-    private const string Repo = "AgentEyes-releases";
+    /// <summary>The GitHub owner of the update channel. Pinned by UpdateChannelTests.</summary>
+    public const string Owner = "thefrederiksen";
+
+    /// <summary>
+    /// The ONE repo AgentEyes is developed in AND released from (issue #184). The source used to be
+    /// private, which is the only reason releases ever lived in a separate binaries-only repo; the
+    /// source is public now, so the release is cut from the repo whose source is being built and the
+    /// installer/updater still fetch it anonymously.
+    ///
+    /// Changing this value RE-POINTS EVERY INSTALLED COPY of AgentEyes, so it is pinned by
+    /// UpdateChannelTests: a silent edit fails the build, not a user's update check months later.
+    /// </summary>
+    public const string Repo = "agenteyes-app";
+
     private const string ManifestAssetName = "release-manifest.json";
+
+    /// <summary>
+    /// The one URL the updater asks "what is the latest release" - the update channel, in full.
+    /// Exposed so a test can pin the whole URL rather than its pieces, and so there is exactly one
+    /// place the channel is spelled.
+    /// </summary>
+    public static string LatestReleaseUrl => $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
+
+    /// <summary>
+    /// The transport a DEFAULT-constructed ReleaseSource sends through - the object every production
+    /// caller ends up with, because the app updater, the setup CLI and the setup wizard all write
+    /// `new ReleaseSource()` with no argument.
+    ///
+    /// Production NEVER assigns this: it stays null and HttpClient uses its own platform transport.
+    /// It exists because a test that hands in its own HttpClient proves only the injected path. The
+    /// independent review gate demonstrated exactly that gap - it made the retired channel selected
+    /// only when `http is null`, and all sixteen channel tests stayed green, because not one of them
+    /// ever ran the constructor production runs. Substituting only the transport keeps the default
+    /// construction path itself under test.
+    /// </summary>
+    internal static HttpMessageHandler? DefaultTransport;
 
     private readonly HttpClient _http;
 
     public ReleaseSource(HttpClient? http = null)
     {
-        _http = http ?? new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        _http = http ?? NewDefaultClient();
         if (!_http.DefaultRequestHeaders.UserAgent.Any())
             _http.DefaultRequestHeaders.UserAgent.ParseAdd("agenteyes-setup");
         _http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
     }
+
+    /// <summary>The client every caller that writes `new ReleaseSource()` gets. One statement, one
+    /// timeout, one place: the only thing that ever differs is the transport underneath it.</summary>
+    private static HttpClient NewDefaultClient() =>
+        new(DefaultTransport ?? new HttpClientHandler(), disposeHandler: DefaultTransport is null)
+        {
+            Timeout = TimeSpan.FromSeconds(60),
+        };
 
     public static ResolvedRelease LoadLocalManifest(string path)
     {
@@ -64,7 +109,8 @@ public sealed class ReleaseSource
 
     public async Task<ResolvedRelease> FetchLatestAsync(CancellationToken ct)
     {
-        var url = $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
+        var url = LatestReleaseUrl;
+        EngineLog.Write($"[ReleaseSource] FetchLatestAsync: channel={url}");
         var resp = await _http.GetAsync(url, ct);
         resp.EnsureSuccessStatusCode();
         using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));

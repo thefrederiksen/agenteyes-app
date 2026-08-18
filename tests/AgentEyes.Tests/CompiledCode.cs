@@ -43,6 +43,10 @@ namespace AgentEyes.Tests
         /// so it is by construction the build under test.</summary>
         public static string CoreAssembly => typeof(Manifest).Assembly.Location;
 
+        /// <summary>AgentEyes.Setup.Engine.dll - the assembly that carries the update channel - taken
+        /// from the copy the test run itself loaded, so it is by construction the build under test.</summary>
+        public static string EngineAssembly => typeof(AgentEyes.Setup.Engine.ReleaseSource).Assembly.Location;
+
         /// <summary>AgentEyesApp.dll. The test project has a ProjectReference to AgentEyes.App purely
         /// so MSBuild builds it first and copies it here - the WPF app is never loaded or started,
         /// only read as bytes. That reference is what makes this a FRESH binary rather than whatever
@@ -334,6 +338,72 @@ namespace AgentEyes.Tests
             return sites;
         }
 
+        /// <summary>One string literal: the method that loads it and the text it loads.</summary>
+        internal sealed record StringSite(string Assembly, string Method, string Value);
+
+        /// <summary>
+        /// Every string CONSTANT the assembly's compiled code loads (`ldstr`), with the method that
+        /// loads it - the compiled-artifact counterpart to "which URL does this product talk to".
+        ///
+        /// Why over source (issue #184, round-2 gate finding). A retired update channel can be
+        /// reintroduced on a path no behavioral test walks - the gate did it by selecting the old URL
+        /// only when the default HttpClient was used, and every channel test passed because every one
+        /// of them injected a client. A literal cannot hide that way: whatever branch selects it, the
+        /// string has to BE in the assembly, in some method, as an `ldstr` operand, and a const,
+        /// an interpolation, an alias or a helper does not change that.
+        ///
+        /// Its LIMIT is equally concrete and is stated by the tests that use it: a literal ASSEMBLED
+        /// at run time from fragments no single one of which contains the searched text is not seen.
+        /// It answers "does this compiled product carry this string", not "can this product ever
+        /// produce this string".
+        /// </summary>
+        public static IReadOnlyList<StringSite> StringLiterals(string assemblyPath, Func<string, bool> wanted)
+        {
+            if (!File.Exists(assemblyPath))
+                throw new FileNotFoundException(
+                    "The assembly to scan was not built. This scan cannot be allowed to pass by finding nothing.",
+                    assemblyPath);
+
+            var sites = new List<StringSite>();
+            string assembly = Path.GetFileName(assemblyPath);
+
+            using var stream = File.OpenRead(assemblyPath);
+            using var pe = new PEReader(stream);
+            var md = pe.GetMetadataReader();
+
+            if (md.MethodDefinitions.Count == 0)
+                throw new InvalidOperationException($"{assembly} contains no methods - the scanner is looking at the wrong file.");
+
+            foreach (var handle in md.MethodDefinitions)
+            {
+                var method = md.GetMethodDefinition(handle);
+                if (method.RelativeVirtualAddress == 0) continue;
+
+                string where = MethodName(md, handle);
+                byte[] il = pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()
+                            ?? throw new InvalidOperationException($"No IL for {where} in {assembly}.");
+
+                var tokens = new List<int>();
+                Walk(il, $"{assembly}!{where}", (opcode, twoByte, operandAt) =>
+                {
+                    if (!twoByte && opcode == LdStr) tokens.Add(BitConverter.ToInt32(il, operandAt));
+                });
+
+                foreach (int token in tokens)
+                {
+                    string value = md.GetUserString(MetadataTokens.UserStringHandle(token));
+                    if (wanted(value)) sites.Add(new StringSite(assembly, where, value));
+                }
+            }
+
+            return sites;
+        }
+
+        /// <summary>How many string literals an assembly loads in total - the instrument check for
+        /// <see cref="StringLiterals"/>, so "no offending literal" can never be the answer of a scan
+        /// that read nothing.</summary>
+        public static int StringLiteralCount(string assemblyPath) => StringLiterals(assemblyPath, _ => true).Count;
+
         /// <summary>Every file-write call site in the given assemblies.</summary>
         public static IReadOnlyList<CallSite> FileWrites(IEnumerable<string> assemblies) =>
             assemblies.SelectMany(a => CallSites(a, IsFileWriteApi)).ToList();
@@ -544,6 +614,7 @@ namespace AgentEyes.Tests
         private const int CallVirt = 0x6F;
         private const int NewObj = 0x73;
         private const int LdToken = 0xD0;
+        private const int LdStr = 0x72;
         private const int LdFld = 0x7B;         // ldfld, ldflda, stfld, ldsfld, ldsflda, stsfld
         private const int StSFld = 0x80;        // ...are 0x7B..0x80, contiguous
         private const int Prefix = 0xFE;

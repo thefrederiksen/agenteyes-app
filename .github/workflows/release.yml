@@ -104,80 +104,90 @@ jobs:
           if (-not (Test-Path "$root/app/AgentEyesApp.exe")) { throw "app exe missing after install" }
           if (-not (Test-Path "$root/app/ffmpeg.exe")) { throw "bundled ffmpeg missing after install" }
 
-      # The source repo is PRIVATE; releases publish to the public releases-only
-      # repo (thefrederiksen/AgentEyes-releases) so the installer and the
-      # in-app updater can fetch them anonymously. RELEASES_TOKEN is a PAT with
-      # write access to that repo.
-      # A pre-release tag (one containing '-', e.g. v1.0.0-rc.1) publishes to the
-      # releases repo with --prerelease AND --latest=false, so GitHub's /releases/latest
-      # (which the in-app updater reads via ReleaseSource.FetchLatestAsync) does NOT
-      # resolve to it and stable installs never see it. A full-release tag (no '-') keeps
-      # today's exact command: $prerelease is empty, the splat contributes nothing, so
-      # no --prerelease is passed and the release becomes the repo's Latest as before.
-      - name: Publish release to the public releases repo
+      # THE ONE PUBLISH. This workflow has exactly one command that creates or changes
+      # a release anywhere, and it is this one: an OWN-REPO `gh release create` with the
+      # built-in GITHUB_TOKEN. There is no cross-repo write left in the file, which is
+      # why no secret has to exist in whichever repo runs it (issue #184).
+      #
+      # THE RELEASE IS CUT FROM THE REPO WHOSE SOURCE IS BEING BUILT.
+      # The source is public now, so development and releases live in ONE repo
+      # (thefrederiksen/agenteyes-app - the value ReleaseSource.Repo reads), and this
+      # step publishes to ${{ github.repository }}: the very repo this workflow run
+      # checked out and built. The installer users download is served straight off it:
+      #   https://github.com/thefrederiksen/agenteyes-app/releases/latest/download/AgentEyes-Setup-win-x64.exe
+      # That URL 404s until the FIRST release is cut from agenteyes-app; verify it right
+      # after that cut, not before.
+      #
+      # That is a STRUCTURAL fix, not a guard. `gh release create --repo <other-repo>`
+      # MATERIALISES THE TAG FROM THAT REPO'S DEFAULT BRANCH when the tag does not
+      # already exist there - so a cross-repo release publish attaches these binaries
+      # to a tag cut from SOMEONE ELSE'S source, and GitHub's generated source archives
+      # for the release then contain code that never produced them. gh reports success
+      # either way, which makes it silent. There is no cross-repo release publish here
+      # to get that wrong: the tag being published is the tag that triggered this run,
+      # in this repo, at this commit.
+      #
+      # No secret: the built-in GITHUB_TOKEN writes THIS repo's releases under the
+      # `permissions: contents: write` granted at the top of the file.
+      #
+      # --verify-tag: the tag is what triggered the run, so it always exists; the flag
+      # is a cheap assertion that this stays an own-repo publish of an existing tag and
+      # can never quietly create one.
+      #
+      # A pre-release tag (one containing '-', e.g. v1.0.0-rc.1) publishes with
+      # --prerelease AND --latest=false, so GitHub's /releases/latest (which the in-app
+      # updater reads via ReleaseSource.FetchLatestAsync) does NOT resolve to it and
+      # stable installs never see it. A full-release tag (no '-') keeps today's exact
+      # command: $prerelease is empty, the splat contributes nothing, so no --prerelease
+      # is passed and the release becomes the repo's Latest as before.
+      #
+      # The assets are NAMED, not swept up with a wildcard, and the step fails unless
+      # dist/release holds exactly that set - so a missing or unexpected artifact stops
+      # the publish instead of shipping a half-release.
+      #
+      # NO TEST GUARDS WHERE THIS PUBLISHES. Rounds 2 and 3 of issue #184 tried to; the
+      # classifier was deleted in round 4 after QA drove five separate evasions through
+      # it. What keeps the publish honest is structural: the retired repositories are
+      # being deleted, so a cross-repo publish 404s loudly at the moment it runs.
+      # UpdateChannelTests only scans the files under .github for two literal retired
+      # names, and says so in its own comments.
+      - name: Publish release to this repo's own releases
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $files = Get-ChildItem dist/release | ForEach-Object { $_.FullName }
+          $assets = @(
+            'dist/release/AgentEyesApp-win-x64.exe',
+            'dist/release/agenteyes-win-x64.exe',
+            'dist/release/agenteyes-setup-cli-win-x64.exe',
+            'dist/release/AgentEyes-Setup-win-x64.exe',
+            'dist/release/agenteyes-ffmpeg-win-x64.zip',
+            'dist/release/release-manifest.json'
+          )
+          $onDisk = @(Get-ChildItem dist/release | ForEach-Object { 'dist/release/' + $_.Name })
+          $difference = Compare-Object -ReferenceObject $assets -DifferenceObject $onDisk
+          if ($difference) { throw "dist/release is not exactly the asset set this step publishes: $($difference | Out-String)" }
           $prerelease = @()
           if ("${{ github.ref_name }}" -like '*-*') { $prerelease = @('--prerelease', '--latest=false') }
-          gh release create "${{ github.ref_name }}" @files `
-            --repo thefrederiksen/AgentEyes-releases `
+          gh release create "${{ github.ref_name }}" @assets `
+            --repo "${{ github.repository }}" `
+            --verify-tag `
             --title "AgentEyes ${{ github.ref_name }}" `
             --notes "AgentEyes ${{ github.ref_name }}. Download AgentEyes-Setup-win-x64.exe and run it." `
             @prerelease
-          if ($LASTEXITCODE -ne 0) { throw "publish to releases repo failed" }
+          if ($LASTEXITCODE -ne 0) { throw "publish to this repo's own releases failed" }
 
-      # Publish the setup wizard + manifest to the PUBLIC DevThrottle repo under a
-      # DEDICATED FIXED tag (agenteyes-latest) so the DevThrottle website can offer a
-      # stable, anonymous AgentEyes download from exactly:
-      #   https://github.com/thefrederiksen/devthrottle/releases/download/agenteyes-latest/AgentEyes-Setup-win-x64.exe
-      # We attach ONLY to this dedicated release - never to DevThrottle's own version
-      # releases, and never via releases/latest (that resolves to the newest DevThrottle
-      # version release, which does not carry the AgentEyes asset). Create the release if
-      # it is missing, otherwise replace the assets in place (--clobber).
-      # Uses RELEASES_TOKEN - the same repo-scoped PAT already used to publish to
-      # thefrederiksen/AgentEyes-releases above. It must have write access to
-      # thefrederiksen/devthrottle as well (a classic repo-scoped PAT already does;
-      # a fine-grained token must list devthrottle with Contents:read+write). No
-      # separate DevThrottle-only token is required.
-      # SKIPPED for a pre-release tag (one containing '-', e.g. v1.0.0-rc.1): a testable
-      # -rc build must never touch the public DevThrottle download channel that the
-      # website hands to end users. Full-release tags (no '-') run this step unchanged.
-      - name: Publish AgentEyes installer to the public DevThrottle download channel
-        if: ${{ !contains(github.ref_name, '-') }}
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: |
-          $repo = 'thefrederiksen/devthrottle'
-          $tag = 'agenteyes-latest'
-          $assets = @(
-            'dist/release/AgentEyes-Setup-win-x64.exe',
-            'dist/release/release-manifest.json'
-          )
-          foreach ($a in $assets) { if (-not (Test-Path $a)) { throw "missing asset for DevThrottle publish: $a" } }
-          # --latest=false is REQUIRED: this dedicated tag must NEVER become the
-          # DevThrottle repo's "Latest" release. GitHub's default marks the newest
-          # release by date as Latest, and because this publish runs after DevThrottle's
-          # own v* releases it would otherwise steal the repo's latest pointer - which
-          # every DevThrottle installer/updater/tool-repair path reads via
-          # /releases/latest. That exact regression took the fleet down once; the flag
-          # is what enforces the "never via releases/latest" rule stated above.
-          gh release view $tag --repo $repo *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag @assets `
-              --repo $repo `
-              --latest=false `
-              --title "AgentEyes (latest)" `
-              --notes "Latest AgentEyes installer for Windows. Download AgentEyes-Setup-win-x64.exe and run it. Published automatically from the AgentEyes release pipeline."
-            if ($LASTEXITCODE -ne 0) { throw "creating $tag release on $repo failed" }
-          } else {
-            gh release upload $tag @assets --repo $repo --clobber
-            if ($LASTEXITCODE -ne 0) { throw "uploading assets to $tag on $repo failed" }
-            # Self-heal: force the flag off in case an earlier run (or a manual edit)
-            # left this release marked Latest. Uploading assets does not touch the flag.
-            gh release edit $tag --repo $repo --latest=false
-            if ($LASTEXITCODE -ne 0) { throw "resetting latest flag on $tag failed" }
-          }
+      # NOTHING FOLLOWS. The DevThrottle mirror step that used to sit here - it copied
+      # AgentEyes-Setup-win-x64.exe into thefrederiksen/devthrottle under the fixed tag
+      # agenteyes-latest so the website had a stable anonymous download - was DELETED in
+      # issue #184. agenteyes-app is public, so GitHub already serves that stable URL
+      # directly off the release published above:
+      #   https://github.com/thefrederiksen/agenteyes-app/releases/latest/download/AgentEyes-Setup-win-x64.exe
+      # Deleting the mirror removed this workflow's only cross-repo write, and with it the
+      # cross-repo token that write needed: nothing left in this file requires a secret
+      # that GitHub does not supply by itself. (UpdateChannelTests runs a LITERAL STRING
+      # SCAN over every file under .github for that token's name and for the retired
+      # release repo's name; that scan is text only and claims nothing about behaviour,
+      # which is why neither name is spelled out here.)
+      # (Deleting the step does not delete the old devthrottle release - that one simply
+      # goes stale. No product, script or page reads it.)
