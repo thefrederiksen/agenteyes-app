@@ -10,7 +10,7 @@
     <!-- The CLI ships as agenteyes.exe (short to type; a bare shadow.exe would collide with the
          Windows RDP "shadow" concept). The WPF app owns the AgentEyesApp.exe name. -->
     <AssemblyName>agenteyes</AssemblyName>
-    <Version>1.4.8</Version>
+    <Version>1.4.9</Version>
     <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
