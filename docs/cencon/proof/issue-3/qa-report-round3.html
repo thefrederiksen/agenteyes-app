@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report round 3 - issue #3 - Library coherence model</title>
+<style>
+ body { font-family: Segoe UI, Arial, sans-serif; margin: 2em auto; max-width: 1100px; color: #1a1a1a; line-height: 1.5; }
+ h1 { border-bottom: 3px solid #060; padding-bottom: .3em; }
+ h2 { margin-top: 1.8em; border-bottom: 1px solid #ccc; padding-bottom: .2em; }
+ h3 { margin-top: 1.3em; }
+ table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+ th, td { border: 1px solid #bbb; padding: .5em .6em; vertical-align: top; text-align: left; font-size: .93em; }
+ th { background: #eee; }
+ .pass { color: #060; font-weight: bold; }
+ .fail { color: #b00; font-weight: bold; }
+ .note { color: #a60; font-weight: bold; }
+ pre { background: #f4f4f4; border: 1px solid #ddd; padding: .8em; overflow-x: auto; font-size: .88em; }
+ code { background: #f4f4f4; padding: 0 .2em; }
+ .good { border: 3px solid #060; background: #f2fbf2; padding: 1em 1.2em; margin: 1.5em 0; }
+ .warn { border: 3px solid #a60; background: #fffaf0; padding: 1em 1.2em; margin: 1.5em 0; }
+</style>
+</head>
+<body>
+
+<h1>QA proof report - issue #3, ROUND 3</h1>
+
+<p><strong>Issue:</strong> [App] Library asynchronous refresh has no coherence model<br>
+<strong>Repo:</strong> thefrederiksen/agenteyes-app &nbsp;|&nbsp;
+<strong>PR:</strong> #20 &nbsp;|&nbsp;
+<strong>Branch:</strong> issue-3-library-coherence &nbsp;|&nbsp;
+<strong>Commit verified:</strong> 1ab08b6<br>
+<strong>Earlier rounds:</strong> <code>qa-report.html</code> (round 1, FAIL - criterion 6),
+<code>qa-report-round2.html</code> (round 2, FAIL - criterion 8)<br>
+<strong>Date:</strong> 2026-08-18</p>
+
+<div class="good">
+<p class="pass" style="font-size:1.15em; margin-top:0;">VERDICT: PASS - all nine acceptance criteria
+verified with evidence.</p>
+<p>The round-2 blocker is fixed and, more importantly, fixed as a CATEGORY rather than as a patch. I
+planted row writes in seven places the developer's decoys do not name - a new type, a local function,
+an async state machine, a delegate, a struct, a different property, and the <code>rename:</code>
+callback re-wired to the row - and the guard reported every one of them at its true home. My own IL
+scan, the one that found the defect last round, now reads 51 writes and 0 outside the card and the
+model. Thirteen new interleavings all hold, nothing from rounds 1 and 2 regressed, and the real app
+shows 44 of 44.</p>
+</div>
+
+<div class="warn">
+<p class="note" style="font-size:1.05em; margin-top:0;">ONE FINDING THAT IS NOT AN ACCEPTANCE
+CRITERION, AND THE INDEPENDENT GATE SHOULD SEE IT FIRST: the new stale-build check does not close the
+hole it was added for.</p>
+<p>It compares source timestamps against the exe. That catches a restore that touches the file, but
+NOT a restore that preserves the original timestamp - <code>Copy-Item</code>, <code>cp -p</code>,
+<code>robocopy</code>, an archive extract. In that case the restored source is OLDER than the exe, so
+the check passes AND <code>dotnet build</code> itself skips recompiling, leaving the mutated binary in
+place while both the script and the gate report success. I reproduced this end to end and confirmed it
+by file hash. Section 5. It does not affect this verdict - my own runs were all made with
+<code>--no-incremental</code> and hash-verified - but it means the safety net added after the round-3
+incident does not yet catch that incident's most likely form.</p>
+</div>
+
+<h2>1. Acceptance criteria</h2>
+
+<table>
+<tr><th>#</th><th>Criterion</th><th>Verdict</th><th>Evidence</th></tr>
+
+<tr><td>1</td><td>Older reload does not install its stale snapshot</td><td class="pass">PASS</td>
+<td>Re-verified. Still the two arms that stay green under M2 and red under M1 - the pair that
+separates the two wrong answers.</td></tr>
+
+<tr><td>2</td><td>A live insert during an in-flight reload loses neither side</td><td class="pass">PASS</td>
+<td>Discriminator re-run on the round-3 build: 12 red / 804 green, both criterion-2 tests red, both
+failure-mode-1 tests green. Section 6.</td></tr>
+
+<tr><td>3</td><td>A failed reload does not blank or block</td><td class="pass">PASS</td>
+<td>Both arms unchanged and re-proved: a thrown worker applies nothing; a genuinely empty successful
+read lands; nothing waits on a generation.</td></tr>
+
+<tr><td>4</td><td>A rename during an in-flight reload is not reverted</td><td class="pass">PASS</td>
+<td><strong>Now true on BOTH rename routes.</strong> <code>RecordingDetailWindow.CommitRename</code>
+calls the injected <code>_rename</code> callback (RecordingDetailWindow.cs:240), and
+<code>MainWindow.OpenDetail</code> answers it with <code>_library.Rename(item, name)</code>
+(MainWindow.xaml.cs:1544). Probes S3a/S3b/S3c and S2b cover ordering, out-of-order landing and a
+detached row.</td></tr>
+
+<tr><td>5</td><td>A row held across an await leaves no stale visible row</td><td class="pass">PASS</td>
+<td>Unchanged. The Details dialog's captured row is now covered too: <code>Rename</code> re-resolves
+by directory, so a row captured when the dialog opened still writes on the visible row (S3c).</td></tr>
+
+<tr><td>6</td><td>A reload starting after a UI delete but before the directory is removed does not
+resurrect the row</td><td class="pass">PASS</td>
+<td>Round 1's blocker; re-verified for regression in three orderings (S4a, S4b, plus five reloads
+inside one delete window), and the failed-deletion half still returns the row.</td></tr>
+
+<tr><td>7</td><td>Structural guard, demonstrated</td><td class="pass">PASS</td>
+<td>The collection gate is unchanged and still holds; the gated collection is still a private nested
+type (S4d) so the round-1 cast still does not compile; the divergence is still repaired rather than
+thrown (S4c).</td></tr>
+
+<tr><td>8</td><td>Enumerated proof that no route bypasses the model</td><td class="pass">PASS</td>
+<td><strong>Round 2's blocker, closed as a category.</strong> The new row-write scan reads every
+method in the assembly for a call to any <code>RecentItem</code> setter. My independent scan: 51
+writes, 0 outside the card and the model. Seven novel placements all caught. Sections 2 and 3.</td></tr>
+
+<tr><td>9</td><td>Build clean, <code>Failed: 0</code></td><td class="pass">PASS</td>
+<td><code>Build succeeded. 0 Error(s)</code>; <code>Passed! Failed: 0, Passed: 816</code>, run by QA
+on 1ab08b6 with a clean tree and a <code>--no-incremental</code> build.</td></tr>
+</table>
+
+<h2>2. The row-write scan, re-run independently (item 2)</h2>
+
+<p>The same scan that found the round-2 defect, run again on 1ab08b6:</p>
+
+<pre>QA-COUNT total=51 outside=0
+
+  AgentEyes.App.RecentItem::From         (25)   the card building itself
+  AgentEyes.App.RecentItem::AdoptFrom    (18)   the card taking on a fresh read
+  AgentEyes.App.RecentItem::SetMedia      (5)   the card resolving its playable file
+  AgentEyes.App.RecentItem::LoadThumb     (1)   the card taking its decoded poster
+  AgentEyes.App.LibraryCoherence::Rename  (1)   the model
+  AgentEyes.App.LibraryCoherence::SetStatus (1) the model</pre>
+
+<p>Round 2 read 52 writes with 1 outside; the count went DOWN by one because the offending write was
+replaced by the model call rather than added alongside it. Every one of the 51 is accounted for above.</p>
+
+<p><strong>Precision note on the guard's stated limit.</strong> The developer writes that the scan is
+complete "for the type as it stands" because "there are no public fields on RecentItem today". There
+is in fact one non-private field - <code>public static readonly RecentItem.NewestFirst</code>, the
+sort comparator. It is <code>static</code> and <code>InitOnly</code>, so it cannot be written at all
+and carries no row state; the claim holds for every writable value, which is what matters. Worth
+stating precisely so the limit is not later found to be "wrong" and dismissed along with the guard.</p>
+
+<h2>3. Is the row guard a CATEGORY guard or a patch? (item 1)</h2>
+
+<p>This was the crux. A guard that only knows the old address has not learned the category, so I moved
+a row write into seven places, compiled them into the PRODUCT assembly (not the decoy assembly), and
+read what the guard reported.</p>
+
+<table>
+<tr><th>#</th><th>Where the write was moved</th><th>Reported as</th><th></th></tr>
+<tr><td>C1</td><td>A brand-new type in <code>AgentEyes.App</code></td>
+<td><code>QaCategoryProbe::NewType -&gt; set_Title</code></td><td class="pass">caught</td></tr>
+<tr><td>C2</td><td>A LOCAL FUNCTION inside another method</td>
+<td><code>QaCategoryProbe::LocalFunction -&gt; set_Title</code></td><td class="pass">caught</td></tr>
+<tr><td>C3</td><td>An <code>async</code> method's state machine, after an <code>await</code></td>
+<td><code>QaCategoryProbe::AsyncStateMachine -&gt; set_Title</code></td><td class="pass">caught</td></tr>
+<tr><td>C4</td><td>Inside a DELEGATE built in one place and invoked elsewhere</td>
+<td><code>QaCategoryProbe::AsADelegate -&gt; set_Title</code></td><td class="pass">caught</td></tr>
+<tr><td>C5</td><td>A <code>struct</code> rather than a class, writing a THIRD property</td>
+<td><code>QaCategoryProbeStruct::Write -&gt; set_Status</code></td><td class="pass">caught</td></tr>
+<tr><td>C6</td><td>A DIFFERENT property, to test whether the category is "a row value" or "Title"</td>
+<td><code>QaCategoryProbe::ADifferentProperty -&gt; set_Detail</code></td><td class="pass">caught</td></tr>
+<tr><td>C7</td><td><strong>The developer's R10 claim</strong>: the <code>rename:</code> callback wired
+to <code>item.Title = name</code> instead of the model</td>
+<td><code>MainWindow::OpenDetail -&gt; set_Title</code></td><td class="pass">caught, at its NEW home</td></tr>
+</table>
+
+<pre>QA-COUNT total=58 outside=7      (with all seven planted)
+
+Failed  NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow
+Failed  TheDetailsDialogsRename_IsHandedToTheModelRatherThanWrittenOnTheRow
+Failed  EveryLibraryRoute_GoesThroughTheCoherenceModel</pre>
+
+<p><strong>It is a category guard.</strong> It keys on the CALLEE - any <code>RecentItem</code> property
+setter - and reads every method in the assembly, so the container's kind, the method's shape, the
+compiler's rewriting and the property chosen are all irrelevant; moving the write relocates the report
+rather than escaping it. C7 confirms the developer's R10 claim exactly as stated, and three separate
+guards fire on it rather than one. The only ways past it remain the two the developer names:
+reflection, and a writable public field (of which there are none - section 2).</p>
+
+<h2>4. Thirteen new interleavings (item 4)</h2>
+
+<table>
+<tr><th>#</th><th>Constructed</th><th>Result</th></tr>
+<tr><td>S1a</td><td><strong>A rename racing a DELETE of the same recording</strong> - rename, then
+delete, with a reload in flight across both</td><td class="pass">stays deleted; the rename's fact does
+not outrank <code>Removing</code></td></tr>
+<tr><td>S1b</td><td>The other order - delete, then a rename of the row that is already
+<code>Removing</code></td><td class="pass">no-op, no throw, and critically it does NOT clear the
+<code>Removing</code> mark; a failed deletion still returns the row afterwards</td></tr>
+<tr><td>S2a</td><td><strong>A rename landing while that row is <code>Removing</code></strong> - the
+Details dialog holds the row, the main window deletes it</td><td class="pass">refused; the row is not
+resurrected by the rename</td></tr>
+<tr><td>S2b</td><td>A rename after a re-insert of a <code>Removing</code> row, with a reload in flight
+from before the delete</td><td class="pass">the rename takes effect and survives, 0 divergences</td></tr>
+<tr><td>S3a</td><td><strong>Two renames of the same row in flight together</strong>, landing in
+order</td><td class="pass">the last one wins, and survives the in-flight reload</td></tr>
+<tr><td>S3b</td><td>Two renames landing OUT of order (CommitRename is <code>async void</code> and fires
+on both Enter and LostFocus, so two can be in flight)</td><td class="note">the later-LANDING one wins,
+which can be the earlier-TYPED name. See below.</td></tr>
+<tr><td>S3c</td><td>A rename issued on a DETACHED row object</td><td class="pass">lands on the library's
+row; the caller's copy is left alone</td></tr>
+<tr><td>S4a-b</td><td>Criterion 6 regression: reload after the delete, with and without an older reload
+in flight, five reloads inside one window, then a FAILED settle</td><td class="pass">holds in every
+ordering; the failed deletion returns the row</td></tr>
+<tr><td>S4c</td><td>The crash path: a divergence forced through reflection</td><td class="pass">repaired
+and counted, not thrown</td></tr>
+<tr><td>S4d</td><td>The gated collection is still private and nested</td><td class="pass">holds</td></tr>
+<tr><td>S4e</td><td>A long legitimate sequence including a Details-dialog rename</td>
+<td class="pass">correct rows, correct title, 0 divergences</td></tr>
+<tr><td>S5</td><td>A rename followed by the <code>Refresh</code> that packaging fires</td>
+<td class="pass">the user's name survives, because the manifest is written before the model is told</td></tr>
+</table>
+
+<p>Thirteen scenarios (13 test methods); none got through as a defect.</p>
+
+<p><strong>On S3b, stated rather than buried.</strong> Two renames of the same row can land in the
+opposite order to the order they were typed, and the model stamps whichever lands last - so the
+earlier-typed name can end up on screen. This is NOT a coherence defect and NOT a regression: the
+manifest write has exactly the same race and is the authority, so the next reload converges on
+whatever the manifest ended up holding. It affects which name shows until then. Recorded because it is
+the kind of thing that looks like a coherence bug when someone hits it.</p>
+
+<h2>5. The stale-build check (item 3) - it does not close the hole it was added for</h2>
+
+<p>I broke it four ways, as asked.</p>
+
+<table>
+<tr><th>Case</th><th>Expected</th><th>Actual</th></tr>
+<tr><td>Source newer than exe (a real edit)</td><td>refuse</td>
+<td class="pass">refuses, with the exact message</td></tr>
+<tr><td>Exe newer than source (a legitimate run)</td><td>allow</td>
+<td class="pass">allows, and prints <code>build: ... (newest source: ...)</code></td></tr>
+<tr><td>Touched-but-unchanged file</td><td>refuse (fail closed), and clear after one rebuild</td>
+<td class="pass">refuses; the exe timestamp does update on rebuild, so it clears</td></tr>
+<tr><td>Partial rebuild - a Core-only change, then a full solution build</td>
+<td>allow (no false positive)</td>
+<td class="pass">the App apphost IS relinked, so no false positive</td></tr>
+<tr><td>No-op rebuild, twice</td><td>allow</td><td class="pass">no false positive</td></tr>
+<tr><td><strong>Restore that PRESERVES the original timestamp</strong></td><td>refuse</td>
+<td class="fail">ALLOWS - and the run proceeded to launch the app against the mutated binary</td></tr>
+</table>
+
+<h3>The hole, reproduced end to end</h3>
+
+<pre>1. mutate LibraryCoherence.cs, then build     -> exe 18:30:45 carries the mutation
+2. restore the file with Copy-Item from a backup
+   (Copy-Item PRESERVES LastWriteTime, so the
+    restored file is dated 18:30:15 - OLDER than the exe)
+3. the check:  newest source 18:30:15  &lt;  exe 18:30:45   -> NOT STALE
+   library-proof.ps1 printed "build: ..." and launched the app.
+
+4. dotnet build AgentEyes.sln -c Release
+     "Build succeeded."   "AgentEyes.App -> ...AgentEyesApp.dll"
+     dll timestamp AFTER the build: 18:30:45   (UNCHANGED)
+
+5. dll hash before a forced rebuild: 633A9443...
+   dotnet build --no-incremental
+   dll hash after:                   7BBAF200...      -> DIFFERENT</pre>
+
+<p>So in this form the mutated binary survives both the new check AND a normal
+<code>dotnet build</code>: MSBuild's up-to-date check is also timestamp-based, sees inputs older than
+outputs, and skips compiling while still printing "Build succeeded". Only
+<code>--no-incremental</code> (or a clean) actually recompiles. That is the same false green the check
+was written to prevent, reachable by the most ordinary way to restore a backup on Windows.</p>
+
+<h3>What it does close, and what would close the rest</h3>
+
+<p>It genuinely closes the form where the restore touches the file - <code>git restore</code>,
+<code>git checkout --</code>, GNU <code>cp</code> without <code>-p</code>, an editor write - and that
+is a real improvement over nothing. What it cannot do is decide freshness from timestamps when the
+restore controls the timestamp. Content is the only reliable input: hash every <code>src/**/*.cs</code>
+and <code>*.xaml</code>, stamp that hash into the build output, and have the proof script compare -
+or, far cheaper, have the script simply run <code>dotnet build -c Release --no-incremental</code>
+itself as its first step and stop treating the build as somebody else's responsibility.</p>
+
+<p><strong>How I kept my own verification sound.</strong> Every mutation this round was built with
+<code>--no-incremental</code>, the restored-state build was hash-compared against the mutated one to
+prove it actually changed, and the final gate and the app run were both made from a
+<code>--no-incremental</code> build on a clean tree. The app run also shows the
+<code>ApplySnapshot epoch=1, snapshot=44</code> line present - the very line whose absence was the only
+clue in the invalid runs.</p>
+
+<h2>6. The discriminator, third time</h2>
+
+<pre>Failed!  - Failed: 12, Passed: 804, Total: 816
+
+  both criterion-2 tests                       RED
+  the criterion-6 tests                        RED
+  AFailedReload_DoesNotBlockAnOlderSuccessful  RED
+  ADivergenceForcedIntoTheRows_IsRepaired      RED
+  ...
+
+  AnOlderReload_LandingLast_DoesNotInstallItsStaleSnapshot          GREEN
+  AnOlderReload_LandingLast_DoesNotRemoveARecordingOnlyTheNewerSaw  GREEN</pre>
+
+<p>Matching the developer's figure. The rejected design still passes failure mode 1 and still fails
+the criterion-2 tests, which is the separation that made the difference in the first place.</p>
+
+<h2>7. Running-app verification (QA's own run)</h2>
+
+<p>The owner's installed v1.4.8 was checked idle before being stopped and restarted afterwards with
+<code>--tray</code>, confirmed back up (v1.4.8, idle, signed in). Nothing under
+<code>%USERPROFILE%\Videos\AgentEyes</code> was created, modified, renamed or deleted, and neither the
+delete path nor the Details rename was exercised there - both write to real recordings, so both were
+proved on temporary fixtures only.</p>
+
+<pre>build: 08/18/2026 18:39:11 (newest source: 08/18/2026 18:38:52)
+ON DISK: 44 recording folder(s) with a manifest.json
+main window found
+HEALTH: ok=True app=AgentEyes
+RENDERED: 44 library row(s)
+MISSING FROM THE LIBRARY: 0
+IN THE LIBRARY BUT NOT ON DISK: 0
+18:41:09.235 [INFO] [LibraryCoherence] BeginSnapshot: epoch=1, in flight=1, rows=0
+18:41:10.661 [INFO] [LibraryCoherence] ApplySnapshot: epoch=1, snapshot=44, added=44, updated=0,
+                    removed=0, kept live=0, refused resurrection=0, rows=44
+no crash log (good)</pre>
+
+<p><strong>Expected vs actual:</strong> expected every recording on disk to appear exactly once, the
+<code>ApplySnapshot</code> line to be present, no gate exception and no divergence. Actual 44 of 44,
+zero missing, zero extra, both coherence lines present, no <code>DIVERGED</code> line, no
+"outside its coherence model" exception, no crash log. <span class="pass">Verified.</span></p>
+
+<h2>8. The gate</h2>
+
+<pre>dotnet build AgentEyes.sln -c Release --no-incremental  ->  Build succeeded.  0 Error(s)
+dotnet test  AgentEyes.sln -c Release                   ->  Passed!  Failed: 0, Passed: 816</pre>
+
+<p>Run by QA on 1ab08b6 with a clean working tree, after every temporary edit was reverted and every
+probe file removed.</p>
+
+<h2>9. Conclusion, and what the independent gate should look at</h2>
+
+<p><span class="pass">VERIFIED - all nine acceptance criteria met.</span></p>
+
+<p>Three rounds, two blockers, and both were real: a delete bounded by an epoch that could not express
+"the disk has not caught up", and a rename route nobody had enumerated. Both are fixed at the level of
+the mechanism rather than the symptom, and in each case the developer generalised past the specific
+finding - the outcome-bound deletion, and a row-write guard that turned out to catch seven placements
+I invented rather than the one I reported.</p>
+
+<p>For the gate, in priority order:</p>
+
+<ol>
+<li><strong>The stale-build check (section 5)</strong> - the only open item. Not an acceptance
+criterion, so it did not block, but it is the safety net added after two invalid proof runs and it
+does not catch the timestamp-preserving form. It also means a plain <code>dotnet build</code> can
+report success without recompiling, so the gate's own numbers are only as fresh as the restore method
+that preceded them.</li>
+<li><strong>S3b</strong> - two renames of the same row can land out of typed order. Not a coherence
+defect; the manifest is the authority and the next reload converges.</li>
+<li><strong>The two stated limits of the row guard</strong> - reflection, and a writable public field.
+There are none today; the guard silently weakens the day someone adds one.</li>
+<li><strong>The unsettled-deletion cost</strong> (round 2, section 6) - now structurally unconditional
+via <code>Ui.RunThenPost</code>'s <code>finally</code>, which was the fix I asked for.</li>
+</ol>
+
+</body>
+</html>

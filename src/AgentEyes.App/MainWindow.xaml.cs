@@ -29,7 +29,10 @@ namespace AgentEyes.App
         private readonly Action _showTests;
         private readonly List<MonitorInfo> _monitors = new();
         private readonly ObservableCollection<CapturePreset> _presets = new();
-        private readonly RecentItemCollection _recent = new();
+        // Issue #3: the Library's rows and the ORDERING between the reloads in flight and the changes
+        // the user makes while they are. Every route that reads or changes the Library goes through
+        // it; the collection underneath refuses a change made any other way.
+        private readonly LibraryCoherence _library = new();
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(150) };
 
         // Issue #142: the repair passes (missing titles, missing thumbnails) are owned by the app,
@@ -50,7 +53,8 @@ namespace AgentEyes.App
             _repair = repair;
             InitializeComponent();
             SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
-            RecentList.ItemsSource = _recent;
+            RecentList.ItemsSource = _library.Rows;
+            _library.SortKeyChanged = ResortLibrary;
             _timer.Tick += OnTick;
 
             // Library view (issue #19, flattened by issue #178): ONE FLAT LIST, newest first, plus
@@ -59,7 +63,7 @@ namespace AgentEyes.App
             // never a filesystem date, never "now". There is deliberately no GroupDescription: day
             // grouping is what rendered each group's cards under another group's header, and it is
             // not coming back.
-            if (System.Windows.Data.CollectionViewSource.GetDefaultView(_recent)
+            if (System.Windows.Data.CollectionViewSource.GetDefaultView(_library.Rows)
                 is not System.Windows.Data.ListCollectionView recentView)
                 throw new InvalidOperationException(
                     "The library's default view is not a ListCollectionView, so the newest-first sort "
@@ -67,7 +71,7 @@ namespace AgentEyes.App
             recentView.CustomSort = RecentItem.NewestFirst;
             recentView.Filter = o => _searchText.Length == 0
                 || (o as RecentItem)?.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase) == true;
-            _recent.CollectionChanged += (_, _) => UpdateEmptyState();
+            _library.Rows.CollectionChanged += (_, _) => UpdateEmptyState();
 
             // Issue #175: the first paint goes through the same single configurator as every later
             // mode switch, so the panel and its virtualization can never disagree - not even once.
@@ -1085,8 +1089,7 @@ namespace AgentEyes.App
                     if (file != null)
                     {
                         string dir = Path.GetDirectoryName(Path.GetDirectoryName(file))!;
-                        var shot = RecentItem.From(dir);
-                        _recent.Insert(0, shot);
+                        var shot = _library.Insert(dir);
                         EnsureThumbInBackground(shot);
                     }
                     if (minimizedForCapture) RestoreAfterCaptureStartFailureOrScreenshot();
@@ -1161,11 +1164,7 @@ namespace AgentEyes.App
                     StatusText.Text = text;
                     _hud?.SetStatus(text);
                 }),
-                Saved = result => Dispatcher.Invoke(() =>
-                {
-                    item = RecentItem.From(result.Dir);
-                    _recent.Insert(0, item);
-                }),
+                Saved = result => Dispatcher.Invoke(() => item = _library.Insert(result.Dir)),
                 Processing = stage =>
                 {
                     var row = item;
@@ -1175,8 +1174,10 @@ namespace AgentEyes.App
                     if (stage == PostRecording.StageTranscribing) row.LoadThumb();
                     Dispatcher.BeginInvoke(() =>
                     {
-                        row.Status = stage;
-                        if (row.RefreshNaming()) ResortLibrary();
+                        // Both go through the model: this row was captured before the stop's awaits,
+                        // so it is exactly the "held across an await" case (issue #3, failure mode 5).
+                        _library.SetStatus(row, stage);
+                        _library.Refresh(row);
                     });
                 },
             };
@@ -1208,7 +1209,7 @@ namespace AgentEyes.App
             if (row != null)
             {
                 await Ui.Run(() => row.LoadThumb());   // decoding the poster stays off the UI thread
-                if (row.RefreshNaming()) ResortLibrary();
+                _library.Refresh(row);
             }
             UpdateLibraryTotal();   // the cost tag was just filled in by packaging
             await RefreshDevThrottleCreditsAfterHostedWorkAsync();
@@ -1341,32 +1342,52 @@ namespace AgentEyes.App
         private string _searchText = "";
         private bool _libraryGrid = true;
 
-        /// <summary>Items + thumbnails load and decode on a worker thread; the UI thread
-        /// only swaps the collection. Old recordings without thumbs backfill afterwards.
+        /// <summary>Items + thumbnails load and decode on a worker thread; the UI thread only merges
+        /// the finished snapshot into the library.
         ///
         /// The ORDER comes from <see cref="LibrarySnapshot.NewestFirst"/> - the recording start out
         /// of manifest.json, newest first (issue #178).
         ///
-        /// KNOWN LIMIT, tracked as issue #180: this is async void and several calls can overlap
-        /// (the repair service asks for a reload after its resume, title and thumbnail stages; an
-        /// import asks for one; the window asks for one at startup), and nothing orders their
-        /// COMPLETIONS against each other or against a row inserted live. An older reload finishing
-        /// last therefore installs its stale snapshot over a newer one. That is the behaviour that
-        /// shipped in v1.4.1 and it is NOT fixed here: issue #180 owns the library's coherence model,
-        /// because a partial answer to it - "newest request wins" - was written on this branch and
-        /// rejected twice for losing whatever only the dropped snapshot contained.</summary>
+        /// Several of these overlap by design - the repair service asks for a reload after its
+        /// resume, title and thumbnail stages, an import asks for one, and the window asks for one at
+        /// startup. Their COMPLETIONS are ordered by <see cref="LibraryCoherence"/> (issue #3): the
+        /// epoch is claimed BEFORE the worker reads the disk, and the snapshot is then merged one
+        /// recording at a time so an older reload can no longer reinstall its stale answer over a
+        /// newer one, and a live insert, rename or delete can no longer be undone by a reload that
+        /// started before it. Nothing is dropped, so there is nothing to retry.
+        ///
+        /// A worker that THROWS is reported as a failed read and changes nothing. It used to leave
+        /// its list empty and install that - a blank library produced by a broken instrument.</summary>
         private async void LoadRecent()
         {
-            List<RecentItem> items = new();
+            long epoch = _library.BeginSnapshot();
+            List<RecentItem> items;
             try
             {
                 items = await Task.Run(() => LibrarySnapshot.NewestFirst(RecordingPaths.Root));
             }
-            catch (Exception ex) { Log.Error("load recent", ex); }
+            catch (Exception ex)
+            {
+                _library.AbandonSnapshot(epoch, ex);
+                StatusText.Text = "Could not read the library (logged): " + ex.Message;
+                return;
+            }
 
-            // The rows go in as ONE replacement, so the AI total is re-walked once and not once per
-            // row (issue #178).
-            _recent.ReplaceAll(items);
+            // Entry point (CLAUDE.md rule 4): this is an async void method reached from the
+            // constructor, from UI events and from a Dispatcher callback, so an exception escaping
+            // it goes nowhere but the top of the UI thread and takes the window with it. QA round 1
+            // reached exactly that (finding N9). Merging cannot throw on a diverged model any more -
+            // it repairs and logs - but the catch is here so that no future throw on this path can
+            // ever be fatal.
+            try
+            {
+                _library.ApplySnapshot(epoch, items);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[MainWindow] LoadRecent FAILED to merge snapshot epoch={epoch}", ex);
+                StatusText.Text = "Library refresh error (logged): " + ex.Message;
+            }
             UpdateEmptyState();
 
             // Issue #142: loading the list no longer generates thumbnails. The old backfill here
@@ -1403,12 +1424,12 @@ namespace AgentEyes.App
         {
             Log.Info("[MainWindow] ResortLibrary: a recording's start time changed; re-applying the "
                      + "newest-first order.");
-            System.Windows.Data.CollectionViewSource.GetDefaultView(_recent).Refresh();
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_library.Rows).Refresh();
         }
 
         private void UpdateEmptyState()
         {
-            EmptyState.Visibility = _recent.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            EmptyState.Visibility = _library.Rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             UpdateLibraryTotal();
         }
 
@@ -1418,7 +1439,7 @@ namespace AgentEyes.App
         {
             double total = 0;
             bool anyEstimate = false, anyCost = false;
-            foreach (var item in _recent)
+            foreach (var item in _library.Rows)
             {
                 if (item.CostUsd <= 0 && item.Cost.Length == 0) continue;
                 total += item.CostUsd;
@@ -1436,7 +1457,7 @@ namespace AgentEyes.App
         {
             _searchText = SearchBox.Text.Trim();
             SearchHint.Visibility = SearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-            System.Windows.Data.CollectionViewSource.GetDefaultView(_recent).Refresh();
+            System.Windows.Data.CollectionViewSource.GetDefaultView(_library.Rows).Refresh();
         }
 
         private void LibraryGrid_Click(object sender, RoutedEventArgs e) { _libraryGrid = true; ApplyLibraryMode(); }
@@ -1519,7 +1540,8 @@ namespace AgentEyes.App
         {
             var dlg = new RecordingDetailWindow(item, _cfg,
                 rebuildWalkthrough: () => PackageDirAsync(item.Dir),
-                delete: () => DeleteRecordings(new List<RecentItem> { item }))
+                delete: () => DeleteRecordings(new List<RecentItem> { item }),
+                rename: name => _library.Rename(item, name))
             { Owner = this };
             dlg.ShowDialog();
         }
@@ -1604,15 +1626,17 @@ namespace AgentEyes.App
                 return;
             }
 
-            var item = _recent.FirstOrDefault(r => string.Equals(r.Dir, dir, StringComparison.OrdinalIgnoreCase));
-            if (item != null) item.Status = "Transcribing...";
+            var item = _library.Find(dir);
+            if (item != null) _library.SetStatus(item, "Transcribing...");
             StatusText.Text = "Building walkthrough (first run downloads the Whisper model)...";
             try
             {
                 await DevThrottleClient.EnsureCreditsForHostedWorkAsync();
                 await Task.Run(() => Package.Run(dir, 5.0, null));
                 await RefreshDevThrottleCreditsAfterHostedWorkAsync();
-                if (item != null && item.RefreshNaming()) ResortLibrary();
+                // The row was resolved before the awaits above, so it goes back through the model
+                // rather than being written on directly (issue #3, failure mode 5).
+                if (item != null) _library.Refresh(item);
                 UpdateLibraryTotal();   // a rebuild may have (re)recorded the AI cost
                 StatusText.Text = "Walkthrough built.";
                 if (File.Exists(wt)) Process.Start(new ProcessStartInfo(wt) { UseShellExecute = true });
@@ -1624,7 +1648,7 @@ namespace AgentEyes.App
             }
             finally
             {
-                if (item != null) item.Status = "";
+                if (item != null) _library.SetStatus(item, "");
                 RecordingWorkset.Release(claim);
             }
         }
@@ -1697,7 +1721,10 @@ namespace AgentEyes.App
                 // UI thread: the write serializes on the recording's manifest lock and then flushes
                 // to physical disk, so it can wait on a packaging pass that holds the same lock.
                 await Task.Run(() => ManifestStore.Update(item.Dir, m => m.DisplayName = name));
-                item.Title = name;
+                // Through the model: the row was captured before that await, and the new name is
+                // newer information than any reload still in flight, which must not revert it
+                // (issue #3, failure modes 4 and 5).
+                _library.Rename(item, name);
                 StatusText.Text = $"Renamed to \"{name}\".";
             }
             catch (Exception ex)
@@ -1753,26 +1780,50 @@ namespace AgentEyes.App
             // Drop the rows immediately so the list feels instant, then delete the (often
             // large, video) folders off the UI thread and report when done. Recursive delete
             // of an mp4 folder can take a noticeable beat - never on the UI thread.
+            //
+            // The gap between the two is the race in issue #3, failure mode 6: for as long as the
+            // recursive delete is running the manifest is STILL on disk, so any reload - however
+            // recently it started - honestly reports the recording as present. The model is told the
+            // deletion has begun here and is told its OUTCOME below, and it refuses to re-add the
+            // rows for the whole span between. Bounding that span on an epoch instead is what let
+            // the rows come back in the first round: a reload begun after the delete always carries
+            // the higher epoch.
             int count = items.Count;
             string title = items[0].Title;
-            var dirs = items.Select(i => i.Dir).ToList();
-            foreach (var item in items) _recent.Remove(item);
+            var deletion = _library.Delete(items);
             UpdateEmptyState();
             StatusText.Text = count == 1 ? $"Deleting \"{title}\"..." : $"Deleting {count} recordings...";
 
-            _ = Ui.Run(() =>
-            {
-                int deleted = 0;
-                string? firstError = null;
-                foreach (var dir in dirs)
+            int deleted = 0;
+            string? firstError = null;
+            var failed = new List<string>();
+
+            // Ui.RunThenPost, NOT a bare Ui.Run: the settle below runs from that helper's FINALLY, so
+            // it happens even if this loop ever throws. Settling is not optional - a deletion left
+            // unsettled hides its recordings from every later reload, even ones that can plainly see
+            // the folder is still there - and until this was structural the comment saying so was
+            // only true by inspection of a fire-and-forget lambda whose exceptions went nowhere.
+            Ui.RunThenPost(
+                work: () =>
                 {
-                    try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); deleted++; }
-                    catch (Exception ex) { Log.Error("delete " + dir, ex); firstError ??= ex.Message; }
-                }
-                Ui.Post(() => StatusText.Text = firstError != null
-                    ? $"Deleted {deleted} of {count} - {firstError}"
-                    : count == 1 ? $"Deleted \"{title}\"." : $"Deleted {deleted} recordings.");
-            });
+                    foreach (var dir in deletion.Directories)
+                    {
+                        try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); deleted++; }
+                        catch (Exception ex)
+                        {
+                            Log.Error("delete " + dir, ex);
+                            firstError ??= ex.Message;
+                            failed.Add(dir);
+                        }
+                    }
+                },
+                onDone: () =>
+                {
+                    _library.CompleteDelete(deletion, failed);
+                    StatusText.Text = firstError != null
+                        ? $"Deleted {deleted} of {count} - {firstError}"
+                        : count == 1 ? $"Deleted \"{title}\"." : $"Deleted {deleted} recordings.";
+                });
         }
 
         private void OpenRecordingMenu_Click(object sender, RoutedEventArgs e)
@@ -1899,8 +1950,37 @@ namespace AgentEyes.App
         private string _status = "";
         private System.Windows.Media.ImageSource? _thumb;
 
-        public string Badge { get; set; } = "";
-        public System.Windows.Media.Brush BadgeBrush { get; set; } = System.Windows.Media.Brushes.Gray;
+        /// <summary>
+        /// Raises PropertyChanged for a bound value that actually changed.
+        ///
+        /// Every value a Library card BINDS notifies now (issue #3). It did not have to before,
+        /// because a reload replaced the whole row object and the new object arrived with the new
+        /// values already on it. Rows are updated IN PLACE now - that is what keeps a row held across
+        /// an await attached, and what keeps thumbnails and selection alive across a reload - so a
+        /// value that changed silently would leave the card rendering the old one.
+        /// </summary>
+        private bool Set<T>(ref T field, T value, string name)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+            field = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+            return true;
+        }
+
+        private string _badge = "";
+        private System.Windows.Media.Brush _badgeBrush = System.Windows.Media.Brushes.Gray;
+
+        public string Badge
+        {
+            get => _badge;
+            set => Set(ref _badge, value, nameof(Badge));
+        }
+
+        public System.Windows.Media.Brush BadgeBrush
+        {
+            get => _badgeBrush;
+            set => Set(ref _badgeBrush, value, nameof(BadgeBrush));
+        }
 
         // ---- library cards (issue #19) ----
 
@@ -2017,8 +2097,25 @@ namespace AgentEyes.App
         }
 
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
-        public string Duration { get; set; } = "-";
-        public Visibility WalkthroughVisibility { get; set; } = Visibility.Visible;
+
+        private string _duration = "-";
+        private Visibility _walkthroughVisibility = Visibility.Visible;
+
+        public string Duration
+        {
+            get => _duration;
+            set => Set(ref _duration, value, nameof(Duration));
+        }
+
+        public Visibility WalkthroughVisibility
+        {
+            get => _walkthroughVisibility;
+            set => Set(ref _walkthroughVisibility, value, nameof(WalkthroughVisibility));
+        }
+
+        /// <summary>The recording folder - the row's IDENTITY in the library. It is set when the card
+        /// is built and never changes: the coherence model matches a snapshot's rows to the visible
+        /// rows by this value (issue #3).</summary>
         public string Dir { get; set; } = "";
 
         /// <summary>
@@ -2054,8 +2151,14 @@ namespace AgentEyes.App
         public Visibility CostVisibility => _cost.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         /// <summary>Raw USD, for the library running total. 0 when unknown.</summary>
         public double CostUsd { get; set; }
+
+        private string _costTip = "";
         /// <summary>Tooltip explaining how the figure was derived (API usage vs estimate).</summary>
-        public string CostTip { get; set; } = "";
+        public string CostTip
+        {
+            get => _costTip;
+            set => Set(ref _costTip, value, nameof(CostTip));
+        }
 
         /// <summary>Cost label for a recording's AI spend. DevThrottle bills server-side, so a
         /// recording carries token usage rather than a client-known dollar figure - show tokens
@@ -2072,11 +2175,41 @@ namespace AgentEyes.App
         }
 
         // In-app preview: the playable/viewable file and the row's vector icon for it.
-        public string MediaPath { get; set; } = "";
-        public string MediaKind { get; set; } = "";          // video | audio | image
-        public System.Windows.Media.Geometry? IconGeometry { get; set; }
-        public Visibility PreviewVisibility { get; set; } = Visibility.Collapsed;
-        public string PreviewTip { get; set; } = "Preview";
+        private string _mediaPath = "";
+        private string _mediaKind = "";
+        private System.Windows.Media.Geometry? _iconGeometry;
+        private Visibility _previewVisibility = Visibility.Collapsed;
+        private string _previewTip = "Preview";
+
+        public string MediaPath
+        {
+            get => _mediaPath;
+            set => Set(ref _mediaPath, value, nameof(MediaPath));
+        }
+
+        public string MediaKind                              // video | audio | image
+        {
+            get => _mediaKind;
+            set => Set(ref _mediaKind, value, nameof(MediaKind));
+        }
+
+        public System.Windows.Media.Geometry? IconGeometry
+        {
+            get => _iconGeometry;
+            set => Set(ref _iconGeometry, value, nameof(IconGeometry));
+        }
+
+        public Visibility PreviewVisibility
+        {
+            get => _previewVisibility;
+            set => Set(ref _previewVisibility, value, nameof(PreviewVisibility));
+        }
+
+        public string PreviewTip
+        {
+            get => _previewTip;
+            set => Set(ref _previewTip, value, nameof(PreviewTip));
+        }
 
         private static System.Windows.Media.Geometry Frozen(string data)
         {
@@ -2237,9 +2370,29 @@ namespace AgentEyes.App
             return item;
         }
 
-        /// <summary>Re-derives the visible name/description from the manifest in place -
-        /// packaging just filled in the generated Title/Description (issue #8). Also
-        /// refreshes the artifact chips, which packaging may just have produced.</summary>
+        /// <summary>Re-reads this recording's manifest into this card, in place - packaging just
+        /// filled in the generated Title/Description (issue #8), the artifact chips and the cost.
+        /// The same in-place update a reload does, from a fresh read of the card's own recording.
+        /// </summary>
+        /// <returns>true when the recording's START TIME changed - see <see cref="AdoptFrom"/>.
+        /// Callers reach this through <c>LibraryCoherence.Refresh</c>, which is where that answer is
+        /// acted on.</returns>
+        public bool RefreshNaming() => AdoptFrom(From(Dir));
+
+        /// <summary>
+        /// Takes on everything a freshly-built card for the SAME recording knows, in place.
+        ///
+        /// This is how the library updates a row instead of replacing it (issue #3). Replacing the
+        /// object is what detached a row a caller was holding across an await, threw away the
+        /// thumbnail that had already been decoded for it, and reset the user's selection on every
+        /// reload. Every value that a card BINDS is adopted here, so nothing is lost by keeping the
+        /// object - the two exceptions are deliberate:
+        ///
+        /// * <see cref="Status"/> is live progress the running app is writing on this row
+        ///   ("Transcribing..."), not something the manifest knows. A snapshot must not wipe it.
+        /// * <see cref="Thumb"/> is only taken when the fresh card HAS one. A snapshot built before
+        ///   the poster frame existed would otherwise blank a thumbnail this row already decoded.
+        /// </summary>
         /// <returns>
         /// true when the recording's START TIME changed, i.e. the library's SORT KEY moved and the
         /// view has to be re-sorted (issue #178, review finding 3). The card cannot do that itself -
@@ -2248,9 +2401,14 @@ namespace AgentEyes.App
         /// how an item that arrived undated stops being pinned to the bottom once its manifest can
         /// be read.
         /// </returns>
-        public bool RefreshNaming()
+        public bool AdoptFrom(RecentItem fresh)
         {
-            var fresh = From(Dir);
+            if (fresh is null) throw new ArgumentNullException(nameof(fresh));
+            if (!string.Equals(Dir, fresh.Dir, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException(
+                    $"A library row for {Dir} cannot adopt the card for {fresh.Dir}. The recording "
+                    + "directory is the row's identity.", nameof(fresh));
+
             Title = fresh.Title;
             Detail = fresh.Detail;
             // The start time comes back with the fresh read so the sort key and the date inside
@@ -2263,9 +2421,19 @@ namespace AgentEyes.App
             Cost = fresh.Cost;   // notifies; the cost tag lands on the row when packaging finishes
             TranscriptChipVisibility = fresh.TranscriptChipVisibility;
             WalkthroughChipVisibility = fresh.WalkthroughChipVisibility;
+            Badge = fresh.Badge;
+            BadgeBrush = fresh.BadgeBrush;
+            Duration = fresh.Duration;
+            WalkthroughVisibility = fresh.WalkthroughVisibility;
+            MediaPath = fresh.MediaPath;
+            MediaKind = fresh.MediaKind;
+            IconGeometry = fresh.IconGeometry;
+            PreviewTip = fresh.PreviewTip;
+            PreviewVisibility = fresh.PreviewVisibility;
+            if (fresh.Thumb != null) Thumb = fresh.Thumb;
 
             if (startChanged)
-                Log.Info($"[RecentItem] RefreshNaming: the start time of {Dir} changed to "
+                Log.Info($"[RecentItem] AdoptFrom: the start time of {Dir} changed to "
                          + $"{(StartedUtc.HasValue ? StartedUtc.Value.ToString("O") : "unknown")} - "
                          + "the library has to be re-sorted.");
             return startChanged;

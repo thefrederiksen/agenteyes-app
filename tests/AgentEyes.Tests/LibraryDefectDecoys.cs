@@ -37,7 +37,7 @@ namespace AgentEyes.Tests.LibraryDefects
     }
 
     /// <summary>The card. Named RecentItem so the date-path scans' ".RecentItem::" matches it.</summary>
-    internal static class RecentItem
+    internal static partial class RecentItem
     {
         /// <summary>
         /// The TRANSITIVE defect, written exactly as the round-2 review wrote it: the card's date
@@ -138,5 +138,76 @@ namespace AgentEyes.Tests.LibraryDefects
 
         public static void ThroughTheItemsControl(ItemsControl list) =>
             list.GroupStyle.Add(new GroupStyle());
+    }
+
+    // ---- issue #3: bypasses of the library's coherence model ------------------
+
+    /// <summary>
+    /// The type that OWNS the library's rows, named so the rows scan's
+    /// "LibraryCoherence::" exclusion matches it here exactly as it does in the product.
+    ///
+    /// It is the NARROWNESS control: the scan must stay silent about the model touching its own
+    /// field, or it would report a defect on every correct route and be deleted within a week.
+    /// </summary>
+    internal sealed class LibraryCoherence
+    {
+        internal readonly ObservableCollection<object> _rows = new();
+
+        /// <summary>The model changing its own rows - never an offence.</summary>
+        public void ApplySnapshot(object row) => _rows.Add(row);
+    }
+
+    /// <summary>
+    /// The bypasses. Each one reaches the library's rows from OUTSIDE the model, in a spelling the
+    /// previous guard could not see: it recognized only Insert/Remove/Clear/Add, so a direct
+    /// <c>RemoveAt(0)</c> produced zero matcher hits and a move or an indexer assignment produced
+    /// none either. The last one is hidden behind a wrapper, which is how a text scan is usually
+    /// defeated.
+    ///
+    /// Nothing here is ever called. These methods exist to be READ, as IL, by CompiledCode.
+    /// </summary>
+    internal static class LibraryBypass
+    {
+        public static void RemoveAtDirectly(LibraryCoherence library) => library._rows.RemoveAt(0);
+
+        public static void MoveDirectly(LibraryCoherence library) => library._rows.Move(0, 1);
+
+        public static void AssignThroughTheIndexer(LibraryCoherence library, object row) =>
+            library._rows[0] = row;
+
+        public static void ThroughAWrapper(LibraryCoherence library, object row) =>
+            Wrapper(library._rows, row);
+
+        private static void Wrapper(ObservableCollection<object> rows, object row) => rows.Insert(0, row);
+    }
+
+    /// <summary>
+    /// A card whose VALUE can be written - the decoy for the row-write scan. It is the same
+    /// <see cref="RecentItem"/> the date scans already match on, so the two guards share one decoy
+    /// type exactly as the product shares one real one.
+    /// </summary>
+    internal static partial class RecentItem
+    {
+        /// <summary>The value a rename writes. The scan matches its SETTER.</summary>
+        public static string Title { get; set; } = "";
+
+        /// <summary>The card writing its own value - never an offence.</summary>
+        public static void AdoptFrom(string title) => Title = title;
+    }
+
+    /// <summary>
+    /// Writes to a library row from OUTSIDE the card and the model - the shape QA found in
+    /// RecordingDetailWindow.CommitRename, plus the version hidden behind a helper that never names
+    /// a row itself, which is how a source scan is usually defeated.
+    ///
+    /// Nothing here is ever called. These methods exist to be READ, as IL, by CompiledCode.
+    /// </summary>
+    internal static class RowBypass
+    {
+        public static void RenameDirectly(string name) => RecentItem.Title = name;
+
+        public static void ThroughAHelper(string name) => Helper(name);
+
+        private static void Helper(string name) => RecentItem.Title = name;
     }
 }
