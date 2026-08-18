@@ -4,11 +4,103 @@
 
 Repo: `thefrederiksen/agenteyes-app`. Branch: `issue-3-library-coherence`. Base: `8d46403` (v1.4.8).
 
+**ROUND 4 (this one)** - QA PASSED round 3 with no defect. The only change here is to the proof
+script's own stale-build check, which QA showed was unsound; no product code is touched. Section 0
+is the round-4 record. Build clean, `dotnet test` 816/816.
+
 **ROUND 3** - QA passed everything from rounds 1 and 2 and failed criterion 8 on one route:
 `RecordingDetailWindow::CommitRename` wrote `RecentItem.Title` straight onto the live library row.
 QA's framing was the important part - the guards protected the COLLECTION, and this method mutated a
 ROW. Section 0a is the round-3 record. Build clean, `dotnet test` 816/816, the new guards demonstrated
 failing on the unmodified code before the fix, and the running app re-verified.
+
+---
+
+## 0. Round 4 - the stale-build check was unsound, and is replaced by a rebuild
+
+QA's round-3 report: `docs/cencon/proof/issue-3/qa-report-round3.html`. **PASS, no defect.** The
+row-write guard was verified as a genuine CATEGORY guard - QA compiled row writes into seven places
+the decoys never name (a brand-new type, a local function, an async state machine after an await, a
+delegate built in one place and invoked in another, a struct, a DIFFERENT property, and R10's
+re-wired callback) and every one was reported at its true home. Nothing in the product changed this
+round.
+
+What did change is the instrument I added in round 3, because QA showed it does not hold.
+
+### Why the timestamp check was wrong
+
+It compared the newest source file's `LastWriteTime` against the exe's and refused when a source was
+newer. That catches the case I hit - edit, forget to build - but not the ordinary one: **a restore
+that PRESERVES the original timestamp** (`Copy-Item`, `cp -p`, `robocopy`, an archive extract). The
+restored source is then OLDER than the exe, the check passes, and `dotnet build` skips recompiling
+while still printing `Build succeeded.` and the `AgentEyes.App ->` line.
+
+Reproduced here end to end before changing anything:
+
+```
+source restored with its original timestamp:  LibraryCoherence.cs  18:18:31
+binary built from the MUTATED source:         AgentEyesApp.dll     18:50:26
+
+$ dotnet build AgentEyes.sln -c Release
+  AgentEyes.App -> ...\AgentEyesApp.dll
+  Build succeeded.
+
+hash BEFORE that build: 930f1492a3175d0f      hash AFTER: 930f1492a3175d0f   (unchanged)
+
+$ the OLD check:
+  build: 08/18/2026 18:50:26 (newest source: 08/18/2026 18:50:23)     <- passed
+  RENDERED: 44 library row(s) ... MISSING: 0 ... IN THE LIBRARY BUT NOT ON DISK: 0
+  18:52:14 [INFO] [LibraryCoherence] BeginSnapshot: epoch=1 ...
+                                                    <- and NO ApplySnapshot line: still mutated
+```
+
+A green proof over a mutated binary, reached by the most common way anyone restores a file on
+Windows. Timestamps cannot decide freshness when whatever restored the file decides the timestamp.
+
+### The remedy, and why this one
+
+QA offered two: rebuild first, or hash the sources into the build output and compare hashes. **I took
+the rebuild**, for two reasons beyond the coordinator's (it removes the class rather than detecting
+it, for one slower build per run):
+
+1. The hash remedy needs an MSBuild target writing a source manifest into the build output - that is
+   product build infrastructure, and this round was explicitly not to touch product code.
+2. A source-hash check is only as good as its idea of which files the build actually compiles - globs,
+   linked files, generated files. Getting that set subtly wrong reproduces the same failure in a new
+   form, and the check would have no way to know. The rebuild has nothing to be wrong about.
+
+**It REBUILDS; it does not DETECT.** The script says so in those words, and so does its output:
+`compiling the branch build (no-incremental) so the binary under test is this tree's source...`.
+`--no-incremental` is what makes it a real recompile rather than another skipped build, and a build
+FAILURE aborts the run rather than falling through to whatever exe is on disk.
+
+### Demonstrated
+
+| # | Constructed | Result |
+|---|---|---|
+| S1 | A timestamp-preserving restore over a mutated binary, then the OLD check | PASSED - 44 of 44 reported, `ApplySnapshot` missing from the log, dll hash unchanged across a "successful" build. The false green, reproduced |
+| S2 | The NEW script on that same state | recompiled; dll `930F1492A3175D0F` -> `14D7BD5968886539`, and `ApplySnapshot` logged again at 18:53:49. The mutation is gone because it was compiled away, not because it was spotted |
+| S3 | A deliberate compile error in `LibraryCoherence.cs`, then the NEW script | refused: `BUILD FAILED (exit 1) - aborting rather than testing whatever exe is on disk` |
+| S4 | A branch app left running, then the NEW script | swept it (`stopping a branch app left from an earlier run: pid=53284`) and ran clean |
+
+Two smaller things found while doing it, both fixed:
+
+- **The script was hashing the wrong file.** It reported the `.exe`, which is the apphost launcher and
+  read `6C12D8F1515F6C49` whether the code was mutated or not - a reassuring constant. It now hashes
+  the managed `AgentEyesApp.dll`, which is what carries the code. The hash is stable across recompiles
+  of identical source (`14D7BD59...` twice), so it identifies the code rather than the moment.
+- **A leftover branch app now breaks the build**, since the build happens inside the script and the
+  running app locks the output (`MSB3027 ... locked by AgentEyesApp`). That is exactly what happened
+  when I piped this script through `Select-Object -First N`, which closes the pipeline and stops the
+  script before its own `Stop-Process` line. The script now sweeps leftover BRANCH apps before
+  building, matching on path so the owner's installed app under `%LOCALAPPDATA%` is never touched.
+  Verified by leaving one running deliberately (S4).
+
+### Recorded for the gate, from QA - known behaviour, not a defect
+
+`CommitRename` is `async void` and fires on both Enter and LostFocus, so two renames can be in flight
+and land in the opposite order to the order typed; the model stamps whichever lands last. The
+manifest write has the same race and is the authority, so the next reload converges.
 
 ---
 
@@ -65,14 +157,16 @@ ApplySnapshot` line missing from the log while the rows rendered correctly; the 
 before reaching it.
 
 That is exactly the stale-binary trap CLAUDE.md warns about, wearing new clothes, and noticing it
-depended on knowing what the log should say. `library-proof.ps1` now refuses to run when any source
-file is newer than `AgentEyesApp.exe`, with the message naming the file and both timestamps. That
-check was demonstrated firing (touch a source, run, get `STALE BUILD: LibraryCoherence.cs was changed
-at ... but AgentEyesApp.exe was built at ...`) before being trusted.
+depended on knowing what the log should say. The fix at the time was a timestamp check in
+`library-proof.ps1`, demonstrated firing before being trusted.
+
+**SUPERSEDED in round 4 - see section 0.** QA showed that check is unsound: it does not catch a
+restore that PRESERVES the original timestamp, which is how most people restore a file on Windows.
+The script now recompiles the binary itself instead of trying to judge whether it is stale.
 
 ---
 
-## 0. Round 2 - what QA found and what changed
+## 0b. Round 2 - what QA found and what changed
 
 QA's report: `docs/cencon/proof/issue-3/qa-report.html`. It was right on every point.
 
@@ -366,7 +460,7 @@ merely complaining.
 | R10 | The `rename:` callback wired to `item.Title = name` instead of the model | 3 red: the row-write scan (now naming `MainWindow::OpenDetail`, where the write moved), the route table, and the Details-dialog guard |
 | R11 | The `rename` callback removed from the dialog's constructor | `TheDetailsDialogsRename_...` ("no longer takes a 'rename' callback") |
 | R12 | The delete worker back to fire-and-forget `Ui.Run` | `EveryLibraryRoute_GoesThroughTheCoherenceModel` ("does not call 'Ui::RunThenPost'") |
-| R13 | A source file touched so it is newer than the build | `library-proof.ps1` refuses to run: "STALE BUILD: LibraryCoherence.cs was changed at ... but AgentEyesApp.exe was built at ..." |
+| R13 | A source file touched so it is newer than the build | the then-current `library-proof.ps1` refused to run. That check is SUPERSEDED - it passed the case QA later constructed (a timestamp-preserving restore); see section 0 for the replacement and its own demonstrations S1-S4 |
 
 R10 is the one worth reading twice: the write was moved from the dialog into a lambda in the window,
 and the scan reported it there. That is the property that makes this a guard for the CATEGORY rather
@@ -483,7 +577,11 @@ was seen failing on the pre-fix code. QA should not delete a real recording to c
 
 ## 8. Suggested QA scope
 
-- **Start with the row guard.** That is what failed last time. Re-run mutation R9 or R10 from
+- **Note the proof script now BUILDS before it runs** (`--no-incremental`), so it is slower and it
+  will abort on a compile error rather than testing an old exe. It also stops any branch app left
+  from an earlier run before building, because a running one locks the build output. Do not pipe it
+  through `Select-Object -First N` - that closes the pipeline and can stop it before its own cleanup.
+- **Start with the row guard.** That is what failed two rounds ago. Re-run mutation R9 or R10 from
   section 5 and confirm `NothingOutsideTheCardAndTheModel_WritesAValueOnALibraryRow` turns red; R10
   is the better one, because it checks the guard follows the write when it MOVES rather than only
   catching it where you found it.

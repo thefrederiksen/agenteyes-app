@@ -18,22 +18,53 @@ $vid  = Join-Path $env:USERPROFILE 'Videos\AgentEyes'
 $log  = Join-Path $env:LOCALAPPDATA 'AgentEyes\logs'
 $crash = Join-Path $env:TEMP 'AgentEyes-crash.log'
 
-if (-not (Test-Path $exe)) { throw "branch build missing: $exe" }
+# Any BRANCH app still running from a previous run has to go before anything else - it holds a lock
+# on the build output, so the compile below would fail with MSB3027 "the file is locked by
+# AgentEyesApp". One survived on 2026-08-18 because this script was piped through
+# Select-Object -First N, which closes the pipeline and stops the script before its own Stop-Process
+# line. Sweeping here is deterministic and does not depend on the previous run having ended tidily.
+# It matches on PATH, so the owner's INSTALLED app under %LOCALAPPDATA% is never touched by it.
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue |
+  Where-Object { $_.Path -and $_.Path.StartsWith($root, [StringComparison]::OrdinalIgnoreCase) } |
+  ForEach-Object { "stopping a branch app left from an earlier run: pid=$($_.Id)"; Stop-Process -Id $_.Id -Force }
 
-# The binary must be NEWER than the sources it claims to test. This is not paranoia: on 2026-08-18
-# this proof was run against a build still carrying a deliberately mutated ApplySnapshot, because the
-# source had been restored and not rebuilt. It reported 44 of 44 and looked like a pass. The only
-# thing that gave it away was an expected log line missing from the run - a clue that is easy to miss
-# and impossible to rely on. So the staleness is checked here instead of hoped about.
-$newestSource = Get-ChildItem (Join-Path $root 'src') -Recurse -Include *.cs, *.xaml |
-                Sort-Object LastWriteTime | Select-Object -Last 1
-$builtAt = (Get-Item $exe).LastWriteTime
-if ($newestSource -and $newestSource.LastWriteTime -gt $builtAt) {
-  throw ("STALE BUILD: $($newestSource.Name) was changed at $($newestSource.LastWriteTime) but " +
-         "AgentEyesApp.exe was built at $builtAt. Run 'dotnet build AgentEyes.sln -c Release' first - " +
-         "this run would be testing code you did not build.")
+# COMPILE THE BINARY UNDER TEST, HERE, EVERY RUN. This does NOT detect a stale build - it removes
+# the possibility of one, which is the point: the exe launched below is compiled from the source in
+# this tree by the line beneath this comment, seconds before it runs.
+#
+# It replaces a timestamp check that was not sound. That check compared the newest source file's
+# LastWriteTime against the exe's and refused when a source was newer. It caught the case it was
+# written for, but not the ordinary one: a restore that PRESERVES the original timestamp - Copy-Item,
+# cp -p, robocopy, an archive extract - leaves the source OLDER than the exe, so the check passes,
+# and then dotnet build skips recompiling while still printing "Build succeeded" and the
+# "AgentEyes.App ->" line. Verified on 2026-08-18: after such a restore the dll hash was unchanged
+# across a normal build (930f1492a3175d0f before and after) while the binary still carried a mutated
+# ApplySnapshot, and the proof reported 44 of 44. Timestamps cannot decide freshness when whatever
+# restored the file decides the timestamp.
+#
+# --no-incremental is what makes this a real recompile rather than another skipped build. A build
+# FAILURE aborts the run: falling through to whatever exe happens to be on disk is the very thing
+# this exists to prevent.
+"compiling the branch build (no-incremental) so the binary under test is this tree's source..."
+& dotnet build (Join-Path $root 'AgentEyes.sln') -c Release --no-incremental | Out-Null
+if ($LASTEXITCODE -ne 0) {
+  throw ("BUILD FAILED (exit $LASTEXITCODE) - aborting rather than testing whatever exe is on disk. " +
+         "Run 'dotnet build AgentEyes.sln -c Release' to see the errors.")
 }
-"build: $builtAt (newest source: $($newestSource.LastWriteTime))"
+
+if (-not (Test-Path $exe)) { throw "branch build missing after a successful build: $exe" }
+
+# Reported, not asserted: this identifies the binary in the record. It is not a freshness claim - the
+# compile above is what makes the binary fresh.
+#
+# It hashes the managed DLL, not the .exe. The .exe is the apphost launcher and barely ever changes:
+# across the demonstration above it read 6C12D8F1515F6C49 whether the code was mutated or not, while
+# the DLL went 930F1492A3175D0F (mutated) -> 14D7BD5968886539 (recompiled). Hashing the .exe would
+# have printed a reassuring constant.
+$dll = [IO.Path]::ChangeExtension($exe, '.dll')
+$builtAt = (Get-Item $dll).LastWriteTime
+$hash = (Get-FileHash -Path $dll -Algorithm SHA256).Hash.Substring(0, 16)
+"compiled: $builtAt  AgentEyesApp.dll sha256[0..15]: $hash"
 
 if (Test-Path $crash) { Remove-Item $crash -Force }
 
