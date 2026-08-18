@@ -1,0 +1,20 @@
+{
+  "plugins": [
+    {
+      "id": "qa-walk-companion",
+      "name": "QA Walk Companion",
+      "description": "Turns a QA walkthrough recording into a QA report listing the bugs the tester reported, read from the spoken transcript.",
+      "version": "1.0.0",
+      "zipUrl": "https://github.com/thefrederiksen/agenteyes-app/releases/download/plugins/qa-walk-companion-1.0.0.zip",
+      "sha256": "9a5ea01a2c506f32bd1f9e387e9ccc9a580c21758e19b3ff0f9780456538080c"
+    },
+    {
+      "id": "doc-companion",
+      "name": "Doc Companion",
+      "description": "Turns a recorded walkthrough into step-by-step documentation, illustrated with the screenshots captured during the recording.",
+      "version": "1.0.0",
+      "zipUrl": "https://github.com/thefrederiksen/agenteyes-app/releases/download/plugins/doc-companion-1.0.0.zip",
+      "sha256": "c532f94e841d5c6aff627c1ab706461d2eaf8069175fc2b20cab2d672544f1f6"
+    }
+  ]
+}

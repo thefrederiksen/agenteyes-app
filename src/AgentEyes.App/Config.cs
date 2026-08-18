@@ -36,7 +36,8 @@ namespace AgentEyes.App
         // Post-recording plugins (issue #13): ids the user opted into. Plugins run
         // after transcription, each as its own process. See docs/plugins.md.
         public System.Collections.Generic.List<string> EnabledPlugins { get; set; } = new();
-        // Plugin registry (issue #32): null = the default public releases-repo URL.
+        // Plugin registry (issue #32): null = PluginRegistry.DefaultUrl, the registry file on the
+        // main branch of the one consolidated public repo (issue #186).
         public string? PluginRegistryUrl { get; set; }
 
         private static string FilePath => Path.Combine(

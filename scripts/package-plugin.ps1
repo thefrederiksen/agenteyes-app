@@ -8,17 +8,21 @@
 #
 # Output goes to dist\plugins\<id>-<version>.zip.
 #
-# Publishing to the registry (manual, public AgentEyes-releases repo):
-#   1. Upload the zip to the EXISTING 'plugins' release - do NOT create it again:
-#        gh release upload plugins dist\plugins\<id>-<version>.zip -R thefrederiksen/AgentEyes-releases
+# Publishing to the registry (manual, public thefrederiksen/agenteyes-app repo -
+# the ONE consolidated repo, issue #186):
+#   1. Upload the zip to the 'plugins' release:
+#        gh release upload plugins dist\plugins\<id>-<version>.zip -R thefrederiksen/agenteyes-app
 #      GOTCHA: `gh release create plugins ...` marks that release "Latest", which
 #      hijacks /releases/latest and breaks the in-app updater (it expects the app
-#      version there). If that happens, repin the app release:
-#        gh release edit vX.Y.Z -R thefrederiksen/AgentEyes-releases --latest
-#      `gh release upload` (asset add) does NOT touch the latest flag - prefer it.
-#   2. Add/update this entry under .plugins[] in plugins/registry.json on main
+#      version there). Create it ONCE with --latest=false, and after that only ever
+#      `gh release upload` (asset add), which does NOT touch the latest flag:
+#        gh release create plugins -R thefrederiksen/agenteyes-app --latest=false --title Plugins --notes "Plugin zips."
+#      If the flag is ever hijacked anyway, repin the app release:
+#        gh release edit vX.Y.Z -R thefrederiksen/agenteyes-app --latest
+#   2. Add/update this entry under .plugins[] in plugins/registry.json IN THIS REPO,
+#      then let the ordinary public source sync carry it to agenteyes-app/main
 #      (the raw URL the app reads:
-#       https://raw.githubusercontent.com/thefrederiksen/AgentEyes-releases/main/plugins/registry.json).
+#       https://raw.githubusercontent.com/thefrederiksen/agenteyes-app/main/plugins/registry.json).
 
 param(
     [Parameter(Mandatory = $true)] [string] $Id,
@@ -50,12 +54,12 @@ $entry = [ordered]@{
     name        = $manifest.name
     description = $manifest.description
     version     = $version
-    zipUrl      = "https://github.com/thefrederiksen/AgentEyes-releases/releases/download/plugins/$Id-$version.zip"
+    zipUrl      = "https://github.com/thefrederiksen/agenteyes-app/releases/download/plugins/$Id-$version.zip"
     sha256      = $sha
 }
 
 Write-Output "Packaged: $zip"
 Write-Output "SHA-256 : $sha"
 Write-Output ""
-Write-Output "registry.json entry (add under .plugins[] in the releases repo):"
+Write-Output "registry.json entry (add under .plugins[] in plugins/registry.json in this repo):"
 Write-Output ($entry | ConvertTo-Json)
