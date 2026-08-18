@@ -40,7 +40,10 @@ namespace AgentEyes.Tests
     ///      walks still cannot hide.
     /// A fifth section runs `scripts/package-plugin.ps1` for real and reads the `zipUrl` it generates,
     /// because the registry URL and the download URLs inside the registry are two different
-    /// dependencies on the retired repo and fixing one does not fix the other.
+    /// dependencies on the retired repo and fixing one does not fix the other. A sixth pins the
+    /// ENVIRONMENT that packaging run gets: the child shell's PSModulePath is stated, not inherited,
+    /// after an inherited PowerShell 7 one cost two releases by hiding `Get-FileHash` from Windows
+    /// PowerShell 5.1 on CI only (issue #191).
     ///
     /// What these tests CANNOT see, stated rather than papered over. They never touch the network, so
     /// they say NOTHING about whether either URL resolves today - the registry file reaches
@@ -330,13 +333,27 @@ namespace AgentEyes.Tests
                 throw new FileNotFoundException("package-plugin.ps1 is not where this test expects it", scriptPath);
 
             string outDir = NewTempDir();
-            var psi = new ProcessStartInfo("powershell.exe")
+            var psi = new ProcessStartInfo(WindowsPowerShellExe())
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+
+            // PSModulePath is INHERITED, and inheriting it is what made these tests pass here and
+            // fail on CI (issue #191). `Get-FileHash` is not a compiled-in cmdlet in Windows
+            // PowerShell 5.1 - it is a FUNCTION exported by the Microsoft.PowerShell.Utility MODULE
+            // under %SystemRoot%\System32\WindowsPowerShell\v1.0\Modules. CI runs `dotnet test` from
+            // a `shell: pwsh` step, so the environment this process hands the child lists PowerShell
+            // 7's $PSHOME\Modules and NOT Windows PowerShell's own; 5.1 then binds the name
+            // Microsoft.PowerShell.Utility to PS7's Core-only copy and every function that module
+            // ships disappears - while the engine's cmdlets (ConvertFrom-Json, Write-Output) keep
+            // working, which is why the script gets all the way to the hash line before dying with
+            // CommandNotFoundException. Pin the child to Windows PowerShell's own module path so what
+            // it can resolve is stated here rather than borrowed from the shell that started the run.
+            psi.Environment["PSModulePath"] = WindowsPowerShellModulePath();
+
             foreach (string arg in new[]
                      {
                          "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
@@ -367,6 +384,145 @@ namespace AgentEyes.Tests
 
             using var doc = JsonDocument.Parse(stdout.Substring(open));
             return doc.RootElement.Clone();
+        }
+
+        /// <summary>Windows PowerShell 5.1 itself, by absolute path rather than off PATH. Same idea as
+        /// the module path below: which shell runs the script is STATED here, not taken from the
+        /// environment of whatever started the test run.</summary>
+        private static string WindowsPowerShellExe()
+        {
+            string exe = Path.Combine(WindowsPowerShellHome(), "powershell.exe");
+            if (!File.Exists(exe))
+                throw new FileNotFoundException(
+                    "Windows PowerShell 5.1 is not where package-plugin.ps1 has to run from.", exe);
+            return exe;
+        }
+
+        /// <summary>The PSModulePath a Windows PowerShell 5.1 child needs: its own module directory
+        /// first, then the machine-wide one. It REPLACES the inherited value rather than extending it
+        /// - a PowerShell 7 entry left in front of these would take the Microsoft.PowerShell.Utility
+        /// name back off them, which is the whole failure (issue #191).</summary>
+        private static string WindowsPowerShellModulePath()
+        {
+            string systemModules = Path.Combine(WindowsPowerShellHome(), "Modules");
+            if (!Directory.Exists(systemModules))
+                throw new DirectoryNotFoundException(
+                    $"Windows PowerShell's module directory is missing at '{systemModules}'. " +
+                    "package-plugin.ps1 needs it for Get-FileHash and Compress-Archive.");
+
+            string machineModules = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsPowerShell", "Modules");
+            return systemModules + ";" + machineModules;
+        }
+
+        private static string WindowsPowerShellHome() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0");
+
+        // ---- 6. the environment the packaging run inherits (issue #191) -------
+
+        /// <summary>PowerShell 7's Microsoft.PowerShell.Utility manifest, cut to the fields that do the
+        /// damage: the same module NAME and GUID Windows PowerShell 5.1 uses, marked Core-only, and
+        /// claiming the Utility commands as CMDLETS - `Get-FileHash` among them, which 5.1 only has as
+        /// a module FUNCTION. A directory holding this is what a `shell: pwsh` step puts in front of
+        /// Windows PowerShell's own modules on PSModulePath.</summary>
+        private const string PowerShell7UtilityManifest = @"@{
+GUID = '1DA87E53-152B-403E-98DC-74D7B4D63D59'
+Author = 'PowerShell'
+ModuleVersion = '7.0.0.0'
+CompatiblePSEditions = @('Core')
+PowerShellVersion = '3.0'
+CmdletsToExport = @('Get-FileHash', 'New-Guid', 'Format-Hex', 'ConvertFrom-Json', 'Out-String', 'Select-Object', 'Write-Output')
+FunctionsToExport = @()
+AliasesToExport = @('fhx')
+NestedModules = @('Microsoft.PowerShell.Commands.Utility.dll')
+}
+";
+
+        [Fact]
+        public void PackagePlugin_TheParentProcessCarriesAPowerShell7ModulePath_StillPackages()
+        {
+            // The regression test for the CI-only failure in issue #191. `dotnet test` runs from a
+            // `shell: pwsh` step on the runner, so the process that starts package-plugin.ps1 exports
+            // PowerShell 7's PSModulePath. Reproduced here with a PS7-shaped module tree and no
+            // Windows PowerShell entry at all - the shape that took `Get-FileHash` away on CI. A real
+            // PowerShell 7 install reproduces the CI failure end to end and is recorded in the issue
+            // #191 handoff; the synthetic tree is what lets this check run on a machine without one.
+            string powerShell7Modules = NewPowerShell7ModulePath();
+
+            // The control, and it comes FIRST: that environment has to genuinely break a child which
+            // inherits it, or the packaging run below would only ever have meant "nothing was wrong".
+            Assert.False(ChildResolvesGetFileHash(powerShell7Modules));
+            Assert.True(ChildResolvesGetFileHash(WindowsPowerShellModulePath()));
+
+            // Poisoning THIS process's environment is what makes the run below inherit the CI value -
+            // ProcessStartInfo copies the environment at construction. No other test in the suite
+            // spawns a PowerShell, and this class's tests do not run concurrently with each other, so
+            // the window is confined to the run below; it is restored in the finally either way.
+            string? restore = Environment.GetEnvironmentVariable("PSModulePath");
+            try
+            {
+                Environment.SetEnvironmentVariable("PSModulePath", powerShell7Modules);
+
+                var entry = RunPackagePlugin(Path.Combine(RepoSource.Root, "scripts", "package-plugin.ps1"),
+                    "qa-walk-companion");
+
+                Assert.Equal(ExpectedZipUrlPrefix + "qa-walk-companion-1.0.0.zip",
+                    entry.GetProperty("zipUrl").GetString());
+                Assert.Equal(64, entry.GetProperty("sha256").GetString()!.Length);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PSModulePath", restore);
+            }
+        }
+
+        /// <summary>A temp directory shaped like PowerShell 7's module tree: one
+        /// Microsoft.PowerShell.Utility folder holding <see cref="PowerShell7UtilityManifest"/>, and
+        /// nothing of Windows PowerShell's.</summary>
+        private string NewPowerShell7ModulePath()
+        {
+            string root = NewTempDir();
+            string module = Directory.CreateDirectory(
+                Path.Combine(root, "Microsoft.PowerShell.Utility")).FullName;
+            File.WriteAllText(Path.Combine(module, "Microsoft.PowerShell.Utility.psd1"),
+                PowerShell7UtilityManifest);
+            return root;
+        }
+
+        /// <summary>Start Windows PowerShell with this PSModulePath and report whether `Get-FileHash`
+        /// resolves in it. Throws when the child does not run or answers neither way, so a false can
+        /// only ever come from a shell that really did start and really could not find the command.</summary>
+        private static bool ChildResolvesGetFileHash(string psModulePath)
+        {
+            var psi = new ProcessStartInfo(WindowsPowerShellExe())
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            psi.Environment["PSModulePath"] = psModulePath;
+            foreach (string arg in new[]
+                     {
+                         "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
+                         "if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) { 'RESOLVED' } else { 'MISSING' }",
+                     })
+                psi.ArgumentList.Add(arg);
+
+            using var proc = Process.Start(psi)
+                ?? throw new InvalidOperationException("powershell.exe did not start.");
+            string stdout = proc.StandardOutput.ReadToEnd();
+            string stderr = proc.StandardError.ReadToEnd();
+            if (!proc.WaitForExit(60_000))
+            {
+                try { proc.Kill(entireProcessTree: true); } catch { }
+                throw new InvalidOperationException("powershell.exe did not answer within 60s.");
+            }
+
+            if (stdout.Contains("RESOLVED", StringComparison.Ordinal)) return true;
+            if (stdout.Contains("MISSING", StringComparison.Ordinal)) return false;
+            throw new InvalidOperationException(
+                $"powershell.exe answered neither RESOLVED nor MISSING. stdout: {stdout}{Environment.NewLine}stderr: {stderr}");
         }
 
         /// <summary>
