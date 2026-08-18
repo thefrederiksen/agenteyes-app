@@ -4,8 +4,116 @@
 
 Repo: `thefrederiksen/agenteyes-app`. Branch: `issue-3-library-coherence`. Base: `8d46403` (v1.4.8).
 
-I believe this is finished. Build clean, `dotnet test` 804/804, every guard demonstrated failing, and
-the running app verified against the owner's real 44-recording library.
+**ROUND 2** - QA failed round 1 on criterion 6 and raised two guard-strength findings. All three are
+addressed; section 0 is the round-2 record and is the part to read first. I believe this is finished.
+Build clean, `dotnet test` 812/812, every round-2 guard demonstrated failing before it was trusted,
+and the running app re-verified against the owner's real 44-recording library.
+
+---
+
+## 0. Round 2 - what QA found and what changed
+
+QA's report: `docs/cencon/proof/issue-3/qa-report.html`. It was right on every point.
+
+### BLOCKING 1 - criterion 6 failed on the exact scenario it names
+
+QA constructed the reload that starts AFTER the delete while the folder is still being removed, and
+the row came back. Worse, the two tests round 1 shipped for criterion 6 covered the OPPOSITE ordering
+and then asserted the criterion-6 case as INTENDED behaviour - the defect was written into the suite,
+which is why 804 green tests certified it. That is the failure this fix is judged on.
+
+**The design point.** A newer epoch is not better evidence about a directory whose deletion is still
+running. For the whole span between "the rows go" and "the folder is gone" the manifest is still on
+disk, so a reload begun after the delete honestly reports the recording AND carries the higher epoch.
+No epoch can express "the disk has not caught up yet" - only the deletion's own outcome can.
+
+A deletion is therefore bounded by its OUTCOME:
+
+* `Delete` marks each directory `Removing` and returns a `LibraryDeletion` handle. `Removing` beats
+  every snapshot at ANY epoch, and is never pruned.
+* `MainWindow.DeleteRecordings` runs the recursive delete on its worker and then reports back through
+  `CompleteDelete(deletion, failed)` - unconditionally, in the continuation, whether or not the
+  delete succeeded.
+* `CompleteDelete` moves each directory to `Removed` at the COMPLETION epoch, and ordinary epoch
+  ordering resumes from there. That gives both halves for free: a deletion that SUCCEEDED is not
+  listed by any later snapshot so the row stays gone, and one that FAILED is listed, so the row comes
+  back. A snapshot that began BEFORE completion still loses, because its epoch is lower.
+
+Both of QA's causes are fixed by that one mechanism. `PruneTombstones` never touches a `Removing`
+fact, so the horizon can no longer drop a tombstone in the same call that created it, and a snapshot
+landing correctly can no longer be the event that expires the deletion (QA's N3).
+
+**The cost, stated rather than discovered later:** a deletion the caller never settles hides its
+recordings for the rest of the session. `ADeletionThatIsNeverSettled_KeepsHidingTheRecording` pins
+that, the settle is unconditional in the window, and the route enumeration now requires
+`DeleteRecordings` to reach BOTH `Delete` and `CompleteDelete`.
+
+**The tests.** The two round-1 criterion-6 tests are replaced. Written FIRST and confirmed RED on the
+unmodified round-1 code before any product change:
+
+```
+AReloadStartingAfterTheDelete_WhileTheDirectoryIsStillBeingRemoved_DoesNotResurrectTheRow  [FAIL]
+ADeleteWithOneReloadAlreadyInFlight_SurvivesBothThatReloadAndALaterOne                     [FAIL]
+AnUnrelatedSnapshotSettling_DoesNotExpireADeletionThatIsStillRunning                       [FAIL]
+   Expected: ["one_video"]   Actual: ["doomed_video", "one_video"]
+```
+
+The inverted test that asserted the resurrection is gone. The property it was protecting - a FAILED
+deletion must reappear - is kept by `AReloadAfterADeletionThatFAILED_ShowsTheRecordingAgain`, which
+settles the deletion as a failure first, plus
+`AReloadInFlightWhenTheDeletionSettled_DoesNotResurrectTheDeletedRow` for the succeeded arm.
+
+### BLOCKING 2 - the gate was castable-around, and the bypass crashed
+
+* **The cast is closed.** The gated collection is now a PRIVATE NESTED type of `LibraryCoherence`
+  (`internal sealed partial class LibraryCoherence { private sealed class RecentItemCollection ... }`),
+  so no code in `AgentEyes.App` can name it, and `(RecentItemCollection)library.Rows` cannot be
+  written. `TheGatedRowsCollection_CannotBeNamedOutsideTheModel` asserts that as a PRESENCE -
+  nested, private, declared by the model, and still carrying `BeginCoherentUpdate`.
+  Its honest limit: reflection still reaches it. What is closed is the cast, which is the form a
+  bypass takes when nobody is trying to break in.
+* **The divergence can no longer take the process down.** `ApplySnapshot` used to THROW when the fact
+  table and the rows disagreed, on the path of `async void LoadRecent` where nothing catches it.
+  `ReconcileFactsWithRows` now re-derives the fact table from the rows and logs an ERROR naming every
+  corrected directory. That is a repair, not a fallback: the rows are what the user is looking at and
+  the fact table is bookkeeping ABOUT those rows, so rebuilding the bookkeeping from the thing it
+  describes hides nothing. `RepairedDivergences` makes it observable, because a silent self-heal is
+  indistinguishable from one that never runs. `LoadRecent` also got an entry-point try/catch, so no
+  future throw on that path can be fatal either.
+  `ADivergenceForcedIntoTheRows_IsRepairedRatherThanThrownOntoTheUiThread` performs QA's bypass for
+  real - by reflection, since the cast is gone - and requires no throw, the right rows, and
+  `RepairedDivergences == 1`.
+
+### MEDIUM - a guard distincted by method, not call site
+
+`TheWindowSubscribesToLibraryChanged_InExactlyOnePlace` collapsed the call sites by declaring method,
+so QA's second subscription inside `MainWindow::.ctor` left it green. It now counts CALL SITES and is
+renamed for what it measures:
+`TheWholeApp_WritesLibraryChanged_AtExactlyTwoCallSites_TheSubscriptionAndTheTeardown`.
+
+Two, not one, because the constructor subscribes and the `Closed` handler - which the compiler folds
+back onto the constructor - clears it. So that "two" is not a magic number, both roles are pinned by
+a LITERAL STRING MATCH on the source, named as such. Together they close the gap a bare count leaves:
+adding a rogue subscription makes it three, and deleting the teardown to keep the count at two fails
+the source half. Both attacks are demonstrated in section 5.
+
+### One test of my own that could not fail, and how it was found
+
+`CompletingADeletion_DoesNotTombstoneARecordingReCreatedInTheSameFolder` was written asserting only
+the rows. The mutation that removes the identity check from `CompleteDelete` did NOT turn it red -
+because tombstoning a directory whose row is present is exactly the state `ReconcileFactsWithRows`
+repairs, so the rows came out right either way. The test was asserting something the model would
+produce with or without the code it claimed to cover.
+
+What the identity check actually buys is that a legitimate re-import does not trip the corruption
+alarm, so that is what it now measures (`RepairedDivergences == 0`) - and the mutation turns it red.
+This is recorded because it is the same class of defect QA found in criterion 6, caught here by
+insisting every guard be demonstrated failing rather than assumed to work.
+
+### Noted, not actioned
+
+Epoch overflow (QA's N11) needs ~9.2e18 operations on a `long` incremented once per snapshot or live
+change. Agreed: theoretical, not actionable.
 
 ---
 
@@ -55,10 +163,10 @@ raises nothing at all.
 
 | File | What changed |
 |---|---|
-| `src/AgentEyes.App/LibraryCoherence.cs` | NEW - the model |
-| `src/AgentEyes.App/RecentItemCollection.cs` | the gate + notification coalescing; `ReplaceAll` removed |
-| `src/AgentEyes.App/MainWindow.xaml.cs` | `_recent` -> `_library`; every route goes through the model; `RecentItem.AdoptFrom` + notification on every bound property |
-| `tests/AgentEyes.Tests/LibraryCoherenceTests.cs` | NEW - 30 tests |
+| `src/AgentEyes.App/LibraryCoherence.cs` | NEW - the model. Round 2: the `Removing`/`Removed` deletion lifecycle, `CompleteDelete`, `ReconcileFactsWithRows`, `RepairedDivergences`, `LibraryDeletion` |
+| `src/AgentEyes.App/RecentItemCollection.cs` | the gate + notification coalescing; `ReplaceAll` removed. Round 2: now a PRIVATE NESTED type of `LibraryCoherence` |
+| `src/AgentEyes.App/MainWindow.xaml.cs` | `_recent` -> `_library`; every route goes through the model; `RecentItem.AdoptFrom` + notification on every bound property. Round 2: `DeleteRecordings` settles the deletion, `LoadRecent` has an entry-point catch |
+| `tests/AgentEyes.Tests/LibraryCoherenceTests.cs` | NEW - 38 tests (30 in round 1, +8 in round 2) |
 | `tests/AgentEyes.Tests/LibraryDefectDecoys.cs` | decoys for the new structural guard |
 | `tests/AgentEyes.Tests/LibraryFlatListTests.cs` | 3 tests retargeted onto the new owner of the behaviour |
 
@@ -74,9 +182,9 @@ something live, land the snapshot). Nothing races and hopes.
 | 3 | A reload whose worker throws does not blank or truncate the Library, and does not prevent a concurrent successful reload from landing | `AReloadWhoseWorkerThrows_DoesNotBlankOrTruncateTheLibrary`, `AFailedReload_DoesNotBlockAnOlderSuccessfulReloadFromLanding`, `AHungReload_NeverSettled_DoesNotStopLaterReloadsFromLanding`, `ASuccessfulReloadThatFoundNothing_EmptiesTheLibrary` | same |
 | 4 | A rename completing during an in-flight reload is not reverted by it | `ARenameDuringAnInFlightReload_IsNotRevertedByThatReload`, `ARefreshDuringAnInFlightReload_...`, `ALaterReload_StillUpdatesARenamedRow` | same |
 | 5 | A row captured before an await and refreshed after a reload replaced it leaves no stale visible row | `ARowHeldAcrossAnAwait_IsStillTheLibrarysRowAfterAReloadCompleted`, `...WhenTheHeldOneIsDetached`, `StatusOnAHeldRow_...`, `RefreshingARowForADeletedRecording_...`, `AReloadLandingOnARow_DoesNotWipeItsLiveStatus` | same |
-| 6 | A reload starting after a UI delete but before the directory is removed does not resurrect the row | `AReloadThatStartedBeforeTheDirectoryWasRemoved_DoesNotResurrectTheDeletedRow`, `AReloadThatStartedAfterTheDelete_StillShowsARecordingWhoseDeletionFailed` | same |
-| 7 | A structural guard proves every mutation route participates, and FAILS on a direct `RemoveAt`/`Move`/indexer mutation - demonstrated, not asserted | `EveryDirectMutationOfTheLibrarysRows_IsRefused` (11 spellings, each observed to throw), `TheGate_RefusesMutationsOnly_AndLeavesEveryReadWorking`, `TheModelAndItsRows_RefuseEveryCallFromAnotherThread`, `NoMethodOutsideTheCoherenceModel_TouchesTheLibrarysRows` + `TheRowsScan_ReportsEveryBypassOfTheModel` | same. Section 5 below has the mutation evidence |
-| 8 | Enumerated proof that no route bypasses the model, including all three RepairService triggers | `EveryLibraryRoute_GoesThroughTheCoherenceModel` (12 routes read from the compiled assembly), `EveryRepairServiceTrigger_ReachesTheLibraryOnlyThroughLibraryChanged`, `TheWindowSubscribesToLibraryChanged_InExactlyOnePlace` | same |
+| 6 | A reload starting after a UI delete but before the directory is removed does not resurrect the row | **Round 2, see section 0.** `AReloadStartingAfterTheDelete_WhileTheDirectoryIsStillBeingRemoved_DoesNotResurrectTheRow`, `ADeleteWithOneReloadAlreadyInFlight_...`, `AnUnrelatedSnapshotSettling_...`, `AReloadInFlightWhenTheDeletionSettled_...`, `AReloadAfterADeletionThatFAILED_ShowsTheRecordingAgain`, `ADeletionThatIsNeverSettled_KeepsHidingTheRecording`, `CompletingADeletion_DoesNotTombstoneARecordingReCreatedInTheSameFolder`, plus `AReloadThatStartedBeforeTheDirectoryWasRemoved_...` (the round-1 ordering, still covered) | same |
+| 7 | A structural guard proves every mutation route participates, and FAILS on a direct `RemoveAt`/`Move`/indexer mutation - demonstrated, not asserted | `EveryDirectMutationOfTheLibrarysRows_IsRefused` (11 spellings, each observed to throw), `TheGate_RefusesMutationsOnly_AndLeavesEveryReadWorking`, `TheModelAndItsRows_RefuseEveryCallFromAnotherThread`, `NoMethodOutsideTheCoherenceModel_TouchesTheLibrarysRows` + `TheRowsScan_ReportsEveryBypassOfTheModel`; **round 2** `TheGatedRowsCollection_CannotBeNamedOutsideTheModel` + `ADivergenceForcedIntoTheRows_IsRepairedRatherThanThrownOntoTheUiThread` | same. Section 5 below has the mutation evidence |
+| 8 | Enumerated proof that no route bypasses the model, including all three RepairService triggers | `EveryLibraryRoute_GoesThroughTheCoherenceModel` (12 routes read from the compiled assembly; `DeleteRecordings` must now reach `Delete` AND `CompleteDelete`), `EveryRepairServiceTrigger_ReachesTheLibraryOnlyThroughLibraryChanged`, `TheWholeApp_WritesLibraryChanged_AtExactlyTwoCallSites_TheSubscriptionAndTheTeardown` | same |
 | 9 | `dotnet build -c Release` clean, `dotnet test -c Release` `Failed: 0` | - | section 6 |
 
 ### The route enumeration (criterion 8), in full
@@ -92,7 +200,7 @@ are checked, so a rename fails the test rather than silently checking nothing.
 | `MainWindow::StopAsync` | `Insert`, `SetStatus`, `Refresh` |
 | `MainWindow::PackageDirAsync` | `Find`, `SetStatus`, `Refresh` |
 | `MainWindow::RenameRecording_Click` | `Rename` |
-| `MainWindow::DeleteRecordings` | `Delete` |
+| `MainWindow::DeleteRecordings` | `Delete`, `CompleteDelete` |
 | `MainWindow::ImportVideo_Click` | `MainWindow::LoadRecent` |
 | `MainWindow::Search_TextChanged`, `ResortLibrary`, `UpdateLibraryTotal`, `UpdateEmptyState` | `get_Rows` |
 
@@ -118,6 +226,16 @@ Stated rather than glossed, because an overclaiming guard has been rejected here
 - **The RepairService chain** proves those three stages signal through `LibraryChanged` and that the
   callback lands in the model. It cannot prove that no future code in Core finds another way to a UI
   it cannot see.
+- **The gated collection being private and nested** is a fact about VISIBILITY, checked by
+  reflection over the running type. It stops the type being NAMED, so it stops a cast. It does not
+  stop reflection - and the test that proves the divergence is repaired uses reflection itself to
+  create the divergence, so that limit is not theoretical, it is exercised.
+- **The reconciliation** repairs the fact table from the rows and counts itself in
+  `RepairedDivergences`. It can see that the two disagree; it cannot see WHO made them disagree, and
+  it does not try to say. The log names the directories, not a culprit.
+- **The LibraryChanged call-site count** measures writes to that property in the compiled app, which
+  is exact, plus two LITERAL STRING MATCHES on the source for the two roles. It cannot see a
+  subscription made through reflection or a delegate stored elsewhere.
 - **The retargeted re-sort guard** (`EveryRefreshNamingCallSite_ReSortsTheLibraryWhenTheStartTimeMoved`)
   is a LITERAL STRING MATCH over `LibraryCoherence.cs`, and says so in its own comment. It cannot see
   a second route added by reflection or a delegate; it throws rather than passing if nothing calls
@@ -146,6 +264,29 @@ green (section 6).
 | M12 | Every change raises a Reset | `ASingleLiveInsert_RaisesAnAddRatherThanAReset` |
 | M13 | `Refresh`/`SetStatus` write on the caller's row instead of re-resolving it | `ARowHeldAcrossAnAwait_UpdatesTheLibrarysRow_WhenTheHeldOneIsDetached`, `StatusOnAHeldRow_...` |
 
+### Round 2
+
+Eight more, same discipline: constructed in the product code, watched go RED, reverted.
+
+| # | The defect constructed | Tests that went RED |
+|---|---|---|
+| (pre-fix) | NOTHING - the three new criterion-6 tests were run against the UNMODIFIED round-1 code, before any product change | all three, with `Expected: ["one_video"] Actual: ["doomed_video", "one_video"]` |
+| R1a | The deletion tombstoned as SETTLED at delete time (the round-1 epoch bound) | 5 red: all three criterion-6 interleavings, `ADeletionThatIsNeverSettled_...`, `AReloadInFlightWhenTheDeletionSettled_...` |
+| R1b | `PruneTombstones` prunes a deletion that is still RUNNING (QA's eager-prune cause) | the same 5 |
+| R2 | `CompleteDelete` never records the outcome | `AReloadAfterADeletionThatFAILED_ShowsTheRecordingAgain` |
+| R3 | `CompleteDelete` FORGETS the directory instead of tombstoning it at the completion epoch | `AReloadInFlightWhenTheDeletionSettled_DoesNotResurrectTheDeletedRow` |
+| R4 | `CompleteDelete` tombstones whatever has happened to the directory since (no identity check) | `CompletingADeletion_DoesNotTombstoneARecordingReCreatedInTheSameFolder` - and see section 0: this mutation is what exposed that the test could not fail as first written |
+| R5 | Divergence throws from inside the merge again instead of being reconciled | `ADivergenceForcedIntoTheRows_IsRepairedRatherThanThrownOntoTheUiThread` |
+| R6 | The gated collection moved back out of the model as an assembly-internal type | `TheGatedRowsCollection_CannotBeNamedOutsideTheModel` |
+| R7 | **QA's exact attack**: a second `_repair.LibraryChanged +=` inside `MainWindow::.ctor` | `TheWholeApp_WritesLibraryChanged_AtExactlyTwoCallSites_...` ("writes ... at 3 call site(s)") |
+| R7b | The teardown DELETED and a rogue subscription added, so the call-site count stays at two | the same test, on the source half |
+| R8 | `DeleteRecordings` stops calling `CompleteDelete` | `EveryLibraryRoute_GoesThroughTheCoherenceModel` ("does not call 'LibraryCoherence::CompleteDelete'") |
+
+**The discriminator was re-run after the round-2 changes**, because they touch `ApplySnapshot`. The
+rejected "latest generation wins, drop the rest" design was re-applied to the new merge: 12 red / 800
+green, with BOTH criterion-2 tests red and BOTH failure-mode-1 tests still green. The separation QA
+independently reproduced in round 1 survives the fix, and the criterion-6 tests now fail under it too.
+
 An unplanned fourteenth demonstration is in the record too: while the branch was being written, the
 gate fired on a genuine pre-existing direct `Add` in `LibraryFlatListTests` and failed that test with
 the "outside its coherence model" message. That is the guard catching a real mutation nobody planted.
@@ -159,10 +300,11 @@ reported).
 
 ```
 dotnet build AgentEyes.sln -c Release   ->  Build succeeded.  0 Error(s)
-dotnet test  AgentEyes.sln -c Release   ->  Passed!  Failed: 0, Passed: 804, Skipped: 0, Total: 804
+dotnet test  AgentEyes.sln -c Release   ->  Passed!  Failed: 0, Passed: 812, Skipped: 0, Total: 812
 ```
 
-(801 before this change; +30 new, -1 replaced, 2 retargeted.)
+(801 on `main`; 804 after round 1; 812 after round 2 - +38 new for this issue in total, 1 round-1
+test replaced because it encoded the criterion-6 defect, 2 retargeted.)
 
 ## 7. Running-app verification I already did
 
@@ -198,11 +340,42 @@ The owner's installed v1.4.8 was then restarted and confirmed back up
 (`/version` -> `AgentEyes 1.4.8`, `/status` -> `idle`, signed in). **It was restarted with `--tray`**;
 if the owner had a window open before, it is reachable from the tray icon.
 
+**Round 2 re-run** (same script, same read-only guarantees, after the criterion-6 and gate changes):
+
+```
+ON DISK: 44 recording folder(s) with a manifest.json
+HEALTH: ok=True app=AgentEyes
+RENDERED: 44 library row(s)
+MISSING FROM THE LIBRARY: 0
+IN THE LIBRARY BUT NOT ON DISK: 0
+17:42:14.778 [INFO] [LibraryCoherence] BeginSnapshot: epoch=1, in flight=1, rows=0
+17:42:15.399 [INFO] [LibraryCoherence] ApplySnapshot: epoch=1, snapshot=44, added=44, updated=0,
+                    removed=0, kept live=0, refused resurrection=0, rows=44
+no crash log (good)
+```
+
+No divergence line and no gate exception in the log, so `RepairedDivergences` stayed 0 on the real
+startup path. The owner's v1.4.8 was stopped only from idle and restarted afterwards, verified up.
+
+**The delete path was NOT exercised against the owner's recordings, deliberately.** Criterion 6 is
+about deleting a recording, and everything under `%USERPROFILE%\Videos\AgentEyes` is the owner's
+irreplaceable real data - the Library reads that root and there is no runtime override for it. The
+criterion-6 interleavings are proved on temporary fixtures instead, deterministically, and each one
+was seen failing on the pre-fix code. QA should not delete a real recording to check this either.
+
 ## 8. Suggested QA scope
 
-- **Re-run the suite yourself** (`dotnet build` + `dotnet test`, ~25s, silent). Then re-run at least
+- **Start with criterion 6.** That is what failed last time. The three interleavings QA constructed
+  (N1, N2, N3) are now shipped as tests; re-run them, and re-run mutation R1a from section 5, which
+  restores the round-1 epoch-bound tombstone and should turn all three red. If it does not, this fix
+  is not doing what this note claims.
+- **Re-run the suite yourself** (`dotnet build` + `dotnet test`, ~12s, silent). Then re-run at least
   two of the mutations in section 5 - M2 is the most valuable, because a design that passes
-  everything except the criterion-2 tests is the design the gate already rejected twice.
+  everything except the criterion-2 tests is the design the gate already rejected twice. It was
+  re-run after the round-2 changes and still separates them.
+- **Re-attack the two guards you broke last round**: the cast around the gate (finding 6a) and the
+  second `LibraryChanged` subscription inside the constructor (finding 6b). Both should now fail;
+  R7b in section 5 is the subtler version of 6b, where the count is kept at two.
 - **A gui smoke is worth it here** - this is the Library UI. `scripts/gui-smoke.ps1 -Confirm`. **Read
   it before running it**: it points at `bin\Release\` rather than `bin\x64\Release\`, so it will
   either fail "app not built" or drive a stale binary, and it backs up and rewrites the owner's

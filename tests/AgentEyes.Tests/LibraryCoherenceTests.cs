@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using Xunit;
@@ -455,22 +456,179 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>
-        /// The tombstone is bounded, not permanent. A reload that started AFTER the delete and STILL
-        /// finds the recording is reporting a delete that failed - and the library has to show what
-        /// is actually on disk. Without this the guard above would be satisfied by a directory that
-        /// can never be shown again.
+        /// The other half, and the one the first round got right for the wrong reason. The tombstone
+        /// is bounded, not permanent: once the deletion has SETTLED as a FAILURE, the folder really
+        /// is still on disk, and a reload that starts after that is reporting the truth - the row has
+        /// to come back, or a failed deletion hides a recording the user still owns forever.
+        ///
+        /// The first round obtained this by letting ANY later reload win, which is what resurrected
+        /// genuinely-deleted rows. The distinction is the deletion's outcome, not the epoch.
         /// </summary>
         [Fact]
-        public void AReloadThatStartedAfterTheDelete_StillShowsARecordingWhoseDeletionFailed()
+        public void AReloadAfterADeletionThatFAILED_ShowsTheRecordingAgain()
         {
             string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
             string stubborn = Recording("stubborn_video", "2026-08-02T10:00:00.0000000Z");
             var library = Loaded(one, stubborn);
 
-            library.Delete(new[] { library.Find(stubborn)! });
+            var deletion = library.Delete(new[] { library.Find(stubborn)! });
+            library.CompleteDelete(deletion, new[] { stubborn });   // the folder could not be removed
+
             library.ApplySnapshot(library.BeginSnapshot(), Snapshot(one, stubborn));
 
             Assert.Equal(new[] { "one_video", "stubborn_video" }, Dirs(library));
+        }
+
+        /// <summary>
+        /// A deletion that SUCCEEDED stays gone - including against a reload that was already in
+        /// flight when it settled and still carries the manifest it read beforehand. Without this
+        /// arm, settling the deletion would simply move the resurrection one step later.
+        /// </summary>
+        [Fact]
+        public void AReloadInFlightWhenTheDeletionSettled_DoesNotResurrectTheDeletedRow()
+        {
+            string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+            string doomed = Recording("doomed_video", "2026-08-02T10:00:00.0000000Z");
+            var library = Loaded(one, doomed);
+
+            var deletion = library.Delete(new[] { library.Find(doomed)! });
+            long duringTheDelete = library.BeginSnapshot();     // reads the disk while it is running
+            library.CompleteDelete(deletion, Array.Empty<string>());
+
+            library.ApplySnapshot(duringTheDelete, Snapshot(one, doomed));
+
+            Assert.Equal(new[] { "one_video" }, Dirs(library));
+        }
+
+        /// <summary>
+        /// A deletion the caller never settles keeps hiding its recordings, for good. That is the
+        /// COST of bounding on the outcome rather than on an epoch, and it is stated here rather than
+        /// discovered later: forgetting <c>CompleteDelete</c> is not a small leak, it is a recording
+        /// the Library will not show again this session even if the folder is plainly still there.
+        ///
+        /// The window therefore settles it unconditionally, in the continuation that runs after the
+        /// delete loop whether or not the loop succeeded, and
+        /// <see cref="EveryLibraryRoute_GoesThroughTheCoherenceModel"/> requires DeleteRecordings to
+        /// reach both halves.
+        /// </summary>
+        [Fact]
+        public void ADeletionThatIsNeverSettled_KeepsHidingTheRecording()
+        {
+            string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+            string doomed = Recording("doomed_video", "2026-08-02T10:00:00.0000000Z");
+            var library = Loaded(one, doomed);
+
+            library.Delete(new[] { library.Find(doomed)! });   // and never completed
+
+            library.ApplySnapshot(library.BeginSnapshot(), Snapshot(one, doomed));
+            library.ApplySnapshot(library.BeginSnapshot(), Snapshot(one, doomed));
+
+            Assert.Equal(new[] { "one_video" }, Dirs(library));
+        }
+
+        /// <summary>
+        /// A recording written into the SAME folder while the delete was running is live evidence
+        /// that outlived the deletion, so settling that deletion must not tombstone it: the deletion
+        /// is no longer the newest thing that happened to that directory.
+        ///
+        /// The load-bearing assertion here is the DIVERGENCE COUNT, not the rows. Tombstoning a
+        /// directory whose row is present puts the fact table and the rows into exactly the state
+        /// ReconcileFactsWithRows exists to repair - so the rows come out right either way, and a
+        /// test that only read the rows could not fail. What the identity check actually buys is that
+        /// a legitimate re-import does not trip the corruption alarm, and that is what is measured.
+        /// (This test was written without that assertion first, and the mutation that removes the
+        /// identity check did not turn it red - which is how the gap was found.)
+        /// </summary>
+        [Fact]
+        public void CompletingADeletion_DoesNotTombstoneARecordingReCreatedInTheSameFolder()
+        {
+            string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+            string reused = Recording("reused_video", "2026-08-02T10:00:00.0000000Z");
+            var library = Loaded(one, reused);
+
+            var deletion = library.Delete(new[] { library.Find(reused)! });
+            library.Insert(reused);                             // re-imported into the same folder
+            library.CompleteDelete(deletion, Array.Empty<string>());
+
+            library.ApplySnapshot(library.BeginSnapshot(), Snapshot(one, reused));
+
+            Assert.Equal(new[] { "one_video", "reused_video" }, Dirs(library));
+            Assert.Equal(0, library.RepairedDivergences);
+        }
+
+        /// <summary>
+        /// CRITERION 6, VERBATIM - and the interleaving the first round of this issue did not
+        /// construct: the reload starts AFTER the user deleted the recording, while the recursive
+        /// folder delete is STILL RUNNING, so the manifest is still on disk and the snapshot sees it.
+        ///
+        /// This is the scenario failure mode 6 names word for word ("a reload starting after the UI
+        /// removal but before the directory is physically gone sees the still-present manifest and
+        /// re-adds the row permanently"). The first round shipped two tests for criterion 6 and
+        /// NEITHER covered it - one covered the opposite ordering and the other asserted the
+        /// resurrection as intended behaviour, which is how 804 green tests certified the defect.
+        ///
+        /// PASS: the deleted recording stays gone for the whole window in which the folder is still
+        /// being removed. DEFECT: the user watches a recording they just deleted come back. An empty
+        /// library here would mean the fixture never loaded, so the surviving row is asserted too.
+        /// </summary>
+        [Fact]
+        public void AReloadStartingAfterTheDelete_WhileTheDirectoryIsStillBeingRemoved_DoesNotResurrectTheRow()
+        {
+            string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+            string doomed = Recording("doomed_video", "2026-08-02T10:00:00.0000000Z");
+            var library = Loaded(one, doomed);
+
+            // The user deletes it: the row goes now, the folder goes on a worker afterwards.
+            library.Delete(new[] { library.Find(doomed)! });
+
+            // In that gap the repair service finishes a stage and asks for a reload. The recursive
+            // delete has not finished, so the manifest is STILL there and the snapshot carries it.
+            library.ApplySnapshot(library.BeginSnapshot(), Snapshot(one, doomed));
+
+            Assert.Equal(new[] { "one_video" }, Dirs(library));
+        }
+
+        /// <summary>
+        /// The same, with an older reload already in flight when the delete happens - the ordering
+        /// QA constructed as N2. Both reloads land after the delete and neither may bring the row
+        /// back while the folder is still being removed.
+        /// </summary>
+        [Fact]
+        public void ADeleteWithOneReloadAlreadyInFlight_SurvivesBothThatReloadAndALaterOne()
+        {
+            string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+            string doomed = Recording("doomed_video", "2026-08-02T10:00:00.0000000Z");
+            var library = Loaded(one, doomed);
+
+            long early = library.BeginSnapshot();      // in flight before the delete
+            library.Delete(new[] { library.Find(doomed)! });
+            long late = library.BeginSnapshot();       // begun after it
+
+            library.ApplySnapshot(early, Snapshot(one, doomed));
+            library.ApplySnapshot(late, Snapshot(one, doomed));
+
+            Assert.Equal(new[] { "one_video" }, Dirs(library));
+        }
+
+        /// <summary>
+        /// QA's N3: an unrelated snapshot settling must not be what expires the deletion's memory.
+        /// The first round pruned the tombstone as soon as the in-flight set drained, so a snapshot
+        /// landing correctly was itself the event that let the NEXT one resurrect the row.
+        /// </summary>
+        [Fact]
+        public void AnUnrelatedSnapshotSettling_DoesNotExpireADeletionThatIsStillRunning()
+        {
+            string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+            string doomed = Recording("doomed_video", "2026-08-02T10:00:00.0000000Z");
+            var library = Loaded(one, doomed);
+
+            long early = library.BeginSnapshot();
+            library.Delete(new[] { library.Find(doomed)! });
+
+            library.ApplySnapshot(early, Snapshot(one, doomed));   // refuses correctly, and settles
+            library.ApplySnapshot(library.BeginSnapshot(), Snapshot(one, doomed));
+
+            Assert.Equal(new[] { "one_video" }, Dirs(library));
         }
 
         // ---- the collection's gate: criterion 7, demonstrated ------------------
@@ -522,6 +680,85 @@ namespace AgentEyes.Tests
 
             // ...and the library is exactly as it was: not one of them got through.
             Assert.Equal(new[] { "one_video", "two_video" }, Dirs(library));
+        }
+
+        /// <summary>
+        /// The OTHER half of criterion 7, and QA round 1's finding 6a: the gate must not be
+        /// castable-around.
+        ///
+        /// <c>Rows</c> is handed out as <c>ObservableCollection&lt;RecentItem&gt;</c>, but it is
+        /// really the gated collection. While that gated type was an assembly-internal type of its
+        /// own, any code in AgentEyes.App could name it, cast <c>Rows</c> back to it, open a
+        /// coherence scope itself and mutate freely with the model never told - and QA drove the
+        /// resulting divergence into an exception on the UI thread. The type is now PRIVATE and
+        /// NESTED inside LibraryCoherence, so the cast cannot be written outside the model at all.
+        ///
+        /// This asserts that as a PRESENCE, not as an absence: the runtime type of Rows must be
+        /// nested, private, declared by LibraryCoherence, and must still carry the scope opener. Move
+        /// it back out of the model, or widen it, and this fails.
+        ///
+        /// Its limit, stated: reflection still reaches a private nested type - the test below does
+        /// exactly that on purpose. What this closes is the cast, which is the form a bypass takes
+        /// when someone is not trying to break in.
+        /// </summary>
+        [Fact]
+        public void TheGatedRowsCollection_CannotBeNamedOutsideTheModel()
+        {
+            var library = new LibraryCoherence();
+
+            var rowsType = library.Rows.GetType();
+
+            Assert.NotEqual(typeof(System.Collections.ObjectModel.ObservableCollection<RecentItem>), rowsType);
+            Assert.Same(typeof(LibraryCoherence), rowsType.DeclaringType);
+            Assert.True(rowsType.IsNestedPrivate,
+                $"The library's rows collection ({rowsType.FullName}) is reachable by name from "
+                + $"outside LibraryCoherence (visibility: {rowsType.Attributes}). Anything in "
+                + "AgentEyes.App can then cast Rows back to it, open a coherence scope and mutate the "
+                + "library with the model never told (issue #3, QA round 1 finding 6a).");
+
+            // Fail-closed: the gate's scope opener must still be there. A renamed or removed
+            // BeginCoherentUpdate would leave the visibility assertions above certifying nothing.
+            Assert.NotNull(rowsType.GetMethod("BeginCoherentUpdate",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance));
+        }
+
+        /// <summary>
+        /// And if a divergence arrives anyway - by reflection, or by something not yet imagined - it
+        /// must not be able to take the window down. QA round 1 (N9) drove the fact table and the
+        /// rows apart and the next merge threw an InvalidOperationException from inside
+        /// <c>async void LoadRecent</c>, where nothing catches it.
+        ///
+        /// The divergence is now REPAIRED and logged as an error rather than thrown: the rows are
+        /// what the user is looking at, the fact table is bookkeeping about those rows, and rebuilding
+        /// the bookkeeping from the thing it describes is a repair rather than a fallback. Here the
+        /// bypass is performed for real, through reflection on the private nested collection, and the
+        /// model is required to survive it and to converge on the disk.
+        /// </summary>
+        [Fact]
+        public void ADivergenceForcedIntoTheRows_IsRepairedRatherThanThrownOntoTheUiThread()
+        {
+            string one = Recording("one_video", "2026-08-01T10:00:00.0000000Z");
+            string two = Recording("two_video", "2026-08-02T10:00:00.0000000Z");
+            var library = Loaded(one, two);
+
+            // The bypass, for real: open a scope on the gated collection and drop a row, so the fact
+            // table still records a recording that no longer has one.
+            var rows = library.Rows;
+            var open = rows.GetType().GetMethod("BeginCoherentUpdate",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!;
+            using (var scope = (IDisposable)open.Invoke(rows, null)!) rows.RemoveAt(0);
+            Assert.Single(rows);
+
+            // The next reload must survive it, not throw.
+            var thrown = Record.Exception(
+                () => library.ApplySnapshot(library.BeginSnapshot(), Snapshot(one, two)));
+
+            Assert.Null(thrown);
+            Assert.Equal(new[] { "one_video", "two_video" }, Dirs(library));
+
+            // ...and it was REPAIRED, not merely survived. Without this the assertions above would
+            // hold just as well for a reconciliation that never ran.
+            Assert.Equal(1, library.RepairedDivergences);
         }
 
         /// <summary>
@@ -751,7 +988,13 @@ namespace AgentEyes.Tests
                 "LibraryCoherence::Find", "LibraryCoherence::SetStatus", "LibraryCoherence::Refresh",
             }),
             ("MainWindow::RenameRecording_Click", new[] { "LibraryCoherence::Rename" }),
-            ("MainWindow::DeleteRecordings", new[] { "LibraryCoherence::Delete" }),
+            ("MainWindow::DeleteRecordings", new[]
+            {
+                // Both halves: starting the deletion AND settling it. A deletion that is never
+                // settled hides its recordings from every later reload (failure mode 6's cost), so
+                // "it calls Delete" is not enough to claim the route participates.
+                "LibraryCoherence::Delete", "LibraryCoherence::CompleteDelete",
+            }),
             ("MainWindow::ImportVideo_Click", new[] { "MainWindow::LoadRecent" }),
             ("MainWindow::Search_TextChanged", new[] { "LibraryCoherence::get_Rows" }),
             ("MainWindow::ResortLibrary", new[] { "LibraryCoherence::get_Rows" }),
@@ -837,20 +1080,55 @@ namespace AgentEyes.Tests
                     + "It raises: " + string.Join(", ", raisers));
         }
 
-        /// <summary>The app side of the same chain: the window subscribes to LibraryChanged in
-        /// exactly one place, and that place is the constructor - which the route table above
-        /// requires to call LoadRecent.</summary>
+        /// <summary>
+        /// The app side of the same chain: the whole application writes RepairService.LibraryChanged
+        /// at exactly TWO call sites - the one subscription and the one teardown - and both are in
+        /// MainWindow's constructor, which the route table above requires to call LoadRecent.
+        ///
+        /// CALL SITES, not distinct methods (QA round 1, finding 6b). The first version of this guard
+        /// collapsed the sites by declaring METHOD, so a second <c>_repair.LibraryChanged</c>
+        /// assignment added inside the constructor left it green - a guard whose name claimed more
+        /// than it measured. That mattered because the property is an <c>Action</c> assigned with
+        /// <c>=</c>: a second assignment REPLACES the first, and can point somewhere that never
+        /// reaches the model.
+        ///
+        /// Why two and not one, stated so the number is not a magic constant: the constructor
+        /// subscribes, and the <c>Closed</c> handler - which the compiler folds back onto the
+        /// constructor - clears it. Both halves are pinned below by a LITERAL STRING MATCH on the
+        /// source, which is exactly what it sounds like and no more. Together they close the gap a
+        /// bare count leaves: adding a rogue subscription makes the count three, and deleting the
+        /// teardown to keep the count at two fails the source half.
+        /// </summary>
         [Fact]
-        public void TheWindowSubscribesToLibraryChanged_InExactlyOnePlace()
+        public void TheWholeApp_WritesLibraryChanged_AtExactlyTwoCallSites_TheSubscriptionAndTheTeardown()
         {
-            var subscribers = CompiledCode
+            var writes = CompiledCode
                 .CallSites(CompiledCode.AppAssembly,
                     callee => callee.EndsWith("RepairService::set_LibraryChanged", StringComparison.Ordinal))
-                .Select(site => site.Method)
-                .Distinct(StringComparer.Ordinal)
                 .ToList();
 
-            Assert.Equal(new[] { "AgentEyes.App.MainWindow::.ctor" }, subscribers);
+            Assert.True(writes.Count == 2,
+                $"AgentEyesApp.dll writes RepairService.LibraryChanged at {writes.Count} call site(s), "
+                + "not the expected two (the subscription and the teardown). The repair service's only "
+                + "channel into the Library is that callback, and because it is assigned with '=' an "
+                + "extra write silently replaces the one that goes through the model. The sites are: "
+                + string.Join(", ", writes.Select(site => site.Method)));
+
+            Assert.All(writes, site => Assert.Equal("AgentEyes.App.MainWindow::.ctor", site.Method));
+
+            // The two roles, so "two" is explained rather than merely counted. Literal matches.
+            string code = RepoSource.Read(@"src\AgentEyes.App\MainWindow.xaml.cs");
+            Assert.Equal(1, Occurrences(code, "_repair.LibraryChanged = () =>"));
+            Assert.Equal(1, Occurrences(code, "_repair.LibraryChanged = null;"));
+        }
+
+        private static int Occurrences(string text, string needle)
+        {
+            int count = 0;
+            for (int at = text.IndexOf(needle, StringComparison.Ordinal); at >= 0;
+                 at = text.IndexOf(needle, at + needle.Length, StringComparison.Ordinal))
+                count++;
+            return count;
         }
     }
 }

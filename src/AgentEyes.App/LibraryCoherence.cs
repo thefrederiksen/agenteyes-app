@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -29,9 +29,10 @@ namespace AgentEyes.App
     /// THE MODEL. One monotonic counter, read and written only on the owning thread. A snapshot takes
     /// its START epoch before its worker touches the disk; every live change takes its own epoch as
     /// it happens. For each recording DIRECTORY the model keeps exactly one fact - the epoch of the
-    /// newest evidence about that recording and whether it said Present or Removed. A landing
+    /// newest evidence about that recording and what it said (<see cref="Evidence"/>). A landing
     /// snapshot is then MERGED, one recording at a time:
     ///
+    /// * the snapshot has it and its deletion is STILL RUNNING -> refused, at any epoch (see below).
     /// * the snapshot has it, and the fact is NEWER than the snapshot's start -> the live state wins:
     ///   Present leaves the row untouched, Removed refuses to resurrect it.
     /// * the snapshot has it, with no newer fact -> the fresh values are adopted INTO the existing row
@@ -44,6 +45,16 @@ namespace AgentEyes.App
     /// No snapshot is ever dropped, so there is nothing to merge back afterwards and nothing to
     /// retry. "Newest wins" still holds - PER RECORDING, which is the granularity at which the
     /// evidence actually differs.
+    ///
+    /// AN EPOCH CANNOT EXPRESS "THE DISK HAS NOT CAUGHT UP". Deleting is the one case where a NEWER
+    /// snapshot is not better informed: the rows go immediately, the folders are removed afterwards
+    /// on a worker, and for that whole window the manifest is still on disk, so a reload begun after
+    /// the delete honestly reports the recording - and, having the higher epoch, outranks the
+    /// tombstone. That is precisely how the first round of this issue resurrected deleted rows. A
+    /// deletion is therefore bounded by its OUTCOME and not by an epoch: it sits in
+    /// <see cref="Evidence.Removing"/>, which beats every snapshot at any epoch, until
+    /// <see cref="CompleteDelete"/> reports that the folders are gone (or could not be removed), at
+    /// which point epoch ordering resumes and a failed deletion is free to reappear.
     ///
     /// A FAILED READ IS NOT AN EMPTY LIBRARY. A worker that throws reports through
     /// <see cref="AbandonSnapshot"/> and changes nothing. The loader used to catch the failure, leave
@@ -62,7 +73,7 @@ namespace AgentEyes.App
     /// belongs to the thread that created this object - the UI thread in the running app. Every
     /// public route asserts that before it touches anything.
     /// </summary>
-    internal sealed class LibraryCoherence
+    internal sealed partial class LibraryCoherence
     {
         /// <summary>What the newest evidence about one recording said.</summary>
         private enum Evidence
@@ -70,7 +81,21 @@ namespace AgentEyes.App
             /// <summary>The recording exists and its row is in the collection.</summary>
             Present,
 
-            /// <summary>The recording is gone and must not be re-added by an older snapshot.</summary>
+            /// <summary>
+            /// The user deleted it and the recursive folder delete is STILL RUNNING. The manifest is
+            /// therefore still on disk, so a snapshot can honestly report the recording as present
+            /// however NEW that snapshot is - a higher epoch does not make it better informed about a
+            /// directory the filesystem has not finished removing. This state outranks EVERY
+            /// snapshot, at any epoch, until <see cref="CompleteDelete"/> says the deletion settled.
+            /// </summary>
+            Removing,
+
+            /// <summary>
+            /// The deletion has SETTLED, at <see cref="Fact.Epoch"/>. From that instant the disk tells
+            /// the truth again, so ordinary epoch ordering resumes: a snapshot that started earlier
+            /// still loses, and one that started later is believed - which is what lets a recording
+            /// whose deletion FAILED come back, and keeps one whose deletion succeeded gone.
+            /// </summary>
             Removed,
         }
 
@@ -99,6 +124,18 @@ namespace AgentEyes.App
         {
             get { RequireOwningThread(); return _inFlight.Count; }
         }
+
+        /// <summary>
+        /// How many times the rows and the ordering state were found DIVERGED and had to be
+        /// reconciled - see <see cref="ReconcileFactsWithRows"/>. It should be zero for the life of
+        /// the process: anything else means something changed the rows without telling this model.
+        ///
+        /// It is here so the repair is observable rather than merely logged. A silent self-heal is
+        /// indistinguishable from a self-heal that never runs, and both the test that proves a forced
+        /// divergence IS repaired and the test that proves a legitimate sequence does NOT trip the
+        /// alarm need to read this number to be capable of failing at all.
+        /// </summary>
+        public int RepairedDivergences { get; private set; }
 
         /// <summary>
         /// Claims the epoch for a library read that is ABOUT to start. Call it on the owning thread
@@ -130,6 +167,8 @@ namespace AgentEyes.App
             int added = 0, updated = 0, removed = 0, keptLive = 0, refusedResurrection = 0;
             bool resort = false;
 
+            ReconcileFactsWithRows();
+
             using (_rows.BeginCoherentUpdate())
             {
                 var byDir = new Dictionary<string, RecentItem>(StringComparer.OrdinalIgnoreCase);
@@ -146,20 +185,24 @@ namespace AgentEyes.App
                             $"The snapshot lists {fresh.Dir} twice; a recording directory is the "
                             + "library's identity and cannot appear more than once.", nameof(snapshot));
 
-                    if (_facts.TryGetValue(fresh.Dir, out var fact) && fact.Epoch > epoch)
+                    if (_facts.TryGetValue(fresh.Dir, out var fact))
                     {
-                        // Newer evidence about THIS recording already landed. The snapshot read the
-                        // disk before it happened, so on this one recording the snapshot is stale.
-                        if (fact.What == Evidence.Removed) { refusedResurrection++; continue; }
+                        // A deletion that is STILL RUNNING outranks every snapshot at ANY epoch. The
+                        // snapshot is not wrong about the disk - the manifest really is still there -
+                        // it is reading a directory the filesystem has not finished removing, and a
+                        // higher epoch buys it nothing about that (issue #3, failure mode 6). The
+                        // first round bounded this on the epoch, so a reload begun AFTER the delete
+                        // always outranked the tombstone and the row came back.
+                        if (fact.What == Evidence.Removing) { refusedResurrection++; continue; }
 
-                        if (!byDir.ContainsKey(fresh.Dir))
-                            throw new InvalidOperationException(
-                                $"The library's fact table says {fresh.Dir} is present at epoch "
-                                + $"{fact.Epoch} but there is no row for it. The fact table and the "
-                                + "rows have diverged, which no route is allowed to do.");
-
-                        keptLive++;
-                        continue;
+                        if (fact.Epoch > epoch)
+                        {
+                            // Newer evidence about THIS recording already landed. The snapshot read
+                            // the disk before it happened, so on this recording it is stale.
+                            if (fact.What == Evidence.Removed) { refusedResurrection++; continue; }
+                            keptLive++;
+                            continue;
+                        }
                     }
 
                     if (byDir.TryGetValue(fresh.Dir, out var existing))
@@ -256,12 +299,15 @@ namespace AgentEyes.App
         }
 
         /// <summary>
-        /// Removes rows for recordings the user just deleted, and TOMBSTONES each directory. The
-        /// directories themselves are deleted afterwards and off the UI thread, so a reload that
-        /// started before this can still see their manifests - the tombstone is what stops it putting
-        /// the rows back. Returns the directories to delete, in the order given.
+        /// Removes rows for recordings the user just deleted, and marks each directory as a deletion
+        /// IN PROGRESS. The rows go now so the list feels instant; the directories are removed
+        /// afterwards and off the UI thread, and that gap is the whole of failure mode 6.
+        ///
+        /// The caller MUST report the outcome with <see cref="CompleteDelete"/> when the recursive
+        /// delete has finished - see <see cref="LibraryDeletion"/> for why the outcome, and not an
+        /// epoch, is what bounds this.
         /// </summary>
-        public IReadOnlyList<string> Delete(IEnumerable<RecentItem> items)
+        public LibraryDeletion Delete(IEnumerable<RecentItem> items)
         {
             RequireOwningThread();
             if (items is null) throw new ArgumentNullException(nameof(items));
@@ -279,15 +325,55 @@ namespace AgentEyes.App
                     var row = Find(item.Dir);
                     if (row != null) _rows.Remove(row);
 
-                    _facts[item.Dir] = new Fact(epoch, Evidence.Removed);
+                    _facts[item.Dir] = new Fact(epoch, Evidence.Removing);
                     dirs.Add(item.Dir);
                 }
 
             PruneTombstones();
 
-            Log.Info($"[LibraryCoherence] Delete: {dirs.Count} recording(s), epoch={epoch}, "
+            Log.Info($"[LibraryCoherence] Delete: {dirs.Count} recording(s) now REMOVING, "
+                     + $"epoch={epoch}, rows={_rows.Count}");
+            return new LibraryDeletion(epoch, dirs);
+        }
+
+        /// <summary>
+        /// The recursive folder delete has finished. <paramref name="failed"/> names the directories
+        /// that could NOT be removed.
+        ///
+        /// This is what bounds the tombstone, and it is deliberately not an epoch. Until this point
+        /// the manifests may still be on disk, so a snapshot reporting the recording is neither wrong
+        /// nor stale - it is early, and no epoch can express that. From this point the disk tells the
+        /// truth again and ordinary epoch ordering resumes, which gives both halves for free:
+        ///
+        /// * the deletion SUCCEEDED -> no later snapshot lists the recording, so the row stays gone;
+        /// * the deletion FAILED -> a later snapshot does list it, and the row comes back, which is
+        ///   the property that stops a failed deletion hiding a recording forever.
+        ///
+        /// A snapshot that began BEFORE this point still loses, because its epoch is lower: it read
+        /// the disk while the delete was still running.
+        /// </summary>
+        public void CompleteDelete(LibraryDeletion deletion, IReadOnlyCollection<string> failed)
+        {
+            RequireOwningThread();
+            if (deletion is null) throw new ArgumentNullException(nameof(deletion));
+            if (failed is null) throw new ArgumentNullException(nameof(failed));
+
+            long epoch = ++_clock;
+            foreach (string dir in deletion.Directories)
+            {
+                // Only if this deletion is still the newest thing that happened to the directory. A
+                // recording re-imported to the same folder while the delete ran is live evidence and
+                // must not be tombstoned by the delete it outlived.
+                if (_facts.TryGetValue(dir, out var fact)
+                    && fact.What == Evidence.Removing && fact.Epoch == deletion.Epoch)
+                    _facts[dir] = new Fact(epoch, Evidence.Removed);
+            }
+
+            PruneTombstones();
+
+            Log.Info($"[LibraryCoherence] CompleteDelete: {deletion.Directories.Count} recording(s) "
+                     + $"settled at epoch={epoch} ({failed.Count} could not be removed), "
                      + $"rows={_rows.Count}");
-            return dirs;
         }
 
         /// <summary>
@@ -394,9 +480,17 @@ namespace AgentEyes.App
         }
 
         /// <summary>
-        /// Forgets tombstones no snapshot can still be racing. A tombstone only has to outlive the
-        /// reads that were already in flight when the delete happened; once the oldest of those has
-        /// settled, nothing can arrive claiming the recording is still there.
+        /// Forgets tombstones nothing can still be racing.
+        ///
+        /// A SETTLED tombstone (<see cref="Evidence.Removed"/>) only has to outlive the reads that
+        /// were in flight when the deletion settled: once the oldest of those is gone, every future
+        /// snapshot starts after the settlement and reads the disk as it now is. With nothing in
+        /// flight there is no such read at all, so it can go immediately.
+        ///
+        /// A deletion still RUNNING is never pruned, at any horizon. That is the correction to the
+        /// first round, where a delete made with no reload in flight had its tombstone dropped by
+        /// the very call that created it - and, worse, a snapshot landing correctly was itself the
+        /// event that drained the in-flight set and let the NEXT one resurrect the row.
         /// </summary>
         private void PruneTombstones()
         {
@@ -410,8 +504,54 @@ namespace AgentEyes.App
             foreach (string dir in expired) _facts.Remove(dir);
 
             if (expired.Count > 0)
-                Log.Info($"[LibraryCoherence] PruneTombstones: dropped {expired.Count} tombstone(s) "
-                         + $"below epoch {(horizon == long.MaxValue ? "(nothing in flight)" : horizon.ToString())}");
+                Log.Info($"[LibraryCoherence] PruneTombstones: dropped {expired.Count} settled "
+                         + $"tombstone(s) below epoch "
+                         + $"{(horizon == long.MaxValue ? "(nothing in flight)" : horizon.ToString())}");
+        }
+
+        /// <summary>
+        /// Re-derives the fact table from the rows when the two have diverged, and says so loudly.
+        ///
+        /// Divergence is not something any route here can produce - it means something reached the
+        /// collection without telling the model. This used to THROW from inside the merge, which put
+        /// an exception on the path of <c>async void LoadRecent</c> where nothing catches it: a
+        /// bypass did not merely evade the model, it could take the window down with it (issue #3,
+        /// QA round 1, finding N9). Killing the app is a strictly worse answer than repairing a
+        /// derived index and reporting it.
+        ///
+        /// And it IS a derived index. The rows are what the user is looking at; the fact table is
+        /// bookkeeping ABOUT those rows. Rebuilding the bookkeeping from the thing it describes is a
+        /// repair, not a fallback - it hides nothing, because every correction is logged as an error
+        /// naming the directory.
+        /// </summary>
+        private void ReconcileFactsWithRows()
+        {
+            var rowDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in _rows) rowDirs.Add(row.Dir);
+
+            // A fact says a row is there and it is not.
+            var orphaned = _facts
+                .Where(fact => fact.Value.What == Evidence.Present && !rowDirs.Contains(fact.Key))
+                .Select(fact => fact.Key)
+                .ToList();
+
+            // A row is there and the facts do not say so - unknown, or contradicted by a deletion.
+            var unexplained = rowDirs
+                .Where(dir => !_facts.TryGetValue(dir, out var fact) || fact.What != Evidence.Present)
+                .ToList();
+
+            if (orphaned.Count == 0 && unexplained.Count == 0) return;
+
+            RepairedDivergences++;
+            Log.Error("[LibraryCoherence] ReconcileFactsWithRows: the library's rows and its ordering "
+                      + $"state have DIVERGED - {orphaned.Count} recording(s) recorded as present with "
+                      + $"no row ({string.Join(", ", orphaned)}), {unexplained.Count} row(s) with no "
+                      + $"matching record ({string.Join(", ", unexplained)}). Something changed the "
+                      + "rows without going through this model. Re-deriving the state from the rows.",
+                      new InvalidOperationException("library rows and ordering state diverged"));
+
+            foreach (string dir in orphaned) _facts.Remove(dir);
+            foreach (string dir in unexplained) _facts[dir] = new Fact(++_clock, Evidence.Present);
         }
 
         private void RequireOwningThread([CallerMemberName] string route = "")
@@ -425,5 +565,32 @@ namespace AgentEyes.App
                 + $"({_ownerThreadId}) - the UI thread in the running app. Marshal the call with "
                 + "Dispatcher.BeginInvoke.");
         }
+    }
+
+    /// <summary>
+    /// One delete the user asked for, from the moment its rows leave the Library until the moment
+    /// its folders are actually gone.
+    ///
+    /// It exists because those are two different instants and the gap between them is real: the rows
+    /// go immediately so the list feels instant, and a multi-gigabyte recording folder then takes a
+    /// noticeable beat to remove on a worker. For that whole window the manifest is STILL on disk,
+    /// so a reload - however new - honestly reports the recording as present. An epoch cannot express
+    /// "the disk has not caught up yet"; only the deletion's own outcome can, which is why the caller
+    /// hands this back to <see cref="LibraryCoherence.CompleteDelete"/> when the work is done.
+    /// </summary>
+    internal sealed class LibraryDeletion
+    {
+        internal LibraryDeletion(long epoch, IReadOnlyList<string> directories)
+        {
+            Epoch = epoch;
+            Directories = directories ?? throw new ArgumentNullException(nameof(directories));
+        }
+
+        /// <summary>When the rows were removed - identifies THIS deletion, so a recording re-created
+        /// in the same folder while the delete ran is not tombstoned by the delete it outlived.</summary>
+        internal long Epoch { get; }
+
+        /// <summary>The recording folders to remove, in the order the user's selection gave them.</summary>
+        public IReadOnlyList<string> Directories { get; }
     }
 }

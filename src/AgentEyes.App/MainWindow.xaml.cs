@@ -1373,7 +1373,21 @@ namespace AgentEyes.App
                 return;
             }
 
-            _library.ApplySnapshot(epoch, items);
+            // Entry point (CLAUDE.md rule 4): this is an async void method reached from the
+            // constructor, from UI events and from a Dispatcher callback, so an exception escaping
+            // it goes nowhere but the top of the UI thread and takes the window with it. QA round 1
+            // reached exactly that (finding N9). Merging cannot throw on a diverged model any more -
+            // it repairs and logs - but the catch is here so that no future throw on this path can
+            // ever be fatal.
+            try
+            {
+                _library.ApplySnapshot(epoch, items);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[MainWindow] LoadRecent FAILED to merge snapshot epoch={epoch}", ex);
+                StatusText.Text = "Library refresh error (logged): " + ex.Message;
+            }
             UpdateEmptyState();
 
             // Issue #142: loading the list no longer generates thumbnails. The old backfill here
@@ -1767,12 +1781,15 @@ namespace AgentEyes.App
             // of an mp4 folder can take a noticeable beat - never on the UI thread.
             //
             // The gap between the two is the race in issue #3, failure mode 6: for as long as the
-            // recursive delete is running the manifest is still on disk, so a reload that started
-            // before it can still see the recording. The model tombstones each directory here, and
-            // that is what stops such a reload putting the rows back permanently.
+            // recursive delete is running the manifest is STILL on disk, so any reload - however
+            // recently it started - honestly reports the recording as present. The model is told the
+            // deletion has begun here and is told its OUTCOME below, and it refuses to re-add the
+            // rows for the whole span between. Bounding that span on an epoch instead is what let
+            // the rows come back in the first round: a reload begun after the delete always carries
+            // the higher epoch.
             int count = items.Count;
             string title = items[0].Title;
-            var dirs = _library.Delete(items);
+            var deletion = _library.Delete(items);
             UpdateEmptyState();
             StatusText.Text = count == 1 ? $"Deleting \"{title}\"..." : $"Deleting {count} recordings...";
 
@@ -1780,14 +1797,29 @@ namespace AgentEyes.App
             {
                 int deleted = 0;
                 string? firstError = null;
-                foreach (var dir in dirs)
+                var failed = new List<string>();
+                foreach (var dir in deletion.Directories)
                 {
                     try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); deleted++; }
-                    catch (Exception ex) { Log.Error("delete " + dir, ex); firstError ??= ex.Message; }
+                    catch (Exception ex)
+                    {
+                        Log.Error("delete " + dir, ex);
+                        firstError ??= ex.Message;
+                        failed.Add(dir);
+                    }
                 }
-                Ui.Post(() => StatusText.Text = firstError != null
-                    ? $"Deleted {deleted} of {count} - {firstError}"
-                    : count == 1 ? $"Deleted \"{title}\"." : $"Deleted {deleted} recordings.");
+
+                // Settling the deletion is NOT optional and NOT conditional on it having succeeded:
+                // a deletion left unsettled would hide its recordings from every future reload, even
+                // the ones that can see the folder is still there. Whatever happened above, the
+                // model is told.
+                Ui.Post(() =>
+                {
+                    _library.CompleteDelete(deletion, failed);
+                    StatusText.Text = firstError != null
+                        ? $"Deleted {deleted} of {count} - {firstError}"
+                        : count == 1 ? $"Deleted \"{title}\"." : $"Deleted {deleted} recordings.";
+                });
             });
         }
 

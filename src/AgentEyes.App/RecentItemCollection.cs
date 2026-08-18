@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -6,9 +6,23 @@ using System.ComponentModel;
 
 namespace AgentEyes.App
 {
+    internal sealed partial class LibraryCoherence
+    {
     /// <summary>
     /// The library's rows: an <see cref="ObservableCollection{T}"/> that may only be changed from
     /// INSIDE the library's coherence model (issue #3), and only from the thread that created it.
+    ///
+    /// It is a PRIVATE NESTED type of <see cref="LibraryCoherence"/>, which is the second half of
+    /// the gate below. It used to be an assembly-internal type of its own, and
+    /// <see cref="LibraryCoherence.Rows"/> hands it out typed as its base class - so any code in
+    /// this assembly could name the real type, cast the property back to it, open a scope itself and
+    /// mutate freely with the model none the wiser (issue #3, QA round 1, finding 6a). Nested and
+    /// private, the type cannot be NAMED outside the model, so that cast cannot be written.
+    ///
+    /// Its honest limit: reflection can still reach it. What reflection cannot do is reach it by
+    /// accident, which is what a guard against a plain cast is actually for - and a divergence that
+    /// arrives anyway is now repaired and logged rather than thrown onto the UI thread (see
+    /// <see cref="LibraryCoherence.ReconcileFactsWithRows"/>).
     ///
     /// Why the gate. Before it, any route could reach in and mutate the collection - and several did,
     /// each with its own idea of what the library currently held. The loader cleared and repopulated
@@ -32,7 +46,7 @@ namespace AgentEyes.App
     /// - re-raised verbatim - so inserting one screenshot does not reset the list and lose the user's
     /// selection. A reload that changes nothing now raises NOTHING, which is the common case.
     /// </summary>
-    internal sealed class RecentItemCollection : ObservableCollection<RecentItem>
+    private sealed class RecentItemCollection : ObservableCollection<RecentItem>
     {
         private readonly int _ownerThreadId = Environment.CurrentManagedThreadId;
         private readonly List<NotifyCollectionChangedEventArgs> _held = new();
@@ -162,5 +176,6 @@ namespace AgentEyes.App
                 if (owner._depth == 0) owner.Settle();
             }
         }
+    }
     }
 }
