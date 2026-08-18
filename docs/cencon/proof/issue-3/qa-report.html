@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue #3 - Library coherence model</title>
+<style>
+ body { font-family: Segoe UI, Arial, sans-serif; margin: 2em auto; max-width: 1100px; color: #1a1a1a; line-height: 1.5; }
+ h1 { border-bottom: 3px solid #b00; padding-bottom: .3em; }
+ h2 { margin-top: 1.8em; border-bottom: 1px solid #ccc; padding-bottom: .2em; }
+ table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+ th, td { border: 1px solid #bbb; padding: .5em .6em; vertical-align: top; text-align: left; font-size: .93em; }
+ th { background: #eee; }
+ .pass { color: #060; font-weight: bold; }
+ .fail { color: #b00; font-weight: bold; }
+ .note { color: #a60; font-weight: bold; }
+ pre { background: #f4f4f4; border: 1px solid #ddd; padding: .8em; overflow-x: auto; font-size: .88em; }
+ code { background: #f4f4f4; padding: 0 .2em; }
+ .verdict { border: 3px solid #b00; background: #fff4f4; padding: 1em 1.2em; margin: 1.5em 0; }
+</style>
+</head>
+<body>
+
+<h1>QA proof report - issue #3</h1>
+
+<p><strong>Issue:</strong> [App] Library asynchronous refresh has no coherence model - reloads,
+inserts, renames and deletes race<br>
+<strong>Repo:</strong> thefrederiksen/agenteyes-app &nbsp;|&nbsp;
+<strong>PR:</strong> #20 &nbsp;|&nbsp;
+<strong>Branch:</strong> issue-3-library-coherence &nbsp;|&nbsp;
+<strong>Commit verified:</strong> 4658391 &nbsp;|&nbsp;
+<strong>Base:</strong> 8d46403 (v1.4.8)<br>
+<strong>Date:</strong> 2026-08-18</p>
+
+<div class="verdict">
+<p class="fail" style="font-size:1.15em; margin-top:0;">VERDICT: FAIL - acceptance criterion 6 is not met.</p>
+<p>Eight of the nine acceptance criteria are verified with evidence. The design is a genuine
+advance on the twice-rejected one and the discriminator holds: the rejected "newest wins, drop the
+rest" design, re-implemented independently by QA, stays green on failure mode 1 and goes red on both
+criterion-2 tests. The suite is not a rubber stamp.</p>
+<p><strong>Criterion 6 fails on the exact scenario it names.</strong> The two tests shipped for it
+cover the OPPOSITE case (a reload that started BEFORE the delete) and then explicitly assert that the
+criterion-6 case resurrects the row. Three independent QA interleavings reproduce the resurrection,
+and the running app's own log shows it.</p>
+</div>
+
+<h2>1. How this was verified</h2>
+
+<ul>
+<li>The PR branch was checked out and built and tested by QA, not taken from the report.</li>
+<li>The rejected design (M2) was <strong>re-implemented from scratch by QA</strong> in
+<code>LibraryCoherence.ApplySnapshot</code> and the suite was run against it, to establish that the
+new tests can tell the accepted design from the rejected one.</li>
+<li>Twelve interleavings the developer did not construct were written and run
+(<code>QaProbeIssue3Tests</code>, temporary; deleted after the run - its results are reproduced in
+full below).</li>
+<li>Two structural guards were attacked directly (a renamed route; a second LibraryChanged
+subscriber).</li>
+<li>The branch build was run against the owner's real 44-recording library, read only, via UI
+Automation.</li>
+</ul>
+
+<h2>2. Acceptance criteria</h2>
+
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>What the code does</th><th>Verdict</th></tr>
+
+<tr><td>1</td><td>An older reload completing after a newer one does not install its stale snapshot</td>
+<td>The saved recording survives; a recording only the newer reload saw is not removed</td>
+<td><code>LibraryCoherence.ApplySnapshot</code> (LibraryCoherence.cs:124-206) merges per recording;
+a fact newer than the snapshot's start wins, and the removal loop keeps a row whose fact is newer.
+Both shipped tests re-run by QA and green; both go red under M1 (wholesale replace).</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>2</td><td>A live insert during an in-flight reload loses NEITHER the inserted row NOR the
+recording only the snapshot had</td>
+<td>Both survive; neither single-winner answer passes</td>
+<td>Nothing is dropped: <code>ApplySnapshot</code> has no "invalidated" path. Verified by the
+discriminator in section 3 - QA's own M2 re-implementation fails both criterion-2 tests while passing
+failure mode 1. That is exactly the separation the criterion demands.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>3</td><td>A reload whose worker throws does not blank or truncate the Library, and does not
+block a concurrent successful reload</td>
+<td>Both arms: a thrown worker applies nothing; a genuinely empty successful read still lands</td>
+<td>Failure and emptiness are separated at the API: <code>AbandonSnapshot</code>
+(LibraryCoherence.cs:213-226) mutates nothing, and <code>LoadRecent</code>
+(MainWindow.xaml.cs:1369-1374) calls it and <code>return</code>s instead of applying an empty list.
+No generation is waited on anywhere, so a hung read blocks nothing. QA re-proved both arms
+independently (N10a, N10b) including a failure interleaved before an empty successful read.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>4</td><td>A rename completing during an in-flight reload is not reverted by that reload</td>
+<td>The new title survives that reload, and a LATER reload still updates the row</td>
+<td><code>Rename</code> (LibraryCoherence.cs:297-310) stamps a fresh epoch on the directory's fact;
+the merge then leaves the row alone for any snapshot that started earlier. A later snapshot has a
+higher epoch and does update it (<code>ALaterReload_StillUpdatesARenamedRow</code>), so the row is not
+pinned forever. QA's rename-vs-delete races (N5a, N5b) behave correctly in both orders.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>5</td><td>A row captured before an await and refreshed after a reload replaced it leaves no
+stale visible row</td>
+<td>The held row is still the visible row, and if it is not, the update lands on the visible one</td>
+<td>Rows are updated in place (<code>RecentItem.AdoptFrom</code>, MainWindow.xaml.cs:2369-2405), so
+a held row stays attached; and <code>Resolve</code> (LibraryCoherence.cs:368-383) re-resolves every
+held-row route by directory and logs the detachment. All three held-row call sites
+(<code>StopAsync</code>, <code>PackageDirAsync</code>, the Processing callback) go through
+<code>Refresh</code>/<code>SetStatus</code>. Confirmed by reading the diff and by the compiled route
+enumeration.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>6</td><td><strong>A reload STARTING AFTER a UI delete but BEFORE the directory is removed does
+not resurrect the deleted row</strong></td>
+<td>The deleted row stays gone for the whole window in which the folder is still being removed</td>
+<td class="fail">It is resurrected. The tombstone written by <code>Delete</code>
+(LibraryCoherence.cs:282) only outranks snapshots that were ALREADY in flight, because the merge rule
+is <code>fact.Epoch &gt; epoch</code> and a reload begun after the delete has the higher epoch. On top
+of that, <code>PruneTombstones</code> (LibraryCoherence.cs:401-415) drops the tombstone IMMEDIATELY
+when nothing is in flight (<code>horizon = long.MaxValue</code>), so after a delete made with no
+reload running the model retains no memory of the deletion at all. Three QA interleavings reproduce
+it; details in section 5.</td>
+<td class="fail">FAIL</td></tr>
+
+<tr><td>7</td><td>A structural guard proves every mutation route participates, and FAILS on a direct
+RemoveAt/Move/indexer mutation - demonstrated, not asserted</td>
+<td>Every spelling of a mutation from outside the model is refused, demonstrated</td>
+<td>The gate is in the five <code>Collection&lt;T&gt;</code> mutation virtuals
+(RecentItemCollection.cs:55-84), so the spelling genuinely cannot decide; eleven spellings are each
+observed to throw, and the IL scan reports four compiled decoy bypasses. QA re-ran both and both
+hold. One hole, stated in section 6: the gate is castable-around.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>8</td><td>Enumerated proof that no route bypasses the model, including all three
+RepairService triggers</td>
+<td>Twelve routes read from the compiled assembly, fail-closed; the three repair stages chain into
+the model</td>
+<td>Verified fail-closed by QA: renaming <code>DeleteRecordings</code> makes
+<code>EveryLibraryRoute_GoesThroughTheCoherenceModel</code> fail with "is not in AgentEyesApp.dll".
+One guard-strength note in section 6.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>9</td><td>Build clean and <code>dotnet test</code> Failed: 0</td>
+<td>Build succeeded, 0 errors; Failed: 0</td>
+<td>QA ran both on 4658391 with a clean tree: <code>Build succeeded. 0 Error(s)</code> and
+<code>Passed! - Failed: 0, Passed: 804</code>.</td>
+<td class="pass">PASS</td></tr>
+</table>
+
+<h2>3. The discriminator - can the new tests tell the REJECTED design from this one?</h2>
+
+<p>The whole claim rests on this. QA re-implemented the design the gate rejected twice - a monotonic
+generation, and a snapshot invalidated by anything newer is DROPPED wholesale - directly in
+<code>LibraryCoherence.ApplySnapshot</code>, then ran the full suite:</p>
+
+<pre>if (_clock &gt; epoch) { /* invalidated - drop it */ return; }
+using (_rows.BeginCoherentUpdate()) { _rows.Clear(); foreach (var fresh in snapshot) _rows.Add(fresh); }</pre>
+
+<pre>Failed!  - Failed: 7, Passed: 797, Total: 804
+
+  Failed  AnInsertDuringAnInFlightReload_LosesNeitherTheInsertedRowNorTheSnapshotOnlyRecording
+  Failed  AnInsertDuringAnInFlightReload_DoesNotLoseTheRepairedTitleThatOnlyTheSnapshotCarried
+  Failed  AFailedReload_DoesNotBlockAnOlderSuccessfulReloadFromLanding
+  Failed  ARowHeldAcrossAnAwait_IsStillTheLibrarysRowAfterAReloadCompleted
+  Failed  AReloadLandingOnARow_DoesNotWipeItsLiveStatus
+  Failed  AReloadThatChangedNothing_RaisesNoCollectionEventAtAll
+  Failed  ASnapshotListingOneRecordingTwice_IsRefused
+
+  STAYED GREEN:  AnOlderReload_LandingLast_DoesNotInstallItsStaleSnapshot
+  STAYED GREEN:  AnOlderReload_LandingLast_DoesNotRemoveARecordingOnlyTheNewerReloadSaw</pre>
+
+<p><strong>The discriminator holds.</strong> The rejected design passes failure mode 1 and fails both
+criterion-2 tests, which is precisely the separation criterion 2 exists to make. The developer's
+claim on this point is accurate and independently reproduced. The file was restored byte-for-byte
+afterwards.</p>
+
+<h2>4. Twelve interleavings the developer did not construct</h2>
+
+<table>
+<tr><th>#</th><th>What was constructed</th><th>Result</th></tr>
+<tr><td>N1</td><td>A reload STARTING AFTER the UI delete while the folder is still being removed
+(criterion 6 verbatim)</td><td class="fail">GOT THROUGH - row resurrected</td></tr>
+<tr><td>N2</td><td>The same, with an older reload still in flight at delete time</td>
+<td class="fail">GOT THROUGH - row resurrected</td></tr>
+<tr><td>N3</td><td>A tombstone expiring while a reload is still in flight: the older snapshot lands
+first (correctly refusing the resurrection), settling it prunes the tombstone, and the later snapshot
+then re-adds the row</td><td class="fail">GOT THROUGH - row resurrected</td></tr>
+<tr><td>N4a</td><td>Two concurrent snapshots both landing, newer first</td><td class="pass">held</td></tr>
+<tr><td>N4b</td><td>Two concurrent snapshots both landing, older first, with a recording removed from
+disk outside the app in between</td><td class="pass">held</td></tr>
+<tr><td>N5a</td><td>A rename racing a delete (rename first) with a snapshot in flight</td>
+<td class="pass">held - resurrection refused</td></tr>
+<tr><td>N5b</td><td>A delete racing a rename (delete first) on a held row</td>
+<td class="pass">held - no-op, logged, no throw</td></tr>
+<tr><td>N6</td><td>An epoch TIE between a live change and a snapshot's start</td>
+<td class="pass">unreachable - one counter, every claim is <code>++_clock</code>, so all epochs are
+distinct and strictly increasing (asserted over begin/insert/rename/refresh/delete)</td></tr>
+<tr><td>N7</td><td>A directory recreated on disk after being tombstoned, then re-inserted, with the
+stale reload landing last</td><td class="pass">held</td></tr>
+<tr><td>N8</td><td>Spelling around the runtime gate by casting <code>Rows</code> back to
+<code>RecentItemCollection</code> and opening a scope</td>
+<td class="note">GOT THROUGH - see section 6</td></tr>
+<tr><td>N9</td><td>Whether that bypass reaches the fact/row divergence throw</td>
+<td class="note">Yes - <code>ApplySnapshot</code> throws InvalidOperationException; in
+<code>LoadRecent</code> (async void, ApplySnapshot outside any try) that is unhandled. Only reachable
+via N8.</td></tr>
+<tr><td>N10</td><td>Failure vs emptiness, both arms, including a failure interleaved before an empty
+successful read</td><td class="pass">both arms hold</td></tr>
+<tr><td>N11</td><td>The epoch counter wrapping (<code>_clock</code> forced to
+<code>long.MaxValue - 1</code> by reflection)</td>
+<td class="note">Every ordering decision inverts and the saved recording is lost. NOT a defect: it is
+a <code>long</code> incremented once per snapshot or live change, so it needs ~9.2e18 operations.
+Recorded for completeness, not actionable.</td></tr>
+<tr><td>N12</td><td>A live <code>Refresh</code> during an in-flight snapshot that carries a recording
+the live collection has never seen</td><td class="pass">held - both survive</td></tr>
+</table>
+
+<p>Twelve invented; three got through as a defect (N1, N2, N3 - one root cause), two got through as
+hardening notes (N8/N9), one is theoretical only (N11).</p>
+
+<h2>5. THE DEFECT - criterion 6</h2>
+
+<p><strong>Criterion 6, verbatim:</strong> "Test: a reload <em>starting after a UI delete but before
+the directory is removed</em> does not resurrect the deleted row."<br>
+<strong>Failure mode 6, verbatim:</strong> "A reload <em>starting after the UI removal but before the
+directory is physically gone</em> sees the still-present manifest and re-adds the row permanently."</p>
+
+<p>The two tests shipped for criterion 6 do not cover that scenario:</p>
+
+<ul>
+<li><code>AReloadThatStartedBeforeTheDirectoryWasRemoved_DoesNotResurrectTheDeletedRow</code>
+(LibraryCoherenceTests.cs:443-455) calls <code>BeginSnapshot()</code> <em>before</em>
+<code>Delete(...)</code>. That is the case failure mode 6 explicitly does not describe.</li>
+<li><code>AReloadThatStartedAfterTheDelete_StillShowsARecordingWhoseDeletionFailed</code>
+(LibraryCoherenceTests.cs:464-474) takes the criterion-6 scenario and asserts the row COMES BACK.
+It is the criterion inverted and shipped as intended behaviour, without the criterion being
+renegotiated with the Product Agent.</li>
+</ul>
+
+<h3>Reproduction (deterministic, one thread, no timing)</h3>
+
+<pre>string one    = Recording("one_video",    "2026-08-01T10:00:00Z");
+string doomed = Recording("doomed_video", "2026-08-02T10:00:00Z");
+var lib = Loaded(one, doomed);
+
+// The user deletes it. MainWindow.DeleteRecordings drops the row now and removes the FOLDER
+// afterwards on a worker (MainWindow.xaml.cs:1779-1791) - a noticeable beat for a big mp4.
+lib.Delete(new[] { lib.Find(doomed)! });
+
+// In that gap the repair service finishes a stage and asks for a reload. The manifest is STILL
+// on disk, because the recursive delete has not finished.
+lib.ApplySnapshot(lib.BeginSnapshot(), Snapshot(one, doomed));
+
+Expected: ["one_video"]
+Actual:   ["doomed_video", "one_video"]</pre>
+
+<p>The app's own log, from the QA run, shows the resurrection in the product's vocabulary:</p>
+
+<pre>[LibraryCoherence] PruneTombstones: dropped 1 tombstone(s) below epoch (nothing in flight)
+[LibraryCoherence] Delete: 1 recording(s), epoch=2, rows=1
+[LibraryCoherence] BeginSnapshot: epoch=3, in flight=1, rows=1
+[LibraryCoherence] ApplySnapshot: epoch=3, snapshot=2, added=1, updated=1, removed=0,
+                   kept live=0, refused resurrection=0, rows=2      &lt;-- added=1 is the deleted row</pre>
+
+<h3>Why it happens - two compounding causes</h3>
+
+<ol>
+<li><strong>The merge rule alone cannot cover it.</strong> The tombstone wins only when
+<code>fact.Epoch &gt; epoch</code>. A reload begun after the delete has a HIGHER epoch, so it is
+treated as newer evidence - but it is not: the disk has not caught up yet, because the physical
+deletion is still running.</li>
+<li><strong>The tombstone is pruned too eagerly.</strong> <code>PruneTombstones</code> sets
+<code>horizon = long.MaxValue</code> when nothing is in flight, so a delete performed with no reload
+running has its tombstone dropped in the same call that created it. After that the model holds no
+record of the deletion whatsoever.</li>
+</ol>
+
+<h3>Is it reachable in the shipped app?</h3>
+
+<p>Yes. <code>DeleteRecordings</code> hands the recursive folder delete to a worker
+(MainWindow.xaml.cs:1779-1791) and a multi-gigabyte recording folder takes real time. Inside that
+window a reload is triggered by any of the three RepairService stages
+(<code>ResumeAsync</code>/<code>TitleAsync</code>/<code>ThumbsAsync</code> all raise
+<code>LibraryChanged</code>, and the service runs on a timer, <code>RepairService.cs:116</code>), or
+by an import. The user then watches a recording they just deleted reappear, and it stays until some
+later reload happens to run after the folder is finally gone.</p>
+
+<h3>What a fix looks like (not prescriptive)</h3>
+
+<p>The deletion's OUTCOME is already known to the caller: <code>DeleteRecordings</code> runs the
+<code>Directory.Delete</code> loop and records which ones failed. Bounding the tombstone on that -
+hold it until the deletion settles, then drop it (success: the disk now agrees; failure: the row is
+allowed back) - satisfies criterion 6 AND keeps the "a genuinely failed deletion must reappear"
+property the second shipped test is protecting. An epoch-only bound cannot distinguish "the delete is
+still running" from "the delete failed", which is why it gets one of them wrong.</p>
+
+<h2>6. Guard-strength findings (not criterion failures)</h2>
+
+<h3>6a. The runtime gate is castable-around</h3>
+
+<p><code>LibraryCoherence.Rows</code> is typed <code>ObservableCollection&lt;RecentItem&gt;</code>, but
+the runtime type is <code>RecentItemCollection</code> and both types are <code>internal</code> to
+<code>AgentEyes.App</code>. Any type in that assembly can therefore write:</p>
+
+<pre>var rows = (RecentItemCollection)library.Rows;
+using (rows.BeginCoherentUpdate()) rows.RemoveAt(0);   // accepted; the model is never told</pre>
+
+<p>Neither guard sees it: the IL scan only reports methods that NAME a <code>_rows</code> field
+(the developer states this limit honestly), and the runtime gate is satisfied because a scope is
+open. The model's fact table then disagrees with the rows, and QA reproduced the consequence (N9):
+the next <code>ApplySnapshot</code> throws the divergence <code>InvalidOperationException</code>,
+which in <code>LoadRecent</code> is outside any try and would be unhandled on the UI thread.
+"Unspellable-around" therefore overstates it by one step. Worth closing (e.g. keep
+<code>BeginCoherentUpdate</code> unreachable from outside the model, or exercise the divergence
+detection somewhere that cannot crash the window) but no product code does this today.</p>
+
+<h3>6b. "In exactly one place" measures methods, not subscriptions</h3>
+
+<p><code>TheWindowSubscribesToLibraryChanged_InExactlyOnePlace</code> distincts the call sites by
+METHOD, so QA added a second <code>_repair.LibraryChanged += ...</code> inside
+<code>MainWindow::.ctor</code> and the whole guard set stayed green (30/30). Not a coherence defect -
+both subscriptions go through the model - but the guard does not prove what its name claims.</p>
+
+<h3>6c. Renamed route - the fail-closed arm holds</h3>
+
+<p>QA renamed <code>DeleteRecordings</code> to <code>RemoveRecordings</code>;
+<code>EveryLibraryRoute_GoesThroughTheCoherenceModel</code> failed with "is not in AgentEyesApp.dll,
+so this enumeration is checking a route that no longer exists". Verified, not taken on trust.</p>
+
+<h2>7. Thread affinity</h2>
+
+<p><code>LibraryCoherence</code> captures <code>Environment.CurrentManagedThreadId</code> at
+construction and every public route calls <code>RequireOwningThread</code>
+(LibraryCoherence.cs:417-427); <code>RecentItemCollection</code> does the same on every mutation and
+on opening/closing a scope. The instance is a field initializer on <code>MainWindow</code>, so the
+owning thread is the UI thread. Every call site is on the dispatcher: the constructor, the
+<code>Dispatcher.BeginInvoke</code> in the RepairService callback, the <code>Dispatcher.Invoke</code>
+in <code>Saved</code>, the Processing callback's <code>Dispatcher.BeginInvoke</code>, and UI event
+handlers. QA re-ran the off-thread demonstration (nine routes, each observed to throw) and saw no
+thread exception in the real-app run. <span class="pass">Verified.</span></p>
+
+<h2>8. Running-app verification (QA's own run)</h2>
+
+<p>The owner's installed v1.4.8 was checked idle (<code>/status</code> -&gt; <code>State: idle</code>,
+<code>PendingTranscriptions: 0</code>) before being stopped, and was restarted afterwards with
+<code>--tray</code> and confirmed back up (<code>/version</code> -&gt; 1.4.8, <code>/status</code>
+-&gt; idle, signed in). Nothing under <code>%USERPROFILE%\Videos\AgentEyes</code> was created,
+modified, renamed or deleted; the run is read only.</p>
+
+<pre>ON DISK: 44 recording folder(s) with a manifest.json
+main window found
+HEALTH: ok=True app=AgentEyes
+RENDERED: 44 library row(s)
+MISSING FROM THE LIBRARY: 0
+IN THE LIBRARY BUT NOT ON DISK: 0
+17:16:54.165 [INFO] [LibraryCoherence] BeginSnapshot: epoch=1, in flight=1, rows=0
+17:16:55.464 [INFO] [LibraryCoherence] ApplySnapshot: epoch=1, snapshot=44, added=44, updated=0,
+                    removed=0, kept live=0, refused resurrection=0, rows=44
+no crash log (good)</pre>
+
+<p><strong>Expected vs actual:</strong> expected every recording on disk to appear exactly once and
+the gate never to fire in the real WPF binding path. Actual 44 of 44, zero missing, zero extra, no
+"outside its coherence model" exception, no crash log. The headline symptom - a recording on disk
+missing from the Library - is not reproducible on this build. <span class="pass">Verified.</span></p>
+
+<h2>9. The gate</h2>
+
+<pre>dotnet build AgentEyes.sln -c Release   ->  Build succeeded.   0 Error(s)
+dotnet test  AgentEyes.sln -c Release   ->  Passed!  Failed: 0, Passed: 804, Skipped: 0, Total: 804</pre>
+
+<p>Run by QA on 4658391 with a clean working tree, after every temporary edit was reverted.</p>
+
+<h2>10. Conclusion</h2>
+
+<p><span class="fail">NOT VERIFIED - 8 of 9 acceptance criteria met; criterion 6 fails.</span></p>
+
+<p>This is a good change and the model is the right shape - the per-recording granularity genuinely
+answers what defeated the previous attempt, and the discriminator proves the test suite can tell the
+two apart. The one criterion that fails is a bounded, well-understood problem with an obvious fix in
+the code that already exists: the delete path knows whether the deletion succeeded, and the tombstone
+should be bounded on that rather than on an epoch. Criterion 6 also needs a test that actually
+constructs the interleaving the criterion names.</p>
+
+</body>
+</html>
