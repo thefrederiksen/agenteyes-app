@@ -18,6 +18,19 @@ namespace AgentEyes.Video
         private readonly string _logPath;
         private bool _stopped;
 
+        /// <summary>Wall clock since the capture started, used to know how much take we owe the file.</summary>
+        private readonly Stopwatch _clock = Stopwatch.StartNew();
+
+        /// <summary>
+        /// The output position ffmpeg last reported (its "time=" progress field), in milliseconds.
+        /// This trails wall time by the capture pipeline's latency - roughly a second in practice -
+        /// and that gap is exactly the audio that has been spoken but not yet muxed (issue #22).
+        /// </summary>
+        private long _mediaMs;
+
+        /// <summary>How long Stop() will wait for the pipeline to catch up before quitting anyway.</summary>
+        private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(5);
+
         public string OutputPath { get; }
         public string CommandLine { get; }
 
@@ -54,7 +67,15 @@ namespace AgentEyes.Video
             string logPath = outPath + ".ffmpeg.log";
             var rec = new FfmpegRecorder(proc, outPath, cmd, logPath);
 
-            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) rec._stderr.AppendLine(e.Data); };
+            proc.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data == null) return;
+                rec._stderr.AppendLine(e.Data);
+                // ffmpeg writes its progress with a carriage return, which .NET treats as a line
+                // break, so each "time=" tick arrives here as its own line.
+                long ms = ParseProgressMs(e.Data);
+                if (ms >= 0) System.Threading.Interlocked.Exchange(ref rec._mediaMs, ms);
+            };
             proc.OutputDataReceived += (_, _) => { };
 
             if (!proc.Start())
@@ -84,6 +105,39 @@ namespace AgentEyes.Video
             if (_stopped) return;
             _stopped = true;
 
+            // Issue #22 / reopens #125: the capture pipeline runs about a second behind wall time,
+            // so at the instant the user stops there is roughly a second of already-spoken audio
+            // that ffmpeg has read but not yet muxed. Quitting immediately throws it away, which is
+            // why takes lost 0.5-2.4s off the END - on a narrated recording, the closing sentence.
+            //
+            // Shrinking -audio_buffer_size (the #125 mitigation) only reduced the lag; it cannot
+            // remove it. So instead of guessing a delay, wait for ffmpeg's own "time=" to reach the
+            // moment the user asked to stop. That is self-tuning: a fast machine waits briefly, a
+            // slow one waits longer, and neither loses the end of the take.
+            long stopAtMs = _clock.ElapsedMilliseconds;
+            var drain = Stopwatch.StartNew();
+            bool caughtUp = false;
+            while (drain.Elapsed < DrainTimeout)
+            {
+                if (_proc.HasExited) break;
+                if (System.Threading.Interlocked.Read(ref _mediaMs) >= stopAtMs) { caughtUp = true; break; }
+                Thread.Sleep(20);
+            }
+            drain.Stop();
+
+            if (caughtUp)
+            {
+                Log.Info($"[FfmpegRecorder] Stop: pipeline drained in {drain.ElapsedMilliseconds}ms " +
+                         $"(take {stopAtMs}ms) - full take captured");
+            }
+            else
+            {
+                Log.Warn($"[FfmpegRecorder] Stop: pipeline did not reach {stopAtMs}ms within " +
+                         $"{DrainTimeout.TotalSeconds:0.#}s (reached " +
+                         $"{System.Threading.Interlocked.Read(ref _mediaMs)}ms) - the end of this " +
+                         $"recording may be truncated. See {_logPath}");
+            }
+
             try
             {
                 _proc.StandardInput.Write("q");
@@ -101,6 +155,36 @@ namespace AgentEyes.Video
             }
 
             File.WriteAllText(_logPath, _stderr.ToString());
+        }
+
+        /// <summary>
+        /// Read the output position out of one ffmpeg progress line ("... time=00:00:07.28 ...") and
+        /// return it in milliseconds, or -1 when the line carries no timestamp. Pure, so the drain
+        /// gate that depends on it can be tested without launching ffmpeg (issue #22).
+        /// </summary>
+        internal static long ParseProgressMs(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return -1;
+            int i = line.IndexOf("time=", StringComparison.Ordinal);
+            if (i < 0) return -1;
+            i += 5;
+
+            // HH:MM:SS.ss - ffmpeg also emits "time=N/A" while it is still starting up.
+            int end = i;
+            while (end < line.Length && !char.IsWhiteSpace(line[end])) end++;
+            string v = line.Substring(i, end - i);
+            var parts = v.Split(':');
+            if (parts.Length != 3) return -1;
+
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            if (!int.TryParse(parts[0], System.Globalization.NumberStyles.Integer, inv, out int h)) return -1;
+            if (!int.TryParse(parts[1], System.Globalization.NumberStyles.Integer, inv, out int m)) return -1;
+            if (!double.TryParse(parts[2], System.Globalization.NumberStyles.Float, inv, out double s)) return -1;
+            if (h < 0 || m < 0 || s < 0) return -1;
+
+            // Round rather than truncate: 8.11 seconds is 8109.999... in binary, and casting would
+            // shave a millisecond off every tick.
+            return (long)Math.Round((h * 3600 + m * 60 + s) * 1000.0);
         }
 
         /// <summary>
