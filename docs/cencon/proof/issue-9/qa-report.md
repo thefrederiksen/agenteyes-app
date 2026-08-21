@@ -458,3 +458,132 @@ Actual: PASS.
 
 VERIFIED - both halves of the round-2 gate defect fixed; all acceptance criteria hold on
 tip 1b11732. QA does not merge (D7); the Review Gate decides.
+
+---
+
+# QA ROUND 4 - verification of the round-3 review-gate REJECT fix (tip 5b7a184)
+
+QA date: 2026-08-21
+Round-4 verdict: **VERIFIED - the round-3 gate defect is fixed on tip 5b7a184.**
+Handing to the Review Gate (flow:ready-gate). QA does not merge (D7).
+
+## The defect under test
+
+Review-gate round-3 REJECT, one blocking defect: the guard's failure diagnostic made ONE
+claim for BOTH offender categories - "Both launch something other than the binary
+`dotnet build AgentEyes.sln -c Release` produces". For a composed path that is an
+overclaim: `$platform = 'x64'` upstream composes `bin\$platform\Release` to EXACTLY the
+correct binary, yet the old message asserted it launches something else. The fix must
+report literal non-x64 paths as provably wrong-binary and composed/variable/fragment
+paths as UNVERIFIABLE (the text cannot statically prove `bin\x64\Release`; rejected
+fail-closed), with test assertions updated to pin the split.
+
+## Scope of the fix (verified from the diff)
+
+`git diff --stat 4915010..5b7a184`: exactly two files -
+`tests/AgentEyes.Tests/ScriptBinaryPathTests.cs` and
+`docs/cencon/proof/issue-9/handoff.md` (round-4 note), +98/-10 total. Zero product code,
+zero script changes - the round-1 runtime evidence (AC3 missing-binary error, AC5
+api-smoke against the fresh build) remains valid and is cited, not re-run; the smoke
+surface is byte-identical to what round 1 exercised. Round-4 scope is the diagnostic
+wording, its classifier, and its tests - nothing else moved.
+
+## Gate results (run by QA on tip 5b7a184)
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Build | `dotnet build AgentEyes.sln -c Release` | `Build succeeded.` `0 Error(s)` (same 2 pre-existing xUnit1031 warnings) |
+| Tests | `dotnet test AgentEyes.sln -c Release` | `Passed!  - Failed:     0, Passed:   854, Skipped:     0, Total:   854` |
+
+Machine note (worse than rounds 1-3): this box now has NO x64 Microsoft.WindowsDesktop.App
+8.x at all (`dotnet --list-runtimes` shows 3.1/5.0/6.0/10.0 only; 8.0.10 exists for
+NETCore.App and AspNetCore.App but not WindowsDesktop). QA first reproduced the abort
+("Test Run Aborted ... Framework: 'Microsoft.WindowsDesktop.App', version '8.0.0' (x64)"
+not found), then installed the real 8.0.30 x64 windowsdesktop + base runtimes user-locally
+via dotnet-install.ps1 into %LOCALAPPDATA%\dotnet8-desktop and ran the suite with
+DOTNET_ROOT pointed there - so this round's 854/854 ran on an actual .NET 8 desktop
+runtime, not a roll-forward. Environment fact, not a property of this change. Suite grew
+840 -> 854: exactly the 14 new classifier theories (7 + 7), matching the handoff's claim.
+
+## The split diagnostic - Expected vs Actual (file:line)
+
+Expected 1: a literal non-x64 path is reported as provably launching the wrong binary.
+Actual: PASS. `wrongLiterals` offenders render under the heading "Literal non-x64 bin\
+path(s) under scripts/ - provably NOT the bin\x64\Release\ output of `dotnet build
+AgentEyes.sln -c Release`, so each launches the wrong (stale or never-built) binary."
+(ScriptBinaryPathTests.cs:165-172).
+
+Expected 2: a composed/variable/fragment path is reported as UNVERIFIABLE and is NOT
+accused of launching the wrong binary. Actual: PASS. `composed` offenders render under the
+separate heading "Unverifiable composed bin\ path(s) under scripts/ (variable,
+placeholder, or fragment where a literal segment belongs) - a text scan cannot statically
+prove such a path is bin\x64\Release (it may even resolve there), so it is rejected
+fail-closed." (ScriptBinaryPathTests.cs:174-181). The old single-claim wording ("Both
+launch something other than ...") is deleted from the file (verified by grep: zero hits
+for "launch something other").
+
+Expected 3: both categories still FAIL the guard - the split changes the claim, not the
+verdict. Actual: PASS. `Assert.True(wrongLiterals.Count == 0 && composed.Count == 0, ...)`
+(ScriptBinaryPathTests.cs:184) - fail-closed on either list being non-empty.
+
+The classifier `IsComposedOffender` (ScriptBinaryPathTests.cs:73-86): after a
+`NonX64BinSegment` match, the first continuation segment is tested against
+`LiteralSegment` (`^[A-Za-z0-9_.\-]+$`, :58). Non-literal first segment (`$platform`,
+`%PLATFORM%`, `${platform}`, empty at a `"` fragment boundary) -> composed; literal
+`x64` followed by a non-literal config segment (`bin\x64\$config`) -> composed; any other
+literal (`Release`, `Debug`, `x86`, `arm64`, `AnyCPU`, and `x64\Debug` via the second
+segment being literal) -> wrong literal. A non-offender line throws (:75-76) rather than
+silently classifying - fail-closed. Committed theory evidence:
+`OffenderDiagnostic_LiteralNonX64Path_ClassifiedAsWrongBinary` (7 cases, :222-235) and
+`OffenderDiagnostic_ComposedPath_ClassifiedAsUnverifiable` (7 cases, :237-252, first case
+literally `$platform = 'x64'` - the resolves-correct scenario pinned as unverifiable,
+never as wrong-binary).
+
+## Mutation drill (run by QA - each offender SEEN under its own wording)
+
+Per Section 6c item 3, QA planted BOTH categories at once on tip 5b7a184, appended to
+`scripts/run-all.ps1`:
+
+    $qaPlantLiteral = "src\AgentEyes.App\bin\x86\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+    $platform = 'x64'; $qaPlantComposed = "src\AgentEyes.App\bin\$platform\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+
+Note plant (ii) sets `$platform = 'x64'` ON THE SAME LINE - this composed path RESOLVES to
+the correct binary, the round-3 gate's exact overclaim scenario.
+
+Result - the guard FAILED (Failed: 1), and the message carried TWO headings with each
+plant under the correct one, verbatim:
+
+    Literal non-x64 bin\ path(s) under scripts/ - provably NOT the bin\x64\Release\ output of `dotnet build AgentEyes.sln -c Release`, so each launches the wrong (stale or never-built) binary. Use the single literal bin\x64\Release path:
+    run-all.ps1:62: $qaPlantLiteral = "src\AgentEyes.App\bin\x86\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+    Unverifiable composed bin\ path(s) under scripts/ (variable, placeholder, or fragment where a literal segment belongs) - a text scan cannot statically prove such a path is bin\x64\Release (it may even resolve there), so it is rejected fail-closed. Use the single literal bin\x64\Release path:
+    run-all.ps1:63: $platform = 'x64'; $qaPlantComposed = "src\AgentEyes.App\bin\$platform\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+
+Three-arm reading of that output:
+- literal plant (run-all.ps1:62) appears ONLY under the wrong-binary heading - PASS;
+- composed plant (run-all.ps1:63) appears ONLY under the unverifiable heading, and the
+  x64-resolving composed path still FAILS the guard (honest fail-closed) while no longer
+  being accused of launching the wrong binary - PASS;
+- an empty or one-heading message would have been a broken classifier - not observed.
+
+Reverted (`git checkout -- scripts/run-all.ps1`), `git status --short` clean, full suite
+re-run -> `Passed!  - Failed:     0, Passed:   854` on the untouched tree.
+
+## Method checks (round 4)
+
+- ASCII-only: `LC_ALL=C grep -c` for bytes 0x80-0xFF -> 0 for both changed files; the
+  instrument was first shown to fire (count 1) on a known non-ASCII probe.
+- Commit message of 5b7a184: no banned attribution strings (grep for the banned forms ->
+  no hits).
+- Scope: test file + handoff doc only; no product code, no privacy-posture surface, no
+  script changes.
+- Working tree left clean; both mutation plants reverted, the revert verified by
+  git status and a green full-suite re-run.
+- Handoff documents round 4: "Round 4 - fix for the round-3 review-gate REJECT
+  (2026-08-21)" section present at the top of handoff.md with the split wording, the
+  counts (840 -> 854), and the developer's own two-plant run. Verified in the diff.
+
+VERIFIED - the round-3 gate defect (diagnostic overclaim on composed paths) is fixed on
+tip 5b7a184; the guard's two claims are now each true of the category they describe, and
+composed paths remain rejected fail-closed. All prior-round acceptance-criteria evidence
+stands (no product or script surface moved). QA does not merge (D7); the Review Gate
+decides.
