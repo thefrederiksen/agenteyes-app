@@ -6,12 +6,15 @@ rem Run from the repo root so recordings\ land there.
 cd /d "%~dp0.."
 
 rem Put the built exe on PATH for this session (inherited by the cmd /k below).
-set "CLIBIN=%~dp0..\src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0"
+rem The projects set ^<Platforms^>x64^</Platforms^>, so a Release build lands in bin\x64\Release\.
+rem A stale non-x64 output directory may hold a month-old binary - x64 path ONLY (issue #9).
+set "CLIBIN=%~dp0..\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0"
 set "PATH=%CLIBIN%;%PATH%"
 
 if not exist "%CLIBIN%\agenteyes.exe" (
-  echo [error] agenteyes.exe not found. Build it first:
-  echo   dotnet build src\AgentEyes.Core\AgentEyes.Core.csproj -c Release
+  echo [error] agenteyes.exe not found. Expected: %CLIBIN%\agenteyes.exe
+  echo Build it first:
+  echo   dotnet build AgentEyes.sln -c Release
   echo.
   pause
   exit /b 1

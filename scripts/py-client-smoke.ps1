@@ -8,7 +8,16 @@
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path "$PSScriptRoot\..")
 
-$exe  = "src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+# Both projects set <Platforms>x64</Platforms>, so `dotnet build -c Release` lands in
+# bin\x64\Release\. A stale non-x64 output directory on an old checkout holds a month-old binary -
+# launching it silently tests code nobody built (issue #9). x64 path ONLY; missing = FAIL, no fallback.
+$exe  = "src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+if (-not (Test-Path $exe)) {
+  "PY-CLIENT-SMOKE: FAIL (app binary not found - it has not been built)"
+  "  expected: $(Join-Path (Get-Location) $exe)"
+  "  build it: dotnet build AgentEyes.sln -c Release"
+  exit 1
+}
 $base = "http://127.0.0.1:7882"
 $crash = Join-Path $env:TEMP 'AgentEyes-crash.log'
 Remove-Item $crash -ErrorAction SilentlyContinue
