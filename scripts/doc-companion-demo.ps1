@@ -21,11 +21,16 @@ Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type -AssemblyName System.Speech
 
 $root = Split-Path $PSScriptRoot -Parent
-$exe  = @(
-    'src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe',
-    'src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
-) | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $exe) { "DEMO: FAIL (app not built - run: dotnet build AgentEyes.sln -c Release)"; exit 1 }
+# Both projects set <Platforms>x64</Platforms>, so `dotnet build -c Release` lands in
+# bin\x64\Release\. A stale non-x64 output directory on an old checkout holds a month-old binary -
+# launching it silently tests code nobody built (issue #9). x64 path ONLY; missing = FAIL, no fallback.
+$exe = Join-Path $root 'src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
+if (-not (Test-Path $exe)) {
+    "DEMO: FAIL (app binary not found - it has not been built)"
+    "  expected: $exe"
+    "  build it: dotnet build AgentEyes.sln -c Release"
+    exit 1
+}
 
 $appdir      = Join-Path $env:LOCALAPPDATA 'AgentEyes'
 $cfgPath     = Join-Path $appdir 'config.json'

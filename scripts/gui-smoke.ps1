@@ -15,14 +15,27 @@ if (-not $Confirm -and $env:MQS_RUN_TESTS -ne '1') {
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 
 $root   = Split-Path $PSScriptRoot -Parent
-$exe    = Join-Path $root 'src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
-$cli    = Join-Path $root 'src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.exe'
+# Both projects set <Platforms>x64</Platforms>, so `dotnet build -c Release` lands in
+# bin\x64\Release\. A stale non-x64 output directory on an old checkout holds a month-old binary -
+# launching it silently tests code nobody built (issue #9). x64 path ONLY; missing = FAIL, no fallback.
+$exe    = Join-Path $root 'src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
+$cli    = Join-Path $root 'src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe'
 $appdir = Join-Path $env:LOCALAPPDATA 'AgentEyes'
 $crash  = Join-Path $env:TEMP 'AgentEyes-crash.log'
 $vid    = Join-Path $env:USERPROFILE 'Videos\AgentEyes'
 
-if (-not (Test-Path $exe)) { "GUI-SMOKE: FAIL (app not built: $exe)"; exit 1 }
-if (-not (Test-Path $cli)) { "GUI-SMOKE: FAIL (engine not built: $cli)"; exit 1 }
+if (-not (Test-Path $exe)) {
+  "GUI-SMOKE: FAIL (app binary not found - it has not been built)"
+  "  expected: $exe"
+  "  build it: dotnet build AgentEyes.sln -c Release"
+  exit 1
+}
+if (-not (Test-Path $cli)) {
+  "GUI-SMOKE: FAIL (CLI binary not found - it has not been built)"
+  "  expected: $cli"
+  "  build it: dotnet build AgentEyes.sln -c Release"
+  exit 1
+}
 
 # ---- discover a real microphone (NAudio name; also a fragment of the dshow name) ----
 $micLines = & $cli screens | Where-Object { $_ -match '^\s+\[\d+\]\s+\S' }

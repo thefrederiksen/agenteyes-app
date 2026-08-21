@@ -17,7 +17,10 @@ if (-not $Confirm -and $env:MQS_RUN_TESTS -ne '1') {
 }
 $env:MQS_RUN_TESTS = '1'   # children (smokes) inherit this; they will not re-prompt
 Set-Location (Resolve-Path "$PSScriptRoot\..")
-$exe = "src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.exe"
+# Both projects set <Platforms>x64</Platforms>, so `dotnet build -c Release` lands in
+# bin\x64\Release\. A stale non-x64 output directory on an old checkout holds a month-old binary -
+# launching it silently tests code nobody built (issue #9). x64 path ONLY; missing = FAIL, no fallback.
+$exe = "src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe"
 $results = [ordered]@{}
 
 "== build =="
@@ -29,6 +32,12 @@ dotnet test tests\AgentEyes.Tests\AgentEyes.Tests.csproj -v q
 $results['unit'] = ($LASTEXITCODE -eq 0)
 
 "== selftest (headless) =="
+if (-not (Test-Path $exe)) {
+  "RUN-ALL: FAIL (CLI binary not found - it has not been built)"
+  "  expected: $(Join-Path (Get-Location) $exe)"
+  "  build it: dotnet build AgentEyes.sln -c Release"
+  exit 1
+}
 & $exe selftest
 $results['selftest'] = ($LASTEXITCODE -eq 0)
 
