@@ -245,9 +245,10 @@ namespace AgentEyes.Tests
         /// calls a method DECLARED in this assembly (interface, abstract or virtual), EVERY
         /// in-assembly implementation and override of it is treated as reachable, whether or not
         /// that concrete type can flow to the call site - implementations a type INHERITS from a
-        /// base class included (round-2 review, finding 1). That over-reports rather than
-        /// under-reports: fail closed. See <see cref="DispatchEdges"/> for how the implementations
-        /// are found.
+        /// base class included (round-2 review, finding 1), and implementers of any interface that
+        /// transitively inherits the declaring interface included too (round-3 gate: IChild :
+        /// IBase). That over-reports rather than under-reports: fail closed. See
+        /// <see cref="DispatchEdges"/> for how the implementations are found.
         ///
         /// IMPLICIT RUNTIME INVOCATIONS are edges too (round-2 review, finding 2): touching any
         /// member of a type - calling a method, constructing it, or reading/writing one of its
@@ -360,7 +361,12 @@ namespace AgentEyes.Tests
         ///    interface's declaration - including a body the type INHERITS from an in-assembly base
         ///    class (round-2 review, finding 1: the InterfaceImpl row sits on the derived type, the
         ///    body on a base that never names the interface, and matching only the row-carrier's
-        ///    own methods left that shape silently unreachable).
+        ///    own methods left that shape silently unreachable), and including methods the
+        ///    interface itself INHERITS from other in-assembly interfaces (round-3 gate: with
+        ///    IChild : IBase a class implementing IChild implements IBase's methods, so each row is
+        ///    expanded to the interface's full in-assembly inheritance closure - see
+        ///    <see cref="InterfaceClosure"/> - rather than trusting the compiler to have flattened
+        ///    the rows, which ECMA-335 permits it not to do).
         /// 3. The base-type chain - virtual overrides: for every virtual method of every in-assembly
         ///    ancestor, a same-named method of the derived type gets an edge from the ancestor's
         ///    declaration, because a call through the ancestor can run the override.
@@ -429,17 +435,28 @@ namespace AgentEyes.Tests
                     CollectBodies(inherited);
                 if (bodies.Count == 0) continue;
 
-                // 2. Implicit implementations of in-assembly interfaces, by name.
+                // 2. Implicit implementations of in-assembly interfaces, by name - each row
+                // expanded to the FULL interface inheritance graph (round-3 gate: IChild : IBase,
+                // the class's row names IChild, the call goes through IBase::Configure, so the
+                // edge must come from the interface the method is DECLARED on, however many
+                // levels of interface inheritance sit between it and the row). Roslyn happens to
+                // flatten a class's rows so the base interface is usually named directly, but
+                // ECMA-335 does not require that of an assembly, and this map must not depend on
+                // one compiler's habit - the regression that proves it runs on hand-written,
+                // non-flattened metadata.
                 foreach (var interfaceHandle in type.GetInterfaceImplementations())
                 {
                     var declared = DefinedType(md, md.GetInterfaceImplementation(interfaceHandle).Interface);
                     if (declared is not TypeDefinitionHandle interfaceType) continue;   // declared elsewhere
-                    string interfaceName = TypeName(md, interfaceType);
-                    foreach (var methodHandle in md.GetTypeDefinition(interfaceType).GetMethods())
+                    foreach (var declaringInterface in InterfaceClosure(md, interfaceType))
                     {
-                        string name = md.GetString(md.GetMethodDefinition(methodHandle).Name);
-                        if (bodies.TryGetValue(name, out string? body))
-                            Add(NormalizeCallee($"{interfaceName}::{name}"), body);
+                        string interfaceName = TypeName(md, declaringInterface);
+                        foreach (var methodHandle in md.GetTypeDefinition(declaringInterface).GetMethods())
+                        {
+                            string name = md.GetString(md.GetMethodDefinition(methodHandle).Name);
+                            if (bodies.TryGetValue(name, out string? body))
+                                Add(NormalizeCallee($"{interfaceName}::{name}"), body);
+                        }
                     }
                 }
 
@@ -462,6 +479,31 @@ namespace AgentEyes.Tests
             }
 
             return edges;
+        }
+
+        /// <summary>An interface plus every in-assembly interface it TRANSITIVELY inherits, read
+        /// from the interfaces' own InterfaceImpl rows. A class implementing any interface in this
+        /// closure implements the methods of all of them, so dispatch edges must come from every
+        /// member of the closure, not just the interface a class's row happens to name (round-3
+        /// gate, issue #2). An inherited interface declared OUTSIDE the assembly is dropped - the
+        /// walk's assembly boundary, stated where the guards use this.</summary>
+        private static IEnumerable<TypeDefinitionHandle> InterfaceClosure(MetadataReader md, TypeDefinitionHandle interfaceType)
+        {
+            var closure = new HashSet<TypeDefinitionHandle> { interfaceType };
+            var pending = new Queue<TypeDefinitionHandle>();
+            pending.Enqueue(interfaceType);
+
+            while (pending.Count > 0)
+            {
+                var current = md.GetTypeDefinition(pending.Dequeue());
+                foreach (var inheritedHandle in current.GetInterfaceImplementations())
+                    if (DefinedType(md, md.GetInterfaceImplementation(inheritedHandle).Interface)
+                            is TypeDefinitionHandle inherited
+                        && closure.Add(inherited))
+                        pending.Enqueue(inherited);
+            }
+
+            return closure;
         }
 
         /// <summary>A MethodImpl row's method as <c>Type::Method</c> when the type is defined in
@@ -850,6 +892,7 @@ namespace AgentEyes.Tests
         private const int SwitchOperand = -2;
         private const int TwoBytePrefix = -3;
 
+        private const int Jmp = 0x27;
         private const int Call = 0x28;
         private const int Calli = 0x29;
         private const int CallVirt = 0x6F;
@@ -911,10 +954,13 @@ namespace AgentEyes.Tests
 
         /// <summary>
         /// Every metadata token in <paramref name="il"/> that names a method: <c>call</c>,
-        /// <c>callvirt</c>, <c>newobj</c>, plus <c>ldftn</c> / <c>ldvirtftn</c> (a delegate built over
-        /// an API is still a use of that API) and <c>ldtoken</c> (the reflection handle shape a scan
-        /// can see). <c>calli</c> is NOT here - it carries a signature rather than a target - which is
-        /// why <see cref="IndirectCalls"/> exists to prove the product has none.
+        /// <c>callvirt</c>, <c>newobj</c> and <c>jmp</c> (the four instructions that transfer
+        /// control to a method token - jmp is never emitted by C#, but the collection must be
+        /// complete over the FORMAT, not over one compiler's output), plus <c>ldftn</c> /
+        /// <c>ldvirtftn</c> (a delegate built over an API is still a use of that API) and
+        /// <c>ldtoken</c> (the reflection handle shape a scan can see). <c>calli</c> is NOT here -
+        /// it carries a signature rather than a target - which is why <see cref="IndirectCalls"/>
+        /// exists to prove the product has none.
         /// </summary>
         private static IEnumerable<int> ReferencedMethodTokens(byte[] il, string where)
         {
@@ -923,7 +969,8 @@ namespace AgentEyes.Tests
             {
                 bool namesAMethod = twoByte
                     ? opcode == LdFtn || opcode == LdVirtFtn
-                    : opcode == Call || opcode == CallVirt || opcode == NewObj || opcode == LdToken;
+                    : opcode == Call || opcode == CallVirt || opcode == NewObj || opcode == LdToken
+                        || opcode == Jmp;
                 if (namesAMethod) tokens.Add(BitConverter.ToInt32(il, operandAt));
             });
             return tokens;

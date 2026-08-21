@@ -1199,10 +1199,23 @@ namespace AgentEyes.Tests
         ///
         /// The dispatch fan-out finds implementations a type INHERITS from an in-assembly base
         /// class (the round-2 review's finding 1 - the InterfaceImpl row on the derived type, the
-        /// body on a base that never names the interface), and the walk also carries IMPLICIT
-        /// RUNTIME INVOCATIONS (finding 2): touching any member of a type - a call, a
-        /// construction, or a static field read/write - reaches its static constructor and its
-        /// finalizer, which no call instruction anywhere targets.
+        /// body on a base that never names the interface), implementers of interfaces that
+        /// TRANSITIVELY INHERIT the declaring interface (the round-3 gate: IChild : IBase, the
+        /// class names only IChild, the call goes through IBase - each InterfaceImpl row is
+        /// expanded to the interface's full in-assembly inheritance closure), and the walk also
+        /// carries IMPLICIT RUNTIME INVOCATIONS (finding 2): touching any member of a type - a
+        /// call, a construction, or a static field read/write - reaches its static constructor and
+        /// its finalizer, which no call instruction anywhere targets.
+        ///
+        /// The round-3 shape inventory: every dispatch/invocation shape the walk can meet is
+        /// either COVERED with a walk-level regression here (direct, inherited-implementation,
+        /// inherited-declaration, explicit, generic-interface, generic-method, default-interface-
+        /// method, virtual and generic-virtual through base references, delegate creation over
+        /// interface/virtual methods, static abstract members, static constructors/finalizers,
+        /// jmp - see the TheReachabilityWalk_*/TheDispatchMap_* tests) or stated VERBATIM in the
+        /// limits below. Nothing is silently unhandled: the IL instructions that can name a method
+        /// token are call, callvirt, newobj, jmp, ldftn, ldvirtftn and ldtoken - all collected -
+        /// and calli, which names none and is pinned to zero.
         ///
         /// Its limits, stated honestly:
         /// - the ASSEMBLY BOUNDARY, in both of its forms: a callee whose body lives in another
@@ -1210,13 +1223,21 @@ namespace AgentEyes.Tests
         ///   or WPF interface or base class, e.g. IObserver&lt;T&gt;.OnNext) has no edge to its
         ///   in-assembly implementations, because the declaration is not in this assembly's
         ///   metadata tables;
-        /// - REFLECTION: a method reached only via reflection is not an edge in the call graph;
+        /// - REFLECTION AND OTHER NAME-BASED LOOKUP: a method reached only via reflection is not
+        ///   an edge in the call graph. That includes `dynamic` dispatch (a runtime binder working
+        ///   from strings) and WPF name lookup - a route that reaches the Library's list only
+        ///   through FindName("RecentList") touches no field, so it is not a seed either. (A
+        ///   METHOD HANDLE loaded by IL - ldtoken - IS collected, conservatively; only lookup by
+        ///   string is invisible.)
         /// - a DELEGATE INVOKED BY CODE THAT DID NOT BUILD IT: building a delegate (ldftn /
         ///   ldvirtftn) is an edge from the builder to the target, but Invoke on the delegate type
         ///   connects to nothing, so a target handed in from outside the closure is not followed;
         /// - RUNTIME-GENERATED CODE (Reflection.Emit, expression compilation) has no IL here to
         ///   walk (the product contains none - and a calli, the one call shape that names no
-        ///   target, is counted and pinned by CompiledCode.IndirectCalls).
+        ///   target, is counted and pinned by CompiledCode.IndirectCalls);
+        /// - COMPILED CODE ONLY: behaviour declared purely in markup (a GroupStyle or
+        ///   GroupDescription in XAML/BAML) never appears as IL - that is the markup guard's
+        ///   territory, scoped to the RecentList element above.
         /// And it is a REACHED-FROM claim, not proved dataflow, twice over: a helper that a Library
         /// handler calls but that groups some OTHER feature's view would be reported too, and the
         /// dispatch fan-out reports every implementation of a called interface, not just the one
