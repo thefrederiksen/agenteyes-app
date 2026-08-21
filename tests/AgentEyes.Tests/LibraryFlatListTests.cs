@@ -738,6 +738,21 @@ namespace AgentEyes.Tests
                          // which no call instruction targets - the runtime invokes it, so the
                          // walk must add implicit-invocation edges for touched types.
                          "AgentEyes.Tests.LibraryDefects.CctorDayGroupConfigurer::.cctor",
+                         // Round 3: one implementation per remaining dispatch shape - the gate's
+                         // inherited interface declaration, explicit implementation, generic
+                         // interface and generic method, default interface method (both ends),
+                         // virtual and generic-virtual through base references, delegate over an
+                         // interface method, and a static abstract member.
+                         "AgentEyes.Tests.LibraryDefects.InheritedDeclarationDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.ExplicitDayGroupConfigurer::AgentEyes.Tests.LibraryDefects.IExplicitBaseConfigurer.Configure",
+                         "AgentEyes.Tests.LibraryDefects.GenericDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.GenericMethodDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.IDefaultViewConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.DimOverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.OverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.GenericOverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.DelegateDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.StaticDayGroupConfigurer::Configure",
                      })
                 Assert.True(reported.Any(site => site.Method == route),
                     $"The grouping scan does not report the compiled grouping in '{route}':"
@@ -804,6 +819,155 @@ namespace AgentEyes.Tests
             // type, not a blanket sweep.
             Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
         }
+
+        // ---- issue #2, round 3: the dispatch-shape inventory, one regression each ----
+        // The round-2 gate found dispatch shapes seriatim, so round 3 enumerates them
+        // systematically: every shape below is pinned by a walk-level regression, and what none
+        // of them can cover is stated verbatim in the limits on LibraryGroupingIn. The decoys
+        // live in LibraryDefectDecoys.cs, one handler per shape.
+
+        /// <summary>Reaches into the decoy assembly's walk from one LibraryWindow handler and
+        /// asserts the implementation only that shape's dispatch can reach IS reached - and that
+        /// the unrelated IPanelConfigurer implementation is NOT, so the conservative fan-out
+        /// stays per-declaration for every shape.</summary>
+        private static void AssertShapeReached(string handler, string implementation)
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::" + handler });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects." + implementation, reached);
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
+        }
+
+        /// <summary>
+        /// The round-2 GATE's construction (issue #2, round 3): IChildViewConfigurer :
+        /// IBaseViewConfigurer, the class implements the child, the call goes through the BASE.
+        ///
+        /// Honesty note about this pin: Roslyn FLATTENS a class's InterfaceImpl rows (the class
+        /// here is emitted with rows for both interfaces - verified empirically), so this
+        /// C#-compiled construction was reachable even before the interface-inheritance traversal
+        /// existed, through the direct IBase row. It is kept as the permanent pin of the gate's
+        /// exact C# shape; the regression that actually exercises the traversal - and that was
+        /// RED before it existed - is the hand-written-metadata one below, where no flattened row
+        /// can rescue the map.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAnInheritedInterfaceDeclaration() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnInheritedInterfaceDeclaration",
+                "InheritedDeclarationDayGroupConfigurer::Configure");
+
+        /// <summary>
+        /// The round-3 fix, exercised for real: metadata WITHOUT compiler flattening. The
+        /// hand-emitted assembly's Impl lists ONLY IChild; the call is through IBase::Configure.
+        /// Under the round-2 map (interface methods read from the row-named interface only) there
+        /// is no edge and this test FAILS - demonstrated red-first on this branch. Only the full
+        /// interface-inheritance-graph traversal connects the two.
+        /// </summary>
+        [Fact]
+        public void TheDispatchMap_TraversesTheInterfaceInheritanceGraph_WithoutCompilerFlattening()
+        {
+            string probe = HandWrittenDispatchAssembly.Emit();
+            try
+            {
+                // Instrument check: the fixture still poses the hazard. If Impl's rows ever came
+                // back flattened, this test would pass through the direct row and pin nothing.
+                Assert.Equal(new[] { "IChild" },
+                    HandWrittenDispatchAssembly.DirectInterfaceRowsOf(probe, "Impl"));
+
+                var reached = CompiledCode.Reachable(probe, new[] { "Probe.Handler::Run" });
+
+                Assert.Contains("Probe.Impl::Configure", reached);
+            }
+            finally
+            {
+                File.Delete(probe);
+            }
+        }
+
+        /// <summary>
+        /// The one OTHER IL instruction that transfers control to a method token: <c>jmp</c>
+        /// (ECMA-335 III.3.37). C# never emits it, so it can only be pinned from hand-written
+        /// metadata. Before round 3 the token collector did not read jmp operands - demonstrated
+        /// red-first on this branch - which was a silent gap in the "every call shape" claim.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAJmpInstruction()
+        {
+            string probe = HandWrittenDispatchAssembly.Emit();
+            try
+            {
+                var reached = CompiledCode.Reachable(probe, new[] { "Probe.Handler::RunJmp" });
+
+                Assert.Contains("Probe.Impl::Configure", reached);
+            }
+            finally
+            {
+                File.Delete(probe);
+            }
+        }
+
+        /// <summary>EXPLICIT interface implementation - and of an INHERITED declaration at that:
+        /// the only metadata connecting the private body to IExplicitBaseConfigurer::Configure is
+        /// its MethodImpl row. The compiled body name is the dotted interface name.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAnExplicitInterfaceImplementation() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnExplicitImplementation",
+                "ExplicitDayGroupConfigurer::AgentEyes.Tests.LibraryDefects.IExplicitBaseConfigurer.Configure");
+
+        /// <summary>GENERIC INTERFACE INSTANTIATION: callee token parent and InterfaceImpl row are
+        /// both TypeSpecs and must fold onto the same open generic type.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAGenericInterfaceInstantiation() =>
+            AssertShapeReached("ApplyLibraryModeThroughAGenericInterface",
+                "GenericDayGroupConfigurer::Configure");
+
+        /// <summary>CONSTRUCTED GENERIC METHOD: the call site's MethodSpec must resolve onto the
+        /// open generic declaration before the dispatch edge can be looked up.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAConstructedGenericMethod() =>
+            AssertShapeReached("ApplyLibraryModeThroughAGenericMethod",
+                "GenericMethodDayGroupConfigurer::Configure");
+
+        /// <summary>DEFAULT INTERFACE METHOD: both ends must be reached - the interface's own
+        /// default body directly (the callee HAS IL), and the class override by dispatch.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsADefaultInterfaceMethod_AndItsOverride()
+        {
+            AssertShapeReached("ApplyLibraryModeThroughADefaultInterfaceMethod",
+                "IDefaultViewConfigurer::Configure");
+            AssertShapeReached("ApplyLibraryModeThroughADefaultInterfaceMethod",
+                "DimOverrideDayGroupConfigurer::Configure");
+        }
+
+        /// <summary>VIRTUAL CALL THROUGH A BASE-CLASS REFERENCE: the callee is the base's benign
+        /// virtual method; only the override edge reaches the grouping body.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAVirtualCallThroughABaseReference() =>
+            AssertShapeReached("ApplyLibraryModeThroughAVirtualBaseReference",
+                "OverrideDayGroupConfigurer::Configure");
+
+        /// <summary>...and through a GENERIC base-class reference, where the callee parent and the
+        /// derived type's BaseType are both TypeSpecs.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAVirtualCallThroughAGenericBaseReference() =>
+            AssertShapeReached("ApplyLibraryModeThroughAGenericBaseReference",
+                "GenericOverrideDayGroupConfigurer::Configure");
+
+        /// <summary>DELEGATE BUILT FROM AN INTERFACE METHOD GROUP: no call instruction ever
+        /// targets the implementation - the ldvirtftn token names the interface declaration, and
+        /// the dispatch fan-out is the only route to the body.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsADelegateBuiltFromAnInterfaceMethod() =>
+            AssertShapeReached("ApplyLibraryModeThroughADelegate",
+                "DelegateDayGroupConfigurer::Configure");
+
+        /// <summary>STATIC ABSTRACT INTERFACE MEMBER: the constrained call names the interface
+        /// declaration; the implementing static method is reached by the same name-matched
+        /// InterfaceImpl edge as an instance implementation.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAStaticAbstractInterfaceMember() =>
+            AssertShapeReached("ApplyLibraryModeThroughAStaticAbstract",
+                "StaticDayGroupConfigurer::Configure");
 
         [Fact]
         public void TheLibraryView_SortsNewestFirstExplicitly()
