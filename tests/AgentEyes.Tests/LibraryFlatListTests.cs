@@ -687,8 +687,14 @@ namespace AgentEyes.Tests
         /// (the constructor only). ApplyLibraryMode, a Loaded handler, or any other helper that
         /// handles the Library is covered.
         ///
-        /// Its limit, stated: a helper that receives the Library's view as an ARGUMENT and groups it,
-        /// while never naming the Library's own fields, is not seen by this scan.
+        /// Since issue #2 the scan also FOLLOWS THE CALLS such a method makes, transitively within
+        /// the assembly - the round-3 gate proved the old one-body scan blind to grouping delegated
+        /// to a helper that takes the view as an argument and never names a Library field - and,
+        /// since the issue #2 fix pass, follows VIRTUAL AND INTERFACE DISPATCH conservatively: a
+        /// call through an in-assembly interface or virtual method reaches every in-assembly
+        /// implementation and override of it, which is the round-1 gate's construction (an
+        /// implementation instantiated through an interface, Configure(view) called through the
+        /// interface). The remaining limits are stated on <see cref="LibraryGroupingIn"/>.
         /// </summary>
         [Fact]
         public void NoMethodThatHandlesTheLibrary_GroupsIt()
@@ -703,9 +709,15 @@ namespace AgentEyes.Tests
         /// <summary>
         /// The negative control, and the NARROWNESS control in the same test. The scan must report
         /// grouping added by a method that handles the Library - outside the constructor, through the
-        /// items control and through ICollectionView - and must stay silent about grouping that has
-        /// nothing to do with the Library, which is the false alarm that would eventually get this
-        /// guard deleted.
+        /// items control, through ICollectionView, (issue #2, item 1) DELEGATED to a helper that
+        /// takes the view as an argument and never names a Library field, which is the exact shape
+        /// the round-3 gate used to restore real day groups with every guard green, and (issue #2,
+        /// fix pass) hidden behind INTERFACE DISPATCH - the handler instantiates an in-assembly
+        /// implementation through an interface and calls Configure(view) through that interface, so
+        /// the call site names only the abstract method and a body-only walk never reaches the
+        /// implementation. And it must stay silent about grouping that has nothing to do with the
+        /// Library - including an unrelated feature's own interface-dispatched configurer - which is
+        /// the false alarm that would eventually get this guard deleted.
         /// </summary>
         [Fact]
         public void TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses()
@@ -716,6 +728,36 @@ namespace AgentEyes.Tests
                      {
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryMode",
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::OnLoaded",
+                         "AgentEyes.Tests.LibraryDefects.LibraryWindow::ConfigureLibraryView",
+                         "AgentEyes.Tests.LibraryDefects.DayGroupConfigurer::Configure",
+                         // Round-2 review, finding 1: the implementation the interface hides is
+                         // INHERITED - the InterfaceImpl row is on the derived type, the body on
+                         // its base, and only a base-chain-aware dispatch map connects them.
+                         "AgentEyes.Tests.LibraryDefects.DayGroupConfigurerBase::Configure",
+                         // Round-2 review, finding 2: grouping hidden in a static constructor,
+                         // which no call instruction targets - the runtime invokes it, so the
+                         // walk must add implicit-invocation edges for touched types.
+                         "AgentEyes.Tests.LibraryDefects.CctorDayGroupConfigurer::.cctor",
+                         // Round 3: one implementation per remaining dispatch shape - the gate's
+                         // inherited interface declaration, explicit implementation, generic
+                         // interface and generic method, default interface method (both ends),
+                         // virtual and generic-virtual through base references, delegate over an
+                         // interface method, and a static abstract member.
+                         "AgentEyes.Tests.LibraryDefects.InheritedDeclarationDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.ExplicitDayGroupConfigurer::AgentEyes.Tests.LibraryDefects.IExplicitBaseConfigurer.Configure",
+                         "AgentEyes.Tests.LibraryDefects.GenericDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.GenericMethodDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.IDefaultViewConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.DimOverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.OverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.GenericOverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.DelegateDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.StaticDayGroupConfigurer::Configure",
+                         // Round-3 self-review finding: the override two dispatch steps away
+                         // (interface -> base implementation -> derived override), with and
+                         // without a body in the middle.
+                         "AgentEyes.Tests.LibraryDefects.SubOverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.AbstractRelayDayGroupConfigurer::Configure",
                      })
                 Assert.True(reported.Any(site => site.Method == route),
                     $"The grouping scan does not report the compiled grouping in '{route}':"
@@ -723,7 +765,242 @@ namespace AgentEyes.Tests
 
             Assert.DoesNotContain(reported,
                 site => site.Method.StartsWith("AgentEyes.Tests.LibraryDefects.Grouping::", StringComparison.Ordinal));
+            Assert.DoesNotContain(reported,
+                site => site.Method.StartsWith("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::", StringComparison.Ordinal));
         }
+
+        /// <summary>
+        /// The issue #2 FIX-PASS regression, at the level of the instrument itself. Seeded with the
+        /// handler alone, the walk must reach <c>DayGroupConfigurer.Configure</c> - a method no body
+        /// in the assembly calls by its concrete type; the only route to it is the dispatch edge
+        /// behind <c>ILibraryViewConfigurer.Configure</c>. Under the pre-fix walk (calls into bodies
+        /// only) this assertion fails, which is exactly how the round-1 gate's attack stayed
+        /// invisible. And the fan-out must stay per-declaration: the same-signature, same-method-name
+        /// implementation of the UNRELATED <c>IPanelConfigurer</c> must NOT be dragged in, or the
+        /// conservative direction would fail legitimate future work.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsInterfaceDispatch_ToTheInAssemblyImplementation()
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryModeThroughAnInterface" });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects.DayGroupConfigurer::Configure", reached);
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
+        }
+
+        /// <summary>
+        /// Round-2 review, finding 1: the implementation the interface hides is INHERITED. The
+        /// derived type carries the InterfaceImpl row and no Configure of its own; the body lives
+        /// on a base class that never names the interface. A dispatch map that matches interface
+        /// methods only against the implementing type's OWN methods has no edge here - empirically
+        /// demonstrated fail-open - so the map must search the implementing type's in-assembly
+        /// base chain for the body.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsInterfaceDispatch_ToAnInheritedImplementation()
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryModeThroughAnInheritedImplementation" });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects.DayGroupConfigurerBase::Configure", reached);
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
+        }
+
+        /// <summary>
+        /// Round-2 review, finding 2: a STATIC CONSTRUCTOR is invoked by the runtime, never by a
+        /// call instruction, so it can only be an IMPLICIT edge: touching any member of a type
+        /// makes its .cctor (and its finalizer) reachable. Without that edge, work hidden in a
+        /// .cctor passes every reachability guard silently.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType()
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryModeThroughAStaticConstructor" });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects.CctorDayGroupConfigurer::.cctor", reached);
+            // ...and an untouched type's cctor is not dragged in: implicit edges are per touched
+            // type, not a blanket sweep.
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
+        }
+
+        // ---- issue #2, round 3: the dispatch-shape inventory, one regression each ----
+        // The round-2 gate found dispatch shapes seriatim, so round 3 enumerates them
+        // systematically: every shape below is pinned by a walk-level regression, and what none
+        // of them can cover is stated verbatim in the limits on LibraryGroupingIn. The decoys
+        // live in LibraryDefectDecoys.cs, one handler per shape.
+
+        /// <summary>Reaches into the decoy assembly's walk from one LibraryWindow handler and
+        /// asserts the implementation only that shape's dispatch can reach IS reached - and that
+        /// the unrelated IPanelConfigurer implementation is NOT, so the conservative fan-out
+        /// stays per-declaration for every shape.</summary>
+        private static void AssertShapeReached(string handler, string implementation)
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::" + handler });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects." + implementation, reached);
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
+        }
+
+        /// <summary>
+        /// The round-2 GATE's construction (issue #2, round 3): IChildViewConfigurer :
+        /// IBaseViewConfigurer, the class implements the child, the call goes through the BASE.
+        ///
+        /// Honesty note about this pin: Roslyn FLATTENS a class's InterfaceImpl rows (the class
+        /// here is emitted with rows for both interfaces - verified empirically), so this
+        /// C#-compiled construction was reachable even before the interface-inheritance traversal
+        /// existed, through the direct IBase row. It is kept as the permanent pin of the gate's
+        /// exact C# shape; the regression that actually exercises the traversal - and that was
+        /// RED before it existed - is the hand-written-metadata one below, where no flattened row
+        /// can rescue the map.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAnInheritedInterfaceDeclaration() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnInheritedInterfaceDeclaration",
+                "InheritedDeclarationDayGroupConfigurer::Configure");
+
+        /// <summary>
+        /// The round-3 fix, exercised for real: metadata WITHOUT compiler flattening. The
+        /// hand-emitted assembly's Impl lists ONLY IChild; the call is through IBase::Configure.
+        /// Under the round-2 map (interface methods read from the row-named interface only) there
+        /// is no edge and this test FAILS - demonstrated red-first on this branch. Only the full
+        /// interface-inheritance-graph traversal connects the two.
+        /// </summary>
+        [Fact]
+        public void TheDispatchMap_TraversesTheInterfaceInheritanceGraph_WithoutCompilerFlattening()
+        {
+            string probe = HandWrittenDispatchAssembly.Emit();
+            try
+            {
+                // Instrument check: the fixture still poses the hazard. If Impl's rows ever came
+                // back flattened, this test would pass through the direct row and pin nothing.
+                Assert.Equal(new[] { "IChild" },
+                    HandWrittenDispatchAssembly.DirectInterfaceRowsOf(probe, "Impl"));
+
+                var reached = CompiledCode.Reachable(probe, new[] { "Probe.Handler::Run" });
+
+                Assert.Contains("Probe.Impl::Configure", reached);
+            }
+            finally
+            {
+                // Best-effort, like this fixture's own Dispose: an on-access scanner holding the
+                // just-written temp DLL must not replace the test's real result with a cleanup
+                // error. The file is GUID-named in %TEMP%; a leaked one is inert.
+                try { File.Delete(probe); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+        }
+
+        /// <summary>
+        /// The one OTHER IL instruction that transfers control to a method token: <c>jmp</c>
+        /// (ECMA-335 III.3.37). C# never emits it, so it can only be pinned from hand-written
+        /// metadata. Before round 3 the token collector did not read jmp operands - demonstrated
+        /// red-first on this branch - which was a silent gap in the "every call shape" claim.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAJmpInstruction()
+        {
+            string probe = HandWrittenDispatchAssembly.Emit();
+            try
+            {
+                var reached = CompiledCode.Reachable(probe, new[] { "Probe.Handler::RunJmp" });
+
+                Assert.Contains("Probe.Impl::Configure", reached);
+            }
+            finally
+            {
+                // Best-effort, like this fixture's own Dispose: an on-access scanner holding the
+                // just-written temp DLL must not replace the test's real result with a cleanup
+                // error. The file is GUID-named in %TEMP%; a leaked one is inert.
+                try { File.Delete(probe); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+        }
+
+        /// <summary>EXPLICIT interface implementation - and of an INHERITED declaration at that:
+        /// the only metadata connecting the private body to IExplicitBaseConfigurer::Configure is
+        /// its MethodImpl row. The compiled body name is the dotted interface name.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAnExplicitInterfaceImplementation() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnExplicitImplementation",
+                "ExplicitDayGroupConfigurer::AgentEyes.Tests.LibraryDefects.IExplicitBaseConfigurer.Configure");
+
+        /// <summary>GENERIC INTERFACE INSTANTIATION: callee token parent and InterfaceImpl row are
+        /// both TypeSpecs and must fold onto the same open generic type.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAGenericInterfaceInstantiation() =>
+            AssertShapeReached("ApplyLibraryModeThroughAGenericInterface",
+                "GenericDayGroupConfigurer::Configure");
+
+        /// <summary>CONSTRUCTED GENERIC METHOD: the call site's MethodSpec must resolve onto the
+        /// open generic declaration before the dispatch edge can be looked up.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAConstructedGenericMethod() =>
+            AssertShapeReached("ApplyLibraryModeThroughAGenericMethod",
+                "GenericMethodDayGroupConfigurer::Configure");
+
+        /// <summary>DEFAULT INTERFACE METHOD: both ends must be reached - the interface's own
+        /// default body directly (the callee HAS IL), and the class override by dispatch.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsADefaultInterfaceMethod_AndItsOverride()
+        {
+            AssertShapeReached("ApplyLibraryModeThroughADefaultInterfaceMethod",
+                "IDefaultViewConfigurer::Configure");
+            AssertShapeReached("ApplyLibraryModeThroughADefaultInterfaceMethod",
+                "DimOverrideDayGroupConfigurer::Configure");
+        }
+
+        /// <summary>VIRTUAL CALL THROUGH A BASE-CLASS REFERENCE: the callee is the base's benign
+        /// virtual method; only the override edge reaches the grouping body.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAVirtualCallThroughABaseReference() =>
+            AssertShapeReached("ApplyLibraryModeThroughAVirtualBaseReference",
+                "OverrideDayGroupConfigurer::Configure");
+
+        /// <summary>...and through a GENERIC base-class reference, where the callee parent and the
+        /// derived type's BaseType are both TypeSpecs.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAVirtualCallThroughAGenericBaseReference() =>
+            AssertShapeReached("ApplyLibraryModeThroughAGenericBaseReference",
+                "GenericOverrideDayGroupConfigurer::Configure");
+
+        /// <summary>DELEGATE BUILT FROM AN INTERFACE METHOD GROUP: no call instruction ever
+        /// targets the implementation - the ldvirtftn token names the interface declaration, and
+        /// the dispatch fan-out is the only route to the body.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsADelegateBuiltFromAnInterfaceMethod() =>
+            AssertShapeReached("ApplyLibraryModeThroughADelegate",
+                "DelegateDayGroupConfigurer::Configure");
+
+        /// <summary>STATIC ABSTRACT INTERFACE MEMBER: the constrained call names the interface
+        /// declaration; the implementing static method is reached by the same name-matched
+        /// InterfaceImpl edge as an instance implementation.</summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsAStaticAbstractInterfaceMember() =>
+            AssertShapeReached("ApplyLibraryModeThroughAStaticAbstract",
+                "StaticDayGroupConfigurer::Configure");
+
+        /// <summary>
+        /// DISPATCH IS TRANSITIVE (round-3 self-review finding, demonstrated fail-open): the
+        /// interface row and a BENIGN virtual body sit on a base class, the grouping override on
+        /// a derived class that never names the interface. The interface call's edge lands on the
+        /// base implementation; only chasing dispatch edges FROM reached implementations - a
+        /// fixpoint over the dispatch relation, not one step from IL tokens - reaches the
+        /// override. Red-first: under the one-step walk the base body is reached and the derived
+        /// override is not.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_ChasesDispatchTransitively_ToADerivedOverride() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnOverriddenImplementation",
+                "SubOverrideDayGroupConfigurer::Configure");
+
+        /// <summary>...and the same two steps with NO IL in the middle: the base satisfies the
+        /// interface with an ABSTRACT method, so the relay node has no body, and the dispatch map
+        /// must carry edges through bodiless declarations for the chain to hold.</summary>
+        [Fact]
+        public void TheReachabilityWalk_ChasesDispatchTransitively_ThroughABodilessRelay() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnAbstractRelay",
+                "AbstractRelayDayGroupConfigurer::Configure");
 
         [Fact]
         public void TheLibraryView_SortsNewestFirstExplicitly()
@@ -765,6 +1042,41 @@ namespace AgentEyes.Tests
 
             Assert.NotEmpty(RefreshNamingCallSitesThatIgnoreTheResort(
                 code.Replace("bool moved = row.RefreshNaming();", "row.RefreshNaming();",
+                    StringComparison.Ordinal)));
+        }
+
+        /// <summary>
+        /// One apply, ONE total (issue #2, item 3). A reload's apply settles as one coalesced
+        /// collection event, and the constructor's CollectionChanged handler re-totals the AI spend
+        /// on it - so the loader itself may re-total ONLY when the apply raised no event at all
+        /// (values adopted into existing rows change the total without one). This is a literal
+        /// source match on that one guarded call, the same instrument as the resort guard above,
+        /// and it claims no more: it cannot see a second total added through another handler or
+        /// another method, and the fail-closed extraction below stops it certifying a loader that
+        /// no longer settles the empty state and the total anywhere.
+        /// </summary>
+        [Fact]
+        public void TheLoader_RetotalsTheLibrary_OnlyWhenTheApplyRaisedNoEvent()
+        {
+            var offenders = UnguardedRetotalsIn(
+                RepoSource.MethodBody(RepoSource.Read(CodeBehind), "private async void LoadRecent()"));
+
+            Assert.True(offenders.Count == 0,
+                "LoadRecent re-totals the Library unconditionally, so a changing reload walks the "
+                + "collection twice per apply - once from the CollectionChanged handler and once "
+                + "here - despite the coalesced Reset existing to make it once (issue #2):"
+                + Environment.NewLine + string.Join(Environment.NewLine, offenders));
+        }
+
+        /// <summary>The negative control: an unconditional UpdateEmptyState() in the loader is
+        /// reported.</summary>
+        [Fact]
+        public void TheOnceGuard_ReportsAnUnconditionalRetotal()
+        {
+            string body = RepoSource.MethodBody(RepoSource.Read(CodeBehind), "private async void LoadRecent()");
+
+            Assert.NotEmpty(UnguardedRetotalsIn(
+                body.Replace("if (!notified) UpdateEmptyState();", "UpdateEmptyState();",
                     StringComparison.Ordinal)));
         }
 
@@ -903,7 +1215,70 @@ namespace AgentEyes.Tests
             field.EndsWith("::_recent", StringComparison.Ordinal)
             || field.EndsWith("::RecentList", StringComparison.Ordinal);
 
-        /// <summary>Every grouping call made by a method that handles the Library.</summary>
+        /// <summary>
+        /// Every grouping call made by a method that handles the Library - or by anything such a
+        /// method CALLS, transitively, within the assembly. The closure is what catches grouping
+        /// DELEGATED to a helper (issue #2, item 1): the round-3 gate restored real day groups by
+        /// having ApplyLibraryMode hand the Library's view to a helper whose body did the grouping,
+        /// and this scan, then confined to the handler's own body, stayed green. The walk is the
+        /// same instrument the date guard already stands on (CompiledCode.Reachable), and it fails
+        /// closed twice - no handlers found throws, and a seed that stopped existing throws inside
+        /// Reachable itself. Since the issue #2 fix pass the walk also follows VIRTUAL AND
+        /// INTERFACE DISPATCH conservatively: a call that targets an in-assembly interface,
+        /// abstract or virtual method reaches EVERY in-assembly implementation and override of it,
+        /// whether or not that concrete type can flow to the call site - the round-1 gate had
+        /// restored day groups through exactly that seam (an implementation instantiated through an
+        /// interface, Configure(view) called through the interface), with every guard green.
+        ///
+        /// The dispatch fan-out finds implementations a type INHERITS from an in-assembly base
+        /// class (the round-2 review's finding 1 - the InterfaceImpl row on the derived type, the
+        /// body on a base that never names the interface), implementers of interfaces that
+        /// TRANSITIVELY INHERIT the declaring interface (the round-3 gate: IChild : IBase, the
+        /// class names only IChild, the call goes through IBase - each InterfaceImpl row is
+        /// expanded to the interface's full in-assembly inheritance closure), and the walk also
+        /// carries IMPLICIT RUNTIME INVOCATIONS (finding 2): touching any member of a type - a
+        /// call, a construction, or a static field read/write - reaches its static constructor and
+        /// its finalizer, which no call instruction anywhere targets.
+        ///
+        /// The round-3 shape inventory: every dispatch/invocation shape the walk can meet is
+        /// either COVERED with a walk-level regression here (direct, inherited-implementation,
+        /// inherited-declaration, explicit, generic-interface, generic-method, default-interface-
+        /// method, virtual and generic-virtual through base references, delegate creation over
+        /// interface/virtual methods, static abstract members, static constructors/finalizers,
+        /// jmp, and MULTI-STEP dispatch chains - an override of a base implementation reached
+        /// through an interface, with or without a body at the relay, chased to a fixpoint - see
+        /// the TheReachabilityWalk_*/TheDispatchMap_* tests) or stated VERBATIM in the limits
+        /// below. Nothing is silently unhandled: the IL instructions that can name a method token
+        /// are call, callvirt, newobj, jmp, ldftn, ldvirtftn and ldtoken - all collected - and
+        /// calli, which names none and is pinned to zero.
+        ///
+        /// Its limits, stated honestly:
+        /// - the ASSEMBLY BOUNDARY, in both of its forms: a callee whose body lives in another
+        ///   assembly is not walked into, and a dispatch seam DECLARED in another assembly (a BCL
+        ///   or WPF interface or base class, e.g. IObserver&lt;T&gt;.OnNext) has no edge to its
+        ///   in-assembly implementations, because the declaration is not in this assembly's
+        ///   metadata tables;
+        /// - REFLECTION AND OTHER NAME-BASED LOOKUP: a method reached only via reflection is not
+        ///   an edge in the call graph. That includes `dynamic` dispatch (a runtime binder working
+        ///   from strings) and WPF name lookup - a route that reaches the Library's list only
+        ///   through FindName("RecentList") touches no field, so it is not a seed either. (A
+        ///   METHOD HANDLE loaded by IL - ldtoken - IS collected, conservatively; only lookup by
+        ///   string is invisible.)
+        /// - a DELEGATE INVOKED BY CODE THAT DID NOT BUILD IT: building a delegate (ldftn /
+        ///   ldvirtftn) is an edge from the builder to the target, but Invoke on the delegate type
+        ///   connects to nothing, so a target handed in from outside the closure is not followed;
+        /// - RUNTIME-GENERATED CODE (Reflection.Emit, expression compilation) has no IL here to
+        ///   walk (the product contains none - and a calli, the one call shape that names no
+        ///   target, is counted and pinned by CompiledCode.IndirectCalls);
+        /// - COMPILED CODE ONLY: behaviour declared purely in markup (a GroupStyle or
+        ///   GroupDescription in XAML/BAML) never appears as IL - that is the markup guard's
+        ///   territory, scoped to the RecentList element above.
+        /// And it is a REACHED-FROM claim, not proved dataflow, twice over: a helper that a Library
+        /// handler calls but that groups some OTHER feature's view would be reported too, and the
+        /// dispatch fan-out reports every implementation of a called interface, not just the one
+        /// constructed. Both err toward a false alarm rather than a silent pass; the narrowness
+        /// control keeps them honest for grouped views nothing in the Library's call graph touches.
+        /// </summary>
         private static IReadOnlyList<CompiledCode.CallSite> LibraryGroupingIn(string assembly)
         {
             var handlers = new HashSet<string>(
@@ -915,8 +1290,11 @@ namespace AgentEyes.Tests
                     $"No method in {Path.GetFileName(assembly)} touches _recent or RecentList, so this "
                     + "guard would be scanning nothing and passing on absence.");
 
+            var reached = new HashSet<string>(
+                CompiledCode.Reachable(assembly, handlers), StringComparer.Ordinal);
+
             return CompiledCode.CallSites(assembly, IsGroupingApi)
-                .Where(site => handlers.Contains(site.Method))
+                .Where(site => reached.Contains(site.Method))
                 .ToList();
         }
 
@@ -938,6 +1316,24 @@ namespace AgentEyes.Tests
                                || !LineAt(code, site.Index)
                                        .StartsWith("bool moved = ", StringComparison.Ordinal))
                 .Select(site => $"RefreshNaming at offset {site.Index}: {LineAt(code, site.Index)}")
+                .ToList();
+        }
+
+        /// <summary>Every UpdateEmptyState call in the loader that is not the one guarded by
+        /// "the apply raised no collection event". Literal on purpose, like the resort scan.</summary>
+        private static IReadOnlyList<string> UnguardedRetotalsIn(string loadRecent)
+        {
+            var sites = Regex.Matches(loadRecent, @"UpdateEmptyState\(\)");
+            if (sites.Count == 0)
+                throw new InvalidOperationException(
+                    "LoadRecent no longer calls UpdateEmptyState, so this guard would pass by "
+                    + "finding nothing - the loader has to settle the empty state and the total "
+                    + "somewhere.");
+
+            return sites
+                .Where(site => !LineAt(loadRecent, site.Index)
+                    .StartsWith("if (!notified) UpdateEmptyState();", StringComparison.Ordinal))
+                .Select(site => $"UpdateEmptyState at offset {site.Index}: {LineAt(loadRecent, site.Index)}")
                 .ToList();
         }
 
