@@ -369,3 +369,168 @@ instantiations fold onto the open type, and `.cctor`/`Finalize` ride the implici
 **VERIFIED - the gate's defect is fixed and demonstrated, both self-found gaps closed and
 demonstrated, limits honest, narrowness intact, 831/831 green.** Handing to the Review Gate
 (`flow:ready-gate`) per D7 - QA does not merge.
+
+---
+
+# QA ROUND 3 (2026-08-21) - the round-2 gate's REJECT, independently re-verified: FAIL
+
+Verified at PR #26 tip `02150db`, fresh QA context, nothing taken from the handoff on trust.
+All drills below were run by QA in an isolated git worktree at the tip; every mutation was
+reverted and the worktree deleted afterwards.
+
+Verdict: **FAIL - two defects in the round-3 inventory's honesty, both reproducible below.**
+The walk fix itself is sound (the gate's construction is caught, all claimed red-first evidence
+reproduced), but the dispatch-shape inventory - the round-2 gate's specific demand that every
+shape be either regression-covered or a verbatim documented limit - overclaims in two places.
+Recommended next state: `flow:qa-failed`.
+
+## Gate check (run by QA on the tip)
+
+```
+dotnet build AgentEyes.sln -c Release   ->  2 Warning(s), 0 Error(s)
+dotnet test  AgentEyes.sln -c Release   (DOTNET_ROLL_FORWARD=LatestMajor, known machine gotcha)
+Passed!  -  Failed:     0, Passed:   844, Skipped:     0, Total:   844, Duration: 14 s
+```
+
+PASS. (Note: the handoff's "How QA drills round 3" step 4 says "842/842 expected" - a typo for
+844; the handoff's own gate section says 844 and 844 is what runs.)
+
+## Drill 1 - the round-2 gate's construction, planted in the REAL product
+
+Expected: planting IRound3BaseConfigurer / IRound3ChildConfigurer : IRound3BaseConfigurer /
+Round3DrillConfigurer : IRound3ChildConfigurer in MainWindow with ApplyLibraryMode calling
+Configure through the BASE interface makes NoMethodThatHandlesTheLibrary_GroupsIt FAIL,
+naming the implementation. Actual:
+
+```
+Failed AgentEyes.Tests.LibraryFlatListTests.NoMethodThatHandlesTheLibrary_GroupsIt [57 ms]
+AgentEyesApp.dll!AgentEyes.App.MainWindow/Round3DrillConfigurer::Configure -> System.ComponentModel.ICollectionView::get_GroupDescriptions x1
+AgentEyesApp.dll!AgentEyes.App.MainWindow/Round3DrillConfigurer::Configure -> System.Windows.Data.PropertyGroupDescription::.ctor x1
+Failed!  - Failed:     2, Passed:    57, Skipped:     0, Total:    59
+```
+
+The guard FIRES on the inherited-declaration route. (The second failure is
+TheDayGroupMachineryIsGone, the source-side belt catching the planted PropertyGroupDescription
+text - consistent, not spurious.) Reverted; 59/59 green afterwards. PASS.
+
+## Drill 2 - the R2 gap is pinned at WALK level (instrument-side RED, both layers)
+
+Expected per handoff: round-2b walk (git checkout 8fefd79 -- tests/AgentEyes.Tests/CompiledCode.cs)
+fails exactly 5 of 59 LibraryFlatListTests; round-1 walk (09f3cae) fails the 17-test dispatch
+filter 17/17. Actual, both reproduced exactly:
+
+```
+8fefd79 walk:  Failed!  - Failed: 5, Passed: 54, Total: 59
+  TheDispatchMap_TraversesTheInterfaceInheritanceGraph_WithoutCompilerFlattening   <- the R2 gap, non-flattened metadata
+  TheReachabilityWalk_FollowsAJmpInstruction
+  TheReachabilityWalk_ChasesDispatchTransitively_ToADerivedOverride
+  TheReachabilityWalk_ChasesDispatchTransitively_ThroughABodilessRelay
+  TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses
+09f3cae walk:  Failed!  - Failed: 17, Passed: 0, Total: 17
+```
+
+The R2 construction is pinned red-first at walk level by the hand-emitted-metadata regression
+(the C# pin TheReachabilityWalk_FollowsAnInheritedInterfaceDeclaration stays green under the
+round-2b walk exactly as the honesty note says - Roslyn flattening - which QA confirms is stated
+truthfully, tests/AgentEyes.Tests/LibraryFlatListTests.cs:851-857). Walks restored to tip. PASS.
+
+## Drill 3 (QA's chosen covered row) - inventory row 13, and DEFECT 1
+
+Chosen row: 13, "Static constructors and finalizers (implicit runtime invocation, per touched
+type)", claimed covered by TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType
+(tests/AgentEyes.Tests/LibraryFlatListTests.cs:817).
+
+Ablation: deleted ONLY the implicit-member block in Reach()
+(tests/AgentEyes.Tests/CompiledCode.cs:302-307 - the "{type}::.cctor" / "{type}::Finalize"
+enqueue on touching a method). Expected if the row is pinned: at least that regression goes red.
+Actual:
+
+```
+Passed!  -  Failed:     0, Passed:   844, Skipped:     0, Total:   844
+```
+
+The ENTIRE SUITE stays green. The decoy's Touch() reads the static field Rows
+(tests/AgentEyes.Tests/LibraryDefectDecoys.cs:346), so the .cctor is still reached through the
+separate static-field route (CompiledCode.cs:350-352) and the regression pins only that one
+route. What the ablated walk can no longer see - both demonstrated with QA probes compiled into
+the worktree test assembly, red under the ablation, green under the intact tip walk:
+
+* a grouping .cctor of a type touched ONLY by a method call ("static void Poke() { }",
+  no field access): Not found: ...CallOnlyTouchCctor::.cctor
+* a grouping FINALIZER ("~FinalizerGrouper() => ...GroupDescriptions.Add(...)", handler
+  constructs the type): Not found: ...FinalizerGrouper::Finalize
+
+No committed test anywhere pins Finalize (grep over the guard tests and decoys: zero hits),
+and the field-access route cannot reach it - fieldOwners adds only "::.cctor"
+(CompiledCode.cs:350-352). So half of row 13's covered claim is unproven: the row names
+finalizers and the mechanism comment (CompiledCode.cs:293-296) claims all three touch forms,
+but the committed regression can only ever fire on the loss of the field-touch/.cctor form.
+Per method 6c this is a check that fails open on the unpinned half - a future edit deleting
+those six lines ships with 844/844 green and a live .cctor/finalizer blind spot.
+
+## Inventory audit - completeness and honesty (scope item 3), and DEFECT 2
+
+Presence check, all 16 rows: every covered shape names a regression that EXISTS at the tip -
+rows 1-16 map to LibraryFlatListTests.cs lines 554, 783, 801, 860+872, 924, 931, 938, 945, 956,
+963, 971, 979, 817, 902, 993, 1001 respectively. The verbatim limits block exists on
+LibraryGroupingIn (LibraryFlatListTests.cs:1255-1275) and matches the handoff's LIMITS table
+line for line. Red-first evidence for the rows reproduced collectively in Drill 2 (17/17 red
+under the dispatch-blind walk covers rows 2-16; row 1's scan has its own negative control,
+TheHelperTheTransitiveScanCatches_IsInvisibleToADirectScan, line 576). The narrowness controls
+hold: every AssertShapeReached also asserts PanelGroupConfigurer::Configure NOT reached
+(line 844), the grouping scan forbids Grouping::* and PanelGroupConfigurer::* (lines 766-769),
+and the real product passes the guard 844/844 - no false positive on legitimate code.
+
+DEFECT 2 - one call-site shape is absent from BOTH buckets: a VARARG call site. The inventory's
+completeness claim (LibraryFlatListTests.cs:1251-1253, "the IL instructions that can name a
+method token are call, callvirt, newobj, jmp, ldftn, ldvirtftn and ldtoken - all collected -
+and calli, which names none") holds at the COLLECTION layer but not at the RESOLUTION layer:
+a vararg call site names its in-assembly target through a MemberReference whose parent is a
+METHODDEF (ECMA-335 II.22.25), and Callee resolves that parent to null
+(tests/AgentEyes.Tests/CompiledCode.cs:869, "_ => null,   // external TypeSpec, ModuleRef,
+MethodDef (vararg)"), so the edge is silently dropped. QA proof, compiled with this repo's own
+toolchain in the worktree test assembly against the INTACT tip walk:
+
+```csharp
+public static void Handler() => Grouper(__arglist(1));
+public static void Grouper(__arglist) =>
+    CollectionViewSource.GetDefaultView(new object[0]).GroupDescriptions
+        .Add(new PropertyGroupDescription("DayGroup"));
+```
+```
+Failed  TheWalk_FollowsAVarargCallSite_ToTheInAssemblyBody
+Not found:  "AgentEyes.Tests.QaProbe.VarargProbe::Grouper"
+```
+
+The grouping body one ordinary call instruction away from the handler is unreachable to the
+walk, the suite stays green, and varargs appear nowhere in the verbatim limits - only in a code
+comment inside Callee. That is the round-2 gate's REJECT pattern exactly: an undocumented
+construction, "not among the documented limits". C# compiles __arglist today, so this is a
+real, buildable bypass, not a hypothetical ilasm one - and the hand-emitted-probe precedent in
+this very round shows the bar the fix pass itself set.
+
+## Round-1 / round-2 items
+
+git diff --stat 09c78a8..02150db touches only tests/ and docs/cencon/ - no product code, so
+every round-1 criterion (helper-delegation guard, DST comparator no-target disposition,
+once-per-apply total) and the round-2 product drills stand as verified. PASS.
+
+## Verdict (round 3)
+
+FAIL - two defects, both in the verification instrument's coverage honesty, neither in product
+code:
+
+1. Inventory row 13's covered claim is half unproven: no committed test pins the finalizer
+   edge or the method-call/construction touch routes; deleting CompiledCode.cs:302-307 leaves
+   844/844 green while both claimed forms go blind. Fix direction: extend the decoy set with a
+   call-only-touch .cctor pair and a finalizer pair (both QA probe shapes above), red-first
+   against the ablation, or narrow the row and the Reach() comment to what is actually pinned.
+2. Vararg call sites (MemberRef with MethodDef parent) are silently unresolved
+   (CompiledCode.cs:869) - an in-assembly edge shape in NEITHER bucket. Fix direction: resolve
+   the MethodDef-parent MemberReference onto its MethodDef (the parent IS the target), with a
+   red-first regression, or pin vararg call sites to zero the way calli is pinned and add the
+   limit verbatim to the documented limits.
+
+Everything else verified: build clean, 844/844, the round-2 gate's construction caught in the
+real product (Drill 1), the R2 gap pinned red-first at walk level on non-flattened metadata
+(Drill 2), honesty note about Roslyn flattening truthful, narrowness intact, no product drift.
