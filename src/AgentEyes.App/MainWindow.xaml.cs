@@ -218,7 +218,13 @@ namespace AgentEyes.App
             // the user is on another view (the card's own Open-folder action invites it), and the
             // cards must agree with the canonical predicate - and so with the Control API, which
             // re-reads the disk on every request - the moment they are visible again.
-            if (library) _library.RefreshArtifactChips();
+            //
+            // Round 3 (review gate defect 1): the sweep is one File.Exists set PER ROW with no row
+            // cap, so it must never run on this thread - on a large library or slow storage the
+            // rail could not paint until every probe finished. RefreshLibraryChips hands the
+            // probes to a worker; the Library paints immediately with the chips it already has
+            // and the re-derived values are dispatched back when the probes complete.
+            if (library) RefreshLibraryChips();
             if (dictionary) LoadDictionary();
             if (capture)
             {
@@ -226,6 +232,28 @@ namespace AgentEyes.App
                 UpdateCaptureSaveFolderLabel();
                 BuildCaptureMonitorPicker();
                 LoadCaptures();
+            }
+        }
+
+        /// <summary>
+        /// Kicks the Library's artifact-chip re-derivation (issue #4 round 2) without holding up
+        /// the rail paint (round 3, review gate defect 1). LibraryCoherence.RefreshArtifactChipsAsync
+        /// snapshots the rows on this thread without touching the disk, probes on a worker, and
+        /// dispatches the re-derived chip values back here. Fire-and-forget entry point (async
+        /// void, called from Rail_Checked like an event handler), so the try-catch lives here
+        /// (CLAUDE.md rule 4) - and the failure log itself is written from a worker, so even the
+        /// error path appends nothing to disk on the UI thread (round 3, defect 3 shape).
+        /// </summary>
+        private async void RefreshLibraryChips()
+        {
+            try
+            {
+                await _library.RefreshArtifactChipsAsync();
+            }
+            catch (Exception ex)
+            {
+                await Task.Run(() => Log.Error(
+                    "[MainWindow] RefreshLibraryChips FAILED - the cards keep their last chip values", ex));
             }
         }
 
@@ -2416,27 +2444,64 @@ namespace AgentEyes.App
         }
 
         /// <summary>
+        /// What the chip probe found on disk for one card: the canonical transcript classification
+        /// and whether a walkthrough exists. Split from the APPLICATION of these facts (round 3,
+        /// review gate defect 1) so the file probes can run on a worker for every row at once
+        /// while the property writes stay on the UI thread.
+        /// </summary>
+        internal readonly record struct ArtifactChipFacts(TranscriptKind Kind, bool HasWalkthrough);
+
+        /// <summary>
+        /// Everything one card's chip probe needs, captured CHEAPLY (no I/O) on the UI thread so
+        /// <see cref="Run"/> can do the actual File.Exists probes on any thread without reading
+        /// mutable card state.
+        /// </summary>
+        internal readonly struct ChipProbe
+        {
+            private readonly string _dir;
+            private readonly Manifest? _manifest;
+
+            public ChipProbe(string dir, Manifest? manifest) { _dir = dir; _manifest = manifest; }
+
+            /// <summary>The disk probes - two or three File.Exists. Any thread; touches no UI
+            /// state, so slow or unavailable storage stalls only the worker running it.</summary>
+            public ArtifactChipFacts Run() => new(
+                TranscriptStatus.Classify(_dir, _manifest),
+                File.Exists(Path.Combine(_dir, "walkthrough.html")));
+        }
+
+        /// <summary>Captures this card's chip-probe inputs (directory + the manifest it classifies
+        /// with). No I/O - safe on the UI thread for an unbounded number of rows.</summary>
+        public ChipProbe CaptureChipProbe() => new(Dir, _manifest);
+
+        /// <summary>Writes previously probed chip facts onto this card - property sets only, no
+        /// I/O. UI thread in the running app (the values are bound).</summary>
+        public void ApplyArtifactChips(ArtifactChipFacts facts)
+        {
+            TranscriptChipVisibility = facts.Kind == TranscriptKind.Transcribed
+                ? Visibility.Visible : Visibility.Collapsed;
+            FlatTextChipVisibility = facts.Kind == TranscriptKind.FlatTextOnly
+                ? Visibility.Visible : Visibility.Collapsed;
+            WalkthroughChipVisibility = facts.HasWalkthrough
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
         /// Re-derives the artifact chips from the disk using the manifest the card already holds -
         /// the answer to issue #4 round 2 (review gate defect 1): transcript.json can be deleted
         /// or created OUTSIDE the app (the card's own Open-folder action invites exactly that),
         /// and a chip cached at build time left the visible card contradicting the Control API,
         /// which re-reads the disk on every request. The library re-runs this on every card each
-        /// time the Library becomes visible (<see cref="LibraryCoherence.RefreshArtifactChips"/>),
-        /// so the card and the canonical predicate agree whenever the card is shown.
+        /// time the Library becomes visible (<see cref="LibraryCoherence.RefreshArtifactChipsAsync"/>).
         ///
-        /// Cheap by design - two or three File.Exists per card, no manifest re-read, safe on the
-        /// UI thread - and silent per card like the predicate itself (the bulk route logs once).
+        /// SYNCHRONOUS, so its callers are the ones that already run off the UI thread (the
+        /// snapshot worker via <see cref="From"/>) or probe exactly one new row
+        /// (<see cref="LibraryCoherence.Insert"/>, which reads the whole manifest on the same
+        /// path anyway - a pre-existing single-row cost, not the unbounded sweep). The unbounded
+        /// every-row sweep goes through <see cref="CaptureChipProbe"/> /
+        /// <see cref="ApplyArtifactChips"/> on a worker instead (round 3, defect 1).
         /// </summary>
-        public void RefreshArtifactChips()
-        {
-            var kind = TranscriptStatus.Classify(Dir, _manifest);
-            TranscriptChipVisibility = kind == TranscriptKind.Transcribed
-                ? Visibility.Visible : Visibility.Collapsed;
-            FlatTextChipVisibility = kind == TranscriptKind.FlatTextOnly
-                ? Visibility.Visible : Visibility.Collapsed;
-            WalkthroughChipVisibility = File.Exists(Path.Combine(Dir, "walkthrough.html"))
-                ? Visibility.Visible : Visibility.Collapsed;
-        }
+        public void RefreshArtifactChips() => ApplyArtifactChips(CaptureChipProbe().Run());
 
         /// <summary>Re-reads this recording's manifest into this card, in place - packaging just
         /// filled in the generated Title/Description (issue #8), the artifact chips and the cost.

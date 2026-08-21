@@ -356,3 +356,189 @@ No drift: no component-map change, no privacy-posture change, no REST shape chan
 issue #3 coherence guards (rows-field scan, row-write scan, route table) all still pass -
 the new refresh lives inside `RecentItem` + `LibraryCoherence`, exactly where those guards
 require row writes to live.
+
+---
+
+## 8. Round 3 - the review gate's three UI-thread I/O defects, fixed, plus the sweep
+
+The round-2 verdict: three blocking defects, all synchronous I/O on the WPF thread. All
+three are fixed, and every other path this PR touched was then swept for the same class
+(File.*, Directory.*, Log writes in constructors, event handlers and continuations).
+Findings and justifications are in 8.4.
+
+### Defect 1: entering the Library ran unbounded synchronous File.Exists probes on the WPF thread
+
+The round-2 coherence fix itself introduced this: `Rail_Checked -> LibraryCoherence.
+RefreshArtifactChips` probed every row inline, and `LibrarySnapshot` has no row cap, so a
+large library or slow/unavailable storage stalled the rail paint.
+
+Fix - the sweep is off-thread by construction, with the round-2 coherence semantics intact:
+
+- `src/AgentEyes.App/LibraryCoherence.cs` - `RefreshArtifactChipsAsync` (replaces the
+  synchronous method, ~line 445): the owning thread only SNAPSHOTS each row's probe inputs
+  (directory + the manifest reference it classifies with - no I/O), the probes and their
+  log line run inside `Task.Run`, and the awaiter dispatches the results back to the
+  calling context (the WPF dispatcher in the app) where they are applied as plain property
+  writes. Still NO epoch and NO fact update (the round-2 rationale stands); the apply step
+  touches only chip values on row objects that are updated in place, never replaced.
+- `src/AgentEyes.App/MainWindow.xaml.cs` - `Rail_Checked` (~line 227) now fires
+  `RefreshLibraryChips` (~line 245), a fire-and-forget async entry point that awaits the
+  model's sweep; the rail handler itself stays synchronous and paints immediately with the
+  chips the cards already have. Its failure log is written from a worker too.
+- `src/AgentEyes.App/MainWindow.xaml.cs` - `RecentItem` (~line 2430): the probe is split
+  into `CaptureChipProbe` (no I/O, UI thread) / `ChipProbe.Run` (the File.Exists probes,
+  any thread) / `ApplyArtifactChips` (property writes only). The synchronous
+  `RefreshArtifactChips` remains only for the callers that are off the UI thread already
+  (the snapshot worker via `From`) or probe exactly one new row (`Insert`).
+
+Regression tests (tests/AgentEyes.Tests/TranscriptPresenceTests.cs, round-3 section):
+
+- `LibraryChipSweep_ProbesOnAWorkerWhileTheOwningThreadIsFree` - deterministic, via the
+  model's `ChipSweepProbing` seam (same observability reasoning as the model's existing
+  `RepairedDivergences` diagnostic): the test HOLDS the worker at the probe point and
+  asserts the call has already returned to the owning thread, the chips still show their
+  pre-sweep values, and the probing thread differs from the owner; releasing the worker
+  lands the re-derived values (the external-delete direction, same as QA's round-2 drill).
+- `LibraryChipSweep_HandsTheProbesToAWorker` - IL pin: `Task::Run` inside
+  `RefreshArtifactChipsAsync`.
+- `RailNavigation_RefreshesTheLibrarysArtifactChips` - updated to follow both hops:
+  `Rail_Checked -> MainWindow::RefreshLibraryChips` (CallsIn, fail-closed) and
+  `RefreshLibraryChips -> LibraryCoherence::RefreshArtifactChipsAsync` (CallSites). So the
+  sweep is proven off-thread AND still proven to fire on rail navigation.
+- `Library_ShowingTheLibrary_RefreshesEveryRowsChips` - updated to await the async sweep;
+  both divergence directions still covered at the model level.
+
+How QA verifies at runtime:
+
+1. Round-2 divergence drill unchanged: delete/create `transcript.json` externally, leave
+   and re-enter the Library via the rail - the chip re-derives both directions (the
+   coherence semantics were not weakened).
+2. Slow-storage / large-library simulation: the unit seam already proves the stall cannot
+   happen, deterministically. If QA wants a runtime feel for it, generate a few hundred
+   fixture recording folders under `%USERPROFILE%\Videos\AgentEyes\` (manifest + empty
+   media file each, the section-2 fixture recipe in a loop), open the app, and flip rails:
+   the Library must paint instantly (UIA fetch of the list within the usual latency)
+   while the log's "[LibraryCoherence] RefreshArtifactChipsAsync: N row(s) re-derived from
+   disk on a worker" line lands after the paint. A true slow-storage repro (network drive
+   or a deliberately huge directory) is optional; the seam test is the load-bearing proof.
+
+### Defect 2: the detail constructor still read+deserialized manifest.json pre-show
+
+Honest provenance note, as asked: the synchronous constructor-time `Manifest.Load` PREDATES
+this PR - on main it is `try { summaryText = Manifest.Load(item.Dir).Description ?? ""; }
+catch { }` (a swallowed-exception sync read). Round 1 of this PR kept it synchronous (it
+made the failure loud and reused the one read for classification); it did not introduce it.
+It is fixed regardless, because the window's immediate-show claim depends on it.
+
+Fix - `src/AgentEyes.App/RecordingDetailWindow.cs`:
+
+- The constructor now touches NO disk at all: no `Manifest.Load`, no
+  `DevThrottleAccount.IsSignedIn` (that property reads and DECRYPTS the stored credential
+  file - also pre-existing constructor I/O, found by the sweep), no `File.Exists` for the
+  walkthrough button label (the label now reads the card's already-derived walkthrough
+  chip, which the Library re-probes on every show). The summary TextBlock and the sign-in
+  banner are built collapsed; the load shows at most one of them.
+- `LoadDetailsAsync` (~line 260, replaces `LoadTranscriptAsync`) reads the manifest, the
+  account state and the transcript in ONE `Task.Run` body after `Loaded`, then applies
+  values on the UI thread.
+
+Regression tests:
+
+- `DetailWindow_ManifestRead_IsNotInvokedOnConstruction` - `Manifest::Load` present in
+  `LoadDetailsAsync`, absent from the ctor.
+- `DetailWindowConstructor_TouchesNoDiskAndWritesNoLog` - the strict sweep pin: the ctor
+  (including every lambda it wires, which the IL folding attributes back to it) calls no
+  `System.IO.File::*`, no `System.IO.Directory::*`, no `Manifest::Load`, no
+  `get_IsSignedIn`, no `AgentEyes.Log::*`. Any reintroduction fails by name. (The one
+  ctor-lambda that legitimately probed the disk - Open folder's `Directory.Exists` - was
+  extracted to a named `OpenFolder` method so the pin can be this strict; see 8.4.)
+- The two round-2 pins updated to the new method name (`LoadDetailsAsync`).
+
+How QA verifies at runtime: re-run the round-2 large-transcript drill (the 31 MB
+JSON-only fixture) but ALSO make the manifest expensive if desired (a manifest on slow
+storage behaves the same as a large transcript now - both are on the worker). Expected:
+window visible with "Loading transcript..." immediately (round 2 measured 42 ms), UIA
+answers throughout, summary/banner and transcript fill in when the load completes. The
+flat-only caption and Copy behavior are unchanged from round 2.
+
+### Defect 3: the load continuations logged synchronously on the WPF thread
+
+Fix: every log on the load path is written INSIDE the `Task.Run` body, before the UI
+update is dispatched - entry log, manifest-failure log, result log. The catch path logs
+via `await Task.Run(() => Log.Error(...))` before touching the controls. Same for the
+chip sweep (`LibraryCoherence.RefreshArtifactChipsAsync` logs its count line on the
+worker), for the `RefreshLibraryChips` failure log, and for `CommitRename`'s failure log
+(pre-existing, fixed by the sweep) which now also logs from a worker. Enterprise-logging
+coverage is intact - every path still logs entry/result/failure, none of it on the
+paint-critical dispatcher hop.
+
+Regression test: `DetailWindow_Logging_IsConfinedToTheWorkerBackedPaths` - with its limit
+stated plainly: IL folding cannot distinguish a Log call inside a method's `Task.Run`
+lambda from one after its await (both fold to the method), so THAT placement is held by
+code reading and QA's runtime pass; what the pin holds fail-closed is that logging in the
+window stays confined to the two worker-backed paths (`LoadDetailsAsync`, `CommitRename`)
+and that the load path really does log. A Log call added to the ctor or any synchronous
+member fails by name.
+
+How QA verifies at runtime: open details on a fixture; the log carries the
+`LoadDetailsAsync` entry and result lines; the window shows content without waiting on
+them (they are written before the UI update is dispatched, from the worker).
+
+### 8.4 The sweep - every other touched path, fixed or justified
+
+Fixed by the sweep (beyond the three cited defects):
+
+- `RecordingDetailWindow` ctor: `DevThrottleAccount.IsSignedIn` (credential file read +
+  DPAPI decrypt) and the walkthrough-label `File.Exists` - both pre-existing, both moved
+  off the constructor (see defect 2).
+- `RecordingDetailWindow.CommitRename` catch: `Log.Error` on the UI thread after the
+  await - pre-existing; now logs from a worker.
+- `RecordingDetailWindow` Open-folder click lambda: extracted to `OpenFolder()`. Its
+  single `Directory.Exists` stays synchronous - justified below - but the extraction lets
+  the ctor pin ban ALL File/Directory calls from construction.
+
+Justified (left as-is, with reasons):
+
+- `OpenFolder` / `WalkthroughChip_Click` / `TranscriptChip_Click`: one `Directory.Exists`
+  or `File.Exists` on an explicit user CLICK (or none). Single bounded probe, never
+  paint-critical, matching every other click handler in the app; not part of this PR's
+  diff except the extraction above.
+- `RecentItem.From` on the UI thread via `LibraryCoherence.Insert`: pre-existing issue #3
+  design - Insert is the "a recording just appeared, show it NOW" route for exactly ONE
+  row, and `From` reads that row's manifest there today on main. This PR only moved the
+  chip derivation to the end of `From`; the unbounded EVERY-row sweep (the actual defect)
+  is what went off-thread. Reworking Insert's single-row read is issue #3 territory, not
+  a regression of this PR.
+- `LibraryCoherence`'s other `Log.Info` calls (Insert, Rename, Refresh, ApplySnapshot,
+  Delete, ...): pre-existing issue #3 code, not in this PR's diff; one log per user
+  action or per landing snapshot (event-scale, bounded), not a per-row sweep. The one
+  this PR ADDED (the sweep's count line) logs on the worker.
+- `Rail_Checked`'s dictionary/capture branches (`LoadDictionary`, `LoadCaptures`, ...):
+  untouched pre-existing code for OTHER rail destinations, outside this issue's scope and
+  diff.
+- `TranscriptPresentation.For` (file reads + one Log.Info): only caller is
+  `LoadDetailsAsync`'s `Task.Run` body. `RecordingLibrary` / `RestServer`: serve REST on
+  listener threads, never the dispatcher.
+
+### Round-3 gate
+
+- `dotnet build AgentEyes.sln -c Release`: Build succeeded, 0 Errors (same 2 pre-existing
+  xUnit1031 warnings).
+- `dotnet test AgentEyes.sln -c Release`: `Failed: 0, Passed: 855, Skipped: 0, Total: 855`
+  (850 + 5 new round-3 tests; the machine currently lacks the x64 .NET 8 desktop runtime,
+  so the test host needs `DOTNET_ROLL_FORWARD=LatestMajor` - it runs on the installed
+  10.0.x, same quirk as noted in earlier rounds).
+- Mutation drills run and reverted, each failing exactly the intended test(s):
+  (a) `Rail_Checked` refresh unwired -> `RailNavigation_RefreshesTheLibrarysArtifactChips`
+  fails (Failed: 1); (b) sweep probes made inline (Task.Run removed) -> both
+  `LibraryChipSweep_*` tests fail (Failed: 2); (c) a ctor-time `Manifest.Load` re-added ->
+  `DetailWindow_ManifestRead_IsNotInvokedOnConstruction` AND
+  `DetailWindowConstructor_TouchesNoDiskAndWritesNoLog` fail (Failed: 2).
+
+### CenCon impact (round 3)
+
+No drift: no component-map change, no privacy-posture change, no REST shape change. The
+issue #3 coherence guards still pass; the sweep still writes rows only inside
+`RecentItem` + `LibraryCoherence`.
+
+I believe this is finished.

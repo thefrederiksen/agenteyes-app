@@ -35,13 +35,18 @@ namespace AgentEyes.App
         private readonly TextBlock _status;
         private PreviewWindow? _player;
 
-        // The transcript area (issue #4 round 2). The window opens IMMEDIATELY with a loading line
-        // in _transcriptBody; LoadTranscriptAsync reads and deserializes the transcript on a
-        // background thread after Loaded and then only fills values into these three controls -
-        // the visual tree is never restructured after construction.
+        // The async-filled area (issue #4 rounds 2 and 3). The window opens IMMEDIATELY with a
+        // loading line in _transcriptBody; LoadDetailsAsync reads the manifest, the account state
+        // and the transcript on a background thread after Loaded and then only fills values into
+        // these controls - the visual tree is never restructured after construction. The summary
+        // and the sign-in banner are part of the layout from the start, collapsed until the load
+        // says which of them applies, because deciding that needs the manifest (a disk read) and
+        // the credential file (a read + decrypt) - neither is constructor work (round 3).
         private readonly TextBox _transcriptBody;
         private readonly TextBlock _legacyNotice;
         private readonly Button _copyButton;
+        private readonly TextBlock _summary;
+        private readonly Border _aiBanner;
 
         /// <summary>The transcript text the async load produced - what Copy copies.</summary>
         private string _transcriptText = "";
@@ -95,68 +100,56 @@ namespace AgentEyes.App
             root.Children.Add(meta);
 
             // ---- AI state: configured -> summary; not configured -> say so plainly ----
-            // One manifest read serves the summary AND the transcript classification below. A
-            // failure is survivable (the window still opens; classification falls back to the
-            // default artifact names) but never silent.
-            Manifest? manifest = null;
-            try { manifest = Manifest.Load(item.Dir); }
-            catch (Exception ex)
+            // Which of the two applies needs the manifest (a disk read) and the credential file
+            // (a read + decrypt) - so the DECISION belongs to LoadDetailsAsync on its worker
+            // (round 3, review gate defect 2: nothing pre-show may wait on the disk). Both
+            // controls are built collapsed here; the load shows at most one of them.
+            _aiBanner = new Border
             {
-                Log.Error($"[RecordingDetailWindow] ctor: cannot read the manifest for {item.Dir} "
-                    + "- no summary, transcript classified by default artifact names.", ex);
-            }
-            string summaryText = manifest?.Description ?? "";
-            bool aiConfigured = AgentEyes.DevThrottle.DevThrottleAccount.IsSignedIn;
+                Background = Res<Brush>("DkCard"),
+                BorderBrush = Res<Brush>("DkAccent"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(14, 10, 14, 10),
+                Margin = new Thickness(0, 14, 0, 0),
+                Visibility = Visibility.Collapsed,
+            };
+            var bannerRow = new DockPanel();
+            var setup = new Button
+            {
+                Content = "Sign in",
+                Style = Res<Style>("DkPrimary"),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            setup.Click += (_, _) => new SettingsDialog(_cfg) { Owner = this }.ShowDialog();
+            DockPanel.SetDock(setup, Dock.Right);
+            bannerRow.Children.Add(setup);
+            bannerRow.Children.Add(new TextBlock
+            {
+                Text = "AI titles and summaries are off. Sign in to DevThrottle under Settings > Account "
+                    + "and new recordings get named and summarized automatically.",
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 12,
+                Foreground = Res<Brush>("DkText"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 12, 0),
+            });
+            _aiBanner.Child = bannerRow;
+            Grid.SetRow(_aiBanner, 2);
+            root.Children.Add(_aiBanner);
 
-            if (!aiConfigured && summaryText.Length == 0)
+            _summary = new TextBlock
             {
-                var banner = new Border
-                {
-                    Background = Res<Brush>("DkCard"),
-                    BorderBrush = Res<Brush>("DkAccent"),
-                    BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(14, 10, 14, 10),
-                    Margin = new Thickness(0, 14, 0, 0),
-                };
-                var bannerRow = new DockPanel();
-                var setup = new Button
-                {
-                    Content = "Sign in",
-                    Style = Res<Style>("DkPrimary"),
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                setup.Click += (_, _) => new SettingsDialog(_cfg) { Owner = this }.ShowDialog();
-                DockPanel.SetDock(setup, Dock.Right);
-                bannerRow.Children.Add(setup);
-                bannerRow.Children.Add(new TextBlock
-                {
-                    Text = "AI titles and summaries are off. Sign in to DevThrottle under Settings > Account "
-                        + "and new recordings get named and summarized automatically.",
-                    TextWrapping = TextWrapping.Wrap,
-                    FontSize = 12,
-                    Foreground = Res<Brush>("DkText"),
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 12, 0),
-                });
-                Grid.SetRow(banner, 2);
-                banner.Child = bannerRow;
-                root.Children.Add(banner);
-            }
-            else if (summaryText.Length > 0)
-            {
-                var summary = new TextBlock
-                {
-                    Text = summaryText,
-                    TextWrapping = TextWrapping.Wrap,
-                    FontSize = 13,
-                    LineHeight = 20,
-                    Foreground = Res<Brush>("DkText"),
-                    Margin = new Thickness(2, 14, 0, 0),
-                };
-                Grid.SetRow(summary, 3);
-                root.Children.Add(summary);
-            }
+                Text = "",
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 13,
+                LineHeight = 20,
+                Foreground = Res<Brush>("DkText"),
+                Margin = new Thickness(2, 14, 0, 0),
+                Visibility = Visibility.Collapsed,
+            };
+            Grid.SetRow(_summary, 3);
+            root.Children.Add(_summary);
 
             // ---- transcript ----
             var transcriptHost = new Border
@@ -175,7 +168,7 @@ namespace AgentEyes.App
             // Building it reads and deserializes the whole transcript, and doing that on the
             // constructor thread froze the window for the duration of a large JSON-only read -
             // the exact shape CLAUDE.md section 1 forbids. The window opens immediately showing a
-            // loading line; LoadTranscriptAsync (wired to Loaded below) does the read on a
+            // loading line; LoadDetailsAsync (wired to Loaded below) does the read on a
             // background thread and fills these controls in on the UI thread.
             _transcriptBody = new TextBox
             {
@@ -212,8 +205,13 @@ namespace AgentEyes.App
             // ---- actions ----
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
             if (item.MediaPath.Length > 0) actions.Children.Add(Btn("Play", (_, _) => Play()));
+            // The button label used to probe walkthrough.html with File.Exists right here - a
+            // synchronous disk read pre-show (round 3). The card's walkthrough CHIP already
+            // answers the same question from the same probe, re-derived every time the Library
+            // is shown, and this window opens from that card - so the label reads the chip.
             if (item.WalkthroughVisibility == Visibility.Visible)
-                actions.Children.Add(Btn(File.Exists(Path.Combine(item.Dir, "walkthrough.html")) ? "Open walkthrough" : "Build walkthrough",
+                actions.Children.Add(Btn(item.WalkthroughChipVisibility == Visibility.Visible
+                        ? "Open walkthrough" : "Build walkthrough",
                     async (_, _) => { await _rebuildWalkthrough(); }));
             // Copy follows CanCopy, not the transcribed claim - a legacy flat text is still the
             // user's content and must stay copyable (issue #4). The button exists from the start,
@@ -222,11 +220,7 @@ namespace AgentEyes.App
             _copyButton = Btn("Copy transcript", (_, _) => CopyTranscript(_transcriptText));
             _copyButton.Visibility = Visibility.Collapsed;
             actions.Children.Add(_copyButton);
-            actions.Children.Add(Btn("Open folder", (_, _) =>
-            {
-                if (Directory.Exists(item.Dir))
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{item.Dir}\"") { UseShellExecute = true });
-            }));
+            actions.Children.Add(Btn("Open folder", (_, _) => OpenFolder()));
             actions.Children.Add(Btn("Delete", (_, _) => { _delete(); Close(); }));
 
             _status = new TextBlock
@@ -244,30 +238,65 @@ namespace AgentEyes.App
             Content = root;
             Closed += (_, _) => _player?.Close();
 
-            // The transcript loads AFTER the window is visible (CLAUDE.md section 1): show first,
-            // read the disk on a worker, update on the UI thread.
-            Loaded += async (_, _) => await LoadTranscriptAsync(manifest);
+            // Everything that touches the disk loads AFTER the window is visible (CLAUDE.md
+            // section 1): show first, read on a worker, update on the UI thread.
+            Loaded += async (_, _) => await LoadDetailsAsync();
         }
 
         // The former _hasTranscript flag (flat-text LENGTH) is gone (issue #4): the transcript
-        // decisions live in the testable TranscriptPresentation, built by LoadTranscriptAsync on
+        // decisions live in the testable TranscriptPresentation, built by LoadDetailsAsync on
         // a background thread once the window is up (issue #4 round 2).
 
         /// <summary>
-        /// Reads the transcript on a background thread and fills the already-visible window in
-        /// (issue #4 round 2). The synchronous form of this work lived in the constructor and
-        /// blocked the UI thread for the whole read + deserialization of a JSON-only transcript.
-        /// Entry point (wired to Loaded), so the try-catch lives here (CLAUDE.md rule 4): a failed
-        /// read degrades to the empty state, loudly logged - never a frozen or dead window.
+        /// Reads everything the constructor must not - the manifest (summary + transcript
+        /// classification), the account state (banner) and the transcript itself - in ONE
+        /// background pass, then fills the already-visible window in (issue #4 rounds 2 and 3).
+        /// The manifest read predates this line of work but sat synchronously pre-show, so the
+        /// immediate-show claim was not real on slow storage (round 3, review gate defect 2).
+        /// Every log on this path is written INSIDE the worker body, before the UI update is
+        /// dispatched, so the paint-critical dispatcher hop appends nothing to disk (round 3,
+        /// defect 3) - full enterprise-logging coverage, off the UI thread. Entry point (wired to
+        /// Loaded), so the try-catch lives here (CLAUDE.md rule 4): a failed load degrades to the
+        /// empty state, loudly logged from a worker - never a frozen or dead window.
         /// </summary>
-        private async Task LoadTranscriptAsync(Manifest? manifest)
+        private async Task LoadDetailsAsync()
         {
             try
             {
-                Log.Info($"[RecordingDetailWindow] LoadTranscriptAsync: dir={_item.Dir}");
-                var presentation = await Task.Run(() => TranscriptPresentation.For(_item.Dir, manifest));
+                var loaded = await Task.Run(() =>
+                {
+                    Log.Info($"[RecordingDetailWindow] LoadDetailsAsync: dir={_item.Dir}");
 
-                // Back on the UI thread (the awaiter marshals here): apply values only.
+                    // A manifest failure is survivable (no summary; classification falls back to
+                    // the default artifact names) but never silent.
+                    Manifest? manifest = null;
+                    try { manifest = Manifest.Load(_item.Dir); }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[RecordingDetailWindow] LoadDetailsAsync: cannot read the manifest "
+                            + $"for {_item.Dir} - no summary, transcript classified by default artifact names.", ex);
+                    }
+
+                    var presentation = TranscriptPresentation.For(_item.Dir, manifest);
+                    // IsSignedIn reads and decrypts the stored credential - worker territory too.
+                    bool aiConfigured = AgentEyes.DevThrottle.DevThrottleAccount.IsSignedIn;
+                    Log.Info($"[RecordingDetailWindow] LoadDetailsAsync: dir={_item.Dir} "
+                        + $"kind={presentation.Kind} chars={presentation.Text.Length} aiConfigured={aiConfigured}");
+                    return (Summary: manifest?.Description ?? "", Presentation: presentation, AiConfigured: aiConfigured);
+                });
+
+                // Back on the UI thread (the awaiter marshals here): apply values only - no disk
+                // reads, no log writes (round 3, defect 3).
+                if (loaded.Summary.Length > 0)
+                {
+                    _summary.Text = loaded.Summary;
+                    _summary.Visibility = Visibility.Visible;
+                }
+                else if (!loaded.AiConfigured)
+                {
+                    _aiBanner.Visibility = Visibility.Visible;
+                }
+                var presentation = loaded.Presentation;
                 _transcriptText = presentation.Text;
                 _transcriptBody.Text = presentation.Text.Length > 0 ? presentation.Text
                     : (_item.Status.Length > 0 ? "Transcribing..." : "No transcript for this recording.");
@@ -279,16 +308,30 @@ namespace AgentEyes.App
                     _legacyNotice.Visibility = Visibility.Visible;
                 }
                 _copyButton.Visibility = presentation.CanCopy ? Visibility.Visible : Visibility.Collapsed;
-                Log.Info($"[RecordingDetailWindow] LoadTranscriptAsync: dir={_item.Dir} "
-                    + $"kind={presentation.Kind} chars={presentation.Text.Length}");
             }
             catch (Exception ex)
             {
-                Log.Error($"[RecordingDetailWindow] LoadTranscriptAsync FAILED for {_item.Dir}", ex);
+                // Logged from a worker as well: the window shows its degraded state without first
+                // waiting on a disk append (round 3, defect 3).
+                await Task.Run(() => Log.Error($"[RecordingDetailWindow] LoadDetailsAsync FAILED for {_item.Dir}", ex));
                 _transcriptText = "";
                 _transcriptBody.Text = "No transcript for this recording.";
                 _transcriptBody.Foreground = Res<Brush>("DkDim");
             }
+        }
+
+        /// <summary>Opens the recording folder in Explorer. A click handler's single
+        /// Directory.Exists probe (user-initiated, never paint-critical) - and a missing folder
+        /// says so instead of silently doing nothing.</summary>
+        private void OpenFolder()
+        {
+            if (!Directory.Exists(_item.Dir))
+            {
+                _status.Text = "Recording folder not found.";
+                return;
+            }
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                "explorer.exe", $"\"{_item.Dir}\"") { UseShellExecute = true });
         }
 
         private Button Btn(string text, RoutedEventHandler onClick)
@@ -334,7 +377,9 @@ namespace AgentEyes.App
             }
             catch (Exception ex)
             {
-                Log.Error($"[RecordingDetailWindow] CommitRename FAILED: dir={_item.Dir}", ex);
+                // Log from a worker (round 3 sweep): the error line must show without the UI
+                // thread first taking the log lock and appending to disk.
+                await Task.Run(() => Log.Error($"[RecordingDetailWindow] CommitRename FAILED: dir={_item.Dir}", ex));
                 _status.Text = "Rename error: " + ex.Message;
             }
         }

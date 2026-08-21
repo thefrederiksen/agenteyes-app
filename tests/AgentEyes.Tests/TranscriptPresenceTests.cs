@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using Xunit;
 using AgentEyes;
@@ -382,24 +384,26 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Library_ShowingTheLibrary_RefreshesEveryRowsChips()
+        public async Task Library_ShowingTheLibrary_RefreshesEveryRowsChips()
         {
             // The model route rail navigation drives: every visible row is re-derived at once.
+            // The rows the fixture captured stay the rows the sweep updates - rows are updated in
+            // place, never replaced - so asserting on Find's answers after the await is exact.
             string done = TranscribedRecording("model_done");
             string flat = FlatTextOnlyRecording("model_flat");
 
             var library = new LibraryCoherence();
             library.ApplySnapshot(library.BeginSnapshot(),
                 new List<RecentItem> { RecentItem.From(done), RecentItem.From(flat) });
-
-            File.Delete(Path.Combine(done, "transcript.json"));
-            File.WriteAllText(Path.Combine(flat, "transcript.json"), "[]");
-            library.RefreshArtifactChips();
-
             var doneRow = library.Find(done);
             var flatRow = library.Find(flat);
             Assert.NotNull(doneRow);
             Assert.NotNull(flatRow);
+
+            File.Delete(Path.Combine(done, "transcript.json"));
+            File.WriteAllText(Path.Combine(flat, "transcript.json"), "[]");
+            await library.RefreshArtifactChipsAsync();
+
             Assert.Equal(Visibility.Collapsed, doneRow!.TranscriptChipVisibility);
             Assert.Equal(Visibility.Visible, doneRow.FlatTextChipVisibility);
             Assert.Equal(Visibility.Visible, flatRow!.TranscriptChipVisibility);
@@ -407,18 +411,25 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>
-        /// The wiring pin, read from IL: showing the Library (Rail_Checked) re-derives the chips
-        /// through the model. Without this, the three behavioral tests above could stay green
-        /// while nothing in the app ever called the refresh. CallsIn is fail-closed - a renamed
-        /// Rail_Checked or RefreshArtifactChips throws here rather than certifying nothing.
+        /// The wiring pin, read from IL: showing the Library (Rail_Checked) re-derives the chips.
+        /// Round 3 split the wiring in two so Rail_Checked stays synchronous - it fires
+        /// MainWindow.RefreshLibraryChips (the async void entry point), which awaits the model's
+        /// worker-side sweep - so the pin follows both hops. Without it, the behavioral tests
+        /// above could stay green while nothing in the app ever called the refresh. CallsIn is
+        /// fail-closed - a renamed Rail_Checked or RefreshLibraryChips throws here rather than
+        /// certifying nothing - and the CallSites leg fails closed by the Contains asserts.
         /// </summary>
         [Fact]
         public void RailNavigation_RefreshesTheLibrarysArtifactChips()
         {
             var calls = CompiledCode.CallsIn(CompiledCode.AppAssembly,
                 "AgentEyes.App.MainWindow::Rail_Checked");
+            Assert.Contains("AgentEyes.App.MainWindow::RefreshLibraryChips", calls);
 
-            Assert.Contains("AgentEyes.App.LibraryCoherence::RefreshArtifactChips", calls);
+            var sweepCalls = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                callee => callee == "AgentEyes.App.LibraryCoherence::RefreshArtifactChipsAsync");
+            Assert.Contains(sweepCalls,
+                site => site.Method == "AgentEyes.App.MainWindow::RefreshLibraryChips");
         }
 
         // ---- round 2, review gate defect 2: the detail window loads async ----
@@ -440,7 +451,7 @@ namespace AgentEyes.Tests
             // Fail closed: the loader must still be reachable from the detail window at all - a
             // deleted feature must not read as a fixed defect.
             Assert.Contains(forCalls,
-                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadTranscriptAsync");
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync");
 
             // The defect: the constructor (or any of its lambdas) building the presentation.
             Assert.DoesNotContain(forCalls,
@@ -450,15 +461,167 @@ namespace AgentEyes.Tests
         [Fact]
         public void DetailWindow_TranscriptLoad_RunsOnABackgroundThread()
         {
-            // LoadTranscriptAsync must hand the read to a worker (Task.Run), not merely be async:
+            // LoadDetailsAsync must hand the read to a worker (Task.Run), not merely be async:
             // an async method that called TranscriptPresentation.For inline would still do the
             // whole read + deserialization on the UI thread.
             var taskRuns = CompiledCode.CallSites(CompiledCode.AppAssembly,
                     callee => callee == "System.Threading.Tasks.Task::Run")
-                .Where(site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadTranscriptAsync")
+                .Where(site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync")
                 .ToList();
 
             Assert.NotEmpty(taskRuns);
+        }
+
+        // ---- round 3, review gate defect 1: the chip sweep leaves the UI thread free ----
+        //
+        // The round-2 fix re-derived every row's chips synchronously from Rail_Checked, which
+        // made showing the Library wait on an UNBOUNDED number of File.Exists probes (one set per
+        // row, no row cap) - a large library or slow storage stalled the paint. The fix: the
+        // owning thread only snapshots the probe inputs; the probes run inside Task.Run and the
+        // results are dispatched back. These tests prove both halves: the sweep still fires on
+        // rail navigation (the wiring pin above) and it can no longer stall the owning thread.
+
+        /// <summary>
+        /// Deterministic off-thread proof, via the model's ChipSweepProbing seam: the test HOLDS
+        /// the sweep's worker at the point the probes would run and observes that (a) the call
+        /// into RefreshArtifactChipsAsync has already returned to the owning thread, (b) the
+        /// chips still show their pre-sweep values (the Library painted with what it had), and
+        /// (c) the probing is on a DIFFERENT thread than the owner. Then it releases the worker
+        /// and sees the re-derived values land. A regression that moves the probes back onto the
+        /// calling thread deadlocks into the gate's timeout and fails on IsCompleted.
+        /// </summary>
+        [Fact]
+        public async Task LibraryChipSweep_ProbesOnAWorkerWhileTheOwningThreadIsFree()
+        {
+            string done = TranscribedRecording("sweep_held");
+            var library = new LibraryCoherence();
+            library.ApplySnapshot(library.BeginSnapshot(),
+                new List<RecentItem> { RecentItem.From(done) });
+            var row = library.Find(done);
+            Assert.NotNull(row);
+            Assert.Equal(Visibility.Visible, row!.TranscriptChipVisibility);
+
+            File.Delete(Path.Combine(done, "transcript.json"));
+
+            int owningThread = Environment.CurrentManagedThreadId;
+            int probeThread = 0;
+            using var probesHeld = new ManualResetEventSlim(false);
+            using var release = new ManualResetEventSlim(false);
+            library.ChipSweepProbing = () =>
+            {
+                probeThread = Environment.CurrentManagedThreadId;
+                probesHeld.Set();
+                release.Wait(TimeSpan.FromSeconds(30));
+            };
+
+            Task sweep = library.RefreshArtifactChipsAsync();
+
+            // The worker is holding, so the owning thread is HERE, free, with the sweep pending
+            // and the chips untouched - exactly what "the rail paints immediately" means.
+            Assert.True(probesHeld.Wait(TimeSpan.FromSeconds(30)), "the probe body never started");
+            Assert.False(sweep.IsCompleted);
+            Assert.Equal(Visibility.Visible, row.TranscriptChipVisibility);
+            Assert.NotEqual(owningThread, probeThread);
+
+            release.Set();
+            await sweep;
+
+            // The dispatched continuation applied the re-derived facts: the external delete is
+            // now visible, same coherence semantics QA verified in round 2.
+            Assert.Equal(Visibility.Collapsed, row.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Visible, row.FlatTextChipVisibility);
+        }
+
+        /// <summary>The structural half, read from IL like the detail-window pin: the model's
+        /// sweep hands its probes to Task.Run rather than merely being async.</summary>
+        [Fact]
+        public void LibraryChipSweep_HandsTheProbesToAWorker()
+        {
+            var taskRuns = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                    callee => callee == "System.Threading.Tasks.Task::Run")
+                .Where(site => site.Method == "AgentEyes.App.LibraryCoherence::RefreshArtifactChipsAsync")
+                .ToList();
+
+            Assert.NotEmpty(taskRuns);
+        }
+
+        // ---- round 3, review gate defects 2 and 3: nothing pre-show touches the disk ----
+        //
+        // Defect 2: the detail constructor still read+deserialized manifest.json synchronously
+        // before the window could show (a read that PREDATES this issue's work, fixed because
+        // the immediate-show claim depends on its absence). Defect 3: the load continuations
+        // wrote Log lines (a process-wide lock + a disk append) on the WPF thread before content
+        // or error showed. Both are pinned structurally: the window needs a WPF Application to
+        // construct, and the CompiledCode folding attributes a lambda's (and an async state
+        // machine's) calls to the method a human wrote.
+
+        /// <summary>The manifest read lives in the background load, and only there.</summary>
+        [Fact]
+        public void DetailWindow_ManifestRead_IsNotInvokedOnConstruction()
+        {
+            var loads = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                callee => callee == "AgentEyes.Manifest::Load");
+
+            // Fail closed: the detail window must still read the manifest somewhere.
+            Assert.Contains(loads,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync");
+            Assert.DoesNotContain(loads,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::.ctor");
+        }
+
+        /// <summary>
+        /// The constructor - INCLUDING every lambda it wires, which fold back into it - performs
+        /// no file I/O, no credential read, and no log append. This is the round-3 sweep pin: the
+        /// window's immediate-show claim holds only while construction touches nothing slower
+        /// than memory, so any File/Directory probe, Manifest.Load, IsSignedIn (a credential file
+        /// read + decrypt) or Log write reintroduced there fails this test by name.
+        /// </summary>
+        [Fact]
+        public void DetailWindowConstructor_TouchesNoDiskAndWritesNoLog()
+        {
+            // Fail closed: the scan must actually see the constructor.
+            Assert.Contains("AgentEyes.App.RecordingDetailWindow::.ctor",
+                CompiledCode.MethodNames(CompiledCode.AppAssembly));
+
+            var offenders = CompiledCode.CallSites(CompiledCode.AppAssembly, callee =>
+                    callee.StartsWith("System.IO.File::", StringComparison.Ordinal)
+                    || callee.StartsWith("System.IO.Directory::", StringComparison.Ordinal)
+                    || callee == "AgentEyes.Manifest::Load"
+                    || callee == "AgentEyes.DevThrottle.DevThrottleAccount::get_IsSignedIn"
+                    || callee.StartsWith("AgentEyes.Log::", StringComparison.Ordinal))
+                .Where(site => site.Method == "AgentEyes.App.RecordingDetailWindow::.ctor")
+                .ToList();
+
+            Assert.Empty(offenders);
+        }
+
+        /// <summary>
+        /// Defect 3 support pin, with its limit stated plainly: the CompiledCode folding puts a
+        /// Task.Run lambda's calls back onto the method that declares it, so IL alone cannot tell
+        /// a Log call INSIDE LoadDetailsAsync's worker body from one on its dispatcher hop - that
+        /// placement is held by reading the method and by QA's runtime verification. What the
+        /// scan CAN hold, fail-closed: logging in this window stays confined to the two async
+        /// paths whose worker bodies own it (LoadDetailsAsync, CommitRename), and the load path
+        /// really does log (enterprise-logging coverage is presence, not silence). A Log call
+        /// added to the constructor, Play, OpenFolder, CopyTranscript or any new synchronous
+        /// member fails here by name.
+        /// </summary>
+        [Fact]
+        public void DetailWindow_Logging_IsConfinedToTheWorkerBackedPaths()
+        {
+            var logCalls = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                    callee => callee.StartsWith("AgentEyes.Log::", StringComparison.Ordinal))
+                .Where(site => site.Method.StartsWith("AgentEyes.App.RecordingDetailWindow::", StringComparison.Ordinal))
+                .ToList();
+
+            // Coverage: the load path still logs (entry, result, and both failure shapes).
+            Assert.Contains(logCalls,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync");
+
+            Assert.All(logCalls, site => Assert.True(
+                site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync"
+                || site.Method == "AgentEyes.App.RecordingDetailWindow::CommitRename",
+                $"unexpected Log call from {site.Method}"));
         }
     }
 }
