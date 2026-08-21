@@ -120,6 +120,20 @@ namespace AgentEyes.Tests.LibraryDefects
         /// <summary>Handles the Library and does NOT group it - the guard must stay quiet about a
         /// method merely because it touches the collection.</summary>
         public int Count() => _recent.Count;
+
+        /// <summary>
+        /// The round-3 gate's attack, in its exact shape (issue #2, item 1): the mode application
+        /// groups NOTHING itself - it hands the Library's view to a helper, and only the helper
+        /// groups it. The one-body scan this repository shipped reported no offender against this,
+        /// while real day groups rendered on the real Library.
+        /// </summary>
+        public void ApplyLibraryModeThroughAHelper() =>
+            ConfigureLibraryView(CollectionViewSource.GetDefaultView(_recent));
+
+        /// <summary>The helper nobody named: it takes the view as an argument and never touches a
+        /// Library field, so only following the call from its caller finds it.</summary>
+        private static void ConfigureLibraryView(ICollectionView view) =>
+            view.GroupDescriptions.Add(new PropertyGroupDescription("Title"));
     }
 
     /// <summary>

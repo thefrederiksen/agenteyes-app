@@ -687,8 +687,11 @@ namespace AgentEyes.Tests
         /// (the constructor only). ApplyLibraryMode, a Loaded handler, or any other helper that
         /// handles the Library is covered.
         ///
-        /// Its limit, stated: a helper that receives the Library's view as an ARGUMENT and groups it,
-        /// while never naming the Library's own fields, is not seen by this scan.
+        /// Since issue #2 the scan also FOLLOWS THE CALLS such a method makes, transitively within
+        /// the assembly - the round-3 gate proved the old one-body scan blind to grouping delegated
+        /// to a helper that takes the view as an argument and never names a Library field. The
+        /// remaining limits are stated on <see cref="LibraryGroupingIn"/>: the assembly boundary,
+        /// and routes reached only through reflection or a stored delegate.
         /// </summary>
         [Fact]
         public void NoMethodThatHandlesTheLibrary_GroupsIt()
@@ -703,9 +706,11 @@ namespace AgentEyes.Tests
         /// <summary>
         /// The negative control, and the NARROWNESS control in the same test. The scan must report
         /// grouping added by a method that handles the Library - outside the constructor, through the
-        /// items control and through ICollectionView - and must stay silent about grouping that has
-        /// nothing to do with the Library, which is the false alarm that would eventually get this
-        /// guard deleted.
+        /// items control, through ICollectionView, and (issue #2, item 1) DELEGATED to a helper that
+        /// takes the view as an argument and never names a Library field, which is the exact shape
+        /// the round-3 gate used to restore real day groups with every guard green. And it must stay
+        /// silent about grouping that has nothing to do with the Library, which is the false alarm
+        /// that would eventually get this guard deleted.
         /// </summary>
         [Fact]
         public void TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses()
@@ -716,6 +721,7 @@ namespace AgentEyes.Tests
                      {
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryMode",
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::OnLoaded",
+                         "AgentEyes.Tests.LibraryDefects.LibraryWindow::ConfigureLibraryView",
                      })
                 Assert.True(reported.Any(site => site.Method == route),
                     $"The grouping scan does not report the compiled grouping in '{route}':"
@@ -765,6 +771,41 @@ namespace AgentEyes.Tests
 
             Assert.NotEmpty(RefreshNamingCallSitesThatIgnoreTheResort(
                 code.Replace("bool moved = row.RefreshNaming();", "row.RefreshNaming();",
+                    StringComparison.Ordinal)));
+        }
+
+        /// <summary>
+        /// One apply, ONE total (issue #2, item 3). A reload's apply settles as one coalesced
+        /// collection event, and the constructor's CollectionChanged handler re-totals the AI spend
+        /// on it - so the loader itself may re-total ONLY when the apply raised no event at all
+        /// (values adopted into existing rows change the total without one). This is a literal
+        /// source match on that one guarded call, the same instrument as the resort guard above,
+        /// and it claims no more: it cannot see a second total added through another handler or
+        /// another method, and the fail-closed extraction below stops it certifying a loader that
+        /// no longer settles the empty state and the total anywhere.
+        /// </summary>
+        [Fact]
+        public void TheLoader_RetotalsTheLibrary_OnlyWhenTheApplyRaisedNoEvent()
+        {
+            var offenders = UnguardedRetotalsIn(
+                RepoSource.MethodBody(RepoSource.Read(CodeBehind), "private async void LoadRecent()"));
+
+            Assert.True(offenders.Count == 0,
+                "LoadRecent re-totals the Library unconditionally, so a changing reload walks the "
+                + "collection twice per apply - once from the CollectionChanged handler and once "
+                + "here - despite the coalesced Reset existing to make it once (issue #2):"
+                + Environment.NewLine + string.Join(Environment.NewLine, offenders));
+        }
+
+        /// <summary>The negative control: an unconditional UpdateEmptyState() in the loader is
+        /// reported.</summary>
+        [Fact]
+        public void TheOnceGuard_ReportsAnUnconditionalRetotal()
+        {
+            string body = RepoSource.MethodBody(RepoSource.Read(CodeBehind), "private async void LoadRecent()");
+
+            Assert.NotEmpty(UnguardedRetotalsIn(
+                body.Replace("if (!notified) UpdateEmptyState();", "UpdateEmptyState();",
                     StringComparison.Ordinal)));
         }
 
@@ -903,7 +944,23 @@ namespace AgentEyes.Tests
             field.EndsWith("::_recent", StringComparison.Ordinal)
             || field.EndsWith("::RecentList", StringComparison.Ordinal);
 
-        /// <summary>Every grouping call made by a method that handles the Library.</summary>
+        /// <summary>
+        /// Every grouping call made by a method that handles the Library - or by anything such a
+        /// method CALLS, transitively, within the assembly. The closure is what catches grouping
+        /// DELEGATED to a helper (issue #2, item 1): the round-3 gate restored real day groups by
+        /// having ApplyLibraryMode hand the Library's view to a helper whose body did the grouping,
+        /// and this scan, then confined to the handler's own body, stayed green. The walk is the
+        /// same instrument the date guard already stands on (CompiledCode.Reachable), and it fails
+        /// closed twice - no handlers found throws, and a seed that stopped existing throws inside
+        /// Reachable itself.
+        ///
+        /// Its limits, stated: reachability stops at the assembly boundary, and a method reached
+        /// only through reflection or a stored delegate is not an edge in the call graph. And it is
+        /// a REACHED-FROM claim, not proved dataflow: a helper that a Library handler calls but
+        /// that groups some OTHER feature's view would be reported too. That direction errs toward
+        /// a false alarm rather than a silent pass; the narrowness control keeps it honest for
+        /// grouped views nothing in the Library's call graph touches.
+        /// </summary>
         private static IReadOnlyList<CompiledCode.CallSite> LibraryGroupingIn(string assembly)
         {
             var handlers = new HashSet<string>(
@@ -915,8 +972,11 @@ namespace AgentEyes.Tests
                     $"No method in {Path.GetFileName(assembly)} touches _recent or RecentList, so this "
                     + "guard would be scanning nothing and passing on absence.");
 
+            var reached = new HashSet<string>(
+                CompiledCode.Reachable(assembly, handlers), StringComparer.Ordinal);
+
             return CompiledCode.CallSites(assembly, IsGroupingApi)
-                .Where(site => handlers.Contains(site.Method))
+                .Where(site => reached.Contains(site.Method))
                 .ToList();
         }
 
@@ -938,6 +998,24 @@ namespace AgentEyes.Tests
                                || !LineAt(code, site.Index)
                                        .StartsWith("bool moved = ", StringComparison.Ordinal))
                 .Select(site => $"RefreshNaming at offset {site.Index}: {LineAt(code, site.Index)}")
+                .ToList();
+        }
+
+        /// <summary>Every UpdateEmptyState call in the loader that is not the one guarded by
+        /// "the apply raised no collection event". Literal on purpose, like the resort scan.</summary>
+        private static IReadOnlyList<string> UnguardedRetotalsIn(string loadRecent)
+        {
+            var sites = Regex.Matches(loadRecent, @"UpdateEmptyState\(\)");
+            if (sites.Count == 0)
+                throw new InvalidOperationException(
+                    "LoadRecent no longer calls UpdateEmptyState, so this guard would pass by "
+                    + "finding nothing - the loader has to settle the empty state and the total "
+                    + "somewhere.");
+
+            return sites
+                .Where(site => !LineAt(loadRecent, site.Index)
+                    .StartsWith("if (!notified) UpdateEmptyState();", StringComparison.Ordinal))
+                .Select(site => $"UpdateEmptyState at offset {site.Index}: {LineAt(loadRecent, site.Index)}")
                 .ToList();
         }
 

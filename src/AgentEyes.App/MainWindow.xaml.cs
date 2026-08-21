@@ -1379,6 +1379,20 @@ namespace AgentEyes.App
             // reached exactly that (finding N9). Merging cannot throw on a diverged model any more -
             // it repairs and logs - but the catch is here so that no future throw on this path can
             // ever be fatal.
+            //
+            // The total really is computed ONCE per apply (issue #2, item 3). An apply that
+            // changes the rows settles as ONE coalesced collection event (RecentItemCollection
+            // holds the scope's notifications and re-raises them as a single Reset), and the
+            // constructor's CollectionChanged handler re-totals on it - so an unconditional
+            // UpdateEmptyState here was a SECOND full walk of the library per reload, despite the
+            // coalescing existing precisely to make it one. The probe watches for that event; only
+            // an apply that raised NOTHING still needs the explicit pass, because a reload can
+            // adopt fresh values into EXISTING rows - a repaired recording's AI cost, say - which
+            // changes the total without any collection event at all.
+            bool notified = false;
+            System.Collections.Specialized.NotifyCollectionChangedEventHandler probe =
+                (_, _) => notified = true;
+            _library.Rows.CollectionChanged += probe;
             try
             {
                 _library.ApplySnapshot(epoch, items);
@@ -1388,7 +1402,11 @@ namespace AgentEyes.App
                 Log.Error($"[MainWindow] LoadRecent FAILED to merge snapshot epoch={epoch}", ex);
                 StatusText.Text = "Library refresh error (logged): " + ex.Message;
             }
-            UpdateEmptyState();
+            finally
+            {
+                _library.Rows.CollectionChanged -= probe;
+            }
+            if (!notified) UpdateEmptyState();
 
             // Issue #142: loading the list no longer generates thumbnails. The old backfill here
             // (issue #19) called Thumbnails.Ensure without counting the attempt, so a recording
