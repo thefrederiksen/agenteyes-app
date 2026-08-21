@@ -3,9 +3,10 @@
 **Issue:** [App] The desktop Library claims a recording is transcribed when only legacy flat
 text exists
 **Branch:** `issue-4-library-transcribed-claim`
-**Status:** I believe this is finished. Build clean, `dotnet test` Failed: 0 (843 passed,
-17 of them new in `TranscriptPresenceTests`). A self-review pass (code-review on the diff)
-ran before handoff; what it found and what was done about each finding is section 6.
+**Status (round 2):** I believe this is finished. The review gate's two round-1 blocking
+defects are fixed - see section 7 for what changed and how QA verifies each at runtime.
+Build clean, `dotnet test` Failed: 0 (850 passed; 24 issue-#4 tests in
+`TranscriptPresenceTests`, 7 of them new in round 2). Round-1 context below is unchanged.
 
 ---
 
@@ -235,3 +236,123 @@ Reviewed and deliberately NOT changed:
   comment on `RecordingLibrary.HasTranscript` states this boundary.
 - A corrupt transcript.json still classifies as Transcribed: existence vs parsed
   completion is #15 by the issue's own OUT list; the failure now at least logs (item 3).
+
+---
+
+## 7. Round 2 - the review gate's two blocking defects, fixed
+
+### Defect 1: cached card chips diverged from the canonical predicate after external changes
+
+The chips were computed once when the card was BUILT (`RecentItem.From`) and never again, so
+deleting or creating `transcript.json` outside the app (the card's own "Open folder" action
+invites exactly that) left the visible card contradicting `GET /recordings`, which re-reads
+the disk on every request, until some unrelated reload.
+
+What changed:
+
+| File | Change |
+|------|--------|
+| `src/AgentEyes.App/MainWindow.xaml.cs` (`RecentItem`) | New `RefreshArtifactChips()`: re-derives the Transcript / Text file / Walkthrough chips from disk through the canonical `TranscriptStatus.Classify`. `From` now routes its build-time chip computation through the same method (one copy of the rule), and the card keeps the manifest it was built from (`_manifest`, carried across reloads by `AdoptFrom`) so the refresh honors a manifest-NAMED artifact name with only File.Exists checks - no manifest re-read per card on the UI thread. |
+| `src/AgentEyes.App/LibraryCoherence.cs` | New `RefreshArtifactChips()`: runs the card refresh on every row, logs once. Deliberately claims NO epoch and updates NO fact: chips are re-derived from disk on every refresh and every reload, so epoch ordering adds nothing - and stamping rows Present at a fresh epoch would wrongly outrank an in-flight snapshot's honest report of a recording deleted from disk. Membership and ordering untouched, so the issue #3 model is not disturbed. |
+| `src/AgentEyes.App/MainWindow.xaml.cs` (`Rail_Checked`) | Showing the Library (rail navigation) now calls `_library.RefreshArtifactChips()`, so the cards agree with the predicate - and therefore with REST - whenever they are (re)shown. Cost: two or three File.Exists per card, per the gate's own sizing. |
+
+Round-2 tests (`TranscriptPresenceTests`, "round 2" sections):
+
+- `LibraryCard_TranscriptDeletedExternally_RefreshAgreesWithThePredicate` - build a
+  transcribed card, delete transcript.json, refresh -> Transcript chip gone, Text file chip on.
+- `LibraryCard_TranscriptAppearedExternally_RefreshAgreesWithThePredicate` - the inverse.
+- `LibraryCard_ManifestNamedArtifact_RefreshStillHonorsTheManifestName` - the cached-manifest
+  mechanism, on a non-default artifact name.
+- `Library_ShowingTheLibrary_RefreshesEveryRowsChips` - the model route over several rows.
+- `RailNavigation_RefreshesTheLibrarysArtifactChips` - the WIRING pin, read from IL
+  (fail-closed `CompiledCode.CallsIn`): `Rail_Checked` must call
+  `LibraryCoherence::RefreshArtifactChips`. Unwiring the navigation refresh fails this test
+  (mutation drill run: it does).
+
+QA runtime verification - the external-delete divergence drill:
+
+1. Start the app; build/keep a transcribed fixture (default `transcript.json` +
+   `transcript.txt`, recipe in the criterion-4 section above). The Library card shows the
+   "Transcript" chip; `GET http://127.0.0.1:7882/recordings` row has `hasTranscript=true`.
+2. Delete that recording's `transcript.json` on disk (do it via the card's "Open folder"
+   action if you want the exact gate scenario).
+3. `GET /recordings` immediately reports `hasTranscript=false, hasFlatTranscript=true`.
+4. Navigate the rail away (Record) and back (Library) - UIA: toggle the rail buttons; no
+   foregrounding needed. Expected: the card now shows the quieter "Text file" chip and no
+   "Transcript" chip - it agrees with REST. Defect result (round 1): the card kept the
+   "Transcript" chip. Assert via UIA or a PrintWindow grab of the card; the log also shows
+   `[LibraryCoherence] RefreshArtifactChips: N row(s) re-derived from disk` on each Library
+   show.
+5. Inverse: put `transcript.json` back (copy it in), rail away and back - the "Transcript"
+   chip returns.
+
+### Defect 2: the detail window's JSON-only display path blocked the WPF constructor thread
+
+`TranscriptPresentation.For` does `File.ReadAllText` + full JSON deserialization; round 1
+called it synchronously from `RecordingDetailWindow`'s constructor, so a large
+`transcript.json` with no flat `transcript.txt` froze the UI before the window appeared
+(CLAUDE.md section 1 violation).
+
+What changed (`src/AgentEyes.App/RecordingDetailWindow.cs` only; `TranscriptPresentation`
+itself is unchanged - it stays the testable loader):
+
+- The constructor no longer builds the presentation. It builds the transcript area
+  immediately with a "Loading transcript..." line (dim), the legacy-notice caption
+  (collapsed) and the "Copy transcript" button (hidden) already in place, so the async load
+  only fills VALUES in - the visual tree is never restructured after construction.
+- `Loaded` fires `LoadTranscriptAsync(manifest)`: the read + deserialization runs in
+  `Task.Run` on a background thread; the awaiter marshals back to the UI thread, which sets
+  the text, foreground, notice and Copy visibility. Entry-point try-catch with `Log.Error`;
+  a failed read degrades to the empty state, never a dead window. Entry and completion are
+  logged (`[RecordingDetailWindow] LoadTranscriptAsync: dir=... kind=... chars=...`).
+
+Round-2 tests (structural, from compiled IL - the window itself needs a WPF Application to
+construct, which is exactly why the decisions live in `TranscriptPresentation`):
+
+- `DetailWindow_TranscriptLoad_IsNotInvokedOnConstruction` - no call to
+  `TranscriptPresentation::For` from the constructor OR any of its lambdas (CompiledCode
+  folds lambda bodies back onto the declaring method), and - fail-closed - the call must
+  exist in `LoadTranscriptAsync`, so deleting the feature cannot read as fixing the defect.
+  Mutation drill run: re-adding a ctor call fails exactly this test.
+- `DetailWindow_TranscriptLoad_RunsOnABackgroundThread` - `LoadTranscriptAsync` must hand
+  the read to `Task::Run` (an async method that called `For` inline would still block the
+  UI thread).
+
+QA runtime verification - the large-transcript responsiveness check:
+
+1. Build a JSON-only fixture with a LARGE transcript, e.g. in a recording folder with a
+   valid manifest ($dir below):
+
+       $seg = '{"StartSeconds":0.0,"EndSeconds":1.0,"Text":"' + ('word ' * 200).Trim() + '"}'
+       '[' + (($seg + ',') * 20000).TrimEnd(',') + ']' |
+           Set-Content "$dir\transcript.json" -Encoding ascii
+       Remove-Item "$dir\transcript.txt" -ErrorAction SilentlyContinue   # force the JSON-only path
+
+   (Roughly 20+ MB; scale up if the machine is fast.)
+2. Open the Library, open that card's detail view. Expected: the window appears IMMEDIATELY
+   showing "Loading transcript..." and stays responsive while loading (it can be moved; the
+   title box takes focus), then the text fills in and "Copy transcript" appears. Defect
+   result (round 1): the window does not appear until the whole file is read and parsed.
+   Two log lines bracket the load (entry, then `kind=Transcribed chars=...`).
+3. Also worth one glance on a NORMAL recording: transcript shows as before, flat-only
+   recordings still show the caption "Not transcribed - showing the text file saved with
+   this recording." and stay copyable - the round-1 behavior is preserved, only the loading
+   moved off the UI thread.
+
+### Round-2 gate
+
+- `dotnet build AgentEyes.sln -c Release`: Build succeeded, 0 Errors (same 2 pre-existing
+  xUnit1031 warnings, untouched).
+- `dotnet test AgentEyes.sln -c Release`: `Failed: 0, Passed: 850, Skipped: 0, Total: 850`
+  (the machine still needs `DOTNET_ROLL_FORWARD=LatestMajor`, see criterion 6 above).
+- Mutation drills run and reverted: (a) ctor call to `TranscriptPresentation.For` re-added
+  -> `DetailWindow_TranscriptLoad_IsNotInvokedOnConstruction` fails; (b) `Rail_Checked`
+  refresh unwired -> `RailNavigation_RefreshesTheLibrarysArtifactChips` fails; (c) card
+  refresh made a no-op -> 7 tests fail.
+
+### CenCon impact (round 2)
+
+No drift: no component-map change, no privacy-posture change, no REST shape change. The
+issue #3 coherence guards (rows-field scan, row-write scan, route table) all still pass -
+the new refresh lives inside `RecentItem` + `LibraryCoherence`, exactly where those guards
+require row writes to live.

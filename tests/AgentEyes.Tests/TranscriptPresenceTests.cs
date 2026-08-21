@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using Xunit;
 using AgentEyes;
@@ -312,6 +314,151 @@ namespace AgentEyes.Tests
             Assert.NotNull(detail);
             Assert.True(detail!.HasTranscript);
             Assert.True(detail.HasFlatTranscript);   // the pipeline writes both; both are reported
+        }
+
+        // ---- round 2, review gate defect 1: the card refreshes when reshown ----
+        //
+        // The chips are computed when the card is BUILT, and transcript.json can be deleted or
+        // created outside the app afterwards - the card's own Open-folder action invites exactly
+        // that. The Control API re-reads the disk on every request, so a cached chip let the
+        // visible card and REST disagree about the same recording until an unrelated reload. The
+        // fix: RecentItem.RefreshArtifactChips re-derives the chips from disk through the
+        // canonical predicate, and the Library re-runs it on every row each time it is shown
+        // (Rail_Checked -> LibraryCoherence.RefreshArtifactChips).
+        //
+        // Expected: after a refresh the chips agree with TranscriptStatus. The defect: the chips
+        // keep their build-time answer. An absent/empty answer here would mean the refresh route
+        // was renamed or never wired - which the IL pin below fails on rather than passing.
+
+        [Fact]
+        public void LibraryCard_TranscriptDeletedExternally_RefreshAgreesWithThePredicate()
+        {
+            string dir = TranscribedRecording("done_gone");
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+
+            // The external delete: transcript.json goes away while the card is alive.
+            File.Delete(Path.Combine(dir, "transcript.json"));
+            card.RefreshArtifactChips();
+
+            Assert.Equal(Visibility.Collapsed, card.TranscriptChipVisibility);
+            // transcript.txt is still there, so the quieter chip takes over - same as a fresh card.
+            Assert.Equal(Visibility.Visible, card.FlatTextChipVisibility);
+        }
+
+        [Fact]
+        public void LibraryCard_TranscriptAppearedExternally_RefreshAgreesWithThePredicate()
+        {
+            string dir = FlatTextOnlyRecording("flat_grew");
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.FlatTextChipVisibility);
+
+            // The inverse divergence: transcript.json appears outside the app.
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "[]");
+            card.RefreshArtifactChips();
+
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.FlatTextChipVisibility);
+        }
+
+        [Fact]
+        public void LibraryCard_ManifestNamedArtifact_RefreshStillHonorsTheManifestName()
+        {
+            // The refresh classifies with the manifest the card was built from, so a non-default
+            // artifact name keeps working without a manifest re-read per card per navigation.
+            string dir = Recording("named_card");
+            File.WriteAllText(Path.Combine(dir, "words.json"), "[]");
+            var m = Manifest.Load(dir);
+            m.Transcript = "words.json";
+            ManifestStore.Replace(dir, m);
+
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+
+            File.Delete(Path.Combine(dir, "words.json"));
+            card.RefreshArtifactChips();
+
+            Assert.Equal(Visibility.Collapsed, card.TranscriptChipVisibility);
+        }
+
+        [Fact]
+        public void Library_ShowingTheLibrary_RefreshesEveryRowsChips()
+        {
+            // The model route rail navigation drives: every visible row is re-derived at once.
+            string done = TranscribedRecording("model_done");
+            string flat = FlatTextOnlyRecording("model_flat");
+
+            var library = new LibraryCoherence();
+            library.ApplySnapshot(library.BeginSnapshot(),
+                new List<RecentItem> { RecentItem.From(done), RecentItem.From(flat) });
+
+            File.Delete(Path.Combine(done, "transcript.json"));
+            File.WriteAllText(Path.Combine(flat, "transcript.json"), "[]");
+            library.RefreshArtifactChips();
+
+            var doneRow = library.Find(done);
+            var flatRow = library.Find(flat);
+            Assert.NotNull(doneRow);
+            Assert.NotNull(flatRow);
+            Assert.Equal(Visibility.Collapsed, doneRow!.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Visible, doneRow.FlatTextChipVisibility);
+            Assert.Equal(Visibility.Visible, flatRow!.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, flatRow.FlatTextChipVisibility);
+        }
+
+        /// <summary>
+        /// The wiring pin, read from IL: showing the Library (Rail_Checked) re-derives the chips
+        /// through the model. Without this, the three behavioral tests above could stay green
+        /// while nothing in the app ever called the refresh. CallsIn is fail-closed - a renamed
+        /// Rail_Checked or RefreshArtifactChips throws here rather than certifying nothing.
+        /// </summary>
+        [Fact]
+        public void RailNavigation_RefreshesTheLibrarysArtifactChips()
+        {
+            var calls = CompiledCode.CallsIn(CompiledCode.AppAssembly,
+                "AgentEyes.App.MainWindow::Rail_Checked");
+
+            Assert.Contains("AgentEyes.App.LibraryCoherence::RefreshArtifactChips", calls);
+        }
+
+        // ---- round 2, review gate defect 2: the detail window loads async ----
+        //
+        // TranscriptPresentation.For reads and deserializes the whole transcript. Round 1 called
+        // it synchronously from RecordingDetailWindow's constructor, so a large JSON-only
+        // transcript froze the UI thread before the window ever appeared - the exact shape
+        // CLAUDE.md section 1 forbids. The window itself needs a WPF Application to construct, so
+        // the pin is structural, read from the compiled IL (the CompiledCode folding puts a
+        // lambda's calls back onto the method a human wrote, so a call made from the constructor's
+        // own lambdas still counts as the constructor's).
+
+        [Fact]
+        public void DetailWindow_TranscriptLoad_IsNotInvokedOnConstruction()
+        {
+            var forCalls = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                callee => callee == "AgentEyes.App.TranscriptPresentation::For");
+
+            // Fail closed: the loader must still be reachable from the detail window at all - a
+            // deleted feature must not read as a fixed defect.
+            Assert.Contains(forCalls,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadTranscriptAsync");
+
+            // The defect: the constructor (or any of its lambdas) building the presentation.
+            Assert.DoesNotContain(forCalls,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::.ctor");
+        }
+
+        [Fact]
+        public void DetailWindow_TranscriptLoad_RunsOnABackgroundThread()
+        {
+            // LoadTranscriptAsync must hand the read to a worker (Task.Run), not merely be async:
+            // an async method that called TranscriptPresentation.For inline would still do the
+            // whole read + deserialization on the UI thread.
+            var taskRuns = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                    callee => callee == "System.Threading.Tasks.Task::Run")
+                .Where(site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadTranscriptAsync")
+                .ToList();
+
+            Assert.NotEmpty(taskRuns);
         }
     }
 }

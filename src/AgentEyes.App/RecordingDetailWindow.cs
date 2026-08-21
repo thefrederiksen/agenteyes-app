@@ -35,6 +35,17 @@ namespace AgentEyes.App
         private readonly TextBlock _status;
         private PreviewWindow? _player;
 
+        // The transcript area (issue #4 round 2). The window opens IMMEDIATELY with a loading line
+        // in _transcriptBody; LoadTranscriptAsync reads and deserializes the transcript on a
+        // background thread after Loaded and then only fills values into these three controls -
+        // the visual tree is never restructured after construction.
+        private readonly TextBox _transcriptBody;
+        private readonly TextBlock _legacyNotice;
+        private readonly Button _copyButton;
+
+        /// <summary>The transcript text the async load produced - what Copy copies.</summary>
+        private string _transcriptText = "";
+
         private static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
         internal RecordingDetailWindow(RecentItem item, Config cfg, Func<Task> rebuildWalkthrough,
@@ -159,48 +170,42 @@ namespace AgentEyes.App
             // Issue #4: every transcript decision (is it transcribed? what text shows? is Copy
             // offered?) comes from the testable presentation, driven by the canonical predicate -
             // never from flat-text existence or length.
-            TranscriptPresentation presentation;
-            try { presentation = TranscriptPresentation.For(item.Dir, manifest); }
-            catch (Exception ex)
+            //
+            // Issue #4 round 2 (review gate defect 2): the presentation is NOT built here.
+            // Building it reads and deserializes the whole transcript, and doing that on the
+            // constructor thread froze the window for the duration of a large JSON-only read -
+            // the exact shape CLAUDE.md section 1 forbids. The window opens immediately showing a
+            // loading line; LoadTranscriptAsync (wired to Loaded below) does the read on a
+            // background thread and fills these controls in on the UI thread.
+            _transcriptBody = new TextBox
             {
-                Log.Error($"[RecordingDetailWindow] ctor: cannot read the transcript for {item.Dir}", ex);
-                presentation = TranscriptPresentation.None;
-            }
-            var transcriptBody = new TextBox
-            {
-                Text = presentation.Text.Length > 0 ? presentation.Text
-                    : (item.Status.Length > 0 ? "Transcribing..." : "No transcript for this recording."),
+                Text = "Loading transcript...",
                 IsReadOnly = true,
                 Background = Brushes.Transparent,
-                Foreground = presentation.Text.Length > 0 ? Res<Brush>("DkText") : Res<Brush>("DkDim"),
+                Foreground = Res<Brush>("DkDim"),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(12),
                 FontSize = 13,
                 TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             };
-            if (presentation.LegacyNotice != null)
+            // A legacy flat-text-only recording: the text stays readable, but a quiet caption says
+            // plainly that it is NOT a transcription (issue #4). The caption is part of the layout
+            // from the start, collapsed until the load says it applies.
+            _legacyNotice = new TextBlock
             {
-                // A legacy flat-text-only recording: the text stays readable, but a quiet caption
-                // says plainly that it is NOT a transcription (issue #4).
-                var host = new DockPanel();
-                var notice = new TextBlock
-                {
-                    Text = presentation.LegacyNotice,
-                    FontSize = 11,
-                    FontStyle = FontStyles.Italic,
-                    Foreground = Res<Brush>("DkDim"),
-                    Margin = new Thickness(12, 10, 12, 0),
-                };
-                DockPanel.SetDock(notice, Dock.Top);
-                host.Children.Add(notice);
-                host.Children.Add(transcriptBody);
-                transcriptHost.Child = host;
-            }
-            else
-            {
-                transcriptHost.Child = transcriptBody;
-            }
+                Text = "",
+                FontSize = 11,
+                FontStyle = FontStyles.Italic,
+                Foreground = Res<Brush>("DkDim"),
+                Margin = new Thickness(12, 10, 12, 0),
+                Visibility = Visibility.Collapsed,
+            };
+            var transcriptPanel = new DockPanel();
+            DockPanel.SetDock(_legacyNotice, Dock.Top);
+            transcriptPanel.Children.Add(_legacyNotice);
+            transcriptPanel.Children.Add(_transcriptBody);
+            transcriptHost.Child = transcriptPanel;
             Grid.SetRow(transcriptHost, 4);
             root.Children.Add(transcriptHost);
 
@@ -211,8 +216,12 @@ namespace AgentEyes.App
                 actions.Children.Add(Btn(File.Exists(Path.Combine(item.Dir, "walkthrough.html")) ? "Open walkthrough" : "Build walkthrough",
                     async (_, _) => { await _rebuildWalkthrough(); }));
             // Copy follows CanCopy, not the transcribed claim - a legacy flat text is still the
-            // user's content and must stay copyable (issue #4).
-            if (presentation.CanCopy) actions.Children.Add(Btn("Copy transcript", (_, _) => CopyTranscript(presentation.Text)));
+            // user's content and must stay copyable (issue #4). The button exists from the start,
+            // hidden at its place in the row, and appears when the async load finds text (round
+            // 2), so showing it never reorders the actions.
+            _copyButton = Btn("Copy transcript", (_, _) => CopyTranscript(_transcriptText));
+            _copyButton.Visibility = Visibility.Collapsed;
+            actions.Children.Add(_copyButton);
             actions.Children.Add(Btn("Open folder", (_, _) =>
             {
                 if (Directory.Exists(item.Dir))
@@ -234,10 +243,53 @@ namespace AgentEyes.App
 
             Content = root;
             Closed += (_, _) => _player?.Close();
+
+            // The transcript loads AFTER the window is visible (CLAUDE.md section 1): show first,
+            // read the disk on a worker, update on the UI thread.
+            Loaded += async (_, _) => await LoadTranscriptAsync(manifest);
         }
 
         // The former _hasTranscript flag (flat-text LENGTH) is gone (issue #4): the transcript
-        // decisions live in the testable TranscriptPresentation, built in the constructor.
+        // decisions live in the testable TranscriptPresentation, built by LoadTranscriptAsync on
+        // a background thread once the window is up (issue #4 round 2).
+
+        /// <summary>
+        /// Reads the transcript on a background thread and fills the already-visible window in
+        /// (issue #4 round 2). The synchronous form of this work lived in the constructor and
+        /// blocked the UI thread for the whole read + deserialization of a JSON-only transcript.
+        /// Entry point (wired to Loaded), so the try-catch lives here (CLAUDE.md rule 4): a failed
+        /// read degrades to the empty state, loudly logged - never a frozen or dead window.
+        /// </summary>
+        private async Task LoadTranscriptAsync(Manifest? manifest)
+        {
+            try
+            {
+                Log.Info($"[RecordingDetailWindow] LoadTranscriptAsync: dir={_item.Dir}");
+                var presentation = await Task.Run(() => TranscriptPresentation.For(_item.Dir, manifest));
+
+                // Back on the UI thread (the awaiter marshals here): apply values only.
+                _transcriptText = presentation.Text;
+                _transcriptBody.Text = presentation.Text.Length > 0 ? presentation.Text
+                    : (_item.Status.Length > 0 ? "Transcribing..." : "No transcript for this recording.");
+                _transcriptBody.Foreground = presentation.Text.Length > 0
+                    ? Res<Brush>("DkText") : Res<Brush>("DkDim");
+                if (presentation.LegacyNotice != null)
+                {
+                    _legacyNotice.Text = presentation.LegacyNotice;
+                    _legacyNotice.Visibility = Visibility.Visible;
+                }
+                _copyButton.Visibility = presentation.CanCopy ? Visibility.Visible : Visibility.Collapsed;
+                Log.Info($"[RecordingDetailWindow] LoadTranscriptAsync: dir={_item.Dir} "
+                    + $"kind={presentation.Kind} chars={presentation.Text.Length}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RecordingDetailWindow] LoadTranscriptAsync FAILED for {_item.Dir}", ex);
+                _transcriptText = "";
+                _transcriptBody.Text = "No transcript for this recording.";
+                _transcriptBody.Foreground = Res<Brush>("DkDim");
+            }
+        }
 
         private Button Btn(string text, RoutedEventHandler onClick)
         {

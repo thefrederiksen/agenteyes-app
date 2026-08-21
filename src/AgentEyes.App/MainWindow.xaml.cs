@@ -213,6 +213,12 @@ namespace AgentEyes.App
             LibraryControls.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
             ViewTitle.Text = record ? "Record" : library ? "Library"
                 : dictionary ? "Dictionary" : "Capture";
+            // Issue #4 round 2: re-derive every card's artifact chips from disk each time the
+            // Library is shown. transcript.json can be deleted or created outside the app while
+            // the user is on another view (the card's own Open-folder action invites it), and the
+            // cards must agree with the canonical predicate - and so with the Control API, which
+            // re-reads the disk on every request - the moment they are visible again.
+            if (library) _library.RefreshArtifactChips();
             if (dictionary) LoadDictionary();
             if (capture)
             {
@@ -2377,20 +2383,59 @@ namespace AgentEyes.App
 
             // Artifact chips: what the recording already produced on disk. Deliberately OUTSIDE the
             // manifest try (issue #4 review): the chips are file facts, and an unreadable manifest
-            // must not hide artifacts that are plainly there - Classify takes a null manifest and
-            // falls back to the default artifact names, the same thing the detail window does.
-            // Transcript presence comes from the canonical predicate the Control API uses (issue
-            // #4) - a legacy flat transcript.txt is NOT "transcribed", it gets its own quieter chip.
-            var transcriptKind = TranscriptStatus.Classify(dir, manifest);
-            item.TranscriptChipVisibility = transcriptKind == TranscriptKind.Transcribed
-                ? Visibility.Visible : Visibility.Collapsed;
-            item.FlatTextChipVisibility = transcriptKind == TranscriptKind.FlatTextOnly
-                ? Visibility.Visible : Visibility.Collapsed;
-            item.WalkthroughChipVisibility = File.Exists(Path.Combine(dir, "walkthrough.html"))
-                ? Visibility.Visible : Visibility.Collapsed;
+            // must not hide artifacts that are plainly there - RefreshArtifactChips takes a null
+            // manifest and falls back to the default artifact names, the same thing the detail
+            // window does. Transcript presence comes from the canonical predicate the Control API
+            // uses (issue #4) - a legacy flat transcript.txt is NOT "transcribed", it gets its own
+            // quieter chip. The SAME method re-derives the chips whenever the Library is shown
+            // again (issue #4 round 2), so a card can never keep claiming a transcript that was
+            // deleted outside the app.
+            item.RefreshArtifactChips(manifest);
 
             if (item.Detail.Length == 0) item.Detail = item.DateText;
             return item;
+        }
+
+        /// <summary>The manifest this card was built from, null when it could not be read. Kept so
+        /// <see cref="RefreshArtifactChips()"/> can re-consult the canonical transcript predicate
+        /// without re-reading the manifest on the UI thread: the only thing the predicate takes
+        /// from it is the manifest-NAMED transcript artifact file name, and that name changes only
+        /// through routes that rebuild the card anyway (<see cref="AdoptFrom"/> carries it over).
+        /// </summary>
+        private Manifest? _manifest;
+
+        /// <summary>
+        /// (Re-)derives the artifact chips from the disk, through the canonical transcript
+        /// predicate (<see cref="TranscriptStatus"/>, issue #4), and remembers
+        /// <paramref name="manifest"/> for the parameterless refresh below.
+        /// </summary>
+        public void RefreshArtifactChips(Manifest? manifest)
+        {
+            _manifest = manifest;
+            RefreshArtifactChips();
+        }
+
+        /// <summary>
+        /// Re-derives the artifact chips from the disk using the manifest the card already holds -
+        /// the answer to issue #4 round 2 (review gate defect 1): transcript.json can be deleted
+        /// or created OUTSIDE the app (the card's own Open-folder action invites exactly that),
+        /// and a chip cached at build time left the visible card contradicting the Control API,
+        /// which re-reads the disk on every request. The library re-runs this on every card each
+        /// time the Library becomes visible (<see cref="LibraryCoherence.RefreshArtifactChips"/>),
+        /// so the card and the canonical predicate agree whenever the card is shown.
+        ///
+        /// Cheap by design - two or three File.Exists per card, no manifest re-read, safe on the
+        /// UI thread - and silent per card like the predicate itself (the bulk route logs once).
+        /// </summary>
+        public void RefreshArtifactChips()
+        {
+            var kind = TranscriptStatus.Classify(Dir, _manifest);
+            TranscriptChipVisibility = kind == TranscriptKind.Transcribed
+                ? Visibility.Visible : Visibility.Collapsed;
+            FlatTextChipVisibility = kind == TranscriptKind.FlatTextOnly
+                ? Visibility.Visible : Visibility.Collapsed;
+            WalkthroughChipVisibility = File.Exists(Path.Combine(Dir, "walkthrough.html"))
+                ? Visibility.Visible : Visibility.Collapsed;
         }
 
         /// <summary>Re-reads this recording's manifest into this card, in place - packaging just
@@ -2445,6 +2490,10 @@ namespace AgentEyes.App
             TranscriptChipVisibility = fresh.TranscriptChipVisibility;
             FlatTextChipVisibility = fresh.FlatTextChipVisibility;
             WalkthroughChipVisibility = fresh.WalkthroughChipVisibility;
+            // The manifest travels with the chips it names (issue #4 round 2): a later
+            // RefreshArtifactChips on this row must classify with the manifest of the FRESH read,
+            // not one from before the reload.
+            _manifest = fresh._manifest;
             Badge = fresh.Badge;
             BadgeBrush = fresh.BadgeBrush;
             Duration = fresh.Duration;

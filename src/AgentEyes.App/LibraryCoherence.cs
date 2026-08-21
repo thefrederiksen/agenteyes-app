@@ -418,6 +418,26 @@ namespace AgentEyes.App
         }
 
         /// <summary>
+        /// Re-derives every row's artifact chips from the disk (issue #4 round 2) - run each time
+        /// the Library becomes visible. transcript.json can appear or disappear OUTSIDE the app
+        /// (the card's own Open-folder action invites it), and a chip cached at card-build time
+        /// left the visible card contradicting the Control API, which re-reads the disk on every
+        /// request. Cheap: a few File.Exists per row, no manifest re-read, no reload.
+        ///
+        /// Deliberately NO epoch and NO fact update. The chips are re-derived from the disk on
+        /// every refresh and on every reload, so epoch ordering adds nothing to their correctness
+        /// - and stamping these rows Present at a fresh epoch would wrongly outrank an in-flight
+        /// snapshot's honest report that a recording is gone from the disk. Only chip values on
+        /// existing rows change here; membership and ordering are untouched.
+        /// </summary>
+        public void RefreshArtifactChips()
+        {
+            RequireOwningThread();
+            foreach (var row in _rows) row.RefreshArtifactChips();
+            Log.Info($"[LibraryCoherence] RefreshArtifactChips: {_rows.Count} row(s) re-derived from disk");
+        }
+
+        /// <summary>
         /// Live progress text on a row ("Transcribing...", then empty). Resolved by directory like
         /// every other held-row route, so a stop path that captured its row before an await still
         /// writes on the row the user can see.
