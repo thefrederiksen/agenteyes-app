@@ -165,3 +165,152 @@ See Gate above: `0 Error(s)`, `Failed: 0, Passed: 843` (17 new in
 - `docs/cencon/proof/issue-4/qa-detail-flatonly.png` - flatonly detail: caption, text, Copy.
 
 **VERIFIED - all acceptance criteria met.** -> `flow:ready-gate`.
+
+---
+
+# Round 2 - the review gate's two blocking defects, re-verified by QA
+
+**Branch / tip:** `issue-4-library-transcribed-claim` @ `9a40dd2` (round-2 fix commit on top of
+round-1 tip `2c509b2`)
+**Verified:** 2026-08-21, fresh QA context; the developer's round-2 handoff (section 7) was used
+as a map, never as evidence.
+**Verdict: VERIFIED - both gate defects fixed, round-1 criteria still hold.** Handed to the
+Review Gate (`flow:ready-gate`, per D7 QA does not merge).
+
+## Gate (run by QA itself)
+
+- `dotnet build AgentEyes.sln -c Release` -> `Build succeeded.`, `0 Error(s)` (same 2
+  pre-existing xUnit1031 warnings, untouched).
+- `dotnet test AgentEyes.sln -c Release` ->
+  `Passed! - Failed: 0, Passed: 850, Skipped: 0, Total: 850, Duration: 14 s`
+  (843 in round 1 + the 7 new round-2 tests in `TranscriptPresenceTests`).
+- Same machine limit as round 1, stated honestly: no x64 WindowsDesktop 8.x runtime here, so
+  the test host and the app ran with `DOTNET_ROLL_FORWARD=LatestMajor` on the 10.x desktop
+  runtime. A first run WITHOUT the roll-forward aborts with the framework-resolution error -
+  the instrument fires on the known-bad configuration, so the green run is a real run.
+
+## Scope of the round-2 diff (2c509b2..9a40dd2) - reviewed, in scope
+
+Exactly five files: `docs/cencon/proof/issue-4/handoff.md` (handoff round-2 section),
+`src/AgentEyes.App/LibraryCoherence.cs` (+RefreshArtifactChips bulk route),
+`src/AgentEyes.App/MainWindow.xaml.cs` (RecentItem.RefreshArtifactChips + _manifest carry +
+Rail_Checked wiring), `src/AgentEyes.App/RecordingDetailWindow.cs` (async transcript load),
+`tests/AgentEyes.Tests/TranscriptPresenceTests.cs` (7 round-2 tests). Nothing else changed;
+`TranscriptPresentation`/`TranscriptStatus`/REST are untouched, so every round-1 criterion is
+re-covered by the same (green) tests. Review findings: the refresh deliberately claims no
+epoch and touches no membership (LibraryCoherence.cs:432-436 comment verified against the
+issue #3 model); `AdoptFrom` carries `_manifest` so a reload cannot resurrect a stale manifest
+(MainWindow.xaml.cs:2493-2496); the detail window's visual tree is built once and the async
+load only fills values in; the `Loaded` handler is the entry point and holds the try-catch
+with `Log.Error` - errors are logged and degrade to the empty state, not swallowed
+(RecordingDetailWindow.cs:248,269-297). CLAUDE.md standards hold (responsive UI, entry-point
+catch, enterprise logging, ASCII).
+
+## Gate defect 1 - card chips diverge from disk until an unrelated reload: FIXED, proven at runtime
+
+Fixtures built by QA under `%USERPROFILE%\Videos\AgentEyes\` (deleted after the run; the
+user's six recordings untouched):
+
+- `2026-08-21_110000_qa2div`: manifest naming `transcript.json`, a 2-segment
+  `transcript.json`, and a flat `transcript.txt`.
+- `2026-08-21_111000_qa2big`: manifest + JSON-ONLY transcript (no `transcript.txt`).
+
+App launched windowed from the x64 Release output (same documented deviation as round 1:
+`--tray` never builds a MainWindow, so Library cards cannot exist in tray mode); the
+DevThrottle sign-in dialog dismissed via UIA Invoke on Cancel; everything after launch driven
+by REST + UIA + PrintWindow, no foregrounding, no synthesized input.
+
+External-DELETE drill (quoted actual output):
+
+1. Baseline agrees everywhere: REST `hasTranscript=True hasFlatTranscript=True`; UIA card
+   `TranscriptChip=True TextFileChip=False`.
+2. Deleted `qa2div\transcript.json` on disk while the Library was showing.
+   REST immediately: `hasTranscript=False hasFlatTranscript=True`. Card pre-navigation, as
+   designed, still stale: `TranscriptChip=True` - this IS the gate's divergence window, and
+   the fix closes it at the next show.
+3. Rail away (Record view) and back (Library view) via UIA SelectionItem.Select. Card:
+   `TranscriptChip=False TextFileChip=True` - it agrees with REST again. Expected: chip
+   re-derived to the flat-text state. Actual: exactly that.
+   Screenshot `qa2-divergence-after-reshow.png` (read by QA: the qa2div card carries the
+   quieter italic "Text file" chip; the JSON-only qa2big card next to it keeps "Transcript").
+   App log, quoted: `[LibraryCoherence] RefreshArtifactChips: 8 row(s) re-derived from disk`
+   on every Library show (three occurrences during the drills).
+
+External-CREATE drill (the inverse):
+
+4. Wrote `transcript.json` back into qa2div. REST immediately `hasTranscript=True`; card
+   pre-navigation still `TextFileChip=True` (stale, expected); after rail away+back:
+   `TranscriptChip=True TextFileChip=False`. Screenshot
+   `qa2-divergence-inverse-upgrade.png` (read by QA: both cards now carry "Transcript").
+
+Mutation drill on the WIRING (three arms stated - run by QA):
+
+- Commented out `if (library) _library.RefreshArtifactChips();` in `Rail_Checked`
+  (MainWindow.xaml.cs:221) and ran
+  `dotnet test -c Release --filter TranscriptPresenceTests`.
+- Expected on the mutant: the IL wiring pin fails. Actual, quoted: `Failed: 1, Passed: 23` -
+  exactly `RailNavigation_RefreshesTheLibrarysArtifactChips` (an empty/aborted run would have
+  been a broken instrument, not a pass).
+- Rehooked (git checkout of the file); filtered suite green again: `Failed: 0, Passed: 24`;
+  working tree confirmed clean.
+
+## Gate defect 2 - detail window read+deserialized the transcript on the constructor thread: FIXED, proven at runtime
+
+Code: the constructor builds the transcript area with a dim "Loading transcript..." line, the
+collapsed legacy caption, and the hidden Copy button; `Loaded += async` fires
+`LoadTranscriptAsync`, which runs `TranscriptPresentation.For` inside `Task.Run` (verified in
+the diff AND pinned from IL by `DetailWindow_TranscriptLoad_IsNotInvokedOnConstruction` -
+fail-closed, the call must exist in `LoadTranscriptAsync` - and
+`DetailWindow_TranscriptLoad_RunsOnABackgroundThread`). The catch is at the entry point and
+logs via `Log.Error`, degrading to the empty state - not swallowed.
+
+Runtime, large-fixture drill (fixture built by QA; timings from a stopwatch started at the
+UIA Invoke of the card's Transcript chip; quoted actual output):
+
+- First pass, 42 MB / 40,000-segment JSON-only transcript: the load completed in ~0.8 s
+  (log bracket `LoadTranscriptAsync: ...` at 09:18:10.878 -> `kind=Transcribed
+  chars=39999999` at 09:18:11.677), the window showed the full 39,999,999-char text and the
+  Copy transcript button - too fast to probe interactivity mid-load, so QA refit the fixture.
+- Second pass, 31 MB / 400,000-segment JSON-only transcript (deserialization-bound):
+  - `t=5ms` chip invoked; `t=42ms` the `Recording details` window is VISIBLE (Win32
+    EnumWindows, `IsHungAppWindow=False`).
+  - While the load ran (~12 s), repeated UIA ValuePattern fetches of the transcript body were
+    each answered by the WPF UI thread in 11-31 ms and read `Loading transcript...` - the
+    window is interactive, not frozen (probes quoted in the drill record: t=47..72ms,
+    202..225ms, 255..266ms, 308..339ms, 378..389ms, 417..431ms, ...).
+    Screenshot `qa2-detail-loading.png` (read by QA: dim "Loading transcript...", actions
+    row WITHOUT Copy transcript).
+  - `t=12117ms`: the content rendered (8,688,889 chars) and `Copy transcript` appeared.
+    Screenshot `qa2-detail-large-loaded.png` (read by QA: segment text visible, Copy
+    transcript present in the actions row).
+- Round-1 behavior preserved through the async path, spot-checked at runtime: a flat-only
+  recording's detail still shows the caption
+  `Not transcribed - showing the text file saved with this recording.`, the flat text
+  (`[00:00:00] hello / [00:00:01] world`), and Copy transcript - quoted from the UIA dump.
+
+Instrument note (honest limit): QA's first drill pass polled UIA RootElement children for the
+dialog and missed it - the OWNED `Recording details` window did not surface there even though
+its HWND existed and was responsive (verified via Win32 EnumWindows). The drill was re-run
+finding the HWND at the Win32 layer and attaching with `AutomationElement.FromHandle`; the
+earlier "window never appeared" was the instrument, not the app, and the app log plus the
+Win32 probe prove the window was up.
+
+## Shutdown and cleanup
+
+`/status` quoted: `"State":"idle"` before stop; no ffmpeg process existed. App process
+stopped; after stop: `AgentEyesApp: 0`, `ffmpeg: 0`, `%TEMP%\AgentEyes-crash.log` does not
+exist. Both fixtures deleted; the six pre-existing recordings intact. Repo tree left clean.
+
+## Round-2 evidence files
+
+- `qa2-divergence-after-reshow.png` - Library after the external delete + reshow: qa2div
+  carries "Text file", qa2big keeps "Transcript".
+- `qa2-divergence-inverse-upgrade.png` - after the external create + reshow: both carry
+  "Transcript".
+- `qa2-detail-loading.png` - detail window open and interactive while the 31 MB transcript
+  loads; no Copy button yet.
+- `qa2-detail-large-loaded.png` - the same window with the content rendered and Copy
+  transcript present.
+
+**VERIFIED - both review-gate defects fixed with runtime proof; all round-1 criteria still
+hold.** -> `flow:ready-gate`.
