@@ -64,8 +64,10 @@ namespace AgentEyes.Tests
 
         private sealed record RegistryEntry(string Id, string Version, string ZipUrl, string Sha256);
 
-        /// <summary>The entries in THIS repository's plugins/registry.json. Asserts the expected two
-        /// plugins are present, so no pin below can pass by iterating an empty list.</summary>
+        /// <summary>The entries in THIS repository's plugins/registry.json. Asserts the two known
+        /// plugins are PRESENT - not that they are the only ones - so no pin below can pass by
+        /// iterating an empty list, while a third plugin added to the catalog later extends these
+        /// tests instead of breaking them with a collection diff.</summary>
         private static List<RegistryEntry> ReadRegistry()
         {
             using var doc = JsonDocument.Parse(RepoSource.Read("plugins/registry.json"));
@@ -77,9 +79,8 @@ namespace AgentEyes.Tests
                     p.GetProperty("sha256").GetString()!))
                 .ToList();
 
-            Assert.Equal(
-                new[] { "doc-companion", "qa-walk-companion" },
-                entries.Select(e => e.Id).OrderBy(v => v, StringComparer.Ordinal).ToArray());
+            foreach (string id in new[] { "doc-companion", "qa-walk-companion" })
+                Assert.Contains(entries, e => e.Id == id);
             return entries;
         }
 
@@ -180,7 +181,10 @@ namespace AgentEyes.Tests
         {
             // The negative control for the pin above, and it needs no network: bytes that do NOT hash
             // to a registry pin must be refused. If this passed, "the hash check passed" above would
-            // only ever have meant "no comparison happened".
+            // only ever have meant "no comparison happened". PluginPackageTests exercises the same
+            // InstallZip branch with synthetic hashes; THIS control exists to fire it with a hash the
+            // real registry actually pins, adjacent to the positive pin it de-risks - if the two ever
+            // drift, keep this one wired to plugins/registry.json.
             var entry = ReadRegistry()[0];
             byte[] notTheAsset = { 0x50, 0x4B, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00 };
 

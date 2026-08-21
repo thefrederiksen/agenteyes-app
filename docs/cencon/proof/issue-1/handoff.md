@@ -13,7 +13,7 @@ full test suite are green (evidence below).
 | `plugins/doc-companion/plugin.json` | version `1.0.0` -> `1.0.1` |
 | `plugins/qa-walk-companion/plugin.json` | version `1.0.0` -> `1.0.1` |
 | `plugins/registry.json` | both entries: version `1.0.1`, zipUrl `*-1.0.1.zip`, NEW sha256 pins |
-| `tests/AgentEyes.Tests/PluginRegistryChannelTests.cs` | the four `1.0.0` packaging expectations follow the bump to `1.0.1` (the RetiredZipUrl known-bad constant deliberately keeps `1.0.0`) |
+| `tests/AgentEyes.Tests/PluginRegistryChannelTests.cs` | the packaging expectations now DERIVE the version from `plugins/<id>/plugin.json` (new `SourcePluginVersion` helper), so the next re-cut needs no test edits (the RetiredZipUrl known-bad constant deliberately keeps `1.0.0`) |
 | `tests/AgentEyes.Tests/PublishedPluginAssetTests.cs` | NEW - downloads the published assets and pins them (details per criterion below) |
 | `docs/plugins.md` | registry section no longer names the retired `AgentEyes-releases` repo; example entry updated to `1.0.1` on `agenteyes-app` |
 
@@ -22,6 +22,24 @@ Published (release assets, NOT part of the git diff): `doc-companion-1.0.1.zip` 
 `thefrederiksen/agenteyes-app` via `gh release upload` (upload only - the latest flag
 is never touched by an upload). The `1.0.0` assets were deliberately LEFT on the
 release so the registry currently on `main` keeps resolving until this PR merges.
+
+**Post-merge cleanup (REQUIRED, part of closing this issue):** the 1.0.0 zips are
+the stale artifacts this issue exists to retire - the published doc-companion 1.0.0
+`run.ps1` still reads the pre-rename `MyQuietShadow` credential path. They must not
+stay published once nothing references them. Immediately AFTER the squash-merge to
+`main` (so the raw registry URL serves the 1.0.1 entries), whoever merges runs:
+
+```
+gh release delete-asset plugins doc-companion-1.0.0.zip -R thefrederiksen/agenteyes-app --yes
+gh release delete-asset plugins qa-walk-companion-1.0.0.zip -R thefrederiksen/agenteyes-app --yes
+gh release view plugins -R thefrederiksen/agenteyes-app --json assets --jq ".assets[].name"
+```
+
+Expected after cleanup: exactly the two `*-1.0.1.zip` assets. No published registry
+ever pinned by `main` will dangle: the only registry that named the 1.0.0 URLs is
+replaced by this same merge, and the new `PublishedPluginAssetTests` keep proving the
+1.0.1 entries still resolve. Deleting them BEFORE the merge would break installs for
+every user whose app still reads main's current registry - hence post-merge, not now.
 
 The new hashes:
 
