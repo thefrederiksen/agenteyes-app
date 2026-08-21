@@ -193,3 +193,120 @@ Actual: PASS - see the gate table above (830/830, run by QA on this branch).
    sign-in (transcription steps cannot pass on this box).
 
 VERIFIED - all acceptance criteria met. QA does not merge (D7); the Review Gate decides.
+
+---
+
+# QA Round 2 - review-gate REJECT fix (2026-08-21)
+
+Branch tip reviewed: 50d414c (round-1 tip was 7e99d32; QA proof commit 0de40e4; the fix is
+50d414c only). QA date: 2026-08-21.
+Verdict: **VERIFIED - the gate defect is fixed and all 6 acceptance criteria still hold.**
+Handing to the Review Gate (flow:ready-gate).
+
+## The defect under test
+
+Review-gate round-1 REJECT, one blocking defect (issue #9 comment, 2026-08-21):
+`tests/AgentEyes.Tests/ScriptBinaryPathTests.cs:40` - the reintroduction guard only
+blacklisted `bin\Release` and `bin\Debug`, so a wrong-platform build path
+(`bin\x86\Release\...`, `bin\arm64\...`) left every guard test green, violating AC4
+("fail on ANY non-x64 build-output path").
+
+## Scope of the fix (verified from the diff)
+
+`git show 50d414c --stat`: exactly two files - `tests/AgentEyes.Tests/ScriptBinaryPathTests.cs`
+(the guard) and `docs/cencon/proof/issue-9/handoff.md` (round-2 documentation). Zero product
+code, zero script changes. Therefore the round-1 runtime evidence (AC3 missing-binary error,
+AC5 api-smoke against the fresh 7e99d32 binary, mid-run process capture) remains valid and is
+cited, not re-run - the smoke surface is byte-identical to what round 1 exercised.
+
+## Gate results (run by QA on tip 50d414c)
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Build | `dotnet build AgentEyes.sln -c Release` | `Build succeeded.` `0 Error(s)` (same 2 pre-existing xUnit1031 warnings) |
+| Tests | `dotnet test AgentEyes.sln -c Release` | `Passed! - Failed: 0, Passed: 834, Skipped: 0, Total: 834` |
+
+Same machine note as round 1: `DOTNET_ROLL_FORWARD=LatestMajor` required on this box (QA
+reproduced the abort without it first, then the 834/834 run above).
+
+## The fixed guard - Expected vs Actual
+
+Expected (AC4 as the gate reads it): the guard fails when ANY non-x64 build-output path is
+reintroduced under scripts/ - platform-less, wrong-platform, wrong-configuration, or unknown.
+
+Actual: PASS. The detector is now an allow-form, fail-closed regex
+(`tests/AgentEyes.Tests/ScriptBinaryPathTests.cs:43-46`):
+
+    \bbin[\/]+(?!x64[\/]+Release\b)[A-Za-z0-9_.-]+
+
+The only continuation after `bin` that does not fire is exactly `x64\Release` (either
+separator, any case). QA traced the gate's named forms through the regex and through the
+committed theory cases (ScriptBinaryPathTests.cs:123-130 known-bad, 142-144 does-not-fire):
+
+| Input form | Detector | Evidence |
+|------------|----------|----------|
+| `bin\Release\...` | FIRES | theory case line 123 + live mutation round 1 |
+| `bin\Debug\...` / `bin/Debug` | FIRES | theory case line 126 |
+| `bin\x86\Release\...` | FIRES | theory case line 127 + live mutation below |
+| `bin/arm64/Release/...` | FIRES | theory case line 128 + live mutation below |
+| `bin\x64\Debug\...` | FIRES | theory case line 129 + live mutation below |
+| `bin\AnyCPU\Release\...` (unknown segment) | FIRES | theory case line 130 - unknown = defect, fail closed |
+| `bin\x64\Release\...` | does not fire | DoesNotFire cases lines 142-143 |
+| `AgentEyesApp-win-x64.exe` publish artifact | does not fire | DoesNotFire case line 144 |
+
+Edge cases QA checked by reading the regex, beyond the committed cases: `bin\x64Release`
+(missing separator) and `bin\x64\ReleaseCandidate` both fail the lookahead and FIRE -
+near-miss forms are defects, not passes. Honest limit unchanged and still stated in the
+test header (ScriptBinaryPathTests.cs:28-31): a text scan cannot see a path assembled at
+runtime from fragments; every script in this repo uses the literal form.
+
+## Mutation drill (run by QA - the guard was SEEN to fail)
+
+Per Section 6c item 3, QA planted the gate's exact scenario itself on tip 50d414c:
+appended three lines to `scripts/run-all.ps1` -
+
+    # QA-MUTATION: $exe = "src\AgentEyes.App\bin\x86\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+    # QA-MUTATION: src/AgentEyes.Core/bin/arm64/Release/net8.0-windows10.0.19041.0/agenteyes.exe
+    # QA-MUTATION: $old = "src\AgentEyes.App\bin\x64\Debug\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+
+then ran `dotnet test AgentEyes.sln -c Release --filter "FullyQualifiedName~ScriptBinaryPathTests"`:
+
+    Failed AgentEyes.Tests.ScriptBinaryPathTests.Scripts_AllFiles_ContainNoNonX64BuildOutputPath [10 ms]
+    run-all.ps1:62: # QA-MUTATION: $exe = "src\AgentEyes.App\bin\x86\Release\...\AgentEyesApp.exe"
+    run-all.ps1:63: # QA-MUTATION: src/AgentEyes.Core/bin/arm64/Release/.../agenteyes.exe
+    run-all.ps1:64: # QA-MUTATION: $old = "src\AgentEyes.App\bin\x64\Debug\...\AgentEyesApp.exe"
+    Failed! - Failed: 1, Passed: 13, Total: 14
+
+All three wrong-platform/wrong-config plants - including the two forms that slipped past the
+round-1 guard - are caught with file:line. Reverted the plant (`git checkout -- scripts/run-all.ps1`,
+tree clean), re-ran the filter: `Passed! - Failed: 0, Passed: 14, Total: 14`. The guard has
+now been observed in both states by QA on this tip.
+
+## Acceptance criteria still hold on the fixed tip
+
+- AC1/AC2 (x64-only references under scripts/): re-swept on 50d414c with the fail-closed form -
+  `grep -rniE "bin[\/]+" scripts/ | grep -viE "bin[\/]+x64[\/]+Release"` -> zero matches
+  (grep exit 1); presence arm: `bin\x64\Release` literals present in 7 scripts (api-smoke.ps1 x3,
+  gui-smoke.ps1 x3, doc-companion-demo.ps1 x2, py-client-smoke.ps1 x2, qa-walk-companion-demo.ps1 x2,
+  run-all.ps1 x2, try.cmd x2) - the instrument sees paths; the empty negative arm is a real absence.
+- AC3 (missing-binary error) and AC5 (smoke exercises the fresh build): unchanged since round 1 -
+  the fix commit touches no script - round-1 evidence stands (this report above: rename-away
+  exit-1 error naming the exact path and build command; mid-run process capture of pid 5756
+  running the 7e99d32-stamped binary, `[PASS] version v1.4.9`).
+- AC4: the fixed guard, verified above.
+- AC6: 834/834, Failed: 0, run by QA on this tip (gate table above).
+- Handoff note documents the round-2 change: `docs/cencon/proof/issue-9/handoff.md` gained a
+  "Round 2 - fix for the review-gate REJECT (2026-08-21)" section describing the defect, the
+  allow-form regex, the four new theory cases, and the revised AC4 QA check. Verified present
+  in the 50d414c diff.
+
+## Method checks (round 2)
+
+- ASCII-only: `git show 50d414c` contains 0 non-ASCII bytes (awk byte scan; the instrument was
+  first shown to FIRE on a known non-ASCII probe before its empty result was believed).
+- Scope: test file + handoff doc only; no product code, no privacy-posture surface.
+- Working tree left clean; the mutation plant was reverted and the revert verified by git status
+  and a green re-run.
+
+VERIFIED - gate defect fixed, all acceptance criteria hold on tip 50d414c. QA does not merge
+(D7); the Review Gate decides.
