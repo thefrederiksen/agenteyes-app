@@ -84,9 +84,16 @@ namespace AgentEyes.App
             root.Children.Add(meta);
 
             // ---- AI state: configured -> summary; not configured -> say so plainly ----
-            // One manifest read serves the summary AND the transcript classification below.
+            // One manifest read serves the summary AND the transcript classification below. A
+            // failure is survivable (the window still opens; classification falls back to the
+            // default artifact names) but never silent.
             Manifest? manifest = null;
-            try { manifest = Manifest.Load(item.Dir); } catch { }
+            try { manifest = Manifest.Load(item.Dir); }
+            catch (Exception ex)
+            {
+                Log.Error($"[RecordingDetailWindow] ctor: cannot read the manifest for {item.Dir} "
+                    + "- no summary, transcript classified by default artifact names.", ex);
+            }
             string summaryText = manifest?.Description ?? "";
             bool aiConfigured = AgentEyes.DevThrottle.DevThrottleAccount.IsSignedIn;
 

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using AgentEyes;
 
 namespace AgentEyes.App
@@ -23,9 +24,12 @@ namespace AgentEyes.App
         /// completion, never flat-text length.</summary>
         public bool HasTranscript => Kind == TranscriptKind.Transcribed;
 
-        /// <summary>The text to display: the manifest-named transcript.json when transcribed, else
-        /// the legacy flat transcript.txt - the same precedence the Control API serves
-        /// (<see cref="RecordingLibrary.ReadTranscript"/>). Empty when there is nothing to show.</summary>
+        /// <summary>The text to display. The flat transcript.txt is preferred when it has content:
+        /// it is the pipeline's human-readable rendering (one "[HH:MM:SS] text" line per segment -
+        /// <see cref="Package"/> writes it from the same segments), and it is exactly what the
+        /// window displayed before issue #4 - the presence CLAIM changed, the text must not. When
+        /// the flat file is missing or empty, the JSON text is read through
+        /// <see cref="RecordingLibrary.ReadTranscript"/>. Empty when there is nothing to show.</summary>
         public string Text { get; }
 
         /// <summary>Copy stays available whenever there is text - a legacy flat text is content the
@@ -40,7 +44,9 @@ namespace AgentEyes.App
         {
             Kind = kind;
             Text = text;
-            LegacyNotice = kind == TranscriptKind.FlatTextOnly
+            // The notice mirrors CanCopy: it captions text that is actually shown. A 0-byte legacy
+            // file must not stack "showing the text file" over the empty-state placeholder.
+            LegacyNotice = kind == TranscriptKind.FlatTextOnly && text.Length > 0
                 ? "Not transcribed - showing the text file saved with this recording."
                 : null;
         }
@@ -57,7 +63,13 @@ namespace AgentEyes.App
             var kind = TranscriptStatus.Classify(dir, manifest);
             string text = "";
             if (kind != TranscriptKind.None)
-                text = RecordingLibrary.ReadTranscript(dir, manifest)?.Text?.Trim() ?? "";
+            {
+                // Flat rendering first (see Text), JSON text when the flat file has nothing.
+                string flatPath = TranscriptStatus.FlatTextPath(dir);
+                if (File.Exists(flatPath)) text = File.ReadAllText(flatPath).Trim();
+                if (text.Length == 0)
+                    text = RecordingLibrary.ReadTranscript(dir, manifest)?.Text?.Trim() ?? "";
+            }
             Log.Info($"[TranscriptPresentation] For: dir={dir} kind={kind} chars={text.Length}");
             return new TranscriptPresentation(kind, text);
         }

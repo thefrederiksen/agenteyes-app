@@ -51,21 +51,30 @@ namespace AgentEyes
         private const string DefaultJsonFile = "transcript.json";
 
         /// <summary>
+        /// The transcript JSON artifact name for one recording: the manifest-named file, else the
+        /// default. THE one resolution both the predicate and the transcript reader
+        /// (<see cref="RecordingLibrary.ReadTranscript"/>) use - duplicated copies of this
+        /// expression are how "is transcribed" and "what text shows" could drift apart.
+        /// </summary>
+        public static string JsonArtifactName(Manifest? manifest) =>
+            string.IsNullOrWhiteSpace(manifest?.Transcript) ? DefaultJsonFile : manifest!.Transcript!;
+
+        /// <summary>
         /// Canonical completion: the manifest-named transcript JSON exists in
         /// <paramref name="dir"/>. <paramref name="manifest"/> may be null (unreadable or missing
         /// manifest) - the default artifact name is used then.
         /// </summary>
-        public static bool IsTranscribed(string dir, Manifest? manifest)
-        {
-            string jsonName = string.IsNullOrWhiteSpace(manifest?.Transcript)
-                ? DefaultJsonFile : manifest!.Transcript!;
-            return File.Exists(Path.Combine(dir, jsonName));
-        }
+        public static bool IsTranscribed(string dir, Manifest? manifest) =>
+            File.Exists(Path.Combine(dir, JsonArtifactName(manifest)));
+
+        /// <summary>The absolute path of the flat transcript file for <paramref name="dir"/> -
+        /// the one name every reader of the flat text resolves through.</summary>
+        public static string FlatTextPath(string dir) => Path.Combine(dir, FlatTextFile);
 
         /// <summary>True when the legacy flat transcript.txt exists in <paramref name="dir"/>,
         /// regardless of whether the recording is also transcribed.</summary>
         public static bool HasFlatText(string dir) =>
-            File.Exists(Path.Combine(dir, FlatTextFile));
+            File.Exists(FlatTextPath(dir));
 
         /// <summary>The single classification every UI/API decision hangs off.</summary>
         public static TranscriptKind Classify(string dir, Manifest? manifest)

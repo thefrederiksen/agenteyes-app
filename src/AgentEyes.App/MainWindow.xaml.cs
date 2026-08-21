@@ -2287,9 +2287,11 @@ namespace AgentEyes.App
         public static RecentItem From(string dir)
         {
             var item = new RecentItem { Title = Path.GetFileName(dir), Detail = "", Dir = dir };
+            Manifest? manifest = null;   // survives the catch - the artifact chips below still classify
             try
             {
                 var m = Manifest.Load(dir);
+                manifest = m;
                 string mic = ShortMic(m.Microphone);
 
                 switch (m.Mode)
@@ -2363,16 +2365,6 @@ namespace AgentEyes.App
                 // Legacy recordings titled before token capture carry no usable cost figure
                 // (the old client-side dollar estimate was removed) - leave it blank.
 
-                // Artifact chips: what the recording already produced on disk. Transcript presence
-                // comes from the canonical predicate the Control API uses (issue #4) - a legacy
-                // flat transcript.txt is NOT "transcribed", it gets its own quieter chip.
-                var transcriptKind = TranscriptStatus.Classify(dir, m);
-                item.TranscriptChipVisibility = transcriptKind == TranscriptKind.Transcribed
-                    ? Visibility.Visible : Visibility.Collapsed;
-                item.FlatTextChipVisibility = transcriptKind == TranscriptKind.FlatTextOnly
-                    ? Visibility.Visible : Visibility.Collapsed;
-                item.WalkthroughChipVisibility = File.Exists(Path.Combine(dir, "walkthrough.html"))
-                    ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex)
             {
@@ -2382,6 +2374,21 @@ namespace AgentEyes.App
                 // explainable from the log.
                 Log.Error($"[RecentItem] From: cannot build the library card for {dir}", ex);
             }
+
+            // Artifact chips: what the recording already produced on disk. Deliberately OUTSIDE the
+            // manifest try (issue #4 review): the chips are file facts, and an unreadable manifest
+            // must not hide artifacts that are plainly there - Classify takes a null manifest and
+            // falls back to the default artifact names, the same thing the detail window does.
+            // Transcript presence comes from the canonical predicate the Control API uses (issue
+            // #4) - a legacy flat transcript.txt is NOT "transcribed", it gets its own quieter chip.
+            var transcriptKind = TranscriptStatus.Classify(dir, manifest);
+            item.TranscriptChipVisibility = transcriptKind == TranscriptKind.Transcribed
+                ? Visibility.Visible : Visibility.Collapsed;
+            item.FlatTextChipVisibility = transcriptKind == TranscriptKind.FlatTextOnly
+                ? Visibility.Visible : Visibility.Collapsed;
+            item.WalkthroughChipVisibility = File.Exists(Path.Combine(dir, "walkthrough.html"))
+                ? Visibility.Visible : Visibility.Collapsed;
+
             if (item.Detail.Length == 0) item.Detail = item.DateText;
             return item;
         }

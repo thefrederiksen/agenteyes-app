@@ -84,7 +84,10 @@ namespace AgentEyes.Tests
             File.WriteAllText(Path.Combine(dir, "transcript.json"),
                 "[{\"StartSeconds\":0.0,\"EndSeconds\":1.5,\"Text\":\"hello\"}," +
                 "{\"StartSeconds\":1.5,\"EndSeconds\":3.0,\"Text\":\"world\"}]");
-            File.WriteAllText(Path.Combine(dir, "transcript.txt"), "hello world");
+            // The pipeline's human-readable rendering: one timestamped line per segment
+            // (Package.WriteTranscript) - what the detail view has always displayed.
+            File.WriteAllText(Path.Combine(dir, "transcript.txt"),
+                "[00:00:00] hello" + Environment.NewLine + "[00:00:01] world");
             var m = Manifest.Load(dir);
             m.Transcript = "transcript.json";
             ManifestStore.Replace(dir, m);
@@ -179,6 +182,27 @@ namespace AgentEyes.Tests
             Assert.Equal(Visibility.Collapsed, card.FlatTextChipVisibility);
         }
 
+        [Fact]
+        public void LibraryCard_CorruptManifest_StillClassifiesFromDisk()
+        {
+            // An unreadable manifest must not hide artifacts that are plainly on disk (review
+            // finding): the chips are file facts, classified with a null manifest exactly like
+            // the detail window's fallback.
+            string dir = Path.Combine(_root, "corrupt_card");
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "manifest.json"), "{ not json");
+            File.WriteAllText(Path.Combine(dir, "transcript.txt"), "still here");
+
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.FlatTextChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.TranscriptChipVisibility);
+
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "[]");
+            card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.FlatTextChipVisibility);
+        }
+
         // ---- criterion 2: the detail window's decision ---------------------
 
         [Fact]
@@ -205,15 +229,48 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void DetailPresentation_TranscribedRecording_ClaimsTranscriptFromJson()
+        public void DetailPresentation_TranscribedRecording_ClaimsTranscriptAndKeepsFlatRendering()
         {
             string dir = TranscribedRecording("done_detail");
             var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
 
             Assert.True(p.HasTranscript);
             Assert.Equal(TranscriptKind.Transcribed, p.Kind);
-            Assert.Equal("hello world", p.Text);   // read from the JSON segments, not the flat file
+            // The displayed text is the pipeline's timestamped flat rendering, exactly what the
+            // window showed before issue #4 - the presence CLAIM changed, the text did not
+            // (review finding: joining the JSON segments would flatten the timecodes away).
+            Assert.Equal("[00:00:00] hello" + Environment.NewLine + "[00:00:01] world", p.Text);
             Assert.True(p.CanCopy);
+            Assert.Null(p.LegacyNotice);
+        }
+
+        [Fact]
+        public void DetailPresentation_TranscribedWithoutFlatFile_FallsBackToJsonText()
+        {
+            // A transcribed recording whose flat rendering was deleted still shows its text,
+            // read from the JSON segments through the same reader the Control API serves.
+            string dir = TranscribedRecording("done_nofla");
+            File.Delete(Path.Combine(dir, "transcript.txt"));
+            var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
+
+            Assert.True(p.HasTranscript);
+            Assert.Equal("hello world", p.Text);
+            Assert.True(p.CanCopy);
+        }
+
+        [Fact]
+        public void DetailPresentation_EmptyFlatTextOnly_NoNoticeNoCopy()
+        {
+            // A 0-byte legacy file: the chip-level classification is FlatTextOnly (the file
+            // exists), but nothing is shown, so no "showing the text file" caption may stack
+            // over the empty-state placeholder and there is nothing to copy.
+            string dir = FlatTextOnlyRecording("flat_empty", "");
+            var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
+
+            Assert.False(p.HasTranscript);
+            Assert.Equal(TranscriptKind.FlatTextOnly, p.Kind);
+            Assert.Equal("", p.Text);
+            Assert.False(p.CanCopy);
             Assert.Null(p.LegacyNotice);
         }
 

@@ -183,17 +183,28 @@ namespace AgentEyes
         /// </summary>
         public static TranscriptView? ReadTranscript(string dir, Manifest? m)
         {
-            string jsonName = string.IsNullOrWhiteSpace(m?.Transcript) ? "transcript.json" : m!.Transcript!;
+            string jsonName = TranscriptStatus.JsonArtifactName(m);
             string jsonPath = Path.Combine(dir, jsonName);
             if (File.Exists(jsonPath))
             {
                 List<TranscriptSegment>? segs = null;
-                try { segs = JsonSerializer.Deserialize<List<TranscriptSegment>>(File.ReadAllText(jsonPath)); }
-                catch { segs = null; }
+                try
+                {
+                    segs = JsonSerializer.Deserialize<List<TranscriptSegment>>(File.ReadAllText(jsonPath));
+                    if (segs == null)
+                        Log.Warn($"[RecordingLibrary] ReadTranscript: {jsonName} in {dir} carries no segment list - falling through to transcript.txt.");
+                }
+                catch (Exception ex)
+                {
+                    // The flat transcript.txt below still serves the text, but the broken artifact
+                    // must leave a trace (issue #4 review) - judging completion by PARSING it is
+                    // issue #15; silently losing the evidence is not.
+                    Log.Warn($"[RecordingLibrary] ReadTranscript: unparseable {jsonName} in {dir}: {ex.Message}");
+                }
                 if (segs != null)
                 {
                     var lines = segs
-                        .Select(g => new TranscriptLine { Start = g.StartSeconds, End = g.EndSeconds, Text = g.Text })
+                        .Select(g => new TranscriptLine { Start = g.StartSeconds, End = g.EndSeconds, Text = g.Text ?? "" })
                         .ToList();
                     string text = string.Join(" ", lines.Select(l => l.Text.Trim())).Trim();
                     return new TranscriptView { Text = text, Segments = lines };
@@ -298,8 +309,11 @@ namespace AgentEyes
         /// <summary>Canonical transcription completion (issue #4): the manifest-named
         /// transcript.json exists. A legacy flat transcript.txt no longer counts as "transcribed"
         /// here - it is exposed separately as <see cref="Summary.HasFlatTranscript"/> /
-        /// <see cref="Detail.HasFlatTranscript"/> - so this flag finally agrees with
-        /// <see cref="TranscriptionBacklog.NeedsTranscription"/> and with the desktop Library.</summary>
+        /// <see cref="Detail.HasFlatTranscript"/> - so this flag and the desktop Library can no
+        /// longer disagree, and for the default artifact name (the only one the pipeline writes)
+        /// it also agrees with <see cref="TranscriptionBacklog.NeedsTranscription"/>. The backlog
+        /// still hardcodes "transcript.json" (pre-existing); folding it onto this predicate is
+        /// issue #15's centralization, not this change.</summary>
         private static bool HasTranscript(string dir, Manifest m) =>
             TranscriptStatus.IsTranscribed(dir, m);
 
