@@ -1245,10 +1245,12 @@ namespace AgentEyes.Tests
         /// inherited-declaration, explicit, generic-interface, generic-method, default-interface-
         /// method, virtual and generic-virtual through base references, delegate creation over
         /// interface/virtual methods, static abstract members, static constructors/finalizers,
-        /// jmp - see the TheReachabilityWalk_*/TheDispatchMap_* tests) or stated VERBATIM in the
-        /// limits below. Nothing is silently unhandled: the IL instructions that can name a method
-        /// token are call, callvirt, newobj, jmp, ldftn, ldvirtftn and ldtoken - all collected -
-        /// and calli, which names none and is pinned to zero.
+        /// jmp, and MULTI-STEP dispatch chains - an override of a base implementation reached
+        /// through an interface, with or without a body at the relay, chased to a fixpoint - see
+        /// the TheReachabilityWalk_*/TheDispatchMap_* tests) or stated VERBATIM in the limits
+        /// below. Nothing is silently unhandled: the IL instructions that can name a method token
+        /// are call, callvirt, newobj, jmp, ldftn, ldvirtftn and ldtoken - all collected - and
+        /// calli, which names none and is pinned to zero.
         ///
         /// Its limits, stated honestly:
         /// - the ASSEMBLY BOUNDARY, in both of its forms: a callee whose body lives in another

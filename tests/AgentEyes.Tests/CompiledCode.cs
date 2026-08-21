@@ -320,6 +320,28 @@ namespace AgentEyes.Tests
                 owners.Add(access.Field.Substring(0, split));
             }
 
+            // Dispatch edges are chased to a FIXPOINT, not one step (round-3 self-review,
+            // demonstrated fail-open): a call through an interface lands on a base-class
+            // implementation, and a derived OVERRIDE of that implementation can run too - two
+            // dispatch steps from the IL token, or more. The chain can even pass through a node
+            // with no body at all (a base class satisfying an interface with an abstract method),
+            // so the fan-out recurses over the dispatch relation itself and Reach() simply
+            // ignores the bodiless relays along the way.
+            var fanned = new HashSet<string>(StringComparer.Ordinal);
+            void FanOut(string name)
+            {
+                if (!fanned.Add(name)) return;
+
+                // The name's own body, when it has one in this assembly.
+                Reach(name);
+
+                // And every in-assembly implementation/override dispatch could route it to,
+                // transitively.
+                if (dispatch.TryGetValue(name, out var implementations))
+                    foreach (string implementation in implementations)
+                        FanOut(implementation);
+            }
+
             foreach (string seed in wanted) Reach(seed);
             while (queue.Count > 0)
             {
@@ -329,18 +351,12 @@ namespace AgentEyes.Tests
                     foreach (string touchedType in touchedTypes)
                         Reach($"{touchedType}::.cctor");
 
-                foreach (string callee in graph[current])
-                {
-                    // The callee's own body, when it has one in this assembly.
-                    Reach(callee);
+                // A reached BODY can itself be a dispatch source: a virtual method reached as an
+                // implementation still has overrides of its own.
+                FanOut(current);
 
-                    // And every in-assembly implementation/override the call could dispatch to. The
-                    // declaration itself (an interface or abstract method) has no body and is not in
-                    // the graph - which is exactly why this edge set exists.
-                    if (dispatch.TryGetValue(callee, out var implementations))
-                        foreach (string implementation in implementations)
-                            Reach(implementation);
-                }
+                foreach (string callee in graph[current])
+                    FanOut(callee);
             }
 
             return reached.OrderBy(m => m, StringComparer.Ordinal).ToList();
@@ -375,6 +391,12 @@ namespace AgentEyes.Tests
         /// overload that is NOT the implementation still gets an edge, which over-reports. This map
         /// exists so a reachability guard fails closed; a false extra edge is a false alarm, a
         /// missing edge is a silent pass.
+        ///
+        /// An edge's target may itself be a DECLARATION rather than a body (round-3 self-review):
+        /// a base class can satisfy an interface with an abstract method, so the interface edge
+        /// lands on a bodiless relay and the override edges continue from it. The map is therefore
+        /// a RELATION to be chased transitively - <see cref="Reachable"/> runs its fan-out to a
+        /// fixpoint - not a one-step lookup.
         ///
         /// Its honest limit is the assembly boundary, same as the rest of this class: a declaration
         /// living OUTSIDE the assembly (a BCL or WPF interface or base class) is not a key here, so
@@ -412,18 +434,20 @@ namespace AgentEyes.Tests
 
                 // The methods this type RESPONDS with, by simple name, folded the same way call
                 // sites are so the edge targets match the reachability graph's keys. INHERITED
-                // bodies are included, nearest declaration first (round-2 review, finding 1): a
+                // members are included, nearest declaration first (round-2 review, finding 1): a
                 // derived type can carry the InterfaceImpl row while the body it contributes lives
                 // on a base class that never names the interface, and matching only the type's OWN
-                // methods left exactly that shape unreachable - a silent pass.
+                // methods left exactly that shape unreachable - a silent pass. BODILESS
+                // declarations are included too (round-3 self-review): a base class can satisfy an
+                // interface with an ABSTRACT method, and the edge must land on that declaration so
+                // the walk's transitive fan-out can relay through it to the overrides - a relay
+                // with no IL is still a dispatch node.
                 var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
                 void CollectBodies(TypeDefinitionHandle fromType)
                 {
                     foreach (var methodHandle in md.GetTypeDefinition(fromType).GetMethods())
                     {
-                        var method = md.GetMethodDefinition(methodHandle);
-                        if (method.RelativeVirtualAddress == 0) continue;
-                        string name = md.GetString(method.Name);
+                        string name = md.GetString(md.GetMethodDefinition(methodHandle).Name);
                         if (!bodies.ContainsKey(name))          // nearest declaration wins
                             bodies[name] = MethodName(md, methodHandle);
                     }
