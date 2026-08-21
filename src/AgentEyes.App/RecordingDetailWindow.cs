@@ -84,8 +84,10 @@ namespace AgentEyes.App
             root.Children.Add(meta);
 
             // ---- AI state: configured -> summary; not configured -> say so plainly ----
-            string summaryText = "";
-            try { summaryText = Manifest.Load(item.Dir).Description ?? ""; } catch { }
+            // One manifest read serves the summary AND the transcript classification below.
+            Manifest? manifest = null;
+            try { manifest = Manifest.Load(item.Dir); } catch { }
+            string summaryText = manifest?.Description ?? "";
             bool aiConfigured = AgentEyes.DevThrottle.DevThrottleAccount.IsSignedIn;
 
             if (!aiConfigured && summaryText.Length == 0)
@@ -147,25 +149,53 @@ namespace AgentEyes.App
                 CornerRadius = new CornerRadius(6),
                 Margin = new Thickness(0, 14, 0, 0),
             };
-            string transcriptPath = Path.Combine(item.Dir, "transcript.txt");
-            string transcript = "";
-            try { if (File.Exists(transcriptPath)) transcript = File.ReadAllText(transcriptPath).Trim(); } catch { }
-            transcriptHost.Child = new TextBox
+            // Issue #4: every transcript decision (is it transcribed? what text shows? is Copy
+            // offered?) comes from the testable presentation, driven by the canonical predicate -
+            // never from flat-text existence or length.
+            TranscriptPresentation presentation;
+            try { presentation = TranscriptPresentation.For(item.Dir, manifest); }
+            catch (Exception ex)
             {
-                Text = transcript.Length > 0 ? transcript
+                Log.Error($"[RecordingDetailWindow] ctor: cannot read the transcript for {item.Dir}", ex);
+                presentation = TranscriptPresentation.None;
+            }
+            var transcriptBody = new TextBox
+            {
+                Text = presentation.Text.Length > 0 ? presentation.Text
                     : (item.Status.Length > 0 ? "Transcribing..." : "No transcript for this recording."),
                 IsReadOnly = true,
                 Background = Brushes.Transparent,
-                Foreground = transcript.Length > 0 ? Res<Brush>("DkText") : Res<Brush>("DkDim"),
+                Foreground = presentation.Text.Length > 0 ? Res<Brush>("DkText") : Res<Brush>("DkDim"),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(12),
                 FontSize = 13,
                 TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             };
+            if (presentation.LegacyNotice != null)
+            {
+                // A legacy flat-text-only recording: the text stays readable, but a quiet caption
+                // says plainly that it is NOT a transcription (issue #4).
+                var host = new DockPanel();
+                var notice = new TextBlock
+                {
+                    Text = presentation.LegacyNotice,
+                    FontSize = 11,
+                    FontStyle = FontStyles.Italic,
+                    Foreground = Res<Brush>("DkDim"),
+                    Margin = new Thickness(12, 10, 12, 0),
+                };
+                DockPanel.SetDock(notice, Dock.Top);
+                host.Children.Add(notice);
+                host.Children.Add(transcriptBody);
+                transcriptHost.Child = host;
+            }
+            else
+            {
+                transcriptHost.Child = transcriptBody;
+            }
             Grid.SetRow(transcriptHost, 4);
             root.Children.Add(transcriptHost);
-            _hasTranscript = transcript.Length > 0;
 
             // ---- actions ----
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
@@ -173,7 +203,9 @@ namespace AgentEyes.App
             if (item.WalkthroughVisibility == Visibility.Visible)
                 actions.Children.Add(Btn(File.Exists(Path.Combine(item.Dir, "walkthrough.html")) ? "Open walkthrough" : "Build walkthrough",
                     async (_, _) => { await _rebuildWalkthrough(); }));
-            if (_hasTranscript) actions.Children.Add(Btn("Copy transcript", (_, _) => CopyTranscript(transcript)));
+            // Copy follows CanCopy, not the transcribed claim - a legacy flat text is still the
+            // user's content and must stay copyable (issue #4).
+            if (presentation.CanCopy) actions.Children.Add(Btn("Copy transcript", (_, _) => CopyTranscript(presentation.Text)));
             actions.Children.Add(Btn("Open folder", (_, _) =>
             {
                 if (Directory.Exists(item.Dir))
@@ -197,7 +229,8 @@ namespace AgentEyes.App
             Closed += (_, _) => _player?.Close();
         }
 
-        private readonly bool _hasTranscript;
+        // The former _hasTranscript flag (flat-text LENGTH) is gone (issue #4): the transcript
+        // decisions live in the testable TranscriptPresentation, built in the constructor.
 
         private Button Btn(string text, RoutedEventHandler onClick)
         {

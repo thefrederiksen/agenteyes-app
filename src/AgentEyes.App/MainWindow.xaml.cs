@@ -2037,11 +2037,22 @@ namespace AgentEyes.App
 
         // Artifact chips (transcript / walkthrough exist on disk).
         private Visibility _transcriptChip = Visibility.Collapsed;
+        private Visibility _flatTextChip = Visibility.Collapsed;
         private Visibility _walkthroughChip = Visibility.Collapsed;
+        /// <summary>The "Transcript" chip: TRANSCRIPTION COMPLETE per the canonical predicate
+        /// (<see cref="TranscriptStatus"/>, issue #4) - never mere transcript.txt existence.</summary>
         public Visibility TranscriptChipVisibility
         {
             get => _transcriptChip;
             set { _transcriptChip = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(TranscriptChipVisibility))); }
+        }
+        /// <summary>The quieter "Text file" chip (issue #4): a legacy flat transcript.txt exists but
+        /// the recording is NOT transcribed. Mutually exclusive with the Transcript chip; the text
+        /// stays readable through the same detail view.</summary>
+        public Visibility FlatTextChipVisibility
+        {
+            get => _flatTextChip;
+            set { _flatTextChip = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(FlatTextChipVisibility))); }
         }
         public Visibility WalkthroughChipVisibility
         {
@@ -2352,8 +2363,13 @@ namespace AgentEyes.App
                 // Legacy recordings titled before token capture carry no usable cost figure
                 // (the old client-side dollar estimate was removed) - leave it blank.
 
-                // Artifact chips: what the recording already produced on disk.
-                item.TranscriptChipVisibility = File.Exists(Path.Combine(dir, "transcript.txt"))
+                // Artifact chips: what the recording already produced on disk. Transcript presence
+                // comes from the canonical predicate the Control API uses (issue #4) - a legacy
+                // flat transcript.txt is NOT "transcribed", it gets its own quieter chip.
+                var transcriptKind = TranscriptStatus.Classify(dir, m);
+                item.TranscriptChipVisibility = transcriptKind == TranscriptKind.Transcribed
+                    ? Visibility.Visible : Visibility.Collapsed;
+                item.FlatTextChipVisibility = transcriptKind == TranscriptKind.FlatTextOnly
                     ? Visibility.Visible : Visibility.Collapsed;
                 item.WalkthroughChipVisibility = File.Exists(Path.Combine(dir, "walkthrough.html"))
                     ? Visibility.Visible : Visibility.Collapsed;
@@ -2420,6 +2436,7 @@ namespace AgentEyes.App
             CostTip = fresh.CostTip;
             Cost = fresh.Cost;   // notifies; the cost tag lands on the row when packaging finishes
             TranscriptChipVisibility = fresh.TranscriptChipVisibility;
+            FlatTextChipVisibility = fresh.FlatTextChipVisibility;
             WalkthroughChipVisibility = fresh.WalkthroughChipVisibility;
             Badge = fresh.Badge;
             BadgeBrush = fresh.BadgeBrush;

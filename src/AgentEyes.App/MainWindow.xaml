@@ -170,6 +170,17 @@
                             <TextBlock Text="Transcript" FontSize="10" Foreground="{StaticResource RdDim}"/>
                         </Border>
                     </Button>
+                    <!-- Legacy flat-text-only recording (issue #4): NOT transcribed - the quieter
+                         chip says so while keeping the existing text readable via the detail view -->
+                    <Button Style="{StaticResource ChipButton}" Click="TranscriptChip_Click"
+                            ToolTip="Not transcribed - a legacy text file exists. View text and details"
+                            Visibility="{Binding FlatTextChipVisibility}">
+                        <Border BorderBrush="{StaticResource RdStroke}" BorderThickness="1" CornerRadius="9"
+                                Padding="7,2" Margin="0,0,6,0">
+                            <TextBlock Text="Text file" FontSize="10" FontStyle="Italic"
+                                       Foreground="{StaticResource RdMuted}"/>
+                        </Border>
+                    </Button>
                     <Button Style="{StaticResource ChipButton}" Click="WalkthroughChip_Click"
                             ToolTip="Open walkthrough" Visibility="{Binding WalkthroughChipVisibility}">
                         <Border BorderBrush="{StaticResource RdAccent}" BorderThickness="1" CornerRadius="9"
