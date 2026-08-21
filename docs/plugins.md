@@ -109,9 +109,9 @@ both local installs and registry installs.
 
 ### Registry (issue #32)
 
-The registry is a JSON file; the default lives in the public releases repo
-(`thefrederiksen/AgentEyes-releases`, `plugins/registry.json`), and
-`PluginRegistryUrl` in config.json overrides it.
+The registry is a JSON file; the default is `plugins/registry.json` on the main
+branch of the one consolidated public repo (`thefrederiksen/agenteyes-app`,
+issue #186), and `PluginRegistryUrl` in config.json overrides it.
 
 ```json
 {
@@ -120,8 +120,8 @@ The registry is a JSON file; the default lives in the public releases repo
       "id": "qa-walk-companion",
       "name": "QA Walk Companion",
       "description": "QA report with bugs found from a walkthrough recording.",
-      "version": "1.0.0",
-      "zipUrl": "https://github.com/thefrederiksen/AgentEyes-releases/releases/download/plugins/qa-walk-companion-1.0.0.zip",
+      "version": "1.0.1",
+      "zipUrl": "https://github.com/thefrederiksen/agenteyes-app/releases/download/plugins/qa-walk-companion-1.0.1.zip",
       "sha256": "<hex digest of the zip>"
     }
   ]

@@ -281,12 +281,12 @@ namespace AgentEyes.Tests
                 "qa-walk-companion");
 
             Assert.Equal("qa-walk-companion", entry.GetProperty("id").GetString());
-            Assert.Equal("1.0.0", entry.GetProperty("version").GetString());
+            Assert.Equal("1.0.1", entry.GetProperty("version").GetString());
             Assert.Equal(64, entry.GetProperty("sha256").GetString()!.Length);
 
             string zipUrl = entry.GetProperty("zipUrl").GetString()!;
             AssertZipUrlIsOnTheConsolidatedRepo(zipUrl);
-            Assert.Equal(ExpectedZipUrlPrefix + "qa-walk-companion-1.0.0.zip", zipUrl);
+            Assert.Equal(ExpectedZipUrlPrefix + "qa-walk-companion-1.0.1.zip", zipUrl);
         }
 
         [Fact]
@@ -374,7 +374,7 @@ namespace AgentEyes.Tests
                 throw new InvalidOperationException(
                     $"package-plugin.ps1 exited {proc.ExitCode}. stderr: {stderr}{Environment.NewLine}stdout: {stdout}");
 
-            string zip = Path.Combine(outDir, $"{pluginId}-1.0.0.zip");
+            string zip = Path.Combine(outDir, $"{pluginId}-1.0.1.zip");
             if (!File.Exists(zip))
                 throw new InvalidOperationException($"package-plugin.ps1 produced no zip at '{zip}'. stdout: {stdout}");
 
@@ -466,7 +466,7 @@ NestedModules = @('Microsoft.PowerShell.Commands.Utility.dll')
                 var entry = RunPackagePlugin(Path.Combine(RepoSource.Root, "scripts", "package-plugin.ps1"),
                     "qa-walk-companion");
 
-                Assert.Equal(ExpectedZipUrlPrefix + "qa-walk-companion-1.0.0.zip",
+                Assert.Equal(ExpectedZipUrlPrefix + "qa-walk-companion-1.0.1.zip",
                     entry.GetProperty("zipUrl").GetString());
                 Assert.Equal(64, entry.GetProperty("sha256").GetString()!.Length);
             }
