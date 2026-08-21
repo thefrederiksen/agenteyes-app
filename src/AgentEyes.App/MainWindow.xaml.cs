@@ -213,6 +213,18 @@ namespace AgentEyes.App
             LibraryControls.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
             ViewTitle.Text = record ? "Record" : library ? "Library"
                 : dictionary ? "Dictionary" : "Capture";
+            // Issue #4 round 2: re-derive every card's artifact chips from disk each time the
+            // Library is shown. transcript.json can be deleted or created outside the app while
+            // the user is on another view (the card's own Open-folder action invites it), and the
+            // cards must agree with the canonical predicate - and so with the Control API, which
+            // re-reads the disk on every request - the moment they are visible again.
+            //
+            // Round 3 (review gate defect 1): the sweep is one File.Exists set PER ROW with no row
+            // cap, so it must never run on this thread - on a large library or slow storage the
+            // rail could not paint until every probe finished. RefreshLibraryChips hands the
+            // probes to a worker; the Library paints immediately with the chips it already has
+            // and the re-derived values are dispatched back when the probes complete.
+            if (library) RefreshLibraryChips();
             if (dictionary) LoadDictionary();
             if (capture)
             {
@@ -220,6 +232,28 @@ namespace AgentEyes.App
                 UpdateCaptureSaveFolderLabel();
                 BuildCaptureMonitorPicker();
                 LoadCaptures();
+            }
+        }
+
+        /// <summary>
+        /// Kicks the Library's artifact-chip re-derivation (issue #4 round 2) without holding up
+        /// the rail paint (round 3, review gate defect 1). LibraryCoherence.RefreshArtifactChipsAsync
+        /// snapshots the rows on this thread without touching the disk, probes on a worker, and
+        /// dispatches the re-derived chip values back here. Fire-and-forget entry point (async
+        /// void, called from Rail_Checked like an event handler), so the try-catch lives here
+        /// (CLAUDE.md rule 4) - and the failure log itself is written from a worker, so even the
+        /// error path appends nothing to disk on the UI thread (round 3, defect 3 shape).
+        /// </summary>
+        private async void RefreshLibraryChips()
+        {
+            try
+            {
+                await _library.RefreshArtifactChipsAsync();
+            }
+            catch (Exception ex)
+            {
+                await Task.Run(() => Log.Error(
+                    "[MainWindow] RefreshLibraryChips FAILED - the cards keep their last chip values", ex));
             }
         }
 
@@ -2037,11 +2071,22 @@ namespace AgentEyes.App
 
         // Artifact chips (transcript / walkthrough exist on disk).
         private Visibility _transcriptChip = Visibility.Collapsed;
+        private Visibility _flatTextChip = Visibility.Collapsed;
         private Visibility _walkthroughChip = Visibility.Collapsed;
+        /// <summary>The "Transcript" chip: TRANSCRIPTION COMPLETE per the canonical predicate
+        /// (<see cref="TranscriptStatus"/>, issue #4) - never mere transcript.txt existence.</summary>
         public Visibility TranscriptChipVisibility
         {
             get => _transcriptChip;
             set { _transcriptChip = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(TranscriptChipVisibility))); }
+        }
+        /// <summary>The quieter "Text file" chip (issue #4): a legacy flat transcript.txt exists but
+        /// the recording is NOT transcribed. Mutually exclusive with the Transcript chip; the text
+        /// stays readable through the same detail view.</summary>
+        public Visibility FlatTextChipVisibility
+        {
+            get => _flatTextChip;
+            set { _flatTextChip = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(FlatTextChipVisibility))); }
         }
         public Visibility WalkthroughChipVisibility
         {
@@ -2276,9 +2321,11 @@ namespace AgentEyes.App
         public static RecentItem From(string dir)
         {
             var item = new RecentItem { Title = Path.GetFileName(dir), Detail = "", Dir = dir };
+            Manifest? manifest = null;   // survives the catch - the artifact chips below still classify
             try
             {
                 var m = Manifest.Load(dir);
+                manifest = m;
                 string mic = ShortMic(m.Microphone);
 
                 switch (m.Mode)
@@ -2352,11 +2399,6 @@ namespace AgentEyes.App
                 // Legacy recordings titled before token capture carry no usable cost figure
                 // (the old client-side dollar estimate was removed) - leave it blank.
 
-                // Artifact chips: what the recording already produced on disk.
-                item.TranscriptChipVisibility = File.Exists(Path.Combine(dir, "transcript.txt"))
-                    ? Visibility.Visible : Visibility.Collapsed;
-                item.WalkthroughChipVisibility = File.Exists(Path.Combine(dir, "walkthrough.html"))
-                    ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex)
             {
@@ -2366,9 +2408,100 @@ namespace AgentEyes.App
                 // explainable from the log.
                 Log.Error($"[RecentItem] From: cannot build the library card for {dir}", ex);
             }
+
+            // Artifact chips: what the recording already produced on disk. Deliberately OUTSIDE the
+            // manifest try (issue #4 review): the chips are file facts, and an unreadable manifest
+            // must not hide artifacts that are plainly there - RefreshArtifactChips takes a null
+            // manifest and falls back to the default artifact names, the same thing the detail
+            // window does. Transcript presence comes from the canonical predicate the Control API
+            // uses (issue #4) - a legacy flat transcript.txt is NOT "transcribed", it gets its own
+            // quieter chip. The SAME method re-derives the chips whenever the Library is shown
+            // again (issue #4 round 2), so a card can never keep claiming a transcript that was
+            // deleted outside the app.
+            item.RefreshArtifactChips(manifest);
+
             if (item.Detail.Length == 0) item.Detail = item.DateText;
             return item;
         }
+
+        /// <summary>The manifest this card was built from, null when it could not be read. Kept so
+        /// <see cref="RefreshArtifactChips()"/> can re-consult the canonical transcript predicate
+        /// without re-reading the manifest on the UI thread: the only thing the predicate takes
+        /// from it is the manifest-NAMED transcript artifact file name, and that name changes only
+        /// through routes that rebuild the card anyway (<see cref="AdoptFrom"/> carries it over).
+        /// </summary>
+        private Manifest? _manifest;
+
+        /// <summary>
+        /// (Re-)derives the artifact chips from the disk, through the canonical transcript
+        /// predicate (<see cref="TranscriptStatus"/>, issue #4), and remembers
+        /// <paramref name="manifest"/> for the parameterless refresh below.
+        /// </summary>
+        public void RefreshArtifactChips(Manifest? manifest)
+        {
+            _manifest = manifest;
+            RefreshArtifactChips();
+        }
+
+        /// <summary>
+        /// What the chip probe found on disk for one card: the canonical transcript classification
+        /// and whether a walkthrough exists. Split from the APPLICATION of these facts (round 3,
+        /// review gate defect 1) so the file probes can run on a worker for every row at once
+        /// while the property writes stay on the UI thread.
+        /// </summary>
+        internal readonly record struct ArtifactChipFacts(TranscriptKind Kind, bool HasWalkthrough);
+
+        /// <summary>
+        /// Everything one card's chip probe needs, captured CHEAPLY (no I/O) on the UI thread so
+        /// <see cref="Run"/> can do the actual File.Exists probes on any thread without reading
+        /// mutable card state.
+        /// </summary>
+        internal readonly struct ChipProbe
+        {
+            private readonly string _dir;
+            private readonly Manifest? _manifest;
+
+            public ChipProbe(string dir, Manifest? manifest) { _dir = dir; _manifest = manifest; }
+
+            /// <summary>The disk probes - two or three File.Exists. Any thread; touches no UI
+            /// state, so slow or unavailable storage stalls only the worker running it.</summary>
+            public ArtifactChipFacts Run() => new(
+                TranscriptStatus.Classify(_dir, _manifest),
+                File.Exists(Path.Combine(_dir, "walkthrough.html")));
+        }
+
+        /// <summary>Captures this card's chip-probe inputs (directory + the manifest it classifies
+        /// with). No I/O - safe on the UI thread for an unbounded number of rows.</summary>
+        public ChipProbe CaptureChipProbe() => new(Dir, _manifest);
+
+        /// <summary>Writes previously probed chip facts onto this card - property sets only, no
+        /// I/O. UI thread in the running app (the values are bound).</summary>
+        public void ApplyArtifactChips(ArtifactChipFacts facts)
+        {
+            TranscriptChipVisibility = facts.Kind == TranscriptKind.Transcribed
+                ? Visibility.Visible : Visibility.Collapsed;
+            FlatTextChipVisibility = facts.Kind == TranscriptKind.FlatTextOnly
+                ? Visibility.Visible : Visibility.Collapsed;
+            WalkthroughChipVisibility = facts.HasWalkthrough
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Re-derives the artifact chips from the disk using the manifest the card already holds -
+        /// the answer to issue #4 round 2 (review gate defect 1): transcript.json can be deleted
+        /// or created OUTSIDE the app (the card's own Open-folder action invites exactly that),
+        /// and a chip cached at build time left the visible card contradicting the Control API,
+        /// which re-reads the disk on every request. The library re-runs this on every card each
+        /// time the Library becomes visible (<see cref="LibraryCoherence.RefreshArtifactChipsAsync"/>).
+        ///
+        /// SYNCHRONOUS, so its callers are the ones that already run off the UI thread (the
+        /// snapshot worker via <see cref="From"/>) or probe exactly one new row
+        /// (<see cref="LibraryCoherence.Insert"/>, which reads the whole manifest on the same
+        /// path anyway - a pre-existing single-row cost, not the unbounded sweep). The unbounded
+        /// every-row sweep goes through <see cref="CaptureChipProbe"/> /
+        /// <see cref="ApplyArtifactChips"/> on a worker instead (round 3, defect 1).
+        /// </summary>
+        public void RefreshArtifactChips() => ApplyArtifactChips(CaptureChipProbe().Run());
 
         /// <summary>Re-reads this recording's manifest into this card, in place - packaging just
         /// filled in the generated Title/Description (issue #8), the artifact chips and the cost.
@@ -2420,7 +2553,12 @@ namespace AgentEyes.App
             CostTip = fresh.CostTip;
             Cost = fresh.Cost;   // notifies; the cost tag lands on the row when packaging finishes
             TranscriptChipVisibility = fresh.TranscriptChipVisibility;
+            FlatTextChipVisibility = fresh.FlatTextChipVisibility;
             WalkthroughChipVisibility = fresh.WalkthroughChipVisibility;
+            // The manifest travels with the chips it names (issue #4 round 2): a later
+            // RefreshArtifactChips on this row must classify with the manifest of the FRESH read,
+            // not one from before the reload.
+            _manifest = fresh._manifest;
             Badge = fresh.Badge;
             BadgeBrush = fresh.BadgeBrush;
             Duration = fresh.Duration;

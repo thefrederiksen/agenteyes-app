@@ -216,6 +216,9 @@ namespace AgentEyes.App
                 {
                     id = d.Id, dir = d.Dir,
                     hasVideo = d.HasVideo, hasAudio = d.HasAudio, hasTranscript = d.HasTranscript,
+                    // Issue #4: hasTranscript is canonical completion (transcript.json); a legacy
+                    // flat transcript.txt is exposed separately so no caller mistakes it for one.
+                    hasFlatTranscript = d.HasFlatTranscript,
                     // Issue #103: which languages this recording carries a subtitle-ready transcript
                     // for (the manifest per-language map, issue #98), so a caller can decide what to
                     // translate to or burn. Empty for a recording that predates the map.
@@ -408,6 +411,7 @@ namespace AgentEyes.App
                     id = s.Id, dir = s.Dir, label = s.Label, title = s.Title, mode = s.Mode,
                     durationSeconds = s.DurationSeconds, createdUtc = s.CreatedUtc, shotCount = s.ShotCount,
                     hasVideo = s.HasVideo, hasAudio = s.HasAudio, hasTranscript = s.HasTranscript,
+                    hasFlatTranscript = s.HasFlatTranscript,   // issue #4: legacy flat text, not "transcribed"
                 }),
             };
         }

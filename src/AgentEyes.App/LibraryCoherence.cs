@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace AgentEyes.App
 {
@@ -136,6 +137,15 @@ namespace AgentEyes.App
         /// alarm need to read this number to be capable of failing at all.
         /// </summary>
         public int RepairedDivergences { get; private set; }
+
+        /// <summary>
+        /// Diagnostic seam (issue #4 round 3): invoked on the WORKER inside the chip sweep's
+        /// probe body, before any probe runs. It exists so the regression test for review gate
+        /// defect 1 can hold the sweep and prove, deterministically, that the owning thread is
+        /// free and the chips untouched while the probes are in flight - the property the fix
+        /// exists to provide. Null (a no-op) in the running app.
+        /// </summary>
+        internal Action? ChipSweepProbing;
 
         /// <summary>
         /// Claims the epoch for a library read that is ABOUT to start. Call it on the owning thread
@@ -415,6 +425,64 @@ namespace AgentEyes.App
 
             if (moved) SortKeyChanged?.Invoke();
             return moved;
+        }
+
+        /// <summary>
+        /// Re-derives every row's artifact chips from the disk (issue #4 round 2) - run each time
+        /// the Library becomes visible. transcript.json can appear or disappear OUTSIDE the app
+        /// (the card's own Open-folder action invites it), and a chip cached at card-build time
+        /// left the visible card contradicting the Control API, which re-reads the disk on every
+        /// request.
+        ///
+        /// OFF-THREAD BY CONSTRUCTION (round 3, review gate defect 1). The sweep is one File.Exists
+        /// set PER ROW with no row cap, so running it inline made showing the Library wait on
+        /// every probe - on a large library or slow/unavailable storage the rail could not paint.
+        /// The owning thread only SNAPSHOTS the probe inputs here (no I/O); the probes run inside
+        /// Task.Run, log there (round 3, defect 3 shape - the disk append happens on the worker,
+        /// not on the paint-critical hop), and the awaiter dispatches the results back to the
+        /// calling context - the WPF dispatcher in the running app - where they are applied as
+        /// plain property writes. The Library therefore paints immediately with the chips it
+        /// already has and updates when the probes complete.
+        ///
+        /// Deliberately NO epoch and NO fact update. The chips are re-derived from the disk on
+        /// every refresh and on every reload, so epoch ordering adds nothing to their correctness
+        /// - and stamping these rows Present at a fresh epoch would wrongly outrank an in-flight
+        /// snapshot's honest report that a recording is gone from the disk. Only chip values on
+        /// existing rows change here; membership and ordering are untouched - which is also why
+        /// the apply step after the await does NOT re-assert the owning thread: it touches none
+        /// of the model's coherence state (rows, facts, clock), only per-card values on the row
+        /// objects captured above, and rows are updated in place, never replaced (the model's
+        /// core invariant), so a captured row IS the visible row. A row deleted mid-flight is
+        /// detached from the collection and writing chip values to it is inert. In the app the
+        /// continuation is on the dispatcher anyway (the await captured it).
+        /// </summary>
+        public async Task RefreshArtifactChipsAsync()
+        {
+            RequireOwningThread();
+
+            // Owning thread: capture the row objects and each probe's inputs. No disk here.
+            var work = new (RecentItem Row, RecentItem.ChipProbe Probe)[_rows.Count];
+            for (int i = 0; i < work.Length; i++) work[i] = (_rows[i], _rows[i].CaptureChipProbe());
+
+            // Worker: the unbounded probe sweep, and its log line, both off the UI thread.
+            var facts = await Task.Run(() =>
+            {
+                // The seam lets the round-3 regression test HOLD this worker and observe that the
+                // owning thread already returned with the chips untouched - the observable form
+                // of "the sweep cannot stall the paint". Same reasoning as RepairedDivergences:
+                // a guarantee a test cannot see is a guarantee that can silently rot. No-op in
+                // the running app.
+                ChipSweepProbing?.Invoke();
+
+                var results = new RecentItem.ArtifactChipFacts[work.Length];
+                for (int i = 0; i < results.Length; i++) results[i] = work[i].Probe.Run();
+                Log.Info($"[LibraryCoherence] RefreshArtifactChipsAsync: "
+                         + $"{results.Length} row(s) re-derived from disk on a worker");
+                return results;
+            });
+
+            // Back on the calling context (the dispatcher in the app): apply values only.
+            for (int i = 0; i < work.Length; i++) work[i].Row.ApplyArtifactChips(facts[i]);
         }
 
         /// <summary>

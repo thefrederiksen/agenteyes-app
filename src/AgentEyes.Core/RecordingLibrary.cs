@@ -33,6 +33,10 @@ namespace AgentEyes
             public bool HasVideo { get; init; }
             public bool HasAudio { get; init; }
             public bool HasTranscript { get; init; }
+            /// <summary>A legacy flat transcript.txt exists (issue #4). Independent of
+            /// <see cref="HasTranscript"/>: a flat-text-only recording is NOT transcribed but its
+            /// text is still readable.</summary>
+            public bool HasFlatTranscript { get; init; }
         }
 
         /// <summary>A page of the recordings list plus the full library total (GET /recordings).</summary>
@@ -50,6 +54,8 @@ namespace AgentEyes
             public bool HasVideo { get; init; }
             public bool HasAudio { get; init; }
             public bool HasTranscript { get; init; }
+            /// <summary>See <see cref="Summary.HasFlatTranscript"/> (issue #4).</summary>
+            public bool HasFlatTranscript { get; init; }
             public Manifest Manifest { get; init; } = new();
         }
 
@@ -124,6 +130,7 @@ namespace AgentEyes
                 HasVideo = HasVideo(dir, m),
                 HasAudio = HasAudio(dir, m),
                 HasTranscript = HasTranscript(dir, m),
+                HasFlatTranscript = TranscriptStatus.HasFlatText(dir),
                 Manifest = m,
             };
         }
@@ -164,18 +171,40 @@ namespace AgentEyes
             if (dir == null) return null;
             Manifest m;
             try { m = Manifest.Load(dir); } catch { return null; }
+            return ReadTranscript(dir, m);
+        }
 
-            string jsonName = string.IsNullOrWhiteSpace(m.Transcript) ? "transcript.json" : m.Transcript!;
+        /// <summary>
+        /// <see cref="GetTranscript"/> against an already-resolved directory + manifest, so the
+        /// desktop detail view (issue #4) reads a transcript through exactly the same precedence
+        /// the Control API serves: the manifest-named transcript.json first, else the flat
+        /// transcript.txt. <paramref name="m"/> may be null (unreadable manifest) - the default
+        /// artifact name is used then, and a still-readable flat text is still returned.
+        /// </summary>
+        public static TranscriptView? ReadTranscript(string dir, Manifest? m)
+        {
+            string jsonName = TranscriptStatus.JsonArtifactName(m);
             string jsonPath = Path.Combine(dir, jsonName);
             if (File.Exists(jsonPath))
             {
                 List<TranscriptSegment>? segs = null;
-                try { segs = JsonSerializer.Deserialize<List<TranscriptSegment>>(File.ReadAllText(jsonPath)); }
-                catch { segs = null; }
+                try
+                {
+                    segs = JsonSerializer.Deserialize<List<TranscriptSegment>>(File.ReadAllText(jsonPath));
+                    if (segs == null)
+                        Log.Warn($"[RecordingLibrary] ReadTranscript: {jsonName} in {dir} carries no segment list - falling through to transcript.txt.");
+                }
+                catch (Exception ex)
+                {
+                    // The flat transcript.txt below still serves the text, but the broken artifact
+                    // must leave a trace (issue #4 review) - judging completion by PARSING it is
+                    // issue #15; silently losing the evidence is not.
+                    Log.Warn($"[RecordingLibrary] ReadTranscript: unparseable {jsonName} in {dir}: {ex.Message}");
+                }
                 if (segs != null)
                 {
                     var lines = segs
-                        .Select(g => new TranscriptLine { Start = g.StartSeconds, End = g.EndSeconds, Text = g.Text })
+                        .Select(g => new TranscriptLine { Start = g.StartSeconds, End = g.EndSeconds, Text = g.Text ?? "" })
                         .ToList();
                     string text = string.Join(" ", lines.Select(l => l.Text.Trim())).Trim();
                     return new TranscriptView { Text = text, Segments = lines };
@@ -258,6 +287,7 @@ namespace AgentEyes
                 HasVideo = HasVideo(dir, m),
                 HasAudio = HasAudio(dir, m),
                 HasTranscript = HasTranscript(dir, m),
+                HasFlatTranscript = TranscriptStatus.HasFlatText(dir),
             };
         }
 
@@ -276,12 +306,16 @@ namespace AgentEyes
 
         private static bool HasAudio(string dir, Manifest m) => ResolveFile(dir, m.AudioFile, "audio.wav") != null;
 
-        private static bool HasTranscript(string dir, Manifest m)
-        {
-            string jsonName = string.IsNullOrWhiteSpace(m.Transcript) ? "transcript.json" : m.Transcript!;
-            return File.Exists(Path.Combine(dir, jsonName))
-                || File.Exists(Path.Combine(dir, "transcript.txt"));
-        }
+        /// <summary>Canonical transcription completion (issue #4): the manifest-named
+        /// transcript.json exists. A legacy flat transcript.txt no longer counts as "transcribed"
+        /// here - it is exposed separately as <see cref="Summary.HasFlatTranscript"/> /
+        /// <see cref="Detail.HasFlatTranscript"/> - so this flag and the desktop Library can no
+        /// longer disagree, and for the default artifact name (the only one the pipeline writes)
+        /// it also agrees with <see cref="TranscriptionBacklog.NeedsTranscription"/>. The backlog
+        /// still hardcodes "transcript.json" (pre-existing); folding it onto this predicate is
+        /// issue #15's centralization, not this change.</summary>
+        private static bool HasTranscript(string dir, Manifest m) =>
+            TranscriptStatus.IsTranscribed(dir, m);
 
         /// <summary>Resolve the manifest-named media file (else a known fallback name) to an
         /// existing absolute path, or null. Mirrors Package's resolution so the API's hasVideo/
