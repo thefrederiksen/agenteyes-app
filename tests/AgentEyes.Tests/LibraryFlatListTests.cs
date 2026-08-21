@@ -753,6 +753,11 @@ namespace AgentEyes.Tests
                          "AgentEyes.Tests.LibraryDefects.GenericOverrideDayGroupConfigurer::Configure",
                          "AgentEyes.Tests.LibraryDefects.DelegateDayGroupConfigurer::Configure",
                          "AgentEyes.Tests.LibraryDefects.StaticDayGroupConfigurer::Configure",
+                         // Round-3 self-review finding: the override two dispatch steps away
+                         // (interface -> base implementation -> derived override), with and
+                         // without a body in the middle.
+                         "AgentEyes.Tests.LibraryDefects.SubOverrideDayGroupConfigurer::Configure",
+                         "AgentEyes.Tests.LibraryDefects.AbstractRelayDayGroupConfigurer::Configure",
                      })
                 Assert.True(reported.Any(site => site.Method == route),
                     $"The grouping scan does not report the compiled grouping in '{route}':"
@@ -880,7 +885,10 @@ namespace AgentEyes.Tests
             }
             finally
             {
-                File.Delete(probe);
+                // Best-effort, like this fixture's own Dispose: an on-access scanner holding the
+                // just-written temp DLL must not replace the test's real result with a cleanup
+                // error. The file is GUID-named in %TEMP%; a leaked one is inert.
+                try { File.Delete(probe); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             }
         }
 
@@ -902,7 +910,10 @@ namespace AgentEyes.Tests
             }
             finally
             {
-                File.Delete(probe);
+                // Best-effort, like this fixture's own Dispose: an on-access scanner holding the
+                // just-written temp DLL must not replace the test's real result with a cleanup
+                // error. The file is GUID-named in %TEMP%; a leaked one is inert.
+                try { File.Delete(probe); } catch (IOException) { } catch (UnauthorizedAccessException) { }
             }
         }
 
@@ -968,6 +979,28 @@ namespace AgentEyes.Tests
         public void TheReachabilityWalk_FollowsAStaticAbstractInterfaceMember() =>
             AssertShapeReached("ApplyLibraryModeThroughAStaticAbstract",
                 "StaticDayGroupConfigurer::Configure");
+
+        /// <summary>
+        /// DISPATCH IS TRANSITIVE (round-3 self-review finding, demonstrated fail-open): the
+        /// interface row and a BENIGN virtual body sit on a base class, the grouping override on
+        /// a derived class that never names the interface. The interface call's edge lands on the
+        /// base implementation; only chasing dispatch edges FROM reached implementations - a
+        /// fixpoint over the dispatch relation, not one step from IL tokens - reaches the
+        /// override. Red-first: under the one-step walk the base body is reached and the derived
+        /// override is not.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_ChasesDispatchTransitively_ToADerivedOverride() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnOverriddenImplementation",
+                "SubOverrideDayGroupConfigurer::Configure");
+
+        /// <summary>...and the same two steps with NO IL in the middle: the base satisfies the
+        /// interface with an ABSTRACT method, so the relay node has no body, and the dispatch map
+        /// must carry edges through bodiless declarations for the chain to hold.</summary>
+        [Fact]
+        public void TheReachabilityWalk_ChasesDispatchTransitively_ThroughABodilessRelay() =>
+            AssertShapeReached("ApplyLibraryModeThroughAnAbstractRelay",
+                "AbstractRelayDayGroupConfigurer::Configure");
 
         [Fact]
         public void TheLibraryView_SortsNewestFirstExplicitly()

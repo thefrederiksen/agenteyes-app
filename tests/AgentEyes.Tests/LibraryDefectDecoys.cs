@@ -273,6 +273,28 @@ namespace AgentEyes.Tests.LibraryDefects
 
         private static void ConfigureStatically<T>(ICollectionView view)
             where T : IStaticViewConfigurer => T.Configure(view);
+
+        /// <summary>
+        /// The round-3 SELF-REVIEW's finding: dispatch is TWO steps deep. The interface row and
+        /// the (benign) virtual body sit on a base class; the grouping override sits on a derived
+        /// class that never names the interface. The interface call's dispatch edge lands on the
+        /// base implementation, and only a walk that chases dispatch edges TRANSITIVELY - the
+        /// override edge FROM the reached implementation - ever sees the derived body.
+        /// </summary>
+        public void ApplyLibraryModeThroughAnOverriddenImplementation()
+        {
+            ISubOverrideConfigurer configurer = new SubOverrideDayGroupConfigurer();
+            configurer.Configure(CollectionViewSource.GetDefaultView(_recent));
+        }
+
+        /// <summary>The same two-step shape with NO body in the middle: the base class satisfies
+        /// the interface with an ABSTRACT method, so the relay node has no IL at all, and the
+        /// dispatch map must carry edges through bodiless declarations.</summary>
+        public void ApplyLibraryModeThroughAnAbstractRelay()
+        {
+            IAbstractRelayConfigurer configurer = new AbstractRelayDayGroupConfigurer();
+            configurer.Configure(CollectionViewSource.GetDefaultView(_recent));
+        }
     }
 
     /// <summary>The dispatch seam of the round-1 gate's attack. Nothing about this interface names
@@ -458,6 +480,48 @@ namespace AgentEyes.Tests.LibraryDefects
     internal sealed class StaticDayGroupConfigurer : IStaticViewConfigurer
     {
         public static void Configure(ICollectionView view) =>
+            view.GroupDescriptions.Add(new PropertyGroupDescription("DayGroup"));
+    }
+
+    /// <summary>The two-step seam of the round-3 self-review finding.</summary>
+    internal interface ISubOverrideConfigurer
+    {
+        void Configure(ICollectionView view);
+    }
+
+    /// <summary>The base class that carries the InterfaceImpl row AND a benign virtual body: the
+    /// interface's dispatch edge lands here and, without transitive chasing, STOPS here.</summary>
+    internal class SubOverrideConfigurerBase : ISubOverrideConfigurer
+    {
+        public virtual void Configure(ICollectionView view)
+        {
+        }
+    }
+
+    /// <summary>The override that groups. It never names the interface; the only route to it is
+    /// the SECOND dispatch step, from the base implementation the interface edge reached.</summary>
+    internal sealed class SubOverrideDayGroupConfigurer : SubOverrideConfigurerBase
+    {
+        public override void Configure(ICollectionView view) =>
+            view.GroupDescriptions.Add(new PropertyGroupDescription("DayGroup"));
+    }
+
+    /// <summary>The bodiless-relay variant of the same seam.</summary>
+    internal interface IAbstractRelayConfigurer
+    {
+        void Configure(ICollectionView view);
+    }
+
+    /// <summary>The base satisfies the interface with an ABSTRACT method - a relay node with no
+    /// IL at all. The dispatch map must carry edges through it or the override is unreachable.</summary>
+    internal abstract class AbstractRelayConfigurerBase : IAbstractRelayConfigurer
+    {
+        public abstract void Configure(ICollectionView view);
+    }
+
+    internal sealed class AbstractRelayDayGroupConfigurer : AbstractRelayConfigurerBase
+    {
+        public override void Configure(ICollectionView view) =>
             view.GroupDescriptions.Add(new PropertyGroupDescription("DayGroup"));
     }
 
