@@ -7,6 +7,181 @@ Machine gotcha (known, documented in `docs/cencon/proof/issue-1/handoff.md`): th
 no `Microsoft.WindowsDesktop.App` 8.x runtime, so run the tests with
 `DOTNET_ROLL_FORWARD=LatestMajor` set. This affects main too and is not a defect of this branch.
 
+## ROUND 3 (fix pass 2) - the round-2 gate's REJECT, answered systematically
+
+The round-2 gate rejected PR #26 with one blocking defect: `DispatchEdges`
+(tests/AgentEyes.Tests/CompiledCode.cs) read interface methods only from the interface a
+class's InterfaceImpl row names. With `IChild : IBase`, `IBase` declaring
+`Configure(ICollectionView)`, a class implementing `IChild`, and a handler calling through
+`IBase.Configure`, the callee token is `IBase::Configure` and - the gate's finding - the map
+would have no edge. The gate also required a SYSTEMATIC sweep: this was the third dispatch
+shape found seriatim, so every remaining shape had to be either covered with a red-first
+regression or listed verbatim in the documented limits.
+
+### What changed in round 3
+
+| File | Change |
+|------|--------|
+| `tests/AgentEyes.Tests/CompiledCode.cs` | (1) Each InterfaceImpl row is now expanded to the interface's FULL in-assembly inheritance closure (new `InterfaceClosure` helper): a class implementing any interface that transitively inherits the declaring interface implements its methods, so the edge comes from the interface the method is DECLARED on, however many inheritance levels sit between it and the row. (2) `jmp` targets are now collected - the one other IL instruction that transfers control to a method token (ECMA-335 III.3.37), found by the round-3 sweep; C# never emits it, which is exactly why it had gone unnoticed. |
+| `tests/AgentEyes.Tests/LibraryDefectDecoys.cs` | One decoy handler + implementation pair per remaining dispatch shape (inventory below), including the gate's exact `IChild : IBase` construction (`ApplyLibraryModeThroughAnInheritedInterfaceDeclaration`). |
+| `tests/AgentEyes.Tests/HandWrittenDispatchAssembly.cs` | NEW: a tiny assembly emitted by hand (MetadataBuilder/ManagedPEBuilder, both in the .NET 8 shared framework) whose `Impl` type lists ONLY `IChild` in its InterfaceImpl rows - metadata Roslyn will not produce (see the honesty note below) - plus a `jmp` body. Written to a temp file and READ, never executed, like every assembly CompiledCode scans. |
+| `tests/AgentEyes.Tests/LibraryFlatListTests.cs` | Eleven new walk-level regressions (one per shape, `TheReachabilityWalk_*` / `TheDispatchMap_*`), each also asserting the unrelated `PanelGroupConfigurer` is NOT dragged in (narrowness per shape); the ten new grouping implementations added to `TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses`'s required-reported list; the documented limits on `LibraryGroupingIn` rewritten as the complete claims-vs-limits accounting below. |
+
+No product code changed in round 3; the fix is entirely in the verification instrument.
+
+### Honesty note - what is empirically true about the gate's C# construction
+
+Roslyn FLATTENS a class's InterfaceImpl rows: `class Impl : IChild` is emitted with rows for
+both `IChild` and `IBase` (verified empirically on this machine, .NET 8 SDK, via a
+System.Reflection.Metadata probe). So on any Roslyn-compiled assembly - the product included -
+the pre-fix map found the edge through the direct `IBase` row, and the gate's exact C#
+construction was in fact already reported: the new decoy regression
+`TheReachabilityWalk_FollowsAnInheritedInterfaceDeclaration` PASSED against the unchanged
+round-2b walk (it is kept as the permanent pin of the gate's exact C# shape, with this note in
+its doc comment).
+
+The gate's underlying point stands regardless, and was real: the traversal was ABSENT, and
+ECMA-335 does not require flattening - an ilasm-authored, non-Roslyn or rewritten assembly may
+legally carry only the direct row. The fix therefore implements the full
+interface-inheritance-graph traversal, and the regression that actually exercises it - and
+that was RED before it - runs on hand-written metadata where no flattened row can rescue the
+map. The instrument no longer depends on one compiler's habit.
+
+### RED demonstrated, both layers (run on this branch, 2026-08-21)
+
+Layer 1 - against the UNCHANGED round-2b walk (commit 7d5cdfb, tests committed first): the two
+hand-emitted-probe regressions fail, everything else passes:
+
+```
+Failed AgentEyes.Tests.LibraryFlatListTests.TheDispatchMap_TraversesTheInterfaceInheritanceGraph_WithoutCompilerFlattening [38 ms]
+   Assert.Contains() Failure: Item not found in collection
+Collection: ["Probe.Handler::Run"]
+Not found:  "Probe.Impl::Configure"
+Failed AgentEyes.Tests.LibraryFlatListTests.TheReachabilityWalk_FollowsAJmpInstruction [81 ms]
+   Assert.Contains() Failure: Item not found in collection
+Collection: ["Probe.Handler::RunJmp"]
+Not found:  "Probe.Impl::Configure"
+Failed!  - Failed:     2, Passed:    55, Skipped:     0, Total:    57 (LibraryFlatListTests)
+```
+
+The gate's inherited-declaration edge really was missing from the map; only compiler
+flattening had been hiding it.
+
+Layer 2 - against the round-1 DISPATCH-BLIND walk (`git checkout 09f3cae --
+tests/AgentEyes.Tests/CompiledCode.cs`, run, restored): all 15 dispatch-shaped regressions
+fail - the 11 new ones, the 3 from rounds 2/2b, and the strengthened grouping-scan control -
+proving each new regression is a real detector of a walk that cannot follow dispatch:
+
+```
+Failed!  - Failed:    15, Passed:     0, Skipped:     0, Total:    15
+```
+
+(filter: `FullyQualifiedName~TheReachabilityWalk|FullyQualifiedName~TheDispatchMap|FullyQualifiedName~TheGroupingScan_ReportsLibraryGrouping`)
+
+### The dispatch-shape inventory - every shape in exactly one bucket
+
+The IL instructions that can name a method token are `call`, `callvirt`, `newobj`, `jmp`,
+`ldftn`, `ldvirtftn` and `ldtoken` - all collected - plus `calli`, which names no target and
+is pinned to zero. Over those, the shapes:
+
+COVERED - each with a walk-level regression (tests/AgentEyes.Tests/LibraryFlatListTests.cs):
+
+| # | Shape | Regression |
+|---|-------|------------|
+| 1 | Direct call/callvirt into an in-assembly body (helpers included, transitively) | `TheTransitiveDateScan_ReportsAFallbackHiddenBehindAHelper` (round 1 of #2's parent) |
+| 2 | Interface dispatch, direct implementation | `TheReachabilityWalk_FollowsInterfaceDispatch_ToTheInAssemblyImplementation` (round 2) |
+| 3 | Inherited IMPLEMENTATION (InterfaceImpl row on derived type, body on a base class) | `TheReachabilityWalk_FollowsInterfaceDispatch_ToAnInheritedImplementation` (round 2b) |
+| 4 | Inherited interface DECLARATION (IChild : IBase - the round-2 gate's shape) | `TheReachabilityWalk_FollowsAnInheritedInterfaceDeclaration` (C# pin) + `TheDispatchMap_TraversesTheInterfaceInheritanceGraph_WithoutCompilerFlattening` (red-first, non-flattened metadata; contains its own instrument check that the fixture is still non-flattened) |
+| 5 | EXPLICIT interface implementation (MethodImpl row), of an inherited declaration at that | `TheReachabilityWalk_FollowsAnExplicitInterfaceImplementation` |
+| 6 | Generic interface INSTANTIATION (TypeSpec at both ends, folded to the open type) | `TheReachabilityWalk_FollowsAGenericInterfaceInstantiation` |
+| 7 | Constructed generic METHOD (MethodSpec resolved to the open declaration) | `TheReachabilityWalk_FollowsAConstructedGenericMethod` |
+| 8 | DEFAULT interface method (the DIM body directly) AND a class override of it (by dispatch) | `TheReachabilityWalk_FollowsADefaultInterfaceMethod_AndItsOverride` |
+| 9 | Virtual call through a BASE-CLASS reference (benign base body, grouping override) | `TheReachabilityWalk_FollowsAVirtualCallThroughABaseReference` |
+| 10 | Virtual call through a GENERIC base-class reference (TypeSpec BaseType) | `TheReachabilityWalk_FollowsAVirtualCallThroughAGenericBaseReference` |
+| 11 | DELEGATE built from an interface method group (ldvirtftn; the Invoke is external) | `TheReachabilityWalk_FollowsADelegateBuiltFromAnInterfaceMethod` |
+| 12 | STATIC ABSTRACT interface member (constrained call in a generic method) | `TheReachabilityWalk_FollowsAStaticAbstractInterfaceMember` |
+| 13 | Static constructors and finalizers (implicit runtime invocation, per touched type) | `TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType` (round 2b) |
+| 14 | `jmp` (the one other method-token control transfer; C# never emits it) | `TheReachabilityWalk_FollowsAJmpInstruction` (red-first, hand-emitted) |
+
+Covered by MECHANISM, no dedicated regression (both only ADD edges - the fail-closed
+direction): `ldtoken` method handles are collected by the same token collector the call
+regressions exercise; method HIDING (`new`/`new virtual`) resolves to whichever declaration
+the reference is typed as, which is a direct edge or the name-matched fan-out, over-reporting
+at worst. Compiler-split bodies (lambdas, local functions, async/iterator state machines) fold
+back onto their declaring method - pinned since round 1 by the existing folding tests.
+
+LIMITS - stated verbatim in `LibraryGroupingIn`'s doc comment, none silently unhandled:
+
+| Limit | Why it is beyond this static walk |
+|-------|-----------------------------------|
+| Assembly boundary, both forms | a callee's body in another assembly is not walked into; a dispatch seam DECLARED in another assembly (BCL/WPF interface or base class, e.g. `IObserver<T>.OnNext`) is not a key in this assembly's metadata tables |
+| String-based reflection, `dynamic`, `FindName` | a method reached only via a name in a string is no call-graph edge; a route reaching the Library's list only through `FindName("RecentList")` touches no field, so it is not a seed either |
+| Delegate invoked by code that did not build it | ldftn/ldvirtftn edges run from BUILDER to target; `Invoke` on the delegate type connects to nothing |
+| Runtime-generated code (Reflection.Emit, expression compilation) | no IL in the assembly to walk; the product contains none, and `calli` is pinned to zero by `ManifestWriterIlTests.TheProductMakesNoIndirectCalls` |
+| Markup-declared behaviour (XAML/BAML) | grouping declared in markup never appears as IL; that is the markup guard's territory, scoped to the RecentList element |
+
+### Mutation drill on the REAL product (run on this branch, 2026-08-21, then reverted)
+
+The gate's exact construction planted in `src/AgentEyes.App/MainWindow.xaml.cs`: a nested
+`IRound3BaseConfigurer` declaring `Configure(ICollectionView)`, `IRound3ChildConfigurer :
+IRound3BaseConfigurer` declaring nothing, `Round3DrillConfigurer : IRound3ChildConfigurer`
+with the only grouping body, and `ApplyLibraryMode` calling through the BASE interface:
+
+```csharp
+IRound3BaseConfigurer round3 = new Round3DrillConfigurer();
+round3.Configure(System.Windows.Data.CollectionViewSource.GetDefaultView(RecentList.ItemsSource));
+```
+
+Result - the guard FIRES, naming the implementation only the inherited-declaration edge reaches:
+
+```
+Failed AgentEyes.Tests.LibraryFlatListTests.NoMethodThatHandlesTheLibrary_GroupsIt [66 ms]
+   A method that handles the Library groups its collection view. The Library is one flat list (issue #178):
+AgentEyesApp.dll!AgentEyes.App.MainWindow/Round3DrillConfigurer::Configure -> System.ComponentModel.ICollectionView::get_GroupDescriptions x1
+AgentEyesApp.dll!AgentEyes.App.MainWindow/Round3DrillConfigurer::Configure -> System.Windows.Data.PropertyGroupDescription::.ctor x1
+```
+
+Attack reverted (`git checkout -- src/AgentEyes.App/MainWindow.xaml.cs`); full gate green
+afterwards (below).
+
+### Gate (round 3, branch tip, 2026-08-21)
+
+```
+Build succeeded.
+    0 Error(s)
+
+Passed!  - Failed:     0, Passed:   842, Skipped:     0, Total:   842, Duration: 14 s
+```
+
+(831 from round 2b + the 11 round-3 regressions. `DOTNET_ROLL_FORWARD=LatestMajor` as always
+on this machine.)
+
+### How QA drills round 3
+
+In an ISOLATED WORKTREE (round-2b instructions below apply unchanged - never mutate the shared
+checkout):
+
+1. Re-run the product drill above: plant the three nested types + two lines in
+   `ApplyLibraryMode` (src/AgentEyes.App/MainWindow.xaml.cs:1504), build, run the
+   LibraryFlatListTests filter. Expected: `NoMethodThatHandlesTheLibrary_GroupsIt` FAILS naming
+   `MainWindow/Round3DrillConfigurer::Configure`. An empty or aborted run is a broken
+   instrument, never a pass. Revert.
+2. Instrument-side RED both ways: `git checkout 09f3cae -- tests/AgentEyes.Tests/CompiledCode.cs`
+   -> the 15-test filter above fails 15/15; `git checkout 8fefd79 -- tests/AgentEyes.Tests/CompiledCode.cs`
+   (round-2b walk) -> exactly the two hand-emitted-probe regressions fail, 2/57 in
+   LibraryFlatListTests. Restore with `git checkout HEAD -- tests/AgentEyes.Tests/CompiledCode.cs`.
+3. Read the inventory against the instrument: every shape above is either a listed regression
+   or a listed limit - the gate's specific demand. The probe fixture's own honesty is asserted
+   inside `TheDispatchMap_...` (DirectInterfaceRowsOf must return exactly `IChild`).
+4. Full gate: build + `dotnet test` (842/842 expected).
+
+No product code changed in round 3, so no smoke area is newly touched; the smoke scoping
+statement of round 1 stands.
+
+### CenCon impact (round 3)
+
+No drift: no component map change, no privacy-posture change; instrument-only.
+
 ## ROUND 2 (fix pass) - the review gate's REJECT, answered
 
 The round-1 gate rejected PR #26 with one blocking defect: the grouping guard's reachability
