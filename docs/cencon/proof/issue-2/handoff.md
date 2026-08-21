@@ -22,10 +22,10 @@ regression or listed verbatim in the documented limits.
 
 | File | Change |
 |------|--------|
-| `tests/AgentEyes.Tests/CompiledCode.cs` | (1) Each InterfaceImpl row is now expanded to the interface's FULL in-assembly inheritance closure (new `InterfaceClosure` helper): a class implementing any interface that transitively inherits the declaring interface implements its methods, so the edge comes from the interface the method is DECLARED on, however many inheritance levels sit between it and the row. (2) `jmp` targets are now collected - the one other IL instruction that transfers control to a method token (ECMA-335 III.3.37), found by the round-3 sweep; C# never emits it, which is exactly why it had gone unnoticed. |
+| `tests/AgentEyes.Tests/CompiledCode.cs` | (1) Each InterfaceImpl row is now expanded to the interface's FULL in-assembly inheritance closure (new `InterfaceClosure` helper): a class implementing any interface that transitively inherits the declaring interface implements its methods, so the edge comes from the interface the method is DECLARED on, however many inheritance levels sit between it and the row. (2) `jmp` targets are now collected - the one other IL instruction that transfers control to a method token (ECMA-335 III.3.37), found by the round-3 sweep; C# never emits it, which is exactly why it had gone unnoticed. (3) From the round-3 SELF-REVIEW (below): dispatch edges are chased to a FIXPOINT rather than one step from IL tokens, and the dispatch map records BODILESS declarations as relay nodes, so an override two or more dispatch steps from the call site (interface -> base implementation or abstract relay -> derived override) is reached. |
 | `tests/AgentEyes.Tests/LibraryDefectDecoys.cs` | One decoy handler + implementation pair per remaining dispatch shape (inventory below), including the gate's exact `IChild : IBase` construction (`ApplyLibraryModeThroughAnInheritedInterfaceDeclaration`). |
 | `tests/AgentEyes.Tests/HandWrittenDispatchAssembly.cs` | NEW: a tiny assembly emitted by hand (MetadataBuilder/ManagedPEBuilder, both in the .NET 8 shared framework) whose `Impl` type lists ONLY `IChild` in its InterfaceImpl rows - metadata Roslyn will not produce (see the honesty note below) - plus a `jmp` body. Written to a temp file and READ, never executed, like every assembly CompiledCode scans. |
-| `tests/AgentEyes.Tests/LibraryFlatListTests.cs` | Eleven new walk-level regressions (one per shape, `TheReachabilityWalk_*` / `TheDispatchMap_*`), each also asserting the unrelated `PanelGroupConfigurer` is NOT dragged in (narrowness per shape); the ten new grouping implementations added to `TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses`'s required-reported list; the documented limits on `LibraryGroupingIn` rewritten as the complete claims-vs-limits accounting below. |
+| `tests/AgentEyes.Tests/LibraryFlatListTests.cs` | Thirteen new walk-level regressions (one per shape, `TheReachabilityWalk_*` / `TheDispatchMap_*`), each also asserting the unrelated `PanelGroupConfigurer` is NOT dragged in (narrowness per shape); the twelve new grouping implementations added to `TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses`'s required-reported list; the documented limits on `LibraryGroupingIn` rewritten as the complete claims-vs-limits accounting below. |
 
 No product code changed in round 3; the fix is entirely in the verification instrument.
 
@@ -68,13 +68,18 @@ The gate's inherited-declaration edge really was missing from the map; only comp
 flattening had been hiding it.
 
 Layer 2 - against the round-1 DISPATCH-BLIND walk (`git checkout 09f3cae --
-tests/AgentEyes.Tests/CompiledCode.cs`, run, restored): all 15 dispatch-shaped regressions
-fail - the 11 new ones, the 3 from rounds 2/2b, and the strengthened grouping-scan control -
-proving each new regression is a real detector of a walk that cannot follow dispatch:
+tests/AgentEyes.Tests/CompiledCode.cs`, run, restored): every dispatch-shaped regression
+fails - the round-3 ones, the 3 from rounds 2/2b, and the strengthened grouping-scan control -
+proving each new regression is a real detector of a walk that cannot follow dispatch. Measured
+15/15 at commit 7d5cdfb and re-measured 17/17 at the branch tip (after the self-review added
+the two transitivity regressions):
 
 ```
-Failed!  - Failed:    15, Passed:     0, Skipped:     0, Total:    15
+Failed!  - Failed:    17, Passed:     0, Skipped:     0, Total:    17
 ```
+
+Layer 3 - the self-review's transitivity pair, red against the walk as of commit 0b27955
+(which already carried the interface-closure fix): see the self-review section below.
 
 (filter: `FullyQualifiedName~TheReachabilityWalk|FullyQualifiedName~TheDispatchMap|FullyQualifiedName~TheGroupingScan_ReportsLibraryGrouping`)
 
@@ -102,6 +107,8 @@ COVERED - each with a walk-level regression (tests/AgentEyes.Tests/LibraryFlatLi
 | 12 | STATIC ABSTRACT interface member (constrained call in a generic method) | `TheReachabilityWalk_FollowsAStaticAbstractInterfaceMember` |
 | 13 | Static constructors and finalizers (implicit runtime invocation, per touched type) | `TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType` (round 2b) |
 | 14 | `jmp` (the one other method-token control transfer; C# never emits it) | `TheReachabilityWalk_FollowsAJmpInstruction` (red-first, hand-emitted) |
+| 15 | MULTI-STEP dispatch chain: override of a base implementation reached through an interface (self-review finding, fail-open demonstrated) | `TheReachabilityWalk_ChasesDispatchTransitively_ToADerivedOverride` (red-first) |
+| 16 | The same chain through a BODILESS relay (base satisfies the interface with an abstract method) | `TheReachabilityWalk_ChasesDispatchTransitively_ThroughABodilessRelay` (red-first) |
 
 Covered by MECHANISM, no dedicated regression (both only ADD edges - the fail-closed
 direction): `ldtoken` method handles are collected by the same token collector the call
@@ -144,16 +151,41 @@ AgentEyesApp.dll!AgentEyes.App.MainWindow/Round3DrillConfigurer::Configure -> Sy
 Attack reverted (`git checkout -- src/AgentEyes.App/MainWindow.xaml.cs`); full gate green
 afterwards (below).
 
+### Round-3 self-review (independent review of THIS round's diff, findings actioned)
+
+An independent review of the round-3 diff (commits 7d5cdfb + d1f9fd7) ran before handoff and
+returned five findings. Two changed the code:
+
+1. FIXED, fail-open (the reviewer demonstrated it empirically with a probe): the dispatch
+   fan-out ran ONE step from IL callee tokens. `interface I; class Base : I { public virtual
+   void Configure() {} } class Derived : Base { override groups }` with the handler calling
+   through `I` reached `Base::Configure` and never `Derived::Configure`. Fixed by chasing
+   dispatch edges to a fixpoint (`FanOut`) and letting the map target bodiless declarations as
+   relays (the abstract-base variant of the same chain). Red-first: both new regressions
+   (`TheReachabilityWalk_ChasesDispatchTransitively_*`) FAILED against the unchanged walk on
+   commit 0b27955 (`Not found: ...SubOverrideDayGroupConfigurer::Configure` with the base body
+   present in the reached set; same for the abstract relay), and pass with the fix (2aaed92).
+2. FIXED, flake risk: `File.Delete` of the emitted probe in the tests' `finally` could let an
+   on-access scanner's transient hold replace a test's real result with a cleanup error; now
+   best-effort with a narrow catch, matching the fixture's own Dispose.
+3. NOT TAKEN, recorded: memoize the per-assembly analysis in `Reachable` (perf only; the full
+   suite still gates in ~14 s, and a cache adds invalidation surface to a fail-closed
+   instrument).
+4. NOT TAKEN, recorded: cache `InterfaceClosure` per DispatchEdges pass (same reasoning).
+5. NOT TAKEN, recorded: collapse the per-shape `[Fact]`s into one `[Theory]` (each fact carries
+   the shape's own documentation, which is part of the inventory deliverable; a data-row table
+   would lose it).
+
 ### Gate (round 3, branch tip, 2026-08-21)
 
 ```
 Build succeeded.
     0 Error(s)
 
-Passed!  - Failed:     0, Passed:   842, Skipped:     0, Total:   842, Duration: 14 s
+Passed!  - Failed:     0, Passed:   844, Skipped:     0, Total:   844, Duration: 14 s
 ```
 
-(831 from round 2b + the 11 round-3 regressions. `DOTNET_ROLL_FORWARD=LatestMajor` as always
+(831 from round 2b + the 13 round-3 regressions. `DOTNET_ROLL_FORWARD=LatestMajor` as always
 on this machine.)
 
 ### How QA drills round 3
@@ -167,9 +199,12 @@ checkout):
    `MainWindow/Round3DrillConfigurer::Configure`. An empty or aborted run is a broken
    instrument, never a pass. Revert.
 2. Instrument-side RED both ways: `git checkout 09f3cae -- tests/AgentEyes.Tests/CompiledCode.cs`
-   -> the 15-test filter above fails 15/15; `git checkout 8fefd79 -- tests/AgentEyes.Tests/CompiledCode.cs`
-   (round-2b walk) -> exactly the two hand-emitted-probe regressions fail, 2/57 in
-   LibraryFlatListTests. Restore with `git checkout HEAD -- tests/AgentEyes.Tests/CompiledCode.cs`.
+   (round-1, dispatch-blind) -> the dispatch filter above fails 17/17;
+   `git checkout 8fefd79 -- tests/AgentEyes.Tests/CompiledCode.cs` (round-2b walk) -> exactly 5
+   of 59 LibraryFlatListTests fail (the two hand-emitted-probe regressions, the two
+   transitivity regressions, and the strengthened grouping-scan control; measured on this
+   branch). Restore with `git checkout HEAD -- tests/AgentEyes.Tests/CompiledCode.cs` - and note
+   HEAD must be the branch TIP when you do this, or you restore a stale walk.
 3. Read the inventory against the instrument: every shape above is either a listed regression
    or a listed limit - the gate's specific demand. The probe fixture's own honesty is asserted
    inside `TheDispatchMap_...` (DirectInterfaceRowsOf must return exactly `IChild`).
