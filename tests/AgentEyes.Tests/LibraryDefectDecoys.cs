@@ -148,6 +148,33 @@ namespace AgentEyes.Tests.LibraryDefects
             ILibraryViewConfigurer configurer = new DayGroupConfigurer();
             configurer.Configure(CollectionViewSource.GetDefaultView(_recent));
         }
+
+        /// <summary>
+        /// The round-2 review's refinement of the same attack (issue #2 fix pass, finding 1): the
+        /// implementation the interface hides is INHERITED. The derived type carries the
+        /// InterfaceImpl row but declares no Configure of its own; the body lives on its base
+        /// class, which mentions no interface at all. A dispatch map that matches interface
+        /// methods only against the implementing type's OWN methods has no edge here - the exact
+        /// fail-open the review demonstrated - so the base-class body must be found by walking the
+        /// implementing type's in-assembly base chain.
+        /// </summary>
+        public void ApplyLibraryModeThroughAnInheritedImplementation()
+        {
+            IInheritedViewConfigurer configurer = new InheritedDayGroupConfigurer();
+            configurer.Configure(CollectionViewSource.GetDefaultView(_recent));
+        }
+
+        /// <summary>
+        /// The round-2 review's second gap (issue #2 fix pass, finding 2): work hidden in a STATIC
+        /// CONSTRUCTOR. No IL instruction anywhere calls a .cctor - the runtime invokes it when the
+        /// type is first touched - so a call-graph walk with no implicit-invocation edges never
+        /// reaches it, and grouping planted there passes every guard silently.
+        /// </summary>
+        public void ApplyLibraryModeThroughAStaticConstructor()
+        {
+            _ = _recent.Count;              // what makes this a Library handler
+            CctorDayGroupConfigurer.Touch();
+        }
     }
 
     /// <summary>The dispatch seam of the round-1 gate's attack. Nothing about this interface names
@@ -164,6 +191,39 @@ namespace AgentEyes.Tests.LibraryDefects
     {
         public void Configure(ICollectionView view) =>
             view.GroupDescriptions.Add(new PropertyGroupDescription("DayGroup"));
+    }
+
+    /// <summary>The dispatch seam of the inherited-implementation attack.</summary>
+    internal interface IInheritedViewConfigurer
+    {
+        void Configure(ICollectionView view);
+    }
+
+    /// <summary>The base class that actually groups. It mentions no interface; nothing in ITS
+    /// metadata connects it to <see cref="IInheritedViewConfigurer"/>.</summary>
+    internal class DayGroupConfigurerBase
+    {
+        public void Configure(ICollectionView view) =>
+            view.GroupDescriptions.Add(new PropertyGroupDescription("DayGroup"));
+    }
+
+    /// <summary>The derived type that carries the InterfaceImpl row and NOTHING else - the
+    /// implementation it contributes is the inherited one.</summary>
+    internal sealed class InheritedDayGroupConfigurer : DayGroupConfigurerBase, IInheritedViewConfigurer
+    {
+    }
+
+    /// <summary>The static-constructor attack: the only grouping is in the .cctor, which no call
+    /// instruction anywhere targets - the runtime runs it when <see cref="Touch"/> first touches
+    /// the type. Never executed by the tests (decoys are READ as IL, not run).</summary>
+    internal static class CctorDayGroupConfigurer
+    {
+        private static readonly object[] Rows = new object[0];
+
+        static CctorDayGroupConfigurer() =>
+            CollectionViewSource.GetDefaultView(Rows).GroupDescriptions.Add(new PropertyGroupDescription("DayGroup"));
+
+        public static void Touch() => _ = Rows.Length;
     }
 
     /// <summary>The NARROWNESS half of the same seam: an unrelated feature configuring ITS OWN view

@@ -244,9 +244,16 @@ namespace AgentEyes.Tests
         /// <c>IConfigurer.Configure(view)</c> with every guard green. So whenever a reached method
         /// calls a method DECLARED in this assembly (interface, abstract or virtual), EVERY
         /// in-assembly implementation and override of it is treated as reachable, whether or not
-        /// that concrete type can flow to the call site. That over-reports rather than
+        /// that concrete type can flow to the call site - implementations a type INHERITS from a
+        /// base class included (round-2 review, finding 1). That over-reports rather than
         /// under-reports: fail closed. See <see cref="DispatchEdges"/> for how the implementations
         /// are found.
+        ///
+        /// IMPLICIT RUNTIME INVOCATIONS are edges too (round-2 review, finding 2): touching any
+        /// member of a type - calling a method, constructing it, or reading/writing one of its
+        /// fields - makes that type's static constructor reachable, and its finalizer with it,
+        /// because the runtime invokes those without any call instruction for a walk to see.
+        /// Per touched type, never a blanket sweep.
         ///
         /// Fail-closed: every seed must exist as a method definition in the assembly. A renamed seed
         /// would otherwise silently shrink the closure to nothing, and a scan over nothing passes.
@@ -277,23 +284,61 @@ namespace AgentEyes.Tests
 
             var dispatch = DispatchEdges(assemblyPath);
 
-            var reached = new HashSet<string>(wanted, StringComparer.Ordinal);
-            var queue = new Queue<string>(wanted);
+            var reached = new HashSet<string>(StringComparer.Ordinal);
+            var queue = new Queue<string>();
+
+            // A method is reached along with the members the RUNTIME invokes on its type without
+            // any call instruction (round-2 review, finding 2): touching any member of a type runs
+            // its static constructor, and constructing it arms its finalizer. Neither is ever a
+            // call-site edge - no IL anywhere targets a .cctor - so work hidden in one passed the
+            // walk silently until these implicit edges existed. Per touched type, not a blanket
+            // sweep: an untouched type's .cctor stays unreachable.
+            void Reach(string method)
+            {
+                if (!graph.ContainsKey(method) || !reached.Add(method)) return;
+                queue.Enqueue(method);
+
+                int at = method.LastIndexOf("::", StringComparison.Ordinal);
+                if (at < 0) return;
+                string type = method.Substring(0, at);
+                foreach (string implicitMember in new[] { $"{type}::.cctor", $"{type}::Finalize" })
+                    if (graph.ContainsKey(implicitMember) && reached.Add(implicitMember))
+                        queue.Enqueue(implicitMember);
+            }
+
+            // The other implicit .cctor trigger: reading or writing a static FIELD of a type also
+            // runs its static constructor, and a field access is not a method token, so it needs
+            // its own edge set alongside the call graph.
+            var fieldOwners = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            foreach (var access in FieldAccesses(assemblyPath, _ => true))
+            {
+                int split = access.Field.LastIndexOf("::", StringComparison.Ordinal);
+                if (split < 0) continue;
+                if (!fieldOwners.TryGetValue(access.Method, out var owners))
+                    fieldOwners[access.Method] = owners = new HashSet<string>(StringComparer.Ordinal);
+                owners.Add(access.Field.Substring(0, split));
+            }
+
+            foreach (string seed in wanted) Reach(seed);
             while (queue.Count > 0)
             {
-                foreach (string callee in graph[queue.Dequeue()])
+                string current = queue.Dequeue();
+
+                if (fieldOwners.TryGetValue(current, out var touchedTypes))
+                    foreach (string touchedType in touchedTypes)
+                        Reach($"{touchedType}::.cctor");
+
+                foreach (string callee in graph[current])
                 {
                     // The callee's own body, when it has one in this assembly.
-                    if (graph.ContainsKey(callee) && reached.Add(callee))
-                        queue.Enqueue(callee);
+                    Reach(callee);
 
                     // And every in-assembly implementation/override the call could dispatch to. The
                     // declaration itself (an interface or abstract method) has no body and is not in
                     // the graph - which is exactly why this edge set exists.
                     if (dispatch.TryGetValue(callee, out var implementations))
                         foreach (string implementation in implementations)
-                            if (graph.ContainsKey(implementation) && reached.Add(implementation))
-                                queue.Enqueue(implementation);
+                            Reach(implementation);
                 }
             }
 
@@ -311,8 +356,11 @@ namespace AgentEyes.Tests
         ///    another assembly are dropped, to keep this map to what this assembly declares.
         /// 2. InterfaceImpl rows - implicit interface implementations: a type that implements an
         ///    in-assembly interface (generic instantiations of one included) implements its methods
-        ///    by NAME, so each same-named method of the type with a body gets an edge from the
-        ///    interface's declaration.
+        ///    by NAME, so each same-named method the type RESPONDS with gets an edge from the
+        ///    interface's declaration - including a body the type INHERITS from an in-assembly base
+        ///    class (round-2 review, finding 1: the InterfaceImpl row sits on the derived type, the
+        ///    body on a base that never names the interface, and matching only the row-carrier's
+        ///    own methods left that shape silently unreachable).
         /// 3. The base-type chain - virtual overrides: for every virtual method of every in-assembly
         ///    ancestor, a same-named method of the derived type gets an edge from the ancestor's
         ///    declaration, because a call through the ancestor can run the override.
@@ -356,15 +404,29 @@ namespace AgentEyes.Tests
                         Add(NormalizeCallee(declaration), NormalizeCallee(body));
                 }
 
-                // This type's methods WITH a body, folded the same way call sites are, so the edge
-                // targets match the reachability graph's keys.
+                // The methods this type RESPONDS with, by simple name, folded the same way call
+                // sites are so the edge targets match the reachability graph's keys. INHERITED
+                // bodies are included, nearest declaration first (round-2 review, finding 1): a
+                // derived type can carry the InterfaceImpl row while the body it contributes lives
+                // on a base class that never names the interface, and matching only the type's OWN
+                // methods left exactly that shape unreachable - a silent pass.
                 var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
-                foreach (var methodHandle in type.GetMethods())
+                void CollectBodies(TypeDefinitionHandle fromType)
                 {
-                    var method = md.GetMethodDefinition(methodHandle);
-                    if (method.RelativeVirtualAddress == 0) continue;
-                    bodies[md.GetString(method.Name)] = MethodName(md, methodHandle);
+                    foreach (var methodHandle in md.GetTypeDefinition(fromType).GetMethods())
+                    {
+                        var method = md.GetMethodDefinition(methodHandle);
+                        if (method.RelativeVirtualAddress == 0) continue;
+                        string name = md.GetString(method.Name);
+                        if (!bodies.ContainsKey(name))          // nearest declaration wins
+                            bodies[name] = MethodName(md, methodHandle);
+                    }
                 }
+                CollectBodies(typeHandle);
+                for (var chain = type.BaseType;
+                     !chain.IsNil && DefinedType(md, chain) is TypeDefinitionHandle inherited;
+                     chain = md.GetTypeDefinition(inherited).BaseType)
+                    CollectBodies(inherited);
                 if (bodies.Count == 0) continue;
 
                 // 2. Implicit implementations of in-assembly interfaces, by name.

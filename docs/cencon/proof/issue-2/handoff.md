@@ -75,7 +75,49 @@ AgentEyesApp.dll!AgentEyes.App.MainWindow/MutationDrillConfigurer::Configure -> 
 incidental, and further proof the plant was really in the product.) Attack reverted with
 `git checkout -- src/AgentEyes.App/MainWindow.xaml.cs`; full gate green afterwards.
 
+### Round 2b - independent-review findings on the fix pass, fixed before handing to QA
+
+An independent review of the round-2 diff (commit f89dd69) found two fail-open gaps in the new
+dispatch walk, both demonstrated empirically. Both are FIXED in the follow-up commit on this
+branch, each with its own decoy, RED demonstration and walk-level regression:
+
+1. INHERITED IMPLEMENTATIONS (blocking-grade): the dispatch map matched an interface's methods
+   only against the implementing type's OWN methods. `class Base { public void Configure(view)
+   { groups } } class Derived : Base, IConfigurer {}` - the InterfaceImpl row is on Derived, the
+   body on Base, no MethodImpl row exists for a same-assembly implicit inherited implementation,
+   so `Base::Configure` was never reached. Fixed: `DispatchEdges` now collects bodies up the
+   implementing type's in-assembly base chain (nearest declaration wins). Decoy:
+   `IInheritedViewConfigurer` / `DayGroupConfigurerBase` / `InheritedDayGroupConfigurer`;
+   regression: `TheReachabilityWalk_FollowsInterfaceDispatch_ToAnInheritedImplementation`.
+   RED under the f89dd69 walk (run on this branch before the fix):
+   `Failed AgentEyes.Tests.LibraryFlatListTests.TheReachabilityWalk_FollowsInterfaceDispatch_ToAnInheritedImplementation`
+   plus the grouping-scan control failing to report `DayGroupConfigurerBase::Configure`.
+2. IMPLICIT RUNTIME INVOCATIONS (unstated limit): a static constructor (or finalizer) is invoked
+   by the runtime, never by a call instruction, so grouping hidden in a `.cctor` of a type a
+   Library handler touches passed every guard silently. Fixed by adding implicit edges rather
+   than stating a limit: touching any member of a type - a call, a construction, or a static
+   field read/write - now reaches its `.cctor` and its `Finalize`. Per touched type, not a
+   blanket sweep (the walk-level regression also asserts an untouched type stays out). Decoy:
+   `CctorDayGroupConfigurer` (the only grouping is in its `.cctor`); regression:
+   `TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType`. RED under the f89dd69 walk:
+   both that regression and the grouping-scan control (route `CctorDayGroupConfigurer::.cctor`).
+
+Two further review observations, recorded and deliberately not taken:
+
+* PERF: `Reachable` + `LibraryGroupingIn` re-open and re-parse the PE metadata several times per
+  guard run. Real cost, no breakage - the full suite still runs in ~14s - and threading one
+  MetadataReader through the scans is a refactor of a settled instrument that this fix pass has
+  no spec for. Left as-is.
+* The round-2 gate numbers below supersede round 2's: 831/831 (the 2 new walk-level regressions).
+
 ### How QA verifies round 2
+
+IMPORTANT (review finding on the drills themselves): run every mutation drill in an ISOLATED
+`git worktree` (`git worktree add ..\ae-drill issue-2-library-verification-followups`), not in
+the shared checkout - a drill observed mid-flight in the shared tree makes concurrent test runs
+report spurious failures that look exactly like real regressions, and a drill interrupted before
+its revert step leaves the planted attack in the product source. Clean up with
+`git worktree remove ..\ae-drill` when done.
 
 1. Both directions of the drill:
    - RED: apply the mutation above to `MainWindow.xaml.cs` (end of `ApplyLibraryMode`, ~line
@@ -241,18 +283,19 @@ reality instead of contradicting it.
 
 ## Criterion 5 - the gate
 
-Round 2, run on this branch after the mutation drill was reverted, 2026-08-21:
+Round 2b (current tip), run on this branch, 2026-08-21:
 
 ```
 Build succeeded.
     0 Error(s)
 
-Passed!  - Failed:     0, Passed:   829, Skipped:     0, Total:   829, Duration: 14 s
+Passed!  - Failed:     0, Passed:   831, Skipped:     0, Total:   831, Duration: 14 s
 ```
 
-(826 on main + the 2 loader tests from round 1 + the round-2 dispatch regression.)
+(826 on main + the 2 loader tests from round 1 + the round-2 dispatch regression + the 2
+round-2b regressions: inherited implementation, static constructor.)
 
-Round 1, for the record: 828/828 on the pre-fix-pass branch.
+For the record: round 2 gated at 829/829 (commit f89dd69), round 1 at 828/828.
 
 ## Smoke scoping for QA
 

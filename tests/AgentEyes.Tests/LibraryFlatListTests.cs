@@ -730,6 +730,14 @@ namespace AgentEyes.Tests
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::OnLoaded",
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::ConfigureLibraryView",
                          "AgentEyes.Tests.LibraryDefects.DayGroupConfigurer::Configure",
+                         // Round-2 review, finding 1: the implementation the interface hides is
+                         // INHERITED - the InterfaceImpl row is on the derived type, the body on
+                         // its base, and only a base-chain-aware dispatch map connects them.
+                         "AgentEyes.Tests.LibraryDefects.DayGroupConfigurerBase::Configure",
+                         // Round-2 review, finding 2: grouping hidden in a static constructor,
+                         // which no call instruction targets - the runtime invokes it, so the
+                         // walk must add implicit-invocation edges for touched types.
+                         "AgentEyes.Tests.LibraryDefects.CctorDayGroupConfigurer::.cctor",
                      })
                 Assert.True(reported.Any(site => site.Method == route),
                     $"The grouping scan does not report the compiled grouping in '{route}':"
@@ -758,6 +766,42 @@ namespace AgentEyes.Tests
                 new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryModeThroughAnInterface" });
 
             Assert.Contains("AgentEyes.Tests.LibraryDefects.DayGroupConfigurer::Configure", reached);
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
+        }
+
+        /// <summary>
+        /// Round-2 review, finding 1: the implementation the interface hides is INHERITED. The
+        /// derived type carries the InterfaceImpl row and no Configure of its own; the body lives
+        /// on a base class that never names the interface. A dispatch map that matches interface
+        /// methods only against the implementing type's OWN methods has no edge here - empirically
+        /// demonstrated fail-open - so the map must search the implementing type's in-assembly
+        /// base chain for the body.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsInterfaceDispatch_ToAnInheritedImplementation()
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryModeThroughAnInheritedImplementation" });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects.DayGroupConfigurerBase::Configure", reached);
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
+        }
+
+        /// <summary>
+        /// Round-2 review, finding 2: a STATIC CONSTRUCTOR is invoked by the runtime, never by a
+        /// call instruction, so it can only be an IMPLICIT edge: touching any member of a type
+        /// makes its .cctor (and its finalizer) reachable. Without that edge, work hidden in a
+        /// .cctor passes every reachability guard silently.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType()
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryModeThroughAStaticConstructor" });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects.CctorDayGroupConfigurer::.cctor", reached);
+            // ...and an untouched type's cctor is not dragged in: implicit edges are per touched
+            // type, not a blanket sweep.
             Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
         }
 
@@ -988,6 +1032,13 @@ namespace AgentEyes.Tests
         /// whether or not that concrete type can flow to the call site - the round-1 gate had
         /// restored day groups through exactly that seam (an implementation instantiated through an
         /// interface, Configure(view) called through the interface), with every guard green.
+        ///
+        /// The dispatch fan-out finds implementations a type INHERITS from an in-assembly base
+        /// class (the round-2 review's finding 1 - the InterfaceImpl row on the derived type, the
+        /// body on a base that never names the interface), and the walk also carries IMPLICIT
+        /// RUNTIME INVOCATIONS (finding 2): touching any member of a type - a call, a
+        /// construction, or a static field read/write - reaches its static constructor and its
+        /// finalizer, which no call instruction anywhere targets.
         ///
         /// Its limits, stated honestly:
         /// - the ASSEMBLY BOUNDARY, in both of its forms: a callee whose body lives in another
