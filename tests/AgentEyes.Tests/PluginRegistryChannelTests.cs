@@ -280,13 +280,14 @@ namespace AgentEyes.Tests
             var entry = RunPackagePlugin(Path.Combine(RepoSource.Root, "scripts", "package-plugin.ps1"),
                 "qa-walk-companion");
 
+            string version = SourcePluginVersion("qa-walk-companion");
             Assert.Equal("qa-walk-companion", entry.GetProperty("id").GetString());
-            Assert.Equal("1.0.0", entry.GetProperty("version").GetString());
+            Assert.Equal(version, entry.GetProperty("version").GetString());
             Assert.Equal(64, entry.GetProperty("sha256").GetString()!.Length);
 
             string zipUrl = entry.GetProperty("zipUrl").GetString()!;
             AssertZipUrlIsOnTheConsolidatedRepo(zipUrl);
-            Assert.Equal(ExpectedZipUrlPrefix + "qa-walk-companion-1.0.0.zip", zipUrl);
+            Assert.Equal(ExpectedZipUrlPrefix + $"qa-walk-companion-{version}.zip", zipUrl);
         }
 
         [Fact]
@@ -322,6 +323,21 @@ namespace AgentEyes.Tests
                 () => AssertZipUrlIsOnTheConsolidatedRepo(zipUrl));
             Assert.Contains("agenteyes-app", failure.Message, StringComparison.Ordinal);
             Assert.Contains("AgentEyes-releases", zipUrl, StringComparison.Ordinal);
+        }
+
+        /// <summary>The version plugins/&lt;id&gt;/plugin.json declares - the ONE source the packaging
+        /// script reads it from. Derived rather than hardcoded so a re-cut (issue #1 bumped both
+        /// plugins to 1.0.1) updates these expectations by itself instead of requiring the same
+        /// version edited in three test spots plus the manifests. Throws when the manifest carries no
+        /// version, so a derivation over nothing cannot green-light anything.</summary>
+        private static string SourcePluginVersion(string id)
+        {
+            using var doc = JsonDocument.Parse(RepoSource.Read($"plugins/{id}/plugin.json"));
+            string version = doc.RootElement.TryGetProperty("version", out var v)
+                ? (v.GetString() ?? "") : "";
+            if (string.IsNullOrWhiteSpace(version))
+                throw new InvalidOperationException($"plugins/{id}/plugin.json declares no version.");
+            return version;
         }
 
         /// <summary>Run package-plugin.ps1 and return the registry entry it printed. Throws on a
@@ -374,7 +390,7 @@ namespace AgentEyes.Tests
                 throw new InvalidOperationException(
                     $"package-plugin.ps1 exited {proc.ExitCode}. stderr: {stderr}{Environment.NewLine}stdout: {stdout}");
 
-            string zip = Path.Combine(outDir, $"{pluginId}-1.0.0.zip");
+            string zip = Path.Combine(outDir, $"{pluginId}-{SourcePluginVersion(pluginId)}.zip");
             if (!File.Exists(zip))
                 throw new InvalidOperationException($"package-plugin.ps1 produced no zip at '{zip}'. stdout: {stdout}");
 
@@ -466,7 +482,7 @@ NestedModules = @('Microsoft.PowerShell.Commands.Utility.dll')
                 var entry = RunPackagePlugin(Path.Combine(RepoSource.Root, "scripts", "package-plugin.ps1"),
                     "qa-walk-companion");
 
-                Assert.Equal(ExpectedZipUrlPrefix + "qa-walk-companion-1.0.0.zip",
+                Assert.Equal(ExpectedZipUrlPrefix + $"qa-walk-companion-{SourcePluginVersion("qa-walk-companion")}.zip",
                     entry.GetProperty("zipUrl").GetString());
                 Assert.Equal(64, entry.GetProperty("sha256").GetString()!.Length);
             }

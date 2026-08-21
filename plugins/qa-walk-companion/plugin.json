@@ -2,7 +2,7 @@
   "id": "qa-walk-companion",
   "name": "QA Walk Companion",
   "description": "Turns a QA walkthrough recording into a QA report listing the bugs the tester reported, read from the spoken transcript.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "command": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".\\run.ps1", "{dir}"],
   "settings": [
     { "key": "reportTitle", "label": "Report title", "type": "text",

@@ -2,7 +2,7 @@
   "id": "doc-companion",
   "name": "Doc Companion",
   "description": "Turns a recorded walkthrough into step-by-step documentation, illustrated with the screenshots captured during the recording.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "command": ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".\\run.ps1", "{dir}"],
   "settings": [
     { "key": "docTitle", "label": "Document title", "type": "text",
