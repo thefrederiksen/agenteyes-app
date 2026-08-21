@@ -310,3 +310,151 @@ now been observed in both states by QA on this tip.
 
 VERIFIED - gate defect fixed, all acceptance criteria hold on tip 50d414c. QA does not merge
 (D7); the Review Gate decides.
+
+---
+
+# QA Round 3 - second review-gate REJECT fix (2026-08-21)
+
+Branch tip reviewed: 1b11732 (round-2 tip was 5aba634; the fix is 1b11732 only).
+QA date: 2026-08-21.
+Verdict: **VERIFIED - both halves of the round-2 gate defect are fixed and all 6 acceptance
+criteria still hold.** Handing to the Review Gate (flow:ready-gate).
+
+## The defect under test
+
+Review-gate round-2 REJECT, one blocking defect in two halves:
+
+(a) the round-2 detector required a literal segment after `bin\`
+    (`...(?!x64[\/]+Release\b)[A-Za-z0-9_.-]+`), so a non-x64 path COMPOSED at the call
+    site - `$platform = 'x86'` upstream then `"...\bin\$platform\Release\..."`, or a
+    `"...\bin\" + $platform + ...` fragment concatenation - escaped every guard test;
+(b) while escaping those forms, the guard's test name and text still claimed ANY
+    reintroduced non-x64 build-output path was detected - an overclaim (an honestly stated
+    limit passes the 6c gate; an overclaim does not).
+
+## Scope of the fix (verified from the diff)
+
+`git diff 5aba634..1b11732 --stat`: exactly two files -
+`tests/AgentEyes.Tests/ScriptBinaryPathTests.cs` (the guard) and
+`docs/cencon/proof/issue-9/handoff.md` (round-3 documentation). Zero product code, zero
+script changes - so the round-1 runtime evidence (AC3 missing-binary error, AC5 api-smoke
+against the fresh build) remains valid and is cited, not re-run; the smoke surface is
+byte-identical to what round 1 exercised.
+
+## Gate results (run by QA on tip 1b11732)
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Build | `dotnet build AgentEyes.sln -c Release` | `Build succeeded.` `0 Error(s)` (same 2 pre-existing xUnit1031 warnings) |
+| Tests | `dotnet test AgentEyes.sln -c Release` | `Passed! - Failed: 0, Passed: 840, Skipped: 0, Total: 840` |
+
+Same machine note as rounds 1-2: this box has no Microsoft.WindowsDesktop.App 8.0 runtime;
+QA first reproduced the testhost abort without the workaround ("Test Run Aborted",
+framework 8.0.0 not found), then set DOTNET_ROLL_FORWARD=LatestMajor and got the 840/840
+run above. Suite grew 834 -> 840: the 5 new composed-path theory cases plus 1 new
+does-not-fire case, matching the handoff's claim exactly.
+
+## Half (a) - composed paths now fire: Expected vs Actual
+
+Expected: a non-x64 bin path assembled from a variable, placeholder, or fragment
+concatenation is rejected by the guard (fail closed - unverifiable text is a defect).
+
+Actual: PASS. The detector dropped the trailing character class entirely
+(`tests/AgentEyes.Tests/ScriptBinaryPathTests.cs:53-55`):
+
+    \bbin[\/]+(?!x64[\/]+Release\b)
+
+Nothing after `bin\` needs to be recognized to be rejected: the ONLY continuation that does
+not fire is the literal `x64\Release`. A variable sigil (`bin\$platform`), a format
+placeholder (`bin\{0}`), a cmd variable (`bin\%PLATFORM%`), a shell expansion
+(`bin/${platform}`), and a quote at a fragment boundary (`"...\bin\" + $x`) all fire.
+Committed theory evidence: `NonX64BinSegmentDetector_ComposedPath_Fires` (5 cases,
+ScriptBinaryPathTests.cs:154-160) and the widened does-not-fire arm (4 cases, :170-175,
+including a comment line mentioning `bin\x64\Release\.`).
+
+## Mutation drill (run by QA - the guard was SEEN to fail on BOTH gate scenarios)
+
+Per Section 6c item 3, QA planted the round-2 gate's exact scenarios itself on tip 1b11732.
+
+Baseline first: `dotnet test ... --filter "FullyQualifiedName~ScriptBinaryPathTests"` ->
+`Passed! - Failed: 0, Passed: 20, Total: 20` (legitimate literal `bin\x64\Release` usages
+in 7 scripts stay green).
+
+Plant (i) - variable-composed, appended to `scripts/run-all.ps1`:
+
+    $platform = 'x86'
+    $exe = "src\AgentEyes.App\bin\$platform\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+
+Result - the guard FAILED, naming the plant with file:line:
+
+    Failed AgentEyes.Tests.ScriptBinaryPathTests.Scripts_EveryTextualBinSegment_IsLiterallyX64Release [2 ms]
+    run-all.ps1:63: $exe = "src\AgentEyes.App\bin\$platform\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+    Failed! - Failed: 1, Passed: 19, Total: 20
+
+Reverted (`git checkout -- scripts/run-all.ps1`). Plant (ii) - fragment concatenation:
+
+    $exe = $srcDir + "\bin\" + $platform + "\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+
+Result - the guard FAILED again with file:line:
+
+    Failed AgentEyes.Tests.ScriptBinaryPathTests.Scripts_EveryTextualBinSegment_IsLiterallyX64Release [3 ms]
+    run-all.ps1:62: $exe = $srcDir + "\bin\" + $platform + "\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+    Failed! - Failed: 1, Passed: 19, Total: 20
+
+Reverted; `git status` clean; filtered re-run -> `Passed! - Failed: 0, Passed: 20,
+Total: 20`. Both forms that escaped the round-2 guard have now been observed by QA to fire,
+and the untouched tree observed green, on this tip.
+
+## Half (b) - the overclaim is gone: Expected vs Actual
+
+Expected: the guard's name, comments, and the handoff claim only the pinned textual fact
+and state the runtime-composition limit honestly.
+
+Actual: PASS.
+
+- Test renamed `Scripts_AllFiles_ContainNoNonX64BuildOutputPath` ->
+  `Scripts_EveryTextualBinSegment_IsLiterallyX64Release` (ScriptBinaryPathTests.cs:110) -
+  the name now states exactly the textual fact the scan can pin, not an ANY-path claim.
+- Detector renamed `StaleBinPath` -> `NonX64BinSegment` (ScriptBinaryPathTests.cs:53).
+- The class doc comment opens with "WHAT THIS GUARD PINS (the exact textual fact, no
+  more)" (:18-27) and carries an explicit "Honest limit" paragraph (:36-41): paths
+  assembled at runtime from pieces never textually adjacent to `bin` (Join-Path,
+  environment variable, config file, process output) are beyond a text scan's reach and
+  the guard "makes no claim about those".
+- `docs/cencon/proof/issue-9/handoff.md` AC4 section retitled "the reintroduction guard
+  (exact claim, revised round 3)" with the same WHAT-IT-PINS / KNOWN-LIMIT split; the
+  round-3 section at the top documents the defect, both halves of the fix, and the
+  developer's own mutation runs.
+- Sweep for residual overclaims: grep of the test file and handoff for the old test name
+  and "any non-x64"-style claims finds them only in historical round-1/2 narrative
+  (quoted verbatim as history in this report and the handoff's changelog), never in the
+  guard's current name, comments, or current-claim text.
+
+## Acceptance criteria still hold on the fixed tip
+
+- AC1/AC2: re-swept on 1b11732 - `grep -rInE "\bbin[\/]+" scripts/` piped through
+  `grep -viE "bin[\/]+x64[\/]+Release"` -> zero survivors (exit 1); presence arm: the
+  unfiltered grep DID produce bin-segment hits and `bin\x64\Release` literals are present
+  in 7 scripts (api-smoke.ps1, gui-smoke.ps1, doc-companion-demo.ps1, py-client-smoke.ps1,
+  qa-walk-companion-demo.ps1, run-all.ps1, try.cmd) - the instrument sees paths; the empty
+  negative arm is a real absence.
+- AC3 (missing-binary error) and AC5 (smoke exercises the fresh build): unchanged - the
+  round-3 commit touches no script or product code; round-1 evidence stands.
+- AC4: the widened, honestly-scoped guard, verified above with QA's own two-plant drill.
+- AC6: 840/840, Failed: 0, run by QA on this tip (gate table above).
+- Handoff documents round 3: "Round 3 - fix for the round-2 review-gate REJECT
+  (2026-08-21)" section present at the top of handoff.md with the defect, the fix, the
+  new counts (834 -> 840, 20 guard tests), and the QA repro recipe. Verified in the diff.
+
+## Method checks (round 3)
+
+- ASCII-only: byte scan of the changed files (test file, handoff.md, this report) found 0
+  non-ASCII bytes; the instrument was first shown to FIRE on a known non-ASCII probe
+  before its empty result was believed.
+- Commit message of 1b11732 checked: no banned attribution strings.
+- Scope: test file + handoff doc only; no product code, no privacy-posture surface.
+- Working tree left clean; both mutation plants reverted, each revert verified by git
+  status and a green filtered re-run.
+
+VERIFIED - both halves of the round-2 gate defect fixed; all acceptance criteria hold on
+tip 1b11732. QA does not merge (D7); the Review Gate decides.
