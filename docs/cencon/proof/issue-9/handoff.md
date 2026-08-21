@@ -3,6 +3,10 @@
 Issue: [CenCon] Smoke scripts launch a month-stale binary instead of the x64 Release build
 Branch: issue-9-smoke-x64-paths
 
+## Round 4 - fix for the round-3 review-gate REJECT (2026-08-21)
+
+One-string diagnostic fix in `ScriptBinaryPathTests.cs`: the guard's failure message is split - literal non-x64 paths keep the "launches the wrong (stale or never-built) binary" claim, while composed paths (which may resolve to the correct binary, e.g. `$platform = 'x64'`) are now reported as "Unverifiable composed bin\ path(s) ... cannot statically prove ... rejected fail-closed" - plus 14 classifier theories (`OffenderDiagnostic_*`, suite 840 -> 854) and a live two-plant mutation showing each offender under its own wording (run-all.ps1:63 literal / :64 composed, reverted); gate: build 0 errors, test Failed: 0, Passed: 854.
+
 ## Round 3 - fix for the round-2 review-gate REJECT (2026-08-21)
 
 The round-2 gate rejected one blocking defect: the guard's detector required a literal

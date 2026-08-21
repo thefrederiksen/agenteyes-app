@@ -54,6 +54,38 @@ namespace AgentEyes.Tests
             @"\bbin[\\/]+(?!x64[\\/]+Release\b)",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        /// <summary>A fully literal path segment: letters, digits, dot, underscore, hyphen.</summary>
+        private static readonly Regex LiteralSegment = new Regex(
+            @"^[A-Za-z0-9_.\-]+$",
+            RegexOptions.Compiled);
+
+        /// <summary>
+        /// Classifies an offending line (one <see cref="NonX64BinSegment"/> already matched) for
+        /// the guard's diagnostic. The two categories carry DIFFERENT claims and must not share one:
+        /// - false (wrong literal): the segment(s) after bin\ are literal and provably not
+        ///   x64\Release - such a path launches the wrong (stale or never-built) binary. This is a
+        ///   statement of fact about the resolved path.
+        /// - true (composed/unverifiable): a variable, placeholder, or fragment boundary sits where
+        ///   the platform or configuration segment should be. The text alone cannot prove what the
+        ///   path resolves to - e.g. $platform = 'x64' upstream composes to the CORRECT binary -
+        ///   so the guard rejects it as textually UNVERIFIABLE, not as wrong.
+        /// </summary>
+        private static bool IsComposedOffender(string offendingLine)
+        {
+            Match m = NonX64BinSegment.Match(offendingLine);
+            if (!m.Success)
+                throw new InvalidOperationException("Not an offender line: " + offendingLine);
+
+            string continuation = offendingLine.Substring(m.Index + m.Length);
+            Match segs = Regex.Match(continuation, @"^([^\\/""'\s]*)(?:[\\/]+([^\\/""'\s]*))?");
+            string first = segs.Groups[1].Value;
+            if (!LiteralSegment.IsMatch(first))
+                return true; // variable/placeholder/fragment right after bin\ - unverifiable
+            if (first.Equals("x64", StringComparison.OrdinalIgnoreCase))
+                return !LiteralSegment.IsMatch(segs.Groups[2].Value); // bin\x64\<non-literal> - unverifiable config
+            return false; // literal non-x64 segment: provably not bin\x64\Release
+        }
+
         /// <summary>Scripts that launch a built binary and therefore must be in the scanned corpus -
         /// if a rename removes one, the instrument is broken and the test fails loudly.</summary>
         private static readonly string[] KnownLaunchScripts =
@@ -112,24 +144,44 @@ namespace AgentEyes.Tests
             List<string> files = ScriptFiles();
             Assert.NotEmpty(files);
 
-            var offenders = new List<string>();
+            var wrongLiterals = new List<string>();
+            var composed = new List<string>();
             foreach (string file in files)
             {
                 string[] lines = File.ReadAllLines(file);
                 for (int i = 0; i < lines.Length; i++)
                 {
-                    if (NonX64BinSegment.IsMatch(lines[i]))
-                        offenders.Add($"{Path.GetFileName(file)}:{i + 1}: {lines[i].Trim()}");
+                    if (!NonX64BinSegment.IsMatch(lines[i]))
+                        continue;
+                    string entry = $"{Path.GetFileName(file)}:{i + 1}: {lines[i].Trim()}";
+                    (IsComposedOffender(lines[i]) ? composed : wrongLiterals).Add(entry);
                 }
             }
 
-            Assert.True(offenders.Count == 0,
-                "bin\\ path segment(s) under scripts/ whose continuation is not the literal " +
-                "bin\\x64\\Release - either a stale/wrong-platform literal, or a composed path " +
-                "(variable/placeholder/fragment) that a text scan cannot verify. Both launch " +
-                "something other than the binary `dotnet build AgentEyes.sln -c Release` produces " +
-                "(bin\\x64\\Release\\). Use the single literal x64 Release path. Offender(s):\n" +
-                string.Join("\n", offenders));
+            // The two categories carry different claims, so the diagnostic is split: a literal
+            // non-x64 path provably launches the wrong binary; a composed path is rejected only
+            // because the text cannot prove it - it may even resolve to the correct binary.
+            var message = new System.Text.StringBuilder();
+            if (wrongLiterals.Count > 0)
+            {
+                message.AppendLine(
+                    "Literal non-x64 bin\\ path(s) under scripts/ - provably NOT the " +
+                    "bin\\x64\\Release\\ output of `dotnet build AgentEyes.sln -c Release`, so " +
+                    "each launches the wrong (stale or never-built) binary. Use the single " +
+                    "literal bin\\x64\\Release path:");
+                foreach (string entry in wrongLiterals) message.AppendLine("  " + entry);
+            }
+            if (composed.Count > 0)
+            {
+                message.AppendLine(
+                    "Unverifiable composed bin\\ path(s) under scripts/ (variable, placeholder, " +
+                    "or fragment where a literal segment belongs) - a text scan cannot statically " +
+                    "prove such a path is bin\\x64\\Release (it may even resolve there), so it is " +
+                    "rejected fail-closed. Use the single literal bin\\x64\\Release path:");
+                foreach (string entry in composed) message.AppendLine("  " + entry);
+            }
+
+            Assert.True(wrongLiterals.Count == 0 && composed.Count == 0, message.ToString());
         }
 
         [Theory]
@@ -165,6 +217,38 @@ namespace AgentEyes.Tests
             // cannot prove what such a path resolves to, so the detector rejects the bin\ segment
             // as UNVERIFIABLE (fail closed) rather than trusting it.
             Assert.Matches(NonX64BinSegment, composed);
+        }
+
+        [Theory]
+        [InlineData(@"$exe = ""src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe""")]
+        [InlineData(@"set ""CLIBIN=%~dp0..\src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0""")]
+        [InlineData(@"src\AgentEyes.App\bin\Debug\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
+        [InlineData(@"$exe = ""src\AgentEyes.App\bin\x86\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe""")]
+        [InlineData("src/AgentEyes.Core/bin/arm64/Release/net8.0-windows10.0.19041.0/agenteyes.exe")]
+        [InlineData(@"src\AgentEyes.App\bin\x64\Debug\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
+        [InlineData(@"src\AgentEyes.App\bin\AnyCPU\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
+        public void OffenderDiagnostic_LiteralNonX64Path_ClassifiedAsWrongBinary(string knownBadLiteral)
+        {
+            // Diagnostic split (round-4 gate fix): a fully literal non-x64 path is provably NOT
+            // the built binary, so the guard may - and does - say "launches the wrong binary".
+            Assert.False(IsComposedOffender(knownBadLiteral));
+        }
+
+        [Theory]
+        [InlineData(@"$platform = 'x64'; $exe = ""src\AgentEyes.App\bin\$platform\Release\AgentEyesApp.exe""")]
+        [InlineData(@"$exe = ""src\AgentEyes.App\bin\$platform\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe""")]
+        [InlineData(@"$exe = $srcDir + ""\bin\"" + $platform + ""\Release\net8.0\AgentEyesApp.exe""")]
+        [InlineData(@"$exe = [string]::Format(""src\AgentEyes.App\bin\{0}\Release\AgentEyesApp.exe"", $platform)")]
+        [InlineData(@"set ""CLIBIN=%~dp0..\src\AgentEyes.Core\bin\%PLATFORM%\Release\net8.0-windows10.0.19041.0""")]
+        [InlineData("agent_dir=\"$root/src/AgentEyes.App/bin/${platform}/Release\"")]
+        [InlineData(@"$exe = ""src\AgentEyes.App\bin\x64\$config\net8.0-windows10.0.19041.0\AgentEyesApp.exe""")]
+        public void OffenderDiagnostic_ComposedPath_ClassifiedAsUnverifiable(string composed)
+        {
+            // Diagnostic split (round-4 gate fix): a composed path can resolve to the CORRECT
+            // binary ($platform = 'x64' upstream - the first case is exactly that), so the guard
+            // must NOT claim it launches the wrong binary. It is rejected only because the text
+            // cannot statically prove it is bin\x64\Release - reported as UNVERIFIABLE.
+            Assert.True(IsComposedOffender(composed));
         }
 
         [Theory]
