@@ -236,6 +236,18 @@ namespace AgentEyes.Tests
         /// The closure stops at the assembly boundary, because that is where the IL of a callee stops
         /// being visible here. That is a real limit, and the guards built on this state it.
         ///
+        /// VIRTUAL AND INTERFACE DISPATCH is followed conservatively (issue #2, fix pass - the
+        /// round-1 gate's finding). A call through an in-assembly interface or virtual method names
+        /// only the DECLARATION in its IL token; the body that actually runs belongs to whatever
+        /// implementation the object happens to be, and a walk that only follows calls into bodies
+        /// never reaches it - which let a handler group the Library through
+        /// <c>IConfigurer.Configure(view)</c> with every guard green. So whenever a reached method
+        /// calls a method DECLARED in this assembly (interface, abstract or virtual), EVERY
+        /// in-assembly implementation and override of it is treated as reachable, whether or not
+        /// that concrete type can flow to the call site. That over-reports rather than
+        /// under-reports: fail closed. See <see cref="DispatchEdges"/> for how the implementations
+        /// are found.
+        ///
         /// Fail-closed: every seed must exist as a method definition in the assembly. A renamed seed
         /// would otherwise silently shrink the closure to nothing, and a scan over nothing passes.
         /// </summary>
@@ -263,14 +275,176 @@ namespace AgentEyes.Tests
                         $"'{seed}' is not a method in {Path.GetFileName(assemblyPath)}, so the reachability "
                         + "scan seeded with it would cover nothing and pass by finding nothing.");
 
+            var dispatch = DispatchEdges(assemblyPath);
+
             var reached = new HashSet<string>(wanted, StringComparer.Ordinal);
             var queue = new Queue<string>(wanted);
             while (queue.Count > 0)
+            {
                 foreach (string callee in graph[queue.Dequeue()])
-                    if (graph.ContainsKey(callee) && reached.Add(callee))   // in-assembly callees only
+                {
+                    // The callee's own body, when it has one in this assembly.
+                    if (graph.ContainsKey(callee) && reached.Add(callee))
                         queue.Enqueue(callee);
 
+                    // And every in-assembly implementation/override the call could dispatch to. The
+                    // declaration itself (an interface or abstract method) has no body and is not in
+                    // the graph - which is exactly why this edge set exists.
+                    if (dispatch.TryGetValue(callee, out var implementations))
+                        foreach (string implementation in implementations)
+                            if (graph.ContainsKey(implementation) && reached.Add(implementation))
+                                queue.Enqueue(implementation);
+                }
+            }
+
             return reached.OrderBy(m => m, StringComparer.Ordinal).ToList();
+        }
+
+        /// <summary>
+        /// Every dispatch edge the assembly's own metadata declares: for each method DECLARED in
+        /// this assembly as an interface method, an abstract method or a virtual method, the
+        /// in-assembly methods that can actually RUN when it is called. Three sources, all read
+        /// from metadata tables rather than guessed from names alone:
+        ///
+        /// 1. The MethodImpl table - explicit interface implementations and explicit overrides.
+        ///    Each row IS a dispatch edge, exact by construction. Rows whose declaration lives in
+        ///    another assembly are dropped, to keep this map to what this assembly declares.
+        /// 2. InterfaceImpl rows - implicit interface implementations: a type that implements an
+        ///    in-assembly interface (generic instantiations of one included) implements its methods
+        ///    by NAME, so each same-named method of the type with a body gets an edge from the
+        ///    interface's declaration.
+        /// 3. The base-type chain - virtual overrides: for every virtual method of every in-assembly
+        ///    ancestor, a same-named method of the derived type gets an edge from the ancestor's
+        ///    declaration, because a call through the ancestor can run the override.
+        ///
+        /// Matching by name inside those relationships (not by full signature) is deliberate: an
+        /// overload that is NOT the implementation still gets an edge, which over-reports. This map
+        /// exists so a reachability guard fails closed; a false extra edge is a false alarm, a
+        /// missing edge is a silent pass.
+        ///
+        /// Its honest limit is the assembly boundary, same as the rest of this class: a declaration
+        /// living OUTSIDE the assembly (a BCL or WPF interface or base class) is not a key here, so
+        /// an in-assembly implementation invoked only through such an external declaration is not an
+        /// edge. The guards built on <see cref="Reachable"/> state that.
+        /// </summary>
+        private static Dictionary<string, HashSet<string>> DispatchEdges(string assemblyPath)
+        {
+            using var stream = File.OpenRead(assemblyPath);
+            using var pe = new PEReader(stream);
+            var md = pe.GetMetadataReader();
+
+            var edges = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            void Add(string declaration, string implementation)
+            {
+                if (declaration == implementation) return;
+                if (!edges.TryGetValue(declaration, out var set))
+                    edges[declaration] = set = new HashSet<string>(StringComparer.Ordinal);
+                set.Add(implementation);
+            }
+
+            foreach (var typeHandle in md.TypeDefinitions)
+            {
+                var type = md.GetTypeDefinition(typeHandle);
+
+                // 1. Explicit implementations and overrides: each MethodImpl row is an edge.
+                foreach (var implHandle in type.GetMethodImplementations())
+                {
+                    var row = md.GetMethodImplementation(implHandle);
+                    string? declaration = InAssemblyDeclaration(md, row.MethodDeclaration);
+                    string? body = InAssemblyDeclaration(md, row.MethodBody);
+                    if (declaration != null && body != null)
+                        Add(NormalizeCallee(declaration), NormalizeCallee(body));
+                }
+
+                // This type's methods WITH a body, folded the same way call sites are, so the edge
+                // targets match the reachability graph's keys.
+                var bodies = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var methodHandle in type.GetMethods())
+                {
+                    var method = md.GetMethodDefinition(methodHandle);
+                    if (method.RelativeVirtualAddress == 0) continue;
+                    bodies[md.GetString(method.Name)] = MethodName(md, methodHandle);
+                }
+                if (bodies.Count == 0) continue;
+
+                // 2. Implicit implementations of in-assembly interfaces, by name.
+                foreach (var interfaceHandle in type.GetInterfaceImplementations())
+                {
+                    var declared = DefinedType(md, md.GetInterfaceImplementation(interfaceHandle).Interface);
+                    if (declared is not TypeDefinitionHandle interfaceType) continue;   // declared elsewhere
+                    string interfaceName = TypeName(md, interfaceType);
+                    foreach (var methodHandle in md.GetTypeDefinition(interfaceType).GetMethods())
+                    {
+                        string name = md.GetString(md.GetMethodDefinition(methodHandle).Name);
+                        if (bodies.TryGetValue(name, out string? body))
+                            Add(NormalizeCallee($"{interfaceName}::{name}"), body);
+                    }
+                }
+
+                // 3. Virtual overrides, up the in-assembly base chain.
+                var baseHandle = type.BaseType;
+                while (!baseHandle.IsNil && DefinedType(md, baseHandle) is TypeDefinitionHandle ancestorType)
+                {
+                    var ancestor = md.GetTypeDefinition(ancestorType);
+                    string ancestorName = TypeName(md, ancestorType);
+                    foreach (var methodHandle in ancestor.GetMethods())
+                    {
+                        var method = md.GetMethodDefinition(methodHandle);
+                        if ((method.Attributes & MethodAttributes.Virtual) == 0) continue;
+                        string name = md.GetString(method.Name);
+                        if (bodies.TryGetValue(name, out string? body))
+                            Add(NormalizeCallee($"{ancestorName}::{name}"), body);
+                    }
+                    baseHandle = ancestor.BaseType;
+                }
+            }
+
+            return edges;
+        }
+
+        /// <summary>A MethodImpl row's method as <c>Type::Method</c> when the type is defined in
+        /// THIS assembly (directly or as a generic instantiation of an in-assembly type), else null.</summary>
+        private static string? InAssemblyDeclaration(MetadataReader md, EntityHandle handle)
+        {
+            switch (handle.Kind)
+            {
+                case HandleKind.MethodDefinition:
+                    var def = md.GetMethodDefinition((MethodDefinitionHandle)handle);
+                    return $"{TypeName(md, def.GetDeclaringType())}::{md.GetString(def.Name)}";
+
+                case HandleKind.MemberReference:
+                    var member = md.GetMemberReference((MemberReferenceHandle)handle);
+                    if (member.GetKind() != MemberReferenceKind.Method) return null;
+                    return DefinedType(md, member.Parent) is TypeDefinitionHandle parent
+                        ? $"{TypeName(md, parent)}::{md.GetString(member.Name)}"
+                        : null;
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>The in-assembly type definition a handle names: a TypeDefinition directly, or
+        /// the OPEN generic type behind a TypeSpecification's generic instantiation when that type
+        /// is defined here. A TypeReference - a type from another assembly - is null: the walk's
+        /// assembly boundary.</summary>
+        private static TypeDefinitionHandle? DefinedType(MetadataReader md, EntityHandle handle)
+        {
+            switch (handle.Kind)
+            {
+                case HandleKind.TypeDefinition:
+                    return (TypeDefinitionHandle)handle;
+
+                case HandleKind.TypeSpecification:
+                    var blob = md.GetBlobReader(md.GetTypeSpecification((TypeSpecificationHandle)handle).Signature);
+                    if (blob.ReadSignatureTypeCode() != SignatureTypeCode.GenericTypeInstance) return null;
+                    if (blob.ReadSignatureTypeCode() != SignatureTypeCode.TypeHandle) return null;
+                    var generic = blob.ReadTypeHandle();
+                    return generic.Kind == HandleKind.TypeDefinition ? (TypeDefinitionHandle)generic : null;
+
+                default:
+                    return null;
+            }
         }
 
         /// <summary>Every method defined in the assembly, normalized the same way call sites are.</summary>
@@ -559,7 +733,12 @@ namespace AgentEyes.Tests
                     {
                         HandleKind.TypeReference => TypeName(md, (TypeReferenceHandle)member.Parent),
                         HandleKind.TypeDefinition => TypeName(md, (TypeDefinitionHandle)member.Parent),
-                        _ => null,   // TypeSpec (generic instantiation), ModuleRef, MethodDef (vararg)
+                        // A generic instantiation of an IN-ASSEMBLY type folds back onto its open
+                        // type, so a call through IConfigure<T> or Helper<T> is an edge the
+                        // reachability walk can follow. External instantiations stay null.
+                        HandleKind.TypeSpecification when DefinedType(md, member.Parent) is TypeDefinitionHandle generic
+                            => TypeName(md, generic),
+                        _ => null,   // external TypeSpec, ModuleRef, MethodDef (vararg)
                     };
                     return parent == null ? null : $"{parent}::{md.GetString(member.Name)}";
 

@@ -689,9 +689,12 @@ namespace AgentEyes.Tests
         ///
         /// Since issue #2 the scan also FOLLOWS THE CALLS such a method makes, transitively within
         /// the assembly - the round-3 gate proved the old one-body scan blind to grouping delegated
-        /// to a helper that takes the view as an argument and never names a Library field. The
-        /// remaining limits are stated on <see cref="LibraryGroupingIn"/>: the assembly boundary,
-        /// and routes reached only through reflection or a stored delegate.
+        /// to a helper that takes the view as an argument and never names a Library field - and,
+        /// since the issue #2 fix pass, follows VIRTUAL AND INTERFACE DISPATCH conservatively: a
+        /// call through an in-assembly interface or virtual method reaches every in-assembly
+        /// implementation and override of it, which is the round-1 gate's construction (an
+        /// implementation instantiated through an interface, Configure(view) called through the
+        /// interface). The remaining limits are stated on <see cref="LibraryGroupingIn"/>.
         /// </summary>
         [Fact]
         public void NoMethodThatHandlesTheLibrary_GroupsIt()
@@ -706,11 +709,15 @@ namespace AgentEyes.Tests
         /// <summary>
         /// The negative control, and the NARROWNESS control in the same test. The scan must report
         /// grouping added by a method that handles the Library - outside the constructor, through the
-        /// items control, through ICollectionView, and (issue #2, item 1) DELEGATED to a helper that
+        /// items control, through ICollectionView, (issue #2, item 1) DELEGATED to a helper that
         /// takes the view as an argument and never names a Library field, which is the exact shape
-        /// the round-3 gate used to restore real day groups with every guard green. And it must stay
-        /// silent about grouping that has nothing to do with the Library, which is the false alarm
-        /// that would eventually get this guard deleted.
+        /// the round-3 gate used to restore real day groups with every guard green, and (issue #2,
+        /// fix pass) hidden behind INTERFACE DISPATCH - the handler instantiates an in-assembly
+        /// implementation through an interface and calls Configure(view) through that interface, so
+        /// the call site names only the abstract method and a body-only walk never reaches the
+        /// implementation. And it must stay silent about grouping that has nothing to do with the
+        /// Library - including an unrelated feature's own interface-dispatched configurer - which is
+        /// the false alarm that would eventually get this guard deleted.
         /// </summary>
         [Fact]
         public void TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses()
@@ -722,6 +729,7 @@ namespace AgentEyes.Tests
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryMode",
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::OnLoaded",
                          "AgentEyes.Tests.LibraryDefects.LibraryWindow::ConfigureLibraryView",
+                         "AgentEyes.Tests.LibraryDefects.DayGroupConfigurer::Configure",
                      })
                 Assert.True(reported.Any(site => site.Method == route),
                     $"The grouping scan does not report the compiled grouping in '{route}':"
@@ -729,6 +737,28 @@ namespace AgentEyes.Tests
 
             Assert.DoesNotContain(reported,
                 site => site.Method.StartsWith("AgentEyes.Tests.LibraryDefects.Grouping::", StringComparison.Ordinal));
+            Assert.DoesNotContain(reported,
+                site => site.Method.StartsWith("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::", StringComparison.Ordinal));
+        }
+
+        /// <summary>
+        /// The issue #2 FIX-PASS regression, at the level of the instrument itself. Seeded with the
+        /// handler alone, the walk must reach <c>DayGroupConfigurer.Configure</c> - a method no body
+        /// in the assembly calls by its concrete type; the only route to it is the dispatch edge
+        /// behind <c>ILibraryViewConfigurer.Configure</c>. Under the pre-fix walk (calls into bodies
+        /// only) this assertion fails, which is exactly how the round-1 gate's attack stayed
+        /// invisible. And the fan-out must stay per-declaration: the same-signature, same-method-name
+        /// implementation of the UNRELATED <c>IPanelConfigurer</c> must NOT be dragged in, or the
+        /// conservative direction would fail legitimate future work.
+        /// </summary>
+        [Fact]
+        public void TheReachabilityWalk_FollowsInterfaceDispatch_ToTheInAssemblyImplementation()
+        {
+            var reached = CompiledCode.Reachable(CompiledCode.TestAssembly,
+                new[] { "AgentEyes.Tests.LibraryDefects.LibraryWindow::ApplyLibraryModeThroughAnInterface" });
+
+            Assert.Contains("AgentEyes.Tests.LibraryDefects.DayGroupConfigurer::Configure", reached);
+            Assert.DoesNotContain("AgentEyes.Tests.LibraryDefects.PanelGroupConfigurer::Configure", reached);
         }
 
         [Fact]
@@ -952,14 +982,31 @@ namespace AgentEyes.Tests
         /// and this scan, then confined to the handler's own body, stayed green. The walk is the
         /// same instrument the date guard already stands on (CompiledCode.Reachable), and it fails
         /// closed twice - no handlers found throws, and a seed that stopped existing throws inside
-        /// Reachable itself.
+        /// Reachable itself. Since the issue #2 fix pass the walk also follows VIRTUAL AND
+        /// INTERFACE DISPATCH conservatively: a call that targets an in-assembly interface,
+        /// abstract or virtual method reaches EVERY in-assembly implementation and override of it,
+        /// whether or not that concrete type can flow to the call site - the round-1 gate had
+        /// restored day groups through exactly that seam (an implementation instantiated through an
+        /// interface, Configure(view) called through the interface), with every guard green.
         ///
-        /// Its limits, stated: reachability stops at the assembly boundary, and a method reached
-        /// only through reflection or a stored delegate is not an edge in the call graph. And it is
-        /// a REACHED-FROM claim, not proved dataflow: a helper that a Library handler calls but
-        /// that groups some OTHER feature's view would be reported too. That direction errs toward
-        /// a false alarm rather than a silent pass; the narrowness control keeps it honest for
-        /// grouped views nothing in the Library's call graph touches.
+        /// Its limits, stated honestly:
+        /// - the ASSEMBLY BOUNDARY, in both of its forms: a callee whose body lives in another
+        ///   assembly is not walked into, and a dispatch seam DECLARED in another assembly (a BCL
+        ///   or WPF interface or base class, e.g. IObserver&lt;T&gt;.OnNext) has no edge to its
+        ///   in-assembly implementations, because the declaration is not in this assembly's
+        ///   metadata tables;
+        /// - REFLECTION: a method reached only via reflection is not an edge in the call graph;
+        /// - a DELEGATE INVOKED BY CODE THAT DID NOT BUILD IT: building a delegate (ldftn /
+        ///   ldvirtftn) is an edge from the builder to the target, but Invoke on the delegate type
+        ///   connects to nothing, so a target handed in from outside the closure is not followed;
+        /// - RUNTIME-GENERATED CODE (Reflection.Emit, expression compilation) has no IL here to
+        ///   walk (the product contains none - and a calli, the one call shape that names no
+        ///   target, is counted and pinned by CompiledCode.IndirectCalls).
+        /// And it is a REACHED-FROM claim, not proved dataflow, twice over: a helper that a Library
+        /// handler calls but that groups some OTHER feature's view would be reported too, and the
+        /// dispatch fan-out reports every implementation of a called interface, not just the one
+        /// constructed. Both err toward a false alarm rather than a silent pass; the narrowness
+        /// control keeps them honest for grouped views nothing in the Library's call graph touches.
         /// </summary>
         private static IReadOnlyList<CompiledCode.CallSite> LibraryGroupingIn(string assembly)
         {

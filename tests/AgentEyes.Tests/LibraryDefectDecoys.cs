@@ -134,6 +134,52 @@ namespace AgentEyes.Tests.LibraryDefects
         /// Library field, so only following the call from its caller finds it.</summary>
         private static void ConfigureLibraryView(ICollectionView view) =>
             view.GroupDescriptions.Add(new PropertyGroupDescription("Title"));
+
+        /// <summary>
+        /// The round-1 gate's attack on the FIX PASS (issue #2): the handler groups nothing and
+        /// calls no grouping helper directly - it instantiates an in-assembly implementation
+        /// through an interface and calls Configure(view) through that interface. The IL call
+        /// site targets the abstract interface method, so a walk that only follows calls into
+        /// method BODIES never reaches <see cref="DayGroupConfigurer.Configure"/>, and real day
+        /// groups return with every guard green. Only conservative dispatch-following finds it.
+        /// </summary>
+        public void ApplyLibraryModeThroughAnInterface()
+        {
+            ILibraryViewConfigurer configurer = new DayGroupConfigurer();
+            configurer.Configure(CollectionViewSource.GetDefaultView(_recent));
+        }
+    }
+
+    /// <summary>The dispatch seam of the round-1 gate's attack. Nothing about this interface names
+    /// the Library or grouping - it is an ordinary in-assembly abstraction.</summary>
+    internal interface ILibraryViewConfigurer
+    {
+        void Configure(ICollectionView view);
+    }
+
+    /// <summary>The implementation the interface hides. Reached ONLY through
+    /// <see cref="ILibraryViewConfigurer"/> dispatch - no body anywhere calls this method by its
+    /// concrete type - so a walk blind to dispatch reports the Library clean while this groups it.</summary>
+    internal sealed class DayGroupConfigurer : ILibraryViewConfigurer
+    {
+        public void Configure(ICollectionView view) =>
+            view.GroupDescriptions.Add(new PropertyGroupDescription("DayGroup"));
+    }
+
+    /// <summary>The NARROWNESS half of the same seam: an unrelated feature configuring ITS OWN view
+    /// through an interface of its own. No Library handler ever calls through
+    /// <see cref="IPanelConfigurer"/>, so conservative dispatch-following must NOT drag this in -
+    /// reporting it would fail legitimate future work and cost the guard its life.</summary>
+    internal interface IPanelConfigurer
+    {
+        void Configure(ICollectionView view);
+    }
+
+    /// <summary>The unrelated implementation the guard must stay silent about.</summary>
+    internal sealed class PanelGroupConfigurer : IPanelConfigurer
+    {
+        public void Configure(ICollectionView view) =>
+            view.GroupDescriptions.Add(new PropertyGroupDescription("Kind"));
     }
 
     /// <summary>
@@ -152,6 +198,15 @@ namespace AgentEyes.Tests.LibraryDefects
 
         public static void ThroughTheItemsControl(ItemsControl list) =>
             list.GroupStyle.Add(new GroupStyle());
+
+        /// <summary>The unrelated feature actually CALLING through its own interface - the compiled
+        /// call site whose dispatch edge leads to <see cref="PanelGroupConfigurer.Configure"/>. The
+        /// guard must not report either end: no Library handler reaches this method.</summary>
+        public static void ThroughAnInterfaceOfItsOwn(ICollectionView view)
+        {
+            IPanelConfigurer configurer = new PanelGroupConfigurer();
+            configurer.Configure(view);
+        }
     }
 
     // ---- issue #3: bypasses of the library's coherence model ------------------

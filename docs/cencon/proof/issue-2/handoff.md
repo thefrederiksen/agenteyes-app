@@ -7,6 +7,98 @@ Machine gotcha (known, documented in `docs/cencon/proof/issue-1/handoff.md`): th
 no `Microsoft.WindowsDesktop.App` 8.x runtime, so run the tests with
 `DOTNET_ROLL_FORWARD=LatestMajor` set. This affects main too and is not a defect of this branch.
 
+## ROUND 2 (fix pass) - the review gate's REJECT, answered
+
+The round-1 gate rejected PR #26 with one blocking defect: the grouping guard's reachability
+walk (`CompiledCode.Reachable`, tests/AgentEyes.Tests/CompiledCode.cs) followed only calls into
+method BODIES, so it never followed virtual/interface dispatch. Concrete attack: a Library
+handler instantiates an in-assembly implementation through an interface and calls
+`Configure(view)` through that interface; the IL call site names the abstract interface method
+(no body, not a graph node), so the concrete implementation that adds a
+`PropertyGroupDescription` stays unreached and every guard test stays green. And the documented
+limits named only the assembly boundary, reflection and stored delegates - this ordinary
+dispatch blind spot was not stated.
+
+### What changed in round 2
+
+| File | Change |
+|------|--------|
+| `tests/AgentEyes.Tests/CompiledCode.cs` | `Reachable` now follows virtual/interface dispatch conservatively, via a new `DispatchEdges` map built from the assembly's own metadata tables: (1) MethodImpl rows (explicit implementations/overrides - exact edges), (2) InterfaceImpl rows (implicit implementations of in-assembly interfaces, generic instantiations included, matched by name), (3) the in-assembly base-type chain (virtual overrides, by name). When a reached method calls a method DECLARED in this assembly, EVERY in-assembly implementation/override of it becomes reachable - fail closed, over-report direction. `Callee` also resolves member references whose parent is a generic instantiation of an in-assembly type onto the open type, so an `IConfigure<T>`-shaped seam is an edge too. |
+| `tests/AgentEyes.Tests/LibraryDefectDecoys.cs` | The gate's exact construction, compiled as a permanent decoy: `LibraryWindow.ApplyLibraryModeThroughAnInterface` instantiates `DayGroupConfigurer` through `ILibraryViewConfigurer` and calls `Configure(view)` through the interface; only the implementation groups. Plus the narrowness half: `IPanelConfigurer`/`PanelGroupConfigurer` (same method name, same signature, unrelated interface) called only from `Grouping.ThroughAnInterfaceOfItsOwn`, which no Library handler reaches. |
+| `tests/AgentEyes.Tests/LibraryFlatListTests.cs` | `TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses` now REQUIRES `DayGroupConfigurer::Configure` reported and FORBIDS `PanelGroupConfigurer::*`; new dedicated regression `TheReachabilityWalk_FollowsInterfaceDispatch_ToTheInAssemblyImplementation` (red under the old walk by construction); the documented limits on `NoMethodThatHandlesTheLibrary_GroupsIt` and `LibraryGroupingIn` restated to the walk's honest remaining limits - assembly boundary in BOTH forms (external callee bodies, and dispatch seams DECLARED outside the assembly such as `IObserver<T>.OnNext`), reflection, a delegate invoked by code that did not build it, runtime-generated code (with `calli` pinned by `IndirectCalls`). |
+
+No product code changed in round 2; the fix is entirely in the verification instrument.
+
+### RED demonstrated under the OLD walk (the defect, reproduced on this branch, 2026-08-21)
+
+The decoy attack and the strengthened assertions were committed FIRST and run against the
+UNCHANGED round-1 walk:
+
+```
+Failed AgentEyes.Tests.LibraryFlatListTests.TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses [79 ms]
+   The grouping scan does not report the compiled grouping in 'AgentEyes.Tests.LibraryDefects.DayGroupConfigurer::Configure':
+Failed!  - Failed:     1, Passed:    42, Skipped:     0, Total:    43
+```
+
+Exactly the gate's finding: the interface-dispatched grouping is invisible to the body-only
+walk. With the new walk in place the same suite is green (Criterion 5 below: 829/829).
+
+### Mutation drill on the REAL product (run on this branch, 2026-08-21, then reverted)
+
+The gate's attack applied to `src/AgentEyes.App/MainWindow.xaml.cs` - `ApplyLibraryMode` given a
+private interface + implementation pair, the handler calling `Configure` through the interface,
+only the implementation grouping:
+
+```csharp
+// at the end of ApplyLibraryMode():
+IMutationDrillConfigurer configurer = new MutationDrillConfigurer();
+configurer.Configure(System.Windows.Data.CollectionViewSource.GetDefaultView(RecentList.ItemsSource));
+// nested in MainWindow:
+private interface IMutationDrillConfigurer { void Configure(System.ComponentModel.ICollectionView view); }
+private sealed class MutationDrillConfigurer : IMutationDrillConfigurer
+{
+    public void Configure(System.ComponentModel.ICollectionView view) =>
+        view.GroupDescriptions.Add(new System.Windows.Data.PropertyGroupDescription("DayGroup"));
+}
+```
+
+Result - the guard FIRES, naming the implementation only dispatch can reach:
+
+```
+Failed AgentEyes.Tests.LibraryFlatListTests.NoMethodThatHandlesTheLibrary_GroupsIt [60 ms]
+   A method that handles the Library groups its collection view. The Library is one flat list (issue #178):
+AgentEyesApp.dll!AgentEyes.App.MainWindow/MutationDrillConfigurer::Configure -> System.ComponentModel.ICollectionView::get_GroupDescriptions x1
+AgentEyesApp.dll!AgentEyes.App.MainWindow/MutationDrillConfigurer::Configure -> System.Windows.Data.PropertyGroupDescription::.ctor x1
+```
+
+(`TheDayGroupMachineryIsGone` also failed on that run - the planted string "DayGroup" trips it;
+incidental, and further proof the plant was really in the product.) Attack reverted with
+`git checkout -- src/AgentEyes.App/MainWindow.xaml.cs`; full gate green afterwards.
+
+### How QA verifies round 2
+
+1. Both directions of the drill:
+   - RED: apply the mutation above to `MainWindow.xaml.cs` (end of `ApplyLibraryMode`, ~line
+     1520), build, run `DOTNET_ROLL_FORWARD=LatestMajor dotnet test AgentEyes.sln -c Release
+     --filter "FullyQualifiedName~LibraryFlatListTests"`. Expected:
+     `NoMethodThatHandlesTheLibrary_GroupsIt` FAILS naming
+     `MainWindow/MutationDrillConfigurer::Configure`. An empty or aborted run is a broken
+     instrument, never a pass. Revert (`git checkout -- src/AgentEyes.App/MainWindow.xaml.cs`).
+   - RED the other way (the instrument, not the product): revert ONLY the walk - restore the
+     round-1 `Reachable`/`Callee` from commit 63e86cc
+     (`git checkout 63e86cc -- tests/AgentEyes.Tests/CompiledCode.cs`), run the same filter.
+     Expected: `TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses` and
+     `TheReachabilityWalk_FollowsInterfaceDispatch_ToTheInAssemblyImplementation` FAIL naming
+     `DayGroupConfigurer::Configure`. Restore with `git checkout HEAD -- tests/AgentEyes.Tests/CompiledCode.cs`.
+2. Narrowness stays green: the same suite run reports `PanelGroupConfigurer` and `Grouping::*`
+   in NO failure output, and the full suite passes 829/829 - the conservative fan-out follows
+   the CALLED declaration only, it does not drag in same-named implementations of unrelated
+   interfaces.
+3. Read the restated limits (`LibraryGroupingIn` doc comment and
+   `NoMethodThatHandlesTheLibrary_GroupsIt` doc comment, tests/AgentEyes.Tests/LibraryFlatListTests.cs)
+   against `CompiledCode.Reachable`/`DispatchEdges` and confirm each stated limit is real and no
+   unstated static-reach blind spot remains in the dispatch dimension.
+
 ## What changed
 
 | File | Change |
@@ -149,16 +241,18 @@ reality instead of contradicting it.
 
 ## Criterion 5 - the gate
 
-Run on this branch after the attack was reverted, 2026-08-21:
+Round 2, run on this branch after the mutation drill was reverted, 2026-08-21:
 
 ```
 Build succeeded.
     0 Error(s)
 
-Passed!  - Failed:     0, Passed:   828, Skipped:     0, Total:   828, Duration: 14 s
+Passed!  - Failed:     0, Passed:   829, Skipped:     0, Total:   829, Duration: 14 s
 ```
 
-(826 on main + the 2 new loader tests.)
+(826 on main + the 2 loader tests from round 1 + the round-2 dispatch regression.)
+
+Round 1, for the record: 828/828 on the pre-fix-pass branch.
 
 ## Smoke scoping for QA
 
