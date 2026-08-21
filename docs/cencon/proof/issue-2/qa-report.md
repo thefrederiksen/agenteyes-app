@@ -218,3 +218,154 @@ audible smokes (`api-smoke.ps1` / `gui-smoke.ps1` / `run-all.ps1`) are not warra
 
 **VERIFIED - all acceptance criteria met.** 5/5 PASS. Handing to the Review Gate
 (`flow:ready-gate`) per D7 - QA does not merge.
+
+---
+
+# QA ROUND 2 (2026-08-21) - the gate's REJECT, independently re-verified
+
+Round 1 above passed 5/5; the Review Gate then REJECTED PR #26 with one blocking defect: the
+grouping guard's reachability walk (`CompiledCode.Reachable`) followed only calls into method
+bodies, so an in-assembly implementation invoked through an interface was unreachable - a
+handler could group the Library through `IConfigurer.Configure(view)` with every guard green -
+and the documented limits omitted that dispatch blind spot. The fix pass is commits f89dd69 +
+8fefd79 (tip verified: `8fefd79`, PR head OID matches). No product code changed in the fix pass
+(`git diff --stat 2e48bfe..8fefd79 -- src/` is empty); the change is entirely in the
+verification instrument and its decoys/regressions.
+
+QA round 2 was performed fresh: PR tip checked out, built, tested, diff reviewed, and every
+drill below run by QA itself in an ISOLATED detached worktree at 8fefd79 (per the handoff's
+drill-isolation instruction), then the worktree removed. The shared checkout was never mutated.
+
+## Gate check (run by QA on the PR tip)
+
+```
+dotnet build AgentEyes.sln -c Release   -> Build succeeded. 0 Error(s)
+DOTNET_ROLL_FORWARD=LatestMajor dotnet test AgentEyes.sln -c Release
+Passed!  - Failed:     0, Passed:   831, Skipped:     0, Total:   831, Duration: 14 s
+```
+
+(Same known machine gotcha as round 1: no x64 `Microsoft.WindowsDesktop.App` 8.x on this
+machine; without the roll-forward the run ABORTS - an aborted run is a broken instrument, never
+a pass, so the roll-forward run above is the evidence.)
+
+## Fix review - what the walk now does (file:line)
+
+* `Reachable` (tests/AgentEyes.Tests/CompiledCode.cs:282-350) now follows dispatch: every
+  callee that is an in-assembly interface/abstract/virtual DECLARATION fans out to every
+  in-assembly implementation/override via `DispatchEdges` (CompiledCode.cs:389-460) - MethodImpl
+  rows (explicit impls/overrides, exact), InterfaceImpl rows (implicit impls by name, generic
+  instantiations folded onto the open type via `DefinedType`, CompiledCode.cs:487-505), and the
+  in-assembly base chain (virtual overrides). Conservative by design: over-reports, fail closed.
+* Round-2b gap 1 (inherited implementations): `CollectBodies` walks the implementing type's
+  in-assembly base chain, nearest declaration first (CompiledCode.cs:424-437), so a derived type
+  carrying the InterfaceImpl row with the body on a base that never names the interface is now
+  an edge.
+* Round-2b gap 2 (implicit runtime invocations): `Reach` adds `Type::.cctor` and
+  `Type::Finalize` for every type whose member is touched (CompiledCode.cs:293-304), and static
+  FIELD accesses trigger the owner's `.cctor` via a dedicated edge set built from
+  `FieldAccesses` (CompiledCode.cs:306-318). Per touched type, not a blanket sweep - the
+  regression asserts an untouched type stays out.
+
+## Mutation drills (all run by QA, isolated worktree, each reverted afterwards)
+
+1. **The gate's exact attack on the REAL product** (Expected: guard FIRES): appended to
+   `ApplyLibraryMode` (src/AgentEyes.App/MainWindow.xaml.cs) a private
+   `IMutationDrillConfigurer` + `MutationDrillConfigurer` pair, `Configure(view)` called only
+   through the interface, only the implementation grouping. Result:
+
+   ```
+   Failed AgentEyes.Tests.LibraryFlatListTests.NoMethodThatHandlesTheLibrary_GroupsIt [73 ms]
+   AgentEyesApp.dll!AgentEyes.App.MainWindow/MutationDrillConfigurer::Configure -> System.ComponentModel.ICollectionView::get_GroupDescriptions x1
+   AgentEyesApp.dll!AgentEyes.App.MainWindow/MutationDrillConfigurer::Configure -> System.Windows.Data.PropertyGroupDescription::.ctor x1
+   Failed!  - Failed:     2, Passed:    44, Total:    46
+   ```
+
+   The guard names the implementation only dispatch can reach. (`TheDayGroupMachineryIsGone`
+   also fired on the planted "DayGroup" string - incidental corroboration.) Reverted.
+
+2. **Self-found gap 1 (inherited implementation) on the REAL product** (Expected: guard FIRES
+   naming the BASE body): `IDrillInheritedConfigurer` + `DrillBaseConfigurer` (groups) +
+   `DrillDerivedConfigurer : DrillBaseConfigurer, IDrillInheritedConfigurer` (empty), handler
+   calls through the interface. Result:
+
+   ```
+   Failed AgentEyes.Tests.LibraryFlatListTests.NoMethodThatHandlesTheLibrary_GroupsIt [134 ms]
+   AgentEyesApp.dll!AgentEyes.App.MainWindow/DrillBaseConfigurer::Configure -> System.ComponentModel.ICollectionView::get_GroupDescriptions x1
+   ```
+
+   The base-class body, reachable only via the derived type's InterfaceImpl row, is named.
+   Reverted.
+
+3. **Instrument RED, round-1 walk** (Expected: the new regressions FAIL under the pre-fix
+   walk): `git checkout 63e86cc -- tests/AgentEyes.Tests/CompiledCode.cs`, guard suite run:
+
+   ```
+   Failed ...TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses
+   Failed ...TheReachabilityWalk_FollowsInterfaceDispatch_ToTheInAssemblyImplementation
+   Failed ...TheReachabilityWalk_FollowsInterfaceDispatch_ToAnInheritedImplementation
+   Failed ...TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType
+   Failed!  - Failed:     4, Passed:    42, Total:    46
+   ```
+
+4. **Instrument RED, round-2a walk (f89dd69, before the 2b fixes)** (Expected: exactly the two
+   self-found-gap regressions FAIL, proving both gaps were real fail-opens in the first fix):
+
+   ```
+   Failed ...TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses
+   Failed ...TheReachabilityWalk_FollowsInterfaceDispatch_ToAnInheritedImplementation
+   Failed ...TheReachabilityWalk_ReachesTheStaticConstructor_OfATouchedType
+   Failed!  - Failed:     3, Passed:    43, Total:    46
+   ```
+
+   (The plain interface-dispatch regression passes here, as it should - f89dd69 fixed that.)
+
+5. **Restore tip walk, GREEN**: `git checkout 8fefd79 -- tests/AgentEyes.Tests/CompiledCode.cs`,
+   full suite in the worktree: `Passed!  - Failed: 0, Passed: 831, Total: 831`. Worktree
+   removed; shared checkout tree clean throughout.
+
+## Narrowness and false-alarm check
+
+The conservative fan-out did not start flagging legitimate code: the full 831 run is green
+against the REAL `AgentEyesApp.dll` (the guards scan it on every run), and the strengthened
+control `TheGroupingScan_ReportsLibraryGrouping_AndIgnoresEveryoneElses`
+(LibraryFlatListTests.cs:721-749) simultaneously REQUIRES six positive routes (including
+`DayGroupConfigurer::Configure`, `DayGroupConfigurerBase::Configure`,
+`CctorDayGroupConfigurer::.cctor`) and FORBIDS `PanelGroupConfigurer::*` (the same-name,
+same-signature implementation of an unrelated interface) and `Grouping::*` - it cannot pass
+vacuously. All three walk-level regressions also carry a `DoesNotContain` narrowness arm.
+
+## Documented limits - honesty check
+
+The restated limits on `LibraryGroupingIn` (LibraryFlatListTests.cs:1029-1060) and on
+`Reachable`/`DispatchEdges` (CompiledCode.cs:239-256, 389-412) were checked against the
+instrument, each one real and none overclaimed:
+
+* Assembly boundary, BOTH forms: external callee bodies are not walked, and a dispatch seam
+  DECLARED outside the assembly has no edge - `InAssemblyDeclaration` and `DefinedType` return
+  null for TypeReference parents (CompiledCode.cs:465-505), exactly as stated.
+* Reflection: no call token, no edge - stated.
+* A delegate invoked by code that did not build it: `ldftn`/`ldvirtftn` ARE edges from the
+  builder (CompiledCode.cs:861-863, 914), `Invoke` connects to nothing - stated precisely.
+* Runtime-generated code: no IL to walk; `calli` (the one call shape naming no target) is
+  counted and pinned at zero in the product by `IndirectCalls` (CompiledCode.cs:659) - stated.
+* The reached-from (not dataflow) over-report direction is stated twice over, including the
+  dispatch fan-out's every-implementation breadth.
+
+No unstated static-reach blind spot was found in the dispatch dimension: explicit interface
+implementations ride MethodImpl rows, abstract methods carry the Virtual flag so the base-chain
+case covers them, default interface methods have bodies and are ordinary graph nodes, generic
+instantiations fold onto the open type, and `.cctor`/`Finalize` ride the implicit edges.
+
+## Round-1 items, lightly re-verified
+
+* No product code changed since 2e48bfe, so criteria 1-5 of round 1 stand on the same code QA
+  verified then. Spot-checked at tip: the once-per-apply probe in `LoadRecent`
+  (src/AgentEyes.App/MainWindow.xaml.cs:1391-1409) is intact, and the criterion-3 no-target
+  disposition (comparator DST concern held by `NewestFirstComparer` + the DST regression test)
+  is untouched.
+
+## Verdict (round 2)
+
+**VERIFIED - the gate's defect is fixed and demonstrated, both self-found gaps closed and
+demonstrated, limits honest, narrowness intact, 831/831 green.** Handing to the Review Gate
+(`flow:ready-gate`) per D7 - QA does not merge.
