@@ -3,6 +3,30 @@
 Issue: [CenCon] Smoke scripts launch a month-stale binary instead of the x64 Release build
 Branch: issue-9-smoke-x64-paths
 
+## Round 2 - fix for the review-gate REJECT (2026-08-21)
+
+The round-1 gate rejected one blocking defect: the reintroduction guard's detector
+(`tests/AgentEyes.Tests/ScriptBinaryPathTests.cs`) only blacklisted the two platform-less
+forms (`bin\Release`, `bin\Debug`), so a WRONG-PLATFORM build path such as
+`bin\x86\Release\...\AgentEyesApp.exe` or `bin\arm64\...` passed every guard test while
+violating AC4 (the guard must fail on ANY non-x64 build-output path under scripts/).
+
+Fix (one file changed, `tests/AgentEyes.Tests/ScriptBinaryPathTests.cs`): the detector is
+now an ALLOW-form, fail-closed regex - the only permitted continuation after `bin` is
+exactly `x64\Release`:
+
+    \bbin[\\/]+(?!x64[\\/]+Release\b)[A-Za-z0-9_.-]+
+
+Anything else fires: platform-less (`bin\Release`, `bin/Debug`), wrong platform
+(`bin\x86\...`, `bin\arm64\...`), wrong configuration (`bin\x64\Debug`), and segments the
+test has never heard of (`bin\AnyCPU\...` - an unknown segment is a defect until a human
+widens the allow-form, never a pass). Regression coverage added: four new
+`StaleBinPathDetector_KnownBadReference_Fires` cases (x86, arm64, x64\Debug, AnyCPU) - the
+suite grew 830 -> 834, all green. How QA verifies the new behavior is in AC4 below (updated).
+
+Round-2 gate: `dotnet build AgentEyes.sln -c Release` -> Build succeeded, 0 Error(s);
+`dotnet test AgentEyes.sln -c Release` -> Passed! Failed: 0, Passed: 834, Total: 834.
+
 ## What changed
 
 Seven scripts referenced the non-x64 `bin\Release\` output (or fell back to it), which on an
@@ -35,11 +59,12 @@ references).
 Implemented: both scripts define their binary paths once, as
 `...\bin\x64\Release\net8.0-windows10.0.19041.0\...`.
 
-QA check (no app launch needed):
+QA check (no app launch needed; fail-closed form, revised round 2 - list every bin path,
+subtract the one allowed form, anything left is a defect of ANY platform/segment):
 
-    grep -rniE "bin[\\/]+(Release|Debug)" scripts/
+    grep -rniE "bin[\\/]+" scripts/ | grep -viE "bin[\\/]+x64[\\/]+Release"
 
-Expected: NO matches (exit 1 from grep). Bad: any match = defect. Then confirm the
+Expected: NO matches (exit 1 from the second grep). Bad: any match = defect. Then confirm the
 instrument sees paths at all (empty-result arm):
 
     grep -rn "bin.x64.Release" scripts/
@@ -84,9 +109,12 @@ to rename the exe back.
 ### AC4 - a test fails if a non-x64 build-output path is reintroduced under scripts/
 
 Implemented: `tests/AgentEyes.Tests/ScriptBinaryPathTests.cs` (text-level scan, per the
-issue's assumption 2 - scripts are not compiled, so there is no IL to inspect). Regex:
-`\bbin[\\/]+(Release|Debug)\b` - fires on any bin directly followed by a configuration
-segment; `bin\x64\Release` does not match. Fail-closed arms per DEVELOPMENT_METHOD.md 6c:
+issue's assumption 2 - scripts are not compiled, so there is no IL to inspect). Regex
+(REVISED in round 2 after the gate REJECT - now an allow-form, fail closed):
+`\bbin[\\/]+(?!x64[\\/]+Release\b)[A-Za-z0-9_.-]+` - the ONLY continuation after `bin` that
+does not fire is exactly `x64\Release`; platform-less, wrong-platform (x86/arm64), wrong-
+configuration (x64\Debug), and unknown segments all fire. Fail-closed arms per
+DEVELOPMENT_METHOD.md 6c:
 
 - `Scripts_AllFiles_ContainNoNonX64BuildOutputPath` - the guard; reports file:line of every offender.
 - `ScriptsScan_KnownLaunchScripts_AreAllInTheCorpus` - instrument check: the scan must
@@ -94,9 +122,11 @@ segment; `bin\x64\Release` does not match. Fail-closed arms per DEVELOPMENT_METH
   empty scan fails here instead of passing silently.
 - `ScriptsScan_X64BuildOutputPath_IsPresentInCorpus` - presence arm: the corpus must still
   contain literal x64 build-output paths, so the scan cannot pass on an empty field.
-- `StaleBinPathDetector_KnownBadReference_Fires` (4 cases) - committed mutation evidence:
+- `StaleBinPathDetector_KnownBadReference_Fires` (8 cases) - committed mutation evidence:
   the detector fires on the exact pre-fix strings (api-smoke :10 form, try.cmd form,
-  forward-slash form, Debug form).
+  forward-slash form, Debug form) AND, since round 2, on the wrong-platform forms the gate
+  flagged: `bin\x86\Release\...`, `bin/arm64/Release/...`, `bin\x64\Debug\...`,
+  `bin\AnyCPU\Release\...`.
 - `StaleBinPathDetector_X64OrNonBuildPath_DoesNotFire` (3 cases) - the x64 path and the
   publish artifact names (`*-win-x64.exe`) do not false-positive.
 
@@ -110,8 +140,13 @@ Live mutation run by the developer: appending
     Failed AgentEyes.Tests.ScriptBinaryPathTests.Scripts_AllFiles_ContainNoNonX64BuildOutputPath
     run-all.ps1:62: # MUTATION: src\AgentEyes.Core\bin\Release\net8.0\agenteyes.exe
 
-then the mutation was reverted. QA can repeat this in one minute:
-add any `bin\Release` line to any script under `scripts/`, run
+then the mutation was reverted. Round-2 live mutation (the gate's exact scenario): appending
+a `bin\x86\Release\...\AgentEyesApp.exe` line and a `bin/arm64/Release/...` line to
+run-all.ps1 made `Scripts_AllFiles_ContainNoNonX64BuildOutputPath` FAIL with file:line
+(run-all.ps1:64/65) - the paths that slipped past the round-1 guard now fire; reverted, and
+the filtered suite (14 tests) passes clean on the untouched tree. QA can repeat this in one
+minute: add any `bin\<anything-but-x64\Release>` line (e.g. `bin\x86\Release\...` or
+`bin\arm64\...`) to any script under `scripts/`, run
 `dotnet test AgentEyes.sln -c Release --filter "FullyQualifiedName~ScriptBinaryPathTests"`,
 see the named failure with file:line, revert.
 
@@ -134,10 +169,10 @@ so recording state is asserted via `/status`, never a screen grab.
 
 ### AC6 - build clean, tests Failed: 0
 
-Developer gate run on this branch:
+Developer gate run on this branch (round 2, after the guard fix):
 
     dotnet build AgentEyes.sln -c Release   -> Build succeeded. 0 Error(s)
-    dotnet test  AgentEyes.sln -c Release   -> Passed! Failed: 0, Passed: 830, Total: 830
+    dotnet test  AgentEyes.sln -c Release   -> Passed! Failed: 0, Passed: 834, Total: 834
 
 MACHINE NOTE for QA: this dev box has no .NET 8 WindowsDesktop runtime (only 3.1/5/6/10), so
 `dotnet test` aborts with "install Microsoft.WindowsDesktop.App 8.0". Set

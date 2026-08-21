@@ -15,8 +15,9 @@ namespace AgentEyes.Tests
     /// directory left behind by an older checkout holds a stale binary; a script that launches it
     /// silently tests code nobody built (this produced a false QA FAIL on issue #141). This test
     /// scans every script under <c>scripts/</c> and fails when any of them references a build-output
-    /// path whose <c>bin</c> is followed directly by a configuration segment (Release/Debug) instead
-    /// of the x64 platform segment.
+    /// path under <c>bin</c> that is not exactly the <c>bin\x64\Release</c> form - platform-less
+    /// paths (bin\Release, bin\Debug), wrong-platform paths (bin\x86\..., bin\arm64\...), wrong
+    /// configuration (bin\x64\Debug), and any UNKNOWN segment all fire the guard (fail closed).
     ///
     /// Fail-closed arms (DEVELOPMENT_METHOD.md Section 6c):
     /// - EMPTY result = broken instrument: the scan asserts it actually visited the known launch
@@ -32,12 +33,15 @@ namespace AgentEyes.Tests
     public sealed class ScriptBinaryPathTests
     {
         /// <summary>
-        /// A build-output reference where "bin" is followed directly by a configuration name -
-        /// i.e. no platform segment, the path a non-x64 build would produce. bin\x64\Release does
-        /// not match ("x64" is not "Release"/"Debug"); bin\Release and bin/Debug do.
+        /// A build-output reference under "bin" that is NOT the one x64 Release form
+        /// `dotnet build AgentEyes.sln -c Release` produces. The only allowed continuation after
+        /// "bin" is exactly `x64\Release`; ANYTHING else fires - platform-less forms (bin\Release,
+        /// bin/Debug), wrong platforms (bin\x86\..., bin\arm64\..., bin\AnyCPU\...), the wrong
+        /// configuration (bin\x64\Debug), and segments this test has never heard of (fail closed:
+        /// an unknown segment is a defect until a human widens the allow-form, not a pass).
         /// </summary>
         private static readonly Regex StaleBinPath = new Regex(
-            @"\bbin[\\/]+(Release|Debug)\b",
+            @"\bbin[\\/]+(?!x64[\\/]+Release\b)[A-Za-z0-9_.-]+",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>Scripts that launch a built binary and therefore must be in the scanned corpus -
@@ -110,9 +114,9 @@ namespace AgentEyes.Tests
             }
 
             Assert.True(offenders.Count == 0,
-                "Non-x64 build-output path(s) under scripts/ - these launch a stale binary, not the " +
-                "one `dotnet build AgentEyes.sln -c Release` produces (bin\\x64\\Release\\). Fix the " +
-                "path(s):\n" + string.Join("\n", offenders));
+                "Build-output path(s) under scripts/ that are not bin\\x64\\Release - these launch a " +
+                "stale or wrong-platform binary, not the one `dotnet build AgentEyes.sln -c Release` " +
+                "produces (bin\\x64\\Release\\). Fix the path(s):\n" + string.Join("\n", offenders));
         }
 
         [Theory]
@@ -120,11 +124,17 @@ namespace AgentEyes.Tests
         [InlineData(@"set ""CLIBIN=%~dp0..\src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0""")]
         [InlineData("cli/bin/Release/net8.0/agenteyes.exe")]
         [InlineData(@"src\AgentEyes.App\bin\Debug\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
+        [InlineData(@"$exe = ""src\AgentEyes.App\bin\x86\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe""")]
+        [InlineData("src/AgentEyes.Core/bin/arm64/Release/net8.0-windows10.0.19041.0/agenteyes.exe")]
+        [InlineData(@"src\AgentEyes.App\bin\x64\Debug\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
+        [InlineData(@"src\AgentEyes.App\bin\AnyCPU\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
         public void StaleBinPathDetector_KnownBadReference_Fires(string knownBad)
         {
             // Mutation evidence: the detector, run against the exact stale strings this issue is
-            // about (including the pre-fix api-smoke/try.cmd lines), FIRES. A detector only ever run
-            // against the state we hope passes has demonstrated nothing (Section 6c item 3).
+            // about (including the pre-fix api-smoke/try.cmd lines) AND the wrong-platform forms the
+            // round-1 review gate flagged (bin\x86, bin\arm64, plus bin\x64\Debug and an unknown
+            // AnyCPU segment), FIRES on every one. A detector only ever run against the state we
+            // hope passes has demonstrated nothing (Section 6c item 3).
             Assert.Matches(StaleBinPath, knownBad);
         }
 
