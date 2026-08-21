@@ -13,35 +13,45 @@ namespace AgentEyes.Tests
     /// Both product projects set <c>&lt;Platforms&gt;x64&lt;/Platforms&gt;</c>, so
     /// <c>dotnet build -c Release</c> lands in <c>bin\x64\Release\</c>. A plain <c>bin\Release\</c>
     /// directory left behind by an older checkout holds a stale binary; a script that launches it
-    /// silently tests code nobody built (this produced a false QA FAIL on issue #141). This test
-    /// scans every script under <c>scripts/</c> and fails when any of them references a build-output
-    /// path under <c>bin</c> that is not exactly the <c>bin\x64\Release</c> form - platform-less
-    /// paths (bin\Release, bin\Debug), wrong-platform paths (bin\x86\..., bin\arm64\...), wrong
-    /// configuration (bin\x64\Debug), and any UNKNOWN segment all fire the guard (fail closed).
+    /// silently tests code nobody built (this produced a false QA FAIL on issue #141).
+    ///
+    /// WHAT THIS GUARD PINS (the exact textual fact, no more): in every script under
+    /// <c>scripts/</c>, every textual occurrence of a <c>bin\</c> or <c>bin/</c> path segment is
+    /// immediately followed by the literal <c>x64\Release</c>. ANY other continuation fires:
+    /// - stale literals (bin\Release, bin/Debug), wrong platforms (bin\x86\..., bin\arm64\...),
+    ///   wrong configuration (bin\x64\Debug), unknown segments (bin\AnyCPU\...);
+    /// - statically visible COMPOSITION, where the segment after bin is not a literal at all:
+    ///   a variable (bin\$platform\Release), a format placeholder (bin\{0}\Release), a cmd
+    ///   variable (bin\%PLATFORM%\Release), or a fragment boundary ("...\bin\" + $platform).
+    ///   Such a path cannot be verified by reading the text, so it is rejected as UNVERIFIABLE -
+    ///   fail closed: nothing after bin\ needs to be recognized to be rejected.
     ///
     /// Fail-closed arms (DEVELOPMENT_METHOD.md Section 6c):
     /// - EMPTY result = broken instrument: the scan asserts it actually visited the known launch
     ///   scripts, and that the x64 build-output path is PRESENT in the corpus - so a scan that reads
     ///   nothing, or a detector blind to build-output paths, fails rather than passing.
-    /// - Known-bad input: the detector is unit-tested against stale-path samples and shown to FIRE.
+    /// - Known-bad input: the detector is unit-tested against stale-path AND composed-path samples
+    ///   and shown to FIRE.
     ///
-    /// Honest limit: this is a TEXT scan of the script files (scripts are not compiled, so there is
-    /// no IL to inspect - issue #9 assumption 2). It cannot see a stale path assembled at runtime
-    /// from concatenated fragments (e.g. "bin\" + $config); it guards the literal-path form, which
-    /// is the form every script in this repo uses and the form the defect shipped in.
+    /// Honest limit (what remains beyond static reach of this text scan): a launch path assembled
+    /// at runtime from pieces that are never textually adjacent to <c>bin</c> in the script - e.g.
+    /// <c>Join-Path $dir 'bin' $platform 'Release'</c>, a path read from an environment variable,
+    /// a config file, or process output. No text scan can evaluate what the text never shows.
+    /// This guard makes no claim about those; it pins the adjacent-text forms above, which are the
+    /// only forms this repo's scripts have ever used and the form the original defect shipped in.
     /// </summary>
     public sealed class ScriptBinaryPathTests
     {
         /// <summary>
-        /// A build-output reference under "bin" that is NOT the one x64 Release form
-        /// `dotnet build AgentEyes.sln -c Release` produces. The only allowed continuation after
-        /// "bin" is exactly `x64\Release`; ANYTHING else fires - platform-less forms (bin\Release,
-        /// bin/Debug), wrong platforms (bin\x86\..., bin\arm64\..., bin\AnyCPU\...), the wrong
-        /// configuration (bin\x64\Debug), and segments this test has never heard of (fail closed:
-        /// an unknown segment is a defect until a human widens the allow-form, not a pass).
+        /// Fires on any textual <c>bin\</c> / <c>bin/</c> segment whose continuation is not
+        /// EXACTLY the literal <c>x64\Release</c>. There is no character class to satisfy after
+        /// the lookahead, so a variable sigil ($), a placeholder ({), a cmd variable (%), a
+        /// closing quote at a fragment boundary, or a segment this test has never heard of all
+        /// fire equally: an unrecognized or unverifiable continuation is a defect until a human
+        /// widens the allow-form, never a pass.
         /// </summary>
-        private static readonly Regex StaleBinPath = new Regex(
-            @"\bbin[\\/]+(?!x64[\\/]+Release\b)[A-Za-z0-9_.-]+",
+        private static readonly Regex NonX64BinSegment = new Regex(
+            @"\bbin[\\/]+(?!x64[\\/]+Release\b)",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>Scripts that launch a built binary and therefore must be in the scanned corpus -
@@ -85,19 +95,19 @@ namespace AgentEyes.Tests
         [Fact]
         public void ScriptsScan_X64BuildOutputPath_IsPresentInCorpus()
         {
-            // Presence arm: the corpus must actually contain build-output paths for the stale-path
+            // Presence arm: the corpus must actually contain build-output paths for the bin-segment
             // scan to mean anything. If every literal path vanished (refactored into some helper this
             // test cannot see), this fails instead of the scan passing on an empty field.
             bool anyX64 = ScriptFiles().Any(f =>
                 Regex.IsMatch(File.ReadAllText(f), @"bin[\\/]+x64[\\/]+Release", RegexOptions.IgnoreCase));
             Assert.True(anyX64,
                 "No script under scripts/ contains a bin\\x64\\Release build-output path any more. " +
-                "The stale-path scan has nothing to guard - update ScriptBinaryPathTests to match how " +
+                "The bin-segment scan has nothing to guard - update ScriptBinaryPathTests to match how " +
                 "scripts now locate built binaries.");
         }
 
         [Fact]
-        public void Scripts_AllFiles_ContainNoNonX64BuildOutputPath()
+        public void Scripts_EveryTextualBinSegment_IsLiterallyX64Release()
         {
             List<string> files = ScriptFiles();
             Assert.NotEmpty(files);
@@ -108,15 +118,18 @@ namespace AgentEyes.Tests
                 string[] lines = File.ReadAllLines(file);
                 for (int i = 0; i < lines.Length; i++)
                 {
-                    if (StaleBinPath.IsMatch(lines[i]))
+                    if (NonX64BinSegment.IsMatch(lines[i]))
                         offenders.Add($"{Path.GetFileName(file)}:{i + 1}: {lines[i].Trim()}");
                 }
             }
 
             Assert.True(offenders.Count == 0,
-                "Build-output path(s) under scripts/ that are not bin\\x64\\Release - these launch a " +
-                "stale or wrong-platform binary, not the one `dotnet build AgentEyes.sln -c Release` " +
-                "produces (bin\\x64\\Release\\). Fix the path(s):\n" + string.Join("\n", offenders));
+                "bin\\ path segment(s) under scripts/ whose continuation is not the literal " +
+                "bin\\x64\\Release - either a stale/wrong-platform literal, or a composed path " +
+                "(variable/placeholder/fragment) that a text scan cannot verify. Both launch " +
+                "something other than the binary `dotnet build AgentEyes.sln -c Release` produces " +
+                "(bin\\x64\\Release\\). Use the single literal x64 Release path. Offender(s):\n" +
+                string.Join("\n", offenders));
         }
 
         [Theory]
@@ -128,23 +141,40 @@ namespace AgentEyes.Tests
         [InlineData("src/AgentEyes.Core/bin/arm64/Release/net8.0-windows10.0.19041.0/agenteyes.exe")]
         [InlineData(@"src\AgentEyes.App\bin\x64\Debug\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
         [InlineData(@"src\AgentEyes.App\bin\AnyCPU\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe")]
-        public void StaleBinPathDetector_KnownBadReference_Fires(string knownBad)
+        public void NonX64BinSegmentDetector_KnownBadLiteral_Fires(string knownBad)
         {
             // Mutation evidence: the detector, run against the exact stale strings this issue is
             // about (including the pre-fix api-smoke/try.cmd lines) AND the wrong-platform forms the
             // round-1 review gate flagged (bin\x86, bin\arm64, plus bin\x64\Debug and an unknown
             // AnyCPU segment), FIRES on every one. A detector only ever run against the state we
             // hope passes has demonstrated nothing (Section 6c item 3).
-            Assert.Matches(StaleBinPath, knownBad);
+            Assert.Matches(NonX64BinSegment, knownBad);
+        }
+
+        [Theory]
+        [InlineData(@"$exe = ""src\AgentEyes.App\bin\$platform\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe""")]
+        [InlineData(@"$exe = $srcDir + ""\bin\"" + $platform + ""\Release\net8.0\AgentEyesApp.exe""")]
+        [InlineData(@"$exe = [string]::Format(""src\AgentEyes.App\bin\{0}\Release\AgentEyesApp.exe"", $platform)")]
+        [InlineData(@"set ""CLIBIN=%~dp0..\src\AgentEyes.Core\bin\%PLATFORM%\Release\net8.0-windows10.0.19041.0""")]
+        [InlineData("agent_dir=\"$root/src/AgentEyes.App/bin/${platform}/Release\"")]
+        public void NonX64BinSegmentDetector_ComposedPath_Fires(string composed)
+        {
+            // The round-2 review gate's scenario: a refactor sets $platform = 'x86' upstream and
+            // builds the launch path across variables or fragments - e.g. bin\$platform\Release, a
+            // "...\bin\" + $x concatenation, a format placeholder, or a cmd %VAR%. The text alone
+            // cannot prove what such a path resolves to, so the detector rejects the bin\ segment
+            // as UNVERIFIABLE (fail closed) rather than trusting it.
+            Assert.Matches(NonX64BinSegment, composed);
         }
 
         [Theory]
         [InlineData(@"$exe = ""src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe""")]
         [InlineData("src/AgentEyes.Core/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes.exe")]
+        [InlineData(@"# a Release build lands in bin\x64\Release\.")]
         [InlineData("Publish-SingleFile produces AgentEyesApp-win-x64.exe under dist/release")]
-        public void StaleBinPathDetector_X64OrNonBuildPath_DoesNotFire(string good)
+        public void NonX64BinSegmentDetector_LiteralX64ReleaseOrNonBuildPath_DoesNotFire(string good)
         {
-            Assert.DoesNotMatch(StaleBinPath, good);
+            Assert.DoesNotMatch(NonX64BinSegment, good);
         }
     }
 }

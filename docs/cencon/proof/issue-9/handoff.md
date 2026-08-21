@@ -3,6 +3,57 @@
 Issue: [CenCon] Smoke scripts launch a month-stale binary instead of the x64 Release build
 Branch: issue-9-smoke-x64-paths
 
+## Round 3 - fix for the round-2 review-gate REJECT (2026-08-21)
+
+The round-2 gate rejected one blocking defect: the guard's detector required a literal
+segment after `bin\` (`[A-Za-z0-9_.-]+`), so a non-x64 path ASSEMBLED across variables or
+fragments - `$platform = 'x86'` upstream, then `"...\bin\$platform\Release\..."`, or a
+`"...\bin\" + $platform + "\Release\..."` concatenation - escaped every guard test while the
+test text claimed ANY reintroduced non-x64 build-output path was detected. The overclaim
+blocked (per the precedent recorded on issue #15: an honestly stated limit passes; only the
+overclaim does not).
+
+Fix, both halves, one file changed (`tests/AgentEyes.Tests/ScriptBinaryPathTests.cs`):
+
+(a) The detector no longer requires ANY recognizable segment after `bin\`:
+
+    \bbin[\\/]+(?!x64[\\/]+Release\b)
+
+Every textual `bin\` / `bin/` segment whose continuation is not EXACTLY the literal
+`x64\Release` now fires - stale/wrong-platform LITERALS as before, and now also statically
+visible COMPOSITION: a variable sigil (`bin\$platform\Release`), a format placeholder
+(`bin\{0}\Release`), a cmd variable (`bin\%PLATFORM%\Release`), a shell expansion
+(`bin/${platform}/Release`), or a quote at a fragment boundary (`"...\bin\" + $x`). A
+composed path cannot be verified by reading the text, so it is rejected as UNVERIFIABLE -
+fail closed: nothing after `bin\` needs to be recognized to be rejected. The corpus survey
+confirms every legitimate reference in `scripts/` is the literal `bin\x64\Release`, so the
+widened detector stays green on the untouched tree.
+
+(b) Names, comments, and this handoff no longer claim ANY-path coverage. The guard test is
+renamed `Scripts_EveryTextualBinSegment_IsLiterallyX64Release` (was
+`Scripts_AllFiles_ContainNoNonX64BuildOutputPath`), the detector `NonX64BinSegment` (was
+`StaleBinPath`), and the claim is narrowed to the textual fact pinned - see AC4 below,
+which also states the residual limit (runtime composition from tokens never textually
+adjacent to `bin`).
+
+Regression coverage added (suite 834 -> 840, all green): 5 new
+`NonX64BinSegmentDetector_ComposedPath_Fires` cases (variable, fragment concatenation,
+format placeholder, cmd %VAR%, shell ${var}) and one new does-not-fire case (a comment line
+mentioning `bin\x64\Release\.`). Live mutation (the gate's exact scenario): appended a
+`$platform = 'x86' ... bin\$platform\Release` line AND a `"...\bin\" + $platform + ...`
+concatenation line to `run-all.ps1` - `Scripts_EveryTextualBinSegment_IsLiterallyX64Release`
+FAILED naming both with file:line (run-all.ps1:62/63); reverted; guard suite 20/20 green.
+
+Round-3 gate: `dotnet build AgentEyes.sln -c Release` -> Build succeeded, 0 Error(s);
+`dotnet test AgentEyes.sln -c Release` -> Passed! Failed: 0, Passed: 840, Total: 840.
+
+How QA verifies round 3: review the diff of the one file; repeat the mutation drill in one
+minute - plant a `bin\$platform\Release` line or a `"...\bin\" +` fragment in any script
+under `scripts/`, run
+`dotnet test AgentEyes.sln -c Release --filter "FullyQualifiedName~ScriptBinaryPathTests"`,
+see the named failure with file:line, revert, see 20/20 green. No scripts or product code
+changed this round, so rounds 1-2 runtime evidence (AC3/AC5) stands.
+
 ## Round 2 - fix for the review-gate REJECT (2026-08-21)
 
 The round-1 gate rejected one blocking defect: the reintroduction guard's detector
@@ -106,47 +157,69 @@ Expected output (verified by the developer on this branch, exit code 1):
 Bad: the app launches anyway (a fallback survived) or an obscure downstream error. Remember
 to rename the exe back.
 
-### AC4 - a test fails if a non-x64 build-output path is reintroduced under scripts/
+### AC4 - the reintroduction guard (exact claim, revised round 3)
 
 Implemented: `tests/AgentEyes.Tests/ScriptBinaryPathTests.cs` (text-level scan, per the
-issue's assumption 2 - scripts are not compiled, so there is no IL to inspect). Regex
-(REVISED in round 2 after the gate REJECT - now an allow-form, fail closed):
-`\bbin[\\/]+(?!x64[\\/]+Release\b)[A-Za-z0-9_.-]+` - the ONLY continuation after `bin` that
-does not fire is exactly `x64\Release`; platform-less, wrong-platform (x86/arm64), wrong-
-configuration (x64\Debug), and unknown segments all fire. Fail-closed arms per
-DEVELOPMENT_METHOD.md 6c:
+issue's assumption 2 - scripts are not compiled, so there is no IL to inspect).
 
-- `Scripts_AllFiles_ContainNoNonX64BuildOutputPath` - the guard; reports file:line of every offender.
+WHAT THE GUARD PINS - the exact textual fact, no wider claim: in every script under
+`scripts/`, every textual occurrence of a `bin\` / `bin/` path segment is immediately
+followed by the literal `x64\Release`. Regex (REVISED round 3 - no segment shape required
+after `bin`): `\bbin[\\/]+(?!x64[\\/]+Release\b)`. Any other continuation fires:
+
+- stale/wrong literals - platform-less (`bin\Release`, `bin/Debug`), wrong platform
+  (`bin\x86\...`, `bin/arm64/...`), wrong configuration (`bin\x64\Debug`), unknown
+  segments (`bin\AnyCPU\...`);
+- statically visible composition - the segment after `bin` is a variable
+  (`bin\$platform\Release`), a format placeholder (`bin\{0}\Release`), a cmd variable
+  (`bin\%PLATFORM%\Release`), a shell expansion (`bin/${platform}/Release`), or a quote at
+  a fragment boundary (`"...\bin\" + $x`). A composed path cannot be verified from the
+  text, so it is rejected as UNVERIFIABLE - fail closed.
+
+KNOWN LIMIT (stated in the test's doc comment, and here): a launch path assembled at
+runtime from pieces never textually adjacent to `bin` in the script - e.g.
+`Join-Path $dir 'bin' $platform 'Release'`, or a path read from an environment variable,
+config file, or process output - is beyond the static reach of a text scan; no text scan
+can evaluate what the text never shows. The guard makes NO claim about those forms. What
+it pins are the adjacent-text forms above - the only forms this repo's scripts have ever
+used and the form the original defect shipped in.
+
+Fail-closed arms per DEVELOPMENT_METHOD.md 6c:
+
+- `Scripts_EveryTextualBinSegment_IsLiterallyX64Release` - the guard; reports file:line of
+  every offender.
 - `ScriptsScan_KnownLaunchScripts_AreAllInTheCorpus` - instrument check: the scan must
   actually visit api-smoke/gui-smoke/py-client-smoke/run-all/try.cmd; a rename or an
   empty scan fails here instead of passing silently.
 - `ScriptsScan_X64BuildOutputPath_IsPresentInCorpus` - presence arm: the corpus must still
   contain literal x64 build-output paths, so the scan cannot pass on an empty field.
-- `StaleBinPathDetector_KnownBadReference_Fires` (8 cases) - committed mutation evidence:
+- `NonX64BinSegmentDetector_KnownBadLiteral_Fires` (8 cases) - committed mutation evidence:
   the detector fires on the exact pre-fix strings (api-smoke :10 form, try.cmd form,
-  forward-slash form, Debug form) AND, since round 2, on the wrong-platform forms the gate
-  flagged: `bin\x86\Release\...`, `bin/arm64/Release/...`, `bin\x64\Debug\...`,
-  `bin\AnyCPU\Release\...`.
-- `StaleBinPathDetector_X64OrNonBuildPath_DoesNotFire` (3 cases) - the x64 path and the
-  publish artifact names (`*-win-x64.exe`) do not false-positive.
+  forward-slash form, Debug form) and the wrong-platform forms the round-1 gate flagged
+  (`bin\x86\Release\...`, `bin/arm64/Release/...`, `bin\x64\Debug\...`,
+  `bin\AnyCPU\Release\...`).
+- `NonX64BinSegmentDetector_ComposedPath_Fires` (5 cases, NEW round 3) - the round-2
+  gate's scenario: variable, fragment concatenation, format placeholder, cmd `%VAR%`, and
+  shell `${var}` compositions all fire.
+- `NonX64BinSegmentDetector_LiteralX64ReleaseOrNonBuildPath_DoesNotFire` (4 cases) - the
+  x64 path (assignment, forward-slash, and comment forms) and the publish artifact names
+  (`*-win-x64.exe`) do not false-positive.
 
-Honest limit (stated in the test's doc comment): a text scan cannot see a stale path
-assembled at runtime from concatenated fragments; it guards the literal-path form, which is
-the only form the repo's scripts use and the form the defect shipped in.
+Live mutations run by the developer, each reverted after the guard was seen to fail:
 
-Live mutation run by the developer: appending
-`# MUTATION: src\AgentEyes.Core\bin\Release\net8.0\agenteyes.exe` to run-all.ps1 produced
+- Round 1: `# MUTATION: src\AgentEyes.Core\bin\Release\net8.0\agenteyes.exe` in
+  run-all.ps1 -> guard FAILED with `run-all.ps1:62: ...`.
+- Round 2: `bin\x86\Release\...` and `bin/arm64/Release/...` lines in run-all.ps1 ->
+  guard FAILED naming both (run-all.ps1:64/65).
+- Round 3 (the round-2 gate's exact scenario): a
+  `$platform = 'x86'; $exe = "...\bin\$platform\Release\..."` line AND a
+  `$exe = $srcDir + "\bin\" + $platform + "\Release\..."` concatenation line in
+  run-all.ps1 -> `Scripts_EveryTextualBinSegment_IsLiterallyX64Release` FAILED naming both
+  with file:line (run-all.ps1:62/63); reverted; guard suite 20/20 green.
 
-    Failed AgentEyes.Tests.ScriptBinaryPathTests.Scripts_AllFiles_ContainNoNonX64BuildOutputPath
-    run-all.ps1:62: # MUTATION: src\AgentEyes.Core\bin\Release\net8.0\agenteyes.exe
-
-then the mutation was reverted. Round-2 live mutation (the gate's exact scenario): appending
-a `bin\x86\Release\...\AgentEyesApp.exe` line and a `bin/arm64/Release/...` line to
-run-all.ps1 made `Scripts_AllFiles_ContainNoNonX64BuildOutputPath` FAIL with file:line
-(run-all.ps1:64/65) - the paths that slipped past the round-1 guard now fire; reverted, and
-the filtered suite (14 tests) passes clean on the untouched tree. QA can repeat this in one
-minute: add any `bin\<anything-but-x64\Release>` line (e.g. `bin\x86\Release\...` or
-`bin\arm64\...`) to any script under `scripts/`, run
+QA can repeat in one minute: add any `bin\` line whose continuation is not the literal
+`x64\Release` - a stale literal OR a composed form like `bin\$platform\Release` or
+`"...\bin\" +` - to any script under `scripts/`, run
 `dotnet test AgentEyes.sln -c Release --filter "FullyQualifiedName~ScriptBinaryPathTests"`,
 see the named failure with file:line, revert.
 
@@ -169,10 +242,10 @@ so recording state is asserted via `/status`, never a screen grab.
 
 ### AC6 - build clean, tests Failed: 0
 
-Developer gate run on this branch (round 2, after the guard fix):
+Developer gate run on this branch (round 3, after the composed-path guard fix):
 
     dotnet build AgentEyes.sln -c Release   -> Build succeeded. 0 Error(s)
-    dotnet test  AgentEyes.sln -c Release   -> Passed! Failed: 0, Passed: 834, Total: 834
+    dotnet test  AgentEyes.sln -c Release   -> Passed! Failed: 0, Passed: 840, Total: 840
 
 MACHINE NOTE for QA: this dev box has no .NET 8 WindowsDesktop runtime (only 3.1/5/6/10), so
 `dotnet test` aborts with "install Microsoft.WindowsDesktop.App 8.0". Set
