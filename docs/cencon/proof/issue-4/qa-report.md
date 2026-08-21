@@ -314,3 +314,238 @@ exist. Both fixtures deleted; the six pre-existing recordings intact. Repo tree 
 
 **VERIFIED - both review-gate defects fixed with runtime proof; all round-1 criteria still
 hold.** -> `flow:ready-gate`.
+
+---
+
+# Round 3 - the review gate's three UI-thread I/O defects, re-verified by QA
+
+QA round 3, 2026-08-21, on PR #27 tip fc06c42 (branch issue-4-library-transcribed-claim),
+fresh QA context, independent of the developer's report. Round-2 gate verdict: three blocking
+defects, all synchronous I/O on the WPF thread - (1) an unbounded File.Exists chip sweep on
+the UI thread when entering the Library, (2) a constructor-time manifest.json read+deserialize
+in the detail window pre-show, (3) Log writes on the UI thread in the load continuations.
+All three verified FIXED in the code and at runtime, the handoff's justified-remaining-probes
+list (section 8.4) audited line by line, and all rounds 1-2 criteria re-verified.
+
+## Gate (run by QA itself)
+
+- dotnet build AgentEyes.sln -c Release: Build succeeded., 0 Error(s) (2 pre-existing
+  xUnit1031 warnings in PostRecordingQueueTests.cs, untouched by this branch).
+- dotnet test AgentEyes.sln -c Release, quoted actual output:
+  "Passed!  - Failed: 0, Passed: 855, Skipped: 0, Total: 855, Duration: 14 s".
+- Machine note (same fact the handoff records): the x64 host on this machine now carries
+  WindowsDesktop runtimes 10.0.x but no 8.0.x, so both the test host and the app itself need
+  DOTNET_ROLL_FORWARD=LatestMajor. Without it the test run ABORTS (QA hit exactly that
+  first; an aborted run is a broken instrument, not a pass) - with it, 855/855. This is a
+  runtime-resolution fact of the machine, not of this change.
+
+## Scope of the round-3 diff (d45b8bb..fc06c42) - reviewed, in scope
+
+Five files: src/AgentEyes.App/LibraryCoherence.cs, src/AgentEyes.App/MainWindow.xaml.cs,
+src/AgentEyes.App/RecordingDetailWindow.cs, tests/AgentEyes.Tests/TranscriptPresenceTests.cs,
+docs/cencon/proof/issue-4/handoff.md. Nothing outside the issue's presentation-layer scope;
+no REST shape change, no privacy-posture change, no Core change. Working tree clean at checkout.
+
+## Gate defect 1 - unbounded UI-thread chip sweep entering the Library: FIXED
+
+Code (file:line evidence):
+
+- src/AgentEyes.App/LibraryCoherence.cs:459 RefreshArtifactChipsAsync replaces the
+  synchronous sweep: the owning thread snapshots each row's probe inputs with no I/O, the
+  File.Exists probes AND their count log line run inside Task.Run (the ChipSweepProbing
+  test seam at :475 sits inside that worker body, the Log.Info at :479), and the awaiter
+  dispatches back to the calling context where results are applied as property writes only.
+  Coherence semantics preserved: still NO epoch and NO fact update; rows are updated in
+  place, never replaced, so a captured row IS the visible row and a row deleted mid-flight
+  is inert.
+- src/AgentEyes.App/MainWindow.xaml.cs:227 Rail_Checked now fires RefreshLibraryChips
+  (:247), an async-void entry point with the try-catch at the entry point (CLAUDE.md rule 4)
+  whose failure log is itself written from a worker (:256).
+- src/AgentEyes.App/MainWindow.xaml.cs:2452-2504 RecentItem splits the probe:
+  CaptureChipProbe (no I/O, UI thread) / ChipProbe.Run (the probes, any thread) /
+  ApplyArtifactChips (property writes only). The synchronous RefreshArtifactChips
+  remains only for the off-UI-thread snapshot worker (From) and the bounded single-row
+  Insert route.
+
+Tests (QA read each, then ran the suite):
+
+- LibraryChipSweep_ProbesOnAWorkerWhileTheOwningThreadIsFree
+  (tests/AgentEyes.Tests/TranscriptPresenceTests.cs:494) - the deterministic proof: HOLDS
+  the worker at the probe point via the seam and asserts the call already returned to the
+  owning thread, the chips still show pre-sweep values, and the probing thread differs from
+  the owner; releasing the worker lands the re-derived values (the external-delete
+  direction). This is the load-bearing stall-impossibility proof.
+- LibraryChipSweep_HandsTheProbesToAWorker (:538) - IL pin: Task::Run inside
+  RefreshArtifactChipsAsync.
+- RailNavigation_RefreshesTheLibrarysArtifactChips (:423) - both wiring hops, fail-closed
+  (CallsIn throws on a renamed method; the CallSites leg is a positive Contains).
+
+Runtime (fixtures built by QA under %USERPROFILE%\Videos\AgentEyes\: qa3flat flat-text
+only, qa3div transcribed, qa3big 33 MB JSON-only 400,000-segment transcript, plus 300
+bulk fixture rows qa3bulk000..299 to make the sweep unbounded-ish; all deleted after the
+run; the user's six recordings untouched. App launched windowed from the x64 Release output -
+same documented deviation as rounds 1 and 2: --tray never builds a MainWindow so Library
+cards cannot exist in tray mode; the DevThrottle sign-in dialog dismissed via UIA Invoke on
+Cancel; everything after launch driven by REST + UIA + PrintWindow, no forced foregrounding,
+no synthesized input):
+
+- Library entry with 309 rows: the UIA SelectionItem.Select on "Library view" returned in
+  14 ms (quoted: "select returned at 14ms"), and the worker's count line landed in the app
+  log 29 ms after the select was issued, quoted:
+  "09:55:23.182 [INFO] [LibraryCoherence] RefreshArtifactChipsAsync: 309 row(s) re-derived
+  from disk on a worker" - the worker route IS the one that runs on rail navigation, with
+  an unbounded row count, and the rail handler returns before it completes. Honest limit,
+  stated: on this machine's local SSD the 309-row probe sweep finishes in ~15 ms, so QA
+  could not produce a HUMAN-VISIBLE stall-vs-paint separation at runtime; a true slow-storage
+  repro was not simulated. The deterministic held-worker seam test above is the load-bearing
+  proof that the paint cannot wait on the probes, and QA verified that test's assertions by
+  reading it and running it (it is one of the 855 green).
+- Round-2 divergence drill re-run against the ASYNC sweep, both directions, quoted:
+  external DELETE of qa3div transcript.json -> REST immediately
+  "hasTranscript=False hasFlatTranscript=True"; card pre-navigation still stale
+  "TranscriptChip=True" (the designed show-time window); rail away+back ->
+  "TranscriptChip=False TextFileChip=True". External CREATE (inverse) -> REST immediately
+  "hasTranscript=True"; card stale "TextFileChip=True"; rail away+back ->
+  "TranscriptChip=True TextFileChip=False". Three sweep log lines total, all
+  "...on a worker", one per Library show. Coherence semantics survived the async rework.
+
+Mutation drill for this defect class was run by QA on the DETAIL ctor pin (below); the
+developer's drills (a) and (b) on the sweep wiring were not re-run - the two wiring/Task.Run
+pins are fail-closed by construction (CallsIn throws on absence; the CallSites legs assert
+presence) and QA verified their assertions by reading the IL helper (CompiledCode.Fold,
+tests/AgentEyes.Tests/CompiledCode.cs:508, correctly folds ctor-lambda / display-class /
+state-machine names back to the declaring method).
+
+## Gate defect 2 - detail ctor read+deserialized manifest.json pre-show: FIXED
+
+Code: the constructor (src/AgentEyes.App/RecordingDetailWindow.cs:56-244) now touches no
+disk at all - no Manifest.Load, no DevThrottleAccount.IsSignedIn (credential read +
+DPAPI decrypt, found by the developer's sweep), no walkthrough File.Exists (the button
+label reads the card's already-derived chip at :208-215). The summary TextBlock and sign-in
+banner are built collapsed; LoadDetailsAsync (:262) reads manifest + account state +
+transcript in ONE Task.Run body after Loaded (:243) and applies values on the UI thread.
+The Open-folder lambda was extracted to OpenFolder() (:223, method at :327) so the ctor
+pin can ban ALL File/Directory calls from construction.
+
+IL pin verified to actually pin the ctor, then MUTATION-DRILLED by QA:
+
+- DetailWindowConstructor_TouchesNoDiskAndWritesNoLog (TranscriptPresenceTests.cs:580)
+  first asserts the scan SEES RecordingDetailWindow::.ctor (fail-closed), then asserts no
+  call site in the ctor (including folded lambdas) targets System.IO.File::*,
+  System.IO.Directory::*, Manifest::Load, get_IsSignedIn, or AgentEyes.Log::*.
+- QA's mutation drill, three arms stated: reintroduced a synchronous
+  File.Exists(Path.Combine(item.Dir, "manifest.json")) into the ctor, rebuilt, ran the
+  filtered suite. Expected: the pin fails naming the ctor. Actual, quoted:
+  "Failed: 1, Passed: 28" with
+  "Collection: [CallSite { Assembly = AgentEyesApp.dll, Method =
+  AgentEyes.App.RecordingDetailWindow::.ctor, Callee = System.IO.File::Exists }]".
+  (An empty or aborted run would have been a broken instrument, not a red.) Reverted via
+  git checkout; filtered suite green again: "Failed: 0, Passed: 29"; tree clean.
+- DetailWindow_ManifestRead_IsNotInvokedOnConstruction (:560) additionally requires the
+  manifest read to EXIST in LoadDetailsAsync (presence, not absence).
+
+Runtime (quoted actual output):
+
+- qa3big (33 MB JSON-only): detail window VISIBLE at t=11ms after the chip Invoke
+  (Win32 EnumWindows; IsHungAppWindow=False). The worker load bracket in the app log:
+  entry "09:57:38.773 ... LoadDetailsAsync: dir=...qa3big" -> result "09:57:39.429 ...
+  kind=Transcribed chars=10688889 aiConfigured=False" - 0.66 s on the worker. UIA then read
+  the full 10,688,889-char body from the transcript TextBox, with "Copy transcript" present
+  and the sign-in banner correctly appearing only after the load (aiConfigured=False, no
+  Description). Screenshot qa3-detail-large-loaded.png (read by QA: segment text, banner,
+  full actions row - no blank areas).
+- Honest notes, stated plainly: (1) the worker load was so fast (0.66 s vs round 2's 12 s -
+  the 10.x runtime deserializes this fixture much faster) that QA could not sample the
+  intermediate "Loading transcript..." state this round; its existence is held by the round-2
+  runtime record, the unchanged ctor-built loading line, and the green pins. (2) After the
+  worker load, applying the 10.7-million-char string to the visible TextBox cost the UI
+  thread roughly 14 s of layout work (one UIA probe spanned t=681..15193ms) - the same class
+  and magnitude as round 2's accepted 12.1 s render of an 8.7M-char fixture. That is CPU/
+  text-layout on a deliberately pathological fixture (roughly 50x any real transcript), not
+  disk I/O, and is outside this issue's criteria; noting it here so the gate sees it was
+  measured, not missed.
+- Walkthrough label read from the chip, verified at runtime: qa3big has no walkthrough.html
+  and the actions row shows "Build walkthrough" (quoted in the UIA button dump).
+
+## Gate defect 3 - load continuations logged on the WPF thread: FIXED
+
+Code: every log on the load path is inside the Task.Run body
+(RecordingDetailWindow.cs:268, :276, :283), written before the UI update is dispatched; the
+catch path logs via await Task.Run(() => Log.Error(...)) (:316), as does CommitRename's
+catch (:382) and RefreshLibraryChips' catch (MainWindow.xaml.cs:256); the chip sweep's
+count line logs on its worker (LibraryCoherence.cs:479). The dispatcher hop applies values
+only.
+
+Test: DetailWindow_Logging_IsConfinedToTheWorkerBackedPaths (:610) - its limit stated IN
+the test, exactly as method 6c item 6 requires: IL folding cannot distinguish a Log call
+inside a method's Task.Run lambda from one after its await, so THAT placement is held by
+code reading (QA re-read each call, listed above) and by this runtime pass; what the pin
+holds fail-closed is that logging stays confined to LoadDetailsAsync + CommitRename and
+that the load path really does log (presence). QA accepts this as an honestly documented
+limit, not an overclaim.
+
+Runtime: the entry/result lines quoted under defect 2 (and the flat fixture's pair:
+"09:59:49.515" entry -> "09:59:49.517" "kind=FlatTextOnly chars=17 aiConfigured=False")
+landed in the log while the windows showed content without waiting on them.
+
+## Handoff section 8.4 audit - every justification checked against the code
+
+QA read each entry and swept the touched files itself
+(grep -n "File\.|Directory\.|Manifest.Load|IsSignedIn|Log\." over RecordingDetailWindow.cs,
+LibraryCoherence.cs, and the touched MainWindow regions):
+
+- OpenFolder (RecordingDetailWindow.cs:328 Directory.Exists) and
+  WalkthroughChip_Click (MainWindow.xaml.cs:1563 File.Exists): one bounded probe on an
+  explicit user click, never paint-critical; matches every other click handler in the app.
+  JUSTIFIED. (TranscriptChip_Click performs no I/O at all.)
+- RecentItem.From reached on the UI thread only via LibraryCoherence.Insert
+  (LibraryCoherence.cs:291): the bounded ONE-row "a recording just appeared" route, which
+  already read that row's whole manifest on main before this PR; the unbounded every-row
+  sweep is what the defect named and what went off-thread. JUSTIFIED as pre-existing
+  issue-#3 design, not a regression of this PR.
+- LibraryCoherence's other Log.Info/Warn/Error calls (:161-:614): pre-existing issue-#3
+  code outside this diff, one line per user action or per snapshot (event-scale, bounded),
+  not a per-row sweep. JUSTIFIED.
+- Rail_Checked's other branches (LoadDictionary, LoadCaptures, ...): other rail
+  destinations, untouched by this diff, out of this issue's scope. JUSTIFIED.
+- TranscriptPresentation.For: QA confirmed by grep its ONLY product caller is
+  LoadDetailsAsync's Task.Run body (RecordingDetailWindow.cs:280). RecordingLibrary /
+  RestServer serve REST on listener threads. JUSTIFIED.
+
+QA's own sweep found NO UI-thread synchronous I/O on any touched path that is neither fixed
+nor on the justified list.
+
+## Rounds 1-2 criteria still hold (re-verified this round)
+
+- Criterion 4 baseline at runtime, quoted: REST "qa3flat: hasTranscript=False
+  hasFlatTranscript=True", "qa3div: hasTranscript=True hasFlatTranscript=True"; UIA cards
+  "qa3flat: TranscriptChip=False TextFileChip=True", "qa3div/qa3big: TranscriptChip=True
+  TextFileChip=False". Screenshot qa3-library-cards.png (read by QA: the two Transcript
+  chips and the italic "Text file" chip all render).
+- Criterion 5 at runtime: the flat card's "Text file" chip opened the detail; UIA dump
+  quoted: caption "Not transcribed - showing the text file saved with this recording.",
+  body "legacy flat words", "Copy transcript" present. Screenshot qa3-detail-flatonly.png
+  (read by QA). REST transcript route unchanged.
+- Criteria 1-3: the predicate tests and the criterion-3 search record are unchanged on this
+  branch and green in the 855.
+- Criterion 6: the gate above.
+
+## Shutdown and cleanup
+
+/status quoted before stop: "State":"idle" (PendingTranscriptions:4 refers to the user's
+own pre-existing recordings - the fixtures carry no media so the backlog ignores them, as
+designed). After stop: AgentEyesApp: 0, ffmpeg: 0, %TEMP%\AgentEyes-crash.log does not
+exist. All 303 fixture folders deleted; the six pre-existing recordings verified intact by
+listing. Repo tree left clean.
+
+## Round-3 evidence files
+
+- qa3-library-cards.png - the Library after all drills: qa3big and qa3div carry
+  "Transcript", qa3flat carries the italic "Text file" chip, bulk rows behind them.
+- qa3-detail-large-loaded.png - the 33 MB JSON-only detail fully loaded: segment text,
+  sign-in banner (post-load), Copy transcript, chip-derived "Build walkthrough" label.
+- qa3-detail-flatonly.png - the flat-only detail: legacy caption, readable text, Copy
+  transcript.
+
+**VERIFIED - all three round-2 gate defects fixed with code, test, mutation and runtime
+proof; section 8.4 audited clean; all rounds 1-2 criteria still hold.** -> flow:ready-gate.
