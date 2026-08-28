@@ -19,6 +19,10 @@ namespace AgentEyes
         public double Level { get; set; }              // 0..1 (peak)
         public string? Dir { get; set; }
 
+        // The camera being recorded to camera.mp4 alongside the screen (issue #28), by its exact
+        // DirectShow device name. Null when this recording has no camera track, and null while idle.
+        public string? Camera { get; set; }
+
         // DevThrottle account state (issue #129). Carried on /status so the sign-in indicator is
         // verifiable without a screenshot - recording works signed out, but the AI stages do not.
         public bool SignedIn { get; set; }
@@ -71,6 +75,16 @@ namespace AgentEyes
         private LoopbackCapture? _loop;
         private FfmpegRecorder? _video;
         private string? _micWav, _sysWav, _rawVideo;
+
+        /// <summary>
+        /// The webcam capture running alongside the screen capture (issue #28), or null when this
+        /// recording has no camera. It is a separate ffmpeg process writing its own camera.mp4; it
+        /// never feeds the screen video and never participates in the deferred audio mux.
+        /// </summary>
+        private FfmpegCameraRecorder? _camera;
+
+        /// <summary>The exact DirectShow name of <see cref="_camera"/>'s device, for /status.</summary>
+        private volatile string? _cameraName;
 
         /// <summary>
         /// This session's OWN capture claim on <see cref="_dir"/> (issue #154, round 3) - the only
@@ -127,6 +141,7 @@ namespace AgentEyes
                 ElapsedSeconds = Math.Round(_sw.Elapsed.TotalSeconds, 2),
                 Level = Math.Round(Math.Max(_peakMic, _peakSys), 3),
                 Dir = _dir,
+                Camera = _state == "idle" ? null : _cameraName,
                 SignedIn = DevThrottle.AccountState.IsSignedIn,
                 AccountEmail = DevThrottle.AccountState.Email,
                 PendingTranscriptions = TranscriptionBacklog.FindPending(RecordingPaths.Root).Count,
@@ -251,8 +266,13 @@ namespace AgentEyes
 
         // ---- start video (Mode B) -----------------------------------------
 
+        /// <param name="cameraFragment">A camera name fragment to record to camera.mp4 alongside the
+        /// screen (issue #28), or null for no camera track. Resolved to ONE exact DirectShow device
+        /// before anything touches disk; absent or ambiguous fails the start.</param>
+        /// <param name="cameraFps">Frame rate requested from the camera. The camera's own default
+        /// resolution is used (assumption A2).</param>
         public void StartVideo(int screen, AudioSourceKind src, string? micFragment, int[]? region,
-            AudioMixOptions opts, int fps)
+            AudioMixOptions opts, int fps, string? cameraFragment = null, int cameraFps = 30)
         {
             lock (_lock)
             {
@@ -271,10 +291,24 @@ namespace AgentEyes
                 if (src is AudioSourceKind.Mic or AudioSourceKind.Mixed)
                     dshowMic = DeviceResolver.ResolveName(FfmpegDevices.ListAudio(), Require(micFragment, "mic"));
 
+                // Same reason, same place, for the camera (issue #28): a fragment that names no
+                // camera - or two - must fail BEFORE a recording directory exists, so an unknown
+                // camera leaves nothing behind for the Library and the repair passes to find.
+                string? dshowCamera = null;
+                if (!string.IsNullOrWhiteSpace(cameraFragment))
+                {
+                    dshowCamera = DeviceResolver.ResolveCameraName(FfmpegDevices.ListVideo(), cameraFragment!);
+                    Log.Info($"[RecordingService] StartVideo: camera \"{cameraFragment}\" resolved to \"{dshowCamera}\"");
+                }
+                _cameraName = dshowCamera;
+
                 _dir = RecordingPaths.NewDir("video", "video");
                 _manifest = NewManifest("video", mon);
                 _manifest.VideoFile = "recording.mp4";
                 _manifest.Region = region;
+                // Named in the FIRST manifest, like every other file this session will write, so a
+                // recording interrupted before its stop still says on disk that a camera track exists.
+                if (dshowCamera != null) _manifest.CameraFile = "camera.mp4";
 
                 // Mixed/system capture the system loopback and mux after; a mic-only recording
                 // gets a post pass too (no loopback!) when any mic processing (suppression,
@@ -306,14 +340,38 @@ namespace AgentEyes
                 // (RecordingStartSequence). ffmpeg is already writing frames by the time the loopback
                 // can fail - a rollback that did not stop it left the screen being recorded while the
                 // service reported idle.
-                var steps = new List<RecordingStartStep>
+                var steps = new List<RecordingStartStep>();
+
+                // THE CAMERA STARTS FIRST, and that ordering is load-bearing (issue #28, AC9).
+                //
+                // A camera that cannot be opened - absent, or already held by another application -
+                // fails the whole start (decision 3). The rollback may only remove a directory that
+                // holds no capture bytes (RecordingStartSequence.Discard), so if the SCREEN recorder
+                // had already started, its recording.mp4 and its ffmpeg log would keep the directory
+                // alive and a failed start would leave an empty recording in the Library. Opening the
+                // camera first means the only thing that exists at that moment is the first manifest,
+                // which Discard is free to remove.
+                if (dshowCamera != null)
                 {
-                    new RecordingStartStep("video", () =>
+                    steps.Add(new RecordingStartStep("camera", () =>
                     {
-                        _video = FfmpegRecorder.Start(capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut);
-                        _manifest!.FfmpegCommand = _video.CommandLine;
-                    }),
-                };
+                        _camera = FfmpegCameraRecorder.Start(
+                            dshowCamera, cameraFps, 23, Path.Combine(_dir!, "camera.mp4"));
+                    }));
+                }
+
+                steps.Add(new RecordingStartStep("video", () =>
+                {
+                    _video = FfmpegRecorder.Start(capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut);
+                    _manifest!.FfmpegCommand = _video.CommandLine;
+
+                    // The alignment hint (assumption A5): how far the camera start sits from the
+                    // screen start, measured between the two Process.Start returns. Negative here,
+                    // because the camera is opened first - see the comment above.
+                    if (_camera != null)
+                        _manifest.CameraStartOffsetSeconds =
+                            Math.Round((_camera.StartedUtc - _video.StartedUtc).TotalSeconds, 3);
+                }));
 
                 // ffmpeg owns the mic stream in video mode, so nothing in-process sees the samples.
                 // Open a monitor-only WaveIn capture (shared mode, no file) purely to drive the level
@@ -362,7 +420,7 @@ namespace AgentEyes
 
                 _sw.Restart();
                 _state = "recording";
-                Log.Info($"start video src={src} dir={_dir}");
+                Log.Info($"start video src={src} dir={_dir} camera={dshowCamera ?? "(none)"}");
             }
         }
 
@@ -410,16 +468,16 @@ namespace AgentEyes
         {
             Log.Info("stop: begin (synchronous raw save only)");
             // Flip to finalizing under lock, then flush the raw files outside the lock.
-            AudioCapture? audio; LoopbackCapture? loop; FfmpegRecorder? video;
+            AudioCapture? audio; LoopbackCapture? loop; FfmpegRecorder? video; FfmpegCameraRecorder? camera;
             string? micWav, sysWav, rawVideo, dir; Manifest? manifest; string mode; AudioSourceKind src; AudioMixOptions opts;
             lock (_lock)
             {
                 if (_state != "recording") throw new UsageException("not recording");
                 _state = "finalizing";
-                audio = _audio; loop = _loop; video = _video;
+                audio = _audio; loop = _loop; video = _video; camera = _camera;
                 micWav = _micWav; sysWav = _sysWav; rawVideo = _rawVideo;
                 dir = _dir; manifest = _manifest; mode = _mode; src = _src; opts = _opts;
-                _audio = null; _loop = null; _video = null;
+                _audio = null; _loop = null; _video = null; _camera = null;
                 _micWav = _sysWav = _rawVideo = null;
             }
             _sw.Stop();
@@ -436,6 +494,11 @@ namespace AgentEyes
             if (audio != null) steps.Add(new RecordingStopStep("audio", audio.Stop, audio.Dispose));
             if (loop != null) steps.Add(new RecordingStopStep("loopback", loop.Stop, loop.Dispose));
             if (video != null) steps.Add(new RecordingStopStep("video", video.Stop, video.Dispose));
+            // The camera is its own writer with its own final file - it never joins the deferred
+            // audio mux (assumption A4), so stopping it IS finalizing camera.mp4. Its Stop never
+            // throws for a camera that already died mid-run (decision 4): that loss was reported when
+            // it happened and must not turn an otherwise clean stop into a failed one.
+            if (camera != null) steps.Add(new RecordingStopStep("camera", camera.Stop, camera.Dispose));
 
             bool deferred = false;
             void SaveManifest()
@@ -454,6 +517,21 @@ namespace AgentEyes
                 if (manifest.AudioFile != null && !manifest.Files.Contains(manifest.AudioFile)) manifest.Files.Add(manifest.AudioFile);
                 if (manifest.VideoFile != null && !manifest.Files.Contains(manifest.VideoFile)) manifest.Files.Add(manifest.VideoFile);
 
+                // The camera track's own account of itself (issue #28). CapturedSeconds is what
+                // ffmpeg reported writing, not wall time, so a camera lost mid-run records the
+                // footage that actually exists rather than the footage the session lasted.
+                if (camera != null)
+                {
+                    manifest.CameraFile = "camera.mp4";
+                    manifest.CameraCapturedSeconds = Math.Round(camera.CapturedSeconds, 2);
+                    manifest.CameraTruncated = camera.LostMidRun;
+                    if (!manifest.Files.Contains("camera.mp4")) manifest.Files.Add("camera.mp4");
+                    if (camera.LostMidRun)
+                        Log.Warn($"stop: the camera \"{camera.DeviceName}\" was lost during this recording - "
+                                 + $"camera.mp4 covers {camera.CapturedSeconds:F1}s of a {elapsed:F1}s session; "
+                                 + "the screen recording is unaffected");
+                }
+
                 // Issue #155: this is NOT the recording's first manifest write - StartAudio /
                 // StartVideo already wrote a valid record before the first byte was captured - so the
                 // stop is a read-modify-write of that file, applying only the fields this session
@@ -470,6 +548,10 @@ namespace AgentEyes
                     m.DurationSeconds = manifest.DurationSeconds;
                     m.PendingMux = manifest.PendingMux;
                     m.FfmpegCommand = manifest.FfmpegCommand;
+                    m.CameraFile = manifest.CameraFile;
+                    m.CameraStartOffsetSeconds = manifest.CameraStartOffsetSeconds;
+                    m.CameraCapturedSeconds = manifest.CameraCapturedSeconds;
+                    m.CameraTruncated = manifest.CameraTruncated;
                     // The shot index belongs to the session: only MarkerShot adds to it, and only
                     // while this session is running, so the session's list IS the truth for it.
                     m.Shots.Clear();
@@ -500,6 +582,7 @@ namespace AgentEyes
                 lock (_lock)
                 {
                     _manifest = null; _dir = null; _monitor = null;
+                    _cameraName = null;
                     _peakMic = _peakSys = 0;
                     _state = "idle";
 
@@ -704,6 +787,7 @@ namespace AgentEyes
             if (_audio != null) steps.Add(new RecordingStopStep("audio", _audio.Stop, _audio.Dispose));
             if (_loop != null) steps.Add(new RecordingStopStep("loopback", _loop.Stop, _loop.Dispose));
             if (_video != null) steps.Add(new RecordingStopStep("video", _video.Stop, _video.Dispose));
+            if (_camera != null) steps.Add(new RecordingStopStep("camera", _camera.Stop, _camera.Dispose));
             return steps;
         }
 
@@ -721,8 +805,9 @@ namespace AgentEyes
         {
             string? dir = _dir;
             var claim = _captureClaim;
-            _audio = null; _loop = null; _video = null;
+            _audio = null; _loop = null; _video = null; _camera = null;
             _micWav = _sysWav = _rawVideo = null;
+            _cameraName = null;
             _dir = null; _manifest = null; _monitor = null;
             _captureClaim = default;
             _peakMic = _peakSys = 0;

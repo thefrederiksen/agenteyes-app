@@ -87,6 +87,17 @@
                                Margin="72,8,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
                 </StackPanel>
 
+                <!-- Camera: recorded to its own camera.mp4 alongside the screen video (issue #28) -->
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <TextBlock Text="Camera" VerticalAlignment="Center" Width="72"
+                               Foreground="{StaticResource DkDim}" FontSize="11"/>
+                    <ComboBox x:Name="CameraBox" Style="{StaticResource DkCombo}" Width="260" Height="30"
+                              FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock x:Name="CameraHint" Margin="72,6,0,0" TextWrapping="Wrap"
+                           Foreground="{StaticResource DkDim}" FontSize="11"
+                           Text="Recorded to its own camera.mp4 (video only) next to the screen video, so both can be composed later. Video mode only."/>
+
                 <!-- Audio -->
                 <TextBlock Text="AUDIO" Style="{StaticResource DkSection}" Margin="0,16,0,6"/>
                 <ComboBox x:Name="MicBox" Style="{StaticResource DkCombo}" Height="32"/>

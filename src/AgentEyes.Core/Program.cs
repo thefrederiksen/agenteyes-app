@@ -107,6 +107,7 @@ namespace AgentEyes
             Console.WriteLine("  agenteyes audio   --screen N (--mic \"NAME\" | --loopback | --mix --mic \"NAME\") [--seconds N]");
             Console.WriteLine("  agenteyes video   --screen N [--mic \"NAME\"] [--mix | --loopback] [--region] [--seconds N]");
             Console.WriteLine("       mic options:  --no-denoise  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT");
+            Console.WriteLine("       camera:       --camera \"NAME\" [--camera-fps N]   # webcam -> camera.mp4 (video only)");
             Console.WriteLine("  agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD]");
             Console.WriteLine("  agenteyes import  <video.mp4>             # import an external video into the library");
             Console.WriteLine("  agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved");

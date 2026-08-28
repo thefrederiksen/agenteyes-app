@@ -170,6 +170,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.SelfTest::WriteReport -> System.IO.File::WriteAllText x1",              // selftest-report.html
             "agenteyes.dll!AgentEyes.Transcription.DictionaryStore::Save -> System.IO.File::WriteAllText x1",// the transcription dictionary
             "agenteyes.dll!AgentEyes.Translator::WriteTranslatedVtt -> System.IO.File::WriteAllText x1",     // transcript.<lang>.vtt
+            "agenteyes.dll!AgentEyes.Video.FfmpegCameraRecorder::Stop -> System.IO.File::WriteAllText x1",   // the camera ffmpeg stderr log (issue #28; the FAILED-open path deliberately writes nothing into the recording directory)
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Start -> System.IO.File::WriteAllText x1",        // the ffmpeg stderr log of a failed start
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Stop -> System.IO.File::WriteAllText x1",         // the ffmpeg stderr log
             "agenteyes.dll!AgentEyes.VideoImport::RunAsync -> System.IO.File::Copy x1",                      // the imported video file

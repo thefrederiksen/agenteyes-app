@@ -18,10 +18,31 @@ namespace AgentEyes.App
         /// default input device at record time (PresetCapture.Start).</summary>
         private const string DefaultMicItem = "(System default)";
 
+        /// <summary>First CameraBox item: persisted as Camera = null, i.e. no camera track.</summary>
+        private const string NoCameraItem = "(None)";
+
+        /// <summary>What CameraBox shows while the camera list is still being enumerated.</summary>
+        private const string LoadingCamerasItem = "Loading cameras...";
+
         private readonly CapturePreset _preset;
         private readonly List<MonitorInfo> _monitors = new();
         private Drawing.Rectangle? _region;
         private MonitorHighlight? _highlight;
+
+        /// <summary>
+        /// The camera saved on the preset, held until the (asynchronous) camera enumeration finishes
+        /// so the picker can select it. Enumerating DirectShow video devices means launching ffmpeg,
+        /// which is far too slow to do on the UI thread while the dialog is opening.
+        /// </summary>
+        private readonly string? _savedCamera;
+
+        /// <summary>
+        /// False until the camera list has actually loaded. It is what stops a Save made in the first
+        /// moments of the dialog from writing "no camera" over a camera the user never touched: with
+        /// no list there is no selection to read, and an empty picker must not be mistaken for the
+        /// user choosing None.
+        /// </summary>
+        private bool _camerasLoaded;
 
         /// <summary>The preset to persist once the dialog returns true (the edited instance, or a new one for Save as).</summary>
         internal CapturePreset? SavedPreset { get; private set; }
@@ -29,10 +50,16 @@ namespace AgentEyes.App
         internal PresetEditor(CapturePreset preset)
         {
             _preset = preset;
+            _savedCamera = preset.Camera;
             InitializeComponent();
             SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
             try { PopulateDevices(); LoadFrom(preset); UpdateModeUi(); }
             catch (Exception ex) { ErrorText.Text = "Init error: " + ex.Message; }
+
+            // The camera list is the one expensive lookup in this dialog (it launches ffmpeg), so it
+            // loads on a background thread AFTER the window is up - the dialog appears instantly with
+            // the picker showing "Loading cameras..." and fills itself in.
+            Loaded += async (_, _) => await LoadCamerasAsync();
 
             RegionRadio.Checked += (_, _) => { SelectAreaButton.IsEnabled = true; RegionOptions.IsEnabled = true; };
             RegionRadio.Unchecked += (_, _) =>
@@ -75,6 +102,67 @@ namespace AgentEyes.App
             MicBox.Items.Clear();
             MicBox.Items.Add(DefaultMicItem);
             foreach (var (_, name) in AudioCapture.Devices()) MicBox.Items.Add(name);
+
+            // Placeholder only - the real list arrives from LoadCamerasAsync.
+            CameraBox.Items.Clear();
+            CameraBox.Items.Add(NoCameraItem);
+            CameraBox.Items.Add(LoadingCamerasItem);
+            CameraBox.SelectedIndex = 0;
+            CameraBox.IsEnabled = false;
+        }
+
+        /// <summary>
+        /// Enumerate the DirectShow cameras off the UI thread and fill the picker, then select the
+        /// preset's saved camera. A camera that is no longer attached is NOT silently dropped: its
+        /// name is appended to the list, stays selected, and the hint under the picker says it is not
+        /// connected - because a preset quietly losing its camera is exactly the kind of invisible
+        /// change this app must not make. Record-time resolution still fails loudly if it really is
+        /// gone.
+        /// </summary>
+        private async System.Threading.Tasks.Task LoadCamerasAsync()
+        {
+            List<string> cameras;
+            try
+            {
+                cameras = await System.Threading.Tasks.Task.Run(
+                    () => new List<string>(AgentEyes.Video.FfmpegDevices.ListVideo()));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("[PresetEditor] LoadCamerasAsync: enumerating cameras failed", ex);
+                CameraBox.Items.Clear();
+                CameraBox.Items.Add(NoCameraItem);
+                CameraBox.SelectedIndex = 0;
+                CameraBox.IsEnabled = false;
+                CameraHint.Text = "Cameras could not be listed: " + ex.Message;
+                return;
+            }
+
+            CameraBox.Items.Clear();
+            CameraBox.Items.Add(NoCameraItem);
+            foreach (string name in cameras) CameraBox.Items.Add(name);
+
+            int select = 0;
+            if (!string.IsNullOrWhiteSpace(_savedCamera))
+            {
+                int found = cameras.FindIndex(n => n.Equals(_savedCamera, StringComparison.OrdinalIgnoreCase));
+                if (found >= 0)
+                {
+                    select = found + 1;   // +1 for the "(None)" entry
+                }
+                else
+                {
+                    CameraBox.Items.Add(_savedCamera);
+                    select = CameraBox.Items.Count - 1;
+                    CameraHint.Text = $"The saved camera \"{_savedCamera}\" is not connected right now. " +
+                                      "It stays on the preset; recording will fail until it is back.";
+                }
+            }
+            CameraBox.SelectedIndex = select;
+
+            _camerasLoaded = true;
+            CameraBox.IsEnabled = ModeVideo.IsChecked == true;
+            Log.Info($"[PresetEditor] LoadCamerasAsync: {cameras.Count} camera(s) listed, selected index {select}");
         }
 
         private void LoadFrom(CapturePreset p)
@@ -154,6 +242,11 @@ namespace AgentEyes.App
 
             p.Mode = ModeShot.IsChecked == true ? "shot" : ModeAudio.IsChecked == true ? "audio" : "video";
             p.Fps = int.TryParse((FpsBox.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Content?.ToString(), out int f) ? f : 30;
+
+            // Only read the camera picker once it actually holds the camera list. Reading it earlier
+            // would read the placeholder and silently clear a saved camera (see _camerasLoaded).
+            if (_camerasLoaded)
+                p.Camera = CameraBox.SelectedIndex <= 0 ? null : CameraBox.SelectedItem as string;
         }
 
         // ---- ui state -----------------------------------------------------
@@ -194,6 +287,10 @@ namespace AgentEyes.App
             MicVol.IsEnabled = usesMic;
             SysVol.IsEnabled = usesSys;
             FpsBox.IsEnabled = mode == "video";
+            // Issue #28, assumption A1: the camera is a video-mode setting, so the picker is disabled
+            // (but keeps its value) for shot/audio presets. It also stays disabled until the camera
+            // list has loaded.
+            CameraBox.IsEnabled = mode == "video" && _camerasLoaded;
         }
 
         // ---- region + show area -------------------------------------------

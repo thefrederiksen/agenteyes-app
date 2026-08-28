@@ -115,6 +115,50 @@ namespace AgentEyes.Video
             return a;
         }
 
+        /// <summary>
+        /// Capture a DirectShow camera to its OWN MP4 (issue #28) - a second, independent ffmpeg
+        /// process running alongside <see cref="VideoCapture"/>, so the screen and the presenter stay
+        /// two files an editor can compose later instead of one baked-in layout chosen at record time.
+        ///
+        /// VIDEO ONLY, by decision: no dshow audio input is opened and <c>-an</c> is passed, so
+        /// camera.mp4 carries exactly one stream. All audio stays on recording.mp4.
+        ///
+        /// The camera is captured at the DEVICE'S OWN default resolution (issue #28, assumption A2):
+        /// only the framerate is requested. Pinning an explicit <c>-video_size</c> makes ffmpeg's
+        /// dshow input fail outright on a camera that does not offer that exact mode, which would turn
+        /// a working camera into a failed start - and a failed start is loud here (decision 3).
+        ///
+        /// Encoding matches the screen video (assumption A3): libx264 / veryfast / yuv420p / CRF.
+        /// </summary>
+        /// <param name="dshowCameraName">Exact DirectShow device name (from FfmpegDevices.ListVideo).</param>
+        /// <param name="fps">Requested camera frame rate.</param>
+        /// <param name="crf">x264 quality (lower = better; 23 is the screen recorder's default).</param>
+        /// <param name="outPath">Where camera.mp4 is written (its FINAL path - no deferred mux, A4).</param>
+        public static List<string> CameraCapture(string dshowCameraName, int fps, int crf, string outPath)
+        {
+            if (string.IsNullOrWhiteSpace(dshowCameraName))
+                throw new UsageException("a camera capture needs an exact DirectShow device name.");
+
+            return new List<string>
+            {
+                "-y",
+                "-f", "dshow",
+                // Buffer input packets so a busy CPU during warmup does not drop camera frames -
+                // the same guard the gdigrab input carries.
+                "-thread_queue_size", "1024",
+                "-framerate", fps.ToString(),
+                "-i", $"video={dshowCameraName}",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-pix_fmt", "yuv420p",
+                "-crf", crf.ToString(),
+                // Explicitly no audio track: the input has none, and this says so in the output too
+                // so camera.mp4 cannot acquire one by accident.
+                "-an",
+                outPath,
+            };
+        }
+
         /// <summary>Extract a 16 kHz mono WAV (what Whisper wants) from any media file.</summary>
         public static List<string> ExtractWav(string inputPath, string wavPath) => new()
         {

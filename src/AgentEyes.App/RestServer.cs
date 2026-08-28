@@ -340,6 +340,10 @@ namespace AgentEyes.App
             string? mic = GetStrOrNull(b, "mic") ?? preset?.Mic;
             int[]? region = GetIntArray(b, "region") ?? (preset?.UseRegion == true ? preset.Region : null);
             int fps = GetInt(b, "fps", preset?.Fps ?? 30);
+            // Issue #28: same precedence as "mic" - an explicit body field overrides the preset, and
+            // an absent one falls back to the preset's saved camera (null = no camera track).
+            string? camera = GetStrOrNull(b, "camera") ?? preset?.Camera;
+            int cameraFps = GetInt(b, "cameraFps", preset?.CameraFps ?? 30);
             var opts = new AudioMixOptions
             {
                 NoiseSuppression = GetBool(b, "denoise", preset?.Denoise ?? true),
@@ -353,13 +357,14 @@ namespace AgentEyes.App
 
             if (mode == "shot") throw new UsageException("preset is screenshot mode - use POST /screenshot instead");
             if (mode == "audio") _svc.StartAudio(screen, src, mic, opts);
-            else _svc.StartVideo(screen, src, mic, region, opts, fps);
+            else _svc.StartVideo(screen, src, mic, region, opts, fps, camera, cameraFps);
         }
 
         private static object Presets() => PresetStore.Load().Select(p => new
         {
             p.Id, p.Name, p.Note, p.MonitorIndex, p.UseRegion, p.Region,
             p.Source, p.Mic, p.Denoise, p.Gate, p.Level, p.MicVol, p.SysVol, p.Mode, p.Fps,
+            p.Camera, p.CameraFps,
         });
 
         private static object Discovery() => new
@@ -374,7 +379,7 @@ namespace AgentEyes.App
                 "POST /screenshot {screen, region?}",
                 "GET /capture-info",
                 "POST /capture {mode:full|monitor|region, screen?, region?}",
-                "POST /record/start {preset?, mode, screen, source, mic?, region?, denoise?, gate?, level?, micVol?, sysVol?, fps?}",
+                "POST /record/start {preset?, mode, screen, source, mic?, camera?, cameraFps?, region?, denoise?, gate?, level?, micVol?, sysVol?, fps?}",
                 "POST /record/shot", "POST /record/stop",
                 "POST /import {path}",
                 "POST /transcripts/{id}/translate {to}",
@@ -387,7 +392,17 @@ namespace AgentEyes.App
             var mons = Monitors.All().Select(m => new { m.Index, m.Width, m.Height, m.Primary, m.Name });
             var mics = AudioCapture.Devices().Select(d => new { d.Number, d.Name });
             string[] dshow; try { dshow = FfmpegDevices.ListAudio().ToArray(); } catch { dshow = Array.Empty<string>(); }
-            return new { monitors = mons, mics, dshow };
+            // Issue #28: the DirectShow cameras a recording can film to camera.mp4, by their exact
+            // ffmpeg names. A machine with no camera reports an EMPTY array, not an error - "no
+            // cameras" is a fact about the machine, not a failure of the call.
+            string[] cameras;
+            try { cameras = FfmpegDevices.ListVideo().ToArray(); }
+            catch (Exception ex)
+            {
+                Log.Error("[RestServer] Devices: enumerating cameras failed", ex);
+                cameras = Array.Empty<string>();
+            }
+            return new { monitors = mons, mics, dshow, cameras };
         }
 
         /// <summary>App product version string (e.g. "0.8.2") for GET /version.</summary>

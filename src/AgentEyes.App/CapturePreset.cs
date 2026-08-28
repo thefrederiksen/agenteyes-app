@@ -38,6 +38,19 @@ namespace AgentEyes.App
         public string Mode { get; set; } = "video";   // shot | audio | video
         public int Fps { get; set; } = 30;
 
+        /// <summary>
+        /// Issue #28: the exact DirectShow name of the webcam recorded to camera.mp4 alongside the
+        /// screen, or null for no camera. Stored as the EXACT device name (not a fragment) because it
+        /// is what the picker chose; record-time resolution still goes through DeviceResolver, so a
+        /// camera that has since been unplugged fails the start loudly rather than being ignored.
+        /// A preset saved before this field existed deserializes to null - i.e. camera off.
+        /// </summary>
+        public string? Camera { get; set; }
+
+        /// <summary>Issue #28: frame rate requested from the camera. The camera's own default
+        /// resolution is used (assumption A2).</summary>
+        public int CameraFps { get; set; } = 30;
+
         // List containers expose ToString as their UI Automation name - return the preset name so
         // the launcher combo is readable to accessibility tools and drivable by the GUI smoke test.
         public override string ToString() => Name;
@@ -59,6 +72,8 @@ namespace AgentEyes.App
             SysVol = SysVol,
             Mode = Mode,
             Fps = Fps,
+            Camera = Camera,
+            CameraFps = CameraFps,
         };
 
         /// <summary>One-glance summary shown under the launcher's preset picker.</summary>
@@ -69,6 +84,16 @@ namespace AgentEyes.App
                 : $"Monitor {MonitorIndex}";
             string mode = Mode switch { "shot" => "Screenshot", "audio" => "Audio + shots", _ => $"Video {Fps}fps" };
             if (Mode == "shot") return $"{screen}\n{mode}";
+
+            // Issue #28, assumption A1: the camera applies to video mode only, so it is only named
+            // for a video preset. "No camera" is stated rather than left blank - a recorder whose
+            // posture is "visible, controllable" says whether it is about to film you.
+            if (Mode == "video")
+            {
+                mode += string.IsNullOrWhiteSpace(Camera)
+                    ? " - no camera"
+                    : $" + camera \"{Camera}\" {CameraFps}fps";
+            }
 
             string src = Source switch { "mic" => "Mic only", "system" => "System only", _ => "Mic + System (mixed)" };
             string mic = Source == "system" ? "(system loopback)" : (string.IsNullOrWhiteSpace(Mic) ? DefaultMicDisplay() : Mic!);
@@ -181,7 +206,10 @@ namespace AgentEyes.App
             {
                 case "shot": return svc.Screenshot(screen, region);
                 case "audio": svc.StartAudio(screen, src, mic, opts); return null;
-                default: svc.StartVideo(screen, src, mic, region, opts, p.Fps); return null;
+                // Issue #28, assumption A1: the camera is a video-mode setting. A camera saved on a
+                // preset that is now "shot" or "audio" is ignored rather than silently changing what
+                // those modes do.
+                default: svc.StartVideo(screen, src, mic, region, opts, p.Fps, p.Camera, p.CameraFps); return null;
             }
         }
     }

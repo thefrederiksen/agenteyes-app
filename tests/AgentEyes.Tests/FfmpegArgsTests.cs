@@ -339,5 +339,88 @@ namespace AgentEyes.Tests
             var cmd = FfmpegArgs.ToCommandLine("ffmpeg.exe", new[] { "-i", "audio=My Mic" });
             Assert.Contains("\"audio=My Mic\"", cmd);
         }
+
+        // ---- camera capture (issue #28) --------------------------------------
+
+        [Fact]
+        public void CameraCapture_OpensTheNamedDshowVideoDevice()
+        {
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4");
+            string s = Join(args);
+            Assert.Contains("-f dshow", s);
+            Assert.Contains("video=HD Webcam", args);
+            Assert.Contains("-framerate 30", s);
+            Assert.EndsWith("camera.mp4", s);
+        }
+
+        [Fact]
+        public void CameraCapture_HasNoAudioInputAndNoAudioCodec()
+        {
+            // Decision 1: camera.mp4 is video-only - all audio stays on recording.mp4. Three
+            // independent ways an audio track could get in, and all three are asserted absent, plus
+            // the explicit -an that keeps it that way.
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4");
+            string s = Join(args);
+            Assert.DoesNotContain("audio=", s);
+            Assert.DoesNotContain("-c:a", s);
+            Assert.DoesNotContain("-b:a", s);
+            Assert.Contains("-an", args);
+        }
+
+        [Fact]
+        public void CameraCapture_DoesNotPinAResolution()
+        {
+            // Assumption A2: the camera's OWN default resolution is used. Pinning -video_size makes
+            // the dshow input fail outright on a camera that does not offer that exact mode, which
+            // would turn a working camera into a failed start.
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4");
+            Assert.DoesNotContain("-video_size", Join(args));
+        }
+
+        [Fact]
+        public void CameraCapture_EncodesLikeTheScreenVideo()
+        {
+            // Assumption A3: same encoder settings as VideoCapture, so the two files cut together.
+            var camera = Join(FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4"));
+            var screen = Join(FfmpegArgs.VideoCapture(new Rectangle(0, 0, 1280, 720), null, 30, 23, "recording.mp4"));
+            foreach (string setting in new[] { "-c:v libx264", "-preset veryfast", "-pix_fmt yuv420p", "-crf 23" })
+            {
+                Assert.Contains(setting, camera);
+                Assert.Contains(setting, screen);
+            }
+        }
+
+        [Fact]
+        public void CameraCapture_HonorsTheRequestedFrameRateAndQuality()
+        {
+            var args = Join(FfmpegArgs.CameraCapture("HD Webcam", 15, 28, "camera.mp4"));
+            Assert.Contains("-framerate 15", args);
+            Assert.Contains("-crf 28", args);
+        }
+
+        [Fact]
+        public void CameraCapture_BuffersTheInputAgainstFrameDrops()
+        {
+            Assert.Contains("-thread_queue_size 1024", Join(FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4")));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void CameraCapture_WithoutADeviceName_Throws(string? name)
+        {
+            // No silent fallback to "the first camera": a capture with no device named is a bug in
+            // the caller, and it says so instead of filming something nobody asked for.
+            Assert.Throws<UsageException>(() => FfmpegArgs.CameraCapture(name!, 30, 23, "camera.mp4"));
+        }
+
+        [Fact]
+        public void CameraCapture_QuotesTheDeviceNameOnTheCommandLine()
+        {
+            string cmd = FfmpegArgs.ToCommandLine(
+                "ffmpeg.exe", FfmpegArgs.CameraCapture("Logitech BRIO 4K", 30, 23, "camera.mp4"));
+            Assert.Contains("\"video=Logitech BRIO 4K\"", cmd);
+        }
     }
 }
