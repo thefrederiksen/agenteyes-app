@@ -34,6 +34,14 @@ namespace AgentEyes.Video
         public string OutputPath { get; }
         public string CommandLine { get; }
 
+        /// <summary>
+        /// When the ffmpeg process was actually started, captured the instant Process.Start returned
+        /// (issue #28). The camera track's CameraStartOffsetSeconds is measured against this - an
+        /// alignment HINT of tens of milliseconds between the two independent captures, not
+        /// frame-accurate genlock (assumption A5). Set only by <see cref="Start"/>.
+        /// </summary>
+        public DateTime StartedUtc { get; private set; }
+
         private FfmpegRecorder(Process proc, string outputPath, string commandLine, string logPath)
         {
             _proc = proc;
@@ -82,6 +90,7 @@ namespace AgentEyes.Video
             {
                 throw new UsageException("failed to start ffmpeg.");
             }
+            rec.StartedUtc = DateTime.UtcNow;
             proc.BeginErrorReadLine();
             proc.BeginOutputReadLine();
 

@@ -45,6 +45,21 @@ namespace AgentEyes
             {
                 Console.WriteLine("  (unavailable: " + ex.Message + ")");
             }
+
+            // Issue #28: the cameras 'video --camera' can record to camera.mp4. Same exact names the
+            // Control API reports on GET /devices, from the same enumerator.
+            Console.WriteLine();
+            Console.WriteLine("CAMERAS: DirectShow video devices (used by 'video' mode --camera)");
+            try
+            {
+                var cams = FfmpegDevices.ListVideo();
+                if (cams.Count == 0) Console.WriteLine("  (none found)");
+                foreach (var name in cams) Console.WriteLine($"  \"{name}\"");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  (unavailable: " + ex.Message + ")");
+            }
             return 0;
         }
 
@@ -231,6 +246,15 @@ namespace AgentEyes
                 dshowMic = DeviceResolver.ResolveName(FfmpegDevices.ListAudio(), opts.Get("mic")!);
             }
 
+            // Camera via DirectShow (issue #28). Resolved BEFORE the session directory is created,
+            // so an unknown or ambiguous camera fails leaving nothing on disk (AC8).
+            string? dshowCamera = null;
+            if (opts.Has("camera"))
+            {
+                dshowCamera = DeviceResolver.ResolveCameraName(FfmpegDevices.ListVideo(), opts.Get("camera")!);
+            }
+            int cameraFps = opts.Has("camera-fps") ? opts.RequireInt("camera-fps", "") : 30;
+
             bool mix = opts.Has("mix");                    // mic + system, mixed
             bool sysOnly = opts.Has("loopback") && !mix;   // system audio only
             bool needLoopback = mix || sysOnly;
@@ -256,6 +280,7 @@ namespace AgentEyes
             manifest.Region = regionField;
             manifest.Microphone = mix ? $"{dshowMic} + (system)" : (sysOnly ? "(system)" : dshowMic);
             manifest.VideoFile = "recording.mp4";
+            if (dshowCamera != null) manifest.CameraFile = "camera.mp4";
 
             string audioDesc = mix ? $"mic + system (mixed, {FxDesc(mixOpts)})"
                 : sysOnly ? "system audio" : (dshowMic != null ? $"mic \"{dshowMic}\" ({FxDesc(mixOpts)})" : "video only");
@@ -266,8 +291,34 @@ namespace AgentEyes
             Audio.LoopbackCapture? sysCap = needLoopback ? new Audio.LoopbackCapture() : null;
             string? sysWav = needLoopback ? Path.Combine(dir, "sys_native.wav") : null;
 
+            // The camera is opened FIRST, for the same reason the service opens it first (issue #28,
+            // AC9): a camera that cannot be opened must fail the start while the directory is still
+            // empty, so the failed attempt leaves nothing behind.
+            FfmpegCameraRecorder? cameraRec = null;
+            if (dshowCamera != null)
+            {
+                try
+                {
+                    cameraRec = FfmpegCameraRecorder.Start(dshowCamera, cameraFps, crf, Path.Combine(dir, "camera.mp4"));
+                }
+                catch
+                {
+                    // Nothing has been captured into this directory yet, and a directory holding no
+                    // recording is not something to leave behind.
+                    Directory.Delete(dir, recursive: true);
+                    throw;
+                }
+            }
+
             using var recorder = FfmpegRecorder.Start(capture, dshowMic, fps, crf, ffOut);
             manifest.FfmpegCommand = recorder.CommandLine;
+            if (cameraRec != null)
+            {
+                // Alignment hint (assumption A5): negative, because the camera started first.
+                manifest.CameraStartOffsetSeconds =
+                    Math.Round((cameraRec.StartedUtc - recorder.StartedUtc).TotalSeconds, 3);
+                Console.WriteLine($"     camera: \"{dshowCamera}\" -> camera.mp4 ({cameraFps} fps, video only)");
+            }
             sysCap?.Start(sysWav!);
 
             var sw = Stopwatch.StartNew();
@@ -286,6 +337,10 @@ namespace AgentEyes
             }
 
             recorder.Stop();
+            // Stopped AFTER the screen recorder, so both files carry the screen recorder's drain wait
+            // and their durations stay within a second of each other.
+            cameraRec?.Stop();
+            cameraRec?.Dispose();
             sysCap?.Stop();
             sysCap?.Dispose();
             sw.Stop();
@@ -311,6 +366,18 @@ namespace AgentEyes
             double dur = File.Exists(finalPath) ? MediaProbe.DurationSeconds(finalPath) : 0;
             manifest.DurationSeconds = Math.Round(dur > 0 ? dur : sw.Elapsed.TotalSeconds, 2);
             manifest.Files.Add("recording.mp4");
+            if (cameraRec != null)
+            {
+                manifest.CameraCapturedSeconds = Math.Round(cameraRec.CapturedSeconds, 2);
+                manifest.CameraTruncated = cameraRec.LostMidRun;
+                manifest.Files.Add("camera.mp4");
+                if (cameraRec.LostMidRun)
+                {
+                    Console.WriteLine($"[warn] the camera \"{cameraRec.DeviceName}\" was lost during the "
+                        + $"recording - camera.mp4 covers {cameraRec.CapturedSeconds:F1}s; the screen "
+                        + "recording is unaffected.");
+                }
+            }
             foreach (var s in manifest.Shots) manifest.Files.Add(s.File);
             foreach (var o in originals) { manifest.OriginalFiles.Add(o); manifest.Files.Add(o); }
             ManifestStore.Replace(dir, manifest);
@@ -320,6 +387,15 @@ namespace AgentEyes
                 ? $"{size / 1024.0 / 1024.0:F1} MB"
                 : $"{size / 1024.0:F0} KB";
             Console.WriteLine($"[ok] recording.mp4 ({Timecodes.Label(TimeSpan.FromSeconds(manifest.DurationSeconds))}, {sizeText}), {manifest.Shots.Count} marker(s)");
+            if (cameraRec != null)
+            {
+                string camPath = Path.Combine(dir, "camera.mp4");
+                long camSize = File.Exists(camPath) ? new FileInfo(camPath).Length : 0;
+                string camSizeText = camSize >= 1024 * 1024
+                    ? $"{camSize / 1024.0 / 1024.0:F1} MB"
+                    : $"{camSize / 1024.0:F0} KB";
+                Console.WriteLine($"[ok] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only");
+            }
             Console.WriteLine($"[ok] manifest.json written to {dir}");
             return 0;
         }

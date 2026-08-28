@@ -55,6 +55,47 @@ namespace AgentEyes
 
         public string? VideoFile { get; set; }
         public string? AudioFile { get; set; }
+
+        /// <summary>
+        /// Issue #28: the separately-recorded webcam track ("camera.mp4"), or null when the recording
+        /// had no camera. It is a SECOND, independent video file in the same directory - never
+        /// composited into <see cref="VideoFile"/> - so an editor can still choose the layout
+        /// afterwards. It carries no audio track by decision; all audio stays on the screen recording.
+        ///
+        /// Backward compatible: a manifest written before this field existed has no "CameraFile"
+        /// property and deserializes to null, which reads correctly as "no camera track". Null fields
+        /// are not written out (see <see cref="JsonOptions"/>), so a camera-less recording's
+        /// manifest.json is byte-identical in shape to what it was before this feature.
+        /// </summary>
+        public string? CameraFile { get; set; }
+
+        /// <summary>
+        /// Issue #28: how far the camera capture started AFTER the screen capture, in seconds -
+        /// negative when the camera started first, which is the normal case (the camera is opened
+        /// before the screen so that a camera which cannot be opened fails the start before any
+        /// bytes are written).
+        ///
+        /// An alignment HINT of tens of milliseconds measured in-process between the two ffmpeg
+        /// process starts (assumption A5) - NOT frame-accurate genlock. Precise sync is the editor's
+        /// job. Null when there is no camera track.
+        /// </summary>
+        public double? CameraStartOffsetSeconds { get; set; }
+
+        /// <summary>
+        /// Issue #28: seconds of camera footage the camera ffmpeg reported writing. This is the
+        /// file's own account of itself, not wall time, so it stays honest for a camera that was lost
+        /// mid-recording. Null when there is no camera track.
+        /// </summary>
+        public double? CameraCapturedSeconds { get; set; }
+
+        /// <summary>
+        /// Issue #28: true when the camera stopped on its own DURING the recording (unplugged, taken
+        /// by another application, crashed) rather than at the user's stop. The screen recording is
+        /// deliberately unaffected by that - so this flag plus
+        /// <see cref="CameraCapturedSeconds"/> is what says the camera track covers only part of the
+        /// session. False for a camera that ran to the end; null when there is no camera track.
+        /// </summary>
+        public bool? CameraTruncated { get; set; }
         public string? Transcript { get; set; }
         public string? Walkthrough { get; set; }
         public string? FfmpegCommand { get; set; }
