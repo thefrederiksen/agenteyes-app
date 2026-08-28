@@ -308,15 +308,29 @@ namespace AgentEyes
             {
                 if (dshowCamera != null)
                 {
+                    // CONSTRUCTED AND ASSIGNED BEFORE FFMPEG EXISTS (issue #28, gate round 3,
+                    // defect 1). The finally at the bottom of this method is this camera's last
+                    // owner, and it can only own a recorder the local actually received: while
+                    // opening the camera was one static call, an open failure threw before the
+                    // assignment, so a stalled ffmpeg that survived the probe's kill went out of
+                    // scope still holding the webcam, with `cameraRec` null and the finally
+                    // disposing nothing.
+                    cameraRec = FfmpegCameraRecorder.Create(dshowCamera, cameraFps, crf, Path.Combine(dir, "camera.mp4"));
                     try
                     {
-                        cameraRec = FfmpegCameraRecorder.Start(dshowCamera, cameraFps, crf, Path.Combine(dir, "camera.mp4"));
+                        cameraRec.Open();
                     }
                     catch
                     {
-                        // Nothing has been captured into this directory yet, and a directory holding no
-                        // recording is not something to leave behind.
-                        Directory.Delete(dir, recursive: true);
+                        // Get ffmpeg off the camera FIRST. A process that survived the failed open
+                        // still owns camera.mp4, so removing the directory around it would replace
+                        // the real, actionable camera error with an IO error about a file in use.
+                        // (Dispose is a no-op when the open already confirmed the process gone.)
+                        cameraRec.Dispose();
+
+                        // Nothing has been captured into this directory yet, and a directory holding
+                        // no recording is not something to leave behind (AC8/AC9).
+                        DiscardEmptyRecordingDirectory(dir);
                         throw;
                     }
                 }
@@ -423,7 +437,13 @@ namespace AgentEyes
                     string camSizeText = camSize >= 1024 * 1024
                         ? $"{camSize / 1024.0 / 1024.0:F1} MB"
                         : $"{camSize / 1024.0:F0} KB";
-                    Console.WriteLine($"[ok] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only");
+                    // "[ok]" is a CLAIM about the file, so it is only printed for a track this
+                    // recording can vouch for. A camera that was lost - or that opened and never
+                    // reported writing a frame - gets the warning shape instead (issue #28, gate
+                    // round 3, defect 3): the file exists, and it is not a complete take.
+                    Console.WriteLine(cameraRec.LostMidRun
+                        ? $"[warn] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only - TRUNCATED"
+                        : $"[ok] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only");
                 }
                 Console.WriteLine($"[ok] manifest.json written to {dir}");
                 if (cameraStopFailure != null)
@@ -440,6 +460,29 @@ namespace AgentEyes
                 // gdigrab, the mux, the duration probe or the manifest save - ffmpeg is stopped and
                 // the webcam is handed back before this command leaves the stack.
                 cameraRec?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Remove the recording directory a failed camera start created, so nothing is left behind
+        /// for the Library and the repair passes to find (issue #28, AC8/AC9).
+        ///
+        /// Its own failure is reported and NOT thrown, for the same reason
+        /// <see cref="RecordingStartSequence.Abandon"/> collects rollback failures rather than
+        /// raising them: the caller is already carrying the camera failure, and that is the
+        /// actionable fact. Replacing "the camera is already in use by another application" with
+        /// "the process cannot access the file camera.mp4" would hide the cause behind its symptom.
+        /// </summary>
+        private static void DiscardEmptyRecordingDirectory(string dir)
+        {
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[Commands] Video: removing the empty recording directory {dir} after a failed "
+                          + "camera start FAILED - it is left on disk", ex);
             }
         }
 

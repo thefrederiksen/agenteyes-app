@@ -29,6 +29,26 @@ namespace AgentEyes.Tests
     ///    "finally" in the source and a text scan cannot say which call a boundary covers.
     ///  - Each test below names the bad result it fires on. An EMPTY or unfindable target is a broken
     ///    instrument, and <see cref="CompiledCode.GuardedCalls"/> throws rather than passing on one.
+    ///
+    /// ROUND 3 (gate REJECT of PR #32). The gate rejected this file's own coverage as well as the
+    /// code, and it was right on both counts. Every round-3 defect was one of two assumptions:
+    /// "we asked the process to die" taken as "the process died", and "the device opened" taken as
+    /// "the device is producing video". What changed here:
+    ///
+    ///  - THE FAILED-START PATHS ARE COVERED AT LAST. There was no startup test for a kill that is
+    ///    REFUSED (KillEndsIt = false) or one that THROWS (KillThrows = true), which is precisely
+    ///    where the code marked itself terminated and released the handle to a live ffmpeg.
+    ///  - ONE TEST HERE WAS ITSELF THE DEFECT.
+    ///    <see cref="Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt"/>
+    ///    used to assert only that a second kill had been ATTEMPTED and that the wrapper had been
+    ///    disposed - both true whether or not ffmpeg died. It certified a lifetime guarantee it never
+    ///    checked. It is rewritten, not deleted, and it now fails against the code it once passed.
+    ///  - THE ZERO-FRAME CAMERA IS TESTED ALIVE. The old test for it called End(1) FIRST, so it only
+    ///    ever proved the already-exited path - not the live, silent camera the header-based open
+    ///    probe actually creates.
+    ///
+    /// Every check added or rewritten in round 3 was RUN AGAINST THE ROUND-3 CODE FIRST; the failing
+    /// output of each is in docs/cencon/proof/issue-28/mutation-evidence-round4.txt.
     /// </summary>
     public sealed class CameraFailurePathTests : IDisposable
     {
@@ -98,11 +118,20 @@ namespace AgentEyes.Tests
             /// <summary>False = ffmpeg ignores "q" (a stuck dshow device).</summary>
             public bool QuitEndsIt = true;
 
-            /// <summary>False = the process survives Kill.</summary>
+            /// <summary>False = the process survives Kill. Deliberately a mutable field, so a test
+            /// can let the FIRST kill be refused and the second succeed - that is how the recovery
+            /// this class exists to keep alive is proved to still be reachable.</summary>
             public bool KillEndsIt = true;
 
             /// <summary>True = Kill itself throws (access denied, already-exiting race).</summary>
             public bool KillThrows;
+
+            /// <summary>False = the stderr reader never reports end of stream, i.e. ffmpeg's output
+            /// is INCOMPLETE when the stop reads it.</summary>
+            public bool StderrReachesEof = true;
+
+            /// <summary>How many times the stop asked for the stderr to be drained.</summary>
+            public int Drains;
 
             /// <summary>False = the process ends but its Exited callback is never delivered.</summary>
             public bool DeliversExitCallback = true;
@@ -147,6 +176,12 @@ namespace AgentEyes.Tests
 
             public bool WaitForExit(int milliseconds) => HasExited;
 
+            public bool DrainStderr(int milliseconds)
+            {
+                Drains++;
+                return StderrReachesEof;
+            }
+
             public void Kill()
             {
                 Kills++;
@@ -157,9 +192,21 @@ namespace AgentEyes.Tests
             public void Dispose() => Disposes++;
         }
 
-        private FfmpegCameraRecorder StartOver(FakeCameraProcess proc, double openTimeoutSeconds = 5.0) =>
-            FfmpegCameraRecorder.StartOver(proc, "HD Webcam eMeet C960", Out, LogPath,
+        /// <summary>Build the recorder without starting anything - the first half of the two-phase
+        /// ownership the callers use (issue #28, gate round 3, defect 1).</summary>
+        private FfmpegCameraRecorder Create(FakeCameraProcess proc, double openTimeoutSeconds = 5.0) =>
+            FfmpegCameraRecorder.CreateOver(proc, "HD Webcam eMeet C960", Out, LogPath,
                 TimeSpan.FromSeconds(openTimeoutSeconds));
+
+        /// <summary>Create and open in one go, for the tests whose subject is not the failed open.
+        /// The tests that ARE about a failed open keep the two halves apart on purpose, because the
+        /// recorder the caller still owns after Open() threw is the whole point.</summary>
+        private FfmpegCameraRecorder StartOver(FakeCameraProcess proc, double openTimeoutSeconds = 5.0)
+        {
+            var rec = Create(proc, openTimeoutSeconds);
+            rec.Open();
+            return rec;
+        }
 
         // ---- gate defect 3: the open probe must establish that the camera OPENED ----------------
 
@@ -206,6 +253,112 @@ namespace AgentEyes.Tests
             Assert.Equal(1, proc.Kills);
             Assert.True(proc.HasExited, "the stalled camera ffmpeg must be dead before the start fails");
             Assert.Equal(1, proc.Disposes);
+        }
+
+        // ---- gate ROUND 3 defect 1: a failed START may not strand ffmpeg either -----------------
+
+        [Fact]
+        public void Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry()
+        {
+            // THE DEFECT (gate round 3, defect 1). The probe timed out, killed, waited, saw the
+            // process STILL ALIVE - and then LOGGED that and marked itself terminated and disposed
+            // the wrapper anyway. Disposing an ICameraProcess closes a handle; it does not end an OS
+            // process. And because Open() throws, no caller ever received the recorder, so that
+            // surviving ffmpeg - holding the webcam and writing camera.mp4 - was unreachable for the
+            // life of the process.
+            //
+            // The guarantee asserted here is a PRESENCE, not the absence of a complaint: after the
+            // failed open the process handle is still held and the recorder is still usable, so its
+            // owner has something left to try. Bad result this fires on: Disposes == 1, i.e. the
+            // handle to a live ffmpeg was thrown away. EMPTY result is impossible - Open either
+            // throws or returns, and both are asserted.
+            var proc = new FakeCameraProcess
+            {
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = false,
+                KillEndsIt = false,
+            };
+            var rec = Create(proc, openTimeoutSeconds: 0.2);
+
+            var ex = Assert.Throws<CameraStopFailedException>(() => rec.Open());
+
+            Assert.Equal("HD Webcam eMeet C960", ex.DeviceName);
+            Assert.Contains("could not be opened", ex.Message);
+            Assert.Contains("STILL RUNNING", ex.Message);
+            Assert.Equal(1, proc.Kills);
+            Assert.False(proc.HasExited, "the fake ffmpeg is meant to survive this kill - otherwise the test proves nothing");
+            Assert.Equal(0, proc.Disposes);   // the handle to a LIVE process is the only way back to it
+
+            // ... and the owner really can try again, which is what keeping the handle is FOR.
+            rec.Dispose();
+            Assert.Equal(2, proc.Kills);
+            Assert.Equal(0, proc.Disposes);
+        }
+
+        [Fact]
+        public void Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry()
+        {
+            // The other arm the gate named: Kill throwing (access denied, or an already-exiting
+            // race) must be judged by the WAIT that follows, not by the fact that a kill was issued.
+            // Bad result: a UsageException that reads like an ordinary failed open, or a disposed
+            // wrapper.
+            var proc = new FakeCameraProcess
+            {
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = false,
+                KillEndsIt = false,
+                KillThrows = true,
+            };
+            var rec = Create(proc, openTimeoutSeconds: 0.2);
+
+            var ex = Assert.Throws<CameraStopFailedException>(() => rec.Open());
+
+            Assert.Contains("STILL RUNNING", ex.Message);
+            Assert.Equal(1, proc.Kills);
+            Assert.False(proc.HasExited);
+            Assert.Equal(0, proc.Disposes);
+        }
+
+        [Fact]
+        public void Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle()
+        {
+            // POSITIVE CONTROL for the two above, and the reason they cannot be satisfied by a
+            // recorder that simply never disposes anything. The first kill is refused; the owner
+            // retries through Dispose, the process dies, and only THEN is the handle released.
+            //
+            // Bad result: Disposes == 0 after the process is confirmed gone (a handle leaked on the
+            // recovery path), or HasExited == false (the retry never terminated anything).
+            var proc = new FakeCameraProcess
+            {
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = false,
+                KillEndsIt = false,
+            };
+            var rec = Create(proc, openTimeoutSeconds: 0.2);
+            Assert.Throws<CameraStopFailedException>(() => rec.Open());
+
+            proc.KillEndsIt = true;      // the second kill lands
+            rec.Dispose();
+
+            Assert.Equal(2, proc.Kills);
+            Assert.True(proc.HasExited, "the retry must actually terminate the process");
+            Assert.Equal(1, proc.Disposes);
+        }
+
+        [Fact]
+        public void Open_CalledTwice_RefusesToStartASecondFfmpeg()
+        {
+            // The two-phase split hands the caller an object between Create and Open, so "open it
+            // again" becomes expressible for the first time. A second Start on the same recorder
+            // would put a second ffmpeg on the camera with only one handle to reach it.
+            var proc = new FakeCameraProcess();
+            var rec = StartOver(proc);
+
+            Assert.Throws<InvalidOperationException>(() => rec.Open());
+            rec.Dispose();
         }
 
         [Fact]
@@ -403,20 +556,63 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Stop_AfterAFailedTermination_DisposeTriesToTerminateTheProcessAgain()
+        public void Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt()
         {
-            // The second half of defect 2: _stopped was set at the TOP of Stop, so after a failed
-            // termination Dispose short-circuited and the object's last chance at the device was
-            // gone. Disposing a Process does not terminate the OS process.
+            // THIS TEST WAS ITSELF A DEFECT, and the Review Gate said so in round 3: it set
+            // KillEndsIt = false, then asserted only that a second kill had been ATTEMPTED and that
+            // the wrapper had been disposed. Both of those are true whether or not ffmpeg died, so
+            // it certified a lifetime guarantee it never checked - a check that FAILS OPEN. It is
+            // rewritten here to assert the guarantee itself, and it fails against the code it was
+            // written for.
             //
-            // Bad result: Kills stays at 1 - the retry never happened.
+            // THE GUARANTEE: while the camera ffmpeg is still alive, the recorder keeps the ONLY
+            // thing that can still reach it. Dispose retries the stop and, when that retry also
+            // cannot confirm the process gone, it KEEPS the process handle - because
+            // ICameraProcess.Dispose closes a handle and terminates nothing, so releasing it there
+            // converts a reported failure into an invisible one while RecordingService goes back to
+            // idle and releases the recording claim.
+            //
+            // Bad results this fires on: Kills == 1 (no retry at all), or Disposes == 1 (the handle
+            // to a LIVE process was released - which is exactly what the round-2 code did, and what
+            // the old assertion demanded).
             var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
             var rec = StartOver(proc);
 
             Assert.Throws<CameraStopFailedException>(() => rec.Stop());
             rec.Dispose();
 
+            Assert.False(proc.HasExited,
+                "this test only means anything while the fake ffmpeg is still alive after both kills");
             Assert.Equal(2, proc.Kills);
+            Assert.Equal(0, proc.Disposes);
+
+            // And the object is still a working handle on that process, not a husk: a third attempt
+            // is available to whoever reads the failure off /status.
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());
+            Assert.Equal(3, proc.Kills);
+        }
+
+        [Fact]
+        public void Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle()
+        {
+            // POSITIVE CONTROL for the test above - without it, a Dispose that NEVER released the
+            // handle would pass, and the recorder would leak a Process object on every clean
+            // recording. Here the second kill lands, so the process is confirmed gone and the handle
+            // is released exactly once.
+            //
+            // Bad result: Disposes == 0 (a handle leaked once the process really is dead).
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            var rec = StartOver(proc);
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());
+            proc.KillEndsIt = true;        // the second kill lands
+            rec.Dispose();
+
+            Assert.Equal(2, proc.Kills);
+            Assert.True(proc.HasExited);
+            Assert.Equal(1, proc.Disposes);
+
+            rec.Dispose();                 // and disposing again is a no-op, not a second release
             Assert.Equal(1, proc.Disposes);
         }
 
@@ -473,12 +669,12 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Stop_WhenTheCameraOpenedAndThenNeverDeliveredAFrame_StillReportsTheLoss()
+        public void Stop_WhenTheCameraDiedAfterOpeningWithoutDeliveringAFrame_StillReportsTheLoss()
         {
-            // The case the open probe now hands to decision 4 instead of failing the start: ffmpeg
-            // reported the camera and the file open, and then produced no encoded output at all. It
-            // must NOT be a silent screen-only recording - the track is reported LOST, camera.mp4 is
-            // marked truncated in the manifest, and it carries the honest 0.0s.
+            // The case the open probe hands to decision 4 instead of failing the start, on the arm
+            // that was already covered: ffmpeg reported the camera and the file open, produced no
+            // encoded output at all, and then DIED. The track is reported LOST, camera.mp4 is marked
+            // truncated in the manifest, and it carries the honest 0.0s.
             //
             // Bad result: LostMidRun == false, i.e. the manifest tells an editor the take is complete.
             var proc = new FakeCameraProcess { ReportsProgressOnStart = false };
@@ -489,6 +685,98 @@ namespace AgentEyes.Tests
 
             Assert.True(rec.LostMidRun, "a camera that opened and then produced nothing is a TRUNCATED track");
             Assert.Equal(0.0, rec.CapturedSeconds, 3);
+        }
+
+        [Fact]
+        public void Stop_WhenALIVECameraOpenedAndNeverDeliveredAFrame_StillReportsTheLoss()
+        {
+            // THE DEFECT (gate round 3, defect 3). The test above calls End(1) FIRST, so it only
+            // ever walked the already-exited path - and that is the ONE path the code checked. The
+            // path the header-based open probe actually created was never covered: ffmpeg prints
+            // both headers, the camera or its driver then stalls WITHOUT producing any "time="
+            // progress while the process stays perfectly alive, and later answers "q" like a healthy
+            // recorder. That stop recorded CapturedSeconds == 0 and LostMidRun == false, so the
+            // manifest wrote "cameraTruncated": false over an EMPTY camera.mp4 and emitted no loss
+            // warning. The user finds out in an editor.
+            //
+            // "The device opened" is not "the device produced video". The only evidence camera.mp4
+            // contains anything is ffmpeg's own report that it wrote output, so its ABSENCE is a
+            // lost track whether the process is alive or dead.
+            //
+            // Bad result this fires on: LostMidRun == false. Empty result: impossible - LostMidRun
+            // is a bool read after a Stop that is asserted not to throw.
+            var proc = new FakeCameraProcess { ReportsProgressOnStart = false };
+            using var rec = StartOver(proc);
+
+            Assert.False(proc.HasExited, "the subject of this test is a camera that is STILL RUNNING at the stop");
+
+            rec.Stop();                    // answers "q" normally, exits 0, like a healthy camera
+
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(0, proc.Kills);   // nothing was wrong with the PROCESS; the FILE is empty
+            Assert.True(rec.LostMidRun,
+                "a camera that opened and then never reported writing a frame leaves an EMPTY camera.mp4 - "
+                + "recording it as a complete take tells an editor the file is good");
+            Assert.Equal(0.0, rec.CapturedSeconds, 3);
+        }
+
+        [Fact]
+        public void Stop_WhenTheCameraReportedOnlyAZeroOutputPosition_StillReportsTheLoss()
+        {
+            // The same rule one notch finer. ffmpeg prints progress ticks before it has encoded
+            // anything - "time=N/A" first, then "time=00:00:00.00" - so counting ANY tick as
+            // "it wrote output" would re-open the hole with an extra step. Only a POSITIVE output
+            // position is evidence that camera.mp4 has content.
+            //
+            // Bad result: LostMidRun == false.
+            var proc = new FakeCameraProcess { ReportsProgressOnStart = false };
+            using var rec = StartOver(proc);
+            proc.Emit("frame=    0 fps=0.0 q=0.0 size=       0KiB time=N/A bitrate=N/A speed=N/A");
+            proc.Emit("frame=    0 fps=0.0 q=0.0 size=       0KiB time=00:00:00.00 bitrate=N/A speed=0x");
+
+            rec.Stop();
+
+            Assert.True(rec.LostMidRun, "a tick at position zero is not a frame");
+            Assert.Equal(0.0, rec.CapturedSeconds, 3);
+        }
+
+        [Fact]
+        public void Stop_ReadsTheZeroFrameVerdictFromCOMPLETEStderr()
+        {
+            // The instrument behind the rule above, and the reason it is not itself a check that
+            // fails open. "No progress tick arrived" is only an absence once ffmpeg's stderr is
+            // finished: Process.WaitForExit(int) does not flush the asynchronous readers, so a real
+            // camera's LAST tick can still be in flight at the moment the process is already gone,
+            // and a stop that judged the track right then would call a good short recording empty.
+            //
+            // Bad result: Drains == 0, i.e. the verdict was reached without waiting for the stream
+            // to end.
+            var proc = new FakeCameraProcess();
+            using var rec = StartOver(proc);
+
+            rec.Stop();
+
+            Assert.Equal(1, proc.Drains);
+            Assert.False(rec.LostMidRun);   // and the drained stderr DID carry a tick, so it is a good take
+        }
+
+        [Fact]
+        public void Stop_WhenTheStderrNeverReachesEndOfStream_StillReportsTheLossRatherThanAssumingATake()
+        {
+            // The third arm of the drain: an EMPTY result is a broken instrument, never a clean run.
+            // When the stderr cannot be drained the recorder does not know what ffmpeg wrote - and
+            // "we could not read it" must not become "it was fine". The track is reported LOST and
+            // the incomplete read is logged.
+            //
+            // Bad result: LostMidRun == false because the unreadable stream was given the benefit of
+            // the doubt.
+            var proc = new FakeCameraProcess { ReportsProgressOnStart = false, StderrReachesEof = false };
+            using var rec = StartOver(proc);
+
+            rec.Stop();
+
+            Assert.Equal(1, proc.Drains);
+            Assert.True(rec.LostMidRun);
         }
 
         [Fact]
@@ -534,19 +822,101 @@ namespace AgentEyes.Tests
             // Read from IL because a `using` declaration writes no "finally" in the source and a text
             // scan cannot say which call a boundary covers. Bad result: no Finally among the handlers
             // (which is exactly what the merged code produced - a Catch region and nothing else).
-            var sites = CompiledCode.GuardedCalls(
-                CompiledCode.CoreAssembly, "AgentEyes.Commands::Video",
-                "AgentEyes.Video.FfmpegCameraRecorder::Start");
-
-            Assert.NotEmpty(sites);
-            foreach (var site in sites)
+            foreach (string opensTheCamera in new[]
             {
-                Assert.True(site.Handlers.Contains("Finally") || site.Handlers.Contains("Fault"),
-                    "the camera is opened at IL offset " + site.Offset + " of AgentEyes.Commands::Video with only "
-                    + $"[{string.Join(", ", site.Handlers)}] protecting it - a throw after the camera opened leaves "
-                    + "ffmpeg writing camera.mp4 and the webcam held");
-                Assert.Contains("AgentEyes.Video.FfmpegCameraRecorder::Dispose", site.CleanupCalls);
+                // BOTH halves, because the boundary has to cover the whole of the camera's life in
+                // this command: Create is where the local starts pointing at a recorder, Open is
+                // where an OS process appears behind it.
+                "AgentEyes.Video.FfmpegCameraRecorder::Create",
+                "AgentEyes.Video.FfmpegCameraRecorder::Open",
+            })
+            {
+                var sites = CompiledCode.GuardedCalls(
+                    CompiledCode.CoreAssembly, "AgentEyes.Commands::Video", opensTheCamera);
+
+                Assert.NotEmpty(sites);
+                foreach (var site in sites)
+                {
+                    Assert.True(site.Handlers.Contains("Finally") || site.Handlers.Contains("Fault"),
+                        $"{opensTheCamera} is called at IL offset " + site.Offset + " of AgentEyes.Commands::Video "
+                        + $"with only [{string.Join(", ", site.Handlers)}] protecting it - a throw after the camera "
+                        + "opened leaves ffmpeg writing camera.mp4 and the webcam held");
+                    Assert.Contains("AgentEyes.Video.FfmpegCameraRecorder::Dispose", site.CleanupCalls);
+                }
             }
+        }
+
+        [Fact]
+        public void EveryCallerThatOpensACamera_ConstructsTheRecorderInTheSameMethod()
+        {
+            // GATE ROUND 3, DEFECT 1, AT THE CALLERS. The stranded ffmpeg was not only a bug inside
+            // the recorder: it was unreachable because `Start` both created the recorder AND started
+            // the process, so a failure threw before ANY caller held the object -
+            // `_camera = ...` in RecordingService and `cameraRec = ...` in Commands both never
+            // completed, and the rollback each of them has stopped a null. Splitting the call in two
+            // is what fixes that, and it is only a fix while every caller keeps both halves.
+            //
+            // Bad result this fires on: a method that calls Open without calling Create - i.e. an
+            // opener that got its recorder from somewhere else and may not own it. An EMPTY result
+            // is a broken instrument: Assert.NotEmpty below fails if nothing opens a camera at all.
+            //
+            // WHAT IT CANNOT SEE, stated rather than implied: it proves the two calls are in the
+            // same method body, not their order and not that the result was stored. Order is
+            // enforced by C# itself (Open is an instance method - it cannot run before something
+            // produced the instance), and the STORAGE is what
+            // TheRecordingService_StoresTheCameraBeforeStartingIt and the Commands boundary test
+            // above cover.
+            var opens = new List<CompiledCode.CallSite>();
+            var creates = new List<CompiledCode.CallSite>();
+            foreach (string assembly in CompiledCode.ProductAssemblies())
+            {
+                opens.AddRange(CompiledCode.CallSites(assembly,
+                    c => c == "AgentEyes.Video.FfmpegCameraRecorder::Open"));
+                creates.AddRange(CompiledCode.CallSites(assembly,
+                    c => c == "AgentEyes.Video.FfmpegCameraRecorder::Create"));
+            }
+
+            Assert.NotEmpty(opens);
+            var constructors = new HashSet<string>(creates.Select(c => c.Method), StringComparer.Ordinal);
+            foreach (var open in opens)
+                Assert.True(constructors.Contains(open.Method),
+                    $"{open.Assembly}!{open.Method} starts a camera ffmpeg but never constructs the recorder - "
+                    + "it cannot be the owner that stops one whose open failed");
+        }
+
+        [Fact]
+        public void TheRecordingService_StoresTheCameraBeforeStartingIt()
+        {
+            // The service's half of the same ownership. Its rollback is LiveWriters, which reads the
+            // _camera FIELD, so the field must hold the recorder BEFORE the process exists - the
+            // rule issue #155 already states for every other writer ("a field is set the moment its
+            // writer is constructed, so a writer whose Start threw is still in here").
+            //
+            // Read from the SOURCE, and that limit is the point of saying so: the ordering of a field
+            // store against a call is not something CompiledCode can report today (CallsIn refuses a
+            // method whose body the compiler split into lambdas, which this one is). A source scan is
+            // defeated by an alias or a helper - so it is paired with the IL check above, which sees
+            // the calls wherever they are spelled, and with the behavioural tests that prove the
+            // recorder survives a failed Open.
+            //
+            // Bad result: the store does not appear before the Open, e.g. because the two were merged
+            // back into one expression. EMPTY result: RepoSource.Read and MethodBody both throw when
+            // the file or the method is gone, so this cannot pass by reading nothing.
+            string startVideo = RepoSource.MethodBody(
+                RepoSource.Read(Path.Combine("src", "AgentEyes.Core", "RecordingService.cs")),
+                "public void StartVideo(");
+
+            int stored = startVideo.IndexOf("_camera = FfmpegCameraRecorder.Create(", StringComparison.Ordinal);
+            int opened = startVideo.IndexOf("_camera.Open();", StringComparison.Ordinal);
+
+            Assert.True(stored >= 0,
+                "StartVideo no longer stores the camera recorder in _camera as it constructs it - LiveWriters "
+                + "reads that field, and a start failure would have nothing to stop");
+            Assert.True(opened >= 0,
+                "StartVideo no longer opens the camera through the recorder it stored in _camera");
+            Assert.True(stored < opened,
+                "StartVideo starts the camera ffmpeg BEFORE _camera holds the recorder - a failed open would "
+                + "again leave a live ffmpeg on the webcam that the rollback cannot reach");
         }
 
         [Fact]
@@ -557,7 +927,7 @@ namespace AgentEyes.Tests
             // forever after any rename. It throws instead - proven here, not assumed.
             Assert.Throws<InvalidOperationException>(() => CompiledCode.GuardedCalls(
                 CompiledCode.CoreAssembly, "AgentEyes.Commands::NoSuchCommand",
-                "AgentEyes.Video.FfmpegCameraRecorder::Start"));
+                "AgentEyes.Video.FfmpegCameraRecorder::Open"));
 
             Assert.Throws<InvalidOperationException>(() => CompiledCode.GuardedCalls(
                 CompiledCode.CoreAssembly, "AgentEyes.Commands::Video",

@@ -355,8 +355,21 @@ namespace AgentEyes
                 {
                     steps.Add(new RecordingStartStep("camera", () =>
                     {
-                        _camera = FfmpegCameraRecorder.Start(
+                        // CONSTRUCTED AND STORED BEFORE FFMPEG EXISTS, and that ordering is the fix
+                        // for issue #28 gate round 3, defect 1 - the same rule every other writer
+                        // here already follows (issue #155): the field is set the moment the writer
+                        // is constructed, so a writer whose start threw is still in LiveWriters and
+                        // still gets stopped and disposed.
+                        //
+                        // While opening the camera was one static call, its failure threw before
+                        // this assignment could complete. A camera whose open probe timed out and
+                        // whose kill was REFUSED therefore left a live ffmpeg on the webcam that
+                        // this service had no handle to: the rollback below stopped an _camera that
+                        // was still null. Now Open() fails with the recorder already in the field,
+                        // so the rollback retries the termination like any other writer.
+                        _camera = FfmpegCameraRecorder.Create(
                             dshowCamera, cameraFps, 23, Path.Combine(_dir!, "camera.mp4"));
+                        _camera.Open();
                     }));
                 }
 

@@ -7,19 +7,35 @@ using System.Threading;
 namespace AgentEyes.Video
 {
     /// <summary>
-    /// Raised when a camera stop could not get ffmpeg off the webcam (issue #28, gate defect 2).
+    /// Raised when AgentEyes could not get ffmpeg off the webcam (issue #28, gate defect 2, widened
+    /// to the START path by gate round 3, defect 1).
     ///
-    /// It exists so that "the camera is stopped" can never be a guess. A stop that sent "q", timed
-    /// out, killed, and STILL sees a live process has not stopped anything: ffmpeg is writing
+    /// It exists so that "the camera is stopped" can never be a guess. An attempt that sent "q",
+    /// timed out, killed, and STILL sees a live process has terminated nothing: ffmpeg is writing
     /// camera.mp4 and holding an exclusive DirectShow device. Reporting that as a clean stop is what
     /// let the service go idle, release the capture claim, and offer to record again while the
     /// webcam was still taken.
+    ///
+    /// It is raised from BOTH ends of the recorder's life, because the fact it reports is the same
+    /// one at both: a live ffmpeg on the camera that we asked to die and that did not. A start whose
+    /// open probe timed out and whose kill was refused strands exactly the process a failed stop
+    /// strands - the only difference is the sentence in front of it, which is what
+    /// <c>context</c> carries.
     /// </summary>
     internal sealed class CameraStopFailedException : Exception
     {
-        public CameraStopFailedException(string deviceName, string outputPath, string logPath)
-            : base($"the camera ffmpeg for \"{deviceName}\" could not be terminated - it is STILL RUNNING and "
-                   + $"still holds the camera and {outputPath}. See {logPath}.")
+        /// <param name="deviceName">The exact DirectShow device the live process still holds.</param>
+        /// <param name="outputPath">The camera.mp4 it still owns.</param>
+        /// <param name="diagnostics">Where the ffmpeg output for this camera can be read. It differs
+        /// by path: a stop writes the ffmpeg log beside camera.mp4, while a FAILED OPEN deliberately
+        /// writes nothing into the recording directory (AC8/AC9) and sends its stderr to the
+        /// application log instead - so naming a log file that does not exist would be its own
+        /// small lie.</param>
+        /// <param name="context">What was being attempted, as a sentence: the failure reads
+        /// differently at start and at stop, and the actionable fact is the same either way.</param>
+        public CameraStopFailedException(string deviceName, string outputPath, string diagnostics, string context)
+            : base($"{context}, and the camera ffmpeg for \"{deviceName}\" could not be terminated - it is "
+                   + $"STILL RUNNING and still holds the camera and {outputPath}. {diagnostics}")
         {
             DeviceName = deviceName;
         }
@@ -63,6 +79,30 @@ namespace AgentEyes.Video
     ///  3. LOST means the process ended before the user asked it to - observed from the process
     ///     itself at stop time, not from whether an exit callback happened to have been delivered
     ///     yet. The callback is a convenience; <c>HasExited</c> is the fact.
+    ///
+    /// ROUND 3 ADDED THREE MORE, and they are the same two mistakes again - "we asked it to die" is
+    /// not "it died", and "the device opened" is not "the device produced video":
+    ///
+    ///  4. A FAILED START MAY NOT STRAND FFMPEG EITHER. The open probe's kill got the same treatment
+    ///     the stop's kill used to get - logged and then ignored - and the recorder then marked
+    ///     itself terminated and released the process handle. Because the start THREW, no caller
+    ///     ever received the object, so nothing in the process still knew about the live ffmpeg on
+    ///     the webcam. That is why construction and opening are now two steps
+    ///     (<see cref="Create"/> then <see cref="Open"/>): the caller holds the recorder BEFORE
+    ///     ffmpeg exists, so a failed open is rolled back by the same owner that rolls back every
+    ///     other writer. Inside, a start whose kill was refused keeps <c>_terminated</c> false and
+    ///     keeps the handle - see <see cref="FailOpen"/>.
+    ///  5. NEITHER MAY DISPOSE. <see cref="ICameraProcess.Dispose"/> closes a HANDLE; it does not
+    ///     terminate anything. Releasing it while ffmpeg is alive converts a reported failure into
+    ///     an unreachable one, so <see cref="Dispose"/> keeps the handle when the retry could not
+    ///     confirm the process gone.
+    ///  6. A CAMERA TRACK IS ONLY "COMPLETE" WHEN FFMPEG SAID IT WROTE SOMETHING. Rule 1 opens on
+    ///     ffmpeg's headers, which is a claim about the DEVICE, not about the FILE. A camera that
+    ///     printed both headers, stalled without ever reporting output, and then answered "q"
+    ///     normally used to stop with <c>CapturedSeconds == 0</c> and <c>LostMidRun == false</c> -
+    ///     an empty camera.mp4 written into the manifest as a good take. <see cref="Stop"/> now
+    ///     draws that conclusion from ffmpeg's COMPLETE stderr (<see cref="ICameraProcess.DrainStderr"/>)
+    ///     and reports the track LOST whenever no output was ever reported, alive or dead.
     /// </summary>
     internal sealed class FfmpegCameraRecorder : IDisposable
     {
@@ -83,6 +123,15 @@ namespace AgentEyes.Video
         /// <summary>How long the kill is given before the stop is declared FAILED.</summary>
         private const int KillTimeoutMs = 3000;
 
+        /// <summary>
+        /// How long a terminated camera's stderr is given to reach end of stream before the stop
+        /// draws its conclusions from it. Short, because the process has already exited by the time
+        /// this runs and the reader only has to finish handing over what it already has - and
+        /// BOUNDED, because a stop that hangs is worse than a stop that reports what it could not
+        /// see (see <see cref="ICameraProcess.DrainStderr"/>).
+        /// </summary>
+        private const int StderrDrainMs = 2000;
+
         private readonly ICameraProcess _proc;
         private readonly StringBuilder _stderr = new();
         private readonly string _logPath;
@@ -101,6 +150,17 @@ namespace AgentEyes.Video
         private bool _terminated;
 
         /// <summary>
+        /// Set only when the process HANDLE has been released, which may only happen once
+        /// <see cref="_terminated"/> is true. Keeping the two apart is rule 5: disposing the wrapper
+        /// is not a way of stopping anything, it is a way of forgetting.
+        /// </summary>
+        private bool _disposed;
+
+        /// <summary>Set by <see cref="Open"/> so the process can never be started twice behind one
+        /// recorder - a second ffmpeg on the same camera would be a leak nothing owns.</summary>
+        private bool _openAttempted;
+
+        /// <summary>
         /// The output position ffmpeg last reported (its "time=" progress field), in milliseconds -
         /// the number of seconds of camera actually written. Read at stop for the manifest, and it is
         /// the ONLY honest answer for a camera that died mid-run: wall time would claim footage the
@@ -109,11 +169,18 @@ namespace AgentEyes.Video
         private long _mediaMs;
 
         /// <summary>
-        /// Set the first time ffmpeg reports a progress tick carrying a real output position. It is
-        /// NOT what the open probe waits for - see <see cref="StartAndProbe"/> - because libx264's
-        /// frame threading holds the first encoded frame back by seconds. It is kept because it is
-        /// the honest answer to "did this camera ever produce encoded output", which is worth having
-        /// in the stop log.
+        /// Set the first time ffmpeg reports a progress tick carrying a POSITIVE output position. It
+        /// is NOT what the open probe waits for - see <see cref="StartAndProbe"/> - because libx264's
+        /// frame threading holds the first encoded frame back by seconds.
+        ///
+        /// It is the only evidence this class ever has that camera.mp4 contains anything, so
+        /// <see cref="Stop"/> reads it as rule 6: no reported output means the track is LOST, not
+        /// complete. Round 2 merely logged it, which is how a camera that opened and then produced
+        /// nothing reached the manifest as a clean 0.0-second take.
+        ///
+        /// Strictly positive on purpose: ffmpeg prints a first tick before it has encoded anything
+        /// (<c>time=00:00:00.00</c>, and <c>time=N/A</c> before that), and reading a zero position as
+        /// "it wrote output" would re-open the exact hole this closes.
         /// </summary>
         private volatile bool _wroteOutput;
 
@@ -179,21 +246,26 @@ namespace AgentEyes.Video
         }
 
         /// <summary>
-        /// Open the camera and start writing <paramref name="outPath"/>.
+        /// Build the recorder for a camera. NOTHING IS STARTED HERE - no ffmpeg, no file, no device
+        /// held - so this cannot fail in a way that leaves anything behind. <see cref="Open"/> is
+        /// what puts a process in the world.
         ///
-        /// Throws <see cref="UsageException"/> naming the camera when ffmpeg cannot open the device -
-        /// absent, in use by another application, refusing the requested framerate, or simply never
-        /// producing a frame. That is decision 3: a camera recording that cannot film the camera
-        /// FAILS, it never silently records screen-only.
+        /// THE SPLIT IS THE FIX FOR GATE ROUND 3, DEFECT 1, and it is the only shape that closes it.
+        /// While opening the camera was one static call, a failure inside it threw before the caller
+        /// could be handed the object - so when the probe timed out and the kill was REFUSED, the
+        /// live ffmpeg on the webcam belonged to nobody: not to the service, whose <c>_camera</c>
+        /// assignment never completed and whose rollback therefore had nothing to stop, and not to
+        /// the CLI, whose <c>finally</c> disposed a null. Constructing first means the owner holds
+        /// the recorder BEFORE the process exists, so every failure of <see cref="Open"/> is rolled
+        /// back by the same owner, through the same Stop/Dispose retry as any other failure.
         ///
-        /// NOTHING is written into the recording directory on that failure path - not even an ffmpeg
-        /// log - because a failed start must leave no directory behind for the Library and the repair
-        /// passes to find (issue #28, AC8/AC9). ffmpeg's stderr goes to the APPLICATION log instead,
-        /// where it is just as diagnosable and belongs to no recording.
+        /// It is also how this class matches the rule the rest of the capture engine already follows
+        /// (issue #155): "a field is set the moment its writer is constructed, so a writer whose
+        /// Start threw is still in <c>LiveWriters</c> and still gets stopped and disposed."
         /// </summary>
-        public static FfmpegCameraRecorder Start(string dshowCameraName, int fps, int crf, string outPath)
+        public static FfmpegCameraRecorder Create(string dshowCameraName, int fps, int crf, string outPath)
         {
-            Log.Info($"[FfmpegCameraRecorder] Start: camera=\"{dshowCameraName}\" fps={fps} crf={crf} out={outPath}");
+            Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" fps={fps} crf={crf} out={outPath}");
 
             string exe = FfmpegLocator.Ffmpeg();
             var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath);
@@ -211,29 +283,53 @@ namespace AgentEyes.Video
             psi.ArgumentList.Add("-hide_banner");
             foreach (var a in args) psi.ArgumentList.Add(a);
 
-            var rec = new FfmpegCameraRecorder(
+            return new FfmpegCameraRecorder(
                 new FfmpegCameraProcess(psi, dshowCameraName), dshowCameraName, outPath, cmd,
                 outPath + ".ffmpeg.log", DateTime.UtcNow, OpenTimeout);
-            rec.StartAndProbe();
-
-            Log.Info($"[FfmpegCameraRecorder] Start: camera=\"{dshowCameraName}\" is recording to {outPath}");
-            return rec;
         }
 
         /// <summary>
         /// The same recorder over a supplied process - the seam the failure-path tests drive
-        /// (issue #28, gate round 2). Identical logic to <see cref="Start"/> from the moment the
+        /// (issue #28, gate round 2). Identical logic to <see cref="Create"/> from the moment the
         /// process starts; only the process and the probe deadline are injected, so a test can reach
         /// the delayed-failure, failed-termination and exit/stop-race paths that a real ffmpeg will
         /// not perform on request.
         /// </summary>
-        internal static FfmpegCameraRecorder StartOver(ICameraProcess proc, string deviceName, string outPath,
-            string logPath, TimeSpan openTimeout)
+        internal static FfmpegCameraRecorder CreateOver(ICameraProcess proc, string deviceName, string outPath,
+            string logPath, TimeSpan openTimeout) =>
+            new(proc, deviceName, outPath, "(supplied process)", logPath, DateTime.UtcNow, openTimeout);
+
+        /// <summary>
+        /// Start ffmpeg and hold until this camera has PROVED it is open - then this recorder is
+        /// recording <see cref="OutputPath"/>.
+        ///
+        /// Throws <see cref="UsageException"/> naming the camera when ffmpeg cannot open the device -
+        /// absent, in use by another application, refusing the requested framerate, or simply never
+        /// producing a frame. That is decision 3: a camera recording that cannot film the camera
+        /// FAILS, it never silently records screen-only.
+        ///
+        /// Throws <see cref="CameraStopFailedException"/> in the one worse case: the open failed AND
+        /// the stalled ffmpeg survived the kill. That is not a user error, it is a live process on
+        /// the webcam, and it is reported as such. The recorder is still usable after either throw -
+        /// its owner (which holds it, because <see cref="Create"/> ran first) can and does call
+        /// <see cref="Stop"/>/<see cref="Dispose"/> to try again.
+        ///
+        /// NOTHING is written into the recording directory on either failure path - not even an
+        /// ffmpeg log - because a failed start must leave no directory behind for the Library and the
+        /// repair passes to find (issue #28, AC8/AC9). ffmpeg's stderr goes to the APPLICATION log
+        /// instead, where it is just as diagnosable and belongs to no recording.
+        /// </summary>
+        public void Open()
         {
-            var rec = new FfmpegCameraRecorder(
-                proc, deviceName, outPath, "(supplied process)", logPath, DateTime.UtcNow, openTimeout);
-            rec.StartAndProbe();
-            return rec;
+            if (_openAttempted)
+                throw new InvalidOperationException(
+                    $"the camera \"{DeviceName}\" has already been opened once by this recorder - "
+                    + "opening it again would start a second ffmpeg that nothing owns");
+            _openAttempted = true;
+
+            Log.Info($"[FfmpegCameraRecorder] Open: camera=\"{DeviceName}\" out={OutputPath}");
+            StartAndProbe();
+            Log.Info($"[FfmpegCameraRecorder] Open: camera=\"{DeviceName}\" is recording to {OutputPath}");
         }
 
         /// <summary>
@@ -349,39 +445,74 @@ namespace AgentEyes.Video
             line != null && line.StartsWith("Output #0", StringComparison.Ordinal);
 
         /// <summary>
-        /// Give up on a camera that never started recording: make sure ffmpeg is gone, release the
-        /// process, and BUILD the actionable failure. Returns the exception so that every caller is
-        /// a visible `throw` - a helper that only throws by convention is one edit away from falling
-        /// through into "opened".
+        /// Give up on a camera that never started recording: make sure ffmpeg is gone and BUILD the
+        /// actionable failure. Returns the exception so that every caller is a visible `throw` - a
+        /// helper that only throws by convention is one edit away from falling through into
+        /// "opened".
+        ///
+        /// GATE ROUND 3, DEFECT 1 LIVES IN THE LAST HALF OF THIS METHOD. It used to kill, LOG that
+        /// the kill had failed, and then mark itself terminated and release the process handle
+        /// anyway - so "we asked ffmpeg to die" was recorded as "ffmpeg died". Because
+        /// <see cref="Open"/> throws, the recorder was never handed to anyone, and closing the
+        /// handle made the surviving ffmpeg - still holding the webcam and still writing
+        /// camera.mp4 - unreachable for the rest of the process's life.
+        ///
+        /// Now the two outcomes are told apart, and only one of them is an open failure:
+        ///
+        ///  - CONFIRMED GONE: the camera is free, this recorder is finished, the handle is released,
+        ///    and the caller gets the <see cref="UsageException"/> that names the real cause. This is
+        ///    every failure a user actually hits (absent, busy, unsupported framerate: ffmpeg exits
+        ///    by itself, so there is nothing to kill) and it is the path AC8/AC9 measure.
+        ///  - STILL RUNNING: <c>_terminated</c> stays false and the handle is KEPT, so the owner -
+        ///    which holds this object, because <see cref="Create"/> ran before <see cref="Open"/> -
+        ///    can retry through <see cref="Stop"/>/<see cref="Dispose"/>. The failure raised says
+        ///    what is actually true: a live ffmpeg is on the camera.
         /// </summary>
         private Exception FailOpen(string logReason, string userReason, bool killFirst)
         {
             string err = _stderr.ToString();
             // Deliberately NOT written into the recording directory: a failed start must leave no
             // recording behind for the Library and the repair passes to find (AC8/AC9).
-            Log.Error($"[FfmpegCameraRecorder] Start FAILED: camera=\"{DeviceName}\" {logReason} "
+            Log.Error($"[FfmpegCameraRecorder] Open FAILED: camera=\"{DeviceName}\" {logReason} "
                       + $"cmd={CommandLine}{Environment.NewLine}{err}");
+
+            // Nothing that happens from here is a mid-run loss - this camera never opened - so the
+            // exit callback must stay quiet.
+            _stopRequested = true;
 
             // A probe that timed out is looking at a LIVE process holding the webcam. Leaving it
             // there would trade the defect the gate found for a worse one.
             if (killFirst && !_proc.HasExited)
             {
                 try { _proc.Kill(); }
-                catch (Exception ex) { Log.Error($"[FfmpegCameraRecorder] Start: killing the stalled ffmpeg for \"{DeviceName}\" failed", ex); }
-                if (!_proc.WaitForExit(KillTimeoutMs))
-                    Log.Error($"[FfmpegCameraRecorder] Start: the stalled ffmpeg for \"{DeviceName}\" is STILL RUNNING "
-                              + "after the kill - it still holds the camera");
+                catch (Exception ex) { Log.Error($"[FfmpegCameraRecorder] Open: killing the stalled ffmpeg for \"{DeviceName}\" failed", ex); }
+                _proc.WaitForExit(KillTimeoutMs);
             }
 
-            // Nothing left to stop, and nothing to write: short-circuit Dispose so it cannot put the
-            // ffmpeg log into the recording directory this start must leave empty.
-            _stopRequested = true;
-            _terminated = true;
-            _proc.Dispose();
+            if (_proc.HasExited)
+            {
+                // Confirmed gone. Nothing left to stop, and nothing to write: short-circuit Stop and
+                // Dispose so neither can put the ffmpeg log into the recording directory this failed
+                // start must leave empty.
+                _terminated = true;
+                _disposed = true;
+                _proc.Dispose();
 
-            return new UsageException(
-                $"the camera \"{DeviceName}\" could not be opened {userReason}. "
-                + "Likely cause: " + DiagnoseOpenFailure(err, DeviceName));
+                return new UsageException(
+                    $"the camera \"{DeviceName}\" could not be opened {userReason}. "
+                    + "Likely cause: " + DiagnoseOpenFailure(err, DeviceName));
+            }
+
+            // STILL RUNNING. _terminated stays false and the handle is NOT released: this object is
+            // the only thing that can still reach that process, and its owner is holding it.
+            Log.Error($"[FfmpegCameraRecorder] Open FAILED: the stalled ffmpeg for \"{DeviceName}\" is STILL "
+                      + $"RUNNING after the kill - it still holds the camera and {OutputPath}. The process "
+                      + "handle is KEPT so the recorder's owner can try again through Stop/Dispose.");
+
+            return new CameraStopFailedException(
+                DeviceName, OutputPath,
+                "See the application log for the ffmpeg error from this camera.",
+                $"the camera \"{DeviceName}\" could not be opened {userReason}");
         }
 
         private void OnStderrLine(string line)
@@ -397,11 +528,12 @@ namespace AgentEyes.Video
             // so each "time=" tick arrives here as its own line. Shared with the screen recorder
             // rather than parsed a second way.
             long ms = FfmpegRecorder.ParseProgressMs(line);
-            if (ms >= 0)
-            {
-                Interlocked.Exchange(ref _mediaMs, ms);
-                _wroteOutput = true;
-            }
+            if (ms >= 0) Interlocked.Exchange(ref _mediaMs, ms);
+
+            // Strictly POSITIVE, and that is rule 6 in one line: ffmpeg prints ticks before it has
+            // encoded anything ("time=00:00:00.00", and "time=N/A" earlier still), so a zero
+            // position is not evidence that camera.mp4 contains a single frame.
+            if (ms > 0) _wroteOutput = true;
         }
 
         /// <summary>
@@ -431,6 +563,13 @@ namespace AgentEyes.Video
         /// the webcam and the output file, and the caller must report a failed stop rather than go
         /// idle. Safe to call again - <see cref="Dispose"/> does exactly that, and the retry is the
         /// last chance the recording has to get the device back.
+        ///
+        /// It is also where rule 6 is decided (gate round 3, defect 3). The open probe proves the
+        /// DEVICE opened; only ffmpeg's progress proves the FILE got anything. So once the process is
+        /// confirmed gone, this waits for ffmpeg's stderr to be COMPLETE and then reports the track
+        /// LOST if no output position was ever reported - whether the camera died on its own or
+        /// answered "q" like a healthy one. A silent camera and a dead camera produce the same empty
+        /// camera.mp4, and the manifest must say the same thing about both.
         /// </summary>
         public void Stop()
         {
@@ -456,40 +595,97 @@ namespace AgentEyes.Video
 
             if (!_proc.HasExited)
             {
-                try
+                if (_opened)
                 {
-                    _proc.SendQuit();
-                }
-                catch (Exception ex)
-                {
-                    // stdin closes when ffmpeg exits; that is the mid-run-loss case, already reported.
-                    Log.Warn($"[FfmpegCameraRecorder] Stop: could not send 'q' to the camera ffmpeg "
-                             + $"(\"{DeviceName}\"): {ex.Message}");
-                }
-
-                if (!_proc.WaitForExit(QuitTimeoutMs))
-                {
-                    Log.Warn($"[FfmpegCameraRecorder] Stop: the camera ffmpeg (\"{DeviceName}\") did not quit "
-                             + $"within {QuitTimeoutMs / 1000}s - killing it; camera.mp4 may be truncated");
-                    try { _proc.Kill(); }
-                    catch (Exception ex) { Log.Error($"[FfmpegCameraRecorder] Stop: kill failed for \"{DeviceName}\"", ex); }
-
-                    if (!_proc.WaitForExit(KillTimeoutMs))
+                    try
                     {
-                        // The whole point of gate defect 2: this is NOT a stop. ffmpeg is alive, it
-                        // still holds an exclusive DirectShow device and still owns camera.mp4.
-                        // _terminated stays false, so Dispose gets one more attempt at it.
-                        WriteFfmpegLog();
-                        Log.Error($"[FfmpegCameraRecorder] Stop FAILED: the camera ffmpeg (\"{DeviceName}\") survived "
-                                  + $"the kill and is still running - it still holds the camera and {OutputPath}");
-                        throw new CameraStopFailedException(DeviceName, OutputPath, _logPath);
+                        _proc.SendQuit();
                     }
+                    catch (Exception ex)
+                    {
+                        // stdin closes when ffmpeg exits; that is the mid-run-loss case, already reported.
+                        Log.Warn($"[FfmpegCameraRecorder] Stop: could not send 'q' to the camera ffmpeg "
+                                 + $"(\"{DeviceName}\"): {ex.Message}");
+                    }
+
+                    if (!_proc.WaitForExit(QuitTimeoutMs))
+                    {
+                        Log.Warn($"[FfmpegCameraRecorder] Stop: the camera ffmpeg (\"{DeviceName}\") did not quit "
+                                 + $"within {QuitTimeoutMs / 1000}s - killing it; camera.mp4 may be truncated");
+                        KillOrThrow();
+                    }
+                }
+                else
+                {
+                    // The retry a FAILED OPEN leaves behind (gate round 3, defect 1). A camera that
+                    // never reported itself open has no finalized MP4 to protect, so it gets none of
+                    // the "q" grace assumption A6 exists for - waiting 8 seconds to be polite to a
+                    // process that is holding a webcam it never opened helps nobody.
+                    Log.Warn($"[FfmpegCameraRecorder] Stop: the camera ffmpeg (\"{DeviceName}\") never reported the "
+                             + "camera open and is STILL RUNNING - killing it");
+                    KillOrThrow();
                 }
             }
 
+            // Only now: the process is CONFIRMED gone, on every path that reaches this line.
             _terminated = true;
-            WriteFfmpegLog();
-            Log.Info($"[FfmpegCameraRecorder] Stop: camera=\"{DeviceName}\" done, {CapturedSeconds:F1}s in {OutputPath}");
+
+            if (_opened)
+            {
+                // Rule 6, and it is deliberately read from COMPLETE stderr. Process.WaitForExit(int)
+                // does not flush the asynchronous readers, so ffmpeg's last progress tick can still
+                // be in flight when the process is already gone - and "no tick arrived" read off a
+                // half-delivered stream is not an absence, it is an unfinished read.
+                if (!_proc.DrainStderr(StderrDrainMs))
+                    Log.Warn($"[FfmpegCameraRecorder] Stop: the camera ffmpeg (\"{DeviceName}\") exited but its "
+                             + $"stderr did not reach end of stream within {StderrDrainMs}ms - what follows is "
+                             + "read from an INCOMPLETE log");
+
+                if (!_wroteOutput && !_lostMidRun)
+                {
+                    // The case the header-based open probe hands to decision 4: ffmpeg said the
+                    // camera and camera.mp4 were open, then never reported writing a single frame,
+                    // and still answered "q" like a healthy process. CapturedSeconds is 0.0, so
+                    // calling the track complete would put "a finished take of zero seconds" in the
+                    // manifest and tell an editor the file is good.
+                    _lostMidRun = true;
+                    Log.Warn($"[FfmpegCameraRecorder] Stop: the camera \"{DeviceName}\" opened but never reported "
+                             + $"writing any video - camera.mp4 is EMPTY and the track is recorded as truncated at "
+                             + $"0.0s; the screen recording is unaffected. See {_logPath}");
+                }
+
+                WriteFfmpegLog();
+            }
+
+            Log.Info($"[FfmpegCameraRecorder] Stop: camera=\"{DeviceName}\" done, {CapturedSeconds:F1}s in {OutputPath} "
+                     + $"lostMidRun={_lostMidRun}");
+        }
+
+        /// <summary>
+        /// Kill the process and CONFIRM it is gone, or throw. Returning normally from here means the
+        /// operating system says the process has ended - never that a kill was issued (gate defect 2,
+        /// and gate round 3 defect 1 on the start path).
+        ///
+        /// The kill's own exception is logged rather than propagated on purpose: "Kill threw" and
+        /// "Kill returned but the process lived" are the same outcome, and both have to be judged by
+        /// the wait that follows rather than by which of them happened.
+        /// </summary>
+        private void KillOrThrow()
+        {
+            try { _proc.Kill(); }
+            catch (Exception ex) { Log.Error($"[FfmpegCameraRecorder] Stop: kill failed for \"{DeviceName}\"", ex); }
+
+            if (_proc.WaitForExit(KillTimeoutMs)) return;
+
+            // ffmpeg is alive, it still holds an exclusive DirectShow device and still owns
+            // camera.mp4. _terminated stays false, so Dispose gets one more attempt at it.
+            if (_opened) WriteFfmpegLog();
+            Log.Error($"[FfmpegCameraRecorder] Stop FAILED: the camera ffmpeg (\"{DeviceName}\") survived "
+                      + $"the kill and is still running - it still holds the camera and {OutputPath}");
+            throw new CameraStopFailedException(
+                DeviceName, OutputPath,
+                _opened ? $"See {_logPath}." : "See the application log for the ffmpeg error from this camera.",
+                _opened ? "the recording was stopped" : "the camera never opened");
         }
 
         private void WriteFfmpegLog()
@@ -529,14 +725,36 @@ namespace AgentEyes.Video
         /// because ffmpeg would not die left <c>_terminated</c> false precisely so this can try
         /// again. This is an entry point (it runs from a using/finally and from the stop sequence),
         /// so it reports rather than propagates: the caller is usually already carrying a failure.
+        ///
+        /// GATE ROUND 3, DEFECT 2. It used to suppress the retry's failure and then release the
+        /// process wrapper ANYWAY, which reads as tidy-up and is the opposite: closing the handle
+        /// does not terminate ffmpeg (<see cref="ICameraProcess.Dispose"/> disposes a
+        /// <see cref="System.Diagnostics.Process"/>, nothing more), it only throws away the last
+        /// thing in this process that could still reach a live recorder holding the webcam and
+        /// camera.mp4. So the handle is released ONLY once the OS process is confirmed gone. When it
+        /// is not, this object stays valid and stays loud, and <see cref="Stop"/> can be called
+        /// again - by the stop sequence, or by whoever reads the failure off <c>/status</c>.
         /// </summary>
         public void Dispose()
         {
+            if (_disposed) return;
+
             if (!_terminated)
             {
                 try { Stop(); }
                 catch (Exception ex) { Log.Error($"[FfmpegCameraRecorder] Dispose: stopping \"{DeviceName}\" failed", ex); }
             }
+
+            if (!_terminated)
+            {
+                Log.Error($"[FfmpegCameraRecorder] Dispose: the camera ffmpeg (\"{DeviceName}\") is STILL RUNNING "
+                          + $"after a second termination attempt - it still holds the camera and {OutputPath}. The "
+                          + "process handle is KEPT (disposing it would not end the process, only hide it); this "
+                          + "recorder can still be stopped again.");
+                return;
+            }
+
+            _disposed = true;
             _proc.Dispose();
         }
     }

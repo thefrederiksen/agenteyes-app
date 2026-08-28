@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Threading;
 
 namespace AgentEyes.Video
 {
@@ -46,6 +47,24 @@ namespace AgentEyes.Video
         /// it is STILL RUNNING - never "probably fine".</summary>
         bool WaitForExit(int milliseconds);
 
+        /// <summary>
+        /// Wait up to <paramref name="milliseconds"/> for the process's redirected stderr to reach
+        /// END OF STREAM, i.e. for every line it ever wrote to have been handed to the callback
+        /// given to <see cref="Start"/> (issue #28, gate round 3, defect 3).
+        ///
+        /// It exists because the recorder draws a conclusion from an ABSENCE - "ffmpeg never
+        /// reported writing any output, so camera.mp4 is empty" - and an absence read off a stream
+        /// that is still being delivered is not an absence at all. .NET's
+        /// <c>Process.WaitForExit(int)</c> deliberately does NOT flush the asynchronous readers, so
+        /// a process can be gone while its last progress tick is still in flight. This waits for the
+        /// EOF the reader itself reports, which is a presence, and it is bounded so a stuck pipe
+        /// cannot hang a stop.
+        ///
+        /// Returns true when EOF was observed. False means the stderr is INCOMPLETE - the caller
+        /// must not read "no tick arrived" as "no tick was ever written".
+        /// </summary>
+        bool DrainStderr(int milliseconds);
+
         /// <summary>Kill the process and everything it started.</summary>
         void Kill();
     }
@@ -63,6 +82,13 @@ namespace AgentEyes.Video
         private readonly Process _proc;
         private readonly string _deviceName;
 
+        /// <summary>
+        /// Set when the redirected stderr reports END OF STREAM (the <c>ErrorDataReceived</c> event
+        /// with a null <c>Data</c>). It is the only PRESENCE that says "ffmpeg wrote nothing more" -
+        /// see <see cref="ICameraProcess.DrainStderr"/>.
+        /// </summary>
+        private readonly ManualResetEventSlim _stderrEof = new(initialState: false);
+
         public FfmpegCameraProcess(ProcessStartInfo psi, string deviceName)
         {
             if (psi == null) throw new ArgumentNullException(nameof(psi));
@@ -77,7 +103,13 @@ namespace AgentEyes.Video
             if (onStderrLine == null) throw new ArgumentNullException(nameof(onStderrLine));
             if (onExited == null) throw new ArgumentNullException(nameof(onExited));
 
-            _proc.ErrorDataReceived += (_, e) => { if (e.Data != null) onStderrLine(e.Data); };
+            // A null Data is the reader's END OF STREAM, not a blank line: it fires once, after the
+            // last real line has been delivered. That is what DrainStderr waits for.
+            _proc.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data != null) onStderrLine(e.Data);
+                else _stderrEof.Set();
+            };
             _proc.OutputDataReceived += (_, _) => { };
             _proc.Exited += (_, _) => onExited();
 
@@ -100,8 +132,20 @@ namespace AgentEyes.Video
 
         public bool WaitForExit(int milliseconds) => _proc.WaitForExit(milliseconds);
 
+        public bool DrainStderr(int milliseconds) => _stderrEof.Wait(milliseconds);
+
         public void Kill() => _proc.Kill(entireProcessTree: true);
 
-        public void Dispose() => _proc.Dispose();
+        /// <summary>
+        /// Releases the process HANDLE. It does NOT terminate the OS process - which is exactly why
+        /// <see cref="FfmpegCameraRecorder"/> refuses to call it while the process is still alive
+        /// (issue #28, gate round 3, defects 1 and 2): closing the last handle to a live ffmpeg does
+        /// not stop it recording, it only makes it unreachable.
+        /// </summary>
+        public void Dispose()
+        {
+            _proc.Dispose();
+            _stderrEof.Dispose();
+        }
     }
 }
