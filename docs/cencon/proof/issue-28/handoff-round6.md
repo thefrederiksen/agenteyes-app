@@ -170,8 +170,12 @@ anything was committed.
   `FfmpegCameraRecorder.Create` / `Open` / `CreateOver` are untouched, so issue #33's preview tap
   wiring (`FfmpegRecorder`, `FfmpegCameraProcess`, `Create(..., PreviewTap?)`) is unaffected - the
   round-6 edits are in the fields, `Completeness`, `IsAbandoned`, `OnStderrLine` and `Stop`, none of
-  which the stack touches. The three stacked branches (#33 -> #35 -> #36) need no adaptation; a
-  merge of this branch into them touches disjoint regions of `FfmpegCameraRecorder.cs`.
+  which the stack touches. The three stacked branches (#33 -> #35 -> #36) need no adaptation, and
+  that is MEASURED, not assumed: this branch was merged into `origin/issue-36-circular-camera-overlay`
+  (which carries #33 and #35 beneath it) in a throwaway worktree, and the merged tree gave
+  `Build succeeded. 0 Error(s)` and `Passed! Failed: 0, Passed: 1152, Total: 1152`. The merge is
+  automatic - the edits sit in disjoint regions of `FfmpegCameraRecorder.cs` from the stack's
+  `Create` changes.
 
 ## How QA should exercise it
 
