@@ -1,0 +1,336 @@
+using System;
+using System.IO;
+using AgentEyes.Video;
+using Xunit;
+
+namespace AgentEyes.Tests
+{
+    /// <summary>
+    /// QA ROUND 5 INDEPENDENT PROBE (issue #28, spec amendment 2026-08-28).
+    ///
+    /// Written by the QA Agent, NOT by the Developer Agent, and deliberately using its OWN fake
+    /// process rather than the one CameraFailurePathTests supplies - a fake that hides a behaviour
+    /// hides it from every test built on it. It drives the REAL FfmpegCameraRecorder and the REAL
+    /// CameraTrackRecord.Write into a REAL Manifest, and asserts the MANIFEST STRINGS the user ends
+    /// up with, which is what AC13-AC17 are written about.
+    ///
+    /// Each case names the bad result it fires on. An empty/unreachable state is a broken
+    /// instrument, never a pass.
+    /// </summary>
+    public sealed class QaRound5ProbeTests : IDisposable
+    {
+        private readonly string _dir = Path.Combine(Path.GetTempPath(), "QaR5_" + Guid.NewGuid().ToString("N"));
+        public QaRound5ProbeTests() => Directory.CreateDirectory(_dir);
+        public void Dispose() { try { Directory.Delete(_dir, true); } catch (IOException) { } }
+
+        private string Out => Path.Combine(_dir, "camera.mp4");
+        private string LogPath => Path.Combine(_dir, "camera.mp4.ffmpeg.log");
+
+        private const string InputHeader = "Input #0, dshow, from 'video=QA Probe Cam':";
+        private const string OutputHeader = "Output #0, mp4, to 'camera.mp4':";
+
+        private static string Tick(string t) =>
+            "frame=   15 fps= 30 q=28.0 size=      64KiB time=" + t + " bitrate=1048.6kbits/s speed=1x";
+
+        /// <summary>QA's own ICameraProcess. Nothing is shared with the developer's fake.</summary>
+        private sealed class QaProc : ICameraProcess
+        {
+            private Action<string> _err;
+            private Action _exited;
+            public bool Alive = true;
+            public bool QuitKills = true;
+            public bool KillKills = true;
+            public bool KillThrows;
+            public bool StderrEof = true;
+            public int Quits, Kills, Drains, Disposes;
+            public Action OnQuit;
+            public int ExitCodeValue;
+
+            public void Start(Action<string> onStderrLine, Action onExited)
+            {
+                _err = onStderrLine;
+                _exited = onExited;
+                onStderrLine(InputHeader);
+                onStderrLine(OutputHeader);
+            }
+
+            public void Emit(string line) => _err(line);
+
+            public void DieOnItsOwn(int code)
+            {
+                Alive = false;
+                ExitCodeValue = code;
+                _exited();
+            }
+
+            public bool HasExited => !Alive;
+            public int ExitCode => ExitCodeValue;
+            public int? ProcessId => 4242;
+
+            public void SendQuit()
+            {
+                Quits++;
+                if (OnQuit != null) OnQuit();
+                if (QuitKills) { Alive = false; if (_exited != null) _exited(); }
+            }
+
+            public bool WaitForExit(int ms) => !Alive;
+
+            public bool DrainStderr(int ms) { Drains++; return StderrEof; }
+
+            public void Kill()
+            {
+                Kills++;
+                if (KillThrows) throw new InvalidOperationException("QA: kill refused by the OS");
+                if (KillKills) { Alive = false; if (_exited != null) _exited(); }
+            }
+
+            public void Dispose() => Disposes++;
+        }
+
+        private sealed class Clock
+        {
+            public DateTime NowUtc = new DateTime(2026, 8, 28, 12, 0, 0, DateTimeKind.Utc);
+            public DateTime Now() => NowUtc;
+            public void Advance(TimeSpan by) => NowUtc += by;
+        }
+
+        private static Manifest Record(FfmpegCameraRecorder rec)
+        {
+            var m = new Manifest();
+            CameraTrackRecord.Write(m, rec);
+            return m;
+        }
+
+        private Tuple<FfmpegCameraRecorder, QaProc, Clock> Open(Action<QaProc> cfg)
+        {
+            var proc = new QaProc();
+            if (cfg != null) cfg(proc);
+            var clock = new Clock();
+            var rec = FfmpegCameraRecorder.CreateOver(proc, "QA Probe Cam", Out, LogPath,
+                TimeSpan.FromSeconds(5), clock.Now);
+            rec.Open();
+            return Tuple.Create(rec, proc, clock);
+        }
+
+        // ---------------- AC17 POSITIVE CONTROL ----------------
+
+        [Fact]
+        public void AC17_HealthyCamera_ManifestSaysComplete_Yes()
+        {
+            var t = Open(null);
+            var rec = t.Item1; var proc = t.Item2; var clock = t.Item3;
+            proc.Emit(Tick("00:00:00.50"));
+            clock.Advance(TimeSpan.FromSeconds(10));
+            proc.Emit(Tick("00:00:10.50"));   // still advancing at the stop
+            rec.Stop();
+
+            var m = Record(rec);
+            Assert.Equal("clean-quit", m.CameraStopKind);
+            Assert.True(m.CameraStderrComplete);
+            Assert.Equal(10.5, m.CameraCapturedSeconds);
+            Assert.Equal("yes", m.CameraComplete);   // FIRES if the fix degenerates to always-unknown
+        }
+
+        // ---------------- AC13 ONE_TICK_STALL ----------------
+
+        [Fact]
+        public void AC13_OneTickThenStallForTheSession_IsNeverComplete()
+        {
+            var t = Open(null);
+            var rec = t.Item1; var proc = t.Item2; var clock = t.Item3;
+            proc.Emit(Tick("00:00:00.50"));            // the only real output, at t=0
+            // A STALLED ffmpeg keeps printing progress - it just never moves the position. Sixty
+            // arrivals over thirty seconds, none of them an advance: if the recorder timed the
+            // ARRIVAL instead of the ADVANCE it would read this as a camera still recording.
+            for (int i = 0; i < 60; i++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(500));
+                proc.Emit(Tick("00:00:00.50"));
+            }
+            proc.OnQuit = () => proc.Emit(Tick("00:00:00.50"));  // ffmpeg's parting flush repeats it
+            rec.Stop();
+
+            var m = Record(rec);
+            Assert.Equal(0.5, m.CameraCapturedSeconds);
+            Assert.Equal("clean-quit", m.CameraStopKind);
+            Assert.True(m.CameraStderrComplete);
+            Assert.NotEqual("yes", m.CameraComplete);
+            Assert.Contains(m.CameraComplete, new[] { "no", "unknown" });
+        }
+
+        [Fact]
+        public void AC13_PartingFlushThatAdvancesThePosition_DoesNotCertifyTheStall()
+        {
+            var t = Open(null);
+            var rec = t.Item1; var proc = t.Item2; var clock = t.Item3;
+            proc.Emit(Tick("00:00:00.50"));
+            clock.Advance(TimeSpan.FromSeconds(30));
+            proc.OnQuit = () => proc.Emit(Tick("00:00:30.00"));  // a flush that ADVANCES, after the stop
+            rec.Stop();
+
+            var m = Record(rec);
+            Assert.NotEqual("yes", m.CameraComplete);
+        }
+
+        // ---------------- AC15 INCOMPLETE STDERR ----------------
+
+        [Fact]
+        public void AC15_StderrNeverReachesEof_IsNeverComplete()
+        {
+            var t = Open(p => p.StderrEof = false);
+            var rec = t.Item1; var proc = t.Item2; var clock = t.Item3;
+            proc.Emit(Tick("00:00:00.50"));
+            clock.Advance(TimeSpan.FromMilliseconds(200));
+            proc.Emit(Tick("00:00:01.00"));   // fresh output: only the stderr is incomplete
+            rec.Stop();
+
+            var m = Record(rec);
+            Assert.False(m.CameraStderrComplete);
+            Assert.NotEqual("yes", m.CameraComplete);
+            Assert.Equal(1, proc.Drains);
+        }
+
+        // ---------------- AC14 FORCE KILL ----------------
+
+        [Fact]
+        public void AC14_ForceKilledAfterOutput_IsNotComplete_AndTheStopTellsItsCaller()
+        {
+            var t = Open(p => { p.QuitKills = false; p.KillKills = true; });
+            var rec = t.Item1; var proc = t.Item2; var clock = t.Item3;
+            proc.Emit(Tick("00:00:00.50"));
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+            proc.Emit(Tick("00:00:01.00"));   // fresh, healthy output right up to the stop
+
+            var ex = Assert.Throws<CameraForceKilledException>(() => rec.Stop());
+            Assert.Contains("QA Probe Cam", ex.Message);
+
+            var m = Record(rec);
+            Assert.Equal("force-killed", m.CameraStopKind);
+            Assert.Equal("no", m.CameraComplete);
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(1, proc.Kills);
+        }
+
+        // ---------------- AC10 EXITED EARLY ----------------
+
+        [Fact]
+        public void AC10_CameraDiesMidRun_IsRecordedAsLost()
+        {
+            var t = Open(null);
+            var rec = t.Item1; var proc = t.Item2;
+            proc.Emit(Tick("00:00:04.93"));
+            proc.DieOnItsOwn(1);
+            rec.Stop();
+
+            var m = Record(rec);
+            Assert.Equal("exited-early", m.CameraStopKind);
+            Assert.Equal("no", m.CameraComplete);
+            Assert.Equal(4.93, m.CameraCapturedSeconds);
+            Assert.True(rec.LostMidRun);
+        }
+
+        // ---------------- AC16 ABANDONED ----------------
+
+        [Fact]
+        public void AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown()
+        {
+            var t = Open(p => { p.QuitKills = false; p.KillKills = false; });
+            var rec = t.Item1; var proc = t.Item2;
+            proc.Emit(Tick("00:00:05.00"));
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());
+            rec.Dispose();                                  // the retry, which also fails
+
+            Assert.True(rec.IsAbandoned);
+            Assert.Equal(0, proc.Disposes);                 // the handle is NOT released
+            Assert.True(proc.Alive);
+
+            var m = Record(rec);
+            Assert.Equal("abandoned", m.CameraStopKind);
+            Assert.Equal("unknown", m.CameraComplete);
+
+            string dir = Path.Combine(_dir, "session");
+            Directory.CreateDirectory(dir);
+            RecordingClaimTicket ticket;
+            Assert.True(RecordingWorkset.TryClaim(dir, RecordingWorkKind.Capture, "qa probe", out ticket));
+            var owner = new StrandedCameraOwner();
+            bool retained = owner.ReleaseClaimUnlessStranded(rec, ticket, dir);
+
+            Assert.True(retained);
+            Assert.True(owner.HoldsAny);
+            Assert.True(RecordingWorkset.IsClaimed(dir));   // FIRES if the claim was released
+            var rows = owner.Report();
+            Assert.Single(rows);
+            Assert.Equal(4242, rows[0].Pid);
+            Assert.Equal("QA Probe Cam", rows[0].Device);
+            Assert.Equal(dir, rows[0].Dir);
+
+            // ... and it is still reachable: the process finally dies, the retry lets go.
+            proc.KillKills = true;
+            owner.Recover();
+            Assert.False(owner.HoldsAny);
+            Assert.False(RecordingWorkset.IsClaimed(dir));
+        }
+
+        // ---------------- a healthy stop releases normally (control for AC16) ----------------
+
+        [Fact]
+        public void AC16_Control_HealthyStop_ReleasesTheClaimNormally()
+        {
+            var t = Open(null);
+            var rec = t.Item1; var proc = t.Item2;
+            proc.Emit(Tick("00:00:05.00"));
+            rec.Stop();
+
+            string dir = Path.Combine(_dir, "clean");
+            Directory.CreateDirectory(dir);
+            RecordingClaimTicket ticket;
+            Assert.True(RecordingWorkset.TryClaim(dir, RecordingWorkKind.Capture, "qa probe", out ticket));
+            var owner = new StrandedCameraOwner();
+            Assert.False(owner.ReleaseClaimUnlessStranded(rec, ticket, dir));
+            Assert.False(RecordingWorkset.IsClaimed(dir));
+            Assert.False(owner.HoldsAny);
+        }
+
+        // ---------------- AC16: the PID actually reaches the /status JSON ----------------
+
+        [Fact]
+        public void AC16_StatusJson_CarriesTheStuckCameraAndItsPid()
+        {
+            // The same serializer call RestServer.Json makes (RestServer.cs:466-470), over the same
+            // internal RecordStatus type. An internal type whose rows never serialize would make
+            // AC16's "/status reports the stuck process including its PID" false while every
+            // in-process assertion still passed.
+            var status = new RecordStatus
+            {
+                State = "idle",
+                CameraStuck = true,
+                StuckCameras = new[]
+                {
+                    new StrandedCameraReport { Device = "QA Probe Cam", Pid = 4242, Output = "c:/x/camera.mp4", Dir = "c:/x" },
+                },
+            };
+            string json = System.Text.Json.JsonSerializer.Serialize((object)status,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+            Assert.Contains("CameraStuck", json);
+            Assert.Contains("StuckCameras", json);
+            Assert.Contains("4242", json);              // FIRES if the PID never reaches the wire
+            Assert.Contains("QA Probe Cam", json);
+        }
+
+        // ---------------- zero-frame camera ----------------
+
+        [Fact]
+        public void OpenedButNeverWroteAFrame_IsKnownBroken()
+        {
+            var t = Open(null);
+            var rec = t.Item1;
+            rec.Stop();
+            var m = Record(rec);
+            Assert.Equal("no", m.CameraComplete);
+            Assert.Equal(0.0, m.CameraCapturedSeconds);
+        }
+    }
+}
