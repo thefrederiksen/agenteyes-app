@@ -1,9 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using AgentEyes;
 using AgentEyes.Audio;
+using AgentEyes.Video;
 using Drawing = System.Drawing;
 
 namespace AgentEyes.App
@@ -25,6 +31,13 @@ namespace AgentEyes.App
         private const string LoadingCamerasItem = "Loading cameras...";
 
         private readonly CapturePreset _preset;
+
+        /// <summary>
+        /// The app config, so the editor can remember where it was and which tab was open
+        /// (issue #35, AC10). The caller owns this instance - the editor writes its own four keys
+        /// into it and saves; it never replaces it.
+        /// </summary>
+        private readonly Config _cfg;
         private readonly List<MonitorInfo> _monitors = new();
         private Drawing.Rectangle? _region;
         private MonitorHighlight? _highlight;
@@ -44,17 +57,59 @@ namespace AgentEyes.App
         /// </summary>
         private bool _camerasLoaded;
 
+        /// <summary>
+        /// The live camera preview (issue #29). It owns the camera device; this dialog only tells it
+        /// what is selected and paints what it sends. Disposed from Window.Closed, which is the one
+        /// point every close route passes through (Save, Save as, Cancel, the X, Esc).
+        /// </summary>
+        private readonly CameraPreviewController _cameraPreview;
+
+        /// <summary>The bitmap the preview frames are written into, allocated on the first frame.</summary>
+        private WriteableBitmap? _previewBitmap;
+
+        /// <summary>
+        /// 1 while a frame is already queued for the UI thread. Frames arrive at ~10/s from a
+        /// background thread and the newest one is the only one worth drawing, so a frame that
+        /// arrives while one is pending is DROPPED rather than queued behind it - that is what keeps
+        /// the dialog responsive while the preview runs (issue #29, AC8).
+        /// </summary>
+        private int _previewFramePending;
+
         /// <summary>The preset to persist once the dialog returns true (the edited instance, or a new one for Save as).</summary>
         internal CapturePreset? SavedPreset { get; private set; }
 
-        internal PresetEditor(CapturePreset preset)
+        internal PresetEditor(CapturePreset preset, Config cfg)
         {
             _preset = preset;
+            _cfg = cfg ?? throw new ArgumentNullException(nameof(cfg));
             _savedCamera = preset.Camera;
             InitializeComponent();
             SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
+            RestoreWindowState();
             try { PopulateDevices(); LoadFrom(preset); UpdateModeUi(); }
             catch (Exception ex) { ErrorText.Text = "Init error: " + ex.Message; }
+
+            // Issue #29. The preview is created up front but opens nothing until a camera is
+            // selected, so a preset with no camera never spawns a camera process (AC9).
+            _cameraPreview = new CameraPreviewController();
+            _cameraPreview.StateChanged += OnCameraPreviewStateChanged;
+            _cameraPreview.FrameReceived += OnCameraPreviewFrame;
+
+            // A preset that already has a camera says so IMMEDIATELY - before the (slow) camera
+            // enumeration that has to finish before the picker can select it. The dialog is fully
+            // interactive at this point and the pane says what it is doing (AC2).
+            if (!string.IsNullOrWhiteSpace(_savedCamera))
+                CameraPreviewStatus.Text = CameraPreviewController.StartingStatus;
+
+            // Releasing the camera on the way out is the whole point of this feature: Save, Save as,
+            // Cancel, the window close button and Esc all end here (AC4).
+            Closed += (_, _) =>
+            {
+                try { _cameraPreview.Dispose(); }
+                catch (Exception ex) { Log.Error("[PresetEditor] Closed: releasing the camera preview FAILED", ex); }
+                try { RememberWindowState(); }
+                catch (Exception ex) { Log.Error("[PresetEditor] Closed: remembering the window state FAILED", ex); }
+            };
 
             // The camera list is the one expensive lookup in this dialog (it launches ffmpeg), so it
             // loads on a background thread AFTER the window is up - the dialog appears instantly with
@@ -135,6 +190,7 @@ namespace AgentEyes.App
                 CameraBox.SelectedIndex = 0;
                 CameraBox.IsEnabled = false;
                 CameraHint.Text = "Cameras could not be listed: " + ex.Message;
+                CameraPreviewStatus.Text = "Cameras could not be listed, so there is nothing to preview.";
                 return;
             }
 
@@ -162,7 +218,206 @@ namespace AgentEyes.App
 
             _camerasLoaded = true;
             CameraBox.IsEnabled = ModeVideo.IsChecked == true;
-            Log.Info($"[PresetEditor] LoadCamerasAsync: {cameras.Count} camera(s) listed, selected index {select}");
+
+            // Issue #29, assumption B4: a machine with no camera at all is not an error - there is
+            // simply nothing to preview, so the pane is not shown. A saved-but-absent camera still
+            // gets a pane, because its failure to open is exactly what the user needs to see.
+            bool anythingToPreview = cameras.Count > 0 || !string.IsNullOrWhiteSpace(_savedCamera);
+            CameraPreviewPanel.Visibility = anythingToPreview ? Visibility.Visible : Visibility.Collapsed;
+
+            Log.Info($"[PresetEditor] LoadCamerasAsync: {cameras.Count} camera(s) listed, selected index {select}, " +
+                     $"preview pane {(anythingToPreview ? "shown" : "hidden")}");
+
+            // Now that the picker really holds the saved camera, start previewing it.
+            UpdateCameraPreview();
+        }
+
+        // ---- live camera preview (issue #29) --------------------------------
+
+        /// <summary>
+        /// Point the preview at whatever the picker now says, or stop it. This is the ONLY place the
+        /// preview is told what to show, so "what is selected" and "what is being held" cannot drift.
+        /// </summary>
+        private void UpdateCameraPreview()
+        {
+            if (!_camerasLoaded) return;   // the picker still holds the placeholder, not a camera
+
+            // Issue #28, assumption A1: the camera is a Video-mode setting. A preset that is not
+            // going to record the camera has no business holding the device open to show it.
+            if (ModeVideo.IsChecked != true)
+            {
+                _cameraPreview.Stop("The camera is only recorded in Video mode.");
+                return;
+            }
+
+            // Issue #35, AC9: a preview nobody can see must not hold an exclusive device. Leaving
+            // the Camera tab hands the camera back immediately, exactly as closing the dialog does.
+            if (!ReferenceEquals(EditorTabs.SelectedItem, CameraTab))
+            {
+                _cameraPreview.Stop("The preview runs while the Camera tab is open.");
+                return;
+            }
+
+            string? camera = CameraBox.SelectedIndex <= 0 ? null : CameraBox.SelectedItem as string;
+            _cameraPreview.Select(camera);
+        }
+
+        /// <summary>
+        /// The visible tab changed. Two consequences: the camera preview starts when the Camera tab
+        /// comes forward and stops the instant it goes away (issue #35, AC9), and the tab is
+        /// remembered so the editor reopens where it was left (AC10).
+        /// </summary>
+        private void EditorTabs_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            // A TabControl re-raises its children's SelectionChanged (the combo boxes inside a tab
+            // bubble one up); only the TabControl's own change is a tab change.
+            if (!ReferenceEquals(e.OriginalSource, EditorTabs)) return;
+            if (!IsInitialized) return;
+            try
+            {
+                Log.Info($"[PresetEditor] EditorTabs_Changed: tab={EditorTabs.SelectedIndex}");
+                UpdateCameraPreview();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("[PresetEditor] EditorTabs_Changed FAILED", ex);
+                CameraPreviewStatus.Text = "The preview could not be started: " + ex.Message;
+            }
+        }
+
+        // ---- window state, remembered across restarts (issue #35, AC10) ------
+
+        /// <summary>
+        /// Put the editor back where it was: same tab, same size, same place on screen. A size or
+        /// position that is not on any monitor now (a screen was unplugged) is not restored - it
+        /// would open the dialog where nobody can see it - and the window centres on its owner
+        /// instead, which is what it does the first time too.
+        /// </summary>
+        private void RestoreWindowState()
+        {
+            if (_cfg.PresetEditorWidth is double w && _cfg.PresetEditorHeight is double h
+                && w >= MinWidth && h >= MinHeight)
+            {
+                Width = w;
+                Height = h;
+            }
+
+            if (_cfg.PresetEditorLeft is double l && _cfg.PresetEditorTop is double t
+                && IsOnAScreen(l, t, Width, Height))
+            {
+                WindowStartupLocation = WindowStartupLocation.Manual;
+                Left = l;
+                Top = t;
+            }
+
+            int tab = _cfg.PresetEditorTab;
+            if (tab >= 0 && tab < EditorTabs.Items.Count) EditorTabs.SelectedIndex = tab;
+
+            Log.Info($"[PresetEditor] RestoreWindowState: size={Width:F0}x{Height:F0} " +
+                     $"pos={(WindowStartupLocation == WindowStartupLocation.Manual ? $"{Left:F0},{Top:F0}" : "center-owner")} " +
+                     $"tab={EditorTabs.SelectedIndex}");
+        }
+
+        /// <summary>Write the editor's tab, size and position back to the config.</summary>
+        private void RememberWindowState()
+        {
+            _cfg.PresetEditorTab = EditorTabs.SelectedIndex;
+            if (WindowState == WindowState.Normal)
+            {
+                _cfg.PresetEditorWidth = ActualWidth;
+                _cfg.PresetEditorHeight = ActualHeight;
+                _cfg.PresetEditorLeft = Left;
+                _cfg.PresetEditorTop = Top;
+            }
+            _cfg.Save();
+            Log.Info($"[PresetEditor] RememberWindowState: tab={_cfg.PresetEditorTab} " +
+                     $"size={_cfg.PresetEditorWidth:F0}x{_cfg.PresetEditorHeight:F0} " +
+                     $"pos={_cfg.PresetEditorLeft:F0},{_cfg.PresetEditorTop:F0}");
+        }
+
+        /// <summary>
+        /// True when the given window rectangle still lands on the desktop. Measured against
+        /// SystemParameters.VirtualScreen, which is in the same device-independent units as
+        /// Window.Left/Top - the monitor list is in device pixels and would compare wrongly under
+        /// display scaling. At least 120 x 40 of the window must be inside, so its title bar is
+        /// always grabbable.
+        /// </summary>
+        private static bool IsOnAScreen(double left, double top, double width, double height)
+        {
+            var desktop = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+                                   SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+            var wanted = new Rect(left, top, width, height);
+            wanted.Intersect(desktop);
+            return wanted.Width >= 120 && wanted.Height >= 40;
+        }
+
+        private void Camera_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsInitialized) return;
+            try { UpdateCameraPreview(); }
+            catch (Exception ex)
+            {
+                Log.Error("[PresetEditor] Camera_Changed: updating the preview FAILED", ex);
+                CameraPreviewStatus.Text = "The preview could not be started: " + ex.Message;
+            }
+        }
+
+        /// <summary>
+        /// The preview changed state. Raised on a BACKGROUND thread (a recording start calls into the
+        /// controller and must never wait on the UI thread), so everything visual is marshalled.
+        /// </summary>
+        private void OnCameraPreviewStateChanged(CameraPreviewState state, string status)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    CameraPreviewStatus.Text = status;
+                    CameraPreviewStatus.Foreground = (Brush)FindResource(
+                        state == CameraPreviewState.Failed ? "DkRed" : "DkDim");
+
+                    // Anything that is not "running" must not leave the last frame on screen
+                    // pretending to be live.
+                    if (state != CameraPreviewState.Running)
+                    {
+                        CameraPreviewImage.Source = null;
+                        _previewBitmap = null;
+                    }
+                }
+                catch (Exception ex) { Log.Error("[PresetEditor] OnCameraPreviewStateChanged FAILED", ex); }
+            }));
+        }
+
+        /// <summary>One preview frame, from the reader thread. Dropped if the UI thread has not drawn
+        /// the previous one yet - the newest frame is the only one worth having.</summary>
+        private void OnCameraPreviewFrame(byte[] bgr24)
+        {
+            if (Interlocked.CompareExchange(ref _previewFramePending, 1, 0) != 0) return;
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                try { DrawPreviewFrame(bgr24); }
+                catch (Exception ex) { Log.Error("[PresetEditor] drawing a camera preview frame FAILED", ex); }
+                finally { Interlocked.Exchange(ref _previewFramePending, 0); }
+            }));
+        }
+
+        private void DrawPreviewFrame(byte[] bgr24)
+        {
+            if (bgr24.Length != FfmpegCameraPreview.FrameBytes)
+                throw new InvalidOperationException(
+                    $"a preview frame must be {FfmpegCameraPreview.FrameBytes} bytes, got {bgr24.Length}");
+
+            if (_previewBitmap == null)
+            {
+                _previewBitmap = new WriteableBitmap(
+                    FfmpegCameraPreview.FrameWidth, FfmpegCameraPreview.FrameHeight, 96, 96, PixelFormats.Bgr24, null);
+                CameraPreviewImage.Source = _previewBitmap;
+            }
+
+            _previewBitmap.WritePixels(
+                new Int32Rect(0, 0, FfmpegCameraPreview.FrameWidth, FfmpegCameraPreview.FrameHeight),
+                bgr24, FfmpegCameraPreview.FrameWidth * 3, 0);
         }
 
         private void LoadFrom(CapturePreset p)
@@ -251,7 +506,17 @@ namespace AgentEyes.App
 
         // ---- ui state -----------------------------------------------------
 
-        private void Mode_Changed(object sender, RoutedEventArgs e) { if (IsInitialized) UpdateModeUi(); }
+        private void Mode_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsInitialized) return;
+            try
+            {
+                UpdateModeUi();
+                // Leaving Video mode releases the camera; coming back to it starts the preview again.
+                UpdateCameraPreview();
+            }
+            catch (Exception ex) { Log.Error("[PresetEditor] Mode_Changed FAILED", ex); }
+        }
 
         private void AudioSrc_Changed(object sender, RoutedEventArgs e)
         {

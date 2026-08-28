@@ -1,32 +1,90 @@
-PRESET EDITOR LAYOUT MEASUREMENT (issue #35)
-date         : 2026-08-28 17:48:11
+PRESET EDITOR TABBED LAYOUT MEASUREMENT (issue #35)
+date         : 2026-08-28 18:06:10
 assembly     : D:\ReposFred\agenteyes-wt-35\docs\cencon\proof\issue-35\probe\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
-built        : 2026-08-28 17:47:14
+built        : 2026-08-28 18:05:11
 screen (DIP) : 1920 x 1080
-XAML default : Width=900 Height=700
 
---- window 900 x 700 (default-700) ---
-  ComputedVerticalScrollBarVisibility : Collapsed
-  ExtentHeight / ViewportHeight       : 523.3 / 587.0
-  ScrollableHeight                    : 0.0
-  named controls found in the live window : 38 of 38
-  hidden BY DESIGN (Visibility set in XAML): RegionWarn (Collapsed)
-  every other named control visible WITHOUT scrolling: YES
-  unreachable even after scrolling to the bottom: none
-  AC2 controls simultaneously on screen without scrolling: YES
-  columns: NameBox x=0 w=408 | MicBox x=436 w=408 -> SIDE BY SIDE
-  screenshot: preset-editor-default-700.png
+XAML default : Width=1000 Height=760, 3 tabs
 
---- window 900 x 600 (height-600) ---
-  ComputedVerticalScrollBarVisibility : Visible
-  ExtentHeight / ViewportHeight       : 523.3 / 487.0
-  ScrollableHeight                    : 36.3
-  named controls found in the live window : 38 of 38
-  hidden BY DESIGN (Visibility set in XAML): RegionWarn (Collapsed)
-  needs scrolling to reach (1):
-    - CameraHint (y 494..523 vs viewport 487)
-  unreachable even after scrolling to the bottom: none
-  AC2 controls simultaneously on screen without scrolling: YES
-  columns: NameBox x=0 w=400 | MicBox x=428 w=400 -> SIDE BY SIDE
-  screenshot: preset-editor-height-600.png
+=== window 1000 x 760 (default-760) ===
+  --- tab "Capture" ---
+    ComputedVerticalScrollBarVisibility : Collapsed
+    ExtentHeight / ViewportHeight       : 285.7 / 527.9
+    ScrollableHeight                    : 0.0
+    controls rendered on this tab       : 24 (+1 collapsed by design: RegionWarn)
+    every rendered control fully visible WITHOUT scrolling: YES
+    screenshot: tab-capture-default-760.png
+  --- tab "Audio" ---
+    ComputedVerticalScrollBarVisibility : Collapsed
+    ExtentHeight / ViewportHeight       : 311.8 / 527.9
+    ScrollableHeight                    : 0.0
+    controls rendered on this tab       : 17 (+1 collapsed by design: RegionWarn)
+    every rendered control fully visible WITHOUT scrolling: YES
+    screenshot: tab-audio-default-760.png
+  --- tab "Camera" ---
+    ComputedVerticalScrollBarVisibility : Collapsed
+    ExtentHeight / ViewportHeight       : 515.6 / 527.9
+    ScrollableHeight                    : 0.0
+    controls rendered on this tab       : 11 (+1 collapsed by design: RegionWarn)
+    every rendered control fully visible WITHOUT scrolling: YES
+    screenshot: tab-camera-default-760.png
+
+=== window 1000 x 600 (height-600) ===
+  --- tab "Capture" ---
+    ComputedVerticalScrollBarVisibility : Collapsed
+    ExtentHeight / ViewportHeight       : 285.7 / 367.9
+    ScrollableHeight                    : 0.0
+    controls rendered on this tab       : 24 (+1 collapsed by design: RegionWarn)
+    every rendered control fully visible WITHOUT scrolling: YES
+    screenshot: tab-capture-height-600.png
+  --- tab "Audio" ---
+    ComputedVerticalScrollBarVisibility : Collapsed
+    ExtentHeight / ViewportHeight       : 311.8 / 367.9
+    ScrollableHeight                    : 0.0
+    controls rendered on this tab       : 17 (+1 collapsed by design: RegionWarn)
+    every rendered control fully visible WITHOUT scrolling: YES
+    screenshot: tab-audio-height-600.png
+  --- tab "Camera" ---
+    ComputedVerticalScrollBarVisibility : Visible
+    ExtentHeight / ViewportHeight       : 515.6 / 367.9
+    ScrollableHeight                    : 147.8
+    controls rendered on this tab       : 11 (+1 collapsed by design: RegionWarn)
+    needs scrolling to reach (1):
+      - CameraPreviewPanel (y 110..470 vs viewport 368)
+    still unreachable after scrolling to it: none
+    screenshot: tab-camera-height-600.png
+
+NAMED CONTROLS: 41 expected, 40 seen rendered across the tabs.
+  never rendered on any tab: RegionWarn
+  NOTE: RegionWarn is Visibility=Collapsed until a region overflows its monitor, so it
+  is expected in that list; every other name must be seen.
+
+=== AC8 / AC9: live preview and camera release ===
+  camera selected: "HD Webcam eMeet C960"
+  live frames arriving in the pane: YES (status: "")
+  rendered frame source: 320x240, pane is 480x360
+  screenshot: tab-camera-live.png
+  CameraDeviceArbiter.ReleaseForRecording while previewing: 401 ms
+  recording open after that release: 605 ms (within the 2000 ms budget)
+  after leaving the Camera tab, the preview still holds the camera: NO
+  recording open after leaving the tab: 593 ms (within the 2000 ms budget)
+
+=== AC10: remembered tab / size / position ===
+  set before closing: tab=2 size=1100x740 pos=120,80
+  config.json: "PresetEditorTab": 2,
+  config.json: "PresetEditorWidth": 1100,
+  config.json: "PresetEditorHeight": 740,
+  config.json: "PresetEditorLeft": 120,
+  config.json: "PresetEditorTop": 80,
+  reopened: tab=2 size=1100x740 pos=120,80
+  AC10 round trip: PASS
+
+=== AC5: a fully-populated preset round-trips through the editor ===
+  loaded    : {"Id":"70f6351a8b43431a96152e2d3cd892ca","Name":"round trip probe","Note":"every field non-default","MonitorIndex":1,"UseRegion":true,"Region":[100,120,640,480],"Source":"system","Mic":null,"Denoise":false,"Gate":true,"Level":false,"MicVol":123,"SysVol":45,"Mode":"video","Fps":24,"Camera":null,"CameraFps":30}
+  Save      : {"Id":"70f6351a8b43431a96152e2d3cd892ca","Name":"round trip probe","Note":"every field non-default","MonitorIndex":1,"UseRegion":true,"Region":[100,120,640,480],"Source":"system","Mic":null,"Denoise":false,"Gate":true,"Level":false,"MicVol":123,"SysVol":45,"Mode":"video","Fps":24,"Camera":null,"CameraFps":30}
+  Save as   : {"Id":"a00ce132dbc94092b3db5d3740115f94","Name":"round trip probe","Note":"every field non-default","MonitorIndex":1,"UseRegion":true,"Region":[100,120,640,480],"Source":"system","Mic":null,"Denoise":false,"Gate":true,"Level":false,"MicVol":123,"SysVol":45,"Mode":"video","Fps":24,"Camera":null,"CameraFps":30}
+  Save path round trip identical (all fields incl. Id): YES
+  Save-as path identical apart from its new Id        : YES
+  presets.json reload: {"Id":"a00ce132dbc94092b3db5d3740115f94","Name":"round trip probe","Note":"every field non-default","MonitorIndex":1,"UseRegion":true,"Region":[100,120,640,480],"Source":"system","Mic":null,"Denoise":false,"Gate":true,"Level":false,"MicVol":123,"SysVol":45,"Mode":"video","Fps":24,"Camera":null,"CameraFps":30}
+  presets.json round trip identical: YES
 

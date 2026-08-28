@@ -37,6 +37,15 @@ namespace AgentEyes.App
         // "top-right". Parsed by PreviewNames.Corner; the documented default is bottom-right.
         public string HudPreviewCorner { get; set; } = "bottom-right";
 
+        // Preset editor window (issue #35, AC10): the tab it was last closed on, and the size and
+        // position it was left at. Null size/position = never moved, so the editor opens at its XAML
+        // default centred on its owner.
+        public int PresetEditorTab { get; set; }
+        public double? PresetEditorWidth { get; set; }
+        public double? PresetEditorHeight { get; set; }
+        public double? PresetEditorLeft { get; set; }
+        public double? PresetEditorTop { get; set; }
+
         // Capture feature (issue #64): global snip shortcuts, parsed with TriggerSpec.
         // Defaults: region = PrintScreen (drag a rectangle),
         // full-screen = Ctrl+PrintScreen (whole monitor). Rebinding persists across restart.

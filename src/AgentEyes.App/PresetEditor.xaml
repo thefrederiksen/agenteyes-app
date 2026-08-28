@@ -1,187 +1,237 @@
 <Window x:Class="AgentEyes.App.PresetEditor"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Edit preset" Height="700" Width="900"
-        MinHeight="380" MinWidth="720"
+        Title="Edit preset" Height="760" Width="1000"
+        MinHeight="420" MinWidth="820"
         WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
         Background="{StaticResource DkBg}" FontFamily="Segoe UI">
-    <!-- Issue #35: the settings are laid out in TWO columns so the whole preset is visible at once.
-         Left  = what is captured (identity, screen source, region framing, camera).
-         Right = how it sounds and how it is written (audio, mode/fps).
-         The ScrollViewer stays as the small-screen safety net; at the default size it never engages. -->
+    <!-- Issue #35: the editor was one tall 480px column with a permanent scrollbar down its right
+         edge. It is now a generously sized TABBED window - Capture / Audio / Camera - with the
+         preset's identity (name, note) in a header that stays put above the tabs, so it is visible
+         whichever tab you are on.
+
+         Each tab keeps its own ScrollViewer as the small-screen safety net; at the default window
+         size none of them engages. The Camera tab carries the live preview pane from issue #29 -
+         a framing check you can run BEFORE recording - and is where the circular overlay controls
+         from issue #36 will land. -->
     <Grid Margin="20,16,20,16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+        <!-- ===================== Identity: outside the tabs, always visible ===================== -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                <TextBlock Text="NAME" Style="{StaticResource DkSection}" Margin="0,0,0,6"/>
+                <TextBox x:Name="NameBox" Style="{StaticResource DkTextBox}" Height="32"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="14,0,0,0">
+                <TextBlock Text="NOTE (optional)" Style="{StaticResource DkSection}" Margin="0,0,0,6"/>
+                <TextBox x:Name="NoteBox" Style="{StaticResource DkTextBox}" Height="32"/>
+            </StackPanel>
+        </Grid>
 
-                <!-- ============================ LEFT: what is captured ============================ -->
-                <StackPanel Grid.Column="0" Margin="0,0,14,0">
-                    <!-- Name -->
-                    <TextBlock Text="NAME" Style="{StaticResource DkSection}" Margin="0,0,0,6"/>
-                    <TextBox x:Name="NameBox" Style="{StaticResource DkTextBox}" Height="32"/>
-                    <TextBlock Text="NOTE (optional)" Style="{StaticResource DkSection}" Margin="0,20,0,6"/>
-                    <TextBox x:Name="NoteBox" Style="{StaticResource DkTextBox}" Height="30"/>
+        <TabControl x:Name="EditorTabs" Grid.Row="1" Style="{StaticResource DkTab}" Margin="0,20,0,0"
+                    SelectionChanged="EditorTabs_Changed">
 
-                    <!-- Capture source -->
-                    <TextBlock Text="CAPTURE SOURCE" Style="{StaticResource DkSection}" Margin="0,24,0,6"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox x:Name="MonitorBox" Style="{StaticResource DkCombo}" Height="32"/>
-                        <Button Grid.Column="1" x:Name="ShowAreaButton" Content="Show area"
-                                Style="{StaticResource DkMini}" Margin="8,0,0,0" Click="ShowArea_Click"/>
-                    </Grid>
-                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <RadioButton x:Name="FullRadio" Content="Full monitor" IsChecked="True"
-                                     Style="{StaticResource DkRadio}" GroupName="src" VerticalAlignment="Center"/>
-                        <RadioButton x:Name="RegionRadio" Content="Region" GroupName="src"
-                                     Style="{StaticResource DkRadio}" Margin="16,0,0,0" VerticalAlignment="Center"/>
-                        <Button x:Name="SelectAreaButton" Content="Select area..." Style="{StaticResource DkMini}"
-                                Margin="12,0,0,0" Click="SelectArea_Click" IsEnabled="False"/>
-                        <TextBlock x:Name="RegionLabel" VerticalAlignment="Center" Margin="10,0,0,0"
-                                   Foreground="{StaticResource DkDim}" FontSize="11"/>
-                    </StackPanel>
-
-                    <!-- Region framing: aspect lock, exact size, social-format quick presets (issue #69) -->
-                    <StackPanel x:Name="RegionOptions" IsEnabled="False" Margin="0,16,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Aspect lock" VerticalAlignment="Center" Width="72"
+            <!-- ================================ CAPTURE ================================ -->
+            <TabItem x:Name="CaptureTab" Header="Capture" Style="{StaticResource DkTabItem}">
+                <ScrollViewer x:Name="CaptureScroll" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="CAPTURE SOURCE" Style="{StaticResource DkSection}" Margin="0,0,0,6"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="MonitorBox" Style="{StaticResource DkCombo}" Height="32"/>
+                            <Button Grid.Column="1" x:Name="ShowAreaButton" Content="Show area"
+                                    Style="{StaticResource DkMini}" Margin="8,0,0,0" Click="ShowArea_Click"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <RadioButton x:Name="FullRadio" Content="Full monitor" IsChecked="True"
+                                         Style="{StaticResource DkRadio}" GroupName="src" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="RegionRadio" Content="Region" GroupName="src"
+                                         Style="{StaticResource DkRadio}" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                            <Button x:Name="SelectAreaButton" Content="Select area..." Style="{StaticResource DkMini}"
+                                    Margin="12,0,0,0" Click="SelectArea_Click" IsEnabled="False"/>
+                            <TextBlock x:Name="RegionLabel" VerticalAlignment="Center" Margin="10,0,0,0"
                                        Foreground="{StaticResource DkDim}" FontSize="11"/>
-                            <ComboBox x:Name="AspectBox" Style="{StaticResource DkCombo}" Width="150" Height="28"
+                        </StackPanel>
+
+                        <!-- Region framing: aspect lock, exact size, social-format quick presets (issue #69) -->
+                        <StackPanel x:Name="RegionOptions" IsEnabled="False" Margin="0,16,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Aspect lock" VerticalAlignment="Center" Width="72"
+                                           Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <ComboBox x:Name="AspectBox" Style="{StaticResource DkCombo}" Width="150" Height="28"
+                                          FontSize="12" VerticalAlignment="Center">
+                                    <ComboBoxItem IsSelected="True">Free</ComboBoxItem>
+                                    <ComboBoxItem>Square (1:1)</ComboBoxItem>
+                                    <ComboBoxItem>Landscape (16:9)</ComboBoxItem>
+                                    <ComboBoxItem>Vertical (9:16)</ComboBoxItem>
+                                </ComboBox>
+                                <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" FontSize="11"
+                                           Foreground="{StaticResource DkDim}"
+                                           Text="constrains 'Select area...' drag"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <TextBlock Text="Exact size" VerticalAlignment="Center" Width="72"
+                                           Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <TextBox x:Name="ExactWidthBox" Style="{StaticResource DkTextBox}" Width="64" Height="28"
+                                         FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="x" VerticalAlignment="Center" Margin="6,0,6,0"
+                                           Foreground="{StaticResource DkDim}" FontSize="12"/>
+                                <TextBox x:Name="ExactHeightBox" Style="{StaticResource DkTextBox}" Width="64" Height="28"
+                                         FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="px" VerticalAlignment="Center" Margin="6,0,0,0"
+                                           Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <Button x:Name="SetExactButton" Content="Set" Style="{StaticResource DkMini}"
+                                        Margin="10,0,0,0" MinWidth="56" Click="SetExact_Click"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <TextBlock Text="Quick" VerticalAlignment="Center" Width="72"
+                                           Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <Button x:Name="SquareButton" Content="Square 1080x1080" Style="{StaticResource DkMini}"
+                                        Click="QuickSquare_Click"/>
+                                <Button x:Name="VerticalButton" Content="Vertical 1080x1920" Style="{StaticResource DkMini}"
+                                        Margin="8,0,0,0" Click="QuickVertical_Click"/>
+                                <Button x:Name="LandscapeButton" Content="Landscape 1920x1080" Style="{StaticResource DkMini}"
+                                        Margin="8,0,0,0" Click="QuickLandscape_Click"/>
+                            </StackPanel>
+
+                            <TextBlock x:Name="RegionWarn" Foreground="{StaticResource DkRed}" FontSize="11"
+                                       Margin="72,8,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
+                        </StackPanel>
+
+                        <!-- Mode: what a recording produces, and (for video) at what frame rate -->
+                        <TextBlock Text="MODE" Style="{StaticResource DkSection}" Margin="0,24,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="ModeShot" Content="Screenshot" GroupName="mode"
+                                         Style="{StaticResource DkRadio}" VerticalAlignment="Center" Checked="Mode_Changed"/>
+                            <RadioButton x:Name="ModeAudio" Content="Audio + shots" GroupName="mode"
+                                         Style="{StaticResource DkRadio}" Margin="14,0,0,0" VerticalAlignment="Center" Checked="Mode_Changed"/>
+                            <RadioButton x:Name="ModeVideo" Content="Video" GroupName="mode" IsChecked="True"
+                                         Style="{StaticResource DkRadio}" Margin="14,0,0,0" VerticalAlignment="Center" Checked="Mode_Changed"/>
+                            <TextBlock Text="fps" VerticalAlignment="Center" Margin="20,0,6,0"
+                                       Foreground="{StaticResource DkDim}" FontSize="11"/>
+                            <ComboBox x:Name="FpsBox" Style="{StaticResource DkCombo}" Width="68" Height="28"
                                       FontSize="12" VerticalAlignment="Center">
-                                <ComboBoxItem IsSelected="True">Free</ComboBoxItem>
-                                <ComboBoxItem>Square (1:1)</ComboBoxItem>
-                                <ComboBoxItem>Landscape (16:9)</ComboBoxItem>
-                                <ComboBoxItem>Vertical (9:16)</ComboBoxItem>
+                                <ComboBoxItem>15</ComboBoxItem>
+                                <ComboBoxItem>24</ComboBoxItem>
+                                <ComboBoxItem IsSelected="True">30</ComboBoxItem>
+                                <ComboBoxItem>60</ComboBoxItem>
                             </ComboBox>
                         </StackPanel>
-                        <TextBlock Margin="72,8,0,0" FontSize="11" TextWrapping="Wrap"
-                                   Foreground="{StaticResource DkDim}"
-                                   Text="constrains 'Select area...' drag"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <TextBlock Text="Exact size" VerticalAlignment="Center" Width="72"
-                                       Foreground="{StaticResource DkDim}" FontSize="11"/>
-                            <TextBox x:Name="ExactWidthBox" Style="{StaticResource DkTextBox}" Width="64" Height="28"
-                                     FontSize="12" VerticalAlignment="Center"/>
-                            <TextBlock Text="x" VerticalAlignment="Center" Margin="6,0,6,0"
-                                       Foreground="{StaticResource DkDim}" FontSize="12"/>
-                            <TextBox x:Name="ExactHeightBox" Style="{StaticResource DkTextBox}" Width="64" Height="28"
-                                     FontSize="12" VerticalAlignment="Center"/>
-                            <TextBlock Text="px" VerticalAlignment="Center" Margin="6,0,0,0"
-                                       Foreground="{StaticResource DkDim}" FontSize="11"/>
-                            <Button x:Name="SetExactButton" Content="Set" Style="{StaticResource DkMini}"
-                                    Margin="10,0,0,0" MinWidth="56" Click="SetExact_Click"/>
+            <!-- ================================= AUDIO ================================= -->
+            <TabItem x:Name="AudioTab" Header="Audio" Style="{StaticResource DkTabItem}">
+                <ScrollViewer x:Name="AudioScroll" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="MICROPHONE" Style="{StaticResource DkSection}" Margin="0,0,0,6"/>
+                        <ComboBox x:Name="MicBox" Style="{StaticResource DkCombo}" Height="32"
+                                  HorizontalAlignment="Left" MinWidth="420" MaxWidth="560"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <RadioButton x:Name="SrcMic" Content="Mic only" GroupName="asrc"
+                                         Style="{StaticResource DkRadio}" VerticalAlignment="Center" Checked="AudioSrc_Changed"/>
+                            <RadioButton x:Name="SrcSystem" Content="System only" GroupName="asrc"
+                                         Style="{StaticResource DkRadio}" Margin="14,0,0,0" VerticalAlignment="Center" Checked="AudioSrc_Changed"/>
+                            <RadioButton x:Name="SrcMixed" Content="Mic + System" GroupName="asrc" IsChecked="True"
+                                         Style="{StaticResource DkRadio}" Margin="14,0,0,0" VerticalAlignment="Center" Checked="AudioSrc_Changed"/>
                         </StackPanel>
 
-                        <!-- The three quick sizes wrap inside the column instead of running off its edge. -->
-                        <Grid Margin="0,12,0,0">
+                        <TextBlock Text="CLEAN-UP" Style="{StaticResource DkSection}" Margin="0,24,0,6"/>
+                        <CheckBox x:Name="DenoiseCheck" Content="Noise suppression (removes fan/hum/background noise)"
+                                  Style="{StaticResource DkCheck}" IsChecked="True"/>
+                        <CheckBox x:Name="GateCheck" Content="Noise gate (mutes mic between phrases)"
+                                  Style="{StaticResource DkCheck}" IsChecked="True" Margin="0,10,0,0"/>
+                        <CheckBox x:Name="LevelCheck" Content="Voice leveling (evens out loud and quiet speech)"
+                                  Style="{StaticResource DkCheck}" IsChecked="True" Margin="0,10,0,0"/>
+
+                        <TextBlock Text="MIX" Style="{StaticResource DkSection}" Margin="0,24,0,6"/>
+                        <Grid HorizontalAlignment="Left" MinWidth="420" MaxWidth="560">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="72"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Quick" VerticalAlignment="Top" Margin="0,5,0,0"
-                                       Foreground="{StaticResource DkDim}" FontSize="11"/>
-                            <WrapPanel Grid.Column="1">
-                                <Button x:Name="SquareButton" Content="Square 1080x1080" Style="{StaticResource DkMini}"
-                                        Margin="0,0,8,8" Click="QuickSquare_Click"/>
-                                <Button x:Name="VerticalButton" Content="Vertical 1080x1920" Style="{StaticResource DkMini}"
-                                        Margin="0,0,8,8" Click="QuickVertical_Click"/>
-                                <Button x:Name="LandscapeButton" Content="Landscape 1920x1080" Style="{StaticResource DkMini}"
-                                        Margin="0,0,8,8" Click="QuickLandscape_Click"/>
-                            </WrapPanel>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="34"/>
+                                <RowDefinition Height="34"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Mic vol" VerticalAlignment="Center" Foreground="{StaticResource DkDim}" FontSize="11"/>
+                            <Slider x:Name="MicVol" Grid.Column="1" Minimum="0" Maximum="150" Value="100"
+                                    Margin="8,0" VerticalAlignment="Center" ValueChanged="Vol_Changed"/>
+                            <TextBlock x:Name="MicVolText" Grid.Column="2" Text="100%" Width="40"
+                                       VerticalAlignment="Center"
+                                       FontFamily="Consolas" FontSize="11" Foreground="{StaticResource DkDim}"/>
+                            <TextBlock Grid.Row="1" Text="Sys vol" VerticalAlignment="Center" Foreground="{StaticResource DkDim}" FontSize="11"/>
+                            <Slider x:Name="SysVol" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="150" Value="70"
+                                    Margin="8,0" VerticalAlignment="Center" ValueChanged="Vol_Changed"/>
+                            <TextBlock x:Name="SysVolText" Grid.Row="1" Grid.Column="2" Text="70%" Width="40"
+                                       VerticalAlignment="Center"
+                                       FontFamily="Consolas" FontSize="11" Foreground="{StaticResource DkDim}"/>
                         </Grid>
-
-                        <TextBlock x:Name="RegionWarn" Foreground="{StaticResource DkRed}" FontSize="11"
-                                   Margin="72,8,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
                     </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-                    <!-- Camera: recorded to its own camera.mp4 alongside the screen video (issue #28) -->
-                    <TextBlock Text="CAMERA" Style="{StaticResource DkSection}" Margin="0,24,0,6"/>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Camera" VerticalAlignment="Center" Width="72"
-                                   Foreground="{StaticResource DkDim}" FontSize="11"/>
-                        <ComboBox x:Name="CameraBox" Style="{StaticResource DkCombo}" Width="260" Height="30"
-                                  FontSize="12" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <TextBlock x:Name="CameraHint" Margin="72,8,0,0" TextWrapping="Wrap"
-                               Foreground="{StaticResource DkDim}" FontSize="11"
-                               Text="Recorded to its own camera.mp4 (video only) next to the screen video, so both can be composed later. Video mode only."/>
-                </StackPanel>
+            <!-- ================================= CAMERA ================================= -->
+            <!-- Camera: recorded to its own camera.mp4 alongside the screen video (issue #28), and
+                 previewed live here BEFORE recording (issue #29). A DirectShow camera is EXCLUSIVE,
+                 so the device is released the moment the selection changes, this tab is left, the
+                 preset leaves Video mode, a recording starts, or the dialog closes by any route. -->
+            <TabItem x:Name="CameraTab" Header="Camera" Style="{StaticResource DkTabItem}">
+                <ScrollViewer x:Name="CameraScroll" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="CAMERA" Style="{StaticResource DkSection}" Margin="0,0,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Camera" VerticalAlignment="Center" Width="72"
+                                       Foreground="{StaticResource DkDim}" FontSize="11"/>
+                            <ComboBox x:Name="CameraBox" Style="{StaticResource DkCombo}" Width="360" Height="30"
+                                      FontSize="12" VerticalAlignment="Center" SelectionChanged="Camera_Changed"/>
+                        </StackPanel>
+                        <TextBlock x:Name="CameraHint" Margin="72,8,0,0" TextWrapping="Wrap" MaxWidth="620"
+                                   HorizontalAlignment="Left"
+                                   Foreground="{StaticResource DkDim}" FontSize="11"
+                                   Text="Recorded to its own camera.mp4 (video only) next to the screen video, so both can be composed later. Video mode only."/>
 
-                <!-- ====================== RIGHT: how it sounds and records ====================== -->
-                <StackPanel Grid.Column="1" Margin="14,0,0,0">
-                    <!-- Audio -->
-                    <TextBlock Text="AUDIO" Style="{StaticResource DkSection}" Margin="0,0,0,6"/>
-                    <ComboBox x:Name="MicBox" Style="{StaticResource DkCombo}" Height="32"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <RadioButton x:Name="SrcMic" Content="Mic only" GroupName="asrc"
-                                     Style="{StaticResource DkRadio}" VerticalAlignment="Center" Checked="AudioSrc_Changed"/>
-                        <RadioButton x:Name="SrcSystem" Content="System only" GroupName="asrc"
-                                     Style="{StaticResource DkRadio}" Margin="12,0,0,0" VerticalAlignment="Center" Checked="AudioSrc_Changed"/>
-                        <RadioButton x:Name="SrcMixed" Content="Mic + System" GroupName="asrc" IsChecked="True"
-                                     Style="{StaticResource DkRadio}" Margin="12,0,0,0" VerticalAlignment="Center" Checked="AudioSrc_Changed"/>
+                        <TextBlock Text="LIVE PREVIEW" Style="{StaticResource DkSection}" Margin="0,20,0,6"/>
+                        <Border x:Name="CameraPreviewPanel" Width="480" Height="360"
+                                HorizontalAlignment="Left" Background="{StaticResource DkCard}"
+                                BorderBrush="{StaticResource DkBorder}" BorderThickness="1">
+                            <Grid>
+                                <Image x:Name="CameraPreviewImage" Stretch="Uniform"/>
+                                <TextBlock x:Name="CameraPreviewStatus" Text="No camera selected."
+                                           Foreground="{StaticResource DkDim}" FontSize="11" Margin="10"
+                                           TextWrapping="Wrap" TextAlignment="Center"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <TextBlock Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap" MaxWidth="620"
+                                   HorizontalAlignment="Left" Foreground="{StaticResource DkDim}"
+                                   Text="The preview runs only while this tab is open. Leaving the tab or closing this window hands the camera straight back, so a recording can take it."/>
                     </StackPanel>
-                    <CheckBox x:Name="DenoiseCheck" Content="Noise suppression (removes fan/hum/background noise)"
-                              Style="{StaticResource DkCheck}" IsChecked="True" Margin="0,14,0,0"/>
-                    <CheckBox x:Name="GateCheck" Content="Noise gate (mutes mic between phrases)"
-                              Style="{StaticResource DkCheck}" IsChecked="True" Margin="0,8,0,0"/>
-                    <CheckBox x:Name="LevelCheck" Content="Voice leveling (evens out loud and quiet speech)"
-                              Style="{StaticResource DkCheck}" IsChecked="True" Margin="0,8,0,0"/>
-                    <Grid Margin="0,18,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition Height="30"/><RowDefinition Height="30"/></Grid.RowDefinitions>
-                        <TextBlock Text="Mic vol" VerticalAlignment="Center" Foreground="{StaticResource DkDim}" FontSize="11"/>
-                        <Slider x:Name="MicVol" Grid.Column="1" Minimum="0" Maximum="150" Value="100"
-                                Margin="8,0" VerticalAlignment="Center" ValueChanged="Vol_Changed"/>
-                        <TextBlock x:Name="MicVolText" Grid.Column="2" Text="100%" Width="40"
-                                   FontFamily="Consolas" FontSize="11" Foreground="{StaticResource DkDim}"/>
-                        <TextBlock Grid.Row="1" Text="Sys vol" VerticalAlignment="Center" Foreground="{StaticResource DkDim}" FontSize="11"/>
-                        <Slider x:Name="SysVol" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="150" Value="70"
-                                Margin="8,0" VerticalAlignment="Center" ValueChanged="Vol_Changed"/>
-                        <TextBlock x:Name="SysVolText" Grid.Row="1" Grid.Column="2" Text="70%" Width="40"
-                                   FontFamily="Consolas" FontSize="11" Foreground="{StaticResource DkDim}"/>
-                    </Grid>
-
-                    <!-- Mode -->
-                    <TextBlock Text="MODE" Style="{StaticResource DkSection}" Margin="0,24,0,6"/>
-                    <StackPanel Orientation="Horizontal">
-                        <RadioButton x:Name="ModeShot" Content="Screenshot" GroupName="mode"
-                                     Style="{StaticResource DkRadio}" VerticalAlignment="Center" Checked="Mode_Changed"/>
-                        <RadioButton x:Name="ModeAudio" Content="Audio + shots" GroupName="mode"
-                                     Style="{StaticResource DkRadio}" Margin="14,0,0,0" VerticalAlignment="Center" Checked="Mode_Changed"/>
-                        <RadioButton x:Name="ModeVideo" Content="Video" GroupName="mode" IsChecked="True"
-                                     Style="{StaticResource DkRadio}" Margin="14,0,0,0" VerticalAlignment="Center" Checked="Mode_Changed"/>
-                        <TextBlock Text="fps" VerticalAlignment="Center" Margin="20,0,6,0"
-                                   Foreground="{StaticResource DkDim}" FontSize="11"/>
-                        <ComboBox x:Name="FpsBox" Style="{StaticResource DkCombo}" Width="68" Height="28"
-                                  FontSize="12" VerticalAlignment="Center">
-                            <ComboBoxItem>15</ComboBoxItem>
-                            <ComboBoxItem>24</ComboBoxItem>
-                            <ComboBoxItem IsSelected="True">30</ComboBoxItem>
-                            <ComboBoxItem>60</ComboBoxItem>
-                        </ComboBox>
-                    </StackPanel>
-                </StackPanel>
-            </Grid>
-        </ScrollViewer>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <TextBlock x:Name="ErrorText" Foreground="{StaticResource DkRed}" VerticalAlignment="Center"
                        Margin="0,0,12,0" FontSize="11"/>
             <Button x:Name="SaveButton" Content="Save" Style="{StaticResource DkPrimary}" MinWidth="86" Click="Save_Click"/>

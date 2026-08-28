@@ -994,7 +994,7 @@ namespace AgentEyes.App
             var p = Selected;
             if (p == null) { OpenManagePresets(createNew: true); return; }
 
-            var dlg = new PresetEditor(p) { Owner = this };
+            var dlg = new PresetEditor(p, _cfg) { Owner = this };
             if (dlg.ShowDialog() != true || dlg.SavedPreset == null) return;
 
             var saved = dlg.SavedPreset;
