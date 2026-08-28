@@ -49,11 +49,13 @@ namespace AgentEyes.Video
     /// THE THREE RULES THE REVIEW GATE ADDED (round 2). All three are the same rule wearing different
     /// clothes - a camera claim is only ever made from a PRESENCE that was observed:
     ///
-    ///  1. OPENED means ffmpeg reported writing output, not "it has not failed yet". A fixed 400 ms
+    ///  1. OPENED means ffmpeg REPORTED the camera open, not "it has not failed yet". A fixed 400 ms
     ///     sleep proved nothing: a busy, unplugged or unsupported device that takes 500 ms to fail
     ///     passed the probe, and its later exit was then filed as a harmless mid-run loss - turning a
     ///     camera that never recorded a frame into a silent screen-only recording, which is the exact
-    ///     outcome decision 3 exists to prevent.
+    ///     outcome decision 3 exists to prevent. The presence the probe waits for is named in
+    ///     <see cref="StartAndProbe"/>, and WHICH presence it is decides AC3 as much as AC9 - see
+    ///     the measurements there.
     ///  2. STOPPED means the OS process is gone. A timeout that logs a warning, a kill whose failure
     ///     is swallowed, and a second wait nobody reads are three ways of reporting a stop that did
     ///     not happen. When ffmpeg survives all of it this throws, and the caller reports a FAILED
@@ -65,9 +67,9 @@ namespace AgentEyes.Video
     internal sealed class FfmpegCameraRecorder : IDisposable
     {
         /// <summary>
-        /// How long a freshly started camera is given to produce its first output before the open is
-        /// called a failure. Generous on purpose - webcams take a moment to warm up, and this is a
-        /// deadline for FAILING, not a delay that every start pays: a camera that reports output in
+        /// How long a freshly started camera is given to report itself open before the open is called
+        /// a failure. Generous on purpose - webcams take a moment to warm up, and this is a deadline
+        /// for FAILING, not a delay that every start pays: a camera that reports itself open in
         /// 600 ms is recording 600 ms after it was asked to.
         /// </summary>
         private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(8);
@@ -107,12 +109,27 @@ namespace AgentEyes.Video
         private long _mediaMs;
 
         /// <summary>
-        /// Set the first time ffmpeg reports a progress tick. That tick is the PRESENCE the open
-        /// probe waits for: ffmpeg only prints it once the input is open and the muxer is writing
-        /// output, so it means "this camera is recording" in a way that "the process has not exited"
-        /// never did.
+        /// Set the first time ffmpeg reports a progress tick carrying a real output position. It is
+        /// NOT what the open probe waits for - see <see cref="StartAndProbe"/> - because libx264's
+        /// frame threading holds the first encoded frame back by seconds. It is kept because it is
+        /// the honest answer to "did this camera ever produce encoded output", which is worth having
+        /// in the stop log.
         /// </summary>
         private volatile bool _wroteOutput;
+
+        /// <summary>
+        /// Set when ffmpeg reports that it OPENED the DirectShow input - the "Input #0, dshow, from
+        /// 'video=...'" header it dumps only after the capture graph ran and the stream parameters
+        /// were read off the device. Half of the open probe's presence.
+        /// </summary>
+        private volatile bool _inputOpenReported;
+
+        /// <summary>
+        /// Set when ffmpeg reports that it OPENED camera.mp4 for writing - the "Output #0, mp4, to
+        /// '...'" header. The other half: input open plus output open is ffmpeg saying, in its own
+        /// words, that this camera is being recorded to this file.
+        /// </summary>
+        private volatile bool _outputOpenReported;
 
         /// <summary>Set when the process exits while the recording is still running (decision 4).</summary>
         private volatile bool _lostMidRun;
@@ -220,17 +237,50 @@ namespace AgentEyes.Video
         }
 
         /// <summary>
-        /// Start the process and hold the recording start until this camera has PROVED it is
-        /// recording - gate defect 3.
+        /// Start the process and hold the recording start until this camera has PROVED it is open -
+        /// gate defect 3.
         ///
-        /// The proof is ffmpeg's own first progress tick. Everything else is a failure:
+        /// THE PROOF IS FFMPEG'S OWN OPEN REPORT: the "Input #0, dshow, from 'video=...'" header it
+        /// dumps only after the DirectShow capture graph ran and the stream parameters were read off
+        /// the device, AND the "Output #0, mp4, to '...'" header it dumps once camera.mp4 is open for
+        /// writing. Together they are ffmpeg saying, in its own words, that this camera is being
+        /// recorded to this file. There is exactly ONE input and ONE output on the command line
+        /// (<see cref="FfmpegArgs.CameraCapture"/>), so neither line can be about anything else.
+        ///
+        /// Everything else is a failure:
         ///
         ///  - the process ended (any exit code, zero included - ffmpeg exiting cleanly the instant it
         ///    was asked to film is still a camera that filmed nothing);
-        ///  - the deadline passed with no output at all.
+        ///  - the deadline passed without both reports.
         ///
         /// Both throw, and both make sure the process is dead before they do: a probe that gave up on
         /// a still-running ffmpeg and walked away would replace one leak with another.
+        ///
+        /// WHY NOT THE FIRST PROGRESS TICK, which is what round 2 of this fix waited for. Because that
+        /// tick reports ENCODED output, and libx264 frame-threading holds the first encoded frame back
+        /// by seconds - while the camera is already filming. Measured on the eMeet C960 with the
+        /// shipped ffmpeg (2026-08-28; 1920x1080 mjpeg in, x264 veryfast, threads=34), relative to
+        /// the moment the process started:
+        ///
+        ///     0.373s  first frame actually captured (quit time minus the resulting file duration)
+        ///     0.635s  "Input #0, dshow, from 'video=HD Webcam eMeet C960'"
+        ///     0.660s  "Output #0, mp4, to '...camera.mp4'"
+        ///     2.696s  first progress tick carrying a real time= (frame=13 time=00:00:00.36)
+        ///
+        /// The screen recorder is started only after this probe returns, so whatever the probe costs
+        /// is head footage that camera.mp4 carries and recording.mp4 does not. Waiting for the tick
+        /// bought 2.3s of it and broke AC3's 1.0s duration clause; waiting for the open report costs
+        /// ~0.26s and keeps AC3 and AC9 both. The three failures decision 3 names - busy, unplugged,
+        /// unsupported framerate - all abort inside ffmpeg's input open and print NEITHER header
+        /// (verified against the shipped ffmpeg: a held camera exits -5 in 0.23s, an absent one in
+        /// 0.03s, and neither emits "Input #0"), so this presence rejects every one of them.
+        ///
+        /// What it deliberately does NOT claim is that a frame was ENCODED. A device that opens and
+        /// then stops delivering is a MID-RUN loss, which decision 4 governs: the screen recording
+        /// survives, the loss is a WARNING naming the camera, and the manifest records the track as
+        /// truncated with the seconds actually captured. That is a REPORTED failure, not a silent one,
+        /// and it is the only case this presence hands to decision 4 that the progress tick would have
+        /// failed at the start.
         /// </summary>
         private void StartAndProbe()
         {
@@ -252,21 +302,51 @@ namespace AgentEyes.Video
                                    $"(ffmpeg exited with code {exitCode})", killFirst: false);
                 }
 
-                if (_wroteOutput) break;
+                if (_inputOpenReported && _outputOpenReported) break;
 
                 if (probe.Elapsed >= _openTimeout)
                 {
-                    throw FailOpen($"ffmpeg produced no video within {_openTimeout.TotalSeconds:0.#}s",
-                                   $"(it produced no video within {_openTimeout.TotalSeconds:0.#}s)", killFirst: true);
+                    string missing = _inputOpenReported
+                        ? "it opened the camera but never opened camera.mp4"
+                        : "it never reported the camera open";
+                    throw FailOpen(
+                        $"ffmpeg did not report the camera open within {_openTimeout.TotalSeconds:0.#}s ({missing})",
+                        $"(it did not open within {_openTimeout.TotalSeconds:0.#}s - {missing})",
+                        killFirst: true);
                 }
 
                 Thread.Sleep(ProbePoll);
             }
 
+            // No second exit check here on purpose. The loop reads HasExited at the TOP of the same
+            // iteration that sees the two flags, so a death in the microseconds after that read is
+            // indistinguishable from a death one poll later - which is a MID-RUN loss, reported by
+            // OnExited and by Stop (decision 4). A re-check would be a branch no test can reach.
             _opened = true;
-            Log.Info($"[FfmpegCameraRecorder] StartAndProbe: camera=\"{DeviceName}\" reported its first output after "
-                     + $"{probe.ElapsedMilliseconds}ms");
+            Log.Info($"[FfmpegCameraRecorder] StartAndProbe: camera=\"{DeviceName}\" reported the camera and "
+                     + $"{Path.GetFileName(OutputPath)} open after {probe.ElapsedMilliseconds}ms");
         }
+
+        /// <summary>
+        /// ffmpeg's report that it OPENED the DirectShow camera: the input header it dumps only after
+        /// the capture graph ran and the stream parameters were read off the device. Pure string
+        /// inspection, so the open probe's presence is unit testable without ffmpeg.
+        ///
+        /// Matched on the header SHAPE and not on the device name, because the command line carries
+        /// exactly one input and it is this camera - and because a name match that a future ffmpeg
+        /// quoted differently would fail a working camera rather than reject a broken one.
+        /// </summary>
+        internal static bool IsInputOpenReport(string? line) =>
+            line != null
+            && line.StartsWith("Input #0", StringComparison.Ordinal)
+            && line.Contains(", dshow,", StringComparison.Ordinal);
+
+        /// <summary>
+        /// ffmpeg's report that it OPENED the output file for writing: the output header it dumps
+        /// once the muxer is set up on camera.mp4. The other half of the open probe's presence.
+        /// </summary>
+        internal static bool IsOutputOpenReport(string? line) =>
+            line != null && line.StartsWith("Output #0", StringComparison.Ordinal);
 
         /// <summary>
         /// Give up on a camera that never started recording: make sure ffmpeg is gone, release the
@@ -307,6 +387,12 @@ namespace AgentEyes.Video
         private void OnStderrLine(string line)
         {
             _stderr.AppendLine(line);
+
+            // The open probe's presence (gate defect 3): ffmpeg's own headers for the input it
+            // opened and the file it is writing. See StartAndProbe for why these and not the tick.
+            if (IsInputOpenReport(line)) _inputOpenReported = true;
+            else if (IsOutputOpenReport(line)) _outputOpenReported = true;
+
             // ffmpeg writes its progress with a carriage return, which .NET treats as a line break,
             // so each "time=" tick arrives here as its own line. Shared with the screen recorder
             // rather than parsed a second way.
@@ -366,7 +452,7 @@ namespace AgentEyes.Video
 
             if (firstCall)
                 Log.Info($"[FfmpegCameraRecorder] Stop: camera=\"{DeviceName}\" captured={CapturedSeconds:F1}s "
-                         + $"lostMidRun={_lostMidRun}");
+                         + $"lostMidRun={_lostMidRun} reportedEncodedOutput={_wroteOutput}");
 
             if (!_proc.HasExited)
             {

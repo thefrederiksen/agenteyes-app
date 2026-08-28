@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using AgentEyes.Video;
@@ -44,7 +45,22 @@ namespace AgentEyes.Tests
         private string Out => Path.Combine(_dir, "camera.mp4");
         private string LogPath => Path.Combine(_dir, "camera.mp4.ffmpeg.log");
 
-        /// <summary>An ffmpeg progress tick - the line the open probe is waiting to see.</summary>
+        /// <summary>
+        /// ffmpeg's report that it OPENED the DirectShow camera - HALF of what the open probe waits
+        /// for. Verbatim from the shipped ffmpeg against the eMeet C960.
+        /// </summary>
+        private const string InputOpenReport =
+            "Input #0, dshow, from 'video=HD Webcam eMeet C960':";
+
+        /// <summary>ffmpeg's report that camera.mp4 is open for writing - the other half.</summary>
+        private const string OutputOpenReport =
+            "Output #0, mp4, to 'C:\\Users\\soren\\Videos\\AgentEyes\\2026-08-28_104509_video\\camera.mp4':";
+
+        /// <summary>
+        /// An ffmpeg progress tick carrying a real output position. NOT what the open probe waits
+        /// for - it is what round 2 waited for, and libx264 frame-threading holds it back by seconds
+        /// while the camera is already filming (issue #28, AC3 regression).
+        /// </summary>
         private const string ProgressTick =
             "frame=   15 fps= 30 q=28.0 size=      64KiB time=00:00:00.50 bitrate=1048.6kbits/s speed=1x";
 
@@ -59,8 +75,18 @@ namespace AgentEyes.Tests
             private Action<string>? _onStderr;
             private Action? _onExited;
 
-            /// <summary>Emit a progress tick the moment the process starts, i.e. a camera that opens.</summary>
-            public bool ReportsOutputOnStart = true;
+            /// <summary>Report the DirectShow input open the moment the process starts.</summary>
+            public bool ReportsInputOpenOnStart = true;
+
+            /// <summary>Report camera.mp4 open for writing the moment the process starts.</summary>
+            public bool ReportsOutputOpenOnStart = true;
+
+            /// <summary>
+            /// Emit a progress tick on start. Deliberately SEPARATE from the two open reports: a real
+            /// ffmpeg emits the headers seconds before its first encoded frame, and the start must not
+            /// wait for the frame (issue #28, AC3).
+            /// </summary>
+            public bool ReportsProgressOnStart = true;
 
             /// <summary>Exit during Start with this code, i.e. a camera that fails immediately.</summary>
             public int? ExitsOnStartWith;
@@ -94,7 +120,10 @@ namespace AgentEyes.Tests
                 Started = true;
                 _onStderr = onStderrLine;
                 _onExited = onExited;
-                if (ReportsOutputOnStart) Emit(ProgressTick);
+                // The order a real ffmpeg produces them in: input header, output header, then ticks.
+                if (ReportsInputOpenOnStart) Emit(InputOpenReport);
+                if (ReportsOutputOpenOnStart) Emit(OutputOpenReport);
+                if (ReportsProgressOnStart) Emit(ProgressTick);
                 if (StderrOnStart != null)
                     foreach (string line in StderrOnStart) Emit(line);
                 if (ExitsOnStartWith.HasValue) End(ExitsOnStartWith.Value);
@@ -145,7 +174,12 @@ namespace AgentEyes.Tests
             //
             // Bad result this fires on: StartOver returns a recorder. Empty result: impossible -
             // either it throws or it returns, and both are asserted.
-            var proc = new FakeCameraProcess { ReportsOutputOnStart = false };
+            var proc = new FakeCameraProcess
+            {
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = false,
+            };
 
             var ex = Assert.Throws<UsageException>(() => StartOver(proc, openTimeoutSeconds: 0.2));
 
@@ -160,7 +194,12 @@ namespace AgentEyes.Tests
             // it were missing: a probe that times out is looking at a LIVE process holding the
             // webcam. Failing the start without killing it would strand ffmpeg exactly as defect 1
             // did. Bad result: Kills == 0 (walked away from a running process).
-            var proc = new FakeCameraProcess { ReportsOutputOnStart = false };
+            var proc = new FakeCameraProcess
+            {
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = false,
+            };
 
             Assert.Throws<UsageException>(() => StartOver(proc, openTimeoutSeconds: 0.2));
 
@@ -176,7 +215,13 @@ namespace AgentEyes.Tests
             // ffmpeg that exited 0 during the probe was marked opened, and the Exited handler ignored
             // it because _opened was still false - a camera that recorded nothing, reported by
             // nobody. A process that has ended is not recording, whatever it exited with.
-            var proc = new FakeCameraProcess { ReportsOutputOnStart = false, ExitsOnStartWith = 0 };
+            var proc = new FakeCameraProcess
+            {
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = false,
+                ExitsOnStartWith = 0,
+            };
 
             var ex = Assert.Throws<UsageException>(() => StartOver(proc));
 
@@ -184,12 +229,12 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Start_WhenFfmpegReportsItsFirstOutput_OpensTheCamera()
+        public void Start_WhenFfmpegReportsTheCameraAndTheFileOpen_OpensTheCamera()
         {
             // The POSITIVE control for the three above. Without it a probe that rejected everything
             // would pass all of them - the tests would prove only that starting a camera is
             // impossible.
-            var proc = new FakeCameraProcess { ReportsOutputOnStart = true };
+            var proc = new FakeCameraProcess();
 
             using var rec = StartOver(proc);
 
@@ -201,13 +246,116 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void Start_DoesNotHoldTheRecordingStartWaitingForTheFirstEncodedFrame()
+        {
+            // THE AC3 REGRESSION (QA round 2). Round 2 fixed the probe by waiting for ffmpeg's first
+            // progress tick. That tick reports ENCODED output, and libx264 frame-threading holds the
+            // first encoded frame back by SECONDS - 2.6s on the eMeet C960 - while the camera is
+            // already filming. The screen recorder is started only after the probe returns, so every
+            // millisecond the probe spends is head footage camera.mp4 carries and recording.mp4 does
+            // not: the two files came out 2.37s apart against AC3's hard 1.0s limit.
+            //
+            // So the criterion lives here, in the only place a unit test can hold it: the start must
+            // complete on ffmpeg's OPEN report and must not wait for encoded output. The budget is
+            // AC3's own 1.0s.
+            //
+            // Bad result this fires on: StartOver blocks (and then throws UsageException when the
+            // deadline passes) because no progress tick is ever emitted - exactly what the round-2
+            // code does with this fake.
+            var proc = new FakeCameraProcess { ReportsProgressOnStart = false };
+
+            var sw = Stopwatch.StartNew();
+            using var rec = StartOver(proc, openTimeoutSeconds: 10.0);
+            sw.Stop();
+
+            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(1.0),
+                $"the start blocked for {sw.Elapsed.TotalSeconds:F2}s after ffmpeg reported the camera open - "
+                + "every second of that is head footage on camera.mp4 that recording.mp4 does not have, and "
+                + "AC3 allows the two durations to differ by at most 1.0s");
+            Assert.Equal(0.0, rec.CapturedSeconds, 3);   // no tick yet: opened is not the same as encoded
+            Assert.False(rec.LostMidRun);
+            Assert.Equal(0, proc.Kills);
+        }
+
+        [Fact]
+        public void Start_WhenOnlyAProgressTickArrives_DoesNotCountThatAsAnOpenCamera()
+        {
+            // The other side of the same line, and the guard against "fixing" the regression by
+            // accepting EITHER signal. The open probe's presence is ffmpeg's two headers; a progress
+            // tick on its own is not a report that this camera and this file were opened.
+            //
+            // Bad result: StartOver returns.
+            var proc = new FakeCameraProcess
+            {
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = true,
+            };
+
+            var ex = Assert.Throws<UsageException>(() => StartOver(proc, openTimeoutSeconds: 0.2));
+
+            Assert.Contains("never reported the camera open", ex.Message);
+        }
+
+        [Fact]
+        public void Start_WhenFfmpegOpensTheCameraButNeverOpensTheOutputFile_FailsTheStart()
+        {
+            // Both headers are required: a camera ffmpeg that opened the device and then could not
+            // open camera.mp4 is holding the webcam and writing nothing. Half a presence is not one.
+            //
+            // Bad result: StartOver returns.
+            var proc = new FakeCameraProcess { ReportsOutputOpenOnStart = false, ReportsProgressOnStart = false };
+
+            var ex = Assert.Throws<UsageException>(() => StartOver(proc, openTimeoutSeconds: 0.2));
+
+            Assert.Contains("opened the camera but never opened camera.mp4", ex.Message);
+            Assert.Equal(1, proc.Kills);
+        }
+
+        [Fact]
+        public void TheOpenReport_IsFfmpegsTwoHeadersAndNothingElse()
+        {
+            // The instrument behind the probe. If either predicate answered true for a line ffmpeg
+            // prints on the way to FAILING, the probe would open a camera that never opened; if it
+            // answered false for the real header, it would fail a working one. Both directions are
+            // asserted, on verbatim ffmpeg output.
+            Assert.True(FfmpegCameraRecorder.IsInputOpenReport(InputOpenReport));
+            Assert.True(FfmpegCameraRecorder.IsOutputOpenReport(OutputOpenReport));
+
+            Assert.False(FfmpegCameraRecorder.IsInputOpenReport(OutputOpenReport));
+            Assert.False(FfmpegCameraRecorder.IsOutputOpenReport(InputOpenReport));
+
+            foreach (string notAnOpenReport in new[]
+            {
+                ProgressTick,
+                null!,
+                "",
+                "[dshow @ 000001c99aa571c0] Could not run graph (sometimes caused by a device already in use by other application)",
+                "[in#0 @ 000001c99aa56f80] Error opening input: I/O error",
+                "Error opening input file video=HD Webcam eMeet C960.",
+                // a NON-dshow input: this recorder only ever captures a camera, so an input header
+                // for anything else is not the camera reporting itself open.
+                "Input #0, lavfi, from 'testsrc':",
+                "  Stream #0:0: Video: mjpeg (Baseline), yuvj422p, 1920x1080, 30 fps",
+            })
+            {
+                Assert.False(FfmpegCameraRecorder.IsInputOpenReport(notAnOpenReport),
+                    $"\"{notAnOpenReport}\" was read as ffmpeg reporting the camera open");
+                Assert.False(FfmpegCameraRecorder.IsOutputOpenReport(notAnOpenReport),
+                    $"\"{notAnOpenReport}\" was read as ffmpeg reporting camera.mp4 open");
+            }
+        }
+
+        [Fact]
         public void Start_WhenTheCameraIsHeldByAnotherApplication_StillNamesTheRealCause()
         {
             // The failure a user actually hits first - a webcam held by a browser or OBS - must keep
             // its one actionable sentence through the rewritten probe. Verbatim ffmpeg 9.0 stderr.
             var proc = new FakeCameraProcess
             {
-                ReportsOutputOnStart = false,
+                ReportsInputOpenOnStart = false,
+                ReportsOutputOpenOnStart = false,
+                ReportsProgressOnStart = false,
                 StderrOnStart = new[]
                 {
                     "[dshow @ 000001c99aa571c0] Could not run graph (sometimes caused by a device already in use by other application)",
@@ -322,6 +470,25 @@ namespace AgentEyes.Tests
 
             Assert.True(rec.LostMidRun, "a camera that ended before the stop is a TRUNCATED track");
             Assert.Equal(10.0, rec.CapturedSeconds, 3);
+        }
+
+        [Fact]
+        public void Stop_WhenTheCameraOpenedAndThenNeverDeliveredAFrame_StillReportsTheLoss()
+        {
+            // The case the open probe now hands to decision 4 instead of failing the start: ffmpeg
+            // reported the camera and the file open, and then produced no encoded output at all. It
+            // must NOT be a silent screen-only recording - the track is reported LOST, camera.mp4 is
+            // marked truncated in the manifest, and it carries the honest 0.0s.
+            //
+            // Bad result: LostMidRun == false, i.e. the manifest tells an editor the take is complete.
+            var proc = new FakeCameraProcess { ReportsProgressOnStart = false };
+            using var rec = StartOver(proc);
+
+            proc.End(1);
+            rec.Stop();
+
+            Assert.True(rec.LostMidRun, "a camera that opened and then produced nothing is a TRUNCATED track");
+            Assert.Equal(0.0, rec.CapturedSeconds, 3);
         }
 
         [Fact]
