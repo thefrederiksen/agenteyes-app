@@ -19,6 +19,24 @@ namespace AgentEyes.App
         public double? HudLeft { get; set; }
         public double? HudTop { get; set; }
 
+        // Recording HUD live preview (issue #33). Size is remembered ONLY for the preview state -
+        // with the preview hidden the HUD sizes itself to its content exactly as it always has, so a
+        // null here is "never resized" and not "zero".
+        public double? HudWidth { get; set; }
+        public double? HudHeight { get; set; }
+
+        // Whether the preview panel is showing. FALSE BY DEFAULT, and that default is the feature's
+        // first acceptance criterion: a fresh config records with no preview panel at all.
+        public bool HudPreviewVisible { get; set; }
+
+        // What the preview shows: "screen" | "camera" | "both". Parsed by PreviewNames.Mode, which
+        // reads anything unrecognised as "screen" - the one mode every recording can show.
+        public string HudPreviewMode { get; set; } = "screen";
+
+        // Where the camera sits in "both" mode: "bottom-right" | "bottom-left" | "top-left" |
+        // "top-right". Parsed by PreviewNames.Corner; the documented default is bottom-right.
+        public string HudPreviewCorner { get; set; } = "bottom-right";
+
         // Capture feature (issue #64): global snip shortcuts, parsed with TriggerSpec.
         // Defaults: region = PrintScreen (drag a rectangle),
         // full-screen = Ctrl+PrintScreen (whole monitor). Rebinding persists across restart.

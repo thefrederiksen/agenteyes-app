@@ -124,6 +124,23 @@ namespace AgentEyes
         ///    why this is a string enum and not a nullable bool.
         /// </summary>
         public string? CameraComplete { get; set; }
+
+        /// <summary>
+        /// Issue #33 (assumption C4): which corner of the frame the person was watching the camera in
+        /// while this was recorded - "bottom-right", "bottom-left", "top-left" or "top-right".
+        ///
+        /// AN EDITING HINT, NOT A COMPOSITION. Nothing is composited: the recording is still the two
+        /// separate files issue #28 produces, and this changes neither of them. It records the
+        /// FRAMING THAT WAS ACTUALLY WANTED at the moment of recording, so the later edit (or a future
+        /// auto-compose) starts from the person's own choice instead of a guess made months later.
+        ///
+        /// Null - and, being null, absent from manifest.json entirely - whenever no overlay framing
+        /// was chosen: no preview, a preview showing only the screen or only the camera, or a
+        /// recording made before this field existed. A camera-less or preview-less recording's
+        /// manifest is therefore identical in shape to what it was before this feature (AC11).
+        /// </summary>
+        public string? PreviewOverlayCorner { get; set; }
+
         public string? Transcript { get; set; }
         public string? Walkthrough { get; set; }
         public string? FfmpegCommand { get; set; }
