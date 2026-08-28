@@ -4,11 +4,13 @@ using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using AgentEyes;
 using AgentEyes.Audio;
+using AgentEyes.Preview;
 using AgentEyes.Video;
 using Drawing = System.Drawing;
 
@@ -79,6 +81,28 @@ namespace AgentEyes.App
         private WriteableBitmap? _previewBitmap;
 
         /// <summary>
+        /// True once the constructor has finished. Every overlay handler checks it (issue #36): WPF
+        /// raises SizeChanged and ValueChanged while the tree is being built, and the overlay drawing
+        /// reads <see cref="_cameraPreview"/>, which is created late in the constructor.
+        /// </summary>
+        private bool _overlayReady;
+
+        /// <summary>1 while the overlay controls are being FILLED IN from a preset, so the handlers
+        /// they raise do not read half-loaded values back out again.</summary>
+        private bool _loadingOverlay;
+
+        /// <summary>True while the circle is being dragged across the live picture.</summary>
+        private bool _draggingCircle;
+
+        /// <summary>
+        /// The camera frame size the adorner was last drawn for (issue #36). ffmpeg reports it a
+        /// moment after the camera opens, so the adorner has to be redrawn when it arrives - and
+        /// when it goes away again, because a preview that has stopped can no longer say where the
+        /// picture is.
+        /// </summary>
+        private CameraFrameSize? _adornerFrameSize;
+
+        /// <summary>
         /// 1 while a frame is already queued for the UI thread. Frames arrive at ~10/s from a
         /// background thread and the newest one is the only one worth drawing, so a frame that
         /// arrives while one is pending is DROPPED rather than queued behind it - that is what keeps
@@ -126,6 +150,11 @@ namespace AgentEyes.App
             // The camera list is the one expensive lookup in this dialog (it launches ffmpeg), so it
             // loads on a background thread AFTER the window is up - the dialog appears instantly with
             // the picker showing "Loading cameras..." and fills itself in.
+            // Issue #36: the overlay adorner is drawn for the first time here, not in the
+            // constructor body - it needs a laid-out canvas and a live controller, and it has
+            // neither until the window is up.
+            _overlayReady = true;
+            Loaded += (_, _) => UpdateOverlayUi();
             Loaded += async (_, _) => await LoadCamerasAsync();
 
             RegionRadio.Checked += (_, _) => { SelectAreaButton.IsEnabled = true; RegionOptions.IsEnabled = true; };
@@ -406,6 +435,10 @@ namespace AgentEyes.App
                         CameraPreviewImage.Source = null;
                         _previewBitmap = null;
                     }
+
+                    // Issue #36: no live picture means nothing to place the circle against, and the
+                    // adorner says so rather than hanging over a black pane.
+                    UpdateOverlayUi();
                 }
                 catch (Exception ex) { Log.Error("[PresetEditor] OnCameraPreviewStateChanged FAILED", ex); }
             }));
@@ -441,6 +474,11 @@ namespace AgentEyes.App
             _previewBitmap.WritePixels(
                 new Int32Rect(0, 0, FfmpegCameraPreview.FrameWidth, FfmpegCameraPreview.FrameHeight),
                 bgr24, FfmpegCameraPreview.FrameWidth * 3, 0);
+
+            // Issue #36: ffmpeg reports the camera's own frame size a moment after the device opens,
+            // and the circle cannot be placed until it has. Redraw on the frame where it CHANGES -
+            // including the change back to "not known" - rather than on every frame.
+            if (!Equals(_cameraPreview.SourceSize, _adornerFrameSize)) UpdateOverlayUi();
         }
 
         private void LoadFrom(CapturePreset p)
@@ -488,6 +526,10 @@ namespace AgentEyes.App
             ModeAudio.IsChecked = p.Mode == "audio";
             ModeVideo.IsChecked = p.Mode is not ("shot" or "audio");
             SelectFps(p.Fps);
+
+            // Issue #36: the overlay framing. A preset saved before this feature existed carries the
+            // property initializer - the documented defaults, circle first.
+            LoadOverlayFrom(p.Overlay);
         }
 
         private void SelectFps(int fps)
@@ -525,6 +567,246 @@ namespace AgentEyes.App
             // would read the placeholder and silently clear a saved camera (see _camerasLoaded).
             if (_camerasLoaded)
                 p.Camera = CameraBox.SelectedIndex <= 0 ? null : CameraBox.SelectedItem as string;
+
+            // Issue #36. Always read: unlike the camera picker there is no slow lookup behind these
+            // controls, so they hold the real values from the moment the dialog opens.
+            p.Overlay = ReadOverlay();
+        }
+
+        // ---- the camera overlay's framing (issue #36) -----------------------
+
+        /// <summary>Fill the overlay controls from a preset, without letting the handlers they raise
+        /// read half-filled values straight back out.</summary>
+        private void LoadOverlayFrom(CameraOverlaySettings? overlay)
+        {
+            var o = (overlay ?? new CameraOverlaySettings()).Canonical();
+            _loadingOverlay = true;
+            try
+            {
+                OverlayShapeCircle.IsChecked = o.ShapeValue == CameraOverlayShape.Circle;
+                OverlayShapeRectangle.IsChecked = o.ShapeValue == CameraOverlayShape.Rectangle;
+                CircleXSlider.Value = o.Circle.CentreX;
+                CircleYSlider.Value = o.Circle.CentreY;
+                CircleSizeSlider.Value = o.Circle.Diameter;
+                InsetSizeSlider.Value = o.InsetFraction;
+                OverlayCornerBox.SelectedIndex = CornerIndex(o.CornerValue);
+            }
+            finally { _loadingOverlay = false; }
+
+            Log.Info($"[PresetEditor] LoadOverlayFrom: {o}");
+            UpdateOverlayUi();
+        }
+
+        /// <summary>The overlay framing exactly as the controls now read it.</summary>
+        private CameraOverlaySettings ReadOverlay() => new CameraOverlaySettings
+        {
+            Shape = PreviewNames.Text(OverlayShapeRectangle.IsChecked == true
+                ? CameraOverlayShape.Rectangle
+                : CameraOverlayShape.Circle),
+            Corner = PreviewNames.Text(SelectedOverlayCorner()),
+            InsetFraction = InsetSizeSlider.Value,
+            Circle = new CameraOverlayCircle
+            {
+                CentreX = CircleXSlider.Value,
+                CentreY = CircleYSlider.Value,
+                Diameter = CircleSizeSlider.Value,
+            },
+        }.Canonical();
+
+        private PreviewCorner SelectedOverlayCorner() => OverlayCornerBox.SelectedIndex switch
+        {
+            1 => PreviewCorner.BottomLeft,
+            2 => PreviewCorner.TopLeft,
+            3 => PreviewCorner.TopRight,
+            _ => PreviewCorner.BottomRight,
+        };
+
+        private static int CornerIndex(PreviewCorner corner) => corner switch
+        {
+            PreviewCorner.BottomLeft => 1,
+            PreviewCorner.TopLeft => 2,
+            PreviewCorner.TopRight => 3,
+            _ => 0,
+        };
+
+        /// <summary>
+        /// WHERE THE CAMERA'S PICTURE ACTUALLY IS inside the preview pane, in the pane's own pixels -
+        /// or NULL when that cannot be known yet (issue #36).
+        ///
+        /// Two nested fits, and both are real: the 320x240 preview buffer is drawn into the pane with
+        /// WPF's Uniform stretch, and inside that buffer the camera's picture is letterboxed by
+        /// ffmpeg's own pad filter. Skipping the second fit would put the circle over the black bars
+        /// on any camera that is not 4:3.
+        ///
+        /// NULL IS "NOT KNOWN" AND IS NEVER TREATED AS "IT FILLS THE PANE". Assuming a size would
+        /// silently draw the circle over the wrong part of the face, and the drawing would look
+        /// perfectly convincing while doing it - so the caller says so instead.
+        /// </summary>
+        private OverlayRect? PreviewContentRect()
+        {
+            if (!_overlayReady) return null;
+
+            double paneWidth = CameraOverlayAdorner.ActualWidth;
+            double paneHeight = CameraOverlayAdorner.ActualHeight;
+            if (paneWidth <= 0 || paneHeight <= 0) return null;
+
+            if (_cameraPreview.SourceSize is not { } camera) return null;
+
+            var buffer = OverlayFit.Contain(paneWidth, paneHeight,
+                                            FfmpegCameraPreview.FrameWidth, FfmpegCameraPreview.FrameHeight);
+            var inner = OverlayFit.Contain(buffer.Width, buffer.Height, camera.Width, camera.Height);
+            return new OverlayRect(buffer.X + inner.X, buffer.Y + inner.Y, inner.Width, inner.Height);
+        }
+
+        /// <summary>
+        /// Push the overlay controls' current values into the labels, the enabled states and the
+        /// circle drawn over the live picture. One place, so the numbers, the words and the drawing
+        /// cannot disagree.
+        /// </summary>
+        private void UpdateOverlayUi()
+        {
+            if (!_overlayReady) return;
+
+            bool circle = OverlayShapeCircle.IsChecked == true;
+            CircleControls.IsEnabled = circle;
+
+            CircleXText.Text = $"{CircleXSlider.Value * 100:F0}%";
+            CircleYText.Text = $"{CircleYSlider.Value * 100:F0}%";
+            CircleSizeText.Text = $"{CircleSizeSlider.Value * 100:F0}%";
+            InsetSizeText.Text = $"{InsetSizeSlider.Value * 100:F0}%";
+
+            RedrawOverlayAdorner(circle);
+        }
+
+        /// <summary>
+        /// Draw (or clear) the circle over the live camera image.
+        ///
+        /// The dimmed area is the part of the camera frame the circle leaves out - it is dimmed, not
+        /// removed, because that is exactly what happens to it: camera.mp4 still records all of it
+        /// (assumption E1), and this circle is a framing choice that can be moved later.
+        /// </summary>
+        private void RedrawOverlayAdorner(bool circle)
+        {
+            var content = circle ? PreviewContentRect() : null;
+            _adornerFrameSize = _cameraPreview.SourceSize;
+
+            if (content is not { } area)
+            {
+                OverlayMaskPath.Data = null;
+                OverlayOutlinePath.Data = null;
+                OverlayHint.Text = circle
+                    ? "Waiting for the camera picture. The circle is drawn once ffmpeg reports the "
+                      + "camera's own frame size - nothing is assumed, because an assumed size would "
+                      + "put the circle over the wrong part of the picture."
+                    : "Rectangle: the whole camera frame is inset, exactly as before. camera.mp4 "
+                      + "records the full frame either way.";
+                return;
+            }
+
+            var bounds = ReadOverlay().Circle.PixelBounds(area.Width, area.Height);
+            var centre = new Point(area.X + bounds.CentreX, area.Y + bounds.CentreY);
+            double radius = bounds.Width / 2.0;
+
+            var ellipse = new EllipseGeometry(centre, radius, radius);
+            var outside = new GeometryGroup { FillRule = FillRule.EvenOdd };
+            outside.Children.Add(new RectangleGeometry(
+                new Rect(0, 0, CameraOverlayAdorner.ActualWidth, CameraOverlayAdorner.ActualHeight)));
+            outside.Children.Add(ellipse);
+
+            OverlayMaskPath.Data = outside;
+            OverlayOutlinePath.Data = ellipse;
+            OverlayHint.Text =
+                $"Circle shown over this camera's own {_adornerFrameSize} frame. It is a framing "
+                + "choice, not a crop: camera.mp4 still records the whole rectangular frame, and the "
+                + "circle is written into the recording's manifest so the framing can be reproduced - "
+                + "or moved - later.";
+        }
+
+        private void Overlay_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (_loadingOverlay) return;
+            try { UpdateOverlayUi(); }
+            catch (Exception ex) { Log.Error("[PresetEditor] Overlay_Changed FAILED", ex); }
+        }
+
+        private void OverlayShape_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_loadingOverlay || !_overlayReady) return;
+            try
+            {
+                Log.Info($"[PresetEditor] OverlayShape_Changed: circle={OverlayShapeCircle.IsChecked == true}");
+                UpdateOverlayUi();
+            }
+            catch (Exception ex) { Log.Error("[PresetEditor] OverlayShape_Changed FAILED", ex); }
+        }
+
+        private void OverlayCorner_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_loadingOverlay || !_overlayReady) return;
+            // Nothing to redraw: the corner says where the inset sits on the RECORDING preview, not
+            // where the circle sits in the camera frame. It is logged because a framing choice that
+            // leaves no trace is a framing choice nobody can explain afterwards.
+            try { Log.Info($"[PresetEditor] OverlayCorner_Changed: corner={PreviewNames.Text(SelectedOverlayCorner())}"); }
+            catch (Exception ex) { Log.Error("[PresetEditor] OverlayCorner_Changed FAILED", ex); }
+        }
+
+        private void OverlayReset_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Log.Info("[PresetEditor] OverlayReset_Click: back to the default framing");
+                LoadOverlayFrom(new CameraOverlaySettings());
+            }
+            catch (Exception ex) { Log.Error("[PresetEditor] OverlayReset_Click FAILED", ex); }
+        }
+
+        private void OverlayAdorner_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (!_overlayReady) return;
+            try { UpdateOverlayUi(); }
+            catch (Exception ex) { Log.Error("[PresetEditor] OverlayAdorner_SizeChanged FAILED", ex); }
+        }
+
+        private void OverlayAdorner_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_overlayReady) return;
+            try
+            {
+                if (OverlayShapeCircle.IsChecked != true || PreviewContentRect() == null) return;
+                _draggingCircle = true;
+                CameraOverlayAdorner.CaptureMouse();
+                MoveCircleTo(e.GetPosition(CameraOverlayAdorner));
+            }
+            catch (Exception ex) { Log.Error("[PresetEditor] OverlayAdorner_MouseDown FAILED", ex); }
+        }
+
+        private void OverlayAdorner_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_draggingCircle) return;
+            try { MoveCircleTo(e.GetPosition(CameraOverlayAdorner)); }
+            catch (Exception ex) { Log.Error("[PresetEditor] OverlayAdorner_MouseMove FAILED", ex); }
+        }
+
+        private void OverlayAdorner_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_draggingCircle) return;
+            try
+            {
+                _draggingCircle = false;
+                CameraOverlayAdorner.ReleaseMouseCapture();
+                Log.Info($"[PresetEditor] circle placed at {ReadOverlay().Circle}");
+            }
+            catch (Exception ex) { Log.Error("[PresetEditor] OverlayAdorner_MouseUp FAILED", ex); }
+        }
+
+        /// <summary>Put the circle's centre where the pointer is. The SLIDERS stay the authoritative
+        /// value - this sets them, and their handler redraws - so clicking the picture and dragging a
+        /// slider cannot end up meaning two different things.</summary>
+        private void MoveCircleTo(Point pointInPane)
+        {
+            if (PreviewContentRect() is not { } area) return;
+            CircleXSlider.Value = CameraOverlayCircle.Clamp((pointInPane.X - area.X) / area.Width, 0, 1);
+            CircleYSlider.Value = CameraOverlayCircle.Clamp((pointInPane.Y - area.Y) / area.Height, 0, 1);
         }
 
         // ---- ui state -----------------------------------------------------
@@ -579,6 +861,9 @@ namespace AgentEyes.App
             // (but keeps its value) for shot/audio presets. It also stays disabled until the camera
             // list has loaded.
             CameraBox.IsEnabled = mode == "video" && _camerasLoaded;
+            // Issue #36: the overlay frames the camera, so it is a video-mode setting too. Disabled
+            // (but KEPT) for a shot/audio preset, exactly like the camera picker above it.
+            OverlayControls.IsEnabled = mode == "video";
         }
 
         // ---- region + show area -------------------------------------------

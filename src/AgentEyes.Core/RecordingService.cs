@@ -92,6 +92,11 @@ namespace AgentEyes
         // The overlay corner framed during this recording, or null when none was. The same value that
         // reaches manifest.json at the stop.
         public string? PreviewOverlayCorner { get; set; }
+
+        // Issue #36: the overlay SHAPE framed during this recording - "circle" or "rectangle" - or
+        // null when no overlay was framed. On /status so the shape can be asserted without a
+        // screenshot, which matters because the HUD is deliberately invisible to screen capture.
+        public string? PreviewOverlayShape { get; set; }
     }
 
     internal sealed class RecordResult
@@ -147,11 +152,12 @@ namespace AgentEyes
         private PreviewTap? _screenTap, _cameraTap;
 
         /// <summary>
-        /// The overlay corner the person chose while this recording ran, or null if they never framed
-        /// one (issue #33, AC5). Written into the manifest at the stop as an EDITING HINT - it
-        /// composites nothing.
+        /// The overlay FRAMING the person chose while this recording ran - shape, circle, corner and
+        /// inset size - or null if they never framed one (issue #33 AC5, extended by issue #36 AC4).
+        /// Written into the manifest at the stop as EDIT METADATA: it composites nothing, crops
+        /// nothing, and changes neither recorded file.
         /// </summary>
-        private volatile string? _previewCorner;
+        private volatile CameraOverlaySettings? _previewOverlay;
 
         /// <summary>
         /// This session's OWN capture claim on <see cref="_dir"/> (issue #154, round 3) - the only
@@ -256,7 +262,11 @@ namespace AgentEyes
         public bool PreviewPublishing => _screenTap?.Publishing == true || _cameraTap?.Publishing == true;
 
         /// <summary>The overlay corner recorded for this session, or null when none was framed.</summary>
-        public string? PreviewOverlayCorner => _previewCorner;
+        public string? PreviewOverlayCorner => _previewOverlay?.Corner;
+
+        /// <summary>The whole overlay framing recorded for this session (issue #36), or null when
+        /// none was framed.</summary>
+        public CameraOverlaySettings? PreviewOverlay => _previewOverlay;
 
         /// <summary>
         /// Turn frame publishing on or off for every tap in this session. This is the WHOLE cost of
@@ -274,17 +284,21 @@ namespace AgentEyes
         }
 
         /// <summary>
-        /// Record which corner the camera was being watched in (issue #33, AC5), or null to record
-        /// none. Sticky for the session: the LAST corner framed is what reaches manifest.json at the
-        /// stop, because that is the framing the person settled on.
+        /// Record the overlay framing the camera is being watched in (issue #33 AC5, issue #36 AC4),
+        /// or null to record none. Sticky for the session: the LAST framing chosen is what reaches
+        /// manifest.json at the stop, because that is the framing the person settled on.
         ///
-        /// It writes an editing hint and nothing else - it composites nothing and changes no recorded
-        /// file. Safe when there is no recording; the value is simply dropped at the next start.
+        /// It writes EDIT METADATA and nothing else - it composites nothing, crops nothing, and
+        /// changes no recorded file. The caller's object is COPIED and canonicalised here, so a later
+        /// edit in the HUD cannot reach back and rewrite what this recording was framed with, and an
+        /// unrecognised spelling can never reach the manifest. Safe when there is no recording; the
+        /// value is simply dropped at the next start.
         /// </summary>
-        public void SetPreviewOverlayCorner(string? corner)
+        public void SetPreviewOverlay(CameraOverlaySettings? overlay)
         {
-            Log.Info($"[RecordingService] SetPreviewOverlayCorner: corner={corner ?? "(none)"}");
-            _previewCorner = corner;
+            var copy = overlay?.Canonical();
+            Log.Info($"[RecordingService] SetPreviewOverlay: overlay={(copy == null ? "(none)" : copy.ToString())}");
+            _previewOverlay = copy;
         }
 
         public RecordStatus Status()
@@ -323,7 +337,8 @@ namespace AgentEyes
                 PreviewScreenFramesRead = _screenTap?.FramesRead ?? 0,
                 PreviewCameraFramesRead = _cameraTap?.FramesRead ?? 0,
                 PreviewFailed = _screenTap?.PublishFailed == true || _cameraTap?.PublishFailed == true,
-                PreviewOverlayCorner = _previewCorner,
+                PreviewOverlayCorner = _previewOverlay?.Corner,
+                PreviewOverlayShape = _previewOverlay?.Shape,
             };
         }
 
@@ -544,7 +559,7 @@ namespace AgentEyes
                 _cameraTap = PreviewArmed && dshowCamera != null
                     ? PreviewTap.TryCreate(PreviewPaths.CameraTrack)
                     : null;
-                _previewCorner = null;
+                _previewOverlay = null;
                 Log.Info($"[RecordingService] StartVideo: preview armed={PreviewArmed} "
                          + $"screenTap={_screenTap != null} cameraTap={_cameraTap != null}");
 
@@ -696,14 +711,14 @@ namespace AgentEyes
             // Flip to finalizing under lock, then flush the raw files outside the lock.
             AudioCapture? audio; LoopbackCapture? loop; FfmpegRecorder? video; FfmpegCameraRecorder? camera;
             string? micWav, sysWav, rawVideo, dir; Manifest? manifest; string mode; AudioSourceKind src; AudioMixOptions opts;
-            string? previewCorner;
+            CameraOverlaySettings? previewOverlay;
             lock (_lock)
             {
                 if (_state != "recording") throw new UsageException("not recording");
                 _state = "finalizing";
-                // Taken with the rest of the session state so the corner written into the manifest is
-                // the one this recording was framed with, not one a later recording chose.
-                previewCorner = _previewCorner;
+                // Taken with the rest of the session state so the framing written into the manifest
+                // is the one this recording was framed with, not one a later recording chose.
+                previewOverlay = _previewOverlay;
                 audio = _audio; loop = _loop; video = _video; camera = _camera;
                 micWav = _micWav; sysWav = _sysWav; rawVideo = _rawVideo;
                 dir = _dir; manifest = _manifest; mode = _mode; src = _src; opts = _opts;
@@ -751,11 +766,22 @@ namespace AgentEyes
 
                 manifest.DurationSeconds = Math.Round(elapsed, 2);
 
-                // The framing the person settled on while recording (issue #33, AC5). An EDITING
-                // HINT: nothing was composited and neither recorded file was touched. Null when no
-                // overlay was framed, and a null field is not written at all - so a recording made
-                // without the overlay has the manifest it always had (AC11).
-                manifest.PreviewOverlayCorner = previewCorner;
+                // The framing the person settled on while recording (issue #33 AC5, issue #36 AC4).
+                // EDIT METADATA: nothing was composited, nothing was cropped, and neither recorded
+                // file was touched - camera.mp4 is the full rectangular frame whatever this says
+                // (issue #36, AC5). Null when no overlay was framed, and a null field is not written
+                // at all - so a recording made without the overlay has the manifest it always had
+                // (issue #33 AC11 / issue #36 AC10).
+                manifest.PreviewOverlayCorner = previewOverlay?.Corner;
+                manifest.PreviewOverlayShape = previewOverlay?.Shape;
+                manifest.PreviewOverlayInset = previewOverlay?.InsetFraction;
+                // The circle is written only when the overlay WAS a circle. A rectangle overlay
+                // frames the whole camera frame, so there is no circle to reproduce and the field
+                // stays absent rather than carrying geometry nothing used.
+                manifest.PreviewOverlayCircle =
+                    previewOverlay is { } framing && framing.ShapeValue == CameraOverlayShape.Circle
+                        ? framing.Circle.Clone()
+                        : null;
 
                 if (manifest.AudioFile != null && !manifest.Files.Contains(manifest.AudioFile)) manifest.Files.Add(manifest.AudioFile);
                 if (manifest.VideoFile != null && !manifest.Files.Contains(manifest.VideoFile)) manifest.Files.Add(manifest.VideoFile);
@@ -800,6 +826,9 @@ namespace AgentEyes
                     m.PendingMux = manifest.PendingMux;
                     m.FfmpegCommand = manifest.FfmpegCommand;
                     m.PreviewOverlayCorner = manifest.PreviewOverlayCorner;
+                    m.PreviewOverlayShape = manifest.PreviewOverlayShape;
+                    m.PreviewOverlayCircle = manifest.PreviewOverlayCircle;
+                    m.PreviewOverlayInset = manifest.PreviewOverlayInset;
                     CameraTrackRecord.CopyTo(m, manifest);
                     // The shot index belongs to the session: only MarkerShot adds to it, and only
                     // while this session is running, so the session's list IS the truth for it.
@@ -844,7 +873,7 @@ namespace AgentEyes
                 {
                     _manifest = null; _dir = null; _monitor = null;
                     _cameraName = null;
-                    _previewCorner = null;
+                    _previewOverlay = null;
                     _peakMic = _peakSys = 0;
                     _state = "idle";
 
@@ -1082,7 +1111,7 @@ namespace AgentEyes
             _captureClaim = default;
             _peakMic = _peakSys = 0;
             DisposePreviewTaps();
-            _previewCorner = null;
+            _previewOverlay = null;
 
             if (dir == null) return;
 
@@ -1170,7 +1199,7 @@ namespace AgentEyes
             // it is here so that a tap which somehow outlived its session cannot be inherited by the
             // next one and show it a picture of the last recording.
             DisposePreviewTaps();
-            _previewCorner = null;
+            _previewOverlay = null;
             // Issue #153: the previous stop's failure belongs to the previous recording. It is
             // reported until a new one starts, and this is that moment.
             _lastStopFailure = null;

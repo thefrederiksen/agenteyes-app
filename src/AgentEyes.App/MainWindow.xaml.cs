@@ -1083,7 +1083,7 @@ namespace AgentEyes.App
                 if (p.Mode == "shot")
                 {
                     minimizedForCapture = await MinimizeBeforeCaptureAsync();
-                    string? file = PresetCapture.Start(_svc, p);
+                    string? file = PresetCapture.Start(_svc, p, _cfg);
                     RememberUsed(p);
                     StatusText.Text = "Screenshot saved + copied to clipboard.";
                     if (file != null)
@@ -1099,7 +1099,7 @@ namespace AgentEyes.App
                 RecordButton.IsEnabled = false;
                 StatusText.Text = "Starting...";
                 minimizedForCapture = p.Mode == "video" && await MinimizeBeforeCaptureAsync();
-                await Task.Run(() => PresetCapture.Start(_svc, p));
+                await Task.Run(() => PresetCapture.Start(_svc, p, _cfg));
                 RememberUsed(p);
 
                 RecordButton.IsEnabled = true;
