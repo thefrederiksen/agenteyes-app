@@ -11,22 +11,34 @@ namespace AgentEyes.Tests
     /// </summary>
     public class HudPreviewStateTests
     {
+        /// <summary>The overlay framing the state is built with (issue #36). Defaults to the
+        /// documented defaults, so every issue #33 assertion below still runs against the same corner
+        /// it always did - the corner simply lives inside this object now.</summary>
+        private static CameraOverlaySettings Framing(
+            PreviewCorner corner = PreviewCorner.BottomRight,
+            CameraOverlayShape shape = CameraOverlayShape.Circle) =>
+            new()
+            {
+                Corner = PreviewNames.Text(corner),
+                Shape = PreviewNames.Text(shape),
+            };
+
         private static HudPreviewState WithCamera(
             bool visible = true, PreviewMode mode = PreviewMode.Both,
             PreviewCorner corner = PreviewCorner.BottomRight) =>
-            new(visible, mode, corner, feedAvailable: true, cameraAvailable: true);
+            new(visible, mode, Framing(corner), feedAvailable: true, cameraAvailable: true);
 
         private static HudPreviewState WithoutCamera(
             bool visible = true, PreviewMode mode = PreviewMode.Screen,
             PreviewCorner corner = PreviewCorner.BottomRight) =>
-            new(visible, mode, corner, feedAvailable: true, cameraAvailable: false);
+            new(visible, mode, Framing(corner), feedAvailable: true, cameraAvailable: false);
 
         /// <summary>A recording started with the preview switched off: its ffmpeg carries no preview
         /// output, so there is no feed and none can be added while it runs.</summary>
         private static HudPreviewState WithNoFeed(
             bool visible = true, PreviewMode mode = PreviewMode.Both,
             PreviewCorner corner = PreviewCorner.BottomRight) =>
-            new(visible, mode, corner, feedAvailable: false, cameraAvailable: true);
+            new(visible, mode, Framing(corner), feedAvailable: false, cameraAvailable: true);
 
         // ---- the toggle -----------------------------------------------------
 
@@ -37,7 +49,7 @@ namespace AgentEyes.Tests
             var cfg = new Config();
             var state = new HudPreviewState(
                 cfg.HudPreviewVisible, PreviewNames.Mode(cfg.HudPreviewMode),
-                PreviewNames.Corner(cfg.HudPreviewCorner),
+                HudOverlayConfig.Read(cfg),
                 feedAvailable: true, cameraAvailable: true);
 
             Assert.False(state.Visible);

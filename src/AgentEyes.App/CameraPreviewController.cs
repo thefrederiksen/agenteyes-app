@@ -81,6 +81,20 @@ namespace AgentEyes.App
         /// <summary>The line the editor shows under/over the pane. Never null.</summary>
         public string StatusText { get; private set; } = NoCameraStatus;
 
+        /// <summary>
+        /// The size of the frames the CAMERA is producing, as ffmpeg reported them, or null when no
+        /// session is running or ffmpeg has not said yet (issue #36).
+        ///
+        /// The preset editor needs it because the pane shows a PADDED 320x240 buffer: without the
+        /// camera's real shape it cannot know where the black bars are, and the circle overlay would
+        /// be drawn over the wrong part of the picture. Null is "not observed" and the editor says
+        /// so - it does not assume the picture fills the pane.
+        /// </summary>
+        public CameraFrameSize? SourceSize
+        {
+            get { lock (_gate) { return _session?.SourceSize; } }
+        }
+
         /// <summary>True while this controller holds (or is opening) a camera.</summary>
         public bool HoldsCamera
         {

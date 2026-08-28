@@ -56,8 +56,26 @@ namespace AgentEyes.Video
 
         private long _frames;
 
+        /// <summary>
+        /// The camera's own frame size once ffmpeg has printed it (issue #36). Written by the stderr
+        /// callback thread and read by the UI thread, so it is guarded by <see cref="_stderr"/>'s own
+        /// lock rather than being a torn read of two ints.
+        /// </summary>
+        private CameraFrameSize? _sourceSize;
+
         /// <summary>The exact DirectShow device name this preview is holding.</summary>
         public string DeviceName { get; }
+
+        /// <summary>
+        /// The size of the frames the CAMERA is producing, straight out of ffmpeg's "Input #0"
+        /// report, or null while ffmpeg has not said (issue #36). The frames handed to the caller are
+        /// a padded <see cref="FrameWidth"/>x<see cref="FrameHeight"/> regardless; this is what the
+        /// picture inside that padding actually is.
+        /// </summary>
+        public CameraFrameSize? SourceSize
+        {
+            get { lock (_stderr) { return _sourceSize; } }
+        }
 
         /// <summary>How many complete frames have been delivered to the caller.</summary>
         public long FramesDelivered => Interlocked.Read(ref _frames);
@@ -105,7 +123,7 @@ namespace AgentEyes.Video
             var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
             var preview = new FfmpegCameraPreview(proc, deviceName, onFrame, onFailed);
 
-            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) preview._stderr.AppendLine(e.Data); };
+            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) preview.OnStderrLine(e.Data); };
 
             if (!proc.Start())
                 throw new UsageException($"failed to start ffmpeg for the camera preview of \"{deviceName}\".");
@@ -118,6 +136,26 @@ namespace AgentEyes.Video
             };
             preview._reader.Start();
             return preview;
+        }
+
+        /// <summary>
+        /// One line of ffmpeg's stderr. Two jobs: keep the whole log for the failure diagnosis, and
+        /// pick the CAMERA's frame size out of the "Input #0" block the first time it appears
+        /// (issue #36). The second stops the moment it succeeds, so a long-running preview is not
+        /// re-parsing a growing buffer.
+        /// </summary>
+        private void OnStderrLine(string line)
+        {
+            lock (_stderr)
+            {
+                _stderr.AppendLine(line);
+                if (_sourceSize != null) return;
+                var found = CameraFrameSize.FromFfmpegLog(_stderr.ToString());
+                if (found == null) return;
+                _sourceSize = found;
+                Log.Info($"[FfmpegCameraPreview] camera \"{DeviceName}\" is producing {found} frames "
+                         + $"(previewed padded into {FrameWidth}x{FrameHeight})");
+            }
         }
 
         /// <summary>
@@ -176,7 +214,8 @@ namespace AgentEyes.Video
 
             _proc.WaitForExit(KillWaitMs);
             int exitCode = _proc.HasExited ? _proc.ExitCode : -1;
-            string err = _stderr.ToString();
+            string err;
+            lock (_stderr) { err = _stderr.ToString(); }
             long delivered = FramesDelivered;
 
             if (delivered == 0)

@@ -33,13 +33,21 @@ namespace AgentEyes.App
         /// </summary>
         public const double StaleAfterSeconds = 2.0;
 
+        /// <summary>
+        /// The overlay framing this HUD is drawing (issue #36): shape, circle, corner, inset size.
+        /// ONE object rather than four fields, and it is the same type the preset carries and the
+        /// manifest records, so "the corner in the preset", "the corner on screen" and "the corner in
+        /// manifest.json" cannot be three different answers.
+        /// </summary>
+        private readonly CameraOverlaySettings _overlay;
+
         public HudPreviewState(
-            bool visible, PreviewMode mode, PreviewCorner corner,
+            bool visible, PreviewMode mode, CameraOverlaySettings overlay,
             bool feedAvailable, bool cameraAvailable)
         {
             Visible = visible;
             Mode = mode;
-            Corner = corner;
+            _overlay = (overlay ?? throw new ArgumentNullException(nameof(overlay))).Canonical();
             FeedAvailable = feedAvailable;
             CameraAvailable = cameraAvailable && feedAvailable;
         }
@@ -51,7 +59,25 @@ namespace AgentEyes.App
         public PreviewMode Mode { get; private set; }
 
         /// <summary>Which corner the camera is inset into in <see cref="PreviewMode.Both"/>.</summary>
-        public PreviewCorner Corner { get; private set; }
+        public PreviewCorner Corner => _overlay.CornerValue;
+
+        /// <summary>The shape the camera is framed in - circle by default (issue #36, AC1).</summary>
+        public CameraOverlayShape Shape => _overlay.ShapeValue;
+
+        /// <summary>Where the circle sits in the camera frame (issue #36). Always present: it is
+        /// KEPT while the shape is a rectangle, so switching back restores the framing.</summary>
+        public CameraOverlayCircle Circle => _overlay.Circle;
+
+        /// <summary>How wide the inset is, as a fraction of the preview's width (assumption E5).</summary>
+        public double InsetFraction => _overlay.ClampedInsetFraction;
+
+        /// <summary>
+        /// The framing as it stands right now, whether or not it is being drawn - a COPY, so the
+        /// caller cannot reach back into this state. This is what is written to config.json;
+        /// <see cref="ManifestOverlay"/> is the narrower question of what was actually FRAMED and is
+        /// null when nothing was.
+        /// </summary>
+        public CameraOverlaySettings Framing => _overlay.Canonical();
 
         /// <summary>
         /// Whether THIS recording carries a live preview feed at all.
@@ -118,8 +144,19 @@ namespace AgentEyes.App
         /// #33, AC5). Non-null needs all three: the panel is showing, the mode is the overlay mode,
         /// and there is a camera to be inset. A screen-only or camera-only preview frames nothing.
         /// </summary>
-        public string? ManifestCorner =>
-            Visible && CameraAvailable && Mode == PreviewMode.Both ? PreviewNames.Text(Corner) : null;
+        public string? ManifestCorner => ManifestOverlay?.Corner;
+
+        /// <summary>
+        /// The WHOLE overlay framing to record in manifest.json (issue #36, AC4), or null when no
+        /// overlay framing happened. Same three conditions as <see cref="ManifestCorner"/>, which is
+        /// now derived from it: the panel is showing, the mode is the overlay mode, and there is a
+        /// camera to be inset. A screen-only or camera-only preview frames nothing.
+        ///
+        /// A COPY, so the recording's record of its own framing cannot be rewritten by a later click
+        /// in the HUD.
+        /// </summary>
+        public CameraOverlaySettings? ManifestOverlay =>
+            Visible && CameraAvailable && Mode == PreviewMode.Both ? _overlay.Canonical() : null;
 
         /// <summary>Whether the preview should be ARMED for the next recording. It is simply the
         /// person's current choice: turning the preview on is what asks for a feed, and the feed is
@@ -146,8 +183,10 @@ namespace AgentEyes.App
         }
 
         /// <summary>Choose the overlay corner. Always accepted and always stored: the choice outlives
-        /// this recording even if this one cannot show it.</summary>
-        public void SetCorner(PreviewCorner corner) => Corner = corner;
+        /// this recording even if this one cannot show it. It writes into THIS state's copy of the
+        /// framing - never into a preset, which is why a mid-recording corner change cannot corrupt
+        /// the saved preset (issue #36, AC7).</summary>
+        public void SetCorner(PreviewCorner corner) => _overlay.Corner = PreviewNames.Text(corner);
 
         /// <summary>
         /// Whether the last frame is too old to be shown as live. TRUE WHEN NOTHING HAS EVER ARRIVED

@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using AgentEyes;
@@ -38,8 +39,9 @@ namespace AgentEyes.App
         private const double DefaultPreviewWidth = 520;
         private const double DefaultPreviewHeight = 400;
 
-        /// <summary>Fraction of the panel width the camera occupies when it is inset into a corner.</summary>
-        private const double InsetWidthFraction = 0.30;
+        /// <summary>Smallest the inset may be drawn, in device-independent pixels. Below this the
+        /// overlay stops being a picture of anything.</summary>
+        private const double MinInsetWidth = 96;
 
         private readonly RecordingService _svc;
         private readonly Config _cfg;
@@ -65,6 +67,19 @@ namespace AgentEyes.App
         private readonly Image _screenImage;
         private readonly Border _cameraHost;
         private readonly Image _cameraImage;
+
+        /// <summary>
+        /// The CIRCULAR camera overlay (issue #36, AC1). A separate element from
+        /// <see cref="_cameraImage"/> rather than a clip applied to it, because the two want
+        /// different things: the rectangle inset shows the WHOLE frame scaled down, while the circle
+        /// shows a CROP of it - the circle's bounding square, mapped onto the ellipse by an
+        /// ImageBrush viewbox. Exactly one of them is visible at a time.
+        ///
+        /// The area outside the ellipse is genuinely empty (no background, no border), which is what
+        /// lets the screen preview show through at the corners of the inset's bounding box - the
+        /// observable difference between a circle and a rectangle with rounded corners.
+        /// </summary>
+        private readonly Ellipse _cameraCircle;
         private readonly TextBlock _previewMessage;
         private readonly TextBlock _previewStatus;
         private readonly Button[] _modeButtons;
@@ -175,22 +190,29 @@ namespace AgentEyes.App
             // ---- the preview panel ------------------------------------------
             // A recording only has a camera to preview when it is actually recording one. The state
             // is told that once, here, and every camera control follows from it.
+            // The overlay framing was seeded into the config by the recording's own start
+            // (PresetCapture.Start -> HudOverlayConfig.Seed), so what this HUD shows IS the framing
+            // chosen on the preset (issue #36, AC3).
             _preview = new HudPreviewState(
                 _cfg.HudPreviewVisible,
                 PreviewNames.Mode(_cfg.HudPreviewMode),
-                PreviewNames.Corner(_cfg.HudPreviewCorner),
+                HudOverlayConfig.Read(_cfg),
                 feedAvailable: _svc.PreviewAvailable,
                 cameraAvailable: _svc.PreviewCameraFrame != null);
 
             _screenImage = new Image { Stretch = Stretch.Uniform };
             _cameraImage = new Image { Stretch = Stretch.Uniform };
+            _cameraCircle = new Ellipse { Visibility = Visibility.Collapsed };
+            var cameraLayers = new Grid();
+            cameraLayers.Children.Add(_cameraImage);
+            cameraLayers.Children.Add(_cameraCircle);
             _cameraHost = new Border
             {
                 BorderBrush = Res<Brush>("RdStroke"),
                 BorderThickness = new Thickness(1),
                 Background = Brushes.Black,
                 Margin = new Thickness(8),
-                Child = _cameraImage,
+                Child = cameraLayers,
                 Visibility = Visibility.Collapsed,
             };
             _previewMessage = new TextBlock
@@ -492,7 +514,7 @@ namespace AgentEyes.App
                 SizeToContent = SizeToContent.WidthAndHeight;
                 _feed.Want(null, false, null, false);
                 _screenImage.Source = null;
-                _cameraImage.Source = null;
+                PaintCameraFrame(null);
             }
 
             _screenImage.Visibility = _preview.ShowScreenLayer ? Visibility.Visible : Visibility.Collapsed;
@@ -505,8 +527,9 @@ namespace AgentEyes.App
             // are in-memory flag sets on the service - no I/O, no process, nothing the recording can
             // feel - so they run on every apply, including the first one at construction.
             _svc.SetPreviewPublishing(_preview.Visible);
-            // The framing hint for manifest.json (AC5) - null whenever no overlay was framed.
-            _svc.SetPreviewOverlayCorner(_preview.ManifestCorner);
+            // The framing for manifest.json (issue #33 AC5, issue #36 AC4) - null whenever no overlay
+            // was framed. EDIT METADATA only: it crops nothing and camera.mp4 stays the full frame.
+            _svc.SetPreviewOverlay(_preview.ManifestOverlay);
 
             // Writing config.json is file I/O, so it happens only when a person actually chose
             // something - never on the construction path, which runs while the HUD is being put on
@@ -542,15 +565,34 @@ namespace AgentEyes.App
             _ => throw new ArgumentOutOfRangeException(nameof(corner), corner, "unknown preview corner"),
         };
 
-        /// <summary>Place and size the camera layer: inset into the chosen corner in "both" mode,
-        /// filling the panel when the camera is the only thing being shown.</summary>
+        /// <summary>
+        /// Place and size the camera layer: inset into the chosen corner in "both" mode, filling the
+        /// panel when the camera is the only thing being shown.
+        ///
+        /// The two overlay shapes are laid out differently on purpose (issue #36):
+        ///
+        ///  - CIRCLE: a square host with NO background and NO border, holding an ellipse. The corners
+        ///    of that square are empty, so the screen preview shows through them - that is AC1, and
+        ///    it is what a person actually sees as "a circle rather than a box".
+        ///  - RECTANGLE: exactly what issue #33 shipped - a bordered box on black, auto-height from
+        ///    the frame's own aspect (AC6).
+        ///
+        /// Whichever shape is chosen, NOTHING here reaches the recording. The camera is still writing
+        /// its own full-frame camera.mp4 and this window has never opened a device.
+        /// </summary>
         private void LayOutInset(double surfaceWidth)
         {
+            bool circle = _preview.Shape == CameraOverlayShape.Circle;
             if (_preview.CameraIsInset)
             {
-                _cameraHost.Width = Math.Max(96, surfaceWidth * InsetWidthFraction);
-                _cameraHost.Height = double.NaN;
+                double inset = Math.Max(MinInsetWidth, surfaceWidth * _preview.InsetFraction);
+                _cameraHost.Width = inset;
+                // A circle needs a SQUARE host - a host that auto-sized to the frame's aspect would
+                // draw an oval and call it a circle.
+                _cameraHost.Height = circle ? inset : double.NaN;
                 _cameraHost.Margin = new Thickness(8);
+                _cameraHost.Background = circle ? Brushes.Transparent : Brushes.Black;
+                _cameraHost.BorderThickness = new Thickness(circle ? 0 : 1);
                 (_cameraHost.HorizontalAlignment, _cameraHost.VerticalAlignment) = _preview.Corner switch
                 {
                     PreviewCorner.TopLeft => (HorizontalAlignment.Left, VerticalAlignment.Top),
@@ -565,9 +607,57 @@ namespace AgentEyes.App
                 _cameraHost.Width = double.NaN;
                 _cameraHost.Height = double.NaN;
                 _cameraHost.Margin = new Thickness(0);
+                _cameraHost.Background = Brushes.Black;
+                _cameraHost.BorderThickness = new Thickness(1);
                 _cameraHost.HorizontalAlignment = HorizontalAlignment.Stretch;
                 _cameraHost.VerticalAlignment = VerticalAlignment.Stretch;
             }
+
+            // The circle is an OVERLAY shape: it applies to the inset, and only to the inset. A
+            // camera-only preview fills the panel with the whole frame exactly as it always did.
+            bool asCircle = circle && _preview.CameraIsInset;
+            _cameraCircle.Visibility = asCircle ? Visibility.Visible : Visibility.Collapsed;
+            _cameraImage.Visibility = asCircle ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        /// <summary>
+        /// Paint one camera frame into whichever overlay shape is showing.
+        ///
+        /// The circle is not a mask over a shrunken whole frame - it is a CROP. The chosen circle's
+        /// bounding square is mapped onto the ellipse through an ImageBrush viewbox, so what is
+        /// inside the circle is what the person framed in the editor, at the size they chose. The
+        /// brush is frozen: a frozen brush is the cheap one for WPF to render ten times a second.
+        /// </summary>
+        private void PaintCameraFrame(BitmapSource? frame)
+        {
+            if (frame == null || !_preview.ShowCameraLayer)
+            {
+                _cameraImage.Source = null;
+                _cameraCircle.Fill = null;
+                return;
+            }
+
+            if (_preview.Shape == CameraOverlayShape.Circle && _preview.CameraIsInset)
+            {
+                _cameraImage.Source = null;
+                // PixelWidth/PixelHeight, not Width/Height: the latter are scaled by whatever DPI
+                // the JPEG happens to declare, and the circle is defined in the frame's own pixels.
+                // The tap publishes an UN-PADDED frame (scale=-2:270), so this IS the camera's
+                // aspect - the same frame of reference the circle was chosen in in the editor.
+                var viewbox = _preview.Circle.Viewbox(frame.PixelWidth, frame.PixelHeight);
+                var brush = new ImageBrush(frame)
+                {
+                    Stretch = Stretch.Fill,
+                    ViewboxUnits = BrushMappingMode.RelativeToBoundingBox,
+                    Viewbox = new Rect(viewbox.X, viewbox.Y, viewbox.Width, viewbox.Height),
+                };
+                brush.Freeze();
+                _cameraCircle.Fill = brush;
+                return;
+            }
+
+            _cameraCircle.Fill = null;
+            _cameraImage.Source = frame;
         }
 
         /// <summary>
@@ -579,7 +669,7 @@ namespace AgentEyes.App
         {
             if (_finishing || !_preview.Visible) return;
             _screenImage.Source = _preview.ShowScreenLayer ? frames.Screen : null;
-            _cameraImage.Source = _preview.ShowCameraLayer ? frames.Camera : null;
+            PaintCameraFrame(_preview.ShowCameraLayer ? frames.Camera : null);
             UpdatePreviewStatus(frames.ScreenStale, frames.CameraStale);
         }
 
@@ -598,8 +688,12 @@ namespace AgentEyes.App
                 return;
             }
 
+            // Read by UI Automation, and the SHAPE is in it deliberately: this window is excluded
+            // from screen capture, so a screenshot can never be the proof that the overlay is round.
             string what = PreviewNames.Text(_preview.Mode)
-                + (_preview.CameraIsInset ? " " + PreviewNames.Text(_preview.Corner) : "");
+                + (_preview.CameraIsInset
+                    ? " " + PreviewNames.Text(_preview.Shape) + " " + PreviewNames.Text(_preview.Corner)
+                    : "");
 
             bool waiting = (_preview.ShowScreenLayer && screenStale) || (_preview.ShowCameraLayer && cameraStale);
             bool nothingToShow = !_preview.ShowScreenLayer && !_preview.ShowCameraLayer;
@@ -639,7 +733,10 @@ namespace AgentEyes.App
             _svc.PreviewArmed = _preview.ArmNextRecording;
             _cfg.HudPreviewVisible = _preview.Visible;
             _cfg.HudPreviewMode = PreviewNames.Text(_preview.Mode);
-            _cfg.HudPreviewCorner = PreviewNames.Text(_preview.Corner);
+            // Issue #36, AC7: the HUD writes its framing into the CONFIG, never into presets.json.
+            // There is no code path from here to a preset, so a corner changed mid-recording cannot
+            // corrupt the preset the recording was started from.
+            HudOverlayConfig.Write(_cfg, _preview.Framing);
             _cfg.Save();
         }
 
