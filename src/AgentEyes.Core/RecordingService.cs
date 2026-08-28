@@ -498,6 +498,12 @@ namespace AgentEyes
             // audio mux (assumption A4), so stopping it IS finalizing camera.mp4. Its Stop never
             // throws for a camera that already died mid-run (decision 4): that loss was reported when
             // it happened and must not turn an otherwise clean stop into a failed one.
+            //
+            // It DOES throw when ffmpeg survived the quit and the kill (issue #28, gate defect 2),
+            // and that failure has to land here rather than be swallowed: the process still owns the
+            // webcam, so this stop is a FAILED stop. The sequence collects it, the manifest is still
+            // saved, and /status reports the failure instead of the service quietly going idle with
+            // the camera still held.
             if (camera != null) steps.Add(new RecordingStopStep("camera", camera.Stop, camera.Dispose));
 
             bool deferred = false;

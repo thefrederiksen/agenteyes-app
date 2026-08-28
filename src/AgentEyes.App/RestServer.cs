@@ -393,15 +393,16 @@ namespace AgentEyes.App
             var mics = AudioCapture.Devices().Select(d => new { d.Number, d.Name });
             string[] dshow; try { dshow = FfmpegDevices.ListAudio().ToArray(); } catch { dshow = Array.Empty<string>(); }
             // Issue #28: the DirectShow cameras a recording can film to camera.mp4, by their exact
-            // ffmpeg names. A machine with no camera reports an EMPTY array, not an error - "no
-            // cameras" is a fact about the machine, not a failure of the call.
-            string[] cameras;
-            try { cameras = FfmpegDevices.ListVideo().ToArray(); }
-            catch (Exception ex)
-            {
-                Log.Error("[RestServer] Devices: enumerating cameras failed", ex);
-                cameras = Array.Empty<string>();
-            }
+            // ffmpeg names. A machine with no camera reports an EMPTY array - "no cameras" is a fact
+            // about the machine, not a failure of the call.
+            //
+            // Which is exactly why enumeration is NOT wrapped (gate defect 5). Catching the failure
+            // and returning [] with HTTP 200 made a broken enumerator - ffmpeg missing, unable to
+            // start, or throwing - indistinguishable from a laptop with no webcam, and it made AC1's
+            // "an empty array means no camera" false. The throw reaches the request handler, which
+            // answers 500 with the real message, so the caller is told what to fix instead of being
+            // told a comfortable lie.
+            string[] cameras = FfmpegDevices.ListVideo().ToArray();
             return new { monitors = mons, mics, dshow, cameras };
         }
 
