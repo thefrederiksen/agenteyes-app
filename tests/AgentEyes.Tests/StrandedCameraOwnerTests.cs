@@ -91,6 +91,16 @@ namespace AgentEyes.Tests
                 ExitCode = -1;
             }
 
+            /// <summary>The process ends BY ITSELF, with nobody asking and nothing watching - the
+            /// gate's RETAINED_PROCESS_DIED case. Whatever the stuck DirectShow device was waiting
+            /// on lets go, ffmpeg finishes and exits, and no code in AgentEyes is running at that
+            /// moment to notice.</summary>
+            public void DiesOnItsOwn()
+            {
+                HasExited = true;
+                ExitCode = 0;
+            }
+
             public void Dispose() => Disposes++;
         }
 
@@ -310,6 +320,150 @@ namespace AgentEyes.Tests
             Assert.True(first.HasExited);
             Assert.False(second.HasExited);
             Assert.False(RecordingWorkset.IsClaimed(_dir), "the recovered camera's claim must be released");
+        }
+
+        // ---- gate round 4, defect 4: a retained process that DIES ------------------
+        //
+        // The gate drove the real RecordingService.Status and the real RecordingWorkset and got:
+        //
+        //   RETAINED_PROCESS_DIED  hasExited=True isAbandoned=True cameraStuck=True statusRows=1
+        //                          pid=4242 claimHeld=True
+        //   AFTER_EXPLICIT_RECOVER cameraStuck=False holdsAny=False statusRows=0 claimHeld=False
+        //
+        // Every row on /status is an assertion that a process is alive RIGHT NOW, and the only
+        // production caller of Recover() is the next StartVideo - so a stranded ffmpeg that exits on
+        // its own left a dead PID reported as stuck, and that recording's claim held, until the user
+        // happened to record again. Reading /status is exactly the moment somebody is asking, so it
+        // is where the liveness is re-read.
+
+        [Fact]
+        public void Report_WhenTheStrandedProcessDiedOnItsOwn_StopsReportingItAndReleasesTheClaim()
+        {
+            // GATE CASE RETAINED_PROCESS_DIED. Nothing kills the process, nothing calls Recover, and
+            // no later recording is started: the ffmpeg simply exits, and the very next look at
+            // /status has to tell the truth about it - and let go of the directory it was holding
+            // for a writer that no longer exists.
+            //
+            // Bad results this fires on: a row still reported for a dead PID, or the claim still
+            // held. Empty result: impossible - the row and the claim are both asserted PRESENT
+            // first, so the test cannot pass by never reaching the state it is about.
+            var owner = new StrandedCameraOwner();
+            var proc = new FakeStuckCamera();
+            var rec = StrandedRecorder(proc);
+            owner.ReleaseClaimUnlessStranded(rec, Claim(), _dir);
+
+            Assert.Single(owner.Report());
+            Assert.True(RecordingWorkset.IsClaimed(_dir));
+
+            proc.DiesOnItsOwn();          // ... and nothing in AgentEyes is watching
+
+            Assert.Empty(owner.Report());
+            Assert.False(owner.HoldsAny);
+            Assert.False(RecordingWorkset.IsClaimed(_dir),
+                "a claim kept for a live writer must be released the moment that writer is gone - "
+                + "packaging and transcription are blocked on it");
+            Assert.Equal(1, proc.Disposes);   // and the handle is released, once it is safe to
+        }
+
+        [Fact]
+        public void HoldsAny_WhenTheStrandedProcessDiedOnItsOwn_IsFalse()
+        {
+            // The same liveness through the other reader. HoldsAny is what /status turns into
+            // CameraStuck, and a stale true there tells the user a webcam is still taken when it is
+            // not.
+            //
+            // Bad result: HoldsAny == true for a process that has exited.
+            var owner = new StrandedCameraOwner();
+            var proc = new FakeStuckCamera();
+            owner.ReleaseClaimUnlessStranded(StrandedRecorder(proc), Claim(), _dir);
+            Assert.True(owner.HoldsAny);
+
+            proc.DiesOnItsOwn();
+
+            Assert.False(owner.HoldsAny);
+        }
+
+        [Fact]
+        public void Report_WhileTheStrandedProcessIsStillAlive_KeepsReportingItAndItsClaim()
+        {
+            // THE POSITIVE CONTROL, without which "let go of dead ones" is satisfied by an owner
+            // that lets go of everything - which would re-open the original defect completely: an
+            // unreachable live ffmpeg with its recording directory published to every automatic pass
+            // in the app.
+            //
+            // Bad result: an empty report, or a released claim, while the fake is still alive.
+            var owner = new StrandedCameraOwner();
+            var proc = new FakeStuckCamera();
+            owner.ReleaseClaimUnlessStranded(StrandedRecorder(proc), Claim(), _dir);
+
+            var rows = owner.Report();
+
+            Assert.False(proc.HasExited, "this test only means anything while the fake ffmpeg survives");
+            Assert.Single(rows);
+            Assert.Equal(FakeStuckCamera.Pid, rows[0].Pid);
+            Assert.True(owner.HoldsAny);
+            Assert.True(RecordingWorkset.IsClaimed(_dir));
+            Assert.Equal(0, proc.Disposes);
+        }
+
+        [Fact]
+        public void Report_WhenOneStrandedProcessDiedAndAnotherDidNot_KeepsOnlyTheLiveOne()
+        {
+            // Two stuck cameras is not hypothetical - the service goes back to idle after a failed
+            // stop - and the liveness re-read must be per process, not a whole-list decision.
+            //
+            // Bad result: both rows dropped, or both kept.
+            var owner = new StrandedCameraOwner();
+            var dead = new FakeStuckCamera();
+            var alive = new FakeStuckCamera();
+            owner.ReleaseClaimUnlessStranded(StrandedRecorder(dead), Claim(), _dir);
+            owner.ReleaseClaimUnlessStranded(StrandedRecorder(alive), default, _dir + "_2");
+            Assert.Equal(2, owner.Report().Count);
+
+            dead.DiesOnItsOwn();
+
+            Assert.Single(owner.Report());
+            Assert.True(owner.HoldsAny);
+            Assert.False(alive.HasExited);
+            Assert.False(RecordingWorkset.IsClaimed(_dir), "the dead one's claim must be released");
+        }
+
+        // ---- gate round 4, defect 5: the CLI must hand its abandoned camera over ---------------
+
+        [Fact]
+        public void Video_HandsAnAbandonedCameraToAStrandedOwnerInsteadOfDroppingTheOnlyReference()
+        {
+            // GATE ROUND 4, DEFECT 5, and it is STRUCTURAL: "the only StrandedCameraOwner in product
+            // code is the service field at RecordingService.cs:121; there is no transfer from the
+            // CLI path." Commands.Video wrote the honest abandoned/unknown manifest and then let its
+            // finally call Dispose() and the local leave scope, so the one handle able to reach a
+            // live ffmpeg still holding the webcam and camera.mp4 was dropped on the floor.
+            //
+            // This is read out of the COMPILED IL rather than the source: a `using`, an alias or a
+            // local would defeat a text scan, and what matters is which method actually contains the
+            // call. It fails closed - CallSites throws if the assembly is missing, and the scanner
+            // is proved able to see these calls at all before the absence is judged.
+            //
+            // Bad result this fires on: Commands::Video calls FfmpegCameraRecorder::Dispose (it
+            // still must) but calls nothing on StrandedCameraOwner. Empty result: the two guard
+            // assertions below turn "the scan found nothing anywhere" into a failure rather than a
+            // pass.
+            //
+            // WHAT IT CANNOT SEE, stated rather than implied: it proves the transfer is COMPILED
+            // INTO Commands::Video, not that it runs on every path - the behaviour of the owner
+            // itself is what the tests above exercise.
+            var owners = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                callee => callee.Contains("StrandedCameraOwner::", StringComparison.Ordinal));
+            var disposals = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                callee => callee.Contains("FfmpegCameraRecorder::Dispose", StringComparison.Ordinal));
+
+            // The instrument works: it can see these calls somewhere, so an absence in Video below
+            // is a real absence and not a scanner that matched nothing at all.
+            Assert.NotEmpty(owners);
+            Assert.NotEmpty(disposals);
+
+            Assert.Contains(disposals, c => c.Method.Contains("Commands::Video", StringComparison.Ordinal));
+            Assert.Contains(owners, c => c.Method.Contains("Commands::Video", StringComparison.Ordinal));
         }
 
         // ---- the failed-start path ----------------------------------------------

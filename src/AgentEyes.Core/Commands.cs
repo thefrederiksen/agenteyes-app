@@ -14,6 +14,21 @@ namespace AgentEyes
         /// <summary>Shared stop flag (a ref local can't be captured by the key-reader lambda).</summary>
         private sealed class Flag { public volatile bool Value; }
 
+        /// <summary>
+        /// The CLI's owner of camera ffmpeg processes it could not kill (issue #28, AC16; gate
+        /// round 4, defect 5).
+        ///
+        /// The Review Gate's finding was that "the only StrandedCameraOwner in product code is the
+        /// service field at RecordingService.cs:121; there is no transfer from the CLI path" - so
+        /// `agenteyes video --camera` wrote an honest `abandoned` / `unknown` manifest and then let
+        /// the local holding the live process handle leave scope, unreachable. This is the CLI's
+        /// side of that reference. It is static because the recorder must outlive the command frame
+        /// that created it, and it routes the decision through the SAME method the service uses so
+        /// "a process that survived every cleanup attempt stays reachable" cannot be true on one
+        /// path and false on the other.
+        /// </summary>
+        private static readonly StrandedCameraOwner CliStrandedCameras = new();
+
         // ---- screens -------------------------------------------------------
 
         public static int Screens()
@@ -328,9 +343,26 @@ namespace AgentEyes
                         // (Dispose is a no-op when the open already confirmed the process gone.)
                         cameraRec.Dispose();
 
-                        // Nothing has been captured into this directory yet, and a directory holding
-                        // no recording is not something to leave behind (AC8/AC9).
-                        DiscardEmptyRecordingDirectory(dir);
+                        // ... and when even that could not end it, the recorder is HANDED OVER
+                        // rather than dropped (issue #28, AC16; gate round 4, defect 5), which also
+                        // decides what happens to the directory: removing one around a live ffmpeg
+                        // fails on the file it holds open and replaces the real, actionable camera
+                        // error with an IO error about camera.mp4.
+                        if (CliStrandedCameras.RetainIfStranded(cameraRec, dir))
+                        {
+                            Console.WriteLine($"[fail] the camera ffmpeg (PID "
+                                + $"{cameraRec.ProcessId?.ToString() ?? "unknown"}) is STILL RUNNING after the failed "
+                                + $"open - it still holds \"{dshowCamera}\" and {Path.Combine(dir, "camera.mp4")}. "
+                                + $"End that process (taskkill /PID {cameraRec.ProcessId?.ToString() ?? "<pid>"} /F) "
+                                + $"before recording again; {dir} is left in place because a live process is writing "
+                                + "into it.");
+                        }
+                        else
+                        {
+                            // Nothing has been captured into this directory yet, and a directory
+                            // holding no recording is not something to leave behind (AC8/AC9).
+                            DiscardEmptyRecordingDirectory(dir);
+                        }
                         throw;
                     }
                 }
@@ -461,10 +493,29 @@ namespace AgentEyes
             }
             finally
             {
-                // The camera's LAST owner. Whatever happened above - a clean stop, or a throw out of
-                // gdigrab, the mux, the duration probe or the manifest save - ffmpeg is stopped and
-                // the webcam is handed back before this command leaves the stack.
+                // The camera's LAST ATTEMPT. Whatever happened above - a clean stop, or a throw out
+                // of gdigrab, the mux, the duration probe or the manifest save - ffmpeg is stopped
+                // and the webcam is handed back before this command leaves the stack.
                 cameraRec?.Dispose();
+
+                // AND THE ATTEMPT CAN FAIL (issue #28, gate round 4, defect 5). Disposing was the
+                // whole of the CLI's ownership: the local then left scope, so the one handle able to
+                // reach an ffmpeg that had survived the quit, the kill AND this retry was dropped on
+                // the floor - while the manifest honestly recorded "abandoned" / "unknown" about a
+                // process nothing in the app could name again. The service had already been fixed to
+                // hand its abandoned recorder to a StrandedCameraOwner; this is the same transfer,
+                // through the same one method, on the CLI's side of the same defect.
+                //
+                // A CLI process cannot outlive itself, so what remains actionable after this command
+                // exits is the PID - printed here and written to the log by the owner.
+                if (CliStrandedCameras.RetainIfStranded(cameraRec, dir))
+                {
+                    Console.WriteLine($"[fail] the camera ffmpeg (PID "
+                        + $"{cameraRec!.ProcessId?.ToString() ?? "unknown"}) is STILL RUNNING - it still holds "
+                        + $"\"{cameraRec.DeviceName}\" and {cameraRec.OutputPath}. End that process "
+                        + $"(taskkill /PID {cameraRec.ProcessId?.ToString() ?? "<pid>"} /F) before recording from "
+                        + "that camera again.");
+                }
             }
         }
 

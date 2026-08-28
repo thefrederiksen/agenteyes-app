@@ -73,10 +73,14 @@ namespace AgentEyes
         private readonly List<Stranded> _held = new();
 
         /// <summary>True while at least one camera ffmpeg is still running that AgentEyes asked to
-        /// die and could not kill.</summary>
+        /// die and could not kill. Re-reads the processes first - see <see cref="Reap"/>.</summary>
         public bool HoldsAny
         {
-            get { lock (_gate) return _held.Count > 0; }
+            get
+            {
+                Reap();
+                lock (_gate) return _held.Count > 0;
+            }
         }
 
         /// <summary>
@@ -87,6 +91,13 @@ namespace AgentEyes
         /// </summary>
         public IReadOnlyList<StrandedCameraReport> Report()
         {
+            // EVERY ROW IS AN ASSERTION THAT A PROCESS IS ALIVE RIGHT NOW (gate round 4, defect 4),
+            // so the processes are re-read before any of it is published. Enumerating the retained
+            // rows and trusting them was how a stranded ffmpeg that exited on its own kept a dead
+            // PID on /status - and kept that recording's claim with it - until some later recording
+            // happened to run Recover(). Reading /status is exactly the moment somebody is asking.
+            Reap();
+
             lock (_gate)
             {
                 var rows = new List<StrandedCameraReport>(_held.Count);
@@ -161,9 +172,8 @@ namespace AgentEyes
                 if (_held.Count == 0) return;
                 Log.Info($"[StrandedCameraOwner] Recover: retrying {_held.Count} stranded camera process(es)");
 
-                for (int i = _held.Count - 1; i >= 0; i--)
+                foreach (var s in _held)
                 {
-                    var s = _held[i];
                     try
                     {
                         s.Recorder.Dispose();
@@ -174,18 +184,17 @@ namespace AgentEyes
                     }
 
                     if (s.Recorder.IsAbandoned)
-                    {
                         Log.Error($"[StrandedCameraOwner] Recover: the camera ffmpeg for \"{s.Recorder.DeviceName}\" "
                                   + $"(PID {s.Recorder.ProcessId?.ToString() ?? "unknown"}) is STILL RUNNING - it keeps "
                                   + $"the camera, {s.Recorder.OutputPath} and the claim on {s.Dir}");
-                        continue;
-                    }
-
-                    Log.Info($"[StrandedCameraOwner] Recover: the camera ffmpeg for \"{s.Recorder.DeviceName}\" is gone "
-                             + $"at last - releasing the claim on {s.Dir}");
-                    RecordingWorkset.Release(s.Claim);
-                    _held.RemoveAt(i);
                 }
+
+                // LETTING GO IS NOT DONE HERE. It is one decision - "this process has ended, so the
+                // handle, the claim and the /status row all go" - and it now has to be reached from
+                // a plain look at the state as well as from this retry (gate round 4, defect 4).
+                // Written twice it can be right in one place and wrong in the other, which is the
+                // mistake this class was created to stop making.
+                Reap();
             }
         }
 
@@ -212,6 +221,72 @@ namespace AgentEyes
                       + $"The recording claim on {dir} is deliberately NOT released - a live writer is still in that "
                       + "directory. This is reported on /status until the process is gone.");
             return true;
+        }
+
+        /// <summary>
+        /// The end of a CLI recording, which owns no recording claim: keep the recorder if - and
+        /// only if - its ffmpeg survived the quit, the kill AND the Dispose retry (gate round 4,
+        /// defect 5). Returns true when it was retained.
+        ///
+        /// It exists because <c>agenteyes video --camera</c> had no owner at all. Its finally called
+        /// <c>Dispose()</c> and let the local leave scope, so the one handle able to reach a live
+        /// ffmpeg still holding the webcam and camera.mp4 was dropped on the floor while the
+        /// manifest honestly recorded <c>abandoned</c> / <c>unknown</c> - the CLI half of the same
+        /// ownership defect the service had.
+        ///
+        /// WHAT IT CAN AND CANNOT DO, stated rather than implied. A CLI process cannot outlive
+        /// itself: this keeps the reference for the rest of the command (so nothing later can lose
+        /// it), routes the decision through the SAME method the service uses, and makes the PID
+        /// reportable - and the PID printed and logged is what remains actionable after the command
+        /// exits. It does not, and cannot, give a finished process something to come back to.
+        /// </summary>
+        public bool RetainIfStranded(FfmpegCameraRecorder? camera, string? dir) =>
+            TryRetain(camera, default, dir);
+
+        /// <summary>
+        /// Let go of every retained camera whose process is no longer running - without killing
+        /// anything, and without anybody having asked (gate round 4, defect 4).
+        ///
+        /// It is the PASSIVE half of <see cref="Recover"/>. Recover is an action a recording start
+        /// takes: try again to end these processes. This is what any mere LOOK at the state must do
+        /// first, because a retained row makes two live claims about the present - "this PID is
+        /// stuck" and "this directory still has a writer in it" - and both stop being true the
+        /// instant ffmpeg exits, with no code of ours running at that moment to notice.
+        ///
+        /// Letting go is three things together, and none of them is optional: the recorder is
+        /// disposed (which is what releases the process handle, now that it is safe to release),
+        /// the recording's claim is released so packaging and transcription can finally have that
+        /// directory, and the <c>/status</c> row goes away.
+        /// </summary>
+        private void Reap()
+        {
+            lock (_gate)
+            {
+                for (int i = _held.Count - 1; i >= 0; i--)
+                {
+                    var s = _held[i];
+
+                    // IsAbandoned asks the process itself, so this is a fresh reading and not the
+                    // stored outcome of the stop that put the row here.
+                    if (s.Recorder.IsAbandoned) continue;
+
+                    Log.Info($"[StrandedCameraOwner] Reap: the camera ffmpeg for \"{s.Recorder.DeviceName}\" "
+                             + $"(PID {s.Recorder.ProcessId?.ToString() ?? "unknown"}) is gone - releasing its "
+                             + $"handle and the claim on {s.Dir}");
+
+                    // Disposing a recorder whose process is confirmed gone is what releases the
+                    // handle; it cannot terminate anything, and its own failure must not strand the
+                    // claim - so it is reported and the row is still let go.
+                    try { s.Recorder.Dispose(); }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[StrandedCameraOwner] Reap: releasing \"{s.Recorder.DeviceName}\" failed", ex);
+                    }
+
+                    RecordingWorkset.Release(s.Claim);
+                    _held.RemoveAt(i);
+                }
+            }
         }
     }
 }
