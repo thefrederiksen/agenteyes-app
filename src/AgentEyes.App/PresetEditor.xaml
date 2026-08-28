@@ -92,11 +92,27 @@
                     <TextBlock Text="Camera" VerticalAlignment="Center" Width="72"
                                Foreground="{StaticResource DkDim}" FontSize="11"/>
                     <ComboBox x:Name="CameraBox" Style="{StaticResource DkCombo}" Width="260" Height="30"
-                              FontSize="12" VerticalAlignment="Center"/>
+                              FontSize="12" VerticalAlignment="Center" SelectionChanged="Camera_Changed"/>
                 </StackPanel>
                 <TextBlock x:Name="CameraHint" Margin="72,6,0,0" TextWrapping="Wrap"
                            Foreground="{StaticResource DkDim}" FontSize="11"
                            Text="Recorded to its own camera.mp4 (video only) next to the screen video, so both can be composed later. Video mode only."/>
+
+                <!-- Live camera preview (issue #29): a framing check before recording, not a monitor.
+                     A DirectShow camera is EXCLUSIVE, so the device is released the moment the
+                     selection changes, the preset leaves Video mode, a recording starts, or this
+                     dialog closes by any route. -->
+                <Border x:Name="CameraPreviewPanel" Margin="72,8,0,0" Width="320" Height="240"
+                        HorizontalAlignment="Left" Background="{StaticResource DkCard}"
+                        BorderBrush="{StaticResource DkBorder}" BorderThickness="1">
+                    <Grid>
+                        <Image x:Name="CameraPreviewImage" Stretch="Uniform"/>
+                        <TextBlock x:Name="CameraPreviewStatus" Text="No camera selected."
+                                   Foreground="{StaticResource DkDim}" FontSize="11" Margin="10"
+                                   TextWrapping="Wrap" TextAlignment="Center"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
 
                 <!-- Audio -->
                 <TextBlock Text="AUDIO" Style="{StaticResource DkSection}" Margin="0,16,0,6"/>

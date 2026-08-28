@@ -159,6 +159,62 @@ namespace AgentEyes.Video
             };
         }
 
+        /// <summary>
+        /// Stream a DirectShow camera as RAW BGR24 frames of a FIXED size on stdout (issue #29) -
+        /// the preset editor's live preview.
+        ///
+        /// Raw frames rather than an encoded stream, because the preview's whole job is to prove the
+        /// camera is pointed at the right thing: every frame is exactly
+        /// <c>width * height * 3</c> bytes, so the reader knows a frame is complete by COUNTING
+        /// rather than by parsing a container, and a WPF WriteableBitmap takes the buffer as-is.
+        ///
+        /// The frame rate is limited on the OUTPUT (<c>-r</c>), not requested from the device
+        /// (<c>-framerate</c>). A dshow input REFUSES to open when the camera does not offer the
+        /// requested mode - which would turn a perfectly good camera into a preview that will not
+        /// start - so the device is opened at whatever it does natively and the surplus frames are
+        /// dropped on the way out (issue #29, assumption B2: this is a framing check, not a monitor).
+        ///
+        /// The scale is aspect-preserving and padded to the exact requested box, so a 16:9 camera
+        /// shows letterboxed rather than stretched, and the frame size stays constant whatever the
+        /// camera's native resolution is.
+        /// </summary>
+        /// <param name="dshowCameraName">Exact DirectShow device name (from FfmpegDevices.ListVideo).</param>
+        /// <param name="width">Frame width in pixels (even).</param>
+        /// <param name="height">Frame height in pixels (even).</param>
+        /// <param name="fps">Frames per second delivered on stdout.</param>
+        public static List<string> CameraPreview(string dshowCameraName, int width, int height, int fps)
+        {
+            if (string.IsNullOrWhiteSpace(dshowCameraName))
+                throw new UsageException("a camera preview needs an exact DirectShow device name.");
+            if (width < 2 || height < 2 || width % 2 != 0 || height % 2 != 0)
+                throw new UsageException(
+                    $"a camera preview frame must be at least 2x2 and even-sized; got {width}x{height}.");
+            if (fps < 1)
+                throw new UsageException($"a camera preview needs a positive frame rate; got {fps}.");
+
+            string fit = $"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                       + $"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black";
+
+            return new List<string>
+            {
+                "-f", "dshow",
+                // The same packet-drop guard the recording inputs carry.
+                "-thread_queue_size", "512",
+                "-i", $"video={dshowCameraName}",
+                // The preview never carries audio: it must not open, and must not be able to open,
+                // the camera's microphone.
+                "-an",
+                "-vf", fit,
+                "-r", fps.ToString(),
+                "-pix_fmt", "bgr24",
+                "-f", "rawvideo",
+                // Push each frame out as it is produced instead of leaving the tail of it in the
+                // 32 KB IO buffer until the next one arrives.
+                "-flush_packets", "1",
+                "pipe:1",
+            };
+        }
+
         /// <summary>Extract a 16 kHz mono WAV (what Whisper wants) from any media file.</summary>
         public static List<string> ExtractWav(string inputPath, string wavPath) => new()
         {
