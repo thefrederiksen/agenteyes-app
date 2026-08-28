@@ -16,9 +16,22 @@ I believe this is finished.
 
 | Check | Result |
 |-------|--------|
-| `dotnet build AgentEyes.sln -c Release` | `Build succeeded.` **0 Warning(s), 0 Error(s)** |
+| `dotnet build AgentEyes.sln -c Release` | `Build succeeded.` **0 Error(s), 2 Warning(s)** |
 | `dotnet test AgentEyes.sln -c Release` | **Failed: 0, Passed: 1138, Skipped: 0** |
-| Same commands on the base (ffd3970), before any change | Failed: 0, Passed: **1043** |
+| Same commands on the base (ffd3970), before any change | `Build succeeded.` 0 Error(s), **the same 2 Warning(s)**; Failed: 0, Passed: **1043** |
+
+Correcting an overclaim I made in the first draft of this note: it said 0 warnings, which was an
+incremental-build artifact - the test project had not been recompiled. Forced clean, the build
+reports **2 warnings, and they are the SAME two the base reports**, both pre-existing and both in a
+file this change does not touch:
+
+```
+tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not
+  use blocking task operations, as they can cause deadlocks.
+tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: (the same)
+```
+
+This change contributes zero warnings of its own.
 
 Built and run from an ISOLATED WORKTREE (`D:\ReposFred\agenteyes-wt-36`), not the shared checkout,
 so the running tray app could not hand back a stale Release binary. Output is under
