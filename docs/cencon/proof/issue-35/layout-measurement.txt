@@ -1,0 +1,32 @@
+PRESET EDITOR LAYOUT MEASUREMENT (issue #35)
+date         : 2026-08-28 17:48:11
+assembly     : D:\ReposFred\agenteyes-wt-35\docs\cencon\proof\issue-35\probe\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+built        : 2026-08-28 17:47:14
+screen (DIP) : 1920 x 1080
+XAML default : Width=900 Height=700
+
+--- window 900 x 700 (default-700) ---
+  ComputedVerticalScrollBarVisibility : Collapsed
+  ExtentHeight / ViewportHeight       : 523.3 / 587.0
+  ScrollableHeight                    : 0.0
+  named controls found in the live window : 38 of 38
+  hidden BY DESIGN (Visibility set in XAML): RegionWarn (Collapsed)
+  every other named control visible WITHOUT scrolling: YES
+  unreachable even after scrolling to the bottom: none
+  AC2 controls simultaneously on screen without scrolling: YES
+  columns: NameBox x=0 w=408 | MicBox x=436 w=408 -> SIDE BY SIDE
+  screenshot: preset-editor-default-700.png
+
+--- window 900 x 600 (height-600) ---
+  ComputedVerticalScrollBarVisibility : Visible
+  ExtentHeight / ViewportHeight       : 523.3 / 487.0
+  ScrollableHeight                    : 36.3
+  named controls found in the live window : 38 of 38
+  hidden BY DESIGN (Visibility set in XAML): RegionWarn (Collapsed)
+  needs scrolling to reach (1):
+    - CameraHint (y 494..523 vs viewport 487)
+  unreachable even after scrolling to the bottom: none
+  AC2 controls simultaneously on screen without scrolling: YES
+  columns: NameBox x=0 w=400 | MicBox x=428 w=400 -> SIDE BY SIDE
+  screenshot: preset-editor-height-600.png
+
