@@ -553,6 +553,13 @@ namespace AgentEyes.Video
         {
             Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" fps={fps} crf={crf} out={outPath}");
 
+            // A DirectShow camera is EXCLUSIVE, so anything in this process that is holding one -
+            // today that is the preset editor's live preview (issue #29) - is told to let go BEFORE
+            // the device is opened, and has released by the time this returns. This is the single
+            // choke point for that: every recording path, from the launcher to POST /record/start,
+            // reaches the camera through here, so none of them can forget it.
+            CameraDeviceArbiter.ReleaseForRecording(dshowCameraName);
+
             string exe = FfmpegLocator.Ffmpeg();
             var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath);
             string cmd = FfmpegArgs.ToCommandLine(exe, args);
