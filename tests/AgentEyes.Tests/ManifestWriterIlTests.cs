@@ -165,6 +165,15 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::CopyDir -> System.IO.File::Copy x1",             // installing a plugin's files
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::InstallZip -> System.IO.Compression.ZipFileExtensions::ExtractToDirectory x1", // a plugin zip unpacked into its folder
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::Remove -> System.IO.File::Delete x1",            // a removed plugin's settings
+            // The HUD live preview (issue #33). Every one of these five is in %LOCALAPPDATA%\AgentEyes\
+            // preview and NONE of them is inside a recording directory - which is the property that
+            // matters to this inventory: a preview frame is a monitor overwritten ten times a second,
+            // and it must never become a file the Library, the repair passes or packaging can find.
+            "agenteyes.dll!AgentEyes.Preview.PreviewFrameFile::TryRead -> System.IO.FileStream::.ctor x1",   // READS a published preview frame (FileAccess.Read; the ctor is on the write list, this use is not a write)
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::Publish -> System.IO.File::Move x1",                // preview\<track>.jpg: the rename that publishes a whole frame
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::Publish -> System.IO.File::WriteAllBytes x1",       // preview\<track>.jpg.tmp: the frame, before that rename
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::RemoveFrameFile -> System.IO.File::Delete x2",      // the published frame and its temp, when the preview is hidden or the recording ends
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::TryCreateAt -> System.IO.File::Delete x2",            // the previous recording's leftover frame and temp, at the start of a new one
             "agenteyes.dll!AgentEyes.Screenshot::CaptureRect -> System.Drawing.Image::Save x1",              // a screenshot / marker-shot PNG
             "agenteyes.dll!AgentEyes.SelfTest::RunChecks -> System.IO.File::Copy x1",                      // audio.wav of the throwaway self-test recording
             "agenteyes.dll!AgentEyes.SelfTest::WriteReport -> System.IO.File::WriteAllText x1",              // selftest-report.html

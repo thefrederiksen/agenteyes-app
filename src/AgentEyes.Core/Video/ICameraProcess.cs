@@ -105,12 +105,21 @@ namespace AgentEyes.Video
         /// the one moment this is needed is a stop that went wrong.</summary>
         private int? _pid;
 
-        public FfmpegCameraProcess(ProcessStartInfo psi, string deviceName)
+        /// <summary>
+        /// The HUD's live camera preview, or null (issue #33). When present, ffmpeg's command line
+        /// carries a second MJPEG output on STDOUT and this tap owns that pipe. It is the ONLY way to
+        /// preview the camera during a recording: ffmpeg holds the DirectShow device exclusively, so
+        /// the preview cannot open it a second time (assumption C1).
+        /// </summary>
+        private readonly Preview.PreviewTap? _preview;
+
+        public FfmpegCameraProcess(ProcessStartInfo psi, string deviceName, Preview.PreviewTap? preview = null)
         {
             if (psi == null) throw new ArgumentNullException(nameof(psi));
             if (string.IsNullOrWhiteSpace(deviceName))
                 throw new ArgumentException("a camera process must name its device", nameof(deviceName));
             _deviceName = deviceName;
+            _preview = preview;
             _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
         }
 
@@ -126,7 +135,10 @@ namespace AgentEyes.Video
                 if (e.Data != null) onStderrLine(e.Data);
                 else _stderrEof.Set();
             };
-            _proc.OutputDataReceived += (_, _) => { };
+            // Stdout carries the preview stream when there is a tap, and nothing at all when there is
+            // not. The two readers are mutually exclusive by construction: BeginOutputReadLine takes
+            // the stream for itself, so wiring both would leave the preview reading a closed pipe.
+            if (_preview == null) _proc.OutputDataReceived += (_, _) => { };
             _proc.Exited += (_, _) => onExited();
 
             if (!_proc.Start())
@@ -135,7 +147,10 @@ namespace AgentEyes.Video
             _pid = _proc.Id;
 
             _proc.BeginErrorReadLine();
-            _proc.BeginOutputReadLine();
+            // The pipe starts filling the instant ffmpeg produces a frame, and a full pipe blocks the
+            // process WRITING CAMERA.MP4 - so the drain starts here, with the process, and never later.
+            if (_preview == null) _proc.BeginOutputReadLine();
+            else _preview.Pump(_proc.StandardOutput.BaseStream);
         }
 
         public bool HasExited => _proc.HasExited;
