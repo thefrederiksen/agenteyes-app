@@ -39,6 +39,17 @@ namespace AgentEyes.Video
         /// before <see cref="IDisposable.Dispose"/>, which releases the handle it needs.</summary>
         int ExitCode { get; }
 
+        /// <summary>
+        /// The operating system process id, or null before the process is started (issue #28,
+        /// AC16).
+        ///
+        /// It exists so that a camera ffmpeg AgentEyes could not kill can be named to the person who
+        /// has to deal with it. "A camera process is stuck" is not actionable; "PID 24512 is stuck"
+        /// is - it is what Task Manager, taskkill and Get-Process all take. Captured at start and
+        /// held, because reading it off a Process AFTER the handle is released throws.
+        /// </summary>
+        int? ProcessId { get; }
+
         /// <summary>Ask ffmpeg to quit cleanly ("q" on stdin) so the MP4 is finalized rather than
         /// truncated.</summary>
         void SendQuit();
@@ -89,6 +100,11 @@ namespace AgentEyes.Video
         /// </summary>
         private readonly ManualResetEventSlim _stderrEof = new(initialState: false);
 
+        /// <summary>The OS process id, captured the instant Start succeeded. Held rather than read
+        /// on demand because <see cref="Process.Id"/> throws once the handle has been released, and
+        /// the one moment this is needed is a stop that went wrong.</summary>
+        private int? _pid;
+
         public FfmpegCameraProcess(ProcessStartInfo psi, string deviceName)
         {
             if (psi == null) throw new ArgumentNullException(nameof(psi));
@@ -116,6 +132,8 @@ namespace AgentEyes.Video
             if (!_proc.Start())
                 throw new UsageException($"failed to start ffmpeg for the camera \"{_deviceName}\".");
 
+            _pid = _proc.Id;
+
             _proc.BeginErrorReadLine();
             _proc.BeginOutputReadLine();
         }
@@ -123,6 +141,8 @@ namespace AgentEyes.Video
         public bool HasExited => _proc.HasExited;
 
         public int ExitCode => _proc.ExitCode;
+
+        public int? ProcessId => _pid;
 
         public void SendQuit()
         {

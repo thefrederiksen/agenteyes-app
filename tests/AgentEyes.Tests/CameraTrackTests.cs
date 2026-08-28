@@ -41,7 +41,9 @@ namespace AgentEyes.Tests
                 CameraFile = "camera.mp4",
                 CameraStartOffsetSeconds = -0.421,
                 CameraCapturedSeconds = 12.34,
-                CameraTruncated = false,
+                CameraStopKind = "clean-quit",
+                CameraStderrComplete = true,
+                CameraComplete = "yes",
             };
             m.Files.Add("recording.mp4");
             m.Files.Add("camera.mp4");
@@ -50,12 +52,21 @@ namespace AgentEyes.Tests
             Assert.Contains("\"CameraFile\": \"camera.mp4\"", json);
             Assert.Contains("\"CameraStartOffsetSeconds\"", json);
             Assert.Contains("\"camera.mp4\"", json);
+            // A7: the verdict is a STRING on the wire, so "unknown" is expressible and no consumer
+            // can coerce it into false the way a nullable bool invites.
+            Assert.Contains("\"CameraComplete\": \"yes\"", json);
+            Assert.Contains("\"CameraStopKind\": \"clean-quit\"", json);
+            // The superseded boolean is GONE, not kept alongside - two fields answering the same
+            // question is how a consumer ends up reading the one that lies.
+            Assert.DoesNotContain("CameraTruncated", json);
 
             var back = RoundTrip(m);
             Assert.Equal("camera.mp4", back.CameraFile);
             Assert.Equal(-0.421, back.CameraStartOffsetSeconds);
             Assert.Equal(12.34, back.CameraCapturedSeconds);
-            Assert.False(back.CameraTruncated);
+            Assert.Equal("clean-quit", back.CameraStopKind);
+            Assert.True(back.CameraStderrComplete);
+            Assert.Equal("yes", back.CameraComplete);
             Assert.Contains("camera.mp4", back.Files);
         }
 
@@ -74,11 +85,12 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Manifest_ATruncatedCameraTrack_RecordsTheSecondsActuallyCaptured()
+        public void Manifest_ACameraLostMidRun_RecordsHowItEndedAndTheSecondsActuallyCaptured()
         {
-            // AC10: the camera died 4.2s into a 30s session. The manifest must say BOTH that the
-            // track is truncated and how much of it exists - "truncated" with no number would leave
-            // an editor guessing, and a number with no flag would look like a complete short take.
+            // AC10 as amended: the camera died 4.2s into a 30s session. The manifest must say HOW it
+            // ended, that the take is not complete, and how much of it exists - a verdict with no
+            // number would leave an editor guessing, and a number with no verdict would look like a
+            // complete short take.
             var m = new Manifest
             {
                 Mode = "video",
@@ -86,13 +98,44 @@ namespace AgentEyes.Tests
                 VideoFile = "recording.mp4",
                 CameraFile = "camera.mp4",
                 CameraCapturedSeconds = 4.2,
-                CameraTruncated = true,
+                CameraStopKind = "exited-early",
+                CameraStderrComplete = true,
+                CameraComplete = "no",
             };
 
             var back = RoundTrip(m);
-            Assert.True(back.CameraTruncated);
+            Assert.Equal("exited-early", back.CameraStopKind);
+            Assert.Equal("no", back.CameraComplete);
             Assert.Equal(4.2, back.CameraCapturedSeconds);
             Assert.Equal(30.0, back.DurationSeconds);   // the screen recording is untouched
+        }
+
+        [Fact]
+        public void Manifest_ACameraWhoseEvidenceWasIncomplete_RecordsUnknownRatherThanAGuess()
+        {
+            // THE STATE THE OLD BOOLEAN DID NOT HAVE, and the reason three rounds of this feature
+            // shipped a false claim: with only "complete" and "truncated" available, every case the
+            // recorder had not anticipated was rounded to COMPLETE. "unknown" has to survive the
+            // round trip as itself - a consumer that read it back as false would put the hole
+            // straight back.
+            var m = new Manifest
+            {
+                Mode = "video",
+                VideoFile = "recording.mp4",
+                CameraFile = "camera.mp4",
+                CameraCapturedSeconds = 0.5,
+                CameraStopKind = "clean-quit",
+                CameraStderrComplete = false,
+                CameraComplete = "unknown",
+            };
+
+            string json = Json(m);
+            Assert.Contains("\"CameraComplete\": \"unknown\"", json);
+            Assert.Contains("\"CameraStderrComplete\": false", json);
+
+            var back = RoundTrip(m);
+            Assert.Equal("unknown", back.CameraComplete);
+            Assert.False(back.CameraStderrComplete);
         }
 
         [Fact]
@@ -107,7 +150,9 @@ namespace AgentEyes.Tests
             Assert.Null(m.CameraFile);
             Assert.Null(m.CameraStartOffsetSeconds);
             Assert.Null(m.CameraCapturedSeconds);
-            Assert.Null(m.CameraTruncated);
+            Assert.Null(m.CameraStopKind);
+            Assert.Null(m.CameraStderrComplete);
+            Assert.Null(m.CameraComplete);
         }
 
         [Fact]
@@ -126,7 +171,9 @@ namespace AgentEyes.Tests
                     CameraFile = "camera.mp4",
                     CameraStartOffsetSeconds = -0.4,
                     CameraCapturedSeconds = 9.5,
-                    CameraTruncated = false,
+                    CameraStopKind = "clean-quit",
+                    CameraStderrComplete = true,
+                    CameraComplete = "yes",
                 };
                 m.Files.Add("camera.mp4");
                 ManifestStore.Replace(dir, m);
@@ -135,7 +182,9 @@ namespace AgentEyes.Tests
                 Assert.Equal("camera.mp4", loaded.CameraFile);
                 Assert.Equal(-0.4, loaded.CameraStartOffsetSeconds);
                 Assert.Equal(9.5, loaded.CameraCapturedSeconds);
-                Assert.False(loaded.CameraTruncated);
+                Assert.Equal("clean-quit", loaded.CameraStopKind);
+                Assert.True(loaded.CameraStderrComplete);
+                Assert.Equal("yes", loaded.CameraComplete);
                 Assert.Contains("camera.mp4", loaded.Files);
             }
             finally

@@ -44,6 +44,36 @@ namespace AgentEyes.Video
     }
 
     /// <summary>
+    /// Raised when the camera ffmpeg IGNORED the quit request and had to be killed (issue #28, spec
+    /// amendment 2026-08-28, AC14).
+    ///
+    /// The process really is gone, so this is not the abandoned-process failure above - but the FILE
+    /// is a different question, and this is what stops the two being conflated. camera.mp4 was being
+    /// written by a process that was shot rather than asked; ffmpeg never wrote the trailer, so the
+    /// take was never finalized. Returning normally from a stop like that is how a force-killed file
+    /// reached the manifest as a clean complete take through three rounds of this fix.
+    ///
+    /// The SCREEN recording is unaffected and is already on disk - this reports one track, not a
+    /// lost session, and every caller treats it that way.
+    /// </summary>
+    internal sealed class CameraForceKilledException : Exception
+    {
+        public CameraForceKilledException(string deviceName, string outputPath, double capturedSeconds, string diagnostics)
+            : base($"the camera \"{deviceName}\" ignored the quit request and had to be force-killed, so "
+                   + $"{outputPath} was never finalized by ffmpeg and may be truncated - it covers "
+                   + $"{capturedSeconds:F1}s of reported output. The screen recording is unaffected. {diagnostics}")
+        {
+            DeviceName = deviceName;
+            CapturedSeconds = capturedSeconds;
+        }
+
+        public string DeviceName { get; }
+
+        /// <summary>Seconds of output ffmpeg reported writing before it was killed.</summary>
+        public double CapturedSeconds { get; }
+    }
+
+    /// <summary>
     /// The webcam half of a recording (issue #28): a SECOND, independent ffmpeg process writing
     /// camera.mp4 next to the screen recorder's recording.mp4, so a session can be edited afterwards
     /// into a screen-plus-presenter piece instead of a layout baked in at record time.
@@ -103,6 +133,18 @@ namespace AgentEyes.Video
     ///     an empty camera.mp4 written into the manifest as a good take. <see cref="Stop"/> now
     ///     draws that conclusion from ffmpeg's COMPLETE stderr (<see cref="ICameraProcess.DrainStderr"/>)
     ///     and reports the track LOST whenever no output was ever reported, alive or dead.
+    ///
+    /// THE 2026-08-28 SPEC AMENDMENT REPLACED RULE 6 WITH SOMETHING SMALLER AND HONEST. Rounds 1-3
+    /// all tried to PROVE camera.mp4 was complete, and the Review Gate reproduced three cases where
+    /// the proof came out wrong IN THE USER'S FAVOUR: a camera that emitted one tick and stalled for
+    /// a 30-second session, a camera whose stderr never reached EOF after an early tick, and a file
+    /// that was force-killed mid-write. All three were recorded as clean complete takes.
+    ///
+    /// So this class no longer reasons its way to "complete". It records WHAT IT OBSERVED -
+    /// <see cref="CapturedSeconds"/>, <see cref="StopKind"/>, <see cref="StderrComplete"/> - and
+    /// <see cref="Completeness"/> is a THREE-STATE verdict whose <c>yes</c> requires the full
+    /// presence and whose <c>unknown</c> is the correct answer for everything else, INCLUDING cases
+    /// nobody anticipated. The one thing it may never do is claim <c>yes</c> from an absence.
     /// </summary>
     internal sealed class FfmpegCameraRecorder : IDisposable
     {
@@ -132,10 +174,36 @@ namespace AgentEyes.Video
         /// </summary>
         private const int StderrDrainMs = 2000;
 
+        /// <summary>
+        /// How stale ffmpeg's last ADVANCE of its output position may be, measured at the moment the
+        /// stop is requested, for the take to still be called complete (issue #28, AC13).
+        ///
+        /// This is the window the ONE_TICK_STALL case walks through. ffmpeg prints its progress
+        /// roughly twice a second while it is encoding, so three seconds is about six reports
+        /// missed - comfortably past any scheduling hiccup, and nowhere near the "stalled for the
+        /// rest of a 30-second session" the gate reproduced. A camera whose position has not moved
+        /// for longer than this is not KNOWN broken (the last frames may simply be buffered), so it
+        /// is not <c>no</c> - it is <c>unknown</c>, which is exactly the state that did not exist
+        /// before.
+        ///
+        /// Measured against the ADVANCE, never the arrival: ffmpeg prints a final summary line when
+        /// it quits, and a stalled camera's summary repeats the position it stalled at. An
+        /// arrival-based freshness check would read that repeat as "ticks were still arriving" and
+        /// certify the stall.
+        /// </summary>
+        private static readonly TimeSpan OutputStallWindow = TimeSpan.FromSeconds(3);
+
         private readonly ICameraProcess _proc;
         private readonly StringBuilder _stderr = new();
         private readonly string _logPath;
         private readonly TimeSpan _openTimeout;
+
+        /// <summary>
+        /// The clock, injectable so the stall window above is testable without sleeping. Production
+        /// passes UTC now; a test passes a clock it moves by hand, which is the only way to reach
+        /// "the camera stalled for 30 seconds" in a unit test that must run in milliseconds.
+        /// </summary>
+        private readonly Func<DateTime> _now;
 
         /// <summary>
         /// Set when a stop has been ASKED FOR. It is deliberately not "this recorder is finished":
@@ -183,6 +251,45 @@ namespace AgentEyes.Video
         /// "it wrote output" would re-open the exact hole this closes.
         /// </summary>
         private volatile bool _wroteOutput;
+
+        /// <summary>
+        /// When ffmpeg's reported output position last MOVED FORWARD, as ticks (UTC). The instrument
+        /// behind AC13: a camera can go on printing progress lines forever while the position stands
+        /// still, so "we heard from it recently" is not "it is still recording". Zero until the
+        /// first positive tick.
+        ///
+        /// Written from the stderr callback thread and read on the stop thread, so it goes through
+        /// <see cref="Interlocked"/> like <see cref="_mediaMs"/> rather than being torn on a 32-bit
+        /// read.
+        /// </summary>
+        private long _lastOutputAdvanceTicks;
+
+        /// <summary>When the FIRST <see cref="Stop"/> call arrived, as ticks (UTC) - the moment the
+        /// output position's freshness is judged against. Zero until a stop is requested.</summary>
+        private long _stopRequestedTicks;
+
+        /// <summary>
+        /// <see cref="_lastOutputAdvanceTicks"/> SNAPSHOTTED at the instant the stop was requested,
+        /// and the only value AC13 is judged from.
+        ///
+        /// Advances that arrive AFTER the stop are deliberately not counted. ffmpeg flushes what it
+        /// is holding when it is told to quit, so a camera that stalled for the whole session can
+        /// still push its position forward on the way out - and reading that as "output was still
+        /// arriving" would let the parting flush certify the stall, which is the same false-clean
+        /// result one step further along. What is being asked is whether this camera was still
+        /// recording WHEN THE USER STOPPED IT, and that question can only be answered with evidence
+        /// that existed at that moment.
+        /// </summary>
+        private long _advanceAtStopTicks;
+
+        /// <summary>How the camera process ended, once that has been OBSERVED. Null while the
+        /// recording is running and after a stop that never reached the process.</summary>
+        private CameraStopKind? _stopKind;
+
+        /// <summary>True only when ffmpeg's stderr was drained to END OF STREAM at the stop, i.e.
+        /// what this recorder read is everything ffmpeg ever wrote. False is not a failure - it is a
+        /// statement that the evidence is incomplete.</summary>
+        private bool _stderrComplete;
 
         /// <summary>
         /// Set when ffmpeg reports that it OPENED the DirectShow input - the "Input #0, dshow, from
@@ -233,8 +340,111 @@ namespace AgentEyes.Video
 
         public bool HasExited => _proc.HasExited;
 
+        /// <summary>The OS process id of this camera's ffmpeg, or null before it is started - what
+        /// names a stuck process to the person who has to deal with it (AC16).</summary>
+        public int? ProcessId => _proc.ProcessId;
+
+        /// <summary>
+        /// How the camera process ended, as OBSERVED (issue #28, spec amendment). Null until a stop
+        /// has actually watched it end - which is itself an honest answer, and reads out as an
+        /// ABSENT manifest field rather than a guess.
+        /// </summary>
+        public CameraStopKind? StopKind => _stopKind;
+
+        /// <summary>True only when ffmpeg's stderr reached END OF STREAM at the stop. False means
+        /// this recorder did not read everything ffmpeg wrote - the evidence is incomplete, and no
+        /// conclusion that needs complete evidence may be drawn from it.</summary>
+        public bool StderrComplete => _stderrComplete;
+
+        /// <summary>
+        /// Whether camera.mp4 is a complete take - the three-state verdict the spec amendment put in
+        /// place of the <c>CameraTruncated</c> boolean.
+        ///
+        /// <c>yes</c> IS A ONE-WAY DOOR and needs the WHOLE presence, every clause of it:
+        ///
+        ///  1. the process answered "q" and exited on its own, so ffmpeg wrote the MP4 trailer;
+        ///  2. its stderr was read to end of stream, so what follows is judged from a COMPLETE log
+        ///     rather than from a stream still being delivered (AC15);
+        ///  3. it actually reported writing output at all; and
+        ///  4. that output position was still ADVANCING when the stop was requested (AC13) - one
+        ///     tick at the start of a 30-second session is not a recording.
+        ///
+        /// <c>no</c> is reserved for what is KNOWN short or broken: the process exited early, it was
+        /// force-killed, or it never reported a single frame.
+        ///
+        /// Everything else is <c>unknown</c>, and that includes every case not anticipated here. It
+        /// is not a failure to write - it is the only answer this class is entitled to when a clause
+        /// above cannot be established. The mistake it exists to prevent is the opposite one:
+        /// claiming <c>yes</c> from an absence of evidence, which is what rounds 1-3 all did.
+        /// </summary>
+        public CameraCompleteness Completeness
+        {
+            get
+            {
+                // No stop has watched this process end. Nothing is established either way.
+                if (_stopKind is not { } kind) return CameraCompleteness.Unknown;
+
+                switch (kind)
+                {
+                    // Still running, so the file is still being written by a process we do not
+                    // control. Nothing about its contents is knowable from here (AC16).
+                    case CameraStopKind.Abandoned:
+                        return CameraCompleteness.Unknown;
+
+                    // KNOWN short: it stopped before the user asked (AC10), or it was shot rather
+                    // than asked and ffmpeg never finalized the file (AC14).
+                    case CameraStopKind.ExitedEarly:
+                    case CameraStopKind.ForceKilled:
+                        return CameraCompleteness.No;
+                }
+
+                // A camera that never reported the device open, or never reported writing a frame,
+                // produced nothing - that is KNOWN, not unknown.
+                if (!_opened || !_wroteOutput) return CameraCompleteness.No;
+
+                // An incomplete read is a broken instrument, never a clean run (AC15).
+                if (!_stderrComplete) return CameraCompleteness.Unknown;
+
+                // One tick then a stall for the rest of the session (AC13).
+                if (!OutputWasAdvancingAtTheStop) return CameraCompleteness.Unknown;
+
+                return CameraCompleteness.Yes;
+            }
+        }
+
+        /// <summary>
+        /// True when ffmpeg's output position had moved forward within
+        /// <see cref="OutputStallWindow"/> of the stop request - the one clause of
+        /// <see cref="Completeness"/> that is about the MIDDLE of the recording rather than its end.
+        ///
+        /// Read from the snapshot taken when the stop was asked for, never from the live value: see
+        /// <see cref="_advanceAtStopTicks"/> for why a flush on the way out is not evidence that the
+        /// camera was recording before it.
+        /// </summary>
+        private bool OutputWasAdvancingAtTheStop
+        {
+            get
+            {
+                long advanced = Interlocked.Read(ref _advanceAtStopTicks);
+                long stopped = Interlocked.Read(ref _stopRequestedTicks);
+                if (advanced == 0 || stopped == 0) return false;
+                return new DateTime(stopped, DateTimeKind.Utc) - new DateTime(advanced, DateTimeKind.Utc)
+                       <= OutputStallWindow;
+            }
+        }
+
+        /// <summary>
+        /// True while a camera ffmpeg this recorder started is STILL RUNNING after everything this
+        /// recorder can do to it - the quit, the kill, and the <see cref="Dispose"/> retry (AC16).
+        ///
+        /// It is what makes the failure OWNABLE rather than merely reported: whoever holds this
+        /// object still holds the only handle that can reach that process, and this is the flag that
+        /// says the handle is worth holding.
+        /// </summary>
+        public bool IsAbandoned => _stopKind == CameraStopKind.Abandoned && !_terminated;
+
         private FfmpegCameraRecorder(ICameraProcess proc, string deviceName, string outputPath, string commandLine,
-            string logPath, DateTime startedUtc, TimeSpan openTimeout)
+            string logPath, DateTime startedUtc, TimeSpan openTimeout, Func<DateTime> now)
         {
             _proc = proc;
             DeviceName = deviceName;
@@ -243,6 +453,7 @@ namespace AgentEyes.Video
             _logPath = logPath;
             StartedUtc = startedUtc;
             _openTimeout = openTimeout;
+            _now = now;
         }
 
         /// <summary>
@@ -285,7 +496,7 @@ namespace AgentEyes.Video
 
             return new FfmpegCameraRecorder(
                 new FfmpegCameraProcess(psi, dshowCameraName), dshowCameraName, outPath, cmd,
-                outPath + ".ffmpeg.log", DateTime.UtcNow, OpenTimeout);
+                outPath + ".ffmpeg.log", DateTime.UtcNow, OpenTimeout, () => DateTime.UtcNow);
         }
 
         /// <summary>
@@ -295,9 +506,13 @@ namespace AgentEyes.Video
         /// the delayed-failure, failed-termination and exit/stop-race paths that a real ffmpeg will
         /// not perform on request.
         /// </summary>
+        /// <param name="now">The clock the stall window (AC13) is measured on. Supplying one is how
+        /// a test reaches "the camera emitted one tick and then stalled for thirty seconds" without
+        /// taking thirty seconds - and without a sleep, which would make the check a race.</param>
         internal static FfmpegCameraRecorder CreateOver(ICameraProcess proc, string deviceName, string outPath,
-            string logPath, TimeSpan openTimeout) =>
-            new(proc, deviceName, outPath, "(supplied process)", logPath, DateTime.UtcNow, openTimeout);
+            string logPath, TimeSpan openTimeout, Func<DateTime>? now = null) =>
+            new(proc, deviceName, outPath, "(supplied process)", logPath, DateTime.UtcNow, openTimeout,
+                now ?? (() => DateTime.UtcNow));
 
         /// <summary>
         /// Start ffmpeg and hold until this camera has PROVED it is open - then this recorder is
@@ -528,12 +743,21 @@ namespace AgentEyes.Video
             // so each "time=" tick arrives here as its own line. Shared with the screen recorder
             // rather than parsed a second way.
             long ms = FfmpegRecorder.ParseProgressMs(line);
-            if (ms >= 0) Interlocked.Exchange(ref _mediaMs, ms);
+            if (ms < 0) return;
+
+            long previous = Interlocked.Exchange(ref _mediaMs, ms);
 
             // Strictly POSITIVE, and that is rule 6 in one line: ffmpeg prints ticks before it has
             // encoded anything ("time=00:00:00.00", and "time=N/A" earlier still), so a zero
             // position is not evidence that camera.mp4 contains a single frame.
             if (ms > 0) _wroteOutput = true;
+
+            // AC13's instrument. Only an ADVANCE is recorded, never an arrival: ffmpeg goes on
+            // printing progress lines - and prints a final summary on "q" - while a stalled device
+            // leaves the position exactly where it stopped. Counting those repeats as activity is
+            // precisely how a camera that recorded 0.5s of a 30-second session was certified.
+            if (ms > 0 && ms > previous)
+                Interlocked.Exchange(ref _lastOutputAdvanceTicks, _now().Ticks);
         }
 
         /// <summary>
@@ -574,6 +798,14 @@ namespace AgentEyes.Video
         public void Stop()
         {
             bool firstCall = !_stopRequested;
+            // Taken on the FIRST stop only: the freshness of ffmpeg's output is judged against the
+            // moment the USER asked for the stop, not against a later retry, which would give a
+            // stalled camera the benefit of every second spent trying to kill it.
+            if (firstCall)
+            {
+                Interlocked.Exchange(ref _stopRequestedTicks, _now().Ticks);
+                Interlocked.Exchange(ref _advanceAtStopTicks, Interlocked.Read(ref _lastOutputAdvanceTicks));
+            }
             _stopRequested = true;
             if (_terminated) return;
 
@@ -588,6 +820,10 @@ namespace AgentEyes.Video
                 Log.Warn($"[FfmpegCameraRecorder] Stop: the camera \"{DeviceName}\" had already exited when the stop "
                          + $"arrived - camera.mp4 is truncated at {CapturedSeconds:F1}s. See {_logPath}");
             }
+
+            // OBSERVED, not deduced: this process ended before anybody asked it to. Recorded here,
+            // where it is still distinguishable from the quit that follows.
+            if (_lostMidRun) _stopKind = CameraStopKind.ExitedEarly;
 
             if (firstCall)
                 Log.Info($"[FfmpegCameraRecorder] Stop: camera=\"{DeviceName}\" captured={CapturedSeconds:F1}s "
@@ -608,7 +844,13 @@ namespace AgentEyes.Video
                                  + $"(\"{DeviceName}\"): {ex.Message}");
                     }
 
-                    if (!_proc.WaitForExit(QuitTimeoutMs))
+                    if (_proc.WaitForExit(QuitTimeoutMs))
+                    {
+                        // It answered "q" and finalized the file itself. The ONLY stop kind that can
+                        // lead to CameraComplete: yes - and on its own it is still not enough.
+                        _stopKind = CameraStopKind.CleanQuit;
+                    }
+                    else
                     {
                         Log.Warn($"[FfmpegCameraRecorder] Stop: the camera ffmpeg (\"{DeviceName}\") did not quit "
                                  + $"within {QuitTimeoutMs / 1000}s - killing it; camera.mp4 may be truncated");
@@ -626,17 +868,26 @@ namespace AgentEyes.Video
                     KillOrThrow();
                 }
             }
+            else if (_stopKind == null)
+            {
+                // Already gone when the stop arrived, on a recorder that never reported the camera
+                // open - so there was no mid-run to be lost from. It still ended before it was asked
+                // to, and that is what gets written down.
+                _stopKind = CameraStopKind.ExitedEarly;
+            }
 
             // Only now: the process is CONFIRMED gone, on every path that reaches this line.
             _terminated = true;
 
             if (_opened)
             {
-                // Rule 6, and it is deliberately read from COMPLETE stderr. Process.WaitForExit(int)
-                // does not flush the asynchronous readers, so ffmpeg's last progress tick can still
-                // be in flight when the process is already gone - and "no tick arrived" read off a
-                // half-delivered stream is not an absence, it is an unfinished read.
-                if (!_proc.DrainStderr(StderrDrainMs))
+                // Read from COMPLETE stderr, and RECORDED rather than merely logged (AC15).
+                // Process.WaitForExit(int) does not flush the asynchronous readers, so ffmpeg's last
+                // progress tick can still be in flight when the process is already gone - "no tick
+                // arrived" read off a half-delivered stream is not an absence, it is an unfinished
+                // read, and Completeness refuses to say "yes" from one.
+                _stderrComplete = _proc.DrainStderr(StderrDrainMs);
+                if (!_stderrComplete)
                     Log.Warn($"[FfmpegCameraRecorder] Stop: the camera ffmpeg (\"{DeviceName}\") exited but its "
                              + $"stderr did not reach end of stream within {StderrDrainMs}ms - what follows is "
                              + "read from an INCOMPLETE log");
@@ -658,7 +909,20 @@ namespace AgentEyes.Video
             }
 
             Log.Info($"[FfmpegCameraRecorder] Stop: camera=\"{DeviceName}\" done, {CapturedSeconds:F1}s in {OutputPath} "
-                     + $"lostMidRun={_lostMidRun}");
+                     + $"lostMidRun={_lostMidRun} stopKind={CameraObservation.Text(_stopKind) ?? "(not observed)"} "
+                     + $"stderrComplete={_stderrComplete} complete={CameraObservation.Text(Completeness)}");
+
+            // AC14. The process is gone - but it was SHOT rather than asked, so ffmpeg never wrote
+            // the MP4 trailer and camera.mp4 was never finalized. Returning normally here is how a
+            // force-killed file reached the manifest as a clean take through three rounds of this
+            // fix: the manifest said "complete" while the code's own warning two screens up said the
+            // file may be truncated. The caller decides what to do about it; it does not get to be
+            // unaware of it.
+            //
+            // Only for a camera that OPENED: a recorder whose open failed has no take to make a
+            // claim about, and its kill is the rollback working, not a failure to report.
+            if (_stopKind == CameraStopKind.ForceKilled && _opened)
+                throw new CameraForceKilledException(DeviceName, OutputPath, CapturedSeconds, $"See {_logPath}.");
         }
 
         /// <summary>
@@ -675,10 +939,20 @@ namespace AgentEyes.Video
             try { _proc.Kill(); }
             catch (Exception ex) { Log.Error($"[FfmpegCameraRecorder] Stop: kill failed for \"{DeviceName}\"", ex); }
 
-            if (_proc.WaitForExit(KillTimeoutMs)) return;
+            if (_proc.WaitForExit(KillTimeoutMs))
+            {
+                // Confirmed gone - but killed, not asked. The FILE and the PROCESS are two different
+                // questions, and this answers only the second one (AC14).
+                _stopKind = CameraStopKind.ForceKilled;
+                return;
+            }
 
             // ffmpeg is alive, it still holds an exclusive DirectShow device and still owns
-            // camera.mp4. _terminated stays false, so Dispose gets one more attempt at it.
+            // camera.mp4. _terminated stays false, so Dispose gets one more attempt at it - and if
+            // that one also fails, this is what the service reads to keep the recorder REACHABLE
+            // instead of dropping the only handle to it (AC16). Recorded before the throw, so a
+            // manifest written between here and the retry says "abandoned" rather than guessing.
+            _stopKind = CameraStopKind.Abandoned;
             if (_opened) WriteFfmpegLog();
             Log.Error($"[FfmpegCameraRecorder] Stop FAILED: the camera ffmpeg (\"{DeviceName}\") survived "
                       + $"the kill and is still running - it still holds the camera and {OutputPath}");
@@ -733,7 +1007,13 @@ namespace AgentEyes.Video
         /// thing in this process that could still reach a live recorder holding the webcam and
         /// camera.mp4. So the handle is released ONLY once the OS process is confirmed gone. When it
         /// is not, this object stays valid and stays loud, and <see cref="Stop"/> can be called
-        /// again - by the stop sequence, or by whoever reads the failure off <c>/status</c>.
+        /// again.
+        ///
+        /// AND THERE IS NOW SOMETHING HOLDING IT. Gate round 3 was right that keeping a handle
+        /// inside an object nobody references keeps nothing: this returns with
+        /// <see cref="IsAbandoned"/> true, and <see cref="StrandedCameraOwner"/> - which the service
+        /// consults on both the stop and the failed-start path - takes the recorder off the session
+        /// and keeps it, with its recording claim, until the process is finally gone (AC16).
         /// </summary>
         public void Dispose()
         {

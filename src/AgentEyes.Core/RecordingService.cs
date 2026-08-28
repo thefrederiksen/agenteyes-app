@@ -43,6 +43,15 @@ namespace AgentEyes
 
         // The directory of the recording whose stop failed - what to look at to recover it.
         public string? LastStopDir { get; set; }
+
+        // Camera ffmpeg processes AgentEyes asked to die, killed, retried - and could not end
+        // (issue #28, AC16). True is a live process still holding a webcam and a camera.mp4 right
+        // now; it is not history the way LastStopFailed is. False is the normal state.
+        public bool CameraStuck { get; set; }
+
+        // One row per stuck camera process, each carrying its PID - the field that makes it
+        // actionable rather than merely alarming. Empty in the normal state.
+        public IReadOnlyList<StrandedCameraReport> StuckCameras { get; set; } = Array.Empty<StrandedCameraReport>();
     }
 
     internal sealed class RecordResult
@@ -99,6 +108,18 @@ namespace AgentEyes
         /// </summary>
         private RecordingClaimTicket _captureClaim;
 
+        /// <summary>
+        /// The camera ffmpeg processes this service could not kill (issue #28, AC16).
+        ///
+        /// It is the reference the Review Gate said was missing: the recorder correctly keeps its
+        /// process handle when a stop cannot confirm ffmpeg dead, but the object holding it used to
+        /// be dropped one line later - <c>_camera</c> cleared, the local out of scope, the claim
+        /// released, the service idle. Nothing in the app could reach that process again. This
+        /// survives the session, keeps the recording's claim with it, reports it on <c>/status</c>,
+        /// and retries it the next time a recording starts.
+        /// </summary>
+        private readonly StrandedCameraOwner _stranded = new();
+
         private readonly Stopwatch _sw = new();
         private volatile float _peakMic, _peakSys;
         private volatile RecordingStopReport? _lastStopFailure;
@@ -130,9 +151,14 @@ namespace AgentEyes
         public float SystemLevel => _peakSys;
         public TimeSpan Elapsed => _sw.Elapsed;
 
+        /// <summary>The camera processes this service could not kill, for tests and for the status
+        /// surface (issue #28, AC16).</summary>
+        public StrandedCameraOwner StrandedCameras => _stranded;
+
         public RecordStatus Status()
         {
             var failure = _lastStopFailure;
+            var stuck = _stranded.Report();
             return new RecordStatus
             {
                 State = _state,
@@ -148,6 +174,8 @@ namespace AgentEyes
                 LastStopFailed = failure != null,
                 LastStopError = failure?.Summary(),
                 LastStopDir = failure?.Dir,
+                CameraStuck = stuck.Count > 0,
+                StuckCameras = stuck,
             };
         }
 
@@ -274,6 +302,13 @@ namespace AgentEyes
         public void StartVideo(int screen, AudioSourceKind src, string? micFragment, int[]? region,
             AudioMixOptions opts, int fps, string? cameraFragment = null, int cameraFps = 30)
         {
+            // Retained recorders are only worth retaining if something ever uses them again (issue
+            // #28, AC16). This is that moment: the user is asking for a camera recording, which is
+            // exactly when a webcam still held by an ffmpeg from a previous session matters. Run
+            // OUTSIDE the state lock - the retry talks to a process and can take seconds - and
+            // before the start, so a camera that has since been freed frees its claim too.
+            _stranded.Recover();
+
             lock (_lock)
             {
                 if (_state != "idle") throw new UsageException("already recording");
@@ -536,19 +571,27 @@ namespace AgentEyes
                 if (manifest.AudioFile != null && !manifest.Files.Contains(manifest.AudioFile)) manifest.Files.Add(manifest.AudioFile);
                 if (manifest.VideoFile != null && !manifest.Files.Contains(manifest.VideoFile)) manifest.Files.Add(manifest.VideoFile);
 
-                // The camera track's own account of itself (issue #28). CapturedSeconds is what
-                // ffmpeg reported writing, not wall time, so a camera lost mid-run records the
-                // footage that actually exists rather than the footage the session lasted.
+                // The camera track's own account of itself (issue #28, spec amendment 2026-08-28).
+                //
+                // These are OBSERVATIONS, not conclusions: what ffmpeg said it wrote, how the
+                // process actually ended, and whether its stderr was read to the end. CameraComplete
+                // is the only judgement among them, and it is three-state precisely so that the
+                // cases this code did not anticipate have somewhere honest to go instead of being
+                // rounded to "complete", which is what the boolean it replaces did three times.
                 if (camera != null)
                 {
-                    manifest.CameraFile = "camera.mp4";
-                    manifest.CameraCapturedSeconds = Math.Round(camera.CapturedSeconds, 2);
-                    manifest.CameraTruncated = camera.LostMidRun;
-                    if (!manifest.Files.Contains("camera.mp4")) manifest.Files.Add("camera.mp4");
+                    CameraTrackRecord.Write(manifest, camera);
                     if (camera.LostMidRun)
                         Log.Warn($"stop: the camera \"{camera.DeviceName}\" was lost during this recording - "
                                  + $"camera.mp4 covers {camera.CapturedSeconds:F1}s of a {elapsed:F1}s session; "
                                  + "the screen recording is unaffected");
+                    else if (camera.Completeness != CameraCompleteness.Yes)
+                        Log.Warn($"stop: the camera \"{camera.DeviceName}\" track is recorded as "
+                                 + $"complete={CameraObservation.Text(camera.Completeness)} "
+                                 + $"(stopKind={CameraObservation.Text(camera.StopKind) ?? "(not observed)"}, "
+                                 + $"stderrComplete={camera.StderrComplete}) - camera.mp4 covers "
+                                 + $"{camera.CapturedSeconds:F1}s of a {elapsed:F1}s session; the screen recording "
+                                 + "is unaffected");
                 }
 
                 // Issue #155: this is NOT the recording's first manifest write - StartAudio /
@@ -567,10 +610,7 @@ namespace AgentEyes
                     m.DurationSeconds = manifest.DurationSeconds;
                     m.PendingMux = manifest.PendingMux;
                     m.FfmpegCommand = manifest.FfmpegCommand;
-                    m.CameraFile = manifest.CameraFile;
-                    m.CameraStartOffsetSeconds = manifest.CameraStartOffsetSeconds;
-                    m.CameraCapturedSeconds = manifest.CameraCapturedSeconds;
-                    m.CameraTruncated = manifest.CameraTruncated;
+                    CameraTrackRecord.CopyTo(m, manifest);
                     // The shot index belongs to the session: only MarkerShot adds to it, and only
                     // while this session is running, so the session's list IS the truth for it.
                     m.Shots.Clear();
@@ -622,7 +662,14 @@ namespace AgentEyes
                 // owned the directory used to remove the owner's claim. Released OUTSIDE the lock -
                 // the release announces itself to the queue, and that fan-out must not run under the
                 // service's state lock.
-                RecordingWorkset.Release(claim);
+                //
+                // UNLESS the camera ffmpeg is still running (issue #28, AC16), which is the one case
+                // where "the capture no longer holds the recording" is false: a process AgentEyes
+                // could not kill is still writing camera.mp4 into that directory. The owner keeps
+                // the recorder AND the claim, and reports both on /status - because releasing here
+                // would publish a live writer's directory to every automatic pass in the app, and
+                // dropping the recorder would leave nothing in the process able to reach the ffmpeg.
+                _stranded.ReleaseClaimUnlessStranded(camera, claim, dir);
             }
 
             // Issue #153: a stop that lost anything is reported as a failure. The service is idle
@@ -824,6 +871,7 @@ namespace AgentEyes
         {
             string? dir = _dir;
             var claim = _captureClaim;
+            var camera = _camera;
             _audio = null; _loop = null; _video = null; _camera = null;
             _micWav = _sysWav = _rawVideo = null;
             _cameraName = null;
@@ -836,7 +884,14 @@ namespace AgentEyes
             // The ticket is what says how much of this directory belongs to the failed start (issue
             // #154, round 3). A start that never won the claim owns NOTHING here - not the claim, not
             // the directory - and Discard must not release or remove either.
-            RecordingStartSequence.Discard(dir, claim);
+            //
+            // And a failed start whose camera ffmpeg is STILL RUNNING owns something else again
+            // (issue #28, AC16): a live process inside the directory this was about to delete. The
+            // owner keeps that recorder, the claim and the directory, and reports the process with
+            // its PID on /status. Deleting a directory around a live ffmpeg does not stop the
+            // ffmpeg - it fails on the file it holds open and replaces "the camera is already in use"
+            // with an IO error about camera.mp4.
+            _stranded.DiscardDirectoryUnlessStranded(camera, dir, claim);
         }
 
         /// <summary>

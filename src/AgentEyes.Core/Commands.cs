@@ -411,9 +411,11 @@ namespace AgentEyes
                 manifest.Files.Add("recording.mp4");
                 if (cameraRec != null)
                 {
-                    manifest.CameraCapturedSeconds = Math.Round(cameraRec.CapturedSeconds, 2);
-                    manifest.CameraTruncated = cameraRec.LostMidRun;
-                    manifest.Files.Add("camera.mp4");
+                    // OBSERVATIONS, not conclusions (issue #28, spec amendment 2026-08-28), through
+                    // the SAME writer the service uses - so the CLI and the app cannot describe the
+                    // same camera failure differently, and there is exactly one place in the product
+                    // where these manifest fields are assigned at all.
+                    CameraTrackRecord.Write(manifest, cameraRec);
                     if (cameraRec.LostMidRun)
                     {
                         Console.WriteLine($"[warn] the camera \"{cameraRec.DeviceName}\" was lost during the "
@@ -437,13 +439,16 @@ namespace AgentEyes
                     string camSizeText = camSize >= 1024 * 1024
                         ? $"{camSize / 1024.0 / 1024.0:F1} MB"
                         : $"{camSize / 1024.0:F0} KB";
-                    // "[ok]" is a CLAIM about the file, so it is only printed for a track this
-                    // recording can vouch for. A camera that was lost - or that opened and never
-                    // reported writing a frame - gets the warning shape instead (issue #28, gate
-                    // round 3, defect 3): the file exists, and it is not a complete take.
-                    Console.WriteLine(cameraRec.LostMidRun
-                        ? $"[warn] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only - TRUNCATED"
-                        : $"[ok] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only");
+                    // "[ok]" is a CLAIM about the file, so it is printed ONLY for a track this
+                    // recording actually established as complete (issue #28, spec amendment). The
+                    // three-state verdict is printed verbatim rather than folded back into two:
+                    // "unknown" is a real answer and the user is entitled to see it instead of an
+                    // "[ok]" that means "we did not find anything wrong".
+                    string completeness = CameraObservation.Text(cameraRec.Completeness);
+                    Console.WriteLine(cameraRec.Completeness == CameraCompleteness.Yes
+                        ? $"[ok] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only - complete: yes"
+                        : $"[warn] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only - complete: "
+                          + $"{completeness} (stop: {CameraObservation.Text(cameraRec.StopKind) ?? "not observed"})");
                 }
                 Console.WriteLine($"[ok] manifest.json written to {dir}");
                 if (cameraStopFailure != null)

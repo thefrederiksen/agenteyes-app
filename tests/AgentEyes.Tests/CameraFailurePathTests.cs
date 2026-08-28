@@ -118,6 +118,12 @@ namespace AgentEyes.Tests
             /// <summary>False = ffmpeg ignores "q" (a stuck dshow device).</summary>
             public bool QuitEndsIt = true;
 
+            /// <summary>What happens when "q" arrives, when a test needs more than "it ends" or "it
+            /// does not" - a real ffmpeg FLUSHES on the way out, and whether that late output may
+            /// certify a track is its own question (AC13). Takes precedence over
+            /// <see cref="QuitEndsIt"/>.</summary>
+            public Action? QuitEndsItWith;
+
             /// <summary>False = the process survives Kill. Deliberately a mutable field, so a test
             /// can let the FIRST kill be refused and the second succeed - that is how the recovery
             /// this class exists to keep alive is proved to still be reachable.</summary>
@@ -141,12 +147,19 @@ namespace AgentEyes.Tests
             public int Kills;
             public int Disposes;
 
+            /// <summary>The OS process id this fake reports once started - what AC16 requires
+            /// /status to carry so a stuck ffmpeg can actually be dealt with.</summary>
+            public const int Pid = 24512;
+
             public bool HasExited { get; private set; }
             public int ExitCode { get; private set; }
+
+            public int? ProcessId { get; private set; }
 
             public void Start(Action<string> onStderrLine, Action onExited)
             {
                 Started = true;
+                ProcessId = Pid;
                 _onStderr = onStderrLine;
                 _onExited = onExited;
                 // The order a real ffmpeg produces them in: input header, output header, then ticks.
@@ -171,6 +184,7 @@ namespace AgentEyes.Tests
             public void SendQuit()
             {
                 Quits++;
+                if (QuitEndsItWith != null) { QuitEndsItWith(); return; }
                 if (QuitEndsIt) End(0);
             }
 
@@ -192,18 +206,43 @@ namespace AgentEyes.Tests
             public void Dispose() => Disposes++;
         }
 
+        /// <summary>
+        /// A clock the test moves by hand.
+        ///
+        /// AC13's subject is a camera that emitted one progress tick and then STALLED FOR THE REST OF
+        /// A THIRTY-SECOND SESSION. Reaching that with the real clock means either sleeping for
+        /// thirty seconds or shrinking the window until the test is a race; moving time by hand is
+        /// neither. Every assertion about staleness in this file is deterministic because of this.
+        /// </summary>
+        private sealed class TestClock
+        {
+            private DateTime _utc = new(2026, 8, 28, 12, 0, 0, DateTimeKind.Utc);
+
+            public DateTime Now() => _utc;
+
+            public void Advance(TimeSpan by) => _utc += by;
+        }
+
+        /// <summary>An ffmpeg progress tick at a given output position - the ONLY evidence this
+        /// recorder ever has that camera.mp4 contains anything.</summary>
+        private static string TickAt(TimeSpan position) =>
+            $"frame=  {(int)(position.TotalSeconds * 30),4} fps= 30 q=28.0 size=      64KiB "
+            + $"time={position:hh\\:mm\\:ss\\.ff} bitrate=1048.6kbits/s speed=1x";
+
         /// <summary>Build the recorder without starting anything - the first half of the two-phase
         /// ownership the callers use (issue #28, gate round 3, defect 1).</summary>
-        private FfmpegCameraRecorder Create(FakeCameraProcess proc, double openTimeoutSeconds = 5.0) =>
+        private FfmpegCameraRecorder Create(FakeCameraProcess proc, double openTimeoutSeconds = 5.0,
+            TestClock? clock = null) =>
             FfmpegCameraRecorder.CreateOver(proc, "HD Webcam eMeet C960", Out, LogPath,
-                TimeSpan.FromSeconds(openTimeoutSeconds));
+                TimeSpan.FromSeconds(openTimeoutSeconds), clock == null ? null : clock.Now);
 
         /// <summary>Create and open in one go, for the tests whose subject is not the failed open.
         /// The tests that ARE about a failed open keep the two halves apart on purpose, because the
         /// recorder the caller still owns after Open() threw is the whole point.</summary>
-        private FfmpegCameraRecorder StartOver(FakeCameraProcess proc, double openTimeoutSeconds = 5.0)
+        private FfmpegCameraRecorder StartOver(FakeCameraProcess proc, double openTimeoutSeconds = 5.0,
+            TestClock? clock = null)
         {
-            var rec = Create(proc, openTimeoutSeconds);
+            var rec = Create(proc, openTimeoutSeconds, clock);
             rec.Open();
             return rec;
         }
@@ -807,6 +846,333 @@ namespace AgentEyes.Tests
             Assert.False(rec.LostMidRun);
         }
 
+        // ---- the 2026-08-28 spec amendment: OBSERVE, do not claim (AC10, AC13 - AC17) ----------
+        //
+        // These are the three cases the Review Gate REPRODUCED with its own probe against this exact
+        // seam, plus the positive control that stops the fix degenerating into "always unknown".
+        // Every one of them used to come out of Stop() as a clean, complete take:
+        //
+        //   ONE_TICK_STALL             alive_before_stop=True quits=1 kills=0 drains=1 captured=0.5
+        //   ONE_TICK_INCOMPLETE_STDERR alive_before_stop=True quits=1 kills=0 drains=1 captured=0.5
+        //   FORCED_KILL_AFTER_OUTPUT   alive_before_stop=True quits=1 kills=1 drains=1 captured=0.5
+        //
+        // The counts in each test below are asserted to MATCH the gate's, so these are the gate's
+        // cases and not three easier ones wearing their names.
+
+        [Fact]
+        public void Stop_WhenTheCameraTickedOnceAndThenStalledForTheSession_IsNeverRecordedAsComplete()
+        {
+            // GATE CASE ONE_TICK_STALL (AC13). ffmpeg reported both headers and ONE progress tick at
+            // 0.5s, the device then stalled for the remaining thirty seconds while the process
+            // stayed perfectly alive, and it answered "q" at the stop like a healthy recorder.
+            //
+            // The old rule latched _wroteOutput on any positive tick and asked no further questions,
+            // so this produced CapturedSeconds == 0.5, LostMidRun == false and a manifest reading
+            // "cameraTruncated": false - a thirty-second session recorded as a complete half-second
+            // take. Nothing about the process was wrong; the FILE is the thing that was wrong, and
+            // the two had been conflated.
+            //
+            // What is asserted is the ABSENCE OF A CLAIM, not the presence of a diagnosis: the
+            // recorder does not know whether those missing frames are buffered or gone, so "unknown"
+            // is the honest answer and "yes" is the forbidden one.
+            //
+            // Bad result this fires on: Completeness == Yes. Empty result: impossible - Completeness
+            // is a three-state enum read after a Stop asserted not to throw.
+            var clock = new TestClock();
+            var proc = new FakeCameraProcess();          // headers + one tick at 0.5s on start
+            using var rec = StartOver(proc, clock: clock);
+
+            clock.Advance(TimeSpan.FromSeconds(30));     // ... and then nothing, for the whole session
+            rec.Stop();
+
+            // The gate's own counts, so this is provably its case.
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(0, proc.Kills);
+            Assert.Equal(1, proc.Drains);
+            Assert.Equal(0.5, rec.CapturedSeconds, 3);
+            Assert.False(rec.LostMidRun);
+
+            // Everything the recorder DID observe is recorded, and it is all true.
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.True(rec.StderrComplete);
+
+            // And the one judgement it makes refuses to go past the evidence.
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenTheOutputKeptAdvancingUntilTheStop_RecordsTheTakeAsComplete()
+        {
+            // AC17, AT THE UNIT LEVEL - THE CONTROL THAT MAKES THE TEST ABOVE MEAN SOMETHING. A
+            // recorder that answered "unknown" to everything would satisfy AC13, AC14, AC15 and
+            // AC16 while telling the user precisely nothing, and that is a fail-open fix. So a
+            // healthy camera - ticks advancing right up to the stop, a clean quit, stderr to end of
+            // stream - must still come out as "yes", in this same build.
+            //
+            // Bad result this fires on: Completeness != Yes, i.e. the fix degenerated into a
+            // recorder that can no longer vouch for anything.
+            var clock = new TestClock();
+            var proc = new FakeCameraProcess();
+            using var rec = StartOver(proc, clock: clock);
+
+            // Thirty seconds of ordinary recording: half a second of wall time per tick, and the
+            // output position moves with it.
+            for (int i = 1; i <= 60; i++)
+            {
+                clock.Advance(TimeSpan.FromSeconds(0.5));
+                proc.Emit(TickAt(TimeSpan.FromSeconds(0.5 * i)));
+            }
+
+            rec.Stop();
+
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(0, proc.Kills);
+            Assert.Equal(30.0, rec.CapturedSeconds, 3);
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.True(rec.StderrComplete);
+            Assert.Equal(CameraCompleteness.Yes, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenAStalledCameraFlushesOutputOnlyAfterTheStop_IsStillNeverRecordedAsComplete()
+        {
+            // THE SECOND TRAP, and the reason the freshness clause reads a SNAPSHOT taken when the
+            // stop was requested rather than the live value. ffmpeg flushes what it is holding when
+            // it is told to quit, so a camera that stalled for the whole session can still push its
+            // position forward on the way OUT. Judging freshness after that flush would let the
+            // parting tick certify the stall - the same false-clean verdict, one step further along.
+            //
+            // The question is whether this camera was still recording WHEN THE USER STOPPED IT, and
+            // that can only be answered from evidence that existed at that moment.
+            //
+            // Bad result: Completeness == Yes. The seconds it did flush are still recorded honestly.
+            var clock = new TestClock();
+            var proc = new FakeCameraProcess { QuitEndsIt = false };   // headers + one tick at 0.5s
+            var rec = StartOver(proc, clock: clock);
+
+            clock.Advance(TimeSpan.FromSeconds(30));    // stalled for the whole session
+            proc.QuitEndsItWith = () =>
+            {
+                clock.Advance(TimeSpan.FromSeconds(0.2));
+                proc.Emit(TickAt(TimeSpan.FromSeconds(0.9)));   // ... and flushes a little on the way out
+                proc.End(0);
+            };
+
+            rec.Stop();
+
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(0, proc.Kills);
+            Assert.Equal(0.9, rec.CapturedSeconds, 3);   // what it flushed IS reported - honestly
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenAStalledCameraRepeatsItsPositionOnTheWayOut_IsStillNeverRecordedAsComplete()
+        {
+            // THE TRAP THE FRESHNESS RULE HAD TO AVOID, pinned so a later "simplification" cannot
+            // walk back into it. ffmpeg prints a FINAL summary line when it quits, and a stalled
+            // camera's summary repeats the position it stalled at. A freshness check written against
+            // tick ARRIVAL would read that repeat as "output was still arriving at the stop" and
+            // certify the stall - the same false-clean result with one extra step.
+            //
+            // Only an ADVANCE counts. Bad result: Completeness == Yes.
+            var clock = new TestClock();
+            var proc = new FakeCameraProcess();          // one tick at 0.5s
+            using var rec = StartOver(proc, clock: clock);
+
+            clock.Advance(TimeSpan.FromSeconds(30));
+            proc.Emit(TickAt(TimeSpan.FromSeconds(0.5)));   // ffmpeg's parting summary: same position
+
+            rec.Stop();
+
+            Assert.Equal(0.5, rec.CapturedSeconds, 3);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly()
+        {
+            // GATE CASE FORCED_KILL_AFTER_OUTPUT (AC14). ffmpeg produced video, ignored "q", and
+            // died under the kill. The PROCESS question was answered correctly - it really is gone -
+            // but no path recorded that camera.mp4 had been SHOT rather than asked, so ffmpeg never
+            // wrote the MP4 trailer while the durable manifest said the take was complete. The
+            // code's own warning line said the file may be truncated at the same moment.
+            //
+            // Two things are required now and both are asserted: the stop SURFACES the condition to
+            // its caller instead of returning as a clean success, and the file is never claimed
+            // complete.
+            //
+            // Bad result this fires on: Stop returns, or Completeness == Yes.
+            var proc = new FakeCameraProcess { QuitEndsIt = false };   // ... but the kill lands
+            using var rec = StartOver(proc);
+
+            var ex = Assert.Throws<CameraForceKilledException>(() => rec.Stop());
+
+            Assert.Equal("HD Webcam eMeet C960", ex.DeviceName);
+            Assert.Contains("force-killed", ex.Message);
+            Assert.Contains("may be truncated", ex.Message);
+
+            // The gate's own counts for this case.
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(1, proc.Kills);
+            Assert.Equal(1, proc.Drains);
+            Assert.True(proc.HasExited);
+            Assert.Equal(0.5, rec.CapturedSeconds, 3);
+
+            Assert.Equal(CameraStopKind.ForceKilled, rec.StopKind);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenTheStderrNeverReachedEndOfStreamAfterAPositiveTick_IsNeverRecordedAsComplete()
+        {
+            // GATE CASE ONE_TICK_INCOMPLETE_STDERR (AC15). The drain was already being called and
+            // its failure was already being LOGGED - but the result was thrown away, and the only
+            // conclusion that consulted it was the zero-frame one, which does not run once any
+            // positive tick exists. So a camera whose evidence was explicitly INCOMPLETE was still
+            // accepted as a complete take.
+            //
+            // An unreadable instrument is not a clean run. Bad result: Completeness == Yes, or
+            // StderrComplete reported as true.
+            var proc = new FakeCameraProcess { StderrReachesEof = false };   // headers + one tick
+            using var rec = StartOver(proc);
+
+            rec.Stop();
+
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(0, proc.Kills);
+            Assert.Equal(1, proc.Drains);
+            Assert.Equal(0.5, rec.CapturedSeconds, 3);
+            Assert.False(rec.LostMidRun);          // the old rule has nothing to say here
+
+            Assert.False(rec.StderrComplete);
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete()
+        {
+            // AC10 as amended. A camera lost mid-run is the one failure that must NOT fail the
+            // recording (decision 4) - and it must still be written down as what it was: a track
+            // that ended before the user asked, carrying only the seconds ffmpeg reported.
+            //
+            // Bad result: any stop kind but exited-early, or Completeness != No.
+            var proc = new FakeCameraProcess();
+            using var rec = StartOver(proc);
+            proc.Emit(TickAt(TimeSpan.FromSeconds(10)));
+
+            proc.End(1);          // the USB cable moved
+            rec.Stop();
+
+            Assert.True(rec.LostMidRun);
+            Assert.Equal(10.0, rec.CapturedSeconds, 3);
+            Assert.Equal(CameraStopKind.ExitedEarly, rec.StopKind);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenTheCameraNeverReportedWritingAFrame_RecordsCompleteNo()
+        {
+            // "Never produced a frame" is one of the three things the amendment lists as KNOWN
+            // broken, so this is the one stall-shaped case that is "no" rather than "unknown":
+            // there is nothing in camera.mp4 to be uncertain about.
+            //
+            // Bad result: Completeness == Yes or Unknown.
+            var proc = new FakeCameraProcess { ReportsProgressOnStart = false };
+            using var rec = StartOver(proc);
+
+            rec.Stop();
+
+            Assert.Equal(0.0, rec.CapturedSeconds, 3);
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+        }
+
+        [Fact]
+        public void Completeness_BeforeAnyStop_IsUnknownRatherThanAGuess()
+        {
+            // The default matters as much as the rules. While the recording is running nothing has
+            // been observed about how it ends, and the answer to "is this file complete" is not
+            // "yes" and not "no".
+            var proc = new FakeCameraProcess();
+            using var rec = StartOver(proc);
+
+            Assert.Null(rec.StopKind);
+            Assert.False(rec.StderrComplete);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenFfmpegSurvivesEverything_MarksItselfAbandonedAndKeepsItsProcessId()
+        {
+            // AC16, the recorder's half. A process that survived the quit, the kill AND the Dispose
+            // retry is not a stop that failed once - it is a LIVE ffmpeg on the webcam with no
+            // owner. The recorder has to say so in a way something else can act on: a flag that
+            // means "still running", and the PID, which is the only field that makes the failure
+            // actionable for the person holding the machine.
+            //
+            // Bad result: IsAbandoned false (the failure is invisible to any owner), a stop kind
+            // that reads like a finished stop, or a Completeness of yes/no about a file a live
+            // process is still writing.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            var rec = StartOver(proc);
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());
+            rec.Dispose();
+
+            Assert.False(proc.HasExited, "this test only means anything while the fake ffmpeg is still alive");
+            Assert.True(rec.IsAbandoned);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.Equal(FakeCameraProcess.Pid, rec.ProcessId);
+        }
+
+        [Fact]
+        public void IsAbandoned_OnceTheProcessIsFinallyGone_IsFalseAgain()
+        {
+            // POSITIVE CONTROL for the flag above: a recorder that reported itself abandoned forever
+            // would keep a claim and a /status row for a process that died minutes ago, and the
+            // retry loop would never let go. It is a statement about the process RIGHT NOW.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            var rec = StartOver(proc);
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());
+            Assert.True(rec.IsAbandoned);
+
+            proc.KillEndsIt = true;      // the retry finally lands
+            rec.Dispose();
+
+            Assert.False(rec.IsAbandoned);
+            Assert.True(proc.HasExited);
+        }
+
+        [Fact]
+        public void TheManifestSpellings_AreTheFourStopKindsAndTheThreeVerdicts()
+        {
+            // The wire contract itself (assumption A7). These strings go into manifest.json and are
+            // read by people and by tools; a rename here is a breaking change and has to be a
+            // deliberate one.
+            Assert.Equal("clean-quit", CameraObservation.Text(CameraStopKind.CleanQuit));
+            Assert.Equal("force-killed", CameraObservation.Text(CameraStopKind.ForceKilled));
+            Assert.Equal("exited-early", CameraObservation.Text(CameraStopKind.ExitedEarly));
+            Assert.Equal("abandoned", CameraObservation.Text(CameraStopKind.Abandoned));
+
+            Assert.Equal("yes", CameraObservation.Text(CameraCompleteness.Yes));
+            Assert.Equal("no", CameraObservation.Text(CameraCompleteness.No));
+            Assert.Equal("unknown", CameraObservation.Text(CameraCompleteness.Unknown));
+
+            // A stop that was never observed is an ABSENT field, not a fifth kind invented here.
+            Assert.Null(CameraObservation.Text((CameraStopKind?)null));
+            Assert.Equal("clean-quit", CameraObservation.Text((CameraStopKind?)CameraStopKind.CleanQuit));
+        }
+
         // ---- gate defect 1: the CLI owns the camera through a failure boundary ------------------
 
         [Fact]
@@ -932,6 +1298,151 @@ namespace AgentEyes.Tests
             Assert.Throws<InvalidOperationException>(() => CompiledCode.GuardedCalls(
                 CompiledCode.CoreAssembly, "AgentEyes.Commands::Video",
                 "AgentEyes.Video.FfmpegCameraRecorder::NoSuchMethod"));
+        }
+
+        // ---- AC16: the service's two exits go through the lifetime owner, not around it ---------
+
+        [Fact]
+        public void TheRecordingService_ReleasesItsClaimOnlyThroughTheStrandedCameraOwner()
+        {
+            // GATE ROUND 3, DEFECT 1, AT THE SERVICE. The recorder had already been fixed to KEEP
+            // its process handle when a stop could not confirm ffmpeg dead - and it changed nothing,
+            // because Stop() cleared _camera, dropped the local, went idle and released the claim
+            // one line later. The gate's words: "keeping a handle inside an object that immediately
+            // becomes unreachable does not keep the process recoverable."
+            //
+            // The fix is that the decision no longer lives at the call site at all. There is ONE
+            // call, to a method that either retains the recorder AND its claim or releases the
+            // claim - so "the claim is not released as though the stop were clean" cannot be right
+            // on one path and wrong on the other. This pins that: Stop must not reach
+            // RecordingWorkset::Release itself.
+            //
+            // Bad result this fires on: a direct Release in RecordingService::Stop, i.e. the branch
+            // was reintroduced at the call site. EMPTY result is impossible - the positive control
+            // below proves the scan finds Release calls at all.
+            var releases = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                c => c == "AgentEyes.RecordingWorkset::Release");
+            var throughTheOwner = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                c => c == "AgentEyes.StrandedCameraOwner::ReleaseClaimUnlessStranded");
+
+            Assert.Contains(throughTheOwner, s => s.Method == "AgentEyes.RecordingService::Stop");
+            Assert.DoesNotContain(releases, s => s.Method == "AgentEyes.RecordingService::Stop");
+
+            // The instrument, proven rather than assumed: the scan DOES see Release calls, and the
+            // one place that still makes them is the owner itself.
+            Assert.NotEmpty(releases);
+            Assert.Contains(releases, s => s.Method == "AgentEyes.StrandedCameraOwner::ReleaseClaimUnlessStranded");
+        }
+
+        [Fact]
+        public void TheRecordingService_DiscardsAFailedStartsDirectoryOnlyThroughTheStrandedCameraOwner()
+        {
+            // The same rule on the START path, and it is not a duplicate: a failed OPEN can strand
+            // ffmpeg just as a failed stop can, and the rollback there does something worse than
+            // release a claim - it DELETES the directory. Deleting a directory around a live ffmpeg
+            // does not stop the ffmpeg; it fails on the file the process holds open and replaces
+            // "the camera is already in use" with an IO error about camera.mp4.
+            //
+            // Bad result: ReleaseSession calls Discard directly again.
+            var discards = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                c => c == "AgentEyes.RecordingStartSequence::Discard");
+            var throughTheOwner = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                c => c == "AgentEyes.StrandedCameraOwner::DiscardDirectoryUnlessStranded");
+
+            Assert.Contains(throughTheOwner, s => s.Method == "AgentEyes.RecordingService::ReleaseSession");
+            Assert.DoesNotContain(discards, s => s.Method == "AgentEyes.RecordingService::ReleaseSession");
+
+            Assert.NotEmpty(discards);
+            Assert.Contains(discards, s => s.Method == "AgentEyes.StrandedCameraOwner::DiscardDirectoryUnlessStranded");
+        }
+
+        [Fact]
+        public void TheCameraTrackRecord_IsTheOnlyPlaceTheManifestVerdictIsAssigned()
+        {
+            // The wiring between the recorder's honesty and the durable record. Everything above
+            // proves the RECORDER refuses to claim what it did not observe; this proves the manifest
+            // the user keeps says what the recorder said.
+            //
+            // AN EARLIER VERSION OF THIS TEST FAILED OPEN, AND IT IS RECORDED HERE RATHER THAN
+            // QUIETLY REPLACED. It asserted that each writer method READ the four observations
+            // somewhere in its body - and the mutation that assigns the verdict as a literal left it
+            // GREEN, because the same method still read Completeness for a log line two statements
+            // later (round-5 mutation M12, first run). A check that survives the defect it names is
+            // a defect, not weak coverage.
+            //
+            // What is asserted now cannot be satisfied that way:
+            //
+            //  1. the four manifest properties are assigned in EXACTLY ONE method in the whole
+            //     product - a literal at either call site means a setter call from a second method,
+            //     and that is what fires;
+            //  2. that one method reads all four observations off the recorder; and
+            //  3. both writers reach it.
+            //
+            // LIMIT, stated rather than papered over: this proves WHERE the assignment happens and
+            // what that method reads, not that each right-hand side is the matching left-hand side.
+            // Clause 1 is what makes the remaining surface eight lines long, in a file whose only
+            // job is those five assignments.
+            const string writer = "AgentEyes.CameraTrackRecord::Write";
+
+            // The two methods allowed to touch these fields: the one that OBSERVES them off the
+            // recorder, and the one that COPIES that record onto the manifest read back off disk
+            // (the stop is a read-modify-write of the record the start wrote - issue #155). Nothing
+            // else, in either assembly.
+            var allowed = new HashSet<string>(new[] { writer, "AgentEyes.CameraTrackRecord::CopyTo" },
+                StringComparer.Ordinal);
+
+            foreach (string property in new[]
+            {
+                "AgentEyes.Manifest::set_CameraComplete",
+                "AgentEyes.Manifest::set_CameraStopKind",
+                "AgentEyes.Manifest::set_CameraStderrComplete",
+                "AgentEyes.Manifest::set_CameraCapturedSeconds",
+            })
+            {
+                var assignments = new List<CompiledCode.CallSite>();
+                foreach (string assembly in CompiledCode.ProductAssemblies())
+                    assignments.AddRange(CompiledCode.CallSites(assembly, c => c == property));
+
+                // An EMPTY result is a broken instrument, never a clean scan: if nothing assigns the
+                // verdict, the manifest carries no camera record at all.
+                Assert.NotEmpty(assignments);
+                foreach (var site in assignments)
+                    Assert.True(allowed.Contains(site.Method),
+                        $"{site.Assembly}!{site.Method} assigns {property} directly. That field is the "
+                        + "recorder's verdict, and every place it can be written is a place it can be "
+                        + $"STATED instead of reported - it belongs in {writer} alone");
+            }
+
+            // ... and the copy really is a copy: it reads each field off the source manifest rather
+            // than deciding anything of its own.
+            var copied = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                c => c.StartsWith("AgentEyes.Manifest::get_Camera", StringComparison.Ordinal));
+            foreach (string property in new[]
+            {
+                "AgentEyes.Manifest::get_CameraComplete",
+                "AgentEyes.Manifest::get_CameraStopKind",
+                "AgentEyes.Manifest::get_CameraStderrComplete",
+                "AgentEyes.Manifest::get_CameraCapturedSeconds",
+            })
+                Assert.Contains(copied, s => s.Method == "AgentEyes.CameraTrackRecord::CopyTo" && s.Callee == property);
+
+            var reads = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                c => c.StartsWith("AgentEyes.Video.FfmpegCameraRecorder::get_", StringComparison.Ordinal));
+
+            foreach (string observation in new[]
+            {
+                "AgentEyes.Video.FfmpegCameraRecorder::get_CapturedSeconds",
+                "AgentEyes.Video.FfmpegCameraRecorder::get_StopKind",
+                "AgentEyes.Video.FfmpegCameraRecorder::get_StderrComplete",
+                "AgentEyes.Video.FfmpegCameraRecorder::get_Completeness",
+            })
+                Assert.True(reads.Any(s => s.Method == writer && s.Callee == observation),
+                    $"{writer} writes the camera track's manifest record without ever reading "
+                    + $"{observation} from the recorder - it is stating something rather than reporting it");
+
+            var callers = CompiledCode.CallSites(CompiledCode.CoreAssembly, c => c == writer);
+            Assert.Contains(callers, s => s.Method == "AgentEyes.RecordingService::Stop");
+            Assert.Contains(callers, s => s.Method == "AgentEyes.Commands::Video");
         }
 
         // ---- gate defect 5: no forbidden fallback in the Devices API ----------------------------
