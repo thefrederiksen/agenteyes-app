@@ -1,0 +1,21 @@
+MEASUREMENTS - read out of the RUNNING dialog while each shot in shots\ was rendered
+===================================================================================
+
+Rendered by docs/cencon/proof/issue-43/render-host (see handoff.md). The dialog is built
+OFFSCREEN and never shown, so nothing appeared on anyone's screen and no camera was opened.
+Numbers are the actual bounds of InsetSchematicInsetPath.Data inside the 256x144 schematic
+(254x142 of drawable canvas inside its 1px border).
+
+ac1-size-15: inset x=209.6 y=97.6 w=38.1 h=38.1 area=1452 | box 256x144 | "The camera covers 15% of the recording's width, bottom-right."
+ac1-size-60: inset x=95.2 y=-16.8 w=152.4 h=152.4 area=23226 | box 256x144 | "The camera covers 60% of the recording's width, bottom-right. At this size it is taller than the recording, so the top and bottom are cut off - exactly as they would be while recording."
+ac2-corner-bottom-right: inset x=171.4 y=59.5 w=76.2 h=76.2 area=5806 | box 256x144 | "The camera covers 30% of the recording's width, bottom-right."
+ac2-corner-bottom-left: inset x=6.4 y=59.5 w=76.2 h=76.2 area=5806 | box 256x144 | "The camera covers 30% of the recording's width, bottom-left."
+ac2-corner-top-left: inset x=6.4 y=6.4 w=76.2 h=76.2 area=5806 | box 256x144 | "The camera covers 30% of the recording's width, top-left."
+ac2-corner-top-right: inset x=171.4 y=6.4 w=76.2 h=76.2 area=5806 | box 256x144 | "The camera covers 30% of the recording's width, top-right."
+ac3-small-crop-large-on-screen: inset x=108.0 y=-4.1 w=139.7 h=139.7 area=19516 | box 256x144 | "The camera covers 55% of the recording's width, bottom-right. At this size it is taller than the recording, so the top and bottom are cut off - exactly as they would be while recording."
+ac3-large-crop-small-on-screen: inset x=209.6 y=97.6 w=38.1 h=38.1 area=1452 | box 256x144 | "The camera covers 15% of the recording's width, bottom-right."
+
+AC4, measured: 15% -> 38.1 x 38.1 = 1452 sq px; 60% -> 152.4 x 152.4 = 23226 sq px.
+               152.4 / 38.1 = 4.00 in each dimension; 23226 / 1452 = 16.0 in AREA.
+AC2, measured: the four corners at 30% are the same 76.2 x 76.2 box at four different
+               origins - (6.4,6.4) (171.4,6.4) (6.4,59.5) (171.4,59.5).

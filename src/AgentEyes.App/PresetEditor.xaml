@@ -263,6 +263,16 @@
                             </StackPanel>
 
                             <StackPanel x:Name="OverlayControls" Grid.Column="1" Width="420" Margin="20,0,0,0">
+                                <!-- Issue #43. The controls are split into the two questions they
+                                     actually answer, because two sliders here both sound like "how
+                                     big is the circle" and the first person to use the dialog picked
+                                     the wrong one: DIAMETER is a share of the CAMERA PICTURE (what is
+                                     inside the circle), SIZE ON SCREEN is a share of the RECORDING
+                                     (how large that circle lands on it). The headings say which is
+                                     which; the schematic below shows it. -->
+                                <TextBlock x:Name="CameraFrameGroupHeader"
+                                           Text="1 - IN THE CAMERA PICTURE (what is inside the circle)"
+                                           Style="{StaticResource DkSection}" Margin="0,0,0,8"/>
                                 <TextBlock Text="Shape" Foreground="{StaticResource DkDim}" FontSize="11"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                     <RadioButton x:Name="OverlayShapeCircle" Content="Circle" GroupName="ovshape"
@@ -273,7 +283,7 @@
                                                  Margin="16,0,0,0" VerticalAlignment="Center" Checked="OverlayShape_Changed"/>
                                 </StackPanel>
 
-                                <StackPanel x:Name="CircleControls" Margin="0,16,0,0">
+                                <StackPanel x:Name="CircleControls" Margin="0,10,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -281,9 +291,9 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
-                                            <RowDefinition Height="34"/>
-                                            <RowDefinition Height="34"/>
-                                            <RowDefinition Height="34"/>
+                                            <RowDefinition Height="30"/>
+                                            <RowDefinition Height="30"/>
+                                            <RowDefinition Height="30"/>
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Text="Left / right" VerticalAlignment="Center" Width="80"
@@ -315,12 +325,13 @@
                                     </Grid>
                                     <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
                                                Foreground="{StaticResource DkDim}"
-                                               Text="Click or drag on the picture to put the circle over your face. Diameter is a share of the camera frame's height."/>
+                                               Text="Click or drag on the picture to put the circle over your face. Diameter is a share of the CAMERA PICTURE's height: it decides what is INSIDE the circle."/>
                                 </StackPanel>
 
-                                <TextBlock Text="Where it sits on the recording preview" Margin="0,18,0,0"
-                                           Foreground="{StaticResource DkDim}" FontSize="11"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock x:Name="RecordingGroupHeader"
+                                           Text="2 - ON THE RECORDING (where that circle sits, and how big)"
+                                           Style="{StaticResource DkSection}" Margin="0,14,0,6"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                     <TextBlock Text="Corner" VerticalAlignment="Center" Width="80"
                                                Foreground="{StaticResource DkDim}" FontSize="11"/>
                                     <ComboBox x:Name="OverlayCornerBox" Style="{StaticResource DkCombo}" Width="150" Height="28"
@@ -331,7 +342,7 @@
                                         <ComboBoxItem>Top right</ComboBoxItem>
                                     </ComboBox>
                                 </StackPanel>
-                                <Grid Margin="0,10,0,0">
+                                <Grid Margin="0,8,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
@@ -348,10 +359,43 @@
                                                Foreground="{StaticResource DkDim}"/>
                                 </Grid>
 
-                                <Button x:Name="OverlayResetButton" Content="Reset framing" Style="{StaticResource DkMini}"
-                                        HorizontalAlignment="Left" Margin="0,16,0,0" Click="OverlayReset_Click"/>
+                                <!-- Issue #43. THE FEEDBACK FOR "SIZE ON SCREEN" AND "CORNER".
+                                     Before this, both controls changed a stored number and nothing
+                                     on screen, so the slider was reported as broken.
 
-                                <TextBlock x:Name="OverlayHint" Margin="0,14,0,0" FontSize="11" TextWrapping="Wrap"
+                                     It is a SCHEMATIC of the recording (assumption F1) - a 16:9 box
+                                     with the camera inset drawn in the chosen corner at the chosen
+                                     fraction - NOT a live composite: compositing would mean running
+                                     a second screen capture while someone is merely configuring.
+                                     The camera picture itself IS shown inside the inset, using the
+                                     frames the preview beside it is already receiving, so the
+                                     diameter's crop and the inset's size are visible in one place.
+
+                                     ClipToBounds is deliberate: at the top of the slider's range a
+                                     circle 60% of the frame's WIDTH is taller than a 16:9 frame is
+                                     high, and the HUD's own preview surface clips it exactly so. -->
+                                <TextBlock Text="Your recording, to scale" Margin="0,10,0,0"
+                                           Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <Border x:Name="InsetSchematicBorder" Width="256" Height="144"
+                                        HorizontalAlignment="Left" Margin="0,4,0,0"
+                                        Background="{StaticResource DkBg}"
+                                        BorderBrush="{StaticResource DkBorder}" BorderThickness="1">
+                                    <Canvas x:Name="InsetSchematicCanvas" Background="Transparent"
+                                            ClipToBounds="True" SizeChanged="InsetSchematic_SizeChanged">
+                                        <Path x:Name="InsetSchematicScreenPath" Fill="{StaticResource DkCard}"
+                                              IsHitTestVisible="False"/>
+                                        <Path x:Name="InsetSchematicInsetPath" Stroke="{StaticResource DkAccent}"
+                                              StrokeThickness="2" IsHitTestVisible="False"/>
+                                    </Canvas>
+                                </Border>
+                                <TextBlock x:Name="InsetSchematicCaption" Margin="0,6,0,0" FontSize="11"
+                                           TextWrapping="Wrap" Foreground="{StaticResource DkDim}"
+                                           Text="The camera covers 30% of the recording's width, bottom right."/>
+
+                                <Button x:Name="OverlayResetButton" Content="Reset framing" Style="{StaticResource DkMini}"
+                                        HorizontalAlignment="Left" Margin="0,10,0,0" Click="OverlayReset_Click"/>
+
+                                <TextBlock x:Name="OverlayHint" Margin="0,10,0,0" FontSize="11" TextWrapping="Wrap"
                                            Foreground="{StaticResource DkDim}"
                                            Text="The circle is a framing choice, not a crop: camera.mp4 still records the whole rectangular frame, and the circle is written into the recording's manifest so the framing can be reproduced - or moved - later."/>
                             </StackPanel>
