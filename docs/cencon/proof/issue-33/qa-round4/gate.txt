@@ -1,0 +1,13 @@
+QA round 4 gate, run by QA in its own worktree D:\ReposFred\agenteyes-qa33-r4 (detached at 4b9cb39)
+
+(git status src tests: empty above = byte-clean tree)
+
+Build succeeded.
+    2 Warning(s)
+    0 Error(s)
+
+
+Passed!  - Failed:     0, Passed:  1068, Skipped:     0, Total:  1068, Duration: 9 s - AgentEyes.Tests.dll (net8.0)
+
+AgentEyesApp.dll SHA256 of the binary every running-app number below was produced from:
+A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8

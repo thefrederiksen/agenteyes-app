@@ -1,0 +1,57 @@
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace QaChurn
+{
+    // A topmost, NON-ACTIVATING window that paints changing content on one monitor, so a screen
+    // preview has something to differ about. It never takes focus (WS_EX_NOACTIVATE) and
+    // synthesises no input. Lifted from the round-1 QA harness (qa/qa-harness.cs.txt, class Churn).
+    internal sealed class Churn : Form
+    {
+        private readonly System.Windows.Forms.Timer _t = new System.Windows.Forms.Timer { Interval = 100 };
+        private int _n;
+        protected override bool ShowWithoutActivation { get { return true; } }
+        protected override CreateParams CreateParams
+        {
+            get { var cp = base.CreateParams; cp.ExStyle |= 0x08000000 | 0x00000080; return cp; }
+        }
+        public Churn(Rectangle where)
+        {
+            FormBorderStyle = FormBorderStyle.None;
+            StartPosition = FormStartPosition.Manual;
+            Bounds = where;
+            TopMost = true;
+            ShowInTaskbar = false;
+            BackColor = Color.Black;
+            DoubleBuffered = true;
+            _t.Tick += (s, e) => { _n++; Invalidate(); };
+            _t.Start();
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(_n % 2 == 0 ? Color.Black : Color.DarkSlateBlue);
+            using (var f = new Font("Consolas", 96, FontStyle.Bold))
+                e.Graphics.DrawString("QA33 " + _n.ToString("0000"), f, Brushes.White, 20, 20);
+            e.Graphics.FillRectangle(Brushes.Orange, 20 + (_n * 7) % 400, 220, 160, 120);
+        }
+    }
+
+    public static class Program
+    {
+        [STAThread]
+        public static void Main(string[] args)
+        {
+            int screen = args.Length > 0 ? int.Parse(args[0]) : 1;
+            int seconds = args.Length > 1 ? int.Parse(args[1]) : 120;
+            var b = Screen.AllScreens[Math.Min(screen - 1, Screen.AllScreens.Length - 1)].Bounds;
+            var box = new Rectangle(b.Left + 60, b.Top + 60, 640, 400);
+            Console.WriteLine("churn on monitor " + screen + " at " + box + " for " + seconds + "s");
+            var form = new Churn(box);
+            var life = new System.Windows.Forms.Timer { Interval = seconds * 1000 };
+            life.Tick += (s, e) => { life.Stop(); form.Close(); };
+            life.Start();
+            Application.Run(form);
+        }
+    }
+}
