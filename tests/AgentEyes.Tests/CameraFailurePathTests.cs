@@ -1604,6 +1604,158 @@ namespace AgentEyes.Tests
             Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
         }
 
+        // ---- gate round 7: an observation is evidence about ITS OWN termination round -----------
+        //
+        // The three tests below are ONE experiment with one variable, and they only mean anything
+        // together. All three run the same production order - Stop(), then the Dispose() retry - and
+        // all three end with quits=2, kills=1 and a process that has exited 0. The ONLY thing that
+        // differs is WHICH ROUND delivered a "q":
+        //
+        //   round 1 delivered / round 2 did not  -> absent  (the defect: a refused round certifying
+        //                                                    a later exit it had nothing to do with)
+        //   neither round delivered              -> absent  (the delivery clause is still required)
+        //   only round 2 - the exit's own round  -> CLEAN QUIT (recovery success is still success)
+        //
+        // The last one is what stops the fix being an over-correction. A rule that simply refused
+        // "clean-quit" once any round had been refused would pass the first two and destroy the
+        // third, turning every camera that needed a retry into "unknown" - the fail-open defect this
+        // issue exists to remove, wearing the opposite mask.
+
+        [Fact]
+        public void StopKind_WhenARefusedRoundsQuitIsFollowedByAnUndeliveredRetryExit_IsNotACleanQuit()
+        {
+            // GATE ROUND 7, THE BLOCKING DEFECT. The derivation used to read the LIFETIME delivery
+            // count, so it accepted the unrelated pair "some quit was delivered in this recorder's
+            // life" + "the latest observed exit is 0 or 255" - two facts from two different rounds.
+            //
+            // The production sequence, and it needs nothing exotic:
+            //
+            //   1. Stop() opens round 1. The "q" IS delivered. ffmpeg ignores it, survives the kill
+            //      and the kill wait, and the round is recorded REFUSED.
+            //   2. Dispose() opens the retry round. Its write to stdin FAILS while the process
+            //      exits 0 - the same pipe/exit race gate round 4 covers - so no delivery is
+            //      recorded, and the exit is reported after the wait.
+            //   3. ONE refused round is not "abandoned", so that honest answer does not cover it,
+            //      and the old code paired round 1's delivery with round 2's exit: clean-quit, and
+            //      with two progress advances and complete stderr the completeness one-way door
+            //      reopened to "yes" for a take nothing ever watched being finalized.
+            //
+            // A round that ended with the process STILL ALIVE after the quit timeout and the kill
+            // wait is positive proof that the process did not answer that "q". The exit in the next
+            // round may have come from anything nothing here watched.
+            //
+            // Bad results this fires on: StopKind == CleanQuit (what head did), or Completeness ==
+            // Yes. EMPTY result is impossible: the two quits, the refused kill and the exit are all
+            // asserted as PRESENCES, so the test cannot pass by never reaching the state.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            using var rec = StartOver(proc);
+            // A camera that really was recording right up to the stop, so every OTHER clause of
+            // "complete: yes" is satisfied and the round association is the only thing left.
+            proc.Emit(TickAt(TimeSpan.FromSeconds(1)));
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());   // round 1: DELIVERED, then refused
+            proc.QuitFailsWith = () => proc.End(0);                       // round 2: the pipe goes as it dies
+            rec.Dispose();
+
+            Assert.Equal(2, proc.Quits);
+            Assert.Equal(1, proc.Kills);
+            Assert.True(proc.HasExited);
+            Assert.Equal(0, proc.ExitCode);
+            Assert.True(rec.StderrComplete, "the fixture only means anything with a COMPLETE log to judge from");
+
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void StopKind_WhenNeitherRoundDeliveredItsQuitAndTheProcessExitedZero_IsNotACleanQuit()
+        {
+            // CONTROL 1 for the test above: the SAME shape with the round-1 delivery removed. It
+            // isolates the defect to the cross-round join rather than to the delivery clause - and
+            // it is load-bearing in its own right, because a "fix" that simply deleted the delivery
+            // clause would make this exit 0 a clean quit again.
+            //
+            // Bad results: StopKind == CleanQuit, or Completeness == Yes. EMPTY result impossible -
+            // both quits, the refused kill and the exit are asserted.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            // The write to stdin fails in BOTH rounds; only the second one finds a dying process.
+            proc.QuitFailsWith = () => { if (proc.Quits == 2) proc.End(0); };
+            using var rec = StartOver(proc);
+            proc.Emit(TickAt(TimeSpan.FromSeconds(1)));
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());   // round 1: undelivered, then refused
+            rec.Dispose();                                                // round 2: undelivered, exits 0
+
+            Assert.Equal(2, proc.Quits);
+            Assert.Equal(1, proc.Kills);
+            Assert.True(proc.HasExited);
+            Assert.Equal(0, proc.ExitCode);
+            Assert.True(rec.StderrComplete);
+
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void StopKind_WhenTheRetryRoundsOwnQuitIsDeliveredAndAnswered_IsStillACleanQuit()
+        {
+            // CONTROL 2, and the POSITIVE one. Same production order, same counters - but here the
+            // delivery belongs to the round that watched the process end. A camera that ignored the
+            // first "q", survived a kill, and then answered the retry's "q" with ffmpeg's own exit 0
+            // DID finalize the file, and saying "unknown" about it would be the fail-open fix
+            // inverted: every recording that needed a retry demoted to a guess.
+            //
+            // Bad result this fires on: StopKind != CleanQuit, or Completeness != Yes - which is
+            // exactly what an over-correction ("a refused round anywhere in the history poisons the
+            // whole recorder") would produce. EMPTY result is impossible: the refused first round is
+            // asserted before the retry, so the test cannot pass by skipping the fixture.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            using var rec = StartOver(proc);
+            proc.Emit(TickAt(TimeSpan.FromSeconds(1)));
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());   // round 1: delivered, ignored, refused
+            Assert.Equal(1, proc.Kills);
+            Assert.False(proc.HasExited, "the fixture needs a LIVE process going into the retry");
+
+            proc.QuitEndsIt = true;   // the retry's own "q" is delivered AND answered
+            rec.Dispose();
+
+            Assert.Equal(2, proc.Quits);
+            Assert.Equal(1, proc.Kills);
+            Assert.True(proc.HasExited);
+            Assert.Equal(0, proc.ExitCode);
+
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Yes, rec.Completeness);
+        }
+
+        [Fact]
+        public void CameraTerminationRecord_QuitDeliveredWithoutAQuitInThisRound_Throws()
+        {
+            // THE STRUCTURAL PROMISE, PINNED AT THE RECORD ITSELF (gate round 7, non-blocking
+            // follow-up). The class documents that a delivery cannot be claimed for a quit that was
+            // never sent, and every recorder-level test reaches that guard only through
+            // FfmpegCameraRecorder - so a mutation that dropped the precondition left the whole
+            // suite green. Here it is asserted directly, which keeps the promise executable.
+            //
+            // The second half matters as much: a delivery attributed to a round that has ENDED is
+            // exactly the cross-round confusion this round is about, so the guard is checked again
+            // after BeginRound has moved on.
+            //
+            // Bad result: either call returns quietly. EMPTY result is impossible - Assert.Throws
+            // demands the exception.
+            var record = new CameraTerminationRecord("HD Webcam eMeet C960");
+            record.BeginRound();
+
+            Assert.Throws<InvalidOperationException>(() => record.QuitDelivered());
+
+            record.QuitAttempted();
+            record.QuitDelivered();          // legitimate: this round really did send one
+            record.BeginRound();             // ... and the NEXT round starts owing its own
+
+            Assert.Throws<InvalidOperationException>(() => record.QuitDelivered());
+        }
+
         [Fact]
         public void Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete()
         {

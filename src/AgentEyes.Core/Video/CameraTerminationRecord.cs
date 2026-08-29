@@ -43,6 +43,16 @@ namespace AgentEyes.Video
     /// completeness of "unknown" - which is the honest answer, and the one the amended spec asks for
     /// in every case this code did not anticipate. It can no longer produce a CLAIM.
     ///
+    /// EVERY OBSERVATION IS EVIDENCE ABOUT ITS OWN ROUND, AND NOTHING ELSE (gate round 7). Moving
+    /// the decision into one place removed the wrong-call-site defect but left one more shape of it:
+    /// the derivation was joining two facts from two DIFFERENT rounds. A quit delivered in round 1
+    /// and an exit observed in round 2 were read together as "it answered the quit" - even though
+    /// round 1 had gone on to be REFUSED, which is positive proof that it did not. So a delivery is
+    /// recorded against the round it happened in, and the round that observes the exit is the round
+    /// whose delivery may explain it. The two are paired at the moment they are both known
+    /// (<see cref="ExitObservedAfterTermination"/>) rather than reconstructed afterwards from
+    /// lifetime counters that no longer remember which round they came from.
+    ///
     /// MONOTONICITY. <see cref="AbandonedEarned"/> is a function of a counter that only ever rises,
     /// and it is tested FIRST in <see cref="StopKind"/>. So an earned "abandoned" is never replaced
     /// by a later outcome (gate round 6, defect 2): a stranded ffmpeg that finally accepts a
@@ -127,6 +137,12 @@ namespace AgentEyes.Video
 
         // ---- per-round bookkeeping, reset by BeginRound ------------------------------------
         private bool _roundQuitAttempted;
+
+        /// <summary>A quit was DELIVERED in the round that is open RIGHT NOW. Per-round, and that is
+        /// the whole of gate round 7: a delivery is evidence about the round it happened in, and
+        /// nothing at all about a later one.</summary>
+        private bool _roundQuitDelivered;
+
         private int _roundKills;
         private bool _roundHadAnAttempt;
         private bool _roundSettled;
@@ -142,6 +158,17 @@ namespace AgentEyes.Video
         /// this is the code it exited with.</summary>
         private bool _exitObserved;
         private int _exitCode;
+
+        /// <summary>
+        /// Whether the quit in THE ROUND THAT OBSERVED <see cref="_exitCode"/> had actually been
+        /// DELIVERED - i.e. whether that exit could be an answer to a "q" at all.
+        ///
+        /// It is written beside the exit code, from the round both belong to, so the two facts the
+        /// derivation pairs can never come from different rounds (gate round 7). It is ASSIGNED
+        /// rather than OR-ed, for the same reason: the newest observed exit REPLACES the previous
+        /// one, so the delivery fact it is weighed against has to be replaced with it.
+        /// </summary>
+        private bool _exitFollowedADeliveredQuit;
 
         public CameraTerminationRecord(string deviceName) => _deviceName = deviceName;
 
@@ -172,6 +199,7 @@ namespace AgentEyes.Video
         {
             _roundsOpened++;
             _roundQuitAttempted = false;
+            _roundQuitDelivered = false;
             _roundKills = 0;
             _roundHadAnAttempt = false;
             _roundSettled = false;
@@ -189,12 +217,21 @@ namespace AgentEyes.Video
             CountRoundAsAttempted();
         }
 
-        /// <summary>The "q" was written without error, i.e. it actually REACHED the process. A quit
-        /// that never arrived cannot have been answered by it (gate round 4, defect 1).</summary>
+        /// <summary>
+        /// The "q" was written without error, i.e. it actually REACHED the process. A quit that never
+        /// arrived cannot have been answered by it (gate round 4, defect 1).
+        ///
+        /// Recorded AGAINST THE ROUND IT HAPPENED IN as well as in the lifetime count, because the
+        /// lifetime count on its own answers the wrong question (gate round 7). "Some quit was
+        /// delivered at some point in this recorder's life" is not evidence that a LATER exit
+        /// answered it - and when the round that delivered it was afterwards refused, it is evidence
+        /// of the opposite.
+        /// </summary>
         public void QuitDelivered()
         {
             Require(_roundQuitAttempted, "a quit was reported delivered without having been attempted");
             _quitsDelivered++;
+            _roundQuitDelivered = true;
         }
 
         /// <summary>A kill is about to be issued. Recorded BEFORE the call for the same reason
@@ -230,7 +267,13 @@ namespace AgentEyes.Video
         /// <summary>
         /// The process was seen to exit AFTER this recorder had interfered with it, carrying this
         /// exit code. Whether that counts as an answer to "q" is not the caller's decision - it is
-        /// <see cref="StopKind"/>'s, from this code and from whether a quit was ever delivered.
+        /// <see cref="StopKind"/>'s, from this code and from whether the quit IN THIS ROUND was
+        /// delivered.
+        ///
+        /// THE ROUND IS WHERE THE TWO FACTS ARE JOINED (gate round 7). The exit and the delivery
+        /// that could explain it are paired HERE, while the round both belong to is still known,
+        /// rather than being inferred later from two lifetime counters that have long since lost
+        /// which round each of them came from.
         /// </summary>
         public void ExitObservedAfterTermination(int exitCode)
         {
@@ -238,6 +281,7 @@ namespace AgentEyes.Video
             Settle();
             _exitObserved = true;
             _exitCode = exitCode;
+            _exitFollowedADeliveredQuit = _roundQuitDelivered;
             Log.Info($"[CameraTerminationRecord] camera=\"{_deviceName}\" the process exited with {exitCode}: {Describe()}");
         }
 
@@ -280,9 +324,29 @@ namespace AgentEyes.Video
                 // It was shot rather than asked, so ffmpeg never wrote the MP4 trailer.
                 if (_killConfirmedGone) return CameraStopKind.ForceKilled;
 
-                // It answered a quit that ACTUALLY REACHED IT, with a code an ffmpeg that answered
-                // "q" is observed to return. Both clauses, or this is not a clean quit.
-                if (_exitObserved && _quitsDelivered > 0 && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
+                // It answered a quit that ACTUALLY REACHED IT, IN THE ROUND THAT WATCHED IT END,
+                // with a code an ffmpeg that answered "q" is observed to return. All three clauses,
+                // or this is not a clean quit.
+                //
+                // THE ROUND CLAUSE IS GATE ROUND 7, and it is the last shape of the same defect: the
+                // test read the LIFETIME delivery count, so an exit observed in one round could be
+                // certified by a delivery made in a completely different one. The sequence that
+                // breaks it is an ordinary production one - Stop, then the Dispose retry:
+                //
+                //   1. Round 1 delivers "q". ffmpeg ignores it, survives the kill and the kill wait,
+                //      and the round is recorded REFUSED.
+                //   2. The Dispose retry opens round 2. Its write to stdin FAILS - the pipe/exit
+                //      race gate round 4 covers - while the process happens to exit 0.
+                //   3. One refused round is not "abandoned", so the old test paired round 1's
+                //      delivery with round 2's exit and answered clean-quit, which reopened the
+                //      completeness one-way door to "yes".
+                //
+                // A round that ended with the process still alive after the quit timeout AND the
+                // kill wait is positive proof that the process did NOT answer that "q" - it is the
+                // last thing that should be allowed to certify a later exit. That later exit may
+                // have come from anything nothing here watched, and under the amended contract an
+                // ambiguity is an ABSENT stop kind and "unknown", never the friendliest claim.
+                if (_exitObserved && _exitFollowedADeliveredQuit && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
                     return CameraStopKind.CleanQuit;
 
                 return null;
@@ -293,7 +357,8 @@ namespace AgentEyes.Video
         public string Describe() =>
             $"rounds={_roundsOpened} attemptedRounds={_roundsWithAnAttempt} refusedRounds={_refusedRounds} "
             + $"quits={_quitsAttempted}(delivered={_quitsDelivered}) kills={_killsAttempted} "
-            + $"exit={(_exitObserved ? _exitCode.ToString() : "none")} goneUntouched={_goneUntouched} "
+            + $"exit={(_exitObserved ? _exitCode.ToString() : "none")} "
+            + $"exitAnsweredADeliveredQuit={_exitFollowedADeliveredQuit} goneUntouched={_goneUntouched} "
             + $"killConfirmed={_killConfirmedGone} kind={CameraObservation.Text(StopKind) ?? "(not observed)"}";
 
         /// <summary>Count the current round as a termination round the first time it touches the
