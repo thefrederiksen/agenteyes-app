@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AgentEyes;
 
 namespace AgentEyes.Video
 {
@@ -40,6 +41,23 @@ namespace AgentEyes.Video
         }
 
         /// <summary>
+        /// The camera PREVIEW processes this app asked to die and could not kill (issue #35, Review
+        /// Gate round 1, defect 4).
+        ///
+        /// It is the reference that keeps a surviving preview reachable, and it is the SAME class
+        /// issue #28 built for a surviving recorder rather than a second one written to the same
+        /// description. It hangs here, on the arbiter, because the arbiter is already the one
+        /// process-wide place that knows who is holding a camera - and because
+        /// <see cref="ReleaseForRecording"/> is the exact moment somebody is asking for the camera
+        /// back, which is when a retry is worth running.
+        ///
+        /// A preview owns no recording claim and writes no file, so its rows carry a default ticket
+        /// and a null directory. What they do carry is the PID, on <c>/status</c>, which is what
+        /// makes a stuck webcam actionable instead of merely logged.
+        /// </summary>
+        public static StrandedCameraOwner StrandedPreviews { get; } = new StrandedCameraOwner();
+
+        /// <summary>
         /// Register something that may be holding a camera. The callback is invoked SYNCHRONOUSLY on
         /// the thread that is starting a recording and must have released the device by the time it
         /// returns; it must not need the UI thread, or a busy UI would deadlock a recording start.
@@ -77,6 +95,12 @@ namespace AgentEyes.Video
         /// </summary>
         public static int ReleaseForRecording(string deviceName)
         {
+            // A preview ffmpeg that survived an earlier stop is still on this camera, and THIS is
+            // the moment somebody wants it back - so the retry runs before anything else is asked.
+            // Recover also lets go of every retained process that has since died, so a stale row
+            // cannot outlive the thing it describes.
+            StrandedPreviews.Recover();
+
             Func<string, bool>[] holders;
             lock (Gate) { holders = Holders.ToArray(); }
 

@@ -64,6 +64,17 @@ namespace AgentEyes.App
         /// </summary>
         private readonly CameraPreviewController _cameraPreview;
 
+        /// <summary>
+        /// True once Window.Closed has run (issue #35, Review Gate round 1, defect 1).
+        ///
+        /// The camera enumeration is slow - it launches ffmpeg - and every close route (Save, Save
+        /// as, Cancel, the X, Esc) can happen while it is still running. Its continuation then
+        /// selected the saved camera and started a preview into a window that no longer existed. The
+        /// controller REFUSES that now, which is the durable half of the fix; this is the dialog's
+        /// half, so the closed editor does not go on writing into its own controls either.
+        /// </summary>
+        private bool _closed;
+
         /// <summary>The bitmap the preview frames are written into, allocated on the first frame.</summary>
         private WriteableBitmap? _previewBitmap;
 
@@ -105,6 +116,7 @@ namespace AgentEyes.App
             // Cancel, the window close button and Esc all end here (AC4).
             Closed += (_, _) =>
             {
+                _closed = true;
                 try { _cameraPreview.Dispose(); }
                 catch (Exception ex) { Log.Error("[PresetEditor] Closed: releasing the camera preview FAILED", ex); }
                 try { RememberWindowState(); }
@@ -185,12 +197,22 @@ namespace AgentEyes.App
             catch (Exception ex)
             {
                 Log.Error("[PresetEditor] LoadCamerasAsync: enumerating cameras failed", ex);
+                if (_closed) return;
                 CameraBox.Items.Clear();
                 CameraBox.Items.Add(NoCameraItem);
                 CameraBox.SelectedIndex = 0;
                 CameraBox.IsEnabled = false;
                 CameraHint.Text = "Cameras could not be listed: " + ex.Message;
                 CameraPreviewStatus.Text = "Cameras could not be listed, so there is nothing to preview.";
+                return;
+            }
+
+            // The dialog closed while DirectShow was being enumerated. There is nothing left to fill
+            // in and - the part that mattered - nothing left to preview into.
+            if (_closed)
+            {
+                Log.Info($"[PresetEditor] LoadCamerasAsync: the editor closed while {cameras.Count} camera(s) were "
+                         + "being enumerated - no preview is started");
                 return;
             }
 
@@ -241,6 +263,7 @@ namespace AgentEyes.App
         private void UpdateCameraPreview()
         {
             if (!_camerasLoaded) return;   // the picker still holds the placeholder, not a camera
+            if (_closed) return;           // the editor is gone; the controller refuses anyway
 
             // Issue #28, assumption A1: the camera is a Video-mode setting. A preset that is not
             // going to record the camera has no business holding the device open to show it.

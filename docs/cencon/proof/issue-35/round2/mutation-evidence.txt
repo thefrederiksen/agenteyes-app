@@ -1,0 +1,50 @@
+MUTATION EVIDENCE - issue #35, Review Gate round 1
+Each mutation puts the REVIEWED HEAD's behaviour back into one place, rebuilds, and runs the
+camera preview tests. A mutation that does not compile is reported as BUILD_FAILED, never as a
+pass. Filter: FullyQualifiedName~CameraPreview (44 tests).
+
+================ MUTATION d1all ================
+MUTATION d1 apply: OK (src/AgentEyes.App/CameraPreviewController.cs)
+MUTATION d1b apply: OK (src/AgentEyes.App/CameraPreviewController.cs)
+  Failed AgentEyes.Tests.CameraPreviewTests.Select_AfterTheEditorClosed_NeverStartsASession [243 ms]
+Failed!  - Failed:     1, Passed:    43, Skipped:     0, Total:    44, Duration: 8 s - AgentEyes.Tests.dll (net8.0)
+MUTATION d1 revert: OK (src/AgentEyes.App/CameraPreviewController.cs)
+MUTATION d1b revert: OK (src/AgentEyes.App/CameraPreviewController.cs)
+
+================ MUTATION d2 ================
+MUTATION d2 apply: OK (src/AgentEyes.App/CameraPreviewController.cs)
+  Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhileTheCameraIsStillBeingReleased_KeepsTheHolderRegistered [34 ms]
+  Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession [21 ms]
+Failed!  - Failed:     2, Passed:    42, Skipped:     0, Total:    44, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+MUTATION d2 revert: OK (src/AgentEyes.App/CameraPreviewController.cs)
+
+================ MUTATION d3 ================
+MUTATION d3 apply: OK (src/AgentEyes.Core/Video/CameraReleaseRecord.cs)
+  Failed AgentEyes.Tests.CameraPreviewTests.ARecordingStartingDuringAnUnfinishedOpen_IsNotToldTheCameraWasReleased [10 s]
+Failed!  - Failed:     1, Passed:    43, Skipped:     0, Total:    44, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+MUTATION d3 revert: OK (src/AgentEyes.Core/Video/CameraReleaseRecord.cs)
+
+================ MUTATION d4 ================
+MUTATION d4 apply: OK (src/AgentEyes.Core/Video/FfmpegCameraPreview.cs)
+  Failed AgentEyes.Tests.CameraPreviewStopTests.Dispose_WhenFfmpegIgnoresTheKill_KEEPS_TheProcessHandle [1 ms]
+Failed!  - Failed:     1, Passed:    43, Skipped:     0, Total:    44, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+MUTATION d4 revert: OK (src/AgentEyes.Core/Video/FfmpegCameraPreview.cs)
+
+================ MUTATION d4b ================
+MUTATION d4b apply: OK (src/AgentEyes.Core/Video/FfmpegCameraPreview.cs)
+  Failed AgentEyes.Tests.CameraPreviewStopTests.Stop_CalledAgainOnASurvivingProcess_PerformsAnotherTerminationAttempt [12 ms]
+  Failed AgentEyes.Tests.CameraPreviewStopTests.APreviewSession_IsOwnedByTheSameStrandedOwnerAsARecording [< 1 ms]
+  Failed AgentEyes.Tests.CameraPreviewStopTests.Dispose_WhenFfmpegIgnoresTheKill_KEEPS_TheProcessHandle [< 1 ms]
+  Failed AgentEyes.Tests.CameraPreviewStopTests.Stop_WhenFfmpegIgnoresTheKill_DoesNotReportTheCameraAsFree [1 ms]
+  Failed AgentEyes.Tests.CameraPreviewStopTests.Stop_WhenTheKillItselfThrows_DoesNotReportTheCameraAsFree [9 ms]
+Failed!  - Failed:     5, Passed:    39, Skipped:     0, Total:    44, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+MUTATION d4b revert: OK (src/AgentEyes.Core/Video/FfmpegCameraPreview.cs)
+
+================ MUTATION retain ================
+MUTATION retain apply: OK (src/AgentEyes.App/CameraPreviewController.cs)
+  Failed AgentEyes.Tests.CameraPreviewTests.ASessionThatSurvivesItsStop_IsNotCountedAsARelease [17 ms]
+  Failed AgentEyes.Tests.CameraPreviewTests.AStopThatThrows_IsNotAReleaseAndTheSessionIsNotDiscarded [28 ms]
+  Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession [11 ms]
+Failed!  - Failed:     3, Passed:    41, Skipped:     0, Total:    44, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+MUTATION retain revert: OK (src/AgentEyes.App/CameraPreviewController.cs)
+

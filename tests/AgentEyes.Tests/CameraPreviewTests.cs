@@ -427,6 +427,238 @@ namespace AgentEyes.Tests
             Assert.Contains(sites, s => s.Method.Contains("PresetEditor", StringComparison.Ordinal));
         }
 
+        // ---- issue #35, Review Gate round 1: no claim without proof -----------
+        //
+        // The four blocking defects were one disease: a call site ANNOUNCING that the camera was
+        // free without having established it, or discarding the handle to a process that survived.
+        // Each test below names the bad result it would show, and each is paired with a NEGATIVE
+        // CONTROL that makes the same instrument report the good case - so a passing assertion is
+        // known to be an observation and not a constant.
+
+        [Fact]
+        public void Select_AfterTheEditorClosed_NeverStartsASession()
+        {
+            // DEFECT 1. The camera enumeration launches ffmpeg and can finish long after the dialog
+            // was closed by Save / Save as / Cancel / Esc / the X. Its continuation then selected the
+            // saved camera and started a preview - into a window that no longer existed, with the
+            // holder already off the arbiter. The bad result: a session created after Dispose.
+            var factory = new FakeCameraFactory();
+            var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            WaitForSession(factory);
+
+            preview.Dispose();
+            preview.Select(OtherCamera);   // the enumeration continuation, landing after the close
+            Thread.Sleep(200);             // an open is queued to a background thread; give it time
+
+            Assert.True(preview.IsDisposed);
+            Assert.Single(factory.Created);
+            Assert.False(preview.HoldsCamera);
+            Assert.Equal(Camera, factory.Created[0].DeviceName);
+        }
+
+        [Fact]
+        public void Select_BeforeTheEditorCloses_DoesStartASession()
+        {
+            // NEGATIVE CONTROL for the test above. Without the close, the SAME second Select must
+            // create a second session and hold it - otherwise "Single(factory.Created)" would pass
+            // over a controller that had simply stopped working.
+            var factory = new FakeCameraFactory();
+            using var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            WaitForSession(factory);
+
+            preview.Select(OtherCamera);
+            var second = WaitForSession(factory, index: 1);
+
+            Assert.False(preview.IsDisposed);
+            Assert.Equal(2, factory.Created.Count);
+            Assert.Equal(OtherCamera, second.DeviceName);
+            Assert.True(preview.HoldsCamera);
+        }
+
+        [Fact]
+        public void Dispose_WhileTheCameraIsStillBeingReleased_KeepsTheHolderRegistered()
+        {
+            // DEFECT 2. Dispose used to unregister from the arbiter BEFORE stopping the preview, so
+            // for the whole length of a real ffmpeg stop (up to three seconds) the camera was held
+            // and a recording start snapshotting the holders found NONE. The bad result: the holder
+            // count back at its baseline while the session's Stop has not returned.
+            var factory = new FakeCameraFactory();
+            var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            var session = WaitForSession(factory);
+
+            using var insideStop = new ManualResetEventSlim(false);
+            session.StopBlocksOn = insideStop;
+
+            int baseHolders = CameraDeviceArbiter.HolderCount - 1;   // this controller is one of them
+            var closing = System.Threading.Tasks.Task.Run(() => preview.Dispose());
+            Assert.True(SpinUntil(() => session.StopCalls > 0, 5000),
+                "the close never reached the session's Stop - nothing was observed");
+
+            Assert.Equal(baseHolders + 1, CameraDeviceArbiter.HolderCount);
+
+            insideStop.Set();
+            Assert.True(SpinUntil(() => closing.IsCompleted, 15000), "the close never finished");
+            Assert.Equal(baseHolders, CameraDeviceArbiter.HolderCount);
+        }
+
+        [Fact]
+        public void Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession()
+        {
+            // DEFECT 2 + DEFECT 4 together, which is the shape that actually strands a webcam: the
+            // editor closes, ffmpeg ignores the kill, and the old code unregistered the holder and
+            // forgot the session. The bad result: nothing registered, nothing retained, and a live
+            // process on the camera that nothing in the app can reach.
+            var factory = new FakeCameraFactory { SessionsSurviveTheStop = true };
+            var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            var session = WaitForSession(factory);
+
+            int baseHolders = CameraDeviceArbiter.HolderCount - 1;
+            preview.Dispose();
+
+            Assert.Equal(1, session.StopCalls);
+            Assert.Equal(0, session.DisposeCalls);                     // the handle was NOT discarded
+            Assert.Equal(baseHolders + 1, CameraDeviceArbiter.HolderCount);
+            Assert.Contains(CameraDeviceArbiter.StrandedPreviews.Report(),
+                            r => r.Device == Camera && r.Pid == FakeCameraSession.Pid);
+
+            // ...and it is recoverable: the next recording start retries it, and once the process is
+            // really gone the holder, the retained session and the /status row all go.
+            session.SurvivesTheStop = false;
+            CameraDeviceArbiter.ReleaseForRecording(Camera);
+
+            Assert.DoesNotContain(CameraDeviceArbiter.StrandedPreviews.Report(), r => r.Device == Camera);
+            Assert.Equal(baseHolders, CameraDeviceArbiter.HolderCount);
+        }
+
+        [Fact]
+        public void Dispose_WithACleanStop_RetainsNothingAndUnregisters()
+        {
+            // NEGATIVE CONTROL for the test above. A session that really does die must leave NO
+            // stranded row and NO registration - otherwise "Contains(...)" above would be asserting
+            // over a list everything lands in.
+            var factory = new FakeCameraFactory();
+            int baseHolders = CameraDeviceArbiter.HolderCount;
+            var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            var session = WaitForSession(factory);
+
+            preview.Dispose();
+
+            Assert.Equal(1, session.DisposeCalls);
+            Assert.Equal(baseHolders, CameraDeviceArbiter.HolderCount);
+            Assert.DoesNotContain(CameraDeviceArbiter.StrandedPreviews.Report(), r => r.Device == Camera);
+        }
+
+        [Fact]
+        public void ARecordingStartingDuringAnUnfinishedOpen_IsNotToldTheCameraWasReleased()
+        {
+            // DEFECT 3. With no session published yet, the stop waited 5000ms for the in-flight open,
+            // LOGGED the timeout, and then returned as though the wait had succeeded - the arbiter
+            // was told one camera had been released while an open was still on its way to the device.
+            // The bad result: a non-zero release count, and a controller reporting it holds nothing.
+            var factory = new FakeCameraFactory();
+            using var insideOpen = new ManualResetEventSlim(false);
+            factory.OpenBlocksOn = insideOpen;
+
+            using var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            Assert.True(SpinUntil(() => factory.OpensEntered > 0, 5000),
+                "the camera open never started - nothing was observed");
+
+            int released = CameraDeviceArbiter.ReleaseForRecording(Camera);
+
+            Assert.Equal(0, released);                              // nothing was ESTABLISHED free
+            Assert.True(preview.HoldsCamera);                       // ...and it says so
+            Assert.Equal(CameraPreviewState.Failed, preview.State);
+            Assert.Contains("may still be held", preview.StatusText, StringComparison.Ordinal);
+
+            insideOpen.Set();
+            Assert.True(SpinUntil(() => factory.Created.Count == 1 && factory.Created[0].StopCalls > 0, 8000),
+                "the superseded open never released the session it created");
+        }
+
+        [Fact]
+        public void ASessionThatSurvivesItsStop_IsNotCountedAsARelease()
+        {
+            // DEFECT 4 seen from the arbiter's side: a recording start must not be told a camera was
+            // handed back when the process that holds it is still running.
+            var factory = new FakeCameraFactory { SessionsSurviveTheStop = true };
+            using var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            var session = WaitForSession(factory);
+
+            int released = CameraDeviceArbiter.ReleaseForRecording(Camera);
+
+            Assert.Equal(0, released);
+            Assert.Equal(0, session.DisposeCalls);
+            Assert.Equal(CameraPreviewState.Failed, preview.State);
+            Assert.Contains(FakeCameraSession.Pid.ToString(), preview.StatusText, StringComparison.Ordinal);
+
+            session.SurvivesTheStop = false;
+            preview.Dispose();
+        }
+
+        [Fact]
+        public void AStopThatThrows_IsNotAReleaseAndTheSessionIsNotDiscarded()
+        {
+            // A stop that threw has released nothing. The old code let the exception escape a Select
+            // and let Dispose report success; either way the handle went and the claim of a release
+            // stood.
+            var factory = new FakeCameraFactory();
+            using var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            var session = WaitForSession(factory);
+            session.StopThrows = true;
+            session.SurvivesTheStop = true;
+
+            preview.Stop("leaving the Camera tab");
+
+            Assert.Equal(CameraPreviewState.Failed, preview.State);
+            Assert.Equal(0, session.DisposeCalls);
+            Assert.True(preview.HoldsCamera);
+
+            session.StopThrows = false;
+            session.SurvivesTheStop = false;
+            preview.Dispose();
+        }
+
+        [Fact]
+        public void Select_WhoseCurrentCameraCannotBeReleased_DoesNotOpenTheNextOne()
+        {
+            // One stuck preview must not become two. The bad result: a second exclusive device
+            // opened while the first is demonstrably still held.
+            var factory = new FakeCameraFactory { SessionsSurviveTheStop = true };
+            using var preview = new CameraPreviewController(factory.Create);
+            preview.Select(Camera);
+            var session = WaitForSession(factory);
+
+            preview.Select(OtherCamera);
+            Thread.Sleep(200);
+
+            Assert.Single(factory.Created);
+            Assert.Equal(CameraPreviewState.Failed, preview.State);
+
+            session.SurvivesTheStop = false;
+            preview.Dispose();
+        }
+
+        /// <summary>Spin until <paramref name="what"/> is true. Returns its final answer, so a caller
+        /// asserts on a PRESENCE rather than on the loop having ended.</summary>
+        private static bool SpinUntil(Func<bool> what, int ms)
+        {
+            var clock = Stopwatch.StartNew();
+            while (clock.ElapsedMilliseconds < ms)
+            {
+                if (what()) return true;
+                Thread.Sleep(5);
+            }
+            return what();
+        }
+
         // ---- helpers ---------------------------------------------------------
 
         /// <summary>
@@ -448,12 +680,24 @@ namespace AgentEyes.Tests
 
         /// <summary>A preview session that needs no camera: it records what was asked of it and lets
         /// the test push frames and failures back through the controller's own callbacks.</summary>
-        private sealed class FakeCameraSession : ICameraPreviewSession
+        internal sealed class FakeCameraSession : ICameraPreviewSession
         {
             private readonly Action<byte[]> _onFrame;
             private readonly Action<string> _onFailed;
             private int _stops;
             private int _disposes;
+
+            /// <summary>The one ffmpeg behaviour that matters for issue #35's gate round 1: a camera
+            /// process that survives every kill. Set it and the session goes on reporting that it
+            /// still holds the device however many times it is stopped.</summary>
+            public bool SurvivesTheStop;
+
+            /// <summary>Blocks inside Stop until the test lets go, so a release can be observed
+            /// WHILE it is in progress - which is where defect 2 lives.</summary>
+            public ManualResetEventSlim? StopBlocksOn;
+
+            /// <summary>Makes Stop throw. A stop that threw has released nothing.</summary>
+            public bool StopThrows;
 
             public FakeCameraSession(string deviceName, Action<byte[]> onFrame, Action<string> onFailed)
             {
@@ -463,29 +707,62 @@ namespace AgentEyes.Tests
             }
 
             public string DeviceName { get; }
+            public const int Pid = 24512;
+
+            public int? ProcessId => Pid;
+            public string? OutputPath => null;
+
+            /// <summary>Asked of the "process" every time, exactly as the real session asks the OS:
+            /// it is abandoned once a stop has been attempted and it is still holding the device.</summary>
+            public bool IsAbandoned => StopCalls > 0 && SurvivesTheStop;
+
             public int StopCalls => Volatile.Read(ref _stops);
             public int DisposeCalls => Volatile.Read(ref _disposes);
 
             public void RaiseFrame() => _onFrame(new byte[FfmpegCameraPreview.FrameBytes]);
             public void RaiseFailure(string message) => _onFailed(message);
 
-            public void Stop() => Interlocked.Increment(ref _stops);
+            public void Stop()
+            {
+                Interlocked.Increment(ref _stops);
+                StopBlocksOn?.Wait(30000);
+                if (StopThrows) throw new InvalidOperationException("the preview stop failed");
+            }
+
             public void Dispose() => Interlocked.Increment(ref _disposes);
         }
 
         /// <summary>Hands out fake sessions and remembers every one it made.</summary>
-        private sealed class FakeCameraFactory
+        internal sealed class FakeCameraFactory
         {
             private readonly List<FakeCameraSession> _created = new List<FakeCameraSession>();
+
+            /// <summary>Every session this factory hands out survives its stop.</summary>
+            public bool SessionsSurviveTheStop;
+
+            /// <summary>Blocks inside the factory itself, i.e. while the camera is being OPENED and
+            /// before any session has been published - the state defect 3 reported a release from.</summary>
+            public ManualResetEventSlim? OpenBlocksOn;
 
             public IReadOnlyList<FakeCameraSession> Created
             {
                 get { lock (_created) { return _created.ToArray(); } }
             }
 
+            /// <summary>How many opens have ENTERED the factory. A test that blocks the open needs
+            /// to know the open really started, or it would be observing a state it never reached.</summary>
+            public int OpensEntered => Volatile.Read(ref _entered);
+
+            private int _entered;
+
             public ICameraPreviewSession Create(string deviceName, Action<byte[]> onFrame, Action<string> onFailed)
             {
-                var session = new FakeCameraSession(deviceName, onFrame, onFailed);
+                Interlocked.Increment(ref _entered);
+                OpenBlocksOn?.Wait(30000);
+                var session = new FakeCameraSession(deviceName, onFrame, onFailed)
+                {
+                    SurvivesTheStop = SessionsSurviveTheStop,
+                };
                 lock (_created) { _created.Add(session); }
                 return session;
             }

@@ -146,7 +146,7 @@ namespace AgentEyes.Video
     /// presence and whose <c>unknown</c> is the correct answer for everything else, INCLUDING cases
     /// nobody anticipated. The one thing it may never do is claim <c>yes</c> from an absence.
     /// </summary>
-    internal sealed class FfmpegCameraRecorder : IDisposable
+    internal sealed class FfmpegCameraRecorder : IStrandedCameraProcess
     {
         /// <summary>
         /// How long a freshly started camera is given to report itself open before the open is called

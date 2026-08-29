@@ -23,6 +23,22 @@ namespace AgentEyes.Video
     /// The device-open diagnosis is SHARED with the recorder (<see
     /// cref="FfmpegCameraRecorder.DiagnoseOpenFailure"/>) rather than written a second time, so a
     /// camera held by another application reads the same way in both places.
+    ///
+    /// A KILL IS A REQUEST, NOT AN OUTCOME (issue #35, Review Gate round 1, defect 4 - which is
+    /// issue #28's original bug in a different file). This class used to catch a failed
+    /// <c>Process.Kill</c>, log a still-running process after the wait, then announce
+    /// unconditionally that the camera had been released and dispose the process WRAPPER - and
+    /// disposing a wrapper does not terminate an operating-system process, it only throws away the
+    /// last handle able to reach a live ffmpeg sitting on the webcam. So:
+    ///
+    ///  - <see cref="Stop"/> makes no claim at all. It attempts, it waits, and it reports what it
+    ///    saw to the log. What is true afterwards is <see cref="IsAbandoned"/>, which asks the
+    ///    process itself on every read.
+    ///  - <see cref="Stop"/> may be called AGAIN. Every call is a fresh termination attempt, so a
+    ///    session that survived one is worth retaining - which is what
+    ///    <c>StrandedCameraOwner.Recover</c> does with it.
+    ///  - <see cref="Dispose"/> releases the handle ONLY once the process is CONFIRMED gone. While
+    ///    it survives, this object stays valid, stays loud, and stays stoppable.
     /// </summary>
     internal sealed class FfmpegCameraPreview : ICameraPreviewSession
     {
@@ -41,15 +57,26 @@ namespace AgentEyes.Video
         /// <summary>How long a killed ffmpeg is given to actually die before we stop waiting.</summary>
         private const int KillWaitMs = 3000;
 
-        private readonly Process _proc;
+        private readonly ICameraPreviewProcess _proc;
         private readonly Action<byte[]> _onFrame;
         private readonly Action<string> _onFailed;
         private readonly StringBuilder _stderr = new StringBuilder();
         private readonly Stopwatch _since = Stopwatch.StartNew();
+
+        /// <summary>Serializes termination attempts. A stop can take seconds, and a recording start
+        /// and a closing dialog can both be inside one - two kills racing over the same handle would
+        /// make "is it still running?" unanswerable at exactly the moment it matters.</summary>
+        private readonly object _stopGate = new object();
+
         private Thread? _reader;
 
-        /// <summary>0 while running, 1 once <see cref="Stop"/> has taken ownership of the shutdown.</summary>
+        /// <summary>0 while running, 1 once <see cref="Stop"/> has been asked for at least once. It
+        /// is what turns "this process is alive" into "this process is ABANDONED".</summary>
         private int _stopped;
+
+        /// <summary>1 once the process was CONFIRMED gone and the handle was released. After that
+        /// the handle must not be touched again - reading it throws.</summary>
+        private int _handleReleased;
 
         /// <summary>1 once <see cref="_onFailed"/> has been raised, so a failure is reported once.</summary>
         private int _reportedFailure;
@@ -59,10 +86,29 @@ namespace AgentEyes.Video
         /// <summary>The exact DirectShow device name this preview is holding.</summary>
         public string DeviceName { get; }
 
+        /// <summary>The operating-system process id of the preview ffmpeg.</summary>
+        public int? ProcessId => _proc.ProcessId;
+
+        /// <summary>A preview writes no file - it is a stream to a window. Null, and said rather
+        /// than faked with a path that does not exist.</summary>
+        public string? OutputPath => null;
+
+        /// <summary>
+        /// True while a preview ffmpeg this object ASKED TO DIE is STILL RUNNING.
+        ///
+        /// It asks the process on every read (never the remembered outcome of the kill that failed),
+        /// and it is false before any stop has been attempted - a process nobody has tried to end is
+        /// not stranded, it is previewing. Once the handle has been released the process is
+        /// confirmed gone, so the answer is false and the released handle is never touched.
+        /// </summary>
+        public bool IsAbandoned =>
+            Volatile.Read(ref _stopped) != 0 && Volatile.Read(ref _handleReleased) == 0 && !_proc.HasExited;
+
         /// <summary>How many complete frames have been delivered to the caller.</summary>
         public long FramesDelivered => Interlocked.Read(ref _frames);
 
-        private FfmpegCameraPreview(Process proc, string deviceName, Action<byte[]> onFrame, Action<string> onFailed)
+        private FfmpegCameraPreview(ICameraPreviewProcess proc, string deviceName, Action<byte[]> onFrame,
+            Action<string> onFailed)
         {
             _proc = proc;
             DeviceName = deviceName;
@@ -82,15 +128,13 @@ namespace AgentEyes.Video
         {
             if (string.IsNullOrWhiteSpace(deviceName))
                 throw new UsageException("a camera preview needs an exact DirectShow device name.");
-            if (onFrame == null) throw new ArgumentNullException(nameof(onFrame));
-            if (onFailed == null) throw new ArgumentNullException(nameof(onFailed));
 
             string exe = FfmpegLocator.Ffmpeg();
             var args = FfmpegArgs.CameraPreview(deviceName, FrameWidth, FrameHeight, FrameRate);
             string cmd = FfmpegArgs.ToCommandLine(exe, args);
             Log.Info($"[FfmpegCameraPreview] Start: camera=\"{deviceName}\" {FrameWidth}x{FrameHeight}@{FrameRate} cmd={cmd}");
 
-            var psi = new ProcessStartInfo
+            var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = exe,
                 RedirectStandardInput = true,
@@ -102,14 +146,25 @@ namespace AgentEyes.Video
             psi.ArgumentList.Add("-hide_banner");
             foreach (var a in args) psi.ArgumentList.Add(a);
 
-            var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            return Start(new FfmpegPreviewProcess(psi, deviceName), deviceName, onFrame, onFailed);
+        }
+
+        /// <summary>
+        /// The same start, over an injected process. This is the seam the ownership decisions are
+        /// tested through (issue #35): "ffmpeg ignored the kill" and "Kill threw" are not states a
+        /// real ffmpeg can be asked to enter.
+        /// </summary>
+        internal static FfmpegCameraPreview Start(ICameraPreviewProcess proc, string deviceName,
+            Action<byte[]> onFrame, Action<string> onFailed)
+        {
+            if (proc == null) throw new ArgumentNullException(nameof(proc));
+            if (string.IsNullOrWhiteSpace(deviceName))
+                throw new UsageException("a camera preview needs an exact DirectShow device name.");
+            if (onFrame == null) throw new ArgumentNullException(nameof(onFrame));
+            if (onFailed == null) throw new ArgumentNullException(nameof(onFailed));
+
             var preview = new FfmpegCameraPreview(proc, deviceName, onFrame, onFailed);
-
-            proc.ErrorDataReceived += (_, e) => { if (e.Data != null) preview._stderr.AppendLine(e.Data); };
-
-            if (!proc.Start())
-                throw new UsageException($"failed to start ffmpeg for the camera preview of \"{deviceName}\".");
-            proc.BeginErrorReadLine();
+            proc.Start(line => preview._stderr.AppendLine(line));
 
             preview._reader = new Thread(preview.ReadFrames)
             {
@@ -131,7 +186,7 @@ namespace AgentEyes.Video
             // that escapes here would take the process down rather than the preview.
             try
             {
-                var stdout = _proc.StandardOutput.BaseStream;
+                var stdout = _proc.StandardOutput;
                 var frame = new byte[FrameBytes];
 
                 while (Volatile.Read(ref _stopped) == 0)
@@ -200,41 +255,93 @@ namespace AgentEyes.Video
         }
 
         /// <summary>
-        /// Release the camera. Idempotent, safe from any thread, and it does not return until the
-        /// ffmpeg process is gone - a recording start is waiting on exactly that (issue #29, AC7).
+        /// ONE TERMINATION ATTEMPT. Safe from any thread, repeatable, and it does not return until it
+        /// has finished trying - a recording start is waiting on exactly that (issue #29, AC7).
         ///
         /// A KILL rather than the recorder's graceful "q": there is no output file to finalize, and
         /// the only thing that matters here is how fast the exclusive device is handed back.
+        ///
+        /// IT PROMISES NOTHING AND CLAIMS NOTHING (issue #35, gate round 1, defect 4). ffmpeg can
+        /// ignore a kill and <c>Kill</c> can throw; either way this returns having attempted, and
+        /// <see cref="IsAbandoned"/> - which asks the process - is what says whether the camera is
+        /// free. Calling it again performs another attempt, which is what makes a retained session
+        /// recoverable rather than a museum piece.
         /// </summary>
         public void Stop()
         {
-            if (Interlocked.Exchange(ref _stopped, 1) != 0) return;
+            bool firstAttempt = Interlocked.Exchange(ref _stopped, 1) == 0;
 
-            var sw = Stopwatch.StartNew();
-            if (!_proc.HasExited)
+            lock (_stopGate)
             {
-                try { _proc.Kill(entireProcessTree: true); }
-                catch (Exception ex)
+                // The handle is released only when the process was confirmed gone, so this is the
+                // one state in which there is nothing left to do and nothing left to read.
+                if (Volatile.Read(ref _handleReleased) != 0) return;
+
+                var sw = Stopwatch.StartNew();
+                if (!_proc.HasExited)
                 {
-                    Log.Error($"[FfmpegCameraPreview] Stop: killing the preview ffmpeg for \"{DeviceName}\" failed", ex);
+                    // Entry point for the operating system's answer: a Kill that throws is a FAILED
+                    // attempt and is recorded as one. It is never allowed to read as a release - that
+                    // is the defect this method exists to remove.
+                    try { _proc.Kill(); }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[FfmpegCameraPreview] Stop: killing the preview ffmpeg for \"{DeviceName}\" " +
+                                  $"(PID {ProcessId?.ToString() ?? "unknown"}) FAILED - the camera is NOT released", ex);
+                    }
+
+                    _proc.WaitForExit(KillWaitMs);
                 }
+
+                // Joining from the reader thread itself would be waiting on ourselves: a failure
+                // raised from ReadFrames can land here through the owner disposing the session.
+                if (firstAttempt)
+                {
+                    var reader = _reader;
+                    if (reader != null && reader != Thread.CurrentThread) reader.Join(KillWaitMs);
+                }
+
+                // ASK THE PROCESS. Not the wait's return value, not the fact that a kill was issued -
+                // the process itself, which is the only authority on whether it still holds the
+                // camera.
+                if (!_proc.HasExited)
+                {
+                    Log.Error($"[FfmpegCameraPreview] Stop: the preview ffmpeg for \"{DeviceName}\" " +
+                              $"(PID {ProcessId?.ToString() ?? "unknown"}) is STILL RUNNING after {sw.ElapsedMilliseconds}ms " +
+                              "- it still holds the camera. The camera has NOT been released and this session can be " +
+                              "stopped again.");
+                    return;
+                }
+
+                Log.Info($"[FfmpegCameraPreview] Stop: camera=\"{DeviceName}\" CONFIRMED released in " +
+                         $"{sw.ElapsedMilliseconds}ms after {FramesDelivered} frame(s)");
             }
-            if (!_proc.WaitForExit(KillWaitMs))
-                Log.Error($"[FfmpegCameraPreview] Stop: the preview ffmpeg for \"{DeviceName}\" did not exit within " +
-                          $"{KillWaitMs}ms - the camera may still be held");
-
-            // Joining from the reader thread itself would be waiting on ourselves: a failure raised
-            // from ReadFrames can land here through the owner disposing the session.
-            var reader = _reader;
-            if (reader != null && reader != Thread.CurrentThread) reader.Join(KillWaitMs);
-
-            Log.Info($"[FfmpegCameraPreview] Stop: camera=\"{DeviceName}\" released in {sw.ElapsedMilliseconds}ms " +
-                     $"after {FramesDelivered} frame(s)");
         }
 
+        /// <summary>
+        /// Last owner of the process. Attempts the stop, then releases the process HANDLE ONLY if the
+        /// operating-system process is confirmed gone.
+        ///
+        /// GATE ROUND 1, DEFECT 4 (and issue #28's gate round 3, defects 1 and 2, which is the same
+        /// defect in the recorder). Disposing the wrapper of a live ffmpeg does not take it off the
+        /// webcam; it throws away the last thing in this process able to reach it. So a surviving
+        /// preview keeps its handle, and this object stays valid and stays stoppable -
+        /// <c>StrandedCameraOwner</c> is what holds on to it.
+        /// </summary>
         public void Dispose()
         {
             Stop();
+
+            if (IsAbandoned)
+            {
+                Log.Error($"[FfmpegCameraPreview] Dispose: the preview ffmpeg for \"{DeviceName}\" " +
+                          $"(PID {ProcessId?.ToString() ?? "unknown"}) is STILL RUNNING - it still holds the camera. " +
+                          "The process handle is KEPT (releasing it would not end the process, only hide it); this " +
+                          "session can still be stopped again.");
+                return;
+            }
+
+            if (Interlocked.Exchange(ref _handleReleased, 1) != 0) return;
             _proc.Dispose();
         }
     }

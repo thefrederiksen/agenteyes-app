@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A COMPILED-HEAD PROBE for issue #35, Review Gate round 1 (defects 1, 2 and 3).
+
+    It is built TWICE from ONE source, against two different sets of binaries:
+
+      dotnet build docs/cencon/proof/issue-35/round2/probes/CameraReleaseProbe.csproj -c Release \
+        -p:HeadDir=<a directory holding AgentEyesApp.dll + agenteyes.dll>
+
+    (wipe obj/ and bin/ between the two builds - MSBuild would otherwise reuse the previous
+    build.s IL and the probe would silently report the OTHER build.s numbers)
+
+    so the numbers before and after the fix come from the SAME instrument rather than from two
+    descriptions of one. The probe uses only API that exists in BOTH builds.
+
+    The assembly is deliberately named AgentEyes.Tests, because that is the name both product
+    projects grant InternalsVisibleTo - the camera preview lifecycle is internal, and a probe that
+    could only see the public surface could not observe any of this.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>AgentEyes.Tests</AssemblyName>
+    <RootNamespace>AgentEyes.Probe</RootNamespace>
+    <UseWPF>true</UseWPF>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="CameraReleaseProbe.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="AgentEyesApp">
+      <HintPath>$(HeadDir)\AgentEyesApp.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="agenteyes">
+      <HintPath>$(HeadDir)\agenteyes.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
