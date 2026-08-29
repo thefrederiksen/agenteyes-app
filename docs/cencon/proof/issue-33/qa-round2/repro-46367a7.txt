@@ -1,0 +1,17 @@
+﻿==== parent 46367a7 (BEFORE the round-2 fix) ====
+exe: D:\ReposFred\agenteyes-qa33-prefix\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+fresh config (no Hud* keys)
+-- RECORDING 1 --
+  HUD as opened (expect the 367x52 pill, preview hidden):
+    HUD rect: X=1537 Y=16 W=367 H=52
+  clicking 'Show preview' ...
+  HUD after the toggle (EXPECT a 520x400 preview panel):
+    HUD rect: X=1537 Y=16 W=520 H=400
+  preview Image element: 
+  config after recording 1:   "HudWidth": null,   "HudHeight": null,   "HudPreviewVisible": true,
+-- RECORDING 2 (preview visible from config) --
+  HUD as opened (EXPECT a 520x400 preview panel):
+    HUD rect: X=1537 Y=16 W=520 H=400
+  preview Image element:   [ControlType.Image] name='' help='' enabled=True rect=1553,113,490,276
+  config after recording 2:   "HudWidth": null,   "HudHeight": null,   "HudPreviewVisible": true,
+==== end parent 46367a7 (BEFORE the round-2 fix) ====
