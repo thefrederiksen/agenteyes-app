@@ -318,11 +318,11 @@ namespace AgentEyes.App
             MouseLeftButtonDown += (_, _) => { try { DragMove(); } catch { /* click without drag */ } };
             // Every size this window takes is offered to the memory as it happens (issue #33, AC7).
             // It has to be here rather than in SavePosition: by the time Closed runs, the stop has
-            // already auto-sized the HUD back to the pill and the panel's size is gone. The memory
-            // keeps only the manually-sized ones, so the pill's dimensions never become the size the
-            // next recording opens at.
-            SizeChanged += (_, _) => _size.Observe(
-                SizeToContent == SizeToContent.Manual, ActualWidth, ActualHeight);
+            // already auto-sized the HUD back to the pill and the panel's size is gone. Which of
+            // those reports is a size a PERSON chose - and which is this window mid-transition, with
+            // WPF reporting a half-applied size from inside an assignment - is decided by
+            // HudSizeMemory, not here. See HudPreviewSizing.
+            HudPreviewSizing.Attach(this, _size, () => _preview.Visible);
             Loaded += (_, _) => Position();
             SourceInitialized += (_, _) => ApplyWindowStyles();
             Closed += (_, _) => { _timer.Stop(); SavePosition(); ClosePreview(); };
@@ -388,7 +388,7 @@ namespace AgentEyes.App
             // watching a picture that has stopped moving (AC10 in miniature).
             ClosePreview();
             _previewPanel.Visibility = Visibility.Collapsed;
-            SizeToContent = SizeToContent.WidthAndHeight;
+            HudPreviewSizing.HidePanel(this, _size);
             _elapsed.Margin = new Thickness(9, 0, 4, 0);
             _elapsed.Text = label;
         }
@@ -493,23 +493,18 @@ namespace AgentEyes.App
             {
                 // Manual sizing is what makes the window resizable at all: SizeToContent overrides
                 // any width and height set on it, so the pill can only auto-size and the preview can
-                // only be sized by hand.
-                if (SizeToContent != SizeToContent.Manual)
-                {
-                    SizeToContent = SizeToContent.Manual;
-                    // The remembered size, not the config's: within one recording the panel can be
-                    // hidden and shown again, and it must come back at the size it was left at even
-                    // though nothing has been written to disk in between (issue #33, AC7).
-                    Width = _size.Width ?? DefaultPreviewWidth;
-                    Height = _size.Height ?? DefaultPreviewHeight;
-                }
+                // only be sized by hand. The size comes from the remembered one, not the config's:
+                // within one recording the panel can be hidden and shown again, and it must come
+                // back at the size it was left at even though nothing has been written to disk in
+                // between (issue #33, AC7).
+                HudPreviewSizing.ShowPanel(this, _size, DefaultPreviewWidth, DefaultPreviewHeight);
                 _feed.Want(_svc.PreviewScreenFrame, _preview.ShowScreenLayer,
                            _svc.PreviewCameraFrame, _preview.ShowCameraLayer);
                 _feed.Start();
             }
             else
             {
-                SizeToContent = SizeToContent.WidthAndHeight;
+                HudPreviewSizing.HidePanel(this, _size);
                 _feed.Want(null, false, null, false);
                 _screenImage.Source = null;
                 _cameraImage.Source = null;
