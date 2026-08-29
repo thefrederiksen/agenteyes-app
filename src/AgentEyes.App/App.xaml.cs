@@ -272,6 +272,13 @@ namespace AgentEyes.App
             {
                 AgentEyes.Log.Warn($"app exit: flushing the config failed - {ex.Message}");
             }
+            // The preview never waits for the log (issue #33; Review Gate round 2 on PR #39), so a
+            // line said moments before exit may still be in the appender's hands. Bounded for the
+            // same reason the config flush is: the appender is allowed to be stuck in a filesystem
+            // call, and exit is not.
+            if (!AgentEyes.Preview.PreviewLog.Settle(1000))
+                AgentEyes.Log.Warn("app exit: the preview log appender still had lines in hand; "
+                                   + "they were not waited out.");
             UpdateChecker.StartPendingRestart();   // after the mutex is gone, so the new exe can take it
             AgentEyes.Log.Info("app exit");
             base.OnExit(e);

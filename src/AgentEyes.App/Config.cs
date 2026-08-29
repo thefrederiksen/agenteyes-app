@@ -62,8 +62,14 @@ namespace AgentEyes.App
         private static string FilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "config.json");
 
-        /// <summary>The ONE thing that ever writes config.json, so a synchronous save and a
-        /// background one cannot land on the file at the same moment and lose each other.</summary>
+        /// <summary>How long a blocking save waits for its snapshot to reach the disk before it
+        /// reports that it has not. Bounded because the writer is allowed to be stuck in a filesystem
+        /// call and a modal dialog is not.</summary>
+        private const int BlockingSaveBudgetMs = 2000;
+
+        /// <summary>The ONE thing that ever writes config.json. It is still here, and it is no longer
+        /// what ORDERS the writes - see <see cref="Save"/>: a mutex says who goes first, not who goes
+        /// last, and this file's whole content is rewritten by every save.</summary>
         private static readonly object WriteGate = new();
 
         /// <summary>The background writer behind <see cref="SaveWithoutBlockingTheUiThread"/>. Its
@@ -87,22 +93,35 @@ namespace AgentEyes.App
         }
 
         /// <summary>
-        /// Write config.json now, on the calling thread. For the launcher's dialogs, where a
-        /// blocking write has always been what happens and the window is modal anyway.
+        /// Save config.json and WAIT for it, bounded. For the launcher's dialogs, the settings
+        /// window, the tray and the preset and plugin managers, where a blocking save has always
+        /// been what happens and the window is modal anyway.
         ///
         /// NOT for the recording HUD: it is the window a person uses to STOP a recording, and a
-        /// dispatcher blocked inside this call cannot serve the Stop button (repo coding standard 1;
+        /// dispatcher waiting inside this call cannot serve the Stop button (repo coding standard 1;
         /// Review Gate round 1 on PR #34). That path uses
         /// <see cref="SaveWithoutBlockingTheUiThread"/>.
+        ///
+        /// IT NO LONGER WRITES THE FILE ITSELF (Review Gate round 2 on PR #39, defect 3). Both kinds
+        /// of save serialise the WHOLE document, so the file is only ever correct if the LAST save
+        /// made is the last one written. While this method wrote directly, the two kinds were ordered
+        /// by nothing but a mutex - and a mutex decides who goes first, not who goes last. A HUD
+        /// preview change queued snapshot A; before its writer got the lock, the person changed the
+        /// capture folder, a shortcut, a plugin, run-at-login or the last preset, and THIS method
+        /// wrote the newer snapshot B; the background writer then wrote A on top of it, and the
+        /// person's newer choice was silently reverted on disk. That race widened under exactly the
+        /// disk stalls the background writer exists to tolerate.
+        ///
+        /// So there is ONE writer and therefore ONE ORDER. This queues its snapshot like every other
+        /// save and then waits for it. The wait is what makes it "blocking"; it is not what makes it
+        /// write.
         /// </summary>
         public void Save()
         {
-            try { WriteJson(FilePath, Serialize()); }
-            catch (Exception ex)
-            {
-                Log.Warn($"[Config] Save FAILED: {FilePath} - {ex.Message}. "
-                         + "The change is held in memory for this session but is not on disk.");
-            }
+            if (!Writer.WriteNow(Serialize(), BlockingSaveBudgetMs))
+                Log.Warn($"[Config] Save: {FilePath} had not reached the disk within "
+                         + $"{BlockingSaveBudgetMs}ms. The change is held by the writer and is "
+                         + "retried at application exit; it is not on disk yet.");
         }
 
         /// <summary>

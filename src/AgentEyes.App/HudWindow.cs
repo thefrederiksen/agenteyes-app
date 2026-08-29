@@ -463,7 +463,7 @@ namespace AgentEyes.App
         private void TogglePreview()
         {
             bool visible = _preview.ToggleVisible();
-            Log.Info($"hud: preview toggled -> {(visible ? "shown" : "hidden")}");
+            PreviewLog.Info($"hud: preview toggled -> {(visible ? "shown" : "hidden")}");
             ApplyAndRememberPreviewChoice();
         }
 
@@ -471,18 +471,18 @@ namespace AgentEyes.App
         {
             if (!_preview.TrySetMode(mode))
             {
-                Log.Warn($"hud: preview mode {PreviewNames.Text(mode)} refused - this recording has no camera track");
+                PreviewLog.Warn($"hud: preview mode {PreviewNames.Text(mode)} refused - this recording has no camera track");
                 _previewMessage.Text = "This recording has no camera track.";
                 return;
             }
-            Log.Info($"hud: preview mode -> {PreviewNames.Text(mode)}");
+            PreviewLog.Info($"hud: preview mode -> {PreviewNames.Text(mode)}");
             ApplyAndRememberPreviewChoice();
         }
 
         private void ChooseCorner(PreviewCorner corner)
         {
             _preview.SetCorner(corner);
-            Log.Info($"hud: preview corner -> {PreviewNames.Text(corner)}");
+            PreviewLog.Info($"hud: preview corner -> {PreviewNames.Text(corner)}");
             ApplyAndRememberPreviewChoice();
         }
 
@@ -540,11 +540,10 @@ namespace AgentEyes.App
             }
             else
             {
-                // The completeness canary (issue #33, AC7): the last instant at which a size the HUD
-                // ended up at, that no gesture ever claimed, can still be seen. It is reported, never
-                // acted on - a size nobody was shown to have chosen is not a size to remember.
-                string? unattributed = HudPreviewSizing.HidePanel(this, _size);
-                if (unattributed != null) Log.Warn(unattributed);
+                // The completeness canary (issue #33, AC7) is reported by HidePanel itself now, on
+                // every route that takes the panel down - this one and the ordinary stop in
+                // SetStatus, which used to discard it (Review Gate round 2 on PR #39, defect 2).
+                HudPreviewSizing.HidePanel(this, _size);
                 _feed.Want(null, false, null, false);
                 _screenImage.Source = null;
                 _cameraImage.Source = null;

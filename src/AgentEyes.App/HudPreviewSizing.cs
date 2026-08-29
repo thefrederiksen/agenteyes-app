@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using AgentEyes;
+using AgentEyes.Preview;
 
 namespace AgentEyes.App
 {
@@ -50,8 +51,10 @@ namespace AgentEyes.App
 
             bool remembered = memory.HasSize;
             var (width, height) = memory.PreferredSize(defaultWidth, defaultHeight);
-            Log.Info($"hud: preview panel opening at {width}x{height} "
-                   + $"({(remembered ? "the size it was left at" : "the default")})");
+            // PreviewLog, not Log: this runs on the WPF dispatcher that serves the HUD's Stop button,
+            // and the shared logger is a synchronous file append under a process-wide lock.
+            PreviewLog.Info($"hud: preview panel opening at {width}x{height} "
+                          + $"({(remembered ? "the size it was left at" : "the default")})");
 
             // ORDER IS LOAD-BEARING - see the class comment. Manual first, or the size is discarded.
             window.SizeToContent = SizeToContent.Manual;
@@ -68,13 +71,20 @@ namespace AgentEyes.App
         /// survives this on purpose: hiding the preview and stopping the recording BOTH come through
         /// here, so forgetting here would lose the size before it could ever be saved.
         ///
-        /// Returns the COMPLETENESS CANARY (issue #33, AC7; Review Gate round 1 on PR #34): a
-        /// description of a size the HUD ended up at that no gesture ever claimed, or null when the
-        /// size is accounted for. This is the last instant at which the question can be asked - the
-        /// assignment below auto-sizes the window back to the pill and the panel's size is gone - and
-        /// it is returned rather than only logged so a test can drive the known-bad arm and see it
-        /// fire. The caller logs it; nothing acts on it, because an unattributed size is precisely a
-        /// size nobody has shown a person chose.
+        /// THE COMPLETENESS CANARY IS REPORTED HERE (issue #33, AC7; Review Gate round 1 on PR #34,
+        /// round 2 on PR #39): a size the HUD ended up at that no gesture ever claimed is written to
+        /// the log by THIS method, before the auto-size destroys the evidence.
+        ///
+        /// It used to be returned for the CALLER to log, and that is exactly how it came to report to
+        /// nobody: the explicit Show/Hide click logged it, and <c>HudWindow.SetStatus</c> - the
+        /// ORDINARY STOP, the most common path there is, and the one where an unrecorded size
+        /// actually costs the person their layout - discarded the return value. A canary whose alarm
+        /// depends on each caller remembering to listen is not a canary. So the alarm sounds here,
+        /// where it is computed, and no caller can drop it.
+        ///
+        /// The string is STILL returned, but only so a test can drive the known-bad arm and read the
+        /// same words that were logged. Nothing acts on it: an unattributed size is precisely a size
+        /// nobody has shown a person chose, so it is reported and NOT remembered.
         /// </summary>
         public static string? HidePanel(Window window, HudSizeMemory memory)
         {
@@ -82,10 +92,11 @@ namespace AgentEyes.App
             if (memory is null) throw new ArgumentNullException(nameof(memory));
 
             string? unattributed = memory.UnattributedSize(window.ActualWidth, window.ActualHeight);
+            if (unattributed != null) PreviewLog.Warn(unattributed);
 
             window.SizeToContent = SizeToContent.WidthAndHeight;
-            Log.Info("hud: preview panel down; the HUD is back to its pill size, remembering "
-                   + (memory.HasSize ? $"{memory.Width}x{memory.Height}" : "no size"));
+            PreviewLog.Info("hud: preview panel down; the HUD is back to its pill size, remembering "
+                          + (memory.HasSize ? $"{memory.Width}x{memory.Height}" : "no size"));
             return unattributed;
         }
     }

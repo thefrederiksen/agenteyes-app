@@ -109,6 +109,33 @@ namespace AgentEyes.App
         }
 
         /// <summary>
+        /// Hand the writer the file's whole new contents AND WAIT, at most
+        /// <paramref name="milliseconds"/>, for it to reach the disk. For a caller that has always
+        /// blocked on its save and whose window is modal anyway - the launcher's dialogs.
+        ///
+        /// WHY IT GOES THROUGH THE QUEUE INSTEAD OF WRITING DIRECTLY (Review Gate round 2 on PR #39,
+        /// defect 3). Every save writes the WHOLE document, so the only correct file content is the
+        /// one the newest save produced. A caller that wrote the file itself while a queued snapshot
+        /// was still waiting was ordered only by a mutex, and a mutex says who goes first, not who
+        /// goes LAST: the direct write took the lock, landed, and the older queued snapshot was then
+        /// written on top of it. The person changed their capture folder and watched it revert.
+        ///
+        /// ONE WRITER, ONE ORDER. Every save in the process is queued, and one thread takes them in
+        /// the order they were made, so the last save made is the last save written - whichever kind
+        /// of caller made it. Blocking is then only about WAITING for the write, never about
+        /// performing it.
+        ///
+        /// Bounded like everything else here: false means the write had not landed in time, which is
+        /// reported rather than waited out. The value is not lost - it is still the newest thing in
+        /// the writer's hands, and <see cref="Flush"/> at exit gives it one more chance.
+        /// </summary>
+        public bool WriteNow(string text, int milliseconds)
+        {
+            Queue(text);
+            return Flush(milliseconds);
+        }
+
+        /// <summary>
         /// Wait, at most <paramref name="milliseconds"/>, for the writer to have nothing left in
         /// hand. Returns false when it is still working - which at a shutdown means the write did not
         /// land, and is reported rather than waited out. Used at application exit and by tests.

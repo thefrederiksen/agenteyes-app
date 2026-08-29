@@ -5,6 +5,7 @@ using System.Windows.Automation.Provider;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using AgentEyes;
+using AgentEyes.Preview;
 
 namespace AgentEyes.App
 {
@@ -138,7 +139,7 @@ namespace AgentEyes.App
         /// </summary>
         public void Watch()
         {
-            Log.Info("hud: watching for user resizes (sizing border, snap, maximise, grip, UI Automation)");
+            PreviewLog.Info("hud: watching for user resizes (sizing border, snap, maximise, grip, UI Automation)");
             _window.StateChanged += (_, _) => ByWindowState();
             if (new WindowInteropHelper(_window).Handle != IntPtr.Zero) { HookTheWindowMessages(); return; }
             _window.SourceInitialized += (_, _) => HookTheWindowMessages();
@@ -231,7 +232,7 @@ namespace AgentEyes.App
             if (now == WindowState.Minimized || was == WindowState.Minimized) return;
 
             bool panelWasUp = ThePanelIsUp;
-            Log.Info($"hud: window state -> {now}; reading the size it settles at");
+            PreviewLog.Info($"hud: window state -> {now}; reading the size it settles at");
             _window.Dispatcher.BeginInvoke(DispatcherPriority.Background,
                 new Action(() => Record(panelWasUp, $"the {now} window command")));
         }
@@ -261,7 +262,7 @@ namespace AgentEyes.App
         public void ByAutomation(double width, double height)
         {
             bool panelWasUp = ThePanelIsUp;
-            Log.Info($"hud: UI Automation resize to {width:0.##}x{height:0.##}");
+            PreviewLog.Info($"hud: UI Automation resize to {width:0.##}x{height:0.##}");
             _window.Width = width;
             _window.Height = height;
             Record(panelWasUp, "UI Automation");
@@ -295,7 +296,7 @@ namespace AgentEyes.App
 
             _memory.RecordUserResize(_window.ActualWidth, _window.ActualHeight);
             if (gesture != null)
-                Log.Info($"hud: resized by the person via {gesture} to "
+                PreviewLog.Info($"hud: resized by the person via {gesture} to "
                        + $"{_window.ActualWidth:0.##}x{_window.ActualHeight:0.##}");
         }
     }
@@ -340,7 +341,7 @@ namespace AgentEyes.App
 
         public void Move(double x, double y)
         {
-            Log.Info($"hud: UI Automation move to {x:0.##},{y:0.##}");
+            PreviewLog.Info($"hud: UI Automation move to {x:0.##},{y:0.##}");
             _window.Left = x;
             _window.Top = y;
         }

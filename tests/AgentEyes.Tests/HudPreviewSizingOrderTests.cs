@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
@@ -457,6 +458,93 @@ namespace AgentEyes.Tests
 
                 Assert.Null(rig.LastUnattributedSize);
             });
+        }
+
+        /// <summary>
+        /// AND IT REPORTS TO SOMEBODY, ON THE PATH THAT MATTERS (Review Gate round 2 on PR #39,
+        /// defect 2).
+        ///
+        /// The canary was computed correctly and RETURNED for the caller to log. One caller logged
+        /// it - the explicit Show/Hide click - and the other did not: <c>HudWindow.SetStatus</c>, the
+        /// ORDINARY STOP, dropped the return value on the floor. That is the most common path there
+        /// is, and the only one where an unrecorded size actually costs the person their layout: the
+        /// panel is still up, they press Stop, the size is not remembered, the next recording opens
+        /// at the old size, and NOTHING IN THE LOG SAYS A ROUTE WAS MISSED. The tests above could not
+        /// see it because the rig captures the return value; the production caller did not.
+        ///
+        /// So this test does not look at the return value at all. It drives the stop route and reads
+        /// THE LOG - the only place a person or a support agent ever looks - for the words the canary
+        /// exists to produce. Only what this run appended is read, so a line another test wrote
+        /// cannot certify this one.
+        /// </summary>
+        [Fact]
+        public void AResizeNoGestureClaimed_ReachesTheLogOnTheOrdinaryStop()
+        {
+            long before = LogLengthNow();
+
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                rig.AResizeWithNoGestureBehindIt(ResizedWidth, ResizedHeight);
+                rig.StopRecording();          // exactly what HudWindow.SetStatus does
+            });
+
+            string appended = LogAppendedSince(before);
+            Assert.Contains("A resize route is unaccounted for", appended);
+            Assert.Contains($"the HUD ended up at {ResizedWidth:0.##}x{ResizedHeight:0.##}", appended);
+        }
+
+        /// <summary>
+        /// THE KNOWN-GOOD ARM for the test above, and it is what stops that one passing over a canary
+        /// that shouts at everything: the same stop route, with the size accounted for, must append
+        /// NO such warning. Measured on this run's own log lines, so an absence here is an absence
+        /// this run produced.
+        /// </summary>
+        [Fact]
+        public void AnOrdinaryStopWithNothingUnaccountedFor_SaysNothingAboutMissingRoutes()
+        {
+            long before = LogLengthNow();
+
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                rig.UserResizesTheWindow(ResizedWidth, ResizedHeight);
+                rig.StopRecording();
+            });
+
+            string appended = LogAppendedSince(before);
+            Assert.DoesNotContain("A resize route is unaccounted for", appended);
+            // The instrument itself: this run really did write to the log we are reading.
+            Assert.Contains("hud: preview panel down", appended);
+        }
+
+        /// <summary>Where the log stands right now, so only what a test appends is read back. The
+        /// preview writes its lines from its own thread, so it is settled first.</summary>
+        private static long LogLengthNow()
+        {
+            AgentEyes.Preview.PreviewLog.Settle(5000);
+            var file = new FileInfo(AgentEyes.Log.CurrentFile);
+            return file.Exists ? file.Length : 0;
+        }
+
+        /// <summary>Everything appended to the log since <paramref name="from"/>. Shared for reading
+        /// the way anything reading a file another thread is appending to must be.</summary>
+        private static string LogAppendedSince(long from)
+        {
+            Assert.True(AgentEyes.Preview.PreviewLog.Settle(5000),
+                "the preview log appender never got this run's lines out, so this check would be "
+                + "reading an empty window and passing by proving nothing");
+
+            using var stream = new FileStream(AgentEyes.Log.CurrentFile, FileMode.Open, FileAccess.Read,
+                                              FileShare.ReadWrite | FileShare.Delete);
+            stream.Seek(from, SeekOrigin.Begin);
+            using var reader = new StreamReader(stream);
+            string appended = reader.ReadToEnd();
+
+            Assert.False(appended.Length == 0,
+                "nothing at all was appended to the log by this run, so the instrument is broken "
+                + "rather than the result clean");
+            return appended;
         }
 
         /// <summary>An untouched recording, opened and closed at the default: nothing to be

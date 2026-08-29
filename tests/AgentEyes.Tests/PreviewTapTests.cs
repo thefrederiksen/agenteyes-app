@@ -398,6 +398,185 @@ namespace AgentEyes.Tests
                 + CompiledCode.Describe(offenders));
         }
 
+        // ---- nor does starting or stopping one (Review Gate round 2, PR #39) ----
+
+        /// <summary>
+        /// THE ROUND-2 DEFECT, and it is the round-1 defect one method further out.
+        ///
+        /// The drain was made safe and the LIFECYCLE AROUND IT was left alone. Creating a tap
+        /// prepared the preview directory - <c>Directory.CreateDirectory</c>, <c>File.Exists</c>,
+        /// <c>File.Delete</c> - synchronously on the thread that STARTS a recording, and
+        /// <c>RecordingService.StartVideo</c> called it for both tracks before any writer began.
+        /// Disposing a tap logged synchronously and then, AFTER the publisher join had already timed
+        /// out because the filesystem was not answering, flushed the logger and deleted that same
+        /// unanswering path - on the thread that STOPS a recording, before the service went back to
+        /// idle. Point the preview directory at a reparse point onto an unavailable share and the
+        /// recording never starts; make it stall mid-run and Stop never returns and the service sits
+        /// in "finalizing".
+        ///
+        /// THE SHARED LOGGER IS INCLUDED HERE, deliberately, and that is a stronger bar than the
+        /// drain's test above. <c>AgentEyes.Log</c> is a <c>Directory.CreateDirectory</c> plus a
+        /// <c>File.AppendAllText</c> under a PROCESS-WIDE lock: on these threads a log line is both a
+        /// filesystem call and a lock another thread may be holding inside one, which is how a stalled
+        /// logger could block a stop before it ever reached the joins.
+        ///
+        /// WHY THIS AND NOT AN INJECTED STALL. Round 5's stall test injected a delegate at the write
+        /// seam and concluded the stop path was safe - but the calls that could actually block a stop
+        /// were the REAL ones on either side of that seam, on healthy local paths that never stalled.
+        /// A behavioural test can only stall what it can reach. This asks the question the other way
+        /// round: is there ANY filesystem or logger call on these threads' paths to stall in -
+        /// transitively, through whatever helper anybody adds next, and independently of how the C#
+        /// is spelled. All four threads a recording depends on are seeded at once.
+        ///
+        /// WHAT IT CANNOT SEE (DEVELOPMENT_METHOD.md 6c.6): the closure stops at the assembly
+        /// boundary, and it sees filesystem and logger calls rather than every blocking call. The
+        /// bounded <c>Thread.Join</c>s in Dispose are blocking on purpose and are bounded by
+        /// construction; <see cref="PreviewChoresTests"/> measures the other bound, the one on a
+        /// caller waiting for the chores worker.
+        /// </summary>
+        [Fact]
+        public void NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger()
+        {
+            var reached = new HashSet<string>(
+                CompiledCode.Reachable(CompiledCode.CoreAssembly, new[]
+                {
+                    "AgentEyes.Preview.PreviewTap::Drain",           // the thread reading ffmpeg's pipe
+                    "AgentEyes.Preview.PreviewTap::TryCreateAt",     // the thread STARTING a recording
+                    "AgentEyes.Preview.PreviewTap::Dispose",         // the thread STOPPING a recording
+                    "AgentEyes.Preview.PreviewTap::set_Publishing",  // the WPF dispatcher
+                }),
+                StringComparer.Ordinal);
+
+            var offenders = CompiledCode
+                .CallSites(CompiledCode.CoreAssembly, TouchesTheFilesystemOrTheSharedLogger)
+                .Where(site => reached.Contains(site.Method))
+                .ToList();
+
+            Assert.True(offenders.Count == 0,
+                "The preview touches the filesystem or the shared logger on a thread a RECORDING is "
+                + "waiting on. None of these four threads may wait for a disk: the drain is the only "
+                + "reader of the pipe ffmpeg is filling, the WPF dispatcher serves the Stop button, "
+                + "and the other two ARE a recording's start and stop. A stall in any of them costs a "
+                + "recording rather than a picture (issue #33, AC10; Review Gate round 2 on PR #39). "
+                + "Filesystem work belongs in PreviewChores and log lines in PreviewLog, both of "
+                + "which perform it on their own threads:" + Environment.NewLine
+                + CompiledCode.Describe(offenders));
+        }
+
+        /// <summary>
+        /// The companion PRESENCE, because the guard above is satisfied just as well by a preview
+        /// that no longer prepares or cleans up anything at all - an absence certifying a feature
+        /// that does not work. The work still happens; it happens on the worker's thread.
+        /// </summary>
+        [Fact]
+        public void ThePreviewsFilesystemWork_StillHappens_OnTheChoresWorker()
+        {
+            var fromStart = new HashSet<string>(
+                CompiledCode.Reachable(CompiledCode.CoreAssembly,
+                                       new[] { "AgentEyes.Preview.PreviewTap::TryCreateAt" }),
+                StringComparer.Ordinal);
+            Assert.Contains("AgentEyes.Preview.PreviewChores::Prepare", fromStart);
+
+            var fromRemoval = new HashSet<string>(
+                CompiledCode.Reachable(CompiledCode.CoreAssembly,
+                                       new[] { "AgentEyes.Preview.PreviewTap::RemoveFrameFile" }),
+                StringComparer.Ordinal);
+            Assert.Contains("AgentEyes.Preview.PreviewChores::Remove", fromRemoval);
+
+            // And the worker really does the deleting, rather than having lost it in the move.
+            var worker = CompiledCode
+                .CallSites(CompiledCode.CoreAssembly, c => c == "System.IO.File::Delete")
+                .Where(s => s.Method.StartsWith("AgentEyes.Preview.", StringComparison.Ordinal))
+                .Select(s => s.Method)
+                .Distinct()
+                .ToList();
+            Assert.Equal(new[] { "AgentEyes.Preview.PreviewChores::DoRemove" }, worker);
+        }
+
+        /// <summary>
+        /// THE STOP PATH, MEASURED. The publisher is genuinely wedged - a real thread, inside a real
+        /// blocking wait it cannot leave - which is the state Dispose was written for, and the state
+        /// in which round 2's Dispose went on to touch the very path the publisher was stuck on.
+        ///
+        /// Two presences, and the second is the one that fails against the round-2 code:
+        ///  1. Dispose RETURNS, inside its two bounded joins plus a margin.
+        ///  2. THE PUBLISHED FRAME IS STILL ON DISK. That is not tidiness - it is the evidence that
+        ///     the stopping thread performed no filesystem work of its own. The only thread allowed
+        ///     to touch that path is the publisher, and it is wedged; round 2's Dispose deleted the
+        ///     file HERE, on the stopping thread, which is exactly the call that never returns when
+        ///     the path is a share that has gone away rather than a healthy temp directory.
+        /// The frame does not stay behind forever, and the next test is that promise.
+        /// </summary>
+        [Fact]
+        public void Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn()
+        {
+            using var stalled = new ManualResetEventSlim(false);
+            int writesEntered = 0;
+
+            var tap = PreviewTap.TryCreateAt("screen", FramePath, frame =>
+            {
+                File.WriteAllBytes(FramePath, frame);      // a real published frame, first time through
+                Interlocked.Increment(ref writesEntered);
+                stalled.Wait(TimeSpan.FromSeconds(30));    // and then a filesystem that does not answer
+            });
+            Assert.NotNull(tap);
+            tap!.Publishing = true;
+            tap.Pump(StreamOf(Frame(0x11), Frame(0x22)));
+
+            Assert.True(SpinUntil(() => Volatile.Read(ref writesEntered) >= 1, 5000),
+                "The publisher never entered the stalled write, so nothing was wedged and this test "
+                + "measured nothing.");
+            Assert.True(File.Exists(FramePath), "no frame was ever published, so there is nothing "
+                + "whose survival could show that the stopping thread left the path alone");
+
+            var clock = Stopwatch.StartNew();
+            tap.Dispose();
+            clock.Stop();
+
+            Assert.True(clock.ElapsedMilliseconds < 8000,
+                $"Dispose took {clock.ElapsedMilliseconds}ms with the publisher wedged. It is called "
+                + "by RecordingService.Stop BEFORE the service returns to idle, so an unbounded wait "
+                + "here is a Stop that never returns and a service stuck in 'finalizing' (issue #33, "
+                + "AC10).");
+
+            Assert.True(File.Exists(FramePath),
+                "The stopping thread deleted the published frame itself. That is Review Gate round "
+                + "2's defect 1: the publisher is wedged in a filesystem call on this exact path, and "
+                + "the stop path followed it in. On a preview directory that is a reparse point onto "
+                + "an unavailable share, that delete never returns and Stop never returns with it.");
+
+            stalled.Set();
+        }
+
+        /// <summary>
+        /// The promise the test above leans on, stated as its own presence: a frame a wedged
+        /// publisher could not remove does not stay behind. The next recording's preparation removes
+        /// it - on the chores worker, inside its budget - before a single frame of the new recording
+        /// is published, so nobody is ever shown a picture of the last one.
+        /// </summary>
+        [Fact]
+        public void TheNextRecording_RemovesAFrameAnEarlierOneCouldNotClearUp()
+        {
+            Directory.CreateDirectory(_dir);
+            File.WriteAllBytes(FramePath, Frame(0x99));
+            File.WriteAllBytes(FramePath + ".tmp", Frame(0x98));
+
+            var next = PreviewTap.TryCreateAt("screen", FramePath);
+
+            Assert.NotNull(next);
+            Assert.False(File.Exists(FramePath), "the stale frame from the previous recording survived");
+            Assert.False(File.Exists(FramePath + ".tmp"), "the stale temporary survived");
+        }
+
+        /// <summary>
+        /// Any System.IO entry point that goes to a disk, read or write, OR the shared logger. The
+        /// logger belongs on this list on a recording's start and stop paths: <c>AgentEyes.Log</c>
+        /// creates a directory and appends to a file under a process-wide lock, so a stalled log is a
+        /// stalled recording lifecycle (Review Gate round 2 on PR #39, defect 1).
+        /// </summary>
+        private static bool TouchesTheFilesystemOrTheSharedLogger(string callee) =>
+            TouchesTheFilesystem(callee) || callee.StartsWith("AgentEyes.Log::", StringComparison.Ordinal);
+
         /// <summary>
         /// Any System.IO entry point that goes to a disk, read or write. Broader than
         /// <see cref="CompiledCode.IsFileWriteApi"/> on purpose: on the drain's path a READ blocks

@@ -33,6 +33,12 @@ namespace AgentEyes.App
     /// its failure - a missing file, a directory that was deleted, an image that will not decode -
     /// is reported as a stale picture and a WARNING. That is the whole of what a preview failure is
     /// allowed to cost (AC10).
+    ///
+    /// And it says all of that through <see cref="PreviewLog"/> rather than the shared logger
+    /// (Review Gate round 2 on PR #39). <c>Want</c>, <c>Start</c> and <c>Dispose</c> are called from
+    /// the WPF UI thread - <c>Dispose</c> on the STOP path - and the shared logger is a synchronous
+    /// file append under a process-wide lock, which is the same "preview work blocking something that
+    /// must not block" this feature keeps being rejected for.
     /// </summary>
     internal sealed class PreviewFrameFeed : IDisposable
     {
@@ -72,14 +78,14 @@ namespace AgentEyes.App
             _cameraPath = cameraPath;
             _wantScreen = wantScreen;
             _wantCamera = wantCamera;
-            Log.Info($"[PreviewFrameFeed] Want: screen={wantScreen} camera={wantCamera}");
+            PreviewLog.Info($"[PreviewFrameFeed] Want: screen={wantScreen} camera={wantCamera}");
         }
 
         /// <summary>Start reading. Idempotent.</summary>
         public void Start()
         {
             if (_thread != null || _disposed) return;
-            Log.Info("[PreviewFrameFeed] Start");
+            PreviewLog.Info("[PreviewFrameFeed] Start");
             _thread = new Thread(Loop) { IsBackground = true, Name = "AgentEyes HUD preview feed" };
             _thread.Start();
         }
@@ -99,12 +105,12 @@ namespace AgentEyes.App
                     Tick();
                     if (_cancel.Token.WaitHandle.WaitOne(PollMs)) break;
                 }
-                Log.Info("[PreviewFrameFeed] Loop: ended");
+                PreviewLog.Info("[PreviewFrameFeed] Loop: ended");
             }
             catch (Exception ex)
             {
-                Log.Error("[PreviewFrameFeed] Loop FAILED - the preview stops updating; "
-                          + "the recording is unaffected", ex);
+                PreviewLog.Error("[PreviewFrameFeed] Loop FAILED - the preview stops updating; "
+                          + $"the recording is unaffected{Environment.NewLine}{ex}");
             }
         }
 
@@ -151,7 +157,7 @@ namespace AgentEyes.App
                 if (readError != null && !_decodeFailureLogged)
                 {
                     _decodeFailureLogged = true;
-                    Log.Warn($"[PreviewFrameFeed] TryLoad: cannot read the preview frame {path} - {readError}. "
+                    PreviewLog.Warn($"[PreviewFrameFeed] TryLoad: cannot read the preview frame {path} - {readError}. "
                              + "The panel will say the preview is unavailable; the recording is unaffected.");
                 }
                 return null;
@@ -175,7 +181,7 @@ namespace AgentEyes.App
                 if (!_decodeFailureLogged)
                 {
                     _decodeFailureLogged = true;
-                    Log.Warn($"[PreviewFrameFeed] TryLoad: a complete-looking preview frame from {path} "
+                    PreviewLog.Warn($"[PreviewFrameFeed] TryLoad: a complete-looking preview frame from {path} "
                              + $"would not decode - {ex.Message}. The recording is unaffected.");
                 }
                 return null;
@@ -186,7 +192,7 @@ namespace AgentEyes.App
         {
             if (_disposed) return;
             _disposed = true;
-            Log.Info("[PreviewFrameFeed] Dispose");
+            PreviewLog.Info("[PreviewFrameFeed] Dispose");
             _cancel.Cancel();
             var thread = _thread;
             if (thread != null && thread.IsAlive) thread.Join(PollMs * 10);

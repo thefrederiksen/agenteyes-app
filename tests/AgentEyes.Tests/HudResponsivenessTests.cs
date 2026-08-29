@@ -117,6 +117,88 @@ namespace AgentEyes.Tests
             Assert.Equal(2, writer.Writes);
         }
 
+        /// <summary>
+        /// THE MIXED-WRITER ORDERING DEFECT (Review Gate round 2 on PR #39, defect 3), and the fix
+        /// that made it possible, reproduced and then closed in one test.
+        ///
+        /// WHAT WENT WRONG. Making the HUD's save non-blocking gave config.json TWO kinds of writer:
+        /// the HUD queued a full-document snapshot for a background thread, while the launcher, the
+        /// settings window, the tray and the preset and plugin managers still wrote a full document
+        /// straight from their own thread. Both went through the same lock - AND A LOCK SAYS WHO GOES
+        /// FIRST, NOT WHO GOES LAST. The writer thread takes its pending value BEFORE it waits for
+        /// the lock, so a newer direct write could take the lock, land, and then be overwritten by
+        /// the OLDER queued snapshot. Because each is the whole document, the person's newer choice -
+        /// their capture folder, a shortcut, a plugin, run-at-login, the last preset - was silently
+        /// reverted on disk. The window widened under exactly the disk stalls the background writer
+        /// exists to tolerate.
+        ///
+        /// THE KNOWN-BAD ARM reproduces it deterministically: the writer is held inside the older
+        /// snapshot while the newer one is written directly, exactly as the shipped launcher paths
+        /// did. THE SHIPPED ARM sends the newer save through the same one writer, so there is one
+        /// order and the last save made is the last one written. Both arms are asserted, because the
+        /// first is what makes the second a check rather than a hope.
+        /// </summary>
+        [Fact]
+        public void ANewerBlockingSaveAfterAQueuedOne_LandsLast_AndTheOldShapeDoesNot()
+        {
+            Assert.Equal("older queued snapshot", RaceTheTwoWriters(throughTheWriter: false));
+            Assert.Equal("newer blocking snapshot", RaceTheTwoWriters(throughTheWriter: true));
+        }
+
+        /// <summary>
+        /// Queue an older snapshot, hold the writer inside it, make a NEWER save while it is held,
+        /// then let go and report what the file ends up holding.
+        ///
+        /// <paramref name="throughTheWriter"/> false is the shape this branch shipped: the newer save
+        /// writes the file itself. True is the shipped fix: it goes through the one writer.
+        /// </summary>
+        private string RaceTheTwoWriters(bool throughTheWriter)
+        {
+            string path = Path.Combine(_dir, throughTheWriter ? "shipped.json" : "knownbad.json");
+            using var entered = new ManualResetEventSlim(false);
+            using var letGo = new ManualResetEventSlim(false);
+            int writes = 0;
+
+            var writer = new BackgroundFileWriter(path, (p, t) =>
+            {
+                if (Interlocked.Increment(ref writes) == 1)
+                {
+                    entered.Set();
+                    letGo.Wait(TimeSpan.FromSeconds(30));
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+                File.WriteAllText(p, t);
+            });
+            writer.Start();
+
+            writer.Queue("older queued snapshot");          // the HUD's preview/position change
+            Assert.True(entered.Wait(5000),
+                "The writer never took the older snapshot, so the ordering this test is about cannot "
+                + "arise and the run measured nothing.");
+
+            if (throughTheWriter)
+            {
+                // The shipped Config.Save: queue it and wait for it. One writer, one order.
+                var newer = new Thread(() => writer.WriteNow("newer blocking snapshot", 10000));
+                newer.Start();
+                Thread.Sleep(50);                            // it is now waiting on the held writer
+                letGo.Set();
+                Assert.True(newer.Join(10000), "the blocking save never returned");
+            }
+            else
+            {
+                // The shipped-on-this-branch Config.Save: it writes the file itself, ordered against
+                // the queued snapshot by nothing at all.
+                Directory.CreateDirectory(_dir);
+                File.WriteAllText(path, "newer blocking snapshot");
+                letGo.Set();
+            }
+
+            Assert.True(writer.Flush(5000), "the writer never finished what it was holding");
+            writer.Stop(5000);
+            return File.ReadAllText(path);
+        }
+
         /// <summary>A write that throws is COUNTED, not swallowed. An absence would let a writer
         /// that never wrote anything look exactly like a healthy one.</summary>
         [Fact]
@@ -301,6 +383,110 @@ namespace AgentEyes.Tests
                 .ToList();
 
             Assert.Equal(new[] { "AgentEyes.App.Config::Load" }, starts);
+        }
+
+        /// <summary>
+        /// THE SAME RULE APPLIED TO THE PREVIEW'S OWN UI-THREAD CODE, and the guard that keeps the
+        /// round-2 audit from being re-lost.
+        ///
+        /// Every defect this feature has had is one sentence: PREVIEW WORK BLOCKS SOMETHING THAT MUST
+        /// NOT BLOCK. <c>AgentEyes.Log</c> is a <c>Directory.CreateDirectory</c> plus a
+        /// <c>File.AppendAllText</c> under a PROCESS-WIDE lock, so a log line on this dispatcher is
+        /// both a filesystem call and a lock another thread may be holding inside one - and this
+        /// dispatcher serves the STOP button. So the preview's own App-side code says everything
+        /// through <c>PreviewLog</c>, which hands the line to its own thread and returns.
+        ///
+        /// WHAT THIS DELIBERATELY DOES NOT COVER, stated rather than implied
+        /// (DEVELOPMENT_METHOD.md 6c.5): the HUD's NON-preview lines - the status label, the discard
+        /// click, the saved position, the window styles - and every other window in this app still
+        /// call the shared logger directly, exactly as they did before this feature existed. Making
+        /// the whole app's logger non-blocking is app-wide work with its own risks (a line lost at a
+        /// crash is a line lost from the crash report) and belongs in its own issue; this issue owns
+        /// the preview, and the preview is clean.
+        /// </summary>
+        [Fact]
+        public void ThePreviewsOwnUiThreadCode_NeverCallsTheSharedLoggerDirectly()
+        {
+            string[] previewTypes =
+            {
+                "AgentEyes.App.HudPreviewSizing::",
+                "AgentEyes.App.PreviewFrameFeed::",
+                "AgentEyes.App.HudUserResize::",
+                "AgentEyes.App.HudWindowAutomationPeer::",
+            };
+            string[] previewClickHandlers =
+            {
+                "AgentEyes.App.HudWindow::TogglePreview",
+                "AgentEyes.App.HudWindow::ChooseMode",
+                "AgentEyes.App.HudWindow::ChooseCorner",
+            };
+
+            var offenders = CompiledCode
+                .CallSites(CompiledCode.AppAssembly,
+                           c => c.StartsWith("AgentEyes.Log::", StringComparison.Ordinal))
+                .Where(site => previewTypes.Any(t => site.Method.StartsWith(t, StringComparison.Ordinal))
+                            || previewClickHandlers.Contains(site.Method))
+                .ToList();
+
+            Assert.True(offenders.Count == 0,
+                "The preview calls the shared logger on the WPF dispatcher. That logger is a "
+                + "synchronous file append under a process-wide lock, and that dispatcher is what "
+                + "serves the HUD's Stop button (issue #33; Review Gate round 2 on PR #39). Say it "
+                + "through PreviewLog, which appends on its own thread:" + Environment.NewLine
+                + CompiledCode.Describe(offenders));
+
+            // THE COMPANION PRESENCE, because "calls no logger" is satisfied just as well by a
+            // preview that says NOTHING - an absence certifying silence. Every one of these types
+            // still reports what it does; it reports it through the lane that does not wait.
+            // (Counted as call sites rather than through Reachable: PreviewLog lives in
+            // AgentEyes.Core, and a reachability closure over the App assembly stops at that
+            // boundary.)
+            var speaking = CompiledCode
+                .CallSites(CompiledCode.AppAssembly,
+                           c => c.StartsWith("AgentEyes.Preview.PreviewLog::", StringComparison.Ordinal))
+                .Select(s => s.Method)
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (string type in previewTypes.Where(t => t != "AgentEyes.App.HudWindowAutomationPeer::"))
+                Assert.True(speaking.Any(m => m.StartsWith(type, StringComparison.Ordinal)),
+                    $"{type} no longer reports anything at all, which is not the same thing as no "
+                    + "longer blocking. It must still say what it does - through PreviewLog.");
+        }
+
+        /// <summary>
+        /// ONE WRITER, THEREFORE ONE ORDER - the structural form of the mixed-writer defect above,
+        /// and the part a behavioural test cannot give: it holds for whatever save anybody adds next.
+        ///
+        /// Every save in the process, blocking or not, goes through the same background writer.
+        /// <c>Config.WriteJson</c> - the method that actually puts bytes on disk - is named by
+        /// exactly one thing, the field initializer that hands it to that writer. The moment a save
+        /// path calls it again the two kinds of writer stop being ordered, and the older snapshot can
+        /// land on top of the newer one.
+        /// </summary>
+        [Fact]
+        public void EverySaveGoesThroughTheOneWriter_SoTheLastSaveMadeIsTheLastWritten()
+        {
+            var direct = CompiledCode
+                .CallSites(CompiledCode.AppAssembly, c => c == "AgentEyes.App.Config::WriteJson")
+                .Select(s => s.Method)
+                .Distinct()
+                .OrderBy(m => m, StringComparer.Ordinal)
+                .ToList();
+
+            Assert.True(direct.Count == 1 && direct[0] == "AgentEyes.App.Config::.cctor",
+                "config.json is written by something other than the one background writer ("
+                + string.Join(", ", direct) + "). Both kinds of save serialise the WHOLE document, so "
+                + "the file is only correct if the LAST save made is the last one written - and a "
+                + "lock cannot give that, because a lock decides who goes first, not who goes last. "
+                + "A newer direct write lands and is then overwritten by an older queued snapshot, "
+                + "silently reverting the person's newer choice (Review Gate round 2 on PR #39, "
+                + "defect 3). Queue it instead; wait for it if the caller must.");
+
+            var blocking = new HashSet<string>(
+                CompiledCode.Reachable(CompiledCode.AppAssembly, new[] { "AgentEyes.App.Config::Save" }),
+                StringComparer.Ordinal);
+            Assert.Contains("AgentEyes.App.BackgroundFileWriter::WriteNow", blocking);
+            Assert.Contains("AgentEyes.App.BackgroundFileWriter::Queue", blocking);
         }
 
         /// <summary>A queued save that is still in flight when the process exits is flushed, so the

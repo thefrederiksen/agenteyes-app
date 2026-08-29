@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 
@@ -58,6 +57,23 @@ namespace AgentEyes.Preview
     /// never sees a half-written image; the reader still verifies the two JPEG markers
     /// (<see cref="JpegFrame"/>), because an instrument that assumes its own preconditions is not an
     /// instrument.
+    ///
+    /// AND THE SAME RULE AROUND THE DRAIN, NOT ONLY INSIDE IT (Review Gate round 2 on PR #39). The
+    /// round-1 fix moved publishing off the pipe reader and left the LIFECYCLE untouched: creating
+    /// this tap prepared the preview directory synchronously on the thread that STARTS a recording,
+    /// and disposing it logged, flushed and deleted synchronously on the thread that STOPS one. Those
+    /// are the same unbounded filesystem calls in a different place - a preview path that never
+    /// answers meant the recording never started, or Stop never returned and the service sat in
+    /// "finalizing". So NOTHING in this class touches the filesystem or the shared logger on a
+    /// caller's thread any more:
+    ///
+    ///  - filesystem work goes to <see cref="PreviewChores"/>, which performs it on its own thread
+    ///    and lets the caller wait AT MOST <see cref="PreviewChores.BudgetMs"/>;
+    ///  - log lines go to <see cref="PreviewLog"/>, which appends on its own thread and never makes
+    ///    the caller wait at all.
+    ///
+    /// <c>PreviewTapTests</c> asserts both against the compiled IL, for <see cref="Drain"/>,
+    /// <see cref="TryCreateAt"/>, <see cref="Dispose"/> and the publishing toggle alike.
     /// </summary>
     internal sealed class PreviewTap : IDisposable
     {
@@ -82,11 +98,20 @@ namespace AgentEyes.Preview
         private readonly string _tempPath;
         private readonly MjpegFramer _framer = new();
 
-        /// <summary>Writes one frame where the HUD reads it. A seam, and a narrow one: the default is
+        /// <summary>
+        /// Writes one frame where the HUD reads it. A seam, and a narrow one: the default is
         /// <see cref="WriteFrameToDisk"/> and the only other implementation is a test's, because the
         /// behaviour worth proving here is what the DRAIN does while this is STALLED - and a stall is
-        /// something no test can produce on a real filesystem.</summary>
-        private readonly Action<byte[]> _writeFrame;
+        /// something no test can produce on a real filesystem.
+        ///
+        /// NULL UNTIL THE PUBLISHER THREAD FILLS IT IN, and that is not a style choice. The default
+        /// is the one method here that writes to a disk, so building the delegate in the constructor
+        /// put a reference to a file API on the path that STARTS A RECORDING - where the guard in
+        /// <c>PreviewTapTests</c> cannot tell a delegate that is merely built from one that is
+        /// called, and rightly refuses to. Resolved once by <see cref="PublishLoop"/>, before it can
+        /// be used, so the start path names no filesystem API at all.
+        /// </summary>
+        private Action<byte[]>? _writeFrame;
 
         /// <summary>The newest frame waiting to be published, or null. Read and written ONLY through
         /// <see cref="Interlocked"/>: the drain must never take a lock that the publisher could be
@@ -97,27 +122,6 @@ namespace AgentEyes.Preview
         /// which is called from the WPF UI thread - so the delete happens on the publisher thread and
         /// never on the caller's.</summary>
         private int _removeFrameFile;
-
-        /// <summary>
-        /// What the DRAIN wants said in the log, waiting for the publisher to say it.
-        ///
-        /// The shared logger appends to a file under a process-wide lock
-        /// (<see cref="Log"/>), so a <c>Log.Info</c> on the drain thread is a filesystem call AND a
-        /// lock some other thread may be holding inside one. Either can stop the drain, and a stopped
-        /// drain fills the pipe and blocks the ffmpeg writing the recording. So the drain writes its
-        /// lines HERE - an enqueue and nothing else - and the publisher, the thread that is allowed
-        /// to block, does the logging.
-        ///
-        /// Bounded, and the bound is counted: a publisher wedged in a stalled filesystem call must
-        /// not let this grow for the length of a recording.
-        /// </summary>
-        private readonly ConcurrentQueue<(string Level, string Message)> _notes = new();
-
-        /// <summary>Ceiling on unlogged notes. The drain writes about three lines in a whole
-        /// recording, so reaching this at all means the publisher has stopped.</summary>
-        private const int MaxPendingNotes = 64;
-
-        private long _notesDropped;
 
         private readonly AutoResetEvent _publisherWork = new(false);
 
@@ -140,7 +144,7 @@ namespace AgentEyes.Preview
             _track = track;
             _framePath = framePath;
             _tempPath = framePath + ".tmp";
-            _writeFrame = writeFrame ?? WriteFrameToDisk;
+            _writeFrame = writeFrame;
         }
 
         /// <summary>The file the HUD reads. It exists only while frames are being published.</summary>
@@ -188,7 +192,7 @@ namespace AgentEyes.Preview
                 _publishing = value;
                 // Not Log.Info: this setter runs on the WPF UI thread (the HUD's Show/Hide preview
                 // click), and the shared logger is a synchronous file append under a global lock.
-                Note("INFO", $"[PreviewTap] Publishing({_track}) -> {value}");
+                PreviewLog.Info($"[PreviewTap] Publishing({_track}) -> {value}");
                 if (!value)
                 {
                     // A frame queued for a preview nobody is looking at is not published.
@@ -202,9 +206,10 @@ namespace AgentEyes.Preview
 
         /// <summary>
         /// Prepare a tap for one track, or return NULL when the machine cannot host one - the
-        /// preview directory cannot be created or cleaned. Null is not an error the caller has to
-        /// handle beyond recording WITHOUT a preview: it is the subordination rule at start time, and
-        /// it is why a broken preview cannot stop a recording from starting (AC10).
+        /// preview directory cannot be created or cleaned WITHIN A BOUND. Null is not an error the
+        /// caller has to handle beyond recording WITHOUT a preview: it is the subordination rule at
+        /// start time, and it is why a broken - or a merely unresponsive - preview cannot stop a
+        /// recording from starting (AC10).
         /// </summary>
         public static PreviewTap? TryCreate(string track) => TryCreateAt(track, PreviewPaths.Frame(track));
 
@@ -222,25 +227,24 @@ namespace AgentEyes.Preview
             if (string.IsNullOrWhiteSpace(framePath))
                 throw new ArgumentException("a preview tap must be told where to publish", nameof(framePath));
 
-            Log.Info($"[PreviewTap] TryCreate: track={track} frame={framePath}");
-            try
+            PreviewLog.Info($"[PreviewTap] TryCreate: track={track} frame={framePath}");
+
+            // THIS RUNS ON THE THREAD THAT STARTS A RECORDING (RecordingService.StartVideo calls it
+            // for both tracks before any writer starts), so it does the preparing NOWHERE NEAR here.
+            // A catch cannot save a Directory.CreateDirectory or a File.Delete that never returns -
+            // and a preview path can be a reparse point onto a share that never answers - so the work
+            // goes to the chores worker and this thread waits at most a budget for it. Missing the
+            // budget costs the preview and nothing else (issue #33, AC10; Review Gate round 2 on
+            // PR #39, defect 1).
+            if (!PreviewChores.Prepare(framePath, PreviewChores.BudgetMs))
             {
-                string? dir = Path.GetDirectoryName(framePath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                // A frame left by a previous recording is a LIE the moment this one starts: it is a
-                // picture of something else that the staleness watchdog would need seconds to catch.
-                if (File.Exists(framePath)) File.Delete(framePath);
-                string temp = framePath + ".tmp";
-                if (File.Exists(temp)) File.Delete(temp);
-            }
-            catch (Exception ex)
-            {
-                Log.Warn($"[PreviewTap] TryCreate: no preview for the {track} track - {ex.Message}. "
-                         + "The recording is unaffected and proceeds without a preview.");
+                PreviewLog.Warn($"[PreviewTap] TryCreate: no preview for the {track} track - its "
+                                + $"directory could not be prepared at {framePath}. The recording is "
+                                + "unaffected and proceeds without a preview.");
                 return null;
             }
 
-            Log.Info($"[PreviewTap] TryCreate: track={track} ready");
+            PreviewLog.Info($"[PreviewTap] TryCreate: track={track} ready");
             return new PreviewTap(track, framePath, writeFrame);
         }
 
@@ -254,7 +258,7 @@ namespace AgentEyes.Preview
             if (stdout == null) throw new ArgumentNullException(nameof(stdout));
             if (_pump != null) throw new InvalidOperationException($"the {_track} preview tap is already pumping");
 
-            Log.Info($"[PreviewTap] Pump: track={_track} starting");
+            PreviewLog.Info($"[PreviewTap] Pump: track={_track} starting");
 
             // The publisher starts FIRST. It owns every fallible and every unbounded operation this
             // class performs, so it has to exist before a frame can be offered to it.
@@ -297,8 +301,7 @@ namespace AgentEyes.Preview
             while (true)
             {
                 bool nothingPending = Volatile.Read(ref _latest) == null
-                                   && Volatile.Read(ref _removeFrameFile) == 0
-                                   && _notes.IsEmpty;
+                                   && Volatile.Read(ref _removeFrameFile) == 0;
                 if (nothingPending && _publisherIdle.IsSet) return true;
                 if (Environment.TickCount64 >= deadline) return false;
                 Thread.Sleep(5);
@@ -336,7 +339,7 @@ namespace AgentEyes.Preview
                             if (!_firstFrameLogged)
                             {
                                 _firstFrameLogged = true;
-                                Note("INFO", $"[PreviewTap] Drain: track={_track} first frame, {frame.Length} bytes");
+                                PreviewLog.Info($"[PreviewTap] Drain: track={_track} first frame, {frame.Length} bytes");
                             }
                             if (_publishing) Offer(frame);
                         }
@@ -345,19 +348,19 @@ namespace AgentEyes.Preview
                     {
                         // Keep reading, stop interpreting. The recording outranks the picture.
                         interpreting = false;
-                        Note("ERROR", $"[PreviewTap] Drain: track={_track} stopped interpreting preview "
-                                      + "frames; the pipe is still being drained so the recording is "
-                                      + $"unaffected{Environment.NewLine}{ex}");
+                        PreviewLog.Error($"[PreviewTap] Drain: track={_track} stopped interpreting "
+                                         + "preview frames; the pipe is still being drained so the "
+                                         + $"recording is unaffected{Environment.NewLine}{ex}");
                     }
                 }
-                Note("INFO", $"[PreviewTap] Drain: track={_track} ended at end of stream "
-                             + $"(framesRead={FramesRead} framesPublished={FramesPublished} "
-                             + $"framesDropped={FramesDropped} oversizeDrops={_framer.OversizeDrops})");
+                PreviewLog.Info($"[PreviewTap] Drain: track={_track} ended at end of stream "
+                                + $"(framesRead={FramesRead} framesPublished={FramesPublished} "
+                                + $"framesDropped={FramesDropped} oversizeDrops={_framer.OversizeDrops})");
             }
             catch (Exception ex)
             {
-                Note("ERROR", $"[PreviewTap] Drain FAILED: track={_track} - the preview stream is "
-                              + $"over; the recording continues{Environment.NewLine}{ex}");
+                PreviewLog.Error($"[PreviewTap] Drain FAILED: track={_track} - the preview stream is "
+                                 + $"over; the recording continues{Environment.NewLine}{ex}");
             }
         }
 
@@ -380,45 +383,6 @@ namespace AgentEyes.Preview
         }
 
         /// <summary>
-        /// Say something in the log WITHOUT touching the log. Callable from the drain thread and from
-        /// the WPF UI thread, because all it does is enqueue: the publisher thread - the one that is
-        /// allowed to block - does the appending.
-        ///
-        /// Over the ceiling the note is dropped and COUNTED, never silently discarded: a non-zero
-        /// drop count in the flush line says the publisher stopped, which is the only way this bound
-        /// can be reached at three lines a recording.
-        /// </summary>
-        private void Note(string level, string message)
-        {
-            if (_notes.Count >= MaxPendingNotes)
-            {
-                Interlocked.Increment(ref _notesDropped);
-                return;
-            }
-            _publisherIdle.Reset();
-            _notes.Enqueue((level, message));
-            _publisherWork.Set();
-        }
-
-        /// <summary>Write out whatever the drain asked to be logged. Runs on the publisher thread,
-        /// and on the disposing thread once the publisher has stopped.</summary>
-        private void FlushNotes()
-        {
-            while (_notes.TryDequeue(out var note))
-            {
-                if (note.Level == "ERROR") Log.Error(note.Message);
-                else if (note.Level == "WARN") Log.Warn(note.Message);
-                else Log.Info(note.Message);
-            }
-
-            long dropped = Interlocked.Exchange(ref _notesDropped, 0);
-            if (dropped > 0)
-                Log.Warn($"[PreviewTap] {dropped} log line(s) from the {_track} preview drain were "
-                         + "dropped because the publisher could not keep up. The drain itself never "
-                         + "waited for it, so the recording is unaffected.");
-        }
-
-        /// <summary>
         /// The publisher loop: everything that can fail, block, or take an unbounded amount of time.
         /// A THREAD ENTRY POINT, hence the try/catch - and unlike the drain's, this catch really is
         /// the end of the line for the preview: if this thread dies the HUD goes stale and says so,
@@ -428,6 +392,10 @@ namespace AgentEyes.Preview
         {
             try
             {
+                // The default writer is resolved HERE, on the thread that is allowed to touch a
+                // disk - see the field's comment.
+                _writeFrame ??= WriteFrameToDisk;
+
                 while (true)
                 {
                     _publisherWork.WaitOne(PublisherIdleWakeMs);
@@ -435,24 +403,23 @@ namespace AgentEyes.Preview
                     bool remove = Interlocked.Exchange(ref _removeFrameFile, 0) == 1;
                     var frame = Interlocked.Exchange(ref _latest, null);
 
-                    FlushNotes();
                     if (remove) RemoveFrameFile();
                     if (frame != null) Publish(frame);
 
-                    if (Volatile.Read(ref _latest) == null && Volatile.Read(ref _removeFrameFile) == 0
-                        && _notes.IsEmpty)
+                    if (Volatile.Read(ref _latest) == null && Volatile.Read(ref _removeFrameFile) == 0)
                     {
                         _publisherIdle.Set();
                         if (_disposed) break;
                     }
                 }
-                Log.Info($"[PreviewTap] PublishLoop: track={_track} ended "
-                         + $"(framesPublished={FramesPublished} framesDropped={FramesDropped})");
+                PreviewLog.Info($"[PreviewTap] PublishLoop: track={_track} ended "
+                                + $"(framesPublished={FramesPublished} framesDropped={FramesDropped})");
             }
             catch (Exception ex)
             {
-                Log.Error($"[PreviewTap] PublishLoop FAILED: track={_track} - the preview stops "
-                          + "updating and the HUD will say so; the recording is unaffected", ex);
+                PreviewLog.Error($"[PreviewTap] PublishLoop FAILED: track={_track} - the preview "
+                                 + "stops updating and the HUD will say so; the recording is "
+                                 + $"unaffected{Environment.NewLine}{ex}");
             }
         }
 
@@ -465,12 +432,12 @@ namespace AgentEyes.Preview
         {
             try
             {
-                _writeFrame(frame);
+                _writeFrame!(frame);
                 Interlocked.Increment(ref _framesPublished);
                 if (_publishFailed)
                 {
                     _publishFailed = false;
-                    Log.Info($"[PreviewTap] Publish: track={_track} recovered - frames are being written again");
+                    PreviewLog.Info($"[PreviewTap] Publish: track={_track} recovered - frames are being written again");
                 }
             }
             catch (Exception ex)
@@ -478,8 +445,8 @@ namespace AgentEyes.Preview
                 if (!_publishFailed)
                 {
                     _publishFailed = true;
-                    Log.Warn($"[PreviewTap] Publish FAILED: track={_track} frame={_framePath} - {ex.Message}. "
-                             + "The preview will go stale and say so; the recording is unaffected.");
+                    PreviewLog.Warn($"[PreviewTap] Publish FAILED: track={_track} frame={_framePath} - {ex.Message}. "
+                                    + "The preview will go stale and say so; the recording is unaffected.");
                 }
             }
         }
@@ -492,24 +459,35 @@ namespace AgentEyes.Preview
             File.Move(_tempPath, _framePath, overwrite: true);
         }
 
-        private void RemoveFrameFile()
-        {
-            try
-            {
-                if (File.Exists(_framePath)) File.Delete(_framePath);
-                if (File.Exists(_tempPath)) File.Delete(_tempPath);
-            }
-            catch (Exception ex)
-            {
-                Log.Warn($"[PreviewTap] RemoveFrameFile: track={_track} - {ex.Message}");
-            }
-        }
+        /// <summary>
+        /// Take the published frame off disk. Called from the publisher loop AND from
+        /// <see cref="Dispose"/>, and in both cases the deleting is done by
+        /// <see cref="PreviewChores"/> on its own thread inside a hard budget - because one of those
+        /// two callers is the thread that is STOPPING A RECORDING, and a delete on a path that never
+        /// answers would leave Stop unable to return (Review Gate round 2 on PR #39, defect 1). A
+        /// failure or a missed budget is reported by the chores worker, so nothing here is silent.
+        /// </summary>
+        private void RemoveFrameFile() => PreviewChores.Remove(_framePath, PreviewChores.BudgetMs);
 
         /// <summary>
         /// Stop previewing. Safe to call from the stop path and safe to call twice. It does NOT stop
-        /// ffmpeg and it waits on nothing unbounded: the pump ends by itself when ffmpeg closes the
-        /// pipe, the publisher ends when it sees the disposal, and BOTH joins are bounded - a
-        /// publisher stuck in a filesystem call is the exact scenario this design exists for.
+        /// ffmpeg, and EVERY WAIT IN IT IS BOUNDED - which is a stronger claim than round 2 could
+        /// make, and the reason it is spelled out here.
+        ///
+        /// THE THREAD RUNNING THIS IS STOPPING A RECORDING. <c>RecordingService.Stop</c> disposes the
+        /// taps before the service goes back to idle, so anything unbounded here is a Stop that never
+        /// returns and a service stuck in "finalizing" - the Review Gate's round-2 defect 1. What
+        /// used to be here was exactly that: a synchronous <c>Log.Info</c>, then, AFTER the publisher
+        /// join had already timed out because the filesystem was not answering, a synchronous flush
+        /// and a synchronous delete on that same unanswering path.
+        ///
+        /// So this method now performs no filesystem call and no log append of its own:
+        ///  - the pump ends by itself when ffmpeg closes the pipe, and its join is bounded;
+        ///  - the publisher ends when it sees the disposal, and its join is bounded - a publisher
+        ///    stuck in a filesystem call is the exact scenario this whole design exists for;
+        ///  - the frame file is removed by <see cref="PreviewChores"/>, on its thread, inside its
+        ///    budget;
+        ///  - every line goes to <see cref="PreviewLog"/>, which never makes this thread wait.
         /// </summary>
         public void Dispose()
         {
@@ -520,24 +498,36 @@ namespace AgentEyes.Preview
             _publisherIdle.Reset();
             _disposed = true;
             _publisherWork.Set();
-            Log.Info($"[PreviewTap] Dispose: track={_track} framesRead={FramesRead} "
-                     + $"framesPublished={FramesPublished} framesDropped={FramesDropped}");
+            PreviewLog.Info($"[PreviewTap] Dispose: track={_track} framesRead={FramesRead} "
+                            + $"framesPublished={FramesPublished} framesDropped={FramesDropped}");
 
             var publisher = _publisher;
-            if (publisher != null && publisher.IsAlive && !publisher.Join(PublisherJoinTimeoutMs))
-                Log.Warn($"[PreviewTap] Dispose: the {_track} preview publisher did not finish within "
-                         + $"{PublisherJoinTimeoutMs}ms - it is a background thread and ends with the "
-                         + "process. The recording is unaffected: the drain never waited for it.");
+            bool publisherFinished = publisher == null || !publisher.IsAlive
+                                     || publisher.Join(PublisherJoinTimeoutMs);
+            if (!publisherFinished)
+                PreviewLog.Warn($"[PreviewTap] Dispose: the {_track} preview publisher did not finish "
+                                + $"within {PublisherJoinTimeoutMs}ms - it is a background thread and "
+                                + "ends with the process. The recording is unaffected: the drain never "
+                                + "waited for it.");
 
             var pump = _pump;
             if (pump != null && pump.IsAlive && !pump.Join(JoinTimeoutMs))
-                Log.Warn($"[PreviewTap] Dispose: the {_track} preview pump did not finish within "
-                         + $"{JoinTimeoutMs}ms - it is a background thread and ends with the process");
+                PreviewLog.Warn($"[PreviewTap] Dispose: the {_track} preview pump did not finish within "
+                                + $"{JoinTimeoutMs}ms - it is a background thread and ends with the process");
 
-            // Whatever the drain asked to have logged and the publisher never reached. This thread is
-            // the stop path, not the drain and not the UI, so it may block on the logger.
-            FlushNotes();
-            RemoveFrameFile();
+            // WHO REMOVES THE PUBLISHED FRAME, and why this is not simply "always".
+            //
+            //  - The publisher does, on its way out: the request was made above, before the join, and
+            //    a publisher that finished has performed it. Nothing to do here.
+            //  - Nobody does, when the publisher was never started (no Pump - the recorder never
+            //    reached ffmpeg). Then this asks for it, and the chores worker performs it inside its
+            //    budget while this thread waits at most that long.
+            //  - Nobody CAN, when the publisher did not finish: it is wedged in a filesystem call on
+            //    THIS EXACT PATH, so handing the same path to a second thread only wedges that one
+            //    too, and takes every later preview down with it. The warning above is the whole cost
+            //    - a stale frame file, removed by the next recording's preparation once the path
+            //    answers again. A preview may cost a picture and a WARNING. It may not cost a Stop.
+            if (publisher == null) RemoveFrameFile();
         }
     }
 }

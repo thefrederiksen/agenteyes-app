@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using AgentEyes.App;
@@ -413,6 +414,59 @@ namespace AgentEyes.Tests
 
             Assert.DoesNotContain("System.Windows.Window::set_SizeToContent", calls);
             Assert.Contains("AgentEyes.App.HudPreviewSizing::HidePanel", calls);
+        }
+
+        /// <summary>
+        /// THE CANARY REPORTS ITSELF, so that no caller can drop it (Review Gate round 2 on PR #39,
+        /// defect 2).
+        ///
+        /// It used to be RETURNED for the caller to log, and one of the two callers did not. The
+        /// explicit Show/Hide click logged it; <c>HudWindow.SetStatus</c> - the ordinary stop, the
+        /// most common path there is - discarded the return value, so on the one route where an
+        /// unrecorded size actually costs the person their layout, the canary reported to nobody. A
+        /// warning whose delivery depends on each caller remembering to listen is not a warning.
+        ///
+        /// ORDER, not just presence: the canary must be asked for and reported BEFORE the window is
+        /// auto-sized back to the pill, because that assignment is what destroys the evidence. And
+        /// it goes through <c>PreviewLog</c>, not the shared logger, because this runs on the WPF
+        /// dispatcher that serves the Stop button.
+        /// </summary>
+        [Fact]
+        public void HidePanel_ReportsTheUnaccountedSizeItself_BeforeTheAutoSizeDestroysIt()
+        {
+            var calls = CompiledCode.CallsIn(CompiledCode.AppAssembly,
+                                             "AgentEyes.App.HudPreviewSizing::HidePanel").ToList();
+
+            int asked = calls.IndexOf("AgentEyes.App.HudSizeMemory::UnattributedSize");
+            int reported = calls.IndexOf("AgentEyes.Preview.PreviewLog::Warn");
+            int autoSized = calls.IndexOf("System.Windows.Window::set_SizeToContent");
+
+            Assert.True(asked >= 0,
+                "HudPreviewSizing.HidePanel no longer asks whether the HUD ended up at a size no "
+                + "gesture claimed, so a missing resize route is invisible again (issue #33, AC7).");
+            Assert.True(reported >= 0,
+                "HudPreviewSizing.HidePanel computes the completeness canary and REPORTS IT NOWHERE. "
+                + "That is Review Gate round 2's defect 2: it was returned for the caller to log, and "
+                + "HudWindow.SetStatus - the ordinary stop - dropped the return value, so on the most "
+                + "common path the canary reported to nobody. Log it here, where it is computed.");
+            Assert.True(reported > asked && reported < autoSized,
+                "The canary is reported outside the window between asking for it and auto-sizing the "
+                + "window back to the pill. The auto-size is what destroys the size being reported on.");
+        }
+
+        /// <summary>The companion: the ordinary stop really does go through the method that reports
+        /// it. Without this, the guard above is satisfied by a HidePanel nothing on the stop path
+        /// calls.</summary>
+        [Fact]
+        public void TheOrdinaryStop_ReachesTheReportingHidePanel()
+        {
+            var reached = new HashSet<string>(
+                CompiledCode.Reachable(CompiledCode.AppAssembly,
+                                       new[] { "AgentEyes.App.HudWindow::SetStatus" }),
+                StringComparer.Ordinal);
+
+            Assert.Contains("AgentEyes.App.HudPreviewSizing::HidePanel", reached);
+            Assert.Contains("AgentEyes.App.HudSizeMemory::UnattributedSize", reached);
         }
 
         /// <summary>

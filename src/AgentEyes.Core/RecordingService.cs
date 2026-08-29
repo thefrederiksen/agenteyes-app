@@ -525,6 +525,14 @@ namespace AgentEyes
                 // TryCreate returning null is the same complete answer for a machine that cannot host
                 // a preview: record without one. A preview that cannot be prepared never stops a
                 // recording from starting (AC10).
+                //
+                // AND IT CANNOT DELAY ONE EITHER (Review Gate round 2 on PR #39, defect 1). This is
+                // the thread that starts the recording, and preparing a preview directory used to be
+                // synchronous filesystem work right here - so a preview path that never answered (a
+                // reparse point onto an unavailable share) meant the recording never started at all.
+                // The preparing is done by PreviewChores on its own thread now, and the most this
+                // line can cost is PreviewChores.BudgetMs before it gives up and records without a
+                // preview.
                 _screenTap = PreviewArmed ? PreviewTap.TryCreate(PreviewPaths.ScreenTrack) : null;
                 _cameraTap = PreviewArmed && dshowCamera != null
                     ? PreviewTap.TryCreate(PreviewPaths.CameraTrack)
@@ -816,6 +824,12 @@ namespace AgentEyes
                 // already closed its pipe and each pump has ended by itself, and before the session
                 // fields are cleared. They are not stop steps: a preview that failed to close must
                 // not be able to turn a clean recording into a failed stop (issue #33, AC10).
+                //
+                // THIS IS BEFORE THE SERVICE RETURNS TO IDLE, which is why every wait inside that
+                // disposal is bounded (Review Gate round 2 on PR #39, defect 1). It used to log,
+                // flush and delete synchronously on this thread, on the very preview path a wedged
+                // publisher was already stuck in - so a share that stopped answering left Stop unable
+                // to return and the service reporting "finalizing" forever.
                 DisposePreviewTaps();
 
                 RecordingClaimTicket claim;
