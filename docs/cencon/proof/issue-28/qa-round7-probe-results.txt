@@ -1,0 +1,70 @@
+QA round 7, issue #28 - the independent seam probe, run against BOTH trees.
+Source: qa-round7-probe.cs.txt (written by QA from the amended criteria, not from the
+developer's tests). The REJECTED round-6 tree b61553c is run FIRST: a probe that does not
+fire on the known-bad tree has proved nothing about the fix.
+
+Every row prints its own expectation and a MATCH/MISMATCH verdict, so a row that never ran
+cannot read as a pass. An empty file is a broken instrument, never a clean run.
+
+==================== RUN 1 - the REJECTED round-6 tree b61553c ====================
+8 rows MUST mismatch here: the seven DELIVERED_QUIT_THEN_EXIT_<positive code> rows and
+DIED_BEFORE_DISPOSE_RETRY. Everything else must already be correct - that is what shows the
+round-7 change is targeted and regresses nothing.
+
+=== QA round 7 independent seam probe (written by QA from the criteria) ===
+tree: b61553c (REJECTED round-6 tree)
+
+HEALTHY_AC17_EXIT_0              stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=clean-quit complete=yes>
+HEALTHY_AC17_EXIT_255            stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=clean-quit complete=yes>
+
+DELIVERED_QUIT_THEN_EXIT_1       stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_2       stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_69      stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_137     stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_254     stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_256     stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_2147483647 stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_-5      stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+
+DIED_BEFORE_DISPOSE_RETRY        stopKind=abandoned complete=unknown            lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=1 drains=1 disposes=1 afterStop(stopKind=abandoned,isAbandoned=True) threw=CameraStopFailedException hasExitedNow=True  [MISMATCH] expected<stopKind=(not observed) complete=unknown>
+RETAINED_PROCESS_ALIVE           stopKind=abandoned complete=unknown            lost=False stderrComplete=False captured=1.0 isAbandoned=True  quits=2 kills=2 drains=0 disposes=0 threw=CameraStopFailedException  [MATCH] expected<stopKind=abandoned complete=unknown>
+RETAINED_PROCESS_DIED            rowsAfterDeath=0 claimHeldAfterDeath=False holdsAny=False      claimed=True retained=True rowsWhileAlive=1 claimHeldWhileAlive=True disposes=1  [MATCH] expected<rowsAfterDeath=0 claimHeldAfterDeath=False holdsAny=False>
+AC16_STATUS                      stuckWhileAlive=True rowsWhileAlive=1 stuckAfterDeath=False rowsAfterDeath=0 pid rows: QA Cam#31337 retained=True  [MATCH] expected<stuckWhileAlive=True rowsWhileAlive=1 stuckAfterDeath=False rowsAfterDeath=0 + the pid>
+
+ONE_TICK_STALL_2_9S              stopKind=clean-quit complete=unknown           lost=False stderrComplete=True  captured=0.5 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=clean-quit complete=unknown>
+ZERO_TICK_INCOMPLETE_STDERR      stopKind=clean-quit complete=unknown           lost=False stderrComplete=False captured=0.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<complete=unknown>
+FAILED_QUIT_THEN_ERROR_EXIT      stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+EXITED_EARLY                     stopKind=exited-early complete=no              lost=True  stderrComplete=True  captured=2.0 isAbandoned=False quits=0 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=exited-early complete=no>
+FORCED_KILL_AFTER_OUTPUT         stopKind=force-killed complete=no              lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=1 drains=1 disposes=1 threw=CameraForceKilledException  [MATCH] expected<stopKind=force-killed complete=no>
+
+8 ROW(S) DID NOT MATCH
+
+==================== RUN 2 - the round-7 head a0d1fe3 ====================
+
+=== QA round 7 independent seam probe (written by QA from the criteria) ===
+tree: a0d1fe3 (round 7 head)
+
+HEALTHY_AC17_EXIT_0              stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=clean-quit complete=yes>
+HEALTHY_AC17_EXIT_255            stopKind=clean-quit complete=yes               lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=clean-quit complete=yes>
+
+DELIVERED_QUIT_THEN_EXIT_1       stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_2       stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_69      stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_137     stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_254     stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_256     stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_2147483647 stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+DELIVERED_QUIT_THEN_EXIT_-5      stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+
+DIED_BEFORE_DISPOSE_RETRY        stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=1 drains=1 disposes=1 afterStop(stopKind=(not observed),isAbandoned=True) threw=CameraStopFailedException hasExitedNow=True  [MATCH] expected<stopKind=(not observed) complete=unknown>
+RETAINED_PROCESS_ALIVE           stopKind=abandoned complete=unknown            lost=False stderrComplete=False captured=1.0 isAbandoned=True  quits=2 kills=2 drains=0 disposes=0 threw=CameraStopFailedException  [MATCH] expected<stopKind=abandoned complete=unknown>
+RETAINED_PROCESS_DIED            rowsAfterDeath=0 claimHeldAfterDeath=False holdsAny=False      claimed=True retained=True rowsWhileAlive=1 claimHeldWhileAlive=True disposes=1  [MATCH] expected<rowsAfterDeath=0 claimHeldAfterDeath=False holdsAny=False>
+AC16_STATUS                      stuckWhileAlive=True rowsWhileAlive=1 stuckAfterDeath=False rowsAfterDeath=0 pid rows: QA Cam#31337 retained=True  [MATCH] expected<stuckWhileAlive=True rowsWhileAlive=1 stuckAfterDeath=False rowsAfterDeath=0 + the pid>
+
+ONE_TICK_STALL_2_9S              stopKind=clean-quit complete=unknown           lost=False stderrComplete=True  captured=0.5 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=clean-quit complete=unknown>
+ZERO_TICK_INCOMPLETE_STDERR      stopKind=clean-quit complete=unknown           lost=False stderrComplete=False captured=0.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<complete=unknown>
+FAILED_QUIT_THEN_ERROR_EXIT      stopKind=(not observed) complete=unknown       lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=(not observed) complete=unknown>
+EXITED_EARLY                     stopKind=exited-early complete=no              lost=True  stderrComplete=True  captured=2.0 isAbandoned=False quits=0 kills=0 drains=1 disposes=1  [MATCH] expected<stopKind=exited-early complete=no>
+FORCED_KILL_AFTER_OUTPUT         stopKind=force-killed complete=no              lost=False stderrComplete=True  captured=2.0 isAbandoned=False quits=1 kills=1 drains=1 disposes=1 threw=CameraForceKilledException  [MATCH] expected<stopKind=force-killed complete=no>
+
+ALL ROWS MATCH THE EXPECTATION
