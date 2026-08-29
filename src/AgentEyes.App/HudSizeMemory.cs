@@ -142,6 +142,36 @@ namespace AgentEyes.App
         }
 
         /// <summary>
+        /// The panel has just come DOWN, so there is no longer a size the window is supposed to
+        /// have, and <see cref="UnattributedSize"/> goes quiet until the next panel opens.
+        ///
+        /// THIS IS WHAT KEEPS THE CANARY HONEST (QA round 6 on PR #39). The yardstick is only
+        /// meaningful WHILE THE PANEL IS UP. Taking the panel down auto-sizes the window back to the
+        /// pill, so the very next thing the window's size is, is the pill's - and comparing that
+        /// against the panel size the yardstick still held was the canary reporting the teardown's
+        /// OWN auto-size as a resize route nobody had listed. It fired on every ordinary stop, on a
+        /// recording where nothing had been touched. A warning that is present on every stop cannot
+        /// distinguish "a route was missed" from "a recording ended", which is worse than no warning
+        /// at all: it trains everyone to ignore the one signal that exists to catch a genuinely
+        /// missed route.
+        ///
+        /// The same staleness bites a second, slower way: with the panel down, the pill's own border
+        /// can still be dragged. That gesture is deliberately NOT recorded (the pill's dimensions
+        /// are not a preview-panel size - see <see cref="HudUserResize"/>), so a stale yardstick
+        /// would report it as an unaccounted PANEL size at the next stop. It is neither.
+        ///
+        /// The REMEMBERED size - the one that is persisted and reopened at - is untouched here. That
+        /// survives the panel coming down on purpose: hiding the preview and stopping the recording
+        /// both take the panel down, and forgetting it would lose the person's size before it could
+        /// be saved.
+        /// </summary>
+        public void NotePanelClosed()
+        {
+            _accountedWidth = null;
+            _accountedHeight = null;
+        }
+
+        /// <summary>
         /// The completeness canary (issue #33, AC7; Review Gate round 1 on PR #34). Returns a
         /// description of a size the window ended up at that NO gesture ever claimed, or null when
         /// the size is accounted for.
@@ -155,7 +185,9 @@ namespace AgentEyes.App
         /// shown a person chose, and recording sizes nobody chose is the defect this class exists to
         /// prevent. It makes the gap visible; it does not paper over it.
         ///
-        /// Null when no panel has been opened yet: there is no expectation to violate.
+        /// Null when no panel is currently open - before the first <see cref="NoteOpenedAt"/> and
+        /// after <see cref="NotePanelClosed"/>. In both of those states there is no expectation to
+        /// violate, because the window is not supposed to be any particular size.
         /// </summary>
         public string? UnattributedSize(double width, double height)
         {

@@ -402,6 +402,13 @@ namespace AgentEyes.App
             // The recording is over, so there is nothing live left to preview. Taking the panel down
             // here also means the HUD is back to its pill size for the save, and the person is not
             // watching a picture that has stopped moving (AC10 in miniature).
+            //
+            // ONE STOP CALLS THIS METHOD THREE TIMES - "Stopping..." from RunOnce below, then
+            // "Saving video..." and "Saving audio..." through MainWindow's StopProgress.Saving sink -
+            // so everything from here down is reached three times per stop and every step of it must
+            // be idempotent. ClosePreview says so on its own declaration; HudPreviewSizing.HidePanel
+            // enforces it inside itself (QA round 6 on PR #39), which is why the count is safe here
+            // rather than guarded by a flag that only this caller would honour.
             ClosePreview();
             _previewPanel.Visibility = Visibility.Collapsed;
             HudPreviewSizing.HidePanel(this, _size);

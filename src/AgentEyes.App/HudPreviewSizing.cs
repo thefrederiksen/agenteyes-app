@@ -85,16 +85,36 @@ namespace AgentEyes.App
         /// The string is STILL returned, but only so a test can drive the known-bad arm and read the
         /// same words that were logged. Nothing acts on it: an unattributed size is precisely a size
         /// nobody has shown a person chose, so it is reported and NOT remembered.
+        ///
+        /// AND IT HAPPENS ONCE PER PANEL, however many times it is called (QA round 6 on PR #39).
+        /// One ordinary stop calls <c>HudWindow.SetStatus</c> THREE times - "Stopping..." from the
+        /// HUD's own button, then "Saving video..." and "Saving audio..." as the raw files flush -
+        /// and each of those calls comes through here. Round 2's canary was dropped by its caller;
+        /// the fix for it then rang the alarm once per CALL, so an untouched recording produced two
+        /// spurious "a resize route is unaccounted for" warnings after the first, correct silence.
+        /// The lesson from three rounds of this defect is that a guard belonging to a side effect
+        /// goes on the method that HAS the side effect, not on each caller in turn - a caller-side
+        /// guard is only ever as good as the next caller somebody writes. So both halves live here:
+        /// the panel is taken down at most once (this method is the exact mirror of
+        /// <see cref="ShowPanel"/>, which is likewise a no-op when the panel is already open), and
+        /// the yardstick the canary measures against is retired with it.
         /// </summary>
         public static string? HidePanel(Window window, HudSizeMemory memory)
         {
             if (window is null) throw new ArgumentNullException(nameof(window));
             if (memory is null) throw new ArgumentNullException(nameof(memory));
+            // Nothing to take down: the window is already auto-sizing to the pill. Returning here is
+            // what stops the second and third call of one stop re-reporting, re-logging and
+            // re-assigning what the first one already did.
+            if (window.SizeToContent != SizeToContent.Manual) return null;
 
             string? unattributed = memory.UnattributedSize(window.ActualWidth, window.ActualHeight);
             if (unattributed != null) PreviewLog.Warn(unattributed);
 
             window.SizeToContent = SizeToContent.WidthAndHeight;
+            // The panel is down, so the size the window is "supposed" to have no longer exists. The
+            // remembered (persisted) size is deliberately untouched - see HudSizeMemory.
+            memory.NotePanelClosed();
             PreviewLog.Info("hud: preview panel down; the HUD is back to its pill size, remembering "
                           + (memory.HasSize ? $"{memory.Width}x{memory.Height}" : "no size"));
             return unattributed;

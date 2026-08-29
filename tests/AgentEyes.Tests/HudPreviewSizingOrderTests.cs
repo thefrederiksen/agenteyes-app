@@ -97,7 +97,7 @@ namespace AgentEyes.Tests
                 Assert.True(rig.Surface.ActualWidth > DefaultPreviewWidth,
                     "the preview surface did not grow with the window: " + rig.Trace());
 
-                rig.HidePanel();          // what SetStatus does on an ordinary stop
+                rig.StopRecording();      // the whole stop, as SetStatus performs it
                 rig.Pump();
 
                 // What SavePosition persists from the Closed handler, after the auto-size back.
@@ -211,7 +211,7 @@ namespace AgentEyes.Tests
                     $"The preview surface is {rig.Surface.ActualWidth}x{rig.Surface.ActualHeight} - "
                     + "there is nothing left to draw a frame in. " + rig.Trace());
 
-                rig.HidePanel();     // the stop
+                rig.StopRecording();     // the stop, all three of its status calls
                 rig.Pump();
 
                 Assert.False(rig.Memory.HasSize,
@@ -237,7 +237,7 @@ namespace AgentEyes.Tests
                 Assert.Equal(260, rig.Window.ActualWidth, 1);      // MinWidth clamped it, as it must
                 Assert.Equal(100, rig.Window.ActualHeight, 1);
 
-                rig.HidePanel();     // the stop
+                rig.StopRecording();     // the stop, all three of its status calls
                 rig.Pump();
 
                 Assert.Equal(200, rig.Memory.Width!.Value, 3);
@@ -476,22 +476,32 @@ namespace AgentEyes.Tests
         /// THE LOG - the only place a person or a support agent ever looks - for the words the canary
         /// exists to produce. Only what this run appended is read, so a line another test wrote
         /// cannot certify this one.
+        ///
+        /// AND ONCE, NOT THREE TIMES (QA round 6). The stop drives all three of production's
+        /// SetStatus calls; a genuine missing route must be reported by the one that finds it and by
+        /// no other. The alarm being rung once per status update is the same defect from the other
+        /// side - it is what made the warning meaningless.
         /// </summary>
         [Fact]
         public void AResizeNoGestureClaimed_ReachesTheLogOnTheOrdinaryStop()
         {
             long before = LogLengthNow();
+            List<string?> reports = new();
 
             RunOnHudRig(rig =>
             {
                 rig.ShowPanel();
                 rig.AResizeWithNoGestureBehindIt(ResizedWidth, ResizedHeight);
-                rig.StopRecording();          // exactly what HudWindow.SetStatus does
+                rig.StopRecording();          // all three SetStatus calls a stop makes
+                reports.AddRange(rig.CanaryReports);
             });
 
             string appended = LogAppendedSince(before);
             Assert.Contains("A resize route is unaccounted for", appended);
             Assert.Contains($"the HUD ended up at {ResizedWidth:0.##}x{ResizedHeight:0.##}", appended);
+
+            Assert.Equal(HudRig.StopStatusLabels.Length, reports.Count);   // the stop really ran three times
+            Assert.Equal(1, Occurrences(appended, "A resize route is unaccounted for"));
         }
 
         /// <summary>
@@ -499,23 +509,124 @@ namespace AgentEyes.Tests
         /// that shouts at everything: the same stop route, with the size accounted for, must append
         /// NO such warning. Measured on this run's own log lines, so an absence here is an absence
         /// this run produced.
+        ///
+        /// THE ROUND-6 DEFECT IS EXACTLY HERE. This assertion was already written and already green,
+        /// because the rig made ONE call where a stop makes THREE. The first teardown was correct
+        /// and silent; it then auto-sized the window to the pill while the yardstick still held the
+        /// panel's size, so the second and third compared the pill against the panel and each
+        /// reported a resize route that nobody had missed. Driving the real count is what makes the
+        /// absence mean something.
         /// </summary>
         [Fact]
         public void AnOrdinaryStopWithNothingUnaccountedFor_SaysNothingAboutMissingRoutes()
         {
             long before = LogLengthNow();
+            List<string?> reports = new();
 
             RunOnHudRig(rig =>
             {
                 rig.ShowPanel();
                 rig.UserResizesTheWindow(ResizedWidth, ResizedHeight);
                 rig.StopRecording();
+                reports.AddRange(rig.CanaryReports);
             });
 
             string appended = LogAppendedSince(before);
             Assert.DoesNotContain("A resize route is unaccounted for", appended);
-            // The instrument itself: this run really did write to the log we are reading.
+            // The instrument itself: this run really did write to the log we are reading, and the
+            // stop really did make all three of production's status calls. An absence produced by a
+            // stop that never ran is a broken instrument, not a clean run.
             Assert.Contains("hud: preview panel down", appended);
+            Assert.Equal(HudRig.StopStatusLabels.Length, reports.Count);
+            // The teardown is idempotent: three calls, ONE panel actually taken down.
+            Assert.Equal(1, Occurrences(appended, "hud: preview panel down"));
+        }
+
+        /// <summary>
+        /// QA'S REPRODUCTION, VERBATIM (round 6 on PR #39). The preview panel is up at its default
+        /// 520x400 because the config says so - the shipped default - and then:
+        /// <b>nothing is resized and nothing is touched</b>. Stop.
+        ///
+        /// This is the case the canary must be silent on above all others, because it is the case
+        /// EVERY recording is. QA measured two spurious warnings here on a recording where nothing
+        /// had happened, 2/2. It differs from the test above in that no gesture is made at all, so
+        /// the yardstick is the size the panel was OPENED at rather than one a gesture recorded -
+        /// the ordinary configuration, and the one a person actually meets.
+        /// </summary>
+        [Fact]
+        public void AnUntouchedRecording_StoppedWithThePanelUp_SaysNothingAboutMissingRoutes()
+        {
+            long before = LogLengthNow();
+            List<string?> reports = new();
+
+            RunOnHudRig(rig =>
+            {
+                Assert.Equal(DefaultPreviewWidth, rig.Window.ActualWidth, 1);    // opened at the default
+                Assert.Equal(DefaultPreviewHeight, rig.Window.ActualHeight, 1);
+
+                rig.StopRecording();        // resize nothing, touch nothing, press Stop
+                reports.AddRange(rig.CanaryReports);
+
+                Assert.Equal(PillWidth, rig.Window.ActualWidth, 1);              // back to the pill
+            }, showPanelBeforeShow: true);
+
+            string appended = LogAppendedSince(before);
+            Assert.DoesNotContain("A resize route is unaccounted for", appended);
+            Assert.Contains("hud: preview panel down", appended);
+            Assert.Equal(HudRig.StopStatusLabels.Length, reports.Count);
+            Assert.All(reports, r => Assert.Null(r));
+            Assert.Equal(1, Occurrences(appended, "hud: preview panel down"));
+        }
+
+        /// <summary>
+        /// THE SLOWER HALF OF THE SAME STALENESS, and the one the call-count guard alone does not
+        /// close. With the panel DOWN the HUD is a pill, and the pill's own border can still be
+        /// dragged. That gesture is deliberately not recorded - the pill's dimensions are not a
+        /// preview-panel size (see <see cref="DraggingThePillsBorderWhileThePanelIsDown_IsNotAPanelSize"/>) -
+        /// and it leaves the window manually sized, so the next stop's teardown runs for real. If the
+        /// yardstick from the panel that has already come down were still standing, that stop would
+        /// report the pill's dragged size as an unaccounted PANEL route. It is not one: no panel was
+        /// up to be resized.
+        /// </summary>
+        [Fact]
+        public void APillDraggedAfterThePanelCameDown_IsNotReportedAsAMissingPanelRoute()
+        {
+            long before = LogLengthNow();
+
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();            // yardstick: 520x400
+                rig.HidePanel();            // the person hides the preview; the HUD is a pill again
+                rig.UserDragsTheSizingBorder(900, 300);   // they drag the PILL's border
+
+                // The instrument: dragging a border takes the window OUT of auto-sizing, so the
+                // stop's teardown below really runs rather than short-circuiting. Without this the
+                // absence asserted afterwards could be an absence of anything happening at all.
+                Assert.Equal(SizeToContent.Manual, rig.Window.SizeToContent);
+
+                rig.StopRecording();        // and then stop the recording
+
+                Assert.False(rig.Memory.HasSize,
+                    $"the pill was dragged to {rig.Memory.Width}x{rig.Memory.Height} and that became "
+                    + "the preview panel's remembered size. " + rig.Trace());
+            });
+
+            string appended = LogAppendedSince(before);
+            Assert.DoesNotContain("A resize route is unaccounted for", appended);
+            Assert.Contains("hud: preview panel down", appended);
+        }
+
+        /// <summary>How many times <paramref name="needle"/> appears in <paramref name="haystack"/>.
+        /// Ordinal, non-overlapping. The tests in this class share one log file but xUnit runs a
+        /// class's tests sequentially, and no other test class writes these HUD lines - so a count
+        /// taken over this run's own byte window is this run's count.</summary>
+        private static int Occurrences(string haystack, string needle)
+        {
+            int count = 0;
+            for (int i = haystack.IndexOf(needle, StringComparison.Ordinal); i >= 0;
+                 i = haystack.IndexOf(needle, i + needle.Length, StringComparison.Ordinal))
+                count++;
+            return count;
         }
 
         /// <summary>Where the log stands right now, so only what a test appends is read back. The
@@ -690,20 +801,65 @@ namespace AgentEyes.Tests
             }
 
             /// <summary>
-            /// What HudWindow.SetStatus does on an ordinary stop, faithfully: the panel is taken
-            /// down and the window auto-sizes back to the pill, but the HUD's own "preview is on"
-            /// flag is deliberately NOT cleared - the recording is simply over. So this is the one
-            /// path on which the pill is reported while the preview still counts as visible, and it
-            /// is the last chance for the pill to become the remembered size before it is saved.
+            /// AN ORDINARY STOP, AS THE APP ACTUALLY PERFORMS IT - and the CALL COUNT is the point.
+            ///
+            /// This used to make ONE call and claim in its own comment that it was "exactly what
+            /// HudWindow.SetStatus does". It is what one call does. A stop calls SetStatus THREE
+            /// times - <c>HudWindow.RunOnce</c> shows "Stopping..." for the HUD's own Stop button,
+            /// and then MainWindow's <c>StopProgress.Saving</c> sink pushes "Saving video..." and
+            /// "Saving audio..." as the raw files flush (<c>RecordingStop.cs:125,127</c>) - and every
+            /// one of those calls runs the panel teardown. So the rig made one call where production
+            /// makes three, and a canary that fired on every stop after the first call passed this
+            /// suite 1135/1135 green while QA reproduced it 2/2 on the running app (QA round 6 on
+            /// PR #39).
+            ///
+            /// That is the THIRD time on this issue a rig has diverged from the production call
+            /// pattern and let a defect through, so the divergence is closed the only way it can be:
+            /// the labels below are production's, the count is production's, and the teardown each
+            /// one runs is production's own <see cref="HudPreviewSizing.HidePanel"/> rather than a
+            /// copy of it. Every report the stop produces is kept, so a test can assert not only
+            /// WHETHER the canary spoke but HOW MANY TIMES.
+            ///
+            /// WHAT THIS STILL CANNOT SEE (DEVELOPMENT_METHOD.md 6c.6): the window here carries the
+            /// HUD's sizing shape, not HudWindow's controls, so this drives the teardown SetStatus
+            /// runs and not SetStatus itself. That SetStatus reaches this teardown, and that the
+            /// ordinary stop reaches SetStatus, is asserted against the compiled IL in
+            /// <c>HudSizeMemoryTests.SetStatus_TakesThePanelDownThroughTheSharedSizingPath</c> and
+            /// <c>TheOrdinaryStop_ReachesTheReportingHidePanel</c>. What no in-process check here can
+            /// prove is that the count stays three: it is three because of two callers in two files,
+            /// and the guard against a fourth is that the teardown is idempotent, which is exactly
+            /// what these tests assert.
             /// </summary>
             public void StopRecording()
             {
-                _panel.Visibility = Visibility.Collapsed;
-                _log.Add("-- stop (SetStatus) --");
-                LastUnattributedSize = HudPreviewSizing.HidePanel(Window, Memory);
-                if (LastUnattributedSize != null) _log.Add("   canary: " + LastUnattributedSize);
-                Pump();
+                foreach (string label in StopStatusLabels)
+                {
+                    // Everything SetStatus does to the preview, in SetStatus's order: the panel is
+                    // collapsed and taken down, but the HUD's own "preview is on" flag is
+                    // deliberately NOT cleared - the recording is simply over.
+                    _panel.Visibility = Visibility.Collapsed;
+                    _log.Add($"-- stop: SetStatus(\"{label}\") --");
+                    string? reported = HudPreviewSizing.HidePanel(Window, Memory);
+                    CanaryReports.Add(reported);
+                    if (reported != null)
+                    {
+                        LastUnattributedSize = reported;
+                        _log.Add("   canary: " + reported);
+                    }
+                    Pump();
+                }
             }
+
+            /// <summary>The three staged labels one stop pushes into the HUD, in order. Production's
+            /// own strings: "Stopping..." is <c>HudWindow.RunOnce</c>'s busy label for the HUD's Stop
+            /// button, the other two are <c>RecordingStop.Keep</c>'s raw-flush stages.</summary>
+            public static readonly string[] StopStatusLabels =
+                { "Stopping...", "Saving video...", "Saving audio..." };
+
+            /// <summary>What the canary reported at each SetStatus call of the last
+            /// <see cref="StopRecording"/> - one entry per call, null where it said nothing. A stop
+            /// may ring the alarm at most once; more than once is the round-6 defect.</summary>
+            public readonly List<string?> CanaryReports = new();
 
             /// <summary>
             /// The person resizes the HUD through UI Automation's TransformPattern - an
