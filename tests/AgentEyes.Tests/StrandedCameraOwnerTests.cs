@@ -431,7 +431,7 @@ namespace AgentEyes.Tests
         // ---- gate round 4, defect 5: the CLI must hand its abandoned camera over ---------------
 
         [Fact]
-        public void Video_HandsAnAbandonedCameraToAStrandedOwnerInsteadOfDroppingTheOnlyReference()
+        public void Video_HandsAnAbandonedCameraToAStrandedOwnerAtBothOfItsFailureBoundaries()
         {
             // GATE ROUND 4, DEFECT 5, and it is STRUCTURAL: "the only StrandedCameraOwner in product
             // code is the service field at RecordingService.cs:121; there is no transfer from the
@@ -449,21 +449,60 @@ namespace AgentEyes.Tests
             // assertions below turn "the scan found nothing anywhere" into a failure rather than a
             // pass.
             //
-            // WHAT IT CANNOT SEE, stated rather than implied: it proves the transfer is COMPILED
-            // INTO Commands::Video, not that it runs on every path - the behaviour of the owner
+            // WHAT IT CANNOT SEE, stated rather than implied: it proves the transfers are COMPILED
+            // INTO Commands::Video, not that they run on every path - the behaviour of the owner
             // itself is what the tests above exercise.
-            var owners = CompiledCode.CallSites(CompiledCode.CoreAssembly,
-                callee => callee.Contains("StrandedCameraOwner::", StringComparison.Ordinal));
-            var disposals = CompiledCode.CallSites(CompiledCode.CoreAssembly,
-                callee => callee.Contains("FfmpegCameraRecorder::Dispose", StringComparison.Ordinal));
+            //
+            // AND IT IS PER SITE (gate round 5, QA mutation ruling). The assertion that used to
+            // stand here was "Commands::Video calls SOMETHING on StrandedCameraOwner", which is
+            // satisfied by EITHER boundary, so deleting either one alone left it green - the two
+            // non-firing CLI mutations the gate reported. There are two transfers because there are
+            // two ways out of this command that can strand a camera, and each one needs an assertion
+            // that only it can satisfy. IL exception regions tell them apart exactly: the failed-open
+            // transfer sits INSIDE the command's last-owner boundary (a try covered by a finally),
+            // and the final transfer IS that boundary's handler, which no try of its own covers.
+            const string Retain = "AgentEyes.StrandedCameraOwner::RetainIfStranded";
+            const string DisposeRecorder = "AgentEyes.Video.FfmpegCameraRecorder::Dispose";
 
-            // The instrument works: it can see these calls somewhere, so an absence in Video below
-            // is a real absence and not a scanner that matched nothing at all.
-            Assert.NotEmpty(owners);
-            Assert.NotEmpty(disposals);
+            // Fail-closed by construction: GuardedCalls throws if Commands::Video is gone, or if it
+            // contains no call to the callee at all, so "found nothing" can never read as a pass.
+            var transfers = CompiledCode.GuardedCalls(CompiledCode.CoreAssembly, "AgentEyes.Commands::Video", Retain)
+                .OrderBy(c => c.Offset).ToList();
+            var disposals = CompiledCode.GuardedCalls(CompiledCode.CoreAssembly, "AgentEyes.Commands::Video", DisposeRecorder)
+                .OrderBy(c => c.Offset).ToList();
 
-            Assert.Contains(disposals, c => c.Method.Contains("Commands::Video", StringComparison.Ordinal));
-            Assert.Contains(owners, c => c.Method.Contains("Commands::Video", StringComparison.Ordinal));
+            // The per-site assertions come FIRST on purpose. A count of two would fail for either
+            // deletion, but it would name neither, and a single assertion that both sites happen to
+            // trip is not the same thing as an assertion per site. Deleting one boundary has to fail
+            // on the line that is about THAT boundary.
+
+            // SITE 1 - the failed-open boundary. Its distinguishing fact is that it runs while the
+            // command's own finally is still owed: the open failed inside the outer try, so this
+            // call is covered by a Finally region. Deleting it takes this line's Single() with it.
+            var failedOpen = Assert.Single(transfers.Where(c => c.Handlers.Contains("Finally")));
+
+            // SITE 2 - the final boundary, read from the OTHER side: it is the handler that covers
+            // site 1, so site 1's own cleanup list names it. The order is part of the assertion -
+            // the retry disposes first and hands over only what that could not end. Deleting this
+            // boundary empties this list, whatever site 1 does.
+            Assert.Equal(
+                new[] { DisposeRecorder, Retain },
+                failedOpen.CleanupCalls.Where(c => c == DisposeRecorder || c == Retain).ToArray());
+
+            // ...and directly, as a call that no try region protects, because it IS the handler.
+            var lastOwner = Assert.Single(transfers.Where(c => c.Handlers.Count == 0));
+            Assert.True(lastOwner.Offset > failedOpen.Offset,
+                "the last-owner boundary is the finally handler, which the compiler emits after the try");
+
+            // Each transfer is preceded by ITS OWN disposal: getting ffmpeg off the camera is tried
+            // first at both sites, and only what survives that is handed over.
+            Assert.Equal(2, disposals.Count);
+            Assert.True(disposals[0].Offset < failedOpen.Offset, "the failed-open path disposes before it hands over");
+            Assert.True(disposals[1].Offset > failedOpen.Offset && disposals[1].Offset < lastOwner.Offset,
+                "the finally disposes before it hands over");
+
+            // And there is no THIRD transfer hiding behind the two the assertions above named.
+            Assert.Equal(2, transfers.Count);
         }
 
         // ---- the failed-start path ----------------------------------------------

@@ -193,6 +193,33 @@ namespace AgentEyes.Video
         /// </summary>
         private static readonly TimeSpan OutputStallWindow = TimeSpan.FromSeconds(3);
 
+        /// <summary>
+        /// The ONLY exit codes an ffmpeg that ANSWERED "q" is observed to return - the whole
+        /// accepted set, listed rather than described by a range (gate round 5, defect 1).
+        ///
+        ///  - <c>0</c>: ffmpeg's ordinary success exit. Every clause of the encode ran, including
+        ///    the muxer's trailer.
+        ///  - <c>255</c>: what ffmpeg returns when it stops because the interactive "q" was pressed
+        ///    rather than because the input ended. It still ran its own exit path and still wrote
+        ///    the MP4 trailer, and it is the code AC17's positive control actually observes, so it
+        ///    is accepted on exactly the same footing as 0.
+        ///
+        /// EVERYTHING ELSE IS NOT A CLEAN QUIT, and that is the whole point of enumerating rather
+        /// than testing <c>exitCode >= 0</c>: that test made every value from 0 to
+        /// <see cref="int.MaxValue"/> proof that the file was finalized, so a "q" that was delivered
+        /// and then met a muxer, disk or encoder failure on the way out - ffmpeg's own exit 1 -
+        /// wrote <c>clean-quit</c> / <c>yes</c> over a take ffmpeg had explicitly reported as
+        /// failed. An error code the process chose for itself is the strongest evidence available
+        /// that the take is NOT good; reading it as a clean quit is the fail-open defect this issue
+        /// exists to remove.
+        ///
+        /// Widening this set is a deliberate act: it needs an ffmpeg build OBSERVED to answer "q"
+        /// with that code, and it belongs here, next to the two that were. An unanticipated code is
+        /// not a failure to write - the stop kind is simply ABSENT and the take is <c>unknown</c>,
+        /// which is what the amended contract requires of every case this class did not anticipate.
+        /// </summary>
+        private static readonly int[] QuitExitCodes = { 0, 255 };
+
         private readonly ICameraProcess _proc;
         private readonly StringBuilder _stderr = new();
         private readonly string _logPath;
@@ -314,6 +341,37 @@ namespace AgentEyes.Video
         /// said the take was complete. The process really did end; how it ended was never observed.
         /// </summary>
         private bool _quitDelivered;
+
+        /// <summary>
+        /// True once this recorder has actually TRIED to terminate the process - a "q" written to
+        /// its stdin, or a kill issued at it.
+        ///
+        /// It is what tells a FIRST stop apart from a RETRY, and the two read the same fact
+        /// completely differently (gate round 5, defect 2). "The process has already exited" means
+        /// "it died before anybody asked it to" only while nothing has asked it to. Once a quit or a
+        /// kill has been sent, a process later found gone ended for a reason this recorder did NOT
+        /// watch - it is not exited-early, it is not a clean quit, and none of the four kinds
+        /// describes it, so none of them is written down.
+        ///
+        /// Deliberately NOT <c>_stopRequested</c>: a failed OPEN sets that flag without ever having
+        /// tried to terminate anything, and deliberately not "is this the first Stop call", because
+        /// what the guards below are actually about is whether this recorder has interfered with the
+        /// process yet.
+        /// </summary>
+        private bool _terminationAttempted;
+
+        /// <summary>
+        /// True once a kill this recorder issued was REFUSED - the wait after it timed out and the
+        /// process was still there.
+        ///
+        /// It is a fact about what happened, kept apart from the stop kind on purpose (gate round 5,
+        /// defect 2). <see cref="CameraStopKind.Abandoned"/> is DEFINED as surviving the quit, the
+        /// kill AND the Dispose retry, so it cannot be written down at the first refused kill - one
+        /// refusal is two thirds of that definition, and a process that then dies on its own before
+        /// the retry never faced the third. This flag carries the refusal until
+        /// <see cref="Dispose"/> can say whether it was the last word.
+        /// </summary>
+        private bool _killRefused;
 
         /// <summary>How the camera process ended, once that has been OBSERVED. Null while the
         /// recording is running and after a stop that never reached the process.</summary>
@@ -485,8 +543,15 @@ namespace AgentEyes.Video
         }
 
         /// <summary>
-        /// True while a camera ffmpeg this recorder started is STILL RUNNING after everything this
-        /// recorder can do to it - the quit, the kill, and the <see cref="Dispose"/> retry (AC16).
+        /// True while a camera ffmpeg this recorder started is STILL RUNNING after a kill it issued
+        /// was REFUSED - the state AC16 is about, from the first refusal onwards so that the
+        /// <see cref="Dispose"/> retry and the owner that holds this object can both see it.
+        ///
+        /// It reads <see cref="_killRefused"/> rather than the stop kind (gate round 5, defect 2).
+        /// The two answer different questions and only one of them may be answered early: "is there
+        /// a live ffmpeg on the webcam right now" has to be answerable the moment the first kill is
+        /// refused, because that is when the owner has to decide whether to keep this object; "how
+        /// did the process end" cannot be answered until it has ended.
         ///
         /// It is what makes the failure OWNABLE rather than merely reported: whoever holds this
         /// object still holds the only handle that can reach that process, and this is the flag that
@@ -504,7 +569,7 @@ namespace AgentEyes.Video
         /// released only by <see cref="Dispose"/>, and only once <see cref="_terminated"/> is true -
         /// which this test short-circuits on first.
         /// </summary>
-        public bool IsAbandoned => _stopKind == CameraStopKind.Abandoned && !_terminated && !_proc.HasExited;
+        public bool IsAbandoned => _killRefused && !_terminated && !_proc.HasExited;
 
         private FfmpegCameraRecorder(ICameraProcess proc, string deviceName, string outputPath, string commandLine,
             string logPath, DateTime startedUtc, TimeSpan openTimeout, Func<DateTime> now)
@@ -882,13 +947,18 @@ namespace AgentEyes.Video
             // has to say so: writing CameraTruncated:false over a camera file that ends early tells
             // an editor the take is complete when it is not.
             //
-            // ONLY WHILE NOTHING HAS BEEN OBSERVED YET (_stopKind == null). A RETRY - the Dispose
-            // that follows a stop which could not kill ffmpeg - reaches this line again, and by then
-            // "the process has exited" means something completely different: it means the ABANDONED
-            // process finally died. Overwriting the recorded observation there would relabel a
-            // camera that ignored the quit AND the kill as one that "died before the stop was
-            // requested", making the durable record depend on when somebody next looked.
-            if (_opened && _proc.HasExited && !_lostMidRun && _stopKind == null)
+            // ONLY WHILE THIS RECORDER HAS NOT YET TOUCHED THE PROCESS (_terminationAttempted).
+            // A RETRY - the Dispose that follows a stop which could not kill ffmpeg - reaches this
+            // line again, and by then "the process has exited" means something completely different:
+            // it means the process that ignored the quit AND the kill finally died, for a reason
+            // nothing here watched. Reading that as "it died before the stop was requested" would
+            // make the durable record depend on when somebody next looked.
+            //
+            // The guard used to be "_stopKind == null", which worked only because the first refused
+            // kill wrote a provisional "abandoned" into that field - the very overclaim gate round 5
+            // rejected. With the provisional value gone the guard has to say what it always meant:
+            // has anything been asked of this process yet.
+            if (_opened && _proc.HasExited && !_lostMidRun && !_terminationAttempted)
             {
                 _lostMidRun = true;
                 Log.Warn($"[FfmpegCameraRecorder] Stop: the camera \"{DeviceName}\" had already exited when the stop "
@@ -910,6 +980,9 @@ namespace AgentEyes.Video
                 {
                     try
                     {
+                        // From here on this recorder HAS interfered with the process, so a later
+                        // "it has exited" is no longer evidence that it exited early.
+                        _terminationAttempted = true;
                         _proc.SendQuit();
                         // The quit was DELIVERED. Recorded, because a subsequent exit can only be
                         // read as an ANSWER to a quit that actually arrived (gate round 4, defect 1).
@@ -934,19 +1007,27 @@ namespace AgentEyes.Video
                         // anything can release the handle it needs:
                         //
                         //  1. the quit was delivered; and
-                        //  2. the process was not terminated ABNORMALLY. A negative exit code is the
-                        //     operating system reporting that (an NTSTATUS such as 0xC0000005
-                        //     surfacing as a negative int), so ffmpeg never ran its own exit path and
-                        //     cannot have written the MP4 trailer.
+                        //  2. the code it exited WITH is one of the codes an ffmpeg that answered
+                        //     "q" is observed to return - see QuitExitCodes, which lists them.
                         //
-                        // A non-negative code is deliberately NOT held against the take: ffmpeg is
-                        // not pinned to one build here (FfmpegLocator will take a bundled, PATH or
-                        // winget ffmpeg) and different builds answer "q" with 0 or with 255. Reading
-                        // every non-zero code as a broken take would turn AC17's positive control
-                        // into "unknown" on somebody else's machine, which is the fail-open fix
-                        // wearing the opposite mask.
+                        // THE SECOND CLAUSE USED TO BE "exitCode >= 0" (gate round 5, defect 1),
+                        // which accepted every value up to int.MaxValue. It was reaching for the
+                        // right thing - a NEGATIVE code is the operating system reporting an
+                        // abnormal termination (an NTSTATUS such as 0xC0000005 surfacing as a
+                        // negative int), so ffmpeg never ran its own exit path at all - but it read
+                        // "not obviously killed by the OS" as "finalized the file". ffmpeg's own
+                        // error codes live in exactly the range that test waved through: a delivered
+                        // "q" followed by a muxer, disk or encoder failure while closing exits 1,
+                        // and the manifest said clean-quit / yes about a take ffmpeg had just
+                        // reported as failed.
+                        //
+                        // The set is enumerated rather than ranged because the two members are
+                        // OBSERVATIONS, not a policy: ffmpeg is not pinned to one build here
+                        // (FfmpegLocator will take a bundled, PATH or winget ffmpeg) and builds
+                        // answer "q" with 0 or with 255. Anything else is unanticipated, and an
+                        // unanticipated case gets no stop kind and a Completeness of "unknown".
                         int exitCode = _proc.ExitCode;
-                        if (_quitDelivered && exitCode >= 0)
+                        if (_quitDelivered && Array.IndexOf(QuitExitCodes, exitCode) >= 0)
                         {
                             // It answered "q" and finalized the file itself. The ONLY stop kind that
                             // can lead to CameraComplete: yes - and on its own it is still not enough.
@@ -982,11 +1063,15 @@ namespace AgentEyes.Video
                     KillOrThrow();
                 }
             }
-            else if (_stopKind == null)
+            else if (_stopKind == null && !_terminationAttempted)
             {
                 // Already gone when the stop arrived, on a recorder that never reported the camera
                 // open - so there was no mid-run to be lost from. It still ended before it was asked
                 // to, and that is what gets written down.
+                //
+                // Same guard, same reason as the one at the top of this method: this is only
+                // "exited early" while nothing had yet asked it to exit. A retry that finds the
+                // process gone after a quit and a refused kill watched nothing, and writes nothing.
                 _stopKind = CameraStopKind.ExitedEarly;
             }
 
@@ -1065,6 +1150,10 @@ namespace AgentEyes.Video
         /// </summary>
         private void KillOrThrow()
         {
+            // Same reason as the quit above: after this line, a process later found gone did not
+            // necessarily end of its own accord, and nothing here watched which it was.
+            _terminationAttempted = true;
+
             try { _proc.Kill(); }
             catch (Exception ex) { Log.Error($"[FfmpegCameraRecorder] Stop: kill failed for \"{DeviceName}\"", ex); }
 
@@ -1079,9 +1168,17 @@ namespace AgentEyes.Video
             // ffmpeg is alive, it still holds an exclusive DirectShow device and still owns
             // camera.mp4. _terminated stays false, so Dispose gets one more attempt at it - and if
             // that one also fails, this is what the service reads to keep the recorder REACHABLE
-            // instead of dropping the only handle to it (AC16). Recorded before the throw, so a
-            // manifest written between here and the retry says "abandoned" rather than guessing.
-            _stopKind = CameraStopKind.Abandoned;
+            // instead of dropping the only handle to it (AC16).
+            //
+            // THE REFUSAL IS RECORDED; THE STOP KIND IS NOT (gate round 5, defect 2). This line used
+            // to write CameraStopKind.Abandoned, and the retry then deliberately refused to replace
+            // or clear it - so a camera that ignored "q", survived this kill, and then exited ON ITS
+            // OWN before the Dispose retry was written into the manifest as "abandoned": a claim
+            // that it survived a retry it never faced. "abandoned" is DEFINED as outliving the quit,
+            // the kill AND the retry, and only Dispose can see the third of those. Until it does,
+            // this is a refused kill and nothing more; the stop kind stays ABSENT and Completeness
+            // answers "unknown", which is the honest reading of a process still being fought over.
+            _killRefused = true;
             if (_opened) WriteFfmpegLog();
             Log.Error($"[FfmpegCameraRecorder] Stop FAILED: the camera ffmpeg (\"{DeviceName}\") survived "
                       + $"the kill and is still running - it still holds the camera and {OutputPath}");
@@ -1156,10 +1253,24 @@ namespace AgentEyes.Video
 
             if (!_terminated)
             {
+                // THIS IS WHERE "abandoned" BECOMES TRUE, and the only place it can (gate round 5,
+                // defect 2). The definition has three clauses - it outlived the quit, the kill AND
+                // this retry - and this is the first line in the object's life at which all three
+                // have actually happened. Written here, it is never a prediction: the retry above
+                // has just run and left the process alive, which the log line below says in as many
+                // words.
+                //
+                // Never retracted, either. A process that survived all three and dies a minute later
+                // still survived all three, so a second Dispose that finally finds it gone leaves
+                // this record alone - what is a fact about the process RIGHT NOW is IsAbandoned, and
+                // that asks the process every time.
+                _stopKind = CameraStopKind.Abandoned;
+
                 Log.Error($"[FfmpegCameraRecorder] Dispose: the camera ffmpeg (\"{DeviceName}\") is STILL RUNNING "
                           + $"after a second termination attempt - it still holds the camera and {OutputPath}. The "
                           + "process handle is KEPT (disposing it would not end the process, only hide it); this "
-                          + "recorder can still be stopped again.");
+                          + $"recorder can still be stopped again. stopKind={CameraObservation.Text(_stopKind)} "
+                          + $"complete={CameraObservation.Text(Completeness)}");
                 return;
             }
 

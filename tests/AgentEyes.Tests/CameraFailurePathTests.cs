@@ -1156,9 +1156,14 @@ namespace AgentEyes.Tests
             // "unknown", which is the fail-open fix wearing the opposite mask.
             //
             // ffmpeg is NOT pinned to one build here (FfmpegLocator will take a bundled, PATH or
-            // winget ffmpeg), and different builds answer "q" with 0 or with 255, so a NON-NEGATIVE
-            // code is deliberately not held against the take: what is required is that the quit was
-            // delivered and that the process was not terminated abnormally.
+            // winget ffmpeg), and 255 is what it returns when it stops because the interactive "q"
+            // was pressed rather than because the input ended. It ran its own exit path and wrote
+            // the MP4 trailer, so it is an OBSERVED healthy answer and it is accepted on exactly the
+            // same footing as 0. Rejecting it would turn every healthy recording on some machines
+            // into "unknown".
+            //
+            // What it does NOT license is the test that used to stand here - "any non-negative code
+            // is a clean quit" - see the exit-1 case below.
             //
             // Bad result: StopKind != CleanQuit for a quit that was delivered and answered.
             var proc = new FakeCameraProcess { QuitEndsIt = false };
@@ -1171,6 +1176,39 @@ namespace AgentEyes.Tests
             Assert.Equal(1, proc.Quits);
             Assert.Equal(0, proc.Kills);
             Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Yes, rec.Completeness);
+        }
+
+        [Fact]
+        public void Stop_WhenADeliveredQuitEndedInAnFfmpegErrorCode_IsNeverRecordedAsACleanQuit()
+        {
+            // GATE CASE DELIVERED_QUIT_THEN_EXIT_1 (round 5, defect 1). The rule was "the quit was
+            // delivered AND the exit code is not negative", and a negative code is only how the
+            // OPERATING SYSTEM reports an abnormal termination. ffmpeg's OWN error codes are
+            // positive, so the whole range from 1 to int.MaxValue was being read as proof that the
+            // file had been finalized: "q" arrives, ffmpeg hits a muxer, disk or encoder failure
+            // while closing, exits 1 and says so - and the manifest recorded clean-quit / yes.
+            //
+            // An error code the process CHOSE for itself is the strongest evidence available that
+            // the take is not good. It is not evidence of how the file ended either, so this is not
+            // "no": the stop kind is ABSENT and the take is "unknown".
+            //
+            // Bad results: StopKind == CleanQuit, or Completeness == Yes. Empty result: impossible -
+            // the quit is asserted delivered and the process asserted exited, so the test cannot
+            // pass by never reaching the state it is about.
+            var proc = new FakeCameraProcess { QuitEndsIt = false };
+            using var rec = StartOver(proc);
+            proc.Emit(TickAt(TimeSpan.FromSeconds(1)));
+            proc.QuitEndsItWith = () => proc.End(1);   // the muxer failed as the file was closed
+
+            rec.Stop();
+
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(0, proc.Kills);
+            Assert.True(proc.HasExited);
+            Assert.True(rec.StderrComplete, "the evidence is complete - this is not an unfinished read");
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
         }
 
         [Fact]
@@ -1317,28 +1355,77 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void StopKind_WhenTheRetryFindsAnAbandonedProcessGone_StaysAbandonedRatherThanBeingRelabelled()
+        public void StopKind_WhenTheProcessDiesBeforeTheDisposeRetry_IsNeverRecordedAsAbandoned()
         {
-            // The record has to survive the retry that reads it. Once a stop has observed
-            // "abandoned", a later Dispose that finds the process finally gone must not overwrite
-            // that with "exited-early": the process did not end before it was asked to, it ignored
-            // everything it was asked and outlived the stop. Relabelling it would make the durable
-            // observation depend on WHEN somebody next looked.
+            // GATE CASE DIED_BEFORE_DISPOSE_RETRY (round 5, defect 2). "abandoned" is DEFINED as
+            // outliving the quit, the kill AND the Dispose retry. A camera that ignored "q" and
+            // survived the first kill wait has met two of those three; if it then exits ON ITS OWN
+            // before the retry, it never faced the third, and the manifest may not say it survived
+            // a retry that never reached it.
             //
-            // Bad result: StopKind == ExitedEarly, or LostMidRun == true, after the retry.
+            // This test used to REQUIRE that overclaim. The old code wrote a provisional
+            // CameraStopKind.Abandoned at the first refused kill and then deliberately refused to
+            // replace or clear it, and the manifest - saved only after Stop AND Dispose have both
+            // run - made the provisional value durable. Nothing about the recovery was wrong: the
+            // claim was released and /status showed no stuck process. The RECORD was.
+            //
+            // The honest answer here is no answer: none of the four kinds describes a process that
+            // ended for a reason nothing watched, so the stop kind is ABSENT and the take is
+            // "unknown". Not "exited-early" either - it did not end before it was asked to, it
+            // ignored everything it was asked.
+            //
+            // Bad results this fires on: StopKind == Abandoned (the overclaim), StopKind ==
+            // ExitedEarly (the relabelling the old guard existed to prevent), or LostMidRun == true.
+            // Empty result: impossible - HasExited and the released handle are both asserted, so the
+            // test cannot pass by never reaching the state it is about.
             var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
             var rec = StartOver(proc);
 
             Assert.Throws<CameraStopFailedException>(() => rec.Stop());
-            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.True(rec.IsAbandoned, "the fixture only means anything once the kill really was refused");
+            Assert.Null(rec.StopKind);      // two clauses of three is not the definition
 
             proc.End(0);            // it dies between the failed stop and the retry
             rec.Dispose();          // the retry, which now finds it gone
 
-            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.True(proc.HasExited);
+            Assert.Null(rec.StopKind);
+            Assert.False(rec.IsAbandoned);
             Assert.False(rec.LostMidRun);
             Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
             Assert.Equal(1, proc.Disposes);   // and the handle IS released now that it is confirmed gone
+        }
+
+        [Fact]
+        public void StopKind_WhenTheSurvivingProcessFinallyDiesAfterTheDisposeRetry_StaysAbandoned()
+        {
+            // The other side of the case above, and the property the old test was really protecting:
+            // once all three clauses HAVE happened, the record is durable and is never relabelled.
+            // A process that outlived the quit, the kill and the Dispose retry outlived them whether
+            // or not it dies a minute later, so a second Dispose that finally finds it gone must not
+            // turn "abandoned" into "exited-early" - that would make the durable observation depend
+            // on when somebody next looked.
+            //
+            // Bad results: StopKind == ExitedEarly or null after the second retry. IsAbandoned is
+            // the one that IS allowed to change, because it is a statement about the process now.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            var rec = StartOver(proc);
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());
+            rec.Dispose();          // the retry it also survives - all three clauses are now met
+
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.True(rec.IsAbandoned);
+            Assert.Equal(0, proc.Disposes);   // the handle is KEPT while the process lives
+
+            proc.End(0);            // it finally lets go, long after everything was tried
+            rec.Dispose();          // a later owner sweep
+
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.False(rec.IsAbandoned, "it is not still running - but it WAS abandoned");
+            Assert.False(rec.LostMidRun);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.Equal(1, proc.Disposes);
         }
 
         [Fact]
