@@ -1,0 +1,15 @@
+22:09:15.787 [INFO] QAPROBE SizeChanged stc=WidthAndHeight aw=366.99333333333334 ah=52
+22:09:15.788 [INFO] QAPROBE memory now w=none h=none
+22:09:21.851 [INFO] hud: preview toggled -> shown
+22:09:21.855 [INFO] QAPROBE SizeChanged stc=Manual aw=367 ah=52
+22:09:21.856 [INFO] QAPROBE memory now w=367 h=52
+22:09:21.857 [INFO] QAPROBE ApplyPreviewState show: memory w=367 h=52 -> opening panel at 367x52
+22:09:27.317 [INFO] QAPROBE SizeChanged stc=WidthAndHeight aw=260 ah=52
+22:09:27.317 [INFO] QAPROBE memory now w=367 h=52
+22:09:32.784 [INFO] hud: saving position left=1537 top=16 width=367 height=52
+22:09:39.570 [INFO] QAPROBE ApplyPreviewState show: memory w=367 h=52 -> opening panel at 367x52
+22:09:39.584 [INFO] QAPROBE SizeChanged stc=Manual aw=367 ah=52
+22:09:39.585 [INFO] QAPROBE memory now w=367 h=52
+22:09:47.759 [INFO] QAPROBE SizeChanged stc=WidthAndHeight aw=260 ah=52
+22:09:47.759 [INFO] QAPROBE memory now w=367 h=52
+22:09:53.133 [INFO] hud: saving position left=1537 top=16 width=367 height=52
