@@ -7,31 +7,42 @@ namespace AgentEyes.Tests
 {
     /// <summary>
     /// Issue #33, AC7 (the HUD comes back at the size it was left at) and AC1 (toggling the preview
-    /// shows the panel), at the level of the DECISION: which of the sizes a window reports is a size
-    /// a person actually chose.
+    /// shows the panel), at the level of the DECISION: which size the next recording's HUD opens at,
+    /// and what is allowed to change it.
     ///
-    /// TWO defects have now been shipped on this one question, and both were ordering, not arithmetic:
+    /// THREE defects were shipped on this one question, and all three were the same mistake:
     ///
     ///  1. 2026-08-28, round 1 - the save read the window's live size in the Closed handler, by which
     ///     point the stop had already auto-sized the HUD back to the pill. A HUD left at 1600x760
     ///     came back at 520x400.
-    ///  2. 2026-08-28, round 2 - the fix for (1) recorded every size the window reported while
-    ///     manually sized. Switching to manual sizing re-lays the window out SYNCHRONOUSLY and
-    ///     reports the pill's 367x52 from inside the assignment, so the pill became the remembered
-    ///     size, was read straight back two statements later, and was written to config: the preview
-    ///     panel opened at pill size with a zero-sized picture, for that recording and every one
-    ///     after it.
+    ///  2. round 2 - the fix for (1) recorded every size the window reported while manually sized.
+    ///     Switching to manual sizing re-lays the window out synchronously and reports the pill's
+    ///     367x52 from inside the assignment, so the pill became the remembered size, was read
+    ///     straight back, and was written to config: the panel opened at pill size with a zero-sized
+    ///     picture, for that recording and every one after it.
+    ///  3. round 3 - the fix for (2) suppressed the reports made during the panel-open transition
+    ///     and ended the transition on the window's next completed layout. On a HUD CONSTRUCTED with
+    ///     the preview already on, that layout belongs to some other element: the transition ended
+    ///     at 0x0 and the first size the window reported was attributed to the person. A hands-off
+    ///     recording silently rewrote a stored 200x100 to 260x100.
     ///
-    /// So these tests replay SEQUENCES, never single calls. A test that only asked "does the memory
-    /// keep a manually-sized report?" passes against both shipped defects and proves nothing.
+    /// Every one of those fixes was a BLOCKLIST - name the transition that produced a bogus size and
+    /// suppress it - and a blocklist only ever excludes what somebody has already been burned by.
+    ///
+    /// SO THE POLARITY IS INVERTED, and these tests are short because the class is. There is no
+    /// judgement left in <see cref="HudSizeMemory"/> to test: it does not observe the window, it has
+    /// one mutator, and that mutator is called only from <see cref="HudUserResize"/>'s three
+    /// positively-identified gestures. The questions "which report is real" and "is the transition
+    /// over" no longer exist.
     ///
     /// WHAT THESE TESTS CANNOT SEE, stated rather than implied (DEVELOPMENT_METHOD.md 6c.6): they
-    /// write the sequence themselves, so they can only prove what the memory does with a given
-    /// order - never which order WPF actually produces. That question is what defeated round 2's
-    /// suite, and it is answered separately in <c>HudPreviewSizingOrderTests</c>, which drives a real
-    /// WPF window through this same production code and reads the order WPF really raises. The IL
-    /// assertions at the bottom of this file are the third leg: they hold HudWindow to reaching this
-    /// logic through <see cref="HudPreviewSizing"/> and to owning no sizing decisions of its own.
+    /// call the memory directly, so they can only prove what it does with a given call - never that
+    /// a layout pass cannot make that call. That is the whole question this round, and it is
+    /// answered in two other places: <c>HudPreviewSizingOrderTests</c> drives a real WPF window
+    /// through the production code (including the constructor path and the gestures), and
+    /// <c>HudUserResizeTests</c> holds the call graph shut against the compiled IL. The IL
+    /// assertions at the bottom of this file are the wiring leg: they hold HudWindow to reaching
+    /// this logic through <see cref="HudPreviewSizing"/> and to owning no sizing decisions itself.
     /// </summary>
     public class HudSizeMemoryTests
     {
@@ -40,31 +51,18 @@ namespace AgentEyes.Tests
         private const double DefaultPreviewWidth = 520, DefaultPreviewHeight = 400;
         private const double ResizedWidth = 1600, ResizedHeight = 760;  // the size QA left the HUD at
 
-        /// <summary>The reports WPF makes while the panel is being opened, in the order it makes
-        /// them - the pill it is leaving, the width-applied-but-not-height size in between, and the
-        /// commanded size on arrival. Measured in HudPreviewSizingOrderTests, replayed here.</summary>
-        private static void ReplayTheOpeningTransition(HudSizeMemory memory, double commandedWidth, double commandedHeight)
-        {
-            memory.Observe(panelVisible: true, manuallySized: true, PillWidth, PillHeight);
-            memory.Observe(panelVisible: true, manuallySized: true, commandedWidth, PillHeight);
-            memory.Observe(panelVisible: true, manuallySized: true, commandedWidth, commandedHeight);
-        }
-
-        // ---- round 2's defect: the transition is not a choice ------------------
+        // ---- what the panel opens at -----------------------------------------
 
         /// <summary>
-        /// THE SHIPPED DEFECT. The panel is opened on a HUD that is already on screen at the pill's
-        /// size. Every size WPF reports on the way belongs to the transition, so when it is over the
-        /// memory must still hold nothing at all - and the panel must have been commanded to the
-        /// default, not to the pill.
+        /// A HUD nobody has ever resized opens the panel at the caller's default - and asking is a
+        /// READ. Round 2 shipped because asking the window instead returned the pill.
         /// </summary>
         [Fact]
-        public void OpenPanel_OnAPillSizedWindow_CommandsTheDefaultAndRemembersNothing()
+        public void PreferredSize_OnAFreshMemory_IsTheDefaultAndRecordsNothing()
         {
             var memory = new HudSizeMemory(null, null);
 
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(memory, width, height);
+            var (width, height) = memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
 
             Assert.Equal(DefaultPreviewWidth, width);
             Assert.Equal(DefaultPreviewHeight, height);
@@ -73,46 +71,24 @@ namespace AgentEyes.Tests
             Assert.Null(memory.Height);
         }
 
-        /// <summary>The pill can no longer become the panel's size even if the window reports it
-        /// LAST - the transition is over only when the commanded size arrives.</summary>
+        /// <summary>Opening the panel over and over - a mode change, a corner change, hide and show -
+        /// is not a resize however many times it happens.</summary>
         [Fact]
-        public void Observe_PillReportedThroughoutTheTransition_IsNeverRemembered()
+        public void PreferredSize_AskedRepeatedly_NeverRecordsAnything()
         {
             var memory = new HudSizeMemory(null, null);
 
-            memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            memory.Observe(panelVisible: true, manuallySized: true, PillWidth, PillHeight);
-            memory.Observe(panelVisible: true, manuallySized: true, PillWidth, PillHeight);
+            for (int i = 0; i < 5; i++) memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
 
             Assert.False(memory.HasSize);
         }
 
-        /// <summary>Once the commanded size has arrived, the window is standing still and the next
-        /// size it reports can only be the person's.</summary>
         [Fact]
-        public void Observe_AfterTheTransition_RemembersTheResize()
-        {
-            var memory = new HudSizeMemory(null, null);
-
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(memory, width, height);
-            memory.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);
-
-            Assert.True(memory.HasSize);
-            Assert.Equal(ResizedWidth, memory.Width);
-            Assert.Equal(ResizedHeight, memory.Height);
-        }
-
-        /// <summary>Re-opening the panel at a REMEMBERED size is the same transition, and its reports
-        /// are no more a choice than the default's were - including the pill on the way through.
-        /// </summary>
-        [Fact]
-        public void OpenPanel_WithARememberedSize_CommandsItAndDoesNotRerecordTheTransition()
+        public void PreferredSize_WithARememberedSize_IsThatSize()
         {
             var memory = new HudSizeMemory(ResizedWidth, ResizedHeight);
 
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(memory, width, height);
+            var (width, height) = memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
 
             Assert.Equal(ResizedWidth, width);
             Assert.Equal(ResizedHeight, height);
@@ -120,78 +96,64 @@ namespace AgentEyes.Tests
             Assert.Equal(ResizedHeight, memory.Height);
         }
 
-        /// <summary>A commanded size that comes back a hair different - a window's size makes a round
-        /// trip through physical pixels on a scaled display - still counts as arrival, or the
-        /// transition would never end and the person's later resizes would all be discarded.
-        /// </summary>
-        [Fact]
-        public void Observe_CommandedSizeArrivesSlightlyRounded_StillEndsTheTransition()
+        [Theory]
+        [InlineData(0, 400)]
+        [InlineData(520, 0)]
+        [InlineData(-1, -1)]
+        public void PreferredSize_WithANonPositiveDefault_Throws(double defaultWidth, double defaultHeight)
         {
             var memory = new HudSizeMemory(null, null);
 
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            memory.Observe(panelVisible: true, manuallySized: true, width - 0.4, height + 0.3);
-
-            Assert.False(memory.Settling);
-            Assert.False(memory.HasSize);   // arrival is still not a choice
-
-            memory.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);
-            Assert.Equal(ResizedWidth, memory.Width);
+            // No fallback: a caller that cannot say how big the panel should be has a bug, and a
+            // silently substituted number would put an arbitrary size on the person's screen.
+            Assert.ThrowsAny<System.ArgumentException>(() => memory.PreferredSize(defaultWidth, defaultHeight));
         }
 
-        /// <summary>
-        /// The wedge that must not exist. If the commanded size never arrives at all - clamped, or
-        /// applied in a way that reports something else - the window still tells the memory when its
-        /// layout has finished, and the person's resizes are honoured from there.
-        /// </summary>
+        // ---- only a gesture writes -------------------------------------------
+
         [Fact]
-        public void Settled_EndsATransitionTheCommandedSizeNeverArrivedFor()
+        public void RecordUserResize_RemembersTheSize()
         {
             var memory = new HudSizeMemory(null, null);
 
-            memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            memory.Observe(panelVisible: true, manuallySized: true, PillWidth, PillHeight);
-            Assert.True(memory.Settling);
+            memory.RecordUserResize(ResizedWidth, ResizedHeight);
 
-            memory.Settled();
-
-            Assert.False(memory.Settling);
-            memory.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);
-            Assert.Equal(ResizedWidth, memory.Width);
-        }
-
-        /// <summary>Taking the panel down ends the transition too - the reports that follow are the
-        /// pill, and the pill is excluded on its own merits.</summary>
-        [Fact]
-        public void PanelClosed_EndsTheTransitionWithoutForgettingTheSize()
-        {
-            var memory = new HudSizeMemory(ResizedWidth, ResizedHeight);
-
-            memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            memory.PanelClosed();
-
-            Assert.False(memory.Settling);
+            Assert.True(memory.HasSize);
             Assert.Equal(ResizedWidth, memory.Width);
             Assert.Equal(ResizedHeight, memory.Height);
         }
 
-        // ---- round 1's defect: the size is gone by closing time ----------------
-
         /// <summary>
-        /// The exact sequence QA ran in round 1. The load-bearing line is the auto-sized report at
-        /// the end: that is HudWindow.SetStatus taking the panel down on an ordinary stop, and it
-        /// happens BEFORE the window closes. The remembered size must survive it.
+        /// THE WEDGE THAT MUST NOT EXIST. Round 3's transition state could be left outstanding, and
+        /// every later resize was then discarded. There is no state to wedge here: a gesture takes
+        /// effect whatever the panel has been doing.
         /// </summary>
         [Fact]
-        public void Observe_StopAutoSizesBeforeClose_StillRemembersTheResizedSize()
+        public void RecordUserResize_AfterAnyAmountOfPanelActivity_StillTakesEffect()
         {
             var memory = new HudSizeMemory(null, null);
 
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(memory, width, height);
-            memory.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);   // person resizes
-            memory.PanelClosed();
-            memory.Observe(panelVisible: false, manuallySized: false, PillWidth, PillHeight);       // stop: SetStatus
+            for (int i = 0; i < 5; i++) memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
+            memory.RecordUserResize(ResizedWidth, ResizedHeight);
+
+            Assert.Equal(ResizedWidth, memory.Width);
+            Assert.Equal(ResizedHeight, memory.Height);
+        }
+
+        /// <summary>
+        /// ROUND 1'S DEFECT, at the decision level. The stop takes the panel down and the window
+        /// auto-sizes back to the pill BEFORE the Closed handler saves. Nothing about that sequence
+        /// may disturb the remembered size - and now nothing can, because the auto-size is not an
+        /// input to this class at all.
+        /// </summary>
+        [Fact]
+        public void RecordUserResize_ThenTheStopAutoSizesBackToThePill_StillRemembersTheResizedSize()
+        {
+            var memory = new HudSizeMemory(null, null);
+
+            memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);   // panel opens
+            memory.RecordUserResize(ResizedWidth, ResizedHeight);              // the person resizes
+            // The stop, the hide, the pill: none of them can speak to the memory.
 
             Assert.True(memory.HasSize);
             Assert.Equal(ResizedWidth, memory.Width);
@@ -204,105 +166,54 @@ namespace AgentEyes.Tests
         /// the first one wrote.
         /// </summary>
         [Fact]
-        public void Observe_ResizedThenStoppedThenReopened_NextRecordingOpensAtTheResizedSize()
+        public void ResizedThenStoppedThenReopened_NextRecordingOpensAtTheResizedSize()
         {
             var first = new HudSizeMemory(null, null);
-            var (width, height) = first.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(first, width, height);
-            first.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);
-            first.PanelClosed();
-            first.Observe(panelVisible: false, manuallySized: false, PillWidth, PillHeight);
+            first.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
+            first.RecordUserResize(ResizedWidth, ResizedHeight);
 
             // What SavePosition persists on Closed.
             double? savedWidth = first.Width, savedHeight = first.Height;
 
             // Recording 2: a new HUD seeded from that config.
             var second = new HudSizeMemory(savedWidth, savedHeight);
-            var (nextWidth, nextHeight) = second.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
+            var (nextWidth, nextHeight) = second.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
 
             Assert.Equal(ResizedWidth, nextWidth);
             Assert.Equal(ResizedHeight, nextHeight);
         }
 
-        /// <summary>
-        /// The second shape of round 1's bug: "resize -> hide the preview -> stop". Hiding the panel
-        /// auto-sizes the window too, so a memory that forgot on an auto-sized report would lose the
-        /// size here even if it survived the stop.
-        /// </summary>
-        [Fact]
-        public void Observe_PreviewHiddenAfterResizeThenStopped_StillRemembersTheResizedSize()
-        {
-            var memory = new HudSizeMemory(null, null);
-
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(memory, width, height);
-            memory.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);
-            memory.PanelClosed();
-            memory.Observe(panelVisible: false, manuallySized: false, PillWidth, PillHeight);   // "Hide preview"
-            memory.Observe(panelVisible: false, manuallySized: false, PillWidth, PillHeight);   // stop: SetStatus
-
-            Assert.Equal(ResizedWidth, memory.Width);
-            Assert.Equal(ResizedHeight, memory.Height);
-        }
-
         /// <summary>Show, resize, hide, show again inside ONE recording: the panel comes back at the
         /// size it was left at, not at the default, with nothing written to disk in between.</summary>
         [Fact]
-        public void OpenPanel_HiddenAndShownAgainInOneRecording_ReopensAtTheResizedSize()
+        public void HiddenAndShownAgainInOneRecording_ReopensAtTheResizedSize()
         {
             var memory = new HudSizeMemory(null, null);
 
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(memory, width, height);
-            memory.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);
-            memory.PanelClosed();
-            memory.Observe(panelVisible: false, manuallySized: false, PillWidth, PillHeight);   // hidden
-
-            var (again, andAgain) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
+            memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
+            memory.RecordUserResize(ResizedWidth, ResizedHeight);
+            var (again, andAgain) = memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);
 
             Assert.Equal(ResizedWidth, again);
             Assert.Equal(ResizedHeight, andAgain);
         }
 
-        // ---- the pill is never a remembered size -----------------------------
-
+        /// <summary>
+        /// QA'S ROUND-3 REPRODUCTION, at the decision level: a hands-off recording on a HUD seeded
+        /// with a size the WINDOW cannot take (MinWidth is 260). Round 3 wrote back whatever the
+        /// window landed at - 260 - as the person's deliberate choice. Nothing the window lands at
+        /// reaches this class now, so what went in comes out.
+        /// </summary>
         [Fact]
-        public void Observe_OnlyAutoSizedReports_RemembersNothing()
+        public void AHandsOffRecording_WithASizeTheWindowMustClamp_LeavesTheSizeExactlyAsItWas()
         {
-            var memory = new HudSizeMemory(null, null);
+            var memory = new HudSizeMemory(200, 100);
 
-            memory.Observe(panelVisible: true, manuallySized: false, PillWidth, PillHeight);
-            memory.Observe(panelVisible: true, manuallySized: false, PillWidth, PillHeight);
+            memory.PreferredSize(DefaultPreviewWidth, DefaultPreviewHeight);   // the panel opens at 200x100
+            // The window clamps to its MinWidth of 260 and reports 260x100. It has no way to say so.
 
-            Assert.False(memory.HasSize);
-            Assert.Null(memory.Width);
-            Assert.Null(memory.Height);
-        }
-
-        /// <summary>A manually-sized report with the panel DOWN is not a panel size either. The two
-        /// facts are kept separate on purpose: one of them going wrong must not be enough.</summary>
-        [Fact]
-        public void Observe_ManuallySizedWhileThePanelIsDown_IsNotAPanelSize()
-        {
-            var memory = new HudSizeMemory(null, null);
-
-            memory.Observe(panelVisible: false, manuallySized: true, PillWidth, PillHeight);
-
-            Assert.False(memory.HasSize);
-        }
-
-        [Fact]
-        public void Observe_AutoSizedAfterAResize_DoesNotOverwriteTheRememberedSize()
-        {
-            var memory = new HudSizeMemory(null, null);
-
-            var (width, height) = memory.OpenPanel(DefaultPreviewWidth, DefaultPreviewHeight);
-            ReplayTheOpeningTransition(memory, width, height);
-            memory.Observe(panelVisible: true, manuallySized: true, ResizedWidth, ResizedHeight);
-            memory.Observe(panelVisible: true, manuallySized: false, PillWidth, PillHeight);
-
-            Assert.NotEqual(PillWidth, memory.Width);
-            Assert.Equal(ResizedWidth, memory.Width);
+            Assert.Equal(200, memory.Width);
+            Assert.Equal(100, memory.Height);
         }
 
         // ---- degenerate layouts are not sizes --------------------------------
@@ -312,38 +223,37 @@ namespace AgentEyes.Tests
         [InlineData(520, 0)]
         [InlineData(-1, 400)]
         [InlineData(520, -1)]
-        public void Observe_NonPositiveSize_IsNotASize(double width, double height)
+        public void RecordUserResize_NonPositiveSize_IsNotASize(double width, double height)
         {
             var memory = new HudSizeMemory(null, null);
-            memory.Settled();   // not in a transition; the size is rejected on its own merits
 
-            memory.Observe(panelVisible: true, manuallySized: true, width, height);
+            memory.RecordUserResize(width, height);
 
             Assert.False(memory.HasSize);
         }
 
         [Fact]
-        public void Observe_NonPositiveSize_DoesNotDestroyAnEarlierSize()
+        public void RecordUserResize_NonPositiveSize_DoesNotDestroyAnEarlierSize()
         {
             var memory = new HudSizeMemory(ResizedWidth, ResizedHeight);
-            memory.Settled();
 
-            memory.Observe(panelVisible: true, manuallySized: true, 0, 0);
+            memory.RecordUserResize(0, 0);
 
             Assert.Equal(ResizedWidth, memory.Width);
         }
 
-        [Theory]
-        [InlineData(0, 400)]
-        [InlineData(520, 0)]
-        [InlineData(-1, -1)]
-        public void OpenPanel_WithANonPositiveDefault_Throws(double defaultWidth, double defaultHeight)
+        /// <summary>The pill is never a panel size. It can only become one by being handed to
+        /// RecordUserResize, which only a gesture reaches - and a gesture that produced the pill is
+        /// refused by <c>HudUserResize</c> because the window is auto-sized there
+        /// (<c>AGestureWhileThePanelIsDown_IsNotAPanelSize</c>).</summary>
+        [Fact]
+        public void APillSizedWindow_LeavesNothingBehindOnItsOwn()
         {
             var memory = new HudSizeMemory(null, null);
 
-            // No fallback: a caller that cannot say how big the panel should be has a bug, and a
-            // silently substituted number would put an arbitrary size on the person's screen.
-            Assert.ThrowsAny<System.ArgumentException>(() => memory.OpenPanel(defaultWidth, defaultHeight));
+            memory.PreferredSize(PillWidth, PillHeight);
+
+            Assert.False(memory.HasSize);
         }
 
         // ---- seeding from config ---------------------------------------------
@@ -425,30 +335,6 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>
-        /// A memory nothing feeds is an empty memory. Something must offer the window's sizes, and
-        /// the window must be wired to it - which is a different fact from "the code exists".
-        /// </summary>
-        [Fact]
-        public void TheWindowsSizesAreOfferedToTheMemory()
-        {
-            var observers = CompiledCode
-                .CallSites(CompiledCode.AppAssembly, c => c == "AgentEyes.App.HudSizeMemory::Observe")
-                .ToList();
-
-            Assert.True(observers.Count > 0,
-                "Nothing in AgentEyesApp calls HudSizeMemory.Observe, so the memory can never hold a "
-                + "size and the HUD cannot come back at the size it was left at (issue #33, AC7).");
-            Assert.Contains(observers, o => o.Method.Contains("HudPreviewSizing::Attach"));
-
-            var attached = CompiledCode
-                .CallSites(CompiledCode.AppAssembly, c => c == "AgentEyes.App.HudPreviewSizing::Attach")
-                .ToList();
-
-            Assert.True(attached.Any(a => a.Method.Contains("HudWindow")),
-                "HudWindow never attaches its size memory, so no size it takes is ever offered.");
-        }
-
-        /// <summary>
         /// A memory seeded from nothing restores nothing. The HUD must hand its memory the size the
         /// LAST recording's HUD saved, or AC7 fails across recordings however well the memory works
         /// within one - and that is a wiring fact no behavioural test of the memory can see.
@@ -505,11 +391,11 @@ namespace AgentEyes.Tests
 
             Assert.True(found.Count == 0,
                 "HudWindow.ApplyPreviewState sizes the window by hand (" + string.Join(", ", found)
-                + "). Opening the preview panel is a TRANSITION, not an assignment: WPF reports the "
-                + "window's size from inside those assignments, half-applied, and trusting those "
-                + "reports is what made the panel open at the pill's 367x52 with a zero-sized picture "
-                + "(issue #33, AC1). Go through HudPreviewSizing, which is driven against a real WPF "
-                + "window by HudPreviewSizingOrderTests.");
+                + "). Opening the preview panel is a COMMAND with a source, not a naked assignment: "
+                + "the size it opens at comes from HudSizeMemory and nothing about applying it may "
+                + "be mistaken later for a size somebody chose (issue #33, AC1 and AC7). Go through "
+                + "HudPreviewSizing, which is driven against a real WPF window by "
+                + "HudPreviewSizingOrderTests.");
 
             Assert.Contains("AgentEyes.App.HudPreviewSizing::ShowPanel", calls);
             Assert.Contains("AgentEyes.App.HudPreviewSizing::HidePanel", calls);
@@ -540,7 +426,7 @@ namespace AgentEyes.Tests
             IReadOnlyList<string> calls =
                 CompiledCode.CallsIn(CompiledCode.AppAssembly, "AgentEyes.App.HudPreviewSizing::ShowPanel");
 
-            int askedTheMemory = calls.ToList().IndexOf("AgentEyes.App.HudSizeMemory::OpenPanel");
+            int askedTheMemory = calls.ToList().IndexOf("AgentEyes.App.HudSizeMemory::PreferredSize");
             int touchedTheWindow = calls.ToList().IndexOf("System.Windows.Window::set_SizeToContent");
 
             Assert.True(askedTheMemory >= 0, "HudPreviewSizing.ShowPanel never asks the memory what "
