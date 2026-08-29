@@ -1428,6 +1428,182 @@ namespace AgentEyes.Tests
             Assert.Equal(1, proc.Disposes);
         }
 
+        // ---- gate round 6: "abandoned" is DERIVED from the recorded history, not assigned --------
+        //
+        // Both blocking defects of round 6 were the same design error wearing two hats: the stop kind
+        // was ASSIGNED at individual call sites, and no call site can see the full history of
+        // termination attempts made against the process. The four tests below are the two blockers
+        // and their controls. Every one of them was RUN AGAINST THE ROUND-7 HEAD FIRST and FAILED
+        // there - see docs/cencon/proof/issue-28/mutation-evidence-round8.txt for the failing output.
+
+        [Fact]
+        public void Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned()
+        {
+            // GATE ROUND 6, DEFECT 1 - and it is a PRODUCTION path, not an odd public-method order.
+            // The CLI failure boundary calls cameraRec?.Dispose() straight from its finally when work
+            // after the camera opened throws (Commands.cs), so with no earlier explicit stop THAT
+            // Dispose performs the FIRST quit and the FIRST kill. The old code called Stop once,
+            // caught its failure, and then wrote "abandoned" over a still-live process - a
+            // three-clause observation ("it outlived the quit, the kill AND the retry") recorded off
+            // ONE round, with the retry it names never having happened.
+            //
+            // The fix is not a smarter guess at this call site; it is that Dispose actually PERFORMS
+            // the rounds the definition counts, and the kind is derived from how many were refused.
+            //
+            // The assertion is a PRESENCE - the second quit and the second kill really were issued -
+            // so doing nothing cannot satisfy it. Bad result this fires on: Quits == 1 / Kills == 1,
+            // i.e. "abandoned" claimed from a single round. EMPTY result is impossible: the process
+            // is asserted still alive, so the test cannot pass by never reaching the state.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            var rec = StartOver(proc);
+
+            rec.Dispose();          // the FIRST termination this recorder has ever attempted
+
+            Assert.False(proc.HasExited, "this test only means anything while the fake ffmpeg is still alive");
+            Assert.Equal(2, proc.Quits);   // the round the definition calls "the retry" REALLY RAN
+            Assert.Equal(2, proc.Kills);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.True(rec.IsAbandoned);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.Equal(0, proc.Disposes);   // the handle to a LIVE process is kept
+        }
+
+        [Fact]
+        public void Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned()
+        {
+            // THE DIRECT-DISPOSE CONTROL the gate asked for by name, so that a normal
+            // Stop-then-Dispose test cannot certify this path. Same entry as the test above - a
+            // Dispose that is itself the first termination - but here the process dies under the
+            // RETRY's kill. It therefore did NOT outlive the retry, and "abandoned" is the wrong
+            // answer however stranded it looked one round earlier.
+            //
+            // Bad result this fires on: StopKind == Abandoned (what the old code wrote after one
+            // round), or a Completeness of unknown where the file is KNOWN unfinalized. EMPTY result
+            // is impossible: HasExited and the released handle are both asserted.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            // The recorder's SECOND round finds an ffmpeg that has finally become killable.
+            proc.QuitEndsItWith = () => { if (proc.Quits == 2) proc.KillEndsIt = true; };
+            var rec = StartOver(proc);
+
+            rec.Dispose();
+
+            Assert.True(proc.HasExited, "the retry must actually terminate the process");
+            Assert.Equal(2, proc.Kills);
+            Assert.Equal(CameraStopKind.ForceKilled, rec.StopKind);
+            Assert.False(rec.IsAbandoned);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+            Assert.Equal(1, proc.Disposes);   // confirmed gone, so the handle is released
+        }
+
+        [Fact]
+        public void StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned()
+        {
+            // GATE ROUND 6, DEFECT 2 - the recovery QUIT half. StrandedCameraOwner.Recover() calls
+            // Dispose() again on a retained, still-live recorder. If that later quit is finally
+            // answered, the old code wrote CleanQuit over an "abandoned" that had already been
+            // earned - and because clean-quit is the one kind that can open the completeness one-way
+            // door, the same recorder that had honestly said "abandoned" / "unknown" came out saying
+            // "clean-quit" / "yes" about a take nothing ever watched being written.
+            //
+            // The process really did survive the quit, the kill and the Dispose retry. That is a
+            // fact about a moment that has passed, and it cannot depend on whether a later owner
+            // sweep happens to succeed. IsAbandoned - a statement about the process NOW - is the one
+            // that is right to flip.
+            //
+            // Bad results this fires on: StopKind == CleanQuit, or Completeness == Yes. EMPTY result
+            // is impossible: the earned state is asserted BEFORE the recovery, so the test cannot
+            // pass by never reaching it.
+            var clock = new TestClock();
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            var rec = StartOver(proc, clock: clock);
+
+            // A camera that really was recording right up to the stop - so that every other clause of
+            // "complete: yes" is satisfied and the ONLY thing standing between this take and a false
+            // "yes" is the durability of the abandoned observation.
+            clock.Advance(TimeSpan.FromSeconds(1));
+            proc.Emit(TickAt(TimeSpan.FromSeconds(1)));
+            clock.Advance(TimeSpan.FromSeconds(1));
+            proc.Emit(TickAt(TimeSpan.FromSeconds(2)));
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());   // round 1, refused
+            rec.Dispose();                                                // round 2, refused
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.True(rec.IsAbandoned, "the fixture only means anything once abandoned is genuinely earned");
+
+            proc.QuitEndsIt = true;   // the stranded ffmpeg finally answers
+            rec.Dispose();            // StrandedCameraOwner.Recover()'s sweep
+
+            Assert.True(proc.HasExited);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.False(rec.IsAbandoned, "it is not still running - but it WAS abandoned");
+            Assert.Equal(1, proc.Disposes);
+        }
+
+        [Fact]
+        public void StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned()
+        {
+            // GATE ROUND 6, DEFECT 2 - the recovery KILL half, and the second positive control the
+            // gate required. A later kill that lands wrote ForceKilled over the earned observation
+            // exactly as a later quit wrote CleanQuit; the committed round-7 test only ever proved
+            // preservation when the process was ALREADY DEAD before the later Dispose, so neither
+            // overwrite path was covered.
+            //
+            // Bad result this fires on: StopKind == ForceKilled, or Completeness == No. EMPTY result
+            // is impossible: the earned state and the later exit are both asserted.
+            var proc = new FakeCameraProcess { QuitEndsIt = false, KillEndsIt = false };
+            var rec = StartOver(proc);
+
+            Assert.Throws<CameraStopFailedException>(() => rec.Stop());   // round 1, refused
+            rec.Dispose();                                                // round 2, refused
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(2, proc.Kills);
+
+            proc.KillEndsIt = true;   // the sweep's kill finally lands
+            rec.Dispose();
+
+            Assert.True(proc.HasExited);
+            Assert.Equal(3, proc.Kills);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.False(rec.IsAbandoned);
+            Assert.Equal(1, proc.Disposes);
+        }
+
+        [Fact]
+        public void Stop_WhenTheQuitCouldNotBeDeliveredAndTheProcessExitedZero_IsStillNotACleanQuit()
+        {
+            // THE DELIVERY CLAUSE ON ITS OWN. The FAILED_QUIT_THEN_ERROR_EXIT test above pairs an
+            // undelivered quit with exit -5, so the enumerated exit-code set alone is enough to
+            // refuse the clean quit and the DELIVERY half of the rule is never the thing under
+            // test - a round-8 mutation that recorded the quit as delivered even when the write to
+            // stdin threw left every test in this file green.
+            //
+            // Here the process exits 0, which IS an accepted quit code, so the ONLY thing between
+            // this take and a false "clean-quit / yes" is the fact that the "q" never arrived. A
+            // process that crashed as its stdin went is not a process that answered.
+            //
+            // Bad result this fires on: StopKind == CleanQuit, or Completeness == Yes. EMPTY result
+            // is impossible - the exit, the drain and the reported footage are all asserted.
+            var proc = new FakeCameraProcess { DeliversExitCallback = false };
+            using var rec = StartOver(proc);
+            proc.Emit(TickAt(TimeSpan.FromSeconds(1)));
+            proc.QuitFailsWith = () => proc.End(0);      // it dies as the pipe goes, with a code that WOULD be accepted
+
+            rec.Stop();
+
+            Assert.Equal(1, proc.Quits);
+            Assert.Equal(0, proc.Kills);
+            Assert.Equal(1, proc.Drains);
+            Assert.True(proc.HasExited);
+            Assert.Equal(0, proc.ExitCode);
+            Assert.True(rec.StderrComplete);
+            Assert.Equal(1.0, rec.CapturedSeconds, 3);
+
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
         [Fact]
         public void Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete()
         {
