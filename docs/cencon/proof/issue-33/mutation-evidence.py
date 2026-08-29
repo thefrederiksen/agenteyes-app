@@ -127,6 +127,35 @@ MUTATIONS = [
      "        public string? PreviewOverlayCorner { get; set; }",
      '        public string? PreviewOverlayCorner { get; set; } = "bottom-right";',
      "FullyQualifiedName~PreviewManifestTests"),
+
+    # ---- round 2: AC7's persistence half (the QA bounce of 2026-08-28) ----------------------
+    # Four shapes of the same ordering defect. The HUD auto-sizes back to the pill BEFORE it
+    # closes, so anything that reads the size at close time, or lets an auto-sized report reach
+    # the memory, loses the size the person left the panel at.
+
+    ("M19 the size memory keeps whatever the window last reported, pill included",
+     r"src\AgentEyes.App\HudSizeMemory.cs",
+     "            if (!manuallySized) return;",
+     "            // mutation: any size the window reports is remembered, the pill's included",
+     "FullyQualifiedName~HudSizeMemoryTests"),
+
+    ("M20 the size memory FORGETS on an auto-sized report (the measured shape: the stop clears it)",
+     r"src\AgentEyes.App\HudSizeMemory.cs",
+     "            if (!manuallySized) return;",
+     "            if (!manuallySized) { _width = null; _height = null; return; }",
+     "FullyQualifiedName~HudSizeMemoryTests"),
+
+    ("M21 SavePosition goes back to reading the window's live size at close time (the original bug)",
+     r"src\AgentEyes.App\HudWindow.cs",
+     "            if (_size.HasSize)\n            {\n                _cfg.HudWidth = _size.Width;\n                _cfg.HudHeight = _size.Height;\n            }",
+     "            if (SizeToContent == SizeToContent.Manual && ActualWidth > 0 && ActualHeight > 0)\n            {\n                _cfg.HudWidth = ActualWidth;\n                _cfg.HudHeight = ActualHeight;\n            }",
+     "FullyQualifiedName~HudSizeMemoryTests"),
+
+    ("M22 the window never offers its sizes to the memory (a memory nothing feeds)",
+     r"src\AgentEyes.App\HudWindow.cs",
+     "            SizeChanged += (_, _) => _size.Observe(\n                SizeToContent == SizeToContent.Manual, ActualWidth, ActualHeight);\n",
+     "            // mutation: the window keeps its sizes to itself\n",
+     "FullyQualifiedName~HudSizeMemoryTests"),
 ]
 
 

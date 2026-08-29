@@ -70,11 +70,21 @@ namespace AgentEyes.App
         private readonly Button[] _modeButtons;
         private readonly Button[] _cornerButtons;
 
+        /// <summary>
+        /// The size this HUD was last given while it was manually sized, i.e. while the preview
+        /// panel was up (issue #33, AC7). It is remembered as it happens rather than read back when
+        /// the window closes, because the window auto-sizes back to the pill BEFORE Closed fires -
+        /// <see cref="SetStatus"/> does it on every ordinary stop and <see cref="ApplyPreviewState"/>
+        /// does it whenever the panel is hidden. See <see cref="HudSizeMemory"/>.
+        /// </summary>
+        private readonly HudSizeMemory _size;
+
         private static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
         internal HudWindow(RecordingService svc, Config cfg, Func<Task> stop, Func<Task> discard)
         {
             _svc = svc; _cfg = cfg; _stop = stop; _discard = discard;
+            _size = new HudSizeMemory(cfg.HudWidth, cfg.HudHeight);
 
             Title = "Recording HUD";   // no visible chrome; the name serves UI Automation
             WindowStyle = WindowStyle.None;
@@ -306,6 +316,13 @@ namespace AgentEyes.App
             _feed = new PreviewFrameFeed(Dispatcher, ShowFrames);
 
             MouseLeftButtonDown += (_, _) => { try { DragMove(); } catch { /* click without drag */ } };
+            // Every size this window takes is offered to the memory as it happens (issue #33, AC7).
+            // It has to be here rather than in SavePosition: by the time Closed runs, the stop has
+            // already auto-sized the HUD back to the pill and the panel's size is gone. The memory
+            // keeps only the manually-sized ones, so the pill's dimensions never become the size the
+            // next recording opens at.
+            SizeChanged += (_, _) => _size.Observe(
+                SizeToContent == SizeToContent.Manual, ActualWidth, ActualHeight);
             Loaded += (_, _) => Position();
             SourceInitialized += (_, _) => ApplyWindowStyles();
             Closed += (_, _) => { _timer.Stop(); SavePosition(); ClosePreview(); };
@@ -480,8 +497,11 @@ namespace AgentEyes.App
                 if (SizeToContent != SizeToContent.Manual)
                 {
                     SizeToContent = SizeToContent.Manual;
-                    Width = _cfg.HudWidth is > 0 ? _cfg.HudWidth!.Value : DefaultPreviewWidth;
-                    Height = _cfg.HudHeight is > 0 ? _cfg.HudHeight!.Value : DefaultPreviewHeight;
+                    // The remembered size, not the config's: within one recording the panel can be
+                    // hidden and shown again, and it must come back at the size it was left at even
+                    // though nothing has been written to disk in between (issue #33, AC7).
+                    Width = _size.Width ?? DefaultPreviewWidth;
+                    Height = _size.Height ?? DefaultPreviewHeight;
                 }
                 _feed.Want(_svc.PreviewScreenFrame, _preview.ShowScreenLayer,
                            _svc.PreviewCameraFrame, _preview.ShowCameraLayer);
@@ -671,14 +691,19 @@ namespace AgentEyes.App
         {
             _cfg.HudLeft = Left;
             _cfg.HudTop = Top;
-            // Size is only meaningful while the HUD is manually sized, i.e. while the preview panel
-            // is up (issue #33, AC7). Saving the auto-sized pill's dimensions would come back as a
-            // preview panel the size of a pill.
-            if (SizeToContent == SizeToContent.Manual && ActualWidth > 0 && ActualHeight > 0)
+            // Size comes from the memory, NOT from the window (issue #33, AC7). This runs from the
+            // Closed handler, and by then the stop has already put SizeToContent back to
+            // WidthAndHeight - so the window's live size is the pill's, and a guard on the sizing
+            // mode would simply write nothing. The memory holds the last size the HUD had while it
+            // was manually sized, which is the size the person actually left the panel at. It stays
+            // null when the panel was never shown, so an unresized HUD still saves no size at all.
+            if (_size.HasSize)
             {
-                _cfg.HudWidth = ActualWidth;
-                _cfg.HudHeight = ActualHeight;
+                _cfg.HudWidth = _size.Width;
+                _cfg.HudHeight = _size.Height;
             }
+            Log.Info($"hud: saving position left={_cfg.HudLeft} top={_cfg.HudTop} "
+                   + $"width={_cfg.HudWidth?.ToString() ?? "none"} height={_cfg.HudHeight?.ToString() ?? "none"}");
             _cfg.Save();
         }
 
