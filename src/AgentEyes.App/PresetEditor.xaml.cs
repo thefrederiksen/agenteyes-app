@@ -32,6 +32,18 @@ namespace AgentEyes.App
         /// <summary>What CameraBox shows while the camera list is still being enumerated.</summary>
         private const string LoadingCamerasItem = "Loading cameras...";
 
+        /// <summary>
+        /// WHICH PANEL A REMEMBERED WINDOW SIZE BELONGS TO. Bump this whenever the editor's layout
+        /// changes what size it needs, and every size remembered against an older panel is dropped -
+        /// the editor opens at its XAML default instead. 1 was issue #35's two-column Camera tab at
+        /// 1000x760; 2 is issue #43's three-column one at 1280x760, which does not fit in 1000.
+        ///
+        /// Without this, the scrollbar #35 removed would come back for every EXISTING installation
+        /// and only for those - their config already holds a 1000x760 from the old panel, so the new
+        /// default would never be applied and the defect would look fixed on a clean machine.
+        /// </summary>
+        internal const int LayoutVersion = 2;
+
         private readonly CapturePreset _preset;
 
         /// <summary>
@@ -347,7 +359,8 @@ namespace AgentEyes.App
         /// </summary>
         private void RestoreWindowState()
         {
-            if (_cfg.PresetEditorWidth is double w && _cfg.PresetEditorHeight is double h
+            if (_cfg.PresetEditorLayout == LayoutVersion
+                && _cfg.PresetEditorWidth is double w && _cfg.PresetEditorHeight is double h
                 && w >= MinWidth && h >= MinHeight)
             {
                 Width = w;
@@ -380,6 +393,7 @@ namespace AgentEyes.App
                 _cfg.PresetEditorHeight = ActualHeight;
                 _cfg.PresetEditorLeft = Left;
                 _cfg.PresetEditorTop = Top;
+                _cfg.PresetEditorLayout = LayoutVersion;   // the panel this size was chosen for
             }
             _cfg.Save();
             Log.Info($"[PresetEditor] RememberWindowState: tab={_cfg.PresetEditorTab} " +
@@ -676,6 +690,7 @@ namespace AgentEyes.App
             InsetSizeText.Text = $"{InsetSizeSlider.Value * 100:F0}%";
 
             RedrawOverlayAdorner(circle);
+            RedrawInsetSchematic(circle);
         }
 
         /// <summary>
@@ -722,6 +737,112 @@ namespace AgentEyes.App
                 + "or moved - later.";
         }
 
+        /// <summary>
+        /// THE FEEDBACK FOR "SIZE ON SCREEN" AND "CORNER" (issue #43).
+        ///
+        /// Draw the small schematic of the recording: a 16:9 box with the camera inset in the chosen
+        /// corner at the chosen fraction of the recording's width. Before this, those two controls
+        /// changed a stored number and a text label and NOTHING ELSE - the only drawing in the dialog
+        /// was the circle over the live camera picture, which the inset fraction has no part in - so
+        /// the slider was reported as broken. It was not broken; it was invisible.
+        ///
+        /// It is a SCHEMATIC, not a composite (assumption F1): no screen capture is started to draw
+        /// it. The camera's own picture IS shown inside the inset, because the preview beside it is
+        /// already receiving those frames - so the DIAMETER's crop and the INSET's size on the
+        /// recording are visible in the same picture, which is what tells the two sliders apart.
+        /// </summary>
+        private void RedrawInsetSchematic(bool circle)
+        {
+            double boxWidth = InsetSchematicCanvas.ActualWidth;
+            double boxHeight = InsetSchematicCanvas.ActualHeight;
+
+            // Not laid out yet. SizeChanged draws it the moment it is - the canvas is never assumed
+            // to be some size, because an assumed size would draw an inset that is to no scale at all.
+            if (boxWidth <= 0 || boxHeight <= 0) return;
+
+            var overlay = ReadOverlay();
+            var camera = _cameraPreview.SourceSize;
+            double aspect = camera is { } cam
+                ? cam.Width / (double)cam.Height
+                : InsetSchematic.DefaultFrameAspect;
+
+            var placed = InsetSchematic.Place(boxWidth, boxHeight, overlay, aspect);
+            var rect = new Rect(placed.X, placed.Y, placed.Width, placed.Height);
+
+            InsetSchematicScreenPath.Data = ScreenMotif(boxWidth, boxHeight);
+            InsetSchematicInsetPath.Data = circle ? new EllipseGeometry(rect) : new RectangleGeometry(rect);
+            InsetSchematicInsetPath.Fill = InsetSchematicFill(circle, camera);
+
+            string caption = $"The camera covers {overlay.ClampedInsetFraction * 100:F0}% of the recording's "
+                             + $"width, {PreviewNames.Text(overlay.CornerValue)}.";
+            if (placed.Y < 0 || placed.Bottom > boxHeight)
+                caption += " At this size it is taller than the recording, so the top and bottom are cut off"
+                           + " - exactly as they would be while recording.";
+            InsetSchematicCaption.Text = caption;
+        }
+
+        /// <summary>
+        /// A plain suggestion of screen content behind the inset - a title bar and a body - so the
+        /// box reads as "the recording" rather than as an empty rectangle. It carries no information:
+        /// everything this schematic has to say is said by where the inset sits and how large it is.
+        /// </summary>
+        private static Geometry ScreenMotif(double boxWidth, double boxHeight)
+        {
+            double margin = boxWidth * 0.06;
+            double barHeight = boxHeight * 0.10;
+            var motif = new GeometryGroup();
+            motif.Children.Add(new RectangleGeometry(
+                new Rect(margin, margin, boxWidth - 2 * margin, barHeight), 2, 2));
+            motif.Children.Add(new RectangleGeometry(
+                new Rect(margin, margin + barHeight * 1.4,
+                         boxWidth - 2 * margin, boxHeight - 2 * margin - barHeight * 1.4), 2, 2));
+            motif.Freeze();
+            return motif;
+        }
+
+        /// <summary>
+        /// What the inset is filled with: the live camera picture when there is one, cropped exactly
+        /// as the HUD will crop it, and a flat panel colour when there is not.
+        ///
+        /// NOTHING IS ASSUMED ABOUT THE CAMERA'S SHAPE. The preview buffer is a fixed 320x240 with
+        /// the camera's picture letterboxed inside it by ffmpeg's pad filter, so the circle's viewbox
+        /// - which is expressed in the CAMERA's own frame - has to be mapped through that padding.
+        /// Skipping that mapping would fill the circle with the black bars of any camera that is not
+        /// 4:3, and it would look entirely convincing while doing it.
+        /// </summary>
+        private Brush InsetSchematicFill(bool circle, CameraFrameSize? camera)
+        {
+            if (_previewBitmap == null || camera is not { } cam) return (Brush)FindResource("DkBorder");
+
+            var inner = OverlayFit.Contain(FfmpegCameraPreview.FrameWidth, FfmpegCameraPreview.FrameHeight,
+                                           cam.Width, cam.Height);
+            var crop = circle
+                ? ReadOverlay().Circle.Viewbox(cam.Width, cam.Height)
+                : new OverlayRect(0, 0, 1, 1);
+
+            var viewbox = new Rect(
+                (inner.X + crop.X * inner.Width) / FfmpegCameraPreview.FrameWidth,
+                (inner.Y + crop.Y * inner.Height) / FfmpegCameraPreview.FrameHeight,
+                crop.Width * inner.Width / FfmpegCameraPreview.FrameWidth,
+                crop.Height * inner.Height / FfmpegCameraPreview.FrameHeight);
+
+            // Not frozen: the source is the WriteableBitmap the preview writes into, so the picture
+            // inside the schematic stays live without rebuilding the brush ten times a second.
+            return new ImageBrush(_previewBitmap)
+            {
+                Stretch = Stretch.Fill,
+                ViewboxUnits = BrushMappingMode.RelativeToBoundingBox,
+                Viewbox = viewbox,
+            };
+        }
+
+        private void InsetSchematic_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (!_overlayReady) return;
+            try { UpdateOverlayUi(); }
+            catch (Exception ex) { Log.Error("[PresetEditor] InsetSchematic_SizeChanged FAILED", ex); }
+        }
+
         private void Overlay_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (_loadingOverlay) return;
@@ -743,10 +864,14 @@ namespace AgentEyes.App
         private void OverlayCorner_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (_loadingOverlay || !_overlayReady) return;
-            // Nothing to redraw: the corner says where the inset sits on the RECORDING preview, not
-            // where the circle sits in the camera frame. It is logged because a framing choice that
-            // leaves no trace is a framing choice nobody can explain afterwards.
-            try { Log.Info($"[PresetEditor] OverlayCorner_Changed: corner={PreviewNames.Text(SelectedOverlayCorner())}"); }
+            // Issue #43: the corner moves the inset in the recording schematic. It used to redraw
+            // nothing at all - the corner said where the inset sits on the RECORDING, and this dialog
+            // drew only the camera frame - which made a real choice look like a dead control.
+            try
+            {
+                Log.Info($"[PresetEditor] OverlayCorner_Changed: corner={PreviewNames.Text(SelectedOverlayCorner())}");
+                UpdateOverlayUi();
+            }
             catch (Exception ex) { Log.Error("[PresetEditor] OverlayCorner_Changed FAILED", ex); }
         }
 
