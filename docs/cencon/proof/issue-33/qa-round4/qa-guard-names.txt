@@ -1,0 +1,25 @@
+QM3 SizeChanged subscription in the sizing code
+   red guards: ['ADragWhileTheWindowIsAutoSized_RecordsNothing', 'AHandsOffRecording_RecordsNothing', 'AMoveAfterAResize_DoesNotRecordAgain', 'AMoveOfTheWindow_RecordsNothing', 'Record_IsOnlyEverReachedFromAPositivelyIdentifiedGesture', 'TheMessagesALayoutDrivenResizeArrivesOn_RecordNothing', 'TheSizingCodeDoesNotSubscribeToLayoutOrSizeChanges']
+   Failed:    10, Passed:     4, Skipped:     0, Total:    14, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+QM4 peer override removed
+   red guards: ['HudWindow_WiresUpAllThreeGestures']
+   Failed:     1, Passed:    13, Skipped:     0, Total:    14, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+QM5 second writer from SavePosition
+   red guards: ['RecordUserResize_IsOnlyEverCalledByHudUserResize']
+   Failed:     1, Passed:    13, Skipped:     0, Total:    14, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+QM6 grip stops recording
+   red guards: ['Record_IsOnlyEverReachedFromAPositivelyIdentifiedGesture']
+   Failed:     1, Passed:    13, Skipped:     0, Total:    14, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+QM13 the grip.DragDelta wiring removed
+   red guards: ['HudWindow_WiresUpAllThreeGestures']
+   Failed:     1, Passed:    13, Skipped:     0, Total:    14, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+QM7 second HudSizeMemory
+   red guards: ['HudWindow_ConstructsExactlyOneSizeMemory']
+   Failed:     1, Passed:    13, Skipped:     0, Total:    14, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+tree restored and rebuilt --no-incremental; build succeeded
