@@ -1,0 +1,835 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using AgentEyes;
+using AgentEyes.Video;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace AgentEyes.Tests
+{
+    /// <summary>
+    /// QA ROUND 8 - INDEPENDENT PROBE. Written by the QA seat, not by the developer, and shares no
+    /// fake, no helper and no assertion with the branch's own tests.
+    ///
+    /// THE PROPERTY UNDER TEST: a call site must not be able to record a stop kind it has not
+    /// earned. Every scenario here drives ONLY the public/internal surface of
+    /// FfmpegCameraRecorder (Open / Stop / Dispose) through ICameraProcess, in ordinary and in
+    /// deliberately unusual orders, and asserts that the DERIVED stop kind matches the actual
+    /// attempt history the fake observed.
+    ///
+    /// Every check is a PRESENCE: a named kind, or an explicitly ABSENT kind, plus the counted
+    /// quits/kills the fake actually received. An empty or unreachable scenario throws.
+    /// </summary>
+    public sealed class QaRound8DesignProbe : IDisposable
+    {
+        private readonly ITestOutputHelper _out;
+        private readonly string _dir = Path.Combine(
+            Path.GetTempPath(), "QaR8Probe_" + Guid.NewGuid().ToString("N"));
+
+        public QaRound8DesignProbe(ITestOutputHelper output)
+        {
+            _out = output;
+            Directory.CreateDirectory(_dir);
+        }
+
+        public void Dispose()
+        {
+            try { Directory.Delete(_dir, recursive: true); } catch (IOException) { }
+        }
+
+        private string Out => Path.Combine(_dir, "camera.mp4");
+        private string LogPath => Path.Combine(_dir, "camera.mp4.ffmpeg.log");
+
+        private const string InputHeader = "Input #0, dshow, from 'video=QA PROBE CAM':";
+        private const string OutputHeader = "Output #0, mp4, to 'C:\\qa\\camera.mp4':";
+
+        private static string Tick(double seconds)
+        {
+            var t = TimeSpan.FromSeconds(seconds);
+            return $"frame=  10 fps= 30 q=28.0 size=  64KiB time={t:hh\\:mm\\:ss\\.ff} bitrate=1000.0kbits/s speed=1x";
+        }
+
+        /// <summary>My own camera process. Deliberately not the branch's fake.</summary>
+        private sealed class Cam : ICameraProcess
+        {
+            private Action<string>? _err;
+            private Action? _exited;
+
+            public bool EmitHeadersOnStart = true;
+            public bool DeliverExitCallback = true;
+
+            /// <summary>q ends the process with <see cref="QuitExitCode"/> when true.</summary>
+            public bool QuitEnds;
+            public int QuitExitCode;
+            public bool QuitThrows;
+
+            /// <summary>Kill ends the process with <see cref="KillExitCode"/> when true.</summary>
+            public bool KillEnds;
+            public int KillExitCode = -1;
+
+            public bool Eof = true;
+
+            /// <summary>Runs immediately BEFORE the quit is delivered - lets a scenario change what
+            /// the process is about to do, or kill it off between rounds.</summary>
+            public Action<Cam>? BeforeQuit;
+
+            /// <summary>Runs immediately AFTER a kill is issued.</summary>
+            public Action<Cam>? AfterKill;
+
+            public int Quits;
+            public int Kills;
+            public int Drains;
+            public int Disposes;
+            public bool Started;
+
+            public bool HasExited { get; private set; }
+            public int ExitCode { get; private set; }
+            public int? ProcessId { get; private set; }
+
+            public void Start(Action<string> onLine, Action onExited)
+            {
+                Started = true;
+                ProcessId = 40404;
+                _err = onLine;
+                _exited = onExited;
+                if (EmitHeadersOnStart) { Emit(InputHeader); Emit(OutputHeader); }
+            }
+
+            public void Emit(string line) => _err!(line);
+
+            public void End(int code)
+            {
+                if (HasExited) return;
+                ExitCode = code;
+                HasExited = true;
+                if (DeliverExitCallback) _exited!();
+            }
+
+            public void SendQuit()
+            {
+                Quits++;
+                BeforeQuit?.Invoke(this);
+                if (QuitThrows) throw new IOException("the pipe has been ended.");
+                if (QuitEnds) End(QuitExitCode);
+            }
+
+            /// <summary>Runs AFTER a wait has been answered - the only way to make the process die
+            /// BETWEEN two termination rounds rather than during one.</summary>
+            public Action<Cam>? AfterWait;
+            public int Waits;
+
+            public bool WaitForExit(int ms)
+            {
+                Waits++;
+                bool answer = HasExited;
+                AfterWait?.Invoke(this);
+                return answer;
+            }
+
+            public bool DrainStderr(int ms) { Drains++; return Eof; }
+
+            public void Kill()
+            {
+                Kills++;
+                if (KillEnds) End(KillExitCode);
+                AfterKill?.Invoke(this);
+            }
+
+            public void Dispose() => Disposes++;
+        }
+
+        /// <summary>Open a recorder over the fake, with two real advances so a healthy scenario can
+        /// reach complete=yes.</summary>
+        private FfmpegCameraRecorder Opened(Cam cam, bool advancing = true)
+        {
+            var rec = FfmpegCameraRecorder.CreateOver(cam, "QA PROBE CAM", Out, LogPath, TimeSpan.FromSeconds(2));
+            rec.Open();
+            if (advancing) { cam.Emit(Tick(0.5)); cam.Emit(Tick(1.0)); }
+            return rec;
+        }
+
+        private string Line(string name, Cam cam, FfmpegCameraRecorder rec) =>
+            $"{name} quits={cam.Quits} kills={cam.Kills} exited={cam.HasExited} "
+            + $"kind={CameraObservation.Text(rec.StopKind) ?? "(absent)"} "
+            + $"complete={CameraObservation.Text(rec.Completeness)} abandoned={rec.IsAbandoned}";
+
+        private static void Swallow(Action a) { try { a(); } catch (Exception) { } }
+
+        // =================================================================================
+        // BLOCKER 1 - a DIRECT Dispose must not earn "abandoned" off one quit and one kill.
+        // =================================================================================
+
+        [Fact]
+        public void DirectDispose_ProcessSurvivesEverything_AbandonedOnlyAfterTheRetry()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = Opened(cam);
+
+            // The CLI failure boundary's shape: no explicit Stop ever ran.
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("DIRECT_DISPOSE_ONE_KILL", cam, rec));
+
+            Assert.True(cam.Quits >= 1 && cam.Kills >= 1, "the probe never reached the termination path");
+            if (rec.StopKind == CameraStopKind.Abandoned)
+            {
+                Assert.True(cam.Quits >= 2,
+                    $"abandoned was recorded after only {cam.Quits} quit(s) - the Dispose retry never ran");
+                Assert.True(cam.Kills >= 2,
+                    $"abandoned was recorded after only {cam.Kills} kill(s) - the Dispose retry never ran");
+            }
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.True(rec.IsAbandoned);
+        }
+
+        [Fact]
+        public void DirectDispose_WhenTheRetryKillLands_IsForceKilledNotAbandoned()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            // The FIRST kill is refused; the SECOND lands.
+            cam.AfterKill = c => { if (c.Kills >= 1) c.KillEnds = true; };
+            var rec = Opened(cam);
+
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("DIRECT_DISPOSE_RETRY_KILL_LANDS", cam, rec));
+
+            Assert.True(cam.HasExited, "the probe never actually terminated the process");
+            Assert.NotEqual(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraStopKind.ForceKilled, rec.StopKind);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+        }
+
+        [Fact]
+        public void DirectDispose_WhenTheProcessDiesBetweenRounds_RecordsNoKindAtAll()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = Opened(cam);
+
+            // It survives round 1 entirely - the kill wait is answered "still alive" - and only
+            // THEN dies, on its own, before round 2 asks it anything.
+            cam.AfterWait = c => { if (c.Kills == 1 && !c.HasExited) c.End(0); };
+
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("DIRECT_DISPOSE_DIES_BETWEEN_ROUNDS", cam, rec));
+
+            Assert.True(cam.HasExited);
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        // =================================================================================
+        // BLOCKER 2 - an EARNED abandoned must survive a later recovery quit / kill.
+        // =================================================================================
+
+        /// <summary>Earn abandoned honestly: an explicit Stop that fails, then the Dispose retry
+        /// that also fails. Two refused rounds, two quits, two kills.</summary>
+        private FfmpegCameraRecorder EarnAbandoned(Cam cam)
+        {
+            var rec = Opened(cam);
+            Swallow(rec.Stop);
+            Swallow(rec.Dispose);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.True(rec.IsAbandoned, "the earning step did not leave a live abandoned process");
+            return rec;
+        }
+
+        [Fact]
+        public void RecoveryQuitAfterAbandoned_KeepsTheEarnedAbandonedAndTheClosedDoor()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = EarnAbandoned(cam);
+
+            // StrandedCameraOwner.Recover() calls Dispose() again on the retained, still-live
+            // recorder. This time the process finally answers "q" with an accepted code.
+            cam.QuitEnds = true;
+            cam.QuitExitCode = 0;
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("RECOVERY_AFTER_ABANDONED_QUIT", cam, rec));
+
+            Assert.True(cam.HasExited, "the recovery quit never actually ended the process");
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.False(rec.IsAbandoned, "the live status must follow the process, which has ended");
+        }
+
+        [Fact]
+        public void RecoveryQuitExit255AfterAbandoned_KeepsTheEarnedAbandoned()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = EarnAbandoned(cam);
+
+            cam.QuitEnds = true;
+            cam.QuitExitCode = 255;
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("RECOVERY_AFTER_ABANDONED_QUIT_255", cam, rec));
+
+            Assert.True(cam.HasExited);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void RecoveryKillAfterAbandoned_KeepsTheEarnedAbandoned()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = EarnAbandoned(cam);
+
+            // The later kill finally lands.
+            cam.KillEnds = true;
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("RECOVERY_AFTER_ABANDONED_KILL", cam, rec));
+
+            Assert.True(cam.HasExited, "the recovery kill never actually ended the process");
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.False(rec.IsAbandoned);
+        }
+
+        [Fact]
+        public void RepeatedDisposeAfterAbandoned_NeverChangesTheDurableKind()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = EarnAbandoned(cam);
+
+            // Recover, again and again, on a recorder that is still live and then finally dies.
+            Swallow(rec.Dispose);
+            Swallow(rec.Dispose);
+            cam.QuitEnds = true;
+            cam.QuitExitCode = 0;
+            Swallow(rec.Dispose);
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("REPEATED_DISPOSE_AFTER_ABANDONED", cam, rec));
+
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void StopThenDisposeThenRecover_NeverChangesTheDurableKind()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);       // round 1 refused
+            Swallow(rec.Dispose);    // round 2 refused -> abandoned earned
+            Swallow(rec.Stop);       // a caller stopping the stranded recorder again
+            cam.KillEnds = true;
+            Swallow(rec.Stop);       // and once more, the kill finally landing
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("STOP_DISPOSE_RECOVER_MIX", cam, rec));
+
+            Assert.True(cam.HasExited);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        // =================================================================================
+        // THE ROUND-5 BLOCKERS AND THE POSITIVE CONTROLS - none of them may regress.
+        // =================================================================================
+
+        [Fact]
+        public void DeliveredQuitThenExit1_RecordsNoKindAndIsNotComplete()
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = 1 };
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);
+
+            _out.WriteLine(Line("DELIVERED_QUIT_THEN_EXIT_1", cam, rec));
+
+            Assert.True(cam.Quits == 1 && cam.HasExited);
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void DiedBeforeTheDisposeRetry_RecordsNoKindAndIsNotComplete()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);            // round 1: quit ignored, kill refused
+            cam.End(0);                   // it dies on its own, unwatched
+            Swallow(rec.Dispose);         // the retry finds it gone
+
+            _out.WriteLine(Line("DIED_BEFORE_DISPOSE_RETRY", cam, rec));
+
+            Assert.True(cam.HasExited);
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void HealthyQuitExit255_IsACleanQuitAndComplete()
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = 255, Eof = true };
+            var rec = Opened(cam);
+
+            rec.Stop();
+
+            _out.WriteLine(Line("AC17_HEALTHY_255", cam, rec));
+
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Yes, rec.Completeness);
+            Assert.True(rec.StderrComplete);
+        }
+
+        [Fact]
+        public void HealthyQuitExit0_IsACleanQuitAndComplete()
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = 0, Eof = true };
+            var rec = Opened(cam);
+
+            rec.Stop();
+
+            _out.WriteLine(Line("AC17_HEALTHY_0", cam, rec));
+
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Yes, rec.Completeness);
+        }
+
+        [Fact]
+        public void Exit255WithIncompleteStderr_EarnsTheKindButNotCompleteness()
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = 255, Eof = false };
+            var rec = Opened(cam);
+
+            rec.Stop();
+
+            _out.WriteLine(Line("AC15_255_INCOMPLETE_STDERR", cam, rec));
+
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.False(rec.StderrComplete);
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(69)]
+        [InlineData(137)]
+        [InlineData(254)]
+        [InlineData(256)]
+        [InlineData(int.MaxValue)]
+        [InlineData(-5)]
+        public void AnyExitCodeOutsideTheEnumeratedSet_IsNeverACleanQuit(int exitCode)
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = exitCode };
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);
+
+            _out.WriteLine(Line($"EXIT_{exitCode}", cam, rec));
+
+            Assert.True(cam.HasExited);
+            Assert.NotEqual(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+        }
+
+        [Fact]
+        public void ThreeClauseControl_SurvivesStopAndTheDisposeRetry_IsAbandoned()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("THREE_CLAUSE_CONTROL", cam, rec));
+
+            Assert.Equal(2, cam.Quits);
+            Assert.Equal(2, cam.Kills);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.True(rec.IsAbandoned);
+        }
+
+        // =================================================================================
+        // OTHER PUBLIC ORDERS - hunting for an unearned kind.
+        // =================================================================================
+
+        [Fact]
+        public void UndeliveredQuitThenExitZero_IsNeverACleanQuit()
+        {
+            var cam = new Cam { QuitThrows = true };
+            // The write to stdin throws AND the process is already dying with an ACCEPTED code, so
+            // only the DELIVERY clause can refuse the clean quit.
+            cam.BeforeQuit = c => c.End(0);
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);
+
+            _out.WriteLine(Line("UNDELIVERED_QUIT_EXIT_0", cam, rec));
+
+            Assert.True(cam.HasExited && cam.ExitCode == 0);
+            Assert.NotEqual(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+        }
+
+        [Fact]
+        public void ProcessDiedBeforeTheStop_IsExitedEarlyAndStaysSo()
+        {
+            var cam = new Cam();
+            var rec = Opened(cam);
+            cam.End(0);                       // it dies mid-run, untouched
+
+            rec.Stop();
+            Swallow(rec.Dispose);
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("EXITED_EARLY_THEN_DISPOSE", cam, rec));
+
+            Assert.Equal(0, cam.Quits);
+            Assert.Equal(CameraStopKind.ExitedEarly, rec.StopKind);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+        }
+
+        [Fact]
+        public void CleanStopFollowedByDispose_StaysACleanQuit()
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = 0 };
+            var rec = Opened(cam);
+
+            rec.Stop();
+            rec.Dispose();
+            rec.Dispose();
+            Swallow(rec.Stop);
+
+            _out.WriteLine(Line("CLEAN_STOP_THEN_DISPOSE", cam, rec));
+
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Yes, rec.Completeness);
+            Assert.False(rec.IsAbandoned);
+        }
+
+        [Fact]
+        public void ForceKilledThenDisposeAndRecover_StaysForceKilled()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = true };
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);          // q ignored, kill lands
+            Swallow(rec.Dispose);
+            Swallow(rec.Stop);
+            Swallow(rec.Dispose);
+
+            _out.WriteLine(Line("FORCE_KILLED_THEN_RECOVER", cam, rec));
+
+            Assert.Equal(CameraStopKind.ForceKilled, rec.StopKind);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+        }
+
+        [Fact]
+        public void ManyStopsOnALiveProcess_NeverEarnAKindBeyondTheHistory()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = Opened(cam);
+
+            // Twelve refused rounds. The kind may only ever be abandoned, and only after two.
+            var seen = new List<string>();
+            for (int i = 0; i < 12; i++)
+            {
+                Swallow(rec.Stop);
+                seen.Add($"round{i + 1}:kind={CameraObservation.Text(rec.StopKind) ?? "(absent)"}");
+                if (i == 0)
+                    Assert.True(rec.StopKind is null,
+                        $"one refused round already produced {CameraObservation.Text(rec.StopKind)}");
+            }
+            _out.WriteLine("MANY_STOPS " + string.Join(" ", seen));
+            _out.WriteLine(Line("MANY_STOPS", cam, rec));
+
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+        }
+
+        [Fact]
+        public void OneRefusedRoundAlone_RecordsNoKindAtAll()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = Opened(cam);
+
+            Swallow(rec.Stop);
+
+            _out.WriteLine(Line("ONE_REFUSED_ROUND", cam, rec));
+
+            Assert.Equal(1, cam.Quits);
+            Assert.Equal(1, cam.Kills);
+            Assert.Null(rec.StopKind);
+            Assert.Equal(CameraCompleteness.Unknown, rec.Completeness);
+            Assert.True(rec.IsAbandoned, "one refused kill already makes the handle worth holding");
+        }
+
+
+        // =================================================================================
+        // AC16 - the abandoned camera is REACHABLE, REPORTED WITH ITS PID through the real
+        // /status serializer, and its recording claim is NOT released.
+        // =================================================================================
+
+        [Fact]
+        public void Ac16_AbandonedCamera_IsRetainedReportedWithItsPidAndKeepsTheClaim()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = false };
+            var rec = EarnAbandoned(cam);
+
+            var owner = new StrandedCameraOwner();
+            Assert.True(RecordingWorkset.TryClaim(_dir, RecordingWorkKind.Capture, "qa probe", out var ticket),
+                "the probe could not take the claim it is about to assert on");
+
+            // The SAME method the service's stop calls. True = the camera was retained and the
+            // claim deliberately NOT released.
+            bool retained = owner.ReleaseClaimUnlessStranded(rec, ticket, _dir);
+            Assert.True(retained, "a live abandoned camera was not retained - the only handle was dropped");
+            Assert.True(owner.HoldsAny);
+
+            var rows = owner.Report();
+            Assert.Single(rows);
+            Assert.Equal(40404, rows[0].Pid);
+            Assert.Equal("QA PROBE CAM", rows[0].Device);
+            Assert.Equal(_dir, rows[0].Dir);
+
+            // Through the REAL status object and the REAL RestServer serializer options.
+            var status = new RecordStatus { State = "idle", CameraStuck = rows.Count > 0, StuckCameras = rows };
+            string json = JsonSerializer.Serialize(status, new JsonSerializerOptions { WriteIndented = true });
+            _out.WriteLine("AC16_STATUS_JSON " + json.Replace(System.Environment.NewLine, " "));
+
+            Assert.Contains("\"CameraStuck\": true", json);
+            Assert.Contains("\"Pid\": 40404", json);
+            Assert.Contains("QA PROBE CAM", json);
+
+            // The claim is still held: a second claimant must be refused while the writer lives.
+            Assert.False(RecordingWorkset.TryClaim(_dir, RecordingWorkKind.Capture, "second claimant", out _),
+                "the recording claim was released while a live camera process still owns the directory");
+
+            // The manifest half of AC16.
+            var manifest = new Manifest();
+            CameraTrackRecord.Write(manifest, rec);
+            _out.WriteLine($"AC16_MANIFEST stopKind={manifest.CameraStopKind} complete={manifest.CameraComplete}");
+            Assert.Equal("abandoned", manifest.CameraStopKind);
+            Assert.Equal("unknown", manifest.CameraComplete);
+
+            // Hand the claim back: RecordingWorkset is process-global, so a probe that kept it
+            // would make every later "is a capture in progress" answer wrong. The process really
+            // ending is what the owner's own sweep is for.
+            cam.QuitEnds = true;
+            owner.Recover();
+            Assert.False(owner.HoldsAny, "the owner did not let go once the process finally ended");
+            Assert.Empty(owner.Report());
+            Assert.True(RecordingWorkset.TryClaim(_dir, RecordingWorkKind.Capture, "after recovery", out var again),
+                "the claim was never released after the stranded process ended");
+            RecordingWorkset.Release(again);
+
+            // and the DURABLE record is still abandoned after that recovery.
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+        }
+
+
+        [Fact]
+        public void Ac14_ForceKilled_SurfacesTheFailureToItsCallerAndIsNeverComplete()
+        {
+            var cam = new Cam { QuitEnds = false, KillEnds = true };
+            var rec = Opened(cam);
+
+            // A PRESENCE, not an absence: the stop must THROW rather than return as a clean success.
+            var ex = Assert.Throws<CameraForceKilledException>(() => rec.Stop());
+
+            _out.WriteLine(Line("AC14_FORCE_KILLED", cam, rec) + $" threw={ex.GetType().Name} device={ex.DeviceName}");
+
+            Assert.Equal("QA PROBE CAM", ex.DeviceName);
+            Assert.Equal(CameraStopKind.ForceKilled, rec.StopKind);
+            Assert.Equal(CameraCompleteness.No, rec.Completeness);
+
+            var manifest = new Manifest();
+            CameraTrackRecord.Write(manifest, rec);
+            Assert.Equal("force-killed", manifest.CameraStopKind);
+            Assert.Equal("no", manifest.CameraComplete);
+        }
+
+        [Fact]
+        public void Ac15_IncompleteStderr_IsRecordedAndNeverComplete()
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = 0, Eof = false };
+            var rec = Opened(cam);
+
+            rec.Stop();
+
+            _out.WriteLine(Line("AC15_INCOMPLETE_STDERR", cam, rec) + $" stderrComplete={rec.StderrComplete}");
+
+            Assert.False(rec.StderrComplete);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+
+            var manifest = new Manifest();
+            CameraTrackRecord.Write(manifest, rec);
+            Assert.False(manifest.CameraStderrComplete);
+            Assert.NotEqual("yes", manifest.CameraComplete);
+        }
+
+        [Fact]
+        public void Ac10_ExitedEarly_IsRecordedAsLossWithTheObservedSeconds()
+        {
+            var cam = new Cam();
+            var rec = Opened(cam);
+            cam.End(0);                       // it dies mid-run
+
+            rec.Stop();
+
+            var manifest = new Manifest();
+            CameraTrackRecord.Write(manifest, rec);
+            _out.WriteLine($"AC10_SEAM stopKind={manifest.CameraStopKind} complete={manifest.CameraComplete} "
+                           + $"captured={manifest.CameraCapturedSeconds}");
+
+            Assert.Equal("exited-early", manifest.CameraStopKind);
+            Assert.Equal("no", manifest.CameraComplete);
+            Assert.Equal(1.0, manifest.CameraCapturedSeconds);   // the LAST observed tick, 00:00:01.00
+        }
+
+
+        /// <summary>
+        /// AC1/AC2's "no camera attached" arm, which cannot be RUN on this machine (it has two
+        /// cameras). The ENUMERATOR is the whole of that arm: /devices returns
+        /// FfmpegDevices.ListVideo() with no fallback, and the CLI prints "(none found)" when its
+        /// Count is 0, so an audio-only listing parsing to EMPTY is what both surfaces read.
+        /// </summary>
+        [Fact]
+        public void Ac1_AnAudioOnlyDshowListing_EnumeratesNoCameras()
+        {
+            string audioOnly = string.Join(System.Environment.NewLine, new[]
+            {
+                "[dshow @ 000001] DirectShow video devices (some may be both video and audio devices)",
+                "[dshow @ 000001] Could not enumerate video devices (or none found).",
+                "[dshow @ 000001] DirectShow audio devices",
+                "[dshow @ 000001]  " + Quoted("Microphone (HD Webcam eMeet C960)") + " (audio)",
+                "[dshow @ 000001]     Alternative name " + Quoted("@device_cm_33D9A762wave:Microphone"),
+            });
+
+            var cameras = FfmpegDevices.ParseDshowVideo(audioOnly);
+            var mics = FfmpegDevices.ParseDshowAudio(audioOnly);
+
+            _out.WriteLine($"AC1_NO_CAMERA cameras={cameras.Count} mics={mics.Count}");
+
+            // The instrument is proved by the SECOND assertion: the same parser DOES find the audio
+            // device in this very listing, so an empty camera list is a real absence and not a
+            // parser that matched nothing at all.
+            Assert.Empty(cameras);
+            Assert.Single(mics);
+
+            // and it finds a camera when one IS listed.
+            string withCamera = "[dshow @ 1]  " + Quoted("HD Webcam eMeet C960") + " (video)";
+            Assert.Single(FfmpegDevices.ParseDshowVideo(withCamera));
+        }
+
+        private static string Quoted(string s) => '"' + s + '"';
+
+        // =================================================================================
+        // THE DESIGN PROPERTY, TESTED DIRECTLY: A NEW CALL SITE ADDED TODAY.
+        // I am that new call site. I try, by every route the type offers, to make the record
+        // say "abandoned" (or any other kind) without having earned it.
+        // =================================================================================
+
+        [Fact]
+        public void ANewCallSite_CannotSayAnyStopKind_ItCanOnlyReportWhatItDid()
+        {
+            var t = typeof(CameraTerminationRecord);
+
+            // 1. STRUCTURAL: no member anywhere on the type accepts a CameraStopKind, so no caller
+            //    can name one. The instrument is proved by the second assertion - the type DOES
+            //    expose a CameraStopKind, as the RESULT of the derivation.
+            var takers = t.GetMembers(BindingFlags.Public | BindingFlags.NonPublic
+                                      | BindingFlags.Instance | BindingFlags.Static)
+                .OfType<MethodBase>()
+                .Where(m => m.GetParameters().Any(p =>
+                    p.ParameterType == typeof(CameraStopKind) || p.ParameterType == typeof(CameraStopKind?)))
+                .Select(m => m.Name).ToArray();
+            _out.WriteLine("NEW_CALL_SITE members taking a CameraStopKind: "
+                           + (takers.Length == 0 ? "(none)" : string.Join(", ", takers)));
+            Assert.Empty(takers);
+            Assert.Equal(typeof(CameraStopKind?), t.GetProperty("StopKind")!.PropertyType);
+
+            // 2. There is no settable stop-kind field on the recorder either.
+            var settable = typeof(FfmpegCameraRecorder)
+                .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+                .Where(f => f.FieldType == typeof(CameraStopKind) || f.FieldType == typeof(CameraStopKind?))
+                .Select(f => f.Name).ToArray();
+            _out.WriteLine("NEW_CALL_SITE settable stop-kind fields on the recorder: "
+                           + (settable.Length == 0 ? "(none)" : string.Join(", ", settable)));
+            Assert.Empty(settable);
+
+            // 3. BEHAVIOURAL: a fresh record claims nothing.
+            var rec = new CameraTerminationRecord("QA NEW CALL SITE");
+            Assert.Null(rec.StopKind);
+            Assert.False(rec.AbandonedEarned);
+
+            // 4. Every shortcut a careless new call site would take THROWS rather than being
+            //    admitted. Each of these is a PRESENCE assertion on an exception.
+            Assert.Throws<InvalidOperationException>(() => rec.QuitAttempted());      // outside a round
+            Assert.Throws<InvalidOperationException>(() => rec.KillAttempted());      // outside a round
+            Assert.Throws<InvalidOperationException>(() => rec.QuitDelivered());      // never attempted
+            Assert.Throws<InvalidOperationException>(() => rec.KillRefused());        // no kill issued
+            Assert.Throws<InvalidOperationException>(() => rec.KillConfirmedProcessGone());
+            Assert.Throws<InvalidOperationException>(() => rec.ExitObservedAfterTermination(0));
+            Assert.Null(rec.StopKind);
+
+            // 5. Inside a round, a kill outcome still cannot be claimed without a kill, and a round
+            //    may report only ONE outcome.
+            rec.BeginRound();
+            Assert.Throws<InvalidOperationException>(() => rec.QuitDelivered());
+            Assert.Throws<InvalidOperationException>(() => rec.KillRefused());
+            rec.KillAttempted();
+            rec.KillRefused();
+            Assert.Throws<InvalidOperationException>(() => rec.KillConfirmedProcessGone());  // two outcomes
+            Assert.Null(rec.StopKind);                                                      // ONE refusal is not abandoned
+            Assert.False(rec.AbandonedEarned);
+
+            // 6. "The process was gone and nobody had touched it" records NOTHING once an attempt
+            //    has been made, so a late look cannot relabel a fight in progress.
+            rec.ProcessGoneWithoutAnyAttempt();
+            Assert.Null(rec.StopKind);
+
+            // 7. Only the SECOND refused round earns it, and it is earned by DOING the rounds.
+            rec.BeginRound();
+            rec.KillAttempted();
+            rec.KillRefused();
+            _out.WriteLine($"NEW_CALL_SITE after two refused rounds: {rec.Describe()}");
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+
+            // 8. And it cannot be taken back by any later observation the type accepts.
+            rec.BeginRound();
+            rec.QuitAttempted();
+            rec.QuitDelivered();
+            rec.ExitObservedAfterTermination(0);
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+            rec.BeginRound();
+            rec.KillAttempted();
+            rec.KillConfirmedProcessGone();
+            _out.WriteLine($"NEW_CALL_SITE after a later clean quit AND a later landed kill: {rec.Describe()}");
+            Assert.Equal(CameraStopKind.Abandoned, rec.StopKind);
+        }
+
+        [Fact]
+        public void OneTickThenStall_IsNeverComplete()
+        {
+            var cam = new Cam { QuitEnds = true, QuitExitCode = 0 };
+            var rec = FfmpegCameraRecorder.CreateOver(cam, "QA PROBE CAM", Out, LogPath, TimeSpan.FromSeconds(2));
+            rec.Open();
+            cam.Emit(Tick(0.5));          // exactly ONE advance, then silence
+            rec.Stop();
+
+            _out.WriteLine(Line("AC13_ONE_TICK_STALL", cam, rec));
+
+            Assert.Equal(CameraStopKind.CleanQuit, rec.StopKind);
+            Assert.NotEqual(CameraCompleteness.Yes, rec.Completeness);
+        }
+    }
+}

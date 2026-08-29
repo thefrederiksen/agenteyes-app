@@ -1,0 +1,133 @@
+QA round 7, issue #28 - the mutation battery, run by QA on the round-7 head a0d1fe3 in an
+ISOLATED worktree (D:\ReposFredgenteyes-qa28-r7). Each mutation was applied, the solution
+REBUILT, the FULL suite run, and the tree reverted with `git checkout -- src tests` before the
+next one. The unmutated baseline is re-proved at the top and at the end.
+
+    dotnet build AgentEyes.sln -c Release  ->  Build succeeded.  0 Error(s)
+    dotnet test  AgentEyes.sln -c Release  ->  Failed: 0, Passed: 942, Total: 942
+
+A mutation that leaves the suite GREEN is a check that cannot fail, and is recorded as a hole.
+None of the fourteen below left it green.
+
+M10, M11 and M15 are recorded separately at the end: their first scripted form did not compile,
+which the runner reported as BUILD FAILED rather than as a pass. They were re-applied by hand.
+
+
+=== M0-BASELINE (no mutation) ===
+    what it breaks: nothing - this is the unmutated head
+    Passed!  - Failed:     0, Passed:   942, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+
+=== M1 restore exitCode>=0 (the rejected round-6 rule) ===
+    what it breaks: every non-negative code becomes a clean quit
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenADeliveredQuitEndedInAnFfmpegErrorCode_IsNeverRecordedAsACleanQuit [6 ms]
+
+=== M2 drop 255 from the accepted set ===
+    what it breaks: ffmpeg's own 'q' exit code stops being healthy - AC17 must break
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenADeliveredQuitEndedTheProcessNormally_IsStillRecordedAsACleanQuit [6 ms]
+
+=== M3 widen the set to include 1 ===
+    what it breaks: a muxer failure on the way out becomes a clean quit
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenADeliveredQuitEndedInAnFfmpegErrorCode_IsNeverRecordedAsACleanQuit [5 ms]
+
+=== M4 write abandoned at the first refused kill ===
+    what it breaks: the provisional overclaim the gate rejected
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenTheProcessDiesBeforeTheDisposeRetry_IsNeverRecordedAsAbandoned [16 ms]
+
+=== M5 never write abandoned in Dispose ===
+    what it breaks: AC16's durable record disappears
+    Failed!  - Failed:     2, Passed:   940, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenTheSurvivingProcessFinallyDiesAfterTheDisposeRetry_StaysAbandoned [20 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegSurvivesEverything_MarksItselfAbandonedAndKeepsItsProcessId [5 ms]
+
+=== M6 Completeness always answers unknown ===
+    what it breaks: the cheat that satisfies every negative criterion
+    Failed!  - Failed:     7, Passed:   935, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenADeliveredQuitEndedTheProcessNormally_IsStillRecordedAsACleanQuit [2 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly [2 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenNoTickArrivedOnACOMPLETEStderr_StillRecordsTheEmptyFileAsKnownBroken [6 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete [12 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraNeverReportedWritingAFrame_RecordsCompleteNo [5 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheOutputAdvancedTwiceAndWasStillFresh_IsRecordedAsComplete [5 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheOutputKeptAdvancingUntilTheStop_RecordsTheTakeAsComplete [3 ms]
+
+=== M7 delete the failed-open CLI transfer ONLY ===
+    what it breaks: site 1 of the two CLI failure boundaries
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 9 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.StrandedCameraOwnerTests.Video_HandsAnAbandonedCameraToAStrandedOwnerAtBothOfItsFailureBoundaries [18 ms]
+
+=== M8 delete the final CLI transfer ONLY ===
+    what it breaks: site 2 - the gate's defect 5 site
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 9 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.StrandedCameraOwnerTests.Video_HandsAnAbandonedCameraToAStrandedOwnerAtBothOfItsFailureBoundaries [15 ms]
+
+=== M9 open probe accepts either header ===
+    what it breaks: round-3 two-header open probe (AC9)
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 9 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenFfmpegOpensTheCameraButNeverOpensTheOutputFile_FailsTheStart [3 ms]
+=== M10 a refused kill no longer throws : BUILD FAILED (mutation did not compile) ===
+=== M11 restore the /devices camera fallback : BUILD FAILED (mutation did not compile) ===
+
+=== M12 drop the pre-stop process-loss observation ===
+    what it breaks: round-1 defect 4 - a mid-run loss recorded as a clean track
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedWithoutItsExitCallbackDelivered_RecordsTheTrackAsLost [2 ms]
+
+=== M13 one advance is enough again ===
+    what it breaks: round-6 AC13 - ONE_TICK_STALL back to yes
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraTickedOnceAndStalledInsideTheFreshnessWindow_IsNeverRecordedAsComplete [10 ms]
+
+=== M14 conclude from an incomplete stderr ===
+    what it breaks: AC15
+    Failed!  - Failed:     2, Passed:   940, Skipped:     0, Total:   942, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenNoTickArrivedOnAnINCOMPLETEStderr_DoesNotClaimTheFileIsEmpty [5 ms]
+    RED:   Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheStderrNeverReachesEndOfStream_DrawsNoConclusionFromTheUnfinishedRead [5 ms]
+
+battery complete; tree restored
+
+=== M10 a refused kill no longer throws (re-applied by hand) ===
+    what it breaks: round-1 gate defect 2 - a stop that reports success while ffmpeg is alive
+    mutation: KillOrThrow's `throw new CameraStopFailedException(` -> assigned to a Func instead
+    Failed!  - Failed:    20, Passed:   922, Skipped:     0, Total:   942
+    RED (first 20 listed):
+      CameraFailurePathTests.IsAbandoned_OnceTheProcessIsFinallyGone_IsFalseAgain
+      CameraFailurePathTests.IsAbandoned_WhenTheStrandedProcessLaterDiesOnItsOwn_StopsClaimingItIsAlive
+      CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+      CameraFailurePathTests.StopKind_WhenTheProcessDiesBeforeTheDisposeRetry_IsNeverRecordedAsAbandoned
+      CameraFailurePathTests.StopKind_WhenTheSurvivingProcessFinallyDiesAfterTheDisposeRetry_StaysAbandoned
+      CameraFailurePathTests.Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt
+      CameraFailurePathTests.Stop_WhenFfmpegSurvivesEverything_MarksItselfAbandonedAndKeepsItsProcessId
+      CameraFailurePathTests.Stop_WhenFfmpegSurvivesTheQuitAndTheKill_ThrowsInsteadOfReportingSuccess
+      CameraFailurePathTests.Stop_WhenTheKillItselfThrows_StillReportsTheStopAsFailed
+      CameraFailurePathTests.Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle
+      StrandedCameraOwnerTests.DiscardDirectoryUnlessStranded_WhenTheCameraIsStillRunning_LeavesTheDirectoryAlone
+      StrandedCameraOwnerTests.HoldsAny_WhenTheStrandedProcessDiedOnItsOwn_IsFalse
+      StrandedCameraOwnerTests.Recover_DoesNotForgetOneStrandedCameraWhileAnotherIsStillAlive
+      StrandedCameraOwnerTests.Recover_WhenTheProcessFinallyDies_ReleasesTheClaimAndForgetsIt
+      StrandedCameraOwnerTests.Recover_WhileTheProcessIsStillAlive_KeepsHoldingItAndItsClaim
+      StrandedCameraOwnerTests.ReleaseClaimUnlessStranded_WhenTheCameraIsStillRunning_KeepsTheClaimAndTheRecorder
+      StrandedCameraOwnerTests.Report_NamesTheStuckProcessAndItsPid
+      StrandedCameraOwnerTests.Report_WhenOneStrandedProcessDiedAndAnotherDidNot_KeepsOnlyTheLiveOne
+      StrandedCameraOwnerTests.Report_WhenTheStrandedProcessDiedOnItsOwn_StopsReportingItAndReleasesTheClaim
+      StrandedCameraOwnerTests.Report_WhileTheStrandedProcessIsStillAlive_KeepsReportingItAndItsClaim
+
+=== M11 restore the /devices camera fallback (re-applied by hand) ===
+    what it breaks: round-1 gate defect 5 - a broken enumeration answering [] with HTTP 200
+    mutation: RestServer.cs:405 -> `try { cameras = FfmpegDevices.ListVideo().ToArray(); } catch { cameras = Array.Empty<string>(); }`
+    Failed!  - Failed:     1, Passed:   941, Skipped:     0, Total:   942
+    RED: CameraFailurePathTests.TheDevicesEndpoint_DoesNotSwallowACameraEnumerationFailure
+
+=== M15 the CLI's outer finally becomes a catch { ... throw; } (re-applied by hand) ===
+    what it breaks: round-1 gate defect 1 - the CLI's last-owner boundary
+    Failed!  - Failed:     2, Passed:   940, Skipped:     0, Total:   942
+    RED: CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary
+    RED: StrandedCameraOwnerTests.Video_HandsAnAbandonedCameraToAStrandedOwnerAtBothOfItsFailureBoundaries
+
+=== after the whole battery ===
+    git checkout -- src tests
+    dotnet build AgentEyes.sln -c Release  ->  Build succeeded.  0 Error(s)
+    dotnet test  AgentEyes.sln -c Release  ->  Passed!  Failed: 0, Passed: 942, Total: 942

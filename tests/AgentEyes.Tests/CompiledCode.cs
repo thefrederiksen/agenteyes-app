@@ -222,6 +222,111 @@ namespace AgentEyes.Tests
             return found[0].Calls;
         }
 
+        /// <summary>One call site together with the exception handling that actually protects it:
+        /// the kinds of handler whose TRY region covers the call, and every call made inside those
+        /// finally/fault handlers.</summary>
+        internal sealed record GuardedCall(string Method, string Callee, int Offset,
+            IReadOnlyList<string> Handlers, IReadOnlyList<string> CleanupCalls);
+
+        /// <summary>
+        /// Every call to <paramref name="callee"/> inside <paramref name="method"/>, WITH the
+        /// exception-handling regions that cover it - the question "does this method own that thing
+        /// through a failure boundary", which no presence-only call scan can answer.
+        ///
+        /// Why over source text (issue #28, Review Gate round 2). Both defects this answers are
+        /// shaped as an ABSENT try/finally: the CLI opened a webcam and then ran a hundred lines that
+        /// can throw with nothing to stop it, and the Devices endpoint wrapped a camera enumeration
+        /// in a catch that turned a broken enumerator into "this machine has no camera". A grep for
+        /// "finally" proves neither: it cannot say WHICH call a finally covers, and a `using`
+        /// declaration writes no "finally" in the source at all. In IL both are exact - a protected
+        /// region is a metadata row with an offset range, and the call has an offset.
+        ///
+        /// Fail-closed at every step. No method of that exact name, or no call to that callee inside
+        /// it, THROWS: a guard that passed because the code it guards was renamed or moved would
+        /// certify a scan that never happened. Generated bodies (lambdas, local functions, async
+        /// state machines) fold onto their declaring method exactly as everywhere else here, and each
+        /// body is measured against ITS OWN regions, so a call moved into a lambda is judged by the
+        /// lambda's boundaries rather than the outer method's.
+        ///
+        /// LIMIT, stated rather than papered over: this sees the boundary, not what the boundary
+        /// does. It reports the calls a finally handler makes, so a test can require the disposal it
+        /// expects; it cannot prove that handler is correct.
+        /// </summary>
+        /// <param name="method">The exact normalized name, e.g. "AgentEyes.Commands::Video".</param>
+        /// <param name="callee">The exact callee name, e.g. "AgentEyes.Video.FfmpegCameraRecorder::Start".</param>
+        public static IReadOnlyList<GuardedCall> GuardedCalls(string assemblyPath, string method, string callee)
+        {
+            if (string.IsNullOrWhiteSpace(method)) throw new ArgumentException("a method to read is required", nameof(method));
+            if (string.IsNullOrWhiteSpace(callee)) throw new ArgumentException("a callee to look for is required", nameof(callee));
+            if (!File.Exists(assemblyPath))
+                throw new FileNotFoundException(
+                    "The assembly to scan was not built. This scan cannot be allowed to pass by finding nothing.",
+                    assemblyPath);
+
+            string assembly = Path.GetFileName(assemblyPath);
+            using var stream = File.OpenRead(assemblyPath);
+            using var pe = new PEReader(stream);
+            var md = pe.GetMetadataReader();
+
+            bool sawTheMethod = false;
+            var found = new List<GuardedCall>();
+
+            foreach (var handle in md.MethodDefinitions)
+            {
+                var definition = md.GetMethodDefinition(handle);
+                if (definition.RelativeVirtualAddress == 0) continue;
+
+                string where = MethodName(md, handle);
+                if (!string.Equals(where, method, StringComparison.Ordinal)) continue;
+                sawTheMethod = true;
+
+                var body = pe.GetMethodBody(definition.RelativeVirtualAddress);
+                byte[] il = body.GetILBytes() ?? throw new InvalidOperationException($"No IL for {where} in {assembly}.");
+                var regions = body.ExceptionRegions;
+
+                // (offset, callee) for every call this body makes, in IL order.
+                var calls = new List<(int Offset, string Callee)>();
+                Walk(il, $"{assembly}!{where}", (opcode, twoByte, operandAt) =>
+                {
+                    bool namesAMethod = twoByte
+                        ? opcode == LdFtn || opcode == LdVirtFtn
+                        : opcode == Call || opcode == CallVirt || opcode == NewObj || opcode == LdToken;
+                    if (!namesAMethod) return;
+                    string? target = Callee(md, BitConverter.ToInt32(il, operandAt));
+                    if (target != null) calls.Add((operandAt - (twoByte ? 2 : 1), target));
+                });
+
+                foreach (var (offset, target) in calls)
+                {
+                    if (!string.Equals(target, callee, StringComparison.Ordinal)) continue;
+
+                    var handlers = new List<string>();
+                    var cleanup = new List<string>();
+                    foreach (var region in regions)
+                    {
+                        if (offset < region.TryOffset || offset >= region.TryOffset + region.TryLength) continue;
+                        handlers.Add(region.Kind.ToString());
+                        if (region.Kind != ExceptionRegionKind.Finally && region.Kind != ExceptionRegionKind.Fault) continue;
+                        foreach (var (at, made) in calls)
+                            if (at >= region.HandlerOffset && at < region.HandlerOffset + region.HandlerLength)
+                                cleanup.Add(made);
+                    }
+
+                    found.Add(new GuardedCall(where, target, offset, handlers, cleanup));
+                }
+            }
+
+            if (!sawTheMethod)
+                throw new InvalidOperationException(
+                    $"No method named '{method}' exists in {assembly} - a boundary assertion must not pass by reading nothing.");
+            if (found.Count == 0)
+                throw new InvalidOperationException(
+                    $"'{method}' in {assembly} contains no call to '{callee}' - a boundary assertion about a call "
+                    + "that is not there proves nothing. Has it been renamed or moved?");
+
+            return found;
+        }
+
         /// <summary>
         /// Every method of <paramref name="assemblyPath"/> REACHABLE from <paramref name="seeds"/>,
         /// following calls that stay inside this assembly - the seeds included.

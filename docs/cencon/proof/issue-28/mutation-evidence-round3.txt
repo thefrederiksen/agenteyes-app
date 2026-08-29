@@ -1,0 +1,57 @@
+ISSUE #28 - ROUND 3 MUTATION EVIDENCE
+The AC3 regression test, RUN AGAINST THE ROUND-2 CODE FIRST.
+
+MUTATION (src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, StartAndProbe):
+    -                if (_inputOpenReported && _outputOpenReported) break;
+    +                if (_wroteOutput) break;   // MUTATION: the round-2 probe
+
+That single line IS round 2: the open probe held the recording start until ffmpeg
+first-encoded-frame progress tick. Command:
+
+    dotnet test AgentEyes.sln -c Release --filter "FullyQualifiedName~CameraFailurePathTests"
+
+Result: 3 of the 5 new checks FIRED. Verbatim output below. The mutation was reverted
+and the whole suite re-run clean (Failed: 0, Passed: 889).
+
+--------------------------------------------------------------------------------
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AgentEyes.Core -> D:\ReposFred\agenteyes-app\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-app\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.App -> D:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+Test run for D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:10.22]     AgentEyes.Tests.CameraFailurePathTests.Start_DoesNotHoldTheRecordingStartWaitingForTheFirstEncodedFrame [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_DoesNotHoldTheRecordingStartWaitingForTheFirstEncodedFrame [10 s]
+  Error Message:
+   AgentEyes.UsageException : the camera "HD Webcam eMeet C960" could not be opened (it did not open within 10s - it opened the camera but never opened camera.mp4). Likely cause: see the application log for the ffmpeg error from "HD Webcam eMeet C960".
+  Stack Trace:
+     at AgentEyes.Video.FfmpegCameraRecorder.StartAndProbe() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 312
+   at AgentEyes.Video.FfmpegCameraRecorder.StartOver(ICameraProcess proc, String deviceName, String outPath, String logPath, TimeSpan openTimeout) in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 235
+   at AgentEyes.Tests.CameraFailurePathTests.StartOver(FakeCameraProcess proc, Double openTimeoutSeconds) in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 161
+   at AgentEyes.Tests.CameraFailurePathTests.Start_DoesNotHoldTheRecordingStartWaitingForTheFirstEncodedFrame() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 268
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:10.23]     AgentEyes.Tests.CameraFailurePathTests.Start_WhenOnlyAProgressTickArrives_DoesNotCountThatAsAnOpenCamera [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenOnlyAProgressTickArrives_DoesNotCountThatAsAnOpenCamera [1 ms]
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.UsageException)
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Start_WhenOnlyAProgressTickArrives_DoesNotCountThatAsAnOpenCamera() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 295
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:15.50]     AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraOpenedAndThenNeverDeliveredAFrame_StillReportsTheLoss [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraOpenedAndThenNeverDeliveredAFrame_StillReportsTheLoss [5 s]
+  Error Message:
+   AgentEyes.UsageException : the camera "HD Webcam eMeet C960" could not be opened (it did not open within 5s - it opened the camera but never opened camera.mp4). Likely cause: see the application log for the ffmpeg error from "HD Webcam eMeet C960".
+  Stack Trace:
+     at AgentEyes.Video.FfmpegCameraRecorder.StartAndProbe() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 312
+   at AgentEyes.Video.FfmpegCameraRecorder.StartOver(ICameraProcess proc, String deviceName, String outPath, String logPath, TimeSpan openTimeout) in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 235
+   at AgentEyes.Tests.CameraFailurePathTests.StartOver(FakeCameraProcess proc, Double openTimeoutSeconds) in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 161
+   at AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraOpenedAndThenNeverDeliveredAFrame_StillReportsTheLoss() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 485
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     3, Passed:    19, Skipped:     0, Total:    22, Duration: 15 s - AgentEyes.Tests.dll (net8.0)

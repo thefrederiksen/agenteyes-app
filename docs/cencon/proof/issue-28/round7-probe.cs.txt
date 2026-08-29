@@ -1,0 +1,343 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using AgentEyes;
+using AgentEyes.Video;
+
+namespace QaProbe
+{
+    // A scripted ICameraProcess. Nothing here decides anything - every decision under test lives in
+    // FfmpegCameraRecorder / StrandedCameraOwner, which is the point of the seam.
+    internal sealed class FakeCam : ICameraProcess
+    {
+        private Action<string> _onLine;
+        private Action _onExited;
+
+        public bool Exited;
+        public int Code;
+        public int? Pid { get; set; } = 4242;
+        public bool QuitThrows;
+        public bool WaitSucceeds = true;
+        public bool DrainSucceeds = true;
+        public bool KillEndsIt = true;
+        public int Quits, Kills, Drains, Disposes;
+
+        public readonly List<string> OnStart = new List<string>();
+
+        public void Start(Action<string> onStderrLine, Action onExited)
+        {
+            _onLine = onStderrLine; _onExited = onExited;
+            foreach (var l in OnStart) _onLine(l);
+        }
+
+        public void Say(string line) { _onLine(line); }
+
+        // Queued, because ffmpeg cannot print anything before it is started - Open() is what
+        // starts it, and Open() blocks until these two lines arrive.
+        public void Headers(string dev, string outp)
+        {
+            OnStart.Add("Input #0, dshow, from 'video=" + dev + "':");
+            OnStart.Add("Output #0, mp4, to '" + outp + "':");
+        }
+
+        public void Tick(double seconds)
+        {
+            var t = TimeSpan.FromSeconds(seconds);
+            Say(string.Format("frame=  10 fps=30 q=28.0 size=256KiB time={0:00}:{1:00}:{2:00}.{3:00} bitrate=N/A speed=1x",
+                t.Hours, t.Minutes, t.Seconds, t.Milliseconds / 10));
+        }
+
+        public void DieOnItsOwn(int code) { Exited = true; Code = code; if (_onExited != null) _onExited(); }
+
+        public bool HasExited { get { return Exited; } }
+        public int ExitCode { get { return Code; } }
+        public int? ProcessId { get { return Pid; } }
+
+        public void SendQuit()
+        {
+            Quits++;
+            if (QuitThrows) throw new IOException("the pipe has been ended.");
+        }
+
+        public bool WaitForExit(int ms)
+        {
+            if (Exited) return true;
+            if (WaitSucceeds) { Exited = true; return true; }
+            return false;
+        }
+
+        public bool DrainStderr(int ms) { Drains++; return DrainSucceeds; }
+        public void Kill() { Kills++; if (KillEndsIt) Exited = true; }
+        public void Dispose() { Disposes++; }
+    }
+
+    internal static class Probe
+    {
+        private static string _tmp;
+        private static readonly List<string> Lines = new List<string>();
+
+        private static void Emit(string s) { Console.WriteLine(s); Lines.Add(s); }
+
+        private static DateTime _clock = new DateTime(2026, 8, 28, 12, 0, 0, DateTimeKind.Utc);
+        private static DateTime Now() { return _clock; }
+
+        private static FfmpegCameraRecorder Build(FakeCam cam, string dev)
+        {
+            string outp = Path.Combine(_tmp, Guid.NewGuid().ToString("N"), "camera.mp4");
+            Directory.CreateDirectory(Path.GetDirectoryName(outp));
+            return FfmpegCameraRecorder.CreateOver(cam, dev, outp, outp + ".ffmpeg.log",
+                TimeSpan.FromSeconds(5), Now);
+        }
+
+        private static string Kind(FfmpegCameraRecorder r)
+        {
+            return CameraObservation.Text(r.StopKind) ?? "(not observed)";
+        }
+
+        private static string Comp(FfmpegCameraRecorder r)
+        {
+            return CameraObservation.Text(r.Completeness);
+        }
+
+        private static void Case(string name, Action<FakeCam, FfmpegCameraRecorder> script)
+        {
+            var cam = new FakeCam();
+            var rec = Build(cam, "QA Probe Camera");
+            string thrown = "(none)";
+            try { script(cam, rec); }
+            catch (Exception ex) { thrown = ex.GetType().Name; }
+            Emit(string.Format("{0,-28} captured={1} stopKind={2} stderrComplete={3} complete={4} lostMidRun={5} quits={6} kills={7} drains={8} threw={9}",
+                name, rec.CapturedSeconds, Kind(rec), rec.StderrComplete, Comp(rec), rec.LostMidRun,
+                cam.Quits, cam.Kills, cam.Drains, thrown));
+        }
+
+        public static int Main()
+        {
+            _tmp = Path.Combine(Path.GetTempPath(), "qa28probe-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tmp);
+
+            // ---- AC17 positive control at the seam: a healthy camera still says yes -------------
+            Case("HEALTHY", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(1);
+                cam.Tick(1.5); _clock = _clock.AddSeconds(1);
+                cam.Tick(2.5); _clock = _clock.AddSeconds(0.5);
+                rec.Stop();
+            });
+
+            // ---- gate case 2: ONE tick, then a 2.9s stall INSIDE the 3s freshness window --------
+            Case("ONE_TICK_STALL_2_9S", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5);
+                _clock = _clock.AddSeconds(2.9);
+                rec.Stop();
+            });
+
+            Case("ONE_TICK_STALL_30S", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5);
+                _clock = _clock.AddSeconds(30);
+                rec.Stop();
+            });
+
+            // ---- gate case 3: no delivered tick AND stderr never reached EOF --------------------
+            Case("ZERO_TICK_INCOMPLETE_STDERR", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.DrainSucceeds = false;
+                rec.Stop();
+            });
+
+            // the SAME shape with a COMPLETE stderr - the file really is known empty
+            Case("ZERO_TICK_COMPLETE_STDERR", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                rec.Stop();
+            });
+
+            Case("ONE_TICK_INCOMPLETE_STDERR", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.5); _clock = _clock.AddSeconds(0.5);
+                cam.DrainSucceeds = false;
+                rec.Stop();
+            });
+
+            // ---- gate case 1: the quit write FAILS, then the process is found dead with a
+            // negative (abnormal-termination) exit code. Deliberately given TWO fresh advances so
+            // the AC13 clause is SATISFIED - otherwise defect 2's fix would mask defect 1.
+            Case("FAILED_QUIT_THEN_ERROR_EXIT", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.QuitThrows = true;
+                cam.Code = -5;
+                rec.Stop();
+            });
+
+            // the quit IS delivered but the exit code is still an abnormal termination
+            Case("QUIT_OK_THEN_ERROR_EXIT", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.Code = -5;
+                rec.Stop();
+            });
+
+            // the quit write FAILS but the exit code is a NORMAL 0 - still never a clean quit
+            Case("FAILED_QUIT_THEN_ZERO_EXIT", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.QuitThrows = true;
+                cam.Code = 0;
+                rec.Stop();
+            });
+
+            // ---- gate round 5, defect 1: the quit IS DELIVERED and ffmpeg answers with its OWN
+            // error code. Two fresh advances, so the AC13 clause is satisfied and nothing else can
+            // be what turns this away from "yes".
+            Case("DELIVERED_QUIT_THEN_EXIT_1", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.Code = 1;               // ffmpeg: the muxer failed while closing the file
+                rec.Stop();
+            });
+
+            // the SAME shape with ffmpeg's interactive-quit code - the accepted observation, and the
+            // control that stops "reject every non-zero code" passing for a fix.
+            Case("DELIVERED_QUIT_THEN_EXIT_255", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.Code = 255;
+                rec.Stop();
+            });
+
+            // ---- AC14 --------------------------------------------------------------------------
+            Case("FORCED_KILL_AFTER_OUTPUT", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.WaitSucceeds = false;   // ignores q
+                cam.KillEndsIt = true;      // but the kill works
+                rec.Stop();
+            });
+
+            // ---- AC10 --------------------------------------------------------------------------
+            Case("EXITED_EARLY", delegate (FakeCam cam, FfmpegCameraRecorder rec)
+            {
+                cam.Headers("QA Probe Camera", rec.OutputPath);
+                rec.Open();
+                cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+                cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+                cam.DieOnItsOwn(1);
+                rec.Stop();
+            });
+
+            // ---- AC16 + gate case 4: the retained process dies on its own ----------------------
+            RetainedProcessDies();
+
+            // ---- gate round 5, defect 2 ----
+            DiedBeforeDisposeRetry();
+
+            Emit("PROBE_RESULT lines=" + Lines.Count);
+            string outFile = Environment.GetEnvironmentVariable("QA_PROBE_OUT");
+            if (string.IsNullOrEmpty(outFile)) outFile = Path.Combine(_tmp, "probe.txt");
+            File.WriteAllLines(outFile, Lines);
+            return 0;
+        }
+
+        // Gate round 5, defect 2: ffmpeg ignores "q", survives the FIRST kill wait, and then exits
+        // ON ITS OWN before the Dispose retry ever reaches it. "abandoned" is defined as outliving
+        // the quit, the kill AND that retry, so this process never met the definition.
+        private static void DiedBeforeDisposeRetry()
+        {
+            var cam = new FakeCam();
+            cam.WaitSucceeds = false;
+            cam.KillEndsIt = false;
+            var rec = Build(cam, "QA Probe Camera");
+            cam.Headers("QA Probe Camera", rec.OutputPath);
+            rec.Open();
+            cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+            cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+
+            string afterStop;
+            try { rec.Stop(); afterStop = "(none)"; } catch (Exception ex) { afterStop = ex.GetType().Name; }
+            string kindAfterStop = Kind(rec);
+            bool abandonedAfterStop = rec.IsAbandoned;
+
+            // It lets go by itself, between the failed stop and the retry. Nothing of ours runs.
+            cam.Exited = true;
+            cam.Code = 0;
+
+            try { rec.Dispose(); } catch (Exception) { }
+
+            Emit(string.Format("{0,-28} threwOnStop={1} kindAfterStop={2} abandonedAfterStop={3} hasExited={4} isAbandoned={5} stopKind={6} complete={7} lostMidRun={8} disposes={9}",
+                "DIED_BEFORE_DISPOSE_RETRY", afterStop, kindAfterStop, abandonedAfterStop,
+                rec.HasExited, rec.IsAbandoned, Kind(rec), Comp(rec), rec.LostMidRun, cam.Disposes));
+        }
+
+        private static void RetainedProcessDies()
+        {
+            var cam = new FakeCam();
+            cam.WaitSucceeds = false;
+            cam.KillEndsIt = false;
+            var rec = Build(cam, "QA Probe Camera");
+            cam.Headers("QA Probe Camera", rec.OutputPath);
+            rec.Open();
+            cam.Tick(0.5); _clock = _clock.AddSeconds(0.5);
+            cam.Tick(1.0); _clock = _clock.AddSeconds(0.5);
+
+            try { rec.Stop(); } catch (Exception) { }
+            try { rec.Dispose(); } catch (Exception) { }
+
+            string dir = Path.GetDirectoryName(rec.OutputPath);
+            RecordingClaimTicket ticket;
+            RecordingWorkset.TryClaim(dir, RecordingWorkKind.Capture, "qa probe", out ticket);
+
+            var svc = new RecordingService();
+            bool retained = svc.StrandedCameras.ReleaseClaimUnlessStranded(rec, ticket, dir);
+
+            var s1 = svc.Status();
+            Emit(string.Format("{0,-28} retained={1} hasExited={2} isAbandoned={3} stopKind={4} complete={5} cameraStuck={6} statusRows={7} pid={8} claimHeld={9} disposes={10}",
+                "RETAINED_PROCESS_ALIVE", retained, rec.HasExited, rec.IsAbandoned, Kind(rec), Comp(rec),
+                s1.CameraStuck, s1.StuckCameras.Count,
+                s1.StuckCameras.Count > 0 ? s1.StuckCameras[0].Pid.ToString() : "-",
+                RecordingWorkset.IsClaimed(dir), cam.Disposes));
+
+            // The process now ends by itself. No code of ours runs at that moment.
+            cam.Exited = true;
+            cam.Code = 0;
+
+            var s2 = svc.Status();
+            Emit(string.Format("{0,-28} hasExited={1} isAbandoned={2} cameraStuck={3} holdsAny={4} statusRows={5} claimHeld={6} disposes={7}",
+                "RETAINED_PROCESS_DIED", rec.HasExited, rec.IsAbandoned, s2.CameraStuck,
+                svc.StrandedCameras.HoldsAny, s2.StuckCameras.Count,
+                RecordingWorkset.IsClaimed(dir), cam.Disposes));
+        }
+    }
+}

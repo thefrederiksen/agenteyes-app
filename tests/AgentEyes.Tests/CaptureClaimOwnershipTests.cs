@@ -185,12 +185,45 @@ namespace AgentEyes.Tests
             // Read from the source because the ticket is a local, and IL cannot say WHICH claim a
             // release names. What it can say - and what the defect was - is that Stop no longer hands
             // a directory to Release at all.
+            //
+            // STRENGTHENED, NOT WEAKENED (issue #28, AC16). The stop's release now goes through
+            // StrandedCameraOwner, which either releases the claim or KEEPS it because a camera
+            // ffmpeg nobody could kill is still writing into that directory. The old assertion
+            // pinned one spelling of one call site, so it broke on that refactor while saying
+            // nothing about the guarantee. The guarantee is what is pinned now, in three parts, and
+            // the third of them is a check the old test could not make at all:
+            //
+            //  1. the stop hands the release its own TICKET (the local `claim`), not a directory;
+            //  2. the route it hands it to really does release that ticket; and
+            //  3. NOTHING IN THE WHOLE PRODUCT releases a claim by directory name. That is the
+            //     defect itself - "remove whichever claim is on this directory" - and it is now
+            //     excluded from every method in both assemblies rather than from one method body.
             string body = RepoSource.MethodBody(
                 RepoSource.Read("src/AgentEyes.Core/RecordingService.cs"),
                 "public RecordResult Stop()");
 
-            Assert.Contains("RecordingWorkset.Release(claim)", body, StringComparison.Ordinal);
+            Assert.Contains("ReleaseClaimUnlessStranded(camera, claim, dir)", body, StringComparison.Ordinal);
             Assert.DoesNotContain("RecordingWorkset.Release(dir", body, StringComparison.Ordinal);
+
+            string owner = RepoSource.MethodBody(
+                RepoSource.Read("src/AgentEyes.Core/StrandedCameraOwner.cs"),
+                "public bool ReleaseClaimUnlessStranded(");
+            Assert.Contains("RecordingWorkset.Release(claim)", owner, StringComparison.Ordinal);
+            Assert.DoesNotContain("RecordingWorkset.Release(dir", owner, StringComparison.Ordinal);
+
+            // ReleaseForTests(dir) is the ONLY release-by-name the codebase has, and it exists for
+            // fixtures. A product call to it would be the original defect exactly. An EMPTY scan
+            // cannot pass this: CallSites throws on an assembly that was not built, and the positive
+            // control below proves the scanner finds RecordingWorkset calls at all.
+            foreach (string assembly in CompiledCode.ProductAssemblies())
+            {
+                var byName = CompiledCode.CallSites(assembly, c => c == "AgentEyes.RecordingWorkset::ReleaseForTests");
+                Assert.Empty(byName);
+            }
+
+            var byTicket = CompiledCode.CallSites(CompiledCode.CoreAssembly,
+                c => c == "AgentEyes.RecordingWorkset::Release");
+            Assert.NotEmpty(byTicket);
         }
     }
 }

@@ -1,0 +1,99 @@
+QA ROUND 5 - MUTATION TRANSCRIPT (issue #28, PR #32, head 0558585)
+
+Produced by the QA Agent, in an isolated `git worktree --detach 0558585` (the tray app was running
+from the normal checkout's Release output and its binary was stamped 12:43, an hour and a half
+before the round-5 commit at 14:18 - it would have served a stale false green).
+
+Each mutation is applied to the PRODUCT code, built clean, run, and reverted. A mutation whose
+target text is not found reports BROKEN INSTRUMENT rather than passing, and a mutation that fails
+to build is reported rather than counted.
+
+CAMPAIGN 1 - QA's OWN probe (docs/cencon/proof/issue-28/qa-round5-probe.cs.txt), which drives the
+real FfmpegCameraRecorder and the real CameraTrackRecord.Write into a real Manifest over a fake
+ICameraProcess written by QA, NOT the developer's fake. Baseline before mutation: 10/10 green.
+
+The load-bearing one is QM2: make Completeness always answer `unknown` - the cheat that would
+satisfy every negative criterion while telling the user nothing - and AC17's positive control goes
+RED. QM9 does the same one level up, at the manifest writer.
+
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC15_StderrNeverReachesEof_IsNeverComplete [4 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC17_HealthyCamera_ManifestSaysComplete_Yes [3 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_OneTickThenStallForTheSession_IsNeverComplete [4 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_PartingFlushThatAdvancesThePosition_DoesNotCertifyTheStall [5 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC14_ForceKilledAfterOutput_IsNotComplete_AndTheStopTellsItsCaller [6 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [22 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [28 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC14_ForceKilledAfterOutput_IsNotComplete_AndTheStopTellsItsCaller [6 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC15_StderrNeverReachesEof_IsNeverComplete [2 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [27 ms]
+
+==== SUMMARY ====
+QM1_clean_quit_is_always_yes                     Failed!  - Failed:     4, Passed:     6, Skipped:     0, Total:    10, Duration: 164 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.OpenedButNeverWroteAFrame_IsKnownBroken [14 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_PartingFlushThatAdvancesThePosition_DoesNotCertifyTheStall [5 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_OneTickThenStallForTheSession_IsNeverComplete [3 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC15_StderrNeverReachesEof_IsNeverComplete [4 ms]
+QM2_always_unknown_the_fail_open_cheat           Failed!  - Failed:     4, Passed:     6, Skipped:     0, Total:    10, Duration: 148 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.OpenedButNeverWroteAFrame_IsKnownBroken [19 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC14_ForceKilledAfterOutput_IsNotComplete_AndTheStopTellsItsCaller [3 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC10_CameraDiesMidRun_IsRecordedAsLost [2 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC17_HealthyCamera_ManifestSaysComplete_Yes [3 ms]
+QM3_time_the_arrival_not_the_advance             Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 167 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_OneTickThenStallForTheSession_IsNeverComplete [4 ms]
+QM4_read_the_live_advance_not_the_stop_snapshot  Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 151 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_PartingFlushThatAdvancesThePosition_DoesNotCertifyTheStall [5 ms]
+QM5_force_kill_never_reaches_the_caller          Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 177 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC14_ForceKilledAfterOutput_IsNotComplete_AndTheStopTellsItsCaller [6 ms]
+QM6_dispose_releases_a_live_handle_anyway        Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 131 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [22 ms]
+QM7_owner_releases_the_claim_regardless          Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 145 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [28 ms]
+QM8_force_killed_is_not_known_broken             Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 151 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC14_ForceKilledAfterOutput_IsNotComplete_AndTheStopTellsItsCaller [6 ms]
+QM9_manifest_writer_hardcodes_yes                Failed!  - Failed:     7, Passed:     3, Skipped:     0, Total:    10, Duration: 153 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.OpenedButNeverWroteAFrame_IsKnownBroken [17 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [21 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_PartingFlushThatAdvancesThePosition_DoesNotCertifyTheStall [5 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC14_ForceKilledAfterOutput_IsNotComplete_AndTheStopTellsItsCaller [3 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC10_CameraDiesMidRun_IsRecordedAsLost [3 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC13_OneTickThenStallForTheSession_IsNeverComplete [3 ms]
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC15_StderrNeverReachesEof_IsNeverComplete [2 ms]
+QM10_abandoned_is_reported_as_complete           Failed!  - Failed:     1, Passed:     9, Skipped:     0, Total:    10, Duration: 138 ms - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [27 ms]
+
+
+CAMPAIGN 2 - the round-1 and round-3 fixes the Review Gate confirmed working, re-proved against the
+FULL suite because this round restructured the manifest path. Baseline: 936/936 green (926 product
+tests + QA's 10 probes). Every one fires on a specific named test.
+
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.TheDevicesEndpoint_DoesNotSwallowACameraEnumerationFailure [5 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary [5 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenFfmpegOpensTheCameraButNeverOpensTheOutputFile_FailsTheStart [4 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedWithoutItsExitCallbackDelivered_RecordsTheTrackAsLost [1 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.TheRecordingService_StoresTheCameraBeforeStartingIt [1 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry [217 ms]
+        ... and 6 more
+
+==== SUMMARY ====
+R1_devices_swallows_the_enumeration_failure    Failed!  - Failed:     1, Passed:   935, Skipped:     0, Total:   936, Duration: 9 s - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.TheDevicesEndpoint_DoesNotSwallowACameraEnumerationFailure [5 ms]
+R2_cli_loses_its_camera_failure_boundary       Failed!  - Failed:     1, Passed:   935, Skipped:     0, Total:   936, Duration: 8 s - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary [5 ms]
+R3_open_probe_accepts_a_live_process           Failed!  - Failed:     1, Passed:   935, Skipped:     0, Total:   936, Duration: 9 s - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenFfmpegOpensTheCameraButNeverOpensTheOutputFile_FailsTheStart [4 ms]
+R4_no_pre_stop_process_loss_check              Failed!  - Failed:     1, Passed:   935, Skipped:     0, Total:   936, Duration: 9 s - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedWithoutItsExitCallbackDelivered_RecordsTheTrackAsLost [1 ms]
+R5_service_opens_before_it_stores_the_recorder Failed!  - Failed:     1, Passed:   935, Skipped:     0, Total:   936, Duration: 8 s - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.TheRecordingService_StoresTheCameraBeforeStartingIt [1 ms]
+R6_failopen_terminates_and_disposes_regardless Failed!  - Failed:     3, Passed:   933, Skipped:     0, Total:   936, Duration: 8 s - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry [228 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle [226 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry [217 ms]
+R7_kill_failure_is_swallowed                   Failed!  - Failed:    12, Passed:   924, Skipped:     0, Total:   936, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+        RED: Failed AgentEyes.Tests.QaRound5ProbeTests.AC16_AbandonedProcess_StaysReachable_ReportsPid_KeepsClaim_ManifestUnknown [28 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegSurvivesEverything_MarksItselfAbandonedAndKeepsItsProcessId [4 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle [7 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry [232 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt [6 ms]
+        RED: Failed AgentEyes.Tests.CameraFailurePathTests.IsAbandoned_OnceTheProcessIsFinallyGone_IsFalseAgain [3 ms]
+        ... and 6 more

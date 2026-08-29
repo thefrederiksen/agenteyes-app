@@ -89,13 +89,41 @@ namespace AgentEyes
         public double? CameraCapturedSeconds { get; set; }
 
         /// <summary>
-        /// Issue #28: true when the camera stopped on its own DURING the recording (unplugged, taken
-        /// by another application, crashed) rather than at the user's stop. The screen recording is
-        /// deliberately unaffected by that - so this flag plus
-        /// <see cref="CameraCapturedSeconds"/> is what says the camera track covers only part of the
-        /// session. False for a camera that ran to the end; null when there is no camera track.
+        /// Issue #28 (spec amendment 2026-08-28): HOW the camera process ended, as observed - one of
+        /// "clean-quit", "force-killed", "exited-early", "abandoned". Null when there is no camera
+        /// track, and null when no stop ever watched the process end, which is itself the honest
+        /// answer rather than a guessed one.
         /// </summary>
-        public bool? CameraTruncated { get; set; }
+        public string? CameraStopKind { get; set; }
+
+        /// <summary>
+        /// Issue #28 (spec amendment 2026-08-28): true only when ffmpeg's stderr was read to END OF
+        /// STREAM at the stop, i.e. everything the camera ffmpeg ever said was seen. False means the
+        /// evidence behind the other camera fields is INCOMPLETE - which is why
+        /// <see cref="CameraComplete"/> can never be "yes" while this is false. Null when there is
+        /// no camera track.
+        /// </summary>
+        public bool? CameraStderrComplete { get; set; }
+
+        /// <summary>
+        /// Issue #28 (spec amendment 2026-08-28, assumption A7): whether camera.mp4 is a complete
+        /// take - "yes", "no", or "unknown". Null when there is no camera track.
+        ///
+        /// IT IS A STRING WITH THREE VALUES, AND THAT IS THE POINT. It replaces the
+        /// <c>CameraTruncated</c> boolean, which could only say complete or truncated - so every
+        /// case the recorder had not anticipated came out as COMPLETE, a claim made from an absence
+        /// of evidence. Three rounds of this feature shipped exactly that: a camera that emitted one
+        /// progress tick and then stalled for a 30-second session, and a file that was force-killed
+        /// mid-write, were both written here as clean complete takes.
+        ///
+        ///  - "yes" needs the whole presence: a clean quit, stderr read to end of stream, and output
+        ///    still advancing when the stop was requested.
+        ///  - "no" is what is KNOWN short or broken: exited early, force-killed, or never a frame.
+        ///  - "unknown" is everything else, and is the CORRECT answer whenever the evidence does not
+        ///    reach. A consumer must treat it as "do not know", never coerce it to false - which is
+        ///    why this is a string enum and not a nullable bool.
+        /// </summary>
+        public string? CameraComplete { get; set; }
         public string? Transcript { get; set; }
         public string? Walkthrough { get; set; }
         public string? FfmpegCommand { get; set; }

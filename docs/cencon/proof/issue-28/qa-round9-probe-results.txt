@@ -1,0 +1,42 @@
+QA round 9 independent probe - verbatim output
+Commit 84221fd, worktree D:/ReposFred/agenteyes-qa28-r9, Release, bin/x64/Release.
+Instrument: docs/cencon/proof/issue-28/qa-round9-probe.cs.txt (QA's own fake ICameraProcess,
+its own scenario driver, its own expectations table). 29 rows; every row carries its EXPECTED
+value, so an absent or empty result is a FAIL, never a pass.
+
+--- AGAINST THE REVIEWED HEAD (84221fd) ---
+PASS PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 quits=2 kills=1 exited=True kind=absent complete=unknown abandoned=False  [CameraStopFailedException]
+PASS PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 quits=2 kills=1 exited=True kind=absent complete=unknown abandoned=False  [CameraStopFailedException]
+PASS PRIOR_REFUSAL_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0 quits=2 kills=1 exited=True kind=clean-quit complete=yes abandoned=False  [CameraStopFailedException]
+PASS PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0 quits=2 kills=1 exited=True kind=clean-quit complete=yes abandoned=False  [CameraStopFailedException]
+PASS PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_255 quits=2 kills=1 exited=True kind=absent complete=unknown abandoned=False  [CameraStopFailedException]
+PASS DELIVERED_QUIT_THEN_EXIT_1 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DIED_BEFORE_DISPOSE_RETRY quits=1 kills=1 exited=True kind=absent complete=unknown abandoned=False  [CameraStopFailedException]
+PASS DIRECT_DISPOSE_ONE_KILL_THEN_RETRY_KILL_LANDS quits=2 kills=2 exited=True kind=force-killed complete=no abandoned=False  [kills=2;]
+PASS DIRECT_DISPOSE_TWO_REFUSED_ROUNDS quits=2 kills=2 exited=False kind=abandoned complete=unknown abandoned=True  [quits=2 kills=2;]
+PASS RECOVERY_AFTER_ABANDONED quits=3 kills=2 exited=True kind=abandoned complete=unknown abandoned=False  [earnedBefore=abandoned;]
+PASS REPEATED_DISPOSE quits=4 kills=4 exited=False kind=abandoned complete=unknown abandoned=True  [quits=4 kills=4;]
+PASS STOP_DISPOSE_RECOVER quits=3 kills=2 exited=True kind=abandoned complete=unknown abandoned=False  [quits=3 kills=2;CameraStopFailedException]
+PASS STOP_SWEEP_THEN_UNWATCHED_EXIT_0 quits=2 kills=2 exited=True kind=abandoned complete=unknown abandoned=False  [quits=2 kills=2;CameraStopFailedException,CameraStopFailedException]
+PASS AC17_HEALTHY_EXIT_255 quits=1 kills=0 exited=True kind=clean-quit complete=yes abandoned=False
+PASS AC17_HEALTHY_EXIT_0 quits=1 kills=0 exited=True kind=clean-quit complete=yes abandoned=False
+PASS EXIT_255_INCOMPLETE_STDERR quits=1 kills=0 exited=True kind=clean-quit complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_1 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_2 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_69 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_137 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_254 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_256 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_2147483647 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_-5 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS DELIVERED_QUIT_THEN_EXIT_-1 quits=1 kills=0 exited=True kind=absent complete=unknown abandoned=False
+PASS AC13_ONE_TICK_THEN_STALL quits=1 kills=0 exited=True kind=clean-quit complete=unknown abandoned=False
+PASS AC14_FORCE_KILLED quits=1 kills=1 exited=True kind=force-killed complete=no abandoned=False  [threw=CameraForceKilledException]
+PASS AC15_INCOMPLETE_STDERR quits=1 kills=0 exited=True kind=clean-quit complete=unknown abandoned=False
+PASS AC10_EXITED_EARLY quits=0 kills=0 exited=True kind=exited-early complete=no abandoned=False
+
+--- DESIGN PROPERTY, read off the COMPILED agenteyes.dll ---
+types inspected: 248
+fields storing a CameraStopKind: 0 []
+writable CameraStopKind properties: 0 []
+methods accepting a CameraStopKind: 2 [AgentEyes.Video.CameraObservation.Text(kind), AgentEyes.Video.CameraObservation.Text(kind)]

@@ -14,6 +14,21 @@ namespace AgentEyes
         /// <summary>Shared stop flag (a ref local can't be captured by the key-reader lambda).</summary>
         private sealed class Flag { public volatile bool Value; }
 
+        /// <summary>
+        /// The CLI's owner of camera ffmpeg processes it could not kill (issue #28, AC16; gate
+        /// round 4, defect 5).
+        ///
+        /// The Review Gate's finding was that "the only StrandedCameraOwner in product code is the
+        /// service field at RecordingService.cs:121; there is no transfer from the CLI path" - so
+        /// `agenteyes video --camera` wrote an honest `abandoned` / `unknown` manifest and then let
+        /// the local holding the live process handle leave scope, unreachable. This is the CLI's
+        /// side of that reference. It is static because the recorder must outlive the command frame
+        /// that created it, and it routes the decision through the SAME method the service uses so
+        /// "a process that survived every cleanup attempt stays reachable" cannot be true on one
+        /// path and false on the other.
+        /// </summary>
+        private static readonly StrandedCameraOwner CliStrandedCameras = new();
+
         // ---- screens -------------------------------------------------------
 
         public static int Screens()
@@ -294,110 +309,237 @@ namespace AgentEyes
             // The camera is opened FIRST, for the same reason the service opens it first (issue #28,
             // AC9): a camera that cannot be opened must fail the start while the directory is still
             // empty, so the failed attempt leaves nothing behind.
+            //
+            // Everything from here to the end of the command runs inside ONE failure boundary
+            // (issue #28, gate defect 1). The camera is a live OS process holding an EXCLUSIVE
+            // DirectShow device, and before this there was no finally and no using anywhere on the
+            // path: gdigrab failing to open the screen - or the loopback start, the audio mux, the
+            // duration probe or the manifest save throwing - unwound straight out of the command and
+            // left that ffmpeg writing camera.mp4 with the webcam still taken for the life of the
+            // process, and a half-written recording directory behind it.
             FfmpegCameraRecorder? cameraRec = null;
-            if (dshowCamera != null)
+            string? cameraStopFailure = null;
+            try
             {
-                try
+                if (dshowCamera != null)
                 {
-                    cameraRec = FfmpegCameraRecorder.Start(dshowCamera, cameraFps, crf, Path.Combine(dir, "camera.mp4"));
+                    // CONSTRUCTED AND ASSIGNED BEFORE FFMPEG EXISTS (issue #28, gate round 3,
+                    // defect 1). The finally at the bottom of this method is this camera's last
+                    // owner, and it can only own a recorder the local actually received: while
+                    // opening the camera was one static call, an open failure threw before the
+                    // assignment, so a stalled ffmpeg that survived the probe's kill went out of
+                    // scope still holding the webcam, with `cameraRec` null and the finally
+                    // disposing nothing.
+                    cameraRec = FfmpegCameraRecorder.Create(dshowCamera, cameraFps, crf, Path.Combine(dir, "camera.mp4"));
+                    try
+                    {
+                        cameraRec.Open();
+                    }
+                    catch
+                    {
+                        // Get ffmpeg off the camera FIRST. A process that survived the failed open
+                        // still owns camera.mp4, so removing the directory around it would replace
+                        // the real, actionable camera error with an IO error about a file in use.
+                        // (Dispose is a no-op when the open already confirmed the process gone.)
+                        cameraRec.Dispose();
+
+                        // ... and when even that could not end it, the recorder is HANDED OVER
+                        // rather than dropped (issue #28, AC16; gate round 4, defect 5), which also
+                        // decides what happens to the directory: removing one around a live ffmpeg
+                        // fails on the file it holds open and replaces the real, actionable camera
+                        // error with an IO error about camera.mp4.
+                        if (CliStrandedCameras.RetainIfStranded(cameraRec, dir))
+                        {
+                            Console.WriteLine($"[fail] the camera ffmpeg (PID "
+                                + $"{cameraRec.ProcessId?.ToString() ?? "unknown"}) is STILL RUNNING after the failed "
+                                + $"open - it still holds \"{dshowCamera}\" and {Path.Combine(dir, "camera.mp4")}. "
+                                + $"End that process (taskkill /PID {cameraRec.ProcessId?.ToString() ?? "<pid>"} /F) "
+                                + $"before recording again; {dir} is left in place because a live process is writing "
+                                + "into it.");
+                        }
+                        else
+                        {
+                            // Nothing has been captured into this directory yet, and a directory
+                            // holding no recording is not something to leave behind (AC8/AC9).
+                            DiscardEmptyRecordingDirectory(dir);
+                        }
+                        throw;
+                    }
                 }
-                catch
+
+                using var recorder = FfmpegRecorder.Start(capture, dshowMic, fps, crf, ffOut);
+                manifest.FfmpegCommand = recorder.CommandLine;
+                if (cameraRec != null)
                 {
-                    // Nothing has been captured into this directory yet, and a directory holding no
-                    // recording is not something to leave behind.
-                    Directory.Delete(dir, recursive: true);
-                    throw;
+                    // Alignment hint (assumption A5): negative, because the camera started first.
+                    manifest.CameraStartOffsetSeconds =
+                        Math.Round((cameraRec.StartedUtc - recorder.StartedUtc).TotalSeconds, 3);
+                    Console.WriteLine($"     camera: \"{dshowCamera}\" -> camera.mp4 ({cameraFps} fps, video only)");
                 }
-            }
+                sysCap?.Start(sysWav!);
 
-            using var recorder = FfmpegRecorder.Start(capture, dshowMic, fps, crf, ffOut);
-            manifest.FfmpegCommand = recorder.CommandLine;
-            if (cameraRec != null)
-            {
-                // Alignment hint (assumption A5): negative, because the camera started first.
-                manifest.CameraStartOffsetSeconds =
-                    Math.Round((cameraRec.StartedUtc - recorder.StartedUtc).TotalSeconds, 3);
-                Console.WriteLine($"     camera: \"{dshowCamera}\" -> camera.mp4 ({cameraFps} fps, video only)");
-            }
-            sysCap?.Start(sysWav!);
+                var sw = Stopwatch.StartNew();
+                var flag = new Flag();
+                var keys = new Thread(() => VideoKeys(flag, sw, monitor, capture, dir, manifest, recorder))
+                { IsBackground = true };
+                keys.Start();
 
-            var sw = Stopwatch.StartNew();
-            var flag = new Flag();
-            var keys = new Thread(() => VideoKeys(flag, sw, monitor, capture, dir, manifest, recorder))
-            { IsBackground = true };
-            keys.Start();
-
-            int autoStop = ParseAutoStop(opts);
-            while (!flag.Value)
-            {
-                Console.Write($"\rREC {Timecodes.Label(sw.Elapsed)}   ");
-                Thread.Sleep(250);
-                if (recorder.HasExited) { Console.WriteLine("\n[warn] ffmpeg exited early; stopping."); break; }
-                if (autoStop > 0 && sw.Elapsed.TotalSeconds >= autoStop) flag.Value = true;
-            }
-
-            recorder.Stop();
-            // Stopped AFTER the screen recorder, so both files carry the screen recorder's drain wait
-            // and their durations stay within a second of each other.
-            cameraRec?.Stop();
-            cameraRec?.Dispose();
-            sysCap?.Stop();
-            sysCap?.Dispose();
-            sw.Stop();
-            Console.WriteLine();
-
-            // Issue #83: the untouched pre-processing captures (raw.mp4, sys_native.wav) are
-            // preserved (renamed to ".original") rather than deleted, so over-removal is recoverable.
-            var originals = new System.Collections.Generic.List<string>();
-            if (needLoopback)
-            {
-                Console.WriteLine("     mixing audio...");
-                if (mix) AgentEyes.Audio.AudioMix.MuxVideoMixed(ffOut, sysWav!, finalPath, mixOpts);
-                else AgentEyes.Audio.AudioMix.MuxVideoSystemOnly(ffOut, sysWav!, finalPath, mixOpts.SystemGain);
-                originals.AddRange(OriginalBackup.Preserve(dir, "video", src));
-            }
-            else if (micPost)
-            {
-                Console.WriteLine("     processing mic audio...");
-                AgentEyes.Audio.AudioMix.ProcessVideoMic(ffOut, finalPath, mixOpts);
-                originals.AddRange(OriginalBackup.Preserve(dir, "video", AudioSourceKind.Mic));
-            }
-
-            double dur = File.Exists(finalPath) ? MediaProbe.DurationSeconds(finalPath) : 0;
-            manifest.DurationSeconds = Math.Round(dur > 0 ? dur : sw.Elapsed.TotalSeconds, 2);
-            manifest.Files.Add("recording.mp4");
-            if (cameraRec != null)
-            {
-                manifest.CameraCapturedSeconds = Math.Round(cameraRec.CapturedSeconds, 2);
-                manifest.CameraTruncated = cameraRec.LostMidRun;
-                manifest.Files.Add("camera.mp4");
-                if (cameraRec.LostMidRun)
+                int autoStop = ParseAutoStop(opts);
+                while (!flag.Value)
                 {
-                    Console.WriteLine($"[warn] the camera \"{cameraRec.DeviceName}\" was lost during the "
-                        + $"recording - camera.mp4 covers {cameraRec.CapturedSeconds:F1}s; the screen "
-                        + "recording is unaffected.");
+                    Console.Write($"\rREC {Timecodes.Label(sw.Elapsed)}   ");
+                    Thread.Sleep(250);
+                    if (recorder.HasExited) { Console.WriteLine("\n[warn] ffmpeg exited early; stopping."); break; }
+                    if (autoStop > 0 && sw.Elapsed.TotalSeconds >= autoStop) flag.Value = true;
+                }
+
+                recorder.Stop();
+                // Stopped AFTER the screen recorder, so both files carry the screen recorder's drain
+                // wait and their durations stay within a second of each other.
+                //
+                // A camera stop that could not terminate ffmpeg (gate defect 2) is reported here and
+                // carried into the exit code, but it must NOT abandon the rest of the command: the
+                // screen recording is already on disk, and the manifest written below is what makes
+                // it a recording rather than loose bytes. Same shape and same reason as the service's
+                // failure-isolated stop sequence - nothing is hidden, the failure is printed, logged,
+                // and returned.
+                if (cameraRec != null)
+                {
+                    try
+                    {
+                        cameraRec.Stop();
+                    }
+                    catch (Exception ex)
+                    {
+                        cameraStopFailure = ex.Message;
+                        Log.Error("[Commands] Video: stopping the camera FAILED", ex);
+                        Console.WriteLine($"[fail] {ex.Message}");
+                    }
+                }
+                sysCap?.Stop();
+                sysCap?.Dispose();
+                sw.Stop();
+                Console.WriteLine();
+
+                // Issue #83: the untouched pre-processing captures (raw.mp4, sys_native.wav) are
+                // preserved (renamed to ".original") rather than deleted, so over-removal is recoverable.
+                var originals = new System.Collections.Generic.List<string>();
+                if (needLoopback)
+                {
+                    Console.WriteLine("     mixing audio...");
+                    if (mix) AgentEyes.Audio.AudioMix.MuxVideoMixed(ffOut, sysWav!, finalPath, mixOpts);
+                    else AgentEyes.Audio.AudioMix.MuxVideoSystemOnly(ffOut, sysWav!, finalPath, mixOpts.SystemGain);
+                    originals.AddRange(OriginalBackup.Preserve(dir, "video", src));
+                }
+                else if (micPost)
+                {
+                    Console.WriteLine("     processing mic audio...");
+                    AgentEyes.Audio.AudioMix.ProcessVideoMic(ffOut, finalPath, mixOpts);
+                    originals.AddRange(OriginalBackup.Preserve(dir, "video", AudioSourceKind.Mic));
+                }
+
+                double dur = File.Exists(finalPath) ? MediaProbe.DurationSeconds(finalPath) : 0;
+                manifest.DurationSeconds = Math.Round(dur > 0 ? dur : sw.Elapsed.TotalSeconds, 2);
+                manifest.Files.Add("recording.mp4");
+                if (cameraRec != null)
+                {
+                    // OBSERVATIONS, not conclusions (issue #28, spec amendment 2026-08-28), through
+                    // the SAME writer the service uses - so the CLI and the app cannot describe the
+                    // same camera failure differently, and there is exactly one place in the product
+                    // where these manifest fields are assigned at all.
+                    CameraTrackRecord.Write(manifest, cameraRec);
+                    if (cameraRec.LostMidRun)
+                    {
+                        Console.WriteLine($"[warn] the camera \"{cameraRec.DeviceName}\" was lost during the "
+                            + $"recording - camera.mp4 covers {cameraRec.CapturedSeconds:F1}s; the screen "
+                            + "recording is unaffected.");
+                    }
+                }
+                foreach (var s in manifest.Shots) manifest.Files.Add(s.File);
+                foreach (var o in originals) { manifest.OriginalFiles.Add(o); manifest.Files.Add(o); }
+                ManifestStore.Replace(dir, manifest);
+
+                long size = File.Exists(finalPath) ? new FileInfo(finalPath).Length : 0;
+                string sizeText = size >= 1024 * 1024
+                    ? $"{size / 1024.0 / 1024.0:F1} MB"
+                    : $"{size / 1024.0:F0} KB";
+                Console.WriteLine($"[ok] recording.mp4 ({Timecodes.Label(TimeSpan.FromSeconds(manifest.DurationSeconds))}, {sizeText}), {manifest.Shots.Count} marker(s)");
+                if (cameraRec != null)
+                {
+                    string camPath = Path.Combine(dir, "camera.mp4");
+                    long camSize = File.Exists(camPath) ? new FileInfo(camPath).Length : 0;
+                    string camSizeText = camSize >= 1024 * 1024
+                        ? $"{camSize / 1024.0 / 1024.0:F1} MB"
+                        : $"{camSize / 1024.0:F0} KB";
+                    // "[ok]" is a CLAIM about the file, so it is printed ONLY for a track this
+                    // recording actually established as complete (issue #28, spec amendment). The
+                    // three-state verdict is printed verbatim rather than folded back into two:
+                    // "unknown" is a real answer and the user is entitled to see it instead of an
+                    // "[ok]" that means "we did not find anything wrong".
+                    string completeness = CameraObservation.Text(cameraRec.Completeness);
+                    Console.WriteLine(cameraRec.Completeness == CameraCompleteness.Yes
+                        ? $"[ok] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only - complete: yes"
+                        : $"[warn] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only - complete: "
+                          + $"{completeness} (stop: {CameraObservation.Text(cameraRec.StopKind) ?? "not observed"})");
+                }
+                Console.WriteLine($"[ok] manifest.json written to {dir}");
+                if (cameraStopFailure != null)
+                {
+                    Console.WriteLine("[fail] the camera did not stop cleanly - the screen recording and the "
+                        + "manifest are on disk; see the log.");
+                    return 1;
+                }
+                return 0;
+            }
+            finally
+            {
+                // The camera's LAST ATTEMPT. Whatever happened above - a clean stop, or a throw out
+                // of gdigrab, the mux, the duration probe or the manifest save - ffmpeg is stopped
+                // and the webcam is handed back before this command leaves the stack.
+                cameraRec?.Dispose();
+
+                // AND THE ATTEMPT CAN FAIL (issue #28, gate round 4, defect 5). Disposing was the
+                // whole of the CLI's ownership: the local then left scope, so the one handle able to
+                // reach an ffmpeg that had survived the quit, the kill AND this retry was dropped on
+                // the floor - while the manifest honestly recorded "abandoned" / "unknown" about a
+                // process nothing in the app could name again. The service had already been fixed to
+                // hand its abandoned recorder to a StrandedCameraOwner; this is the same transfer,
+                // through the same one method, on the CLI's side of the same defect.
+                //
+                // A CLI process cannot outlive itself, so what remains actionable after this command
+                // exits is the PID - printed here and written to the log by the owner.
+                if (CliStrandedCameras.RetainIfStranded(cameraRec, dir))
+                {
+                    Console.WriteLine($"[fail] the camera ffmpeg (PID "
+                        + $"{cameraRec!.ProcessId?.ToString() ?? "unknown"}) is STILL RUNNING - it still holds "
+                        + $"\"{cameraRec.DeviceName}\" and {cameraRec.OutputPath}. End that process "
+                        + $"(taskkill /PID {cameraRec.ProcessId?.ToString() ?? "<pid>"} /F) before recording from "
+                        + "that camera again.");
                 }
             }
-            foreach (var s in manifest.Shots) manifest.Files.Add(s.File);
-            foreach (var o in originals) { manifest.OriginalFiles.Add(o); manifest.Files.Add(o); }
-            ManifestStore.Replace(dir, manifest);
+        }
 
-            long size = File.Exists(finalPath) ? new FileInfo(finalPath).Length : 0;
-            string sizeText = size >= 1024 * 1024
-                ? $"{size / 1024.0 / 1024.0:F1} MB"
-                : $"{size / 1024.0:F0} KB";
-            Console.WriteLine($"[ok] recording.mp4 ({Timecodes.Label(TimeSpan.FromSeconds(manifest.DurationSeconds))}, {sizeText}), {manifest.Shots.Count} marker(s)");
-            if (cameraRec != null)
+        /// <summary>
+        /// Remove the recording directory a failed camera start created, so nothing is left behind
+        /// for the Library and the repair passes to find (issue #28, AC8/AC9).
+        ///
+        /// Its own failure is reported and NOT thrown, for the same reason
+        /// <see cref="RecordingStartSequence.Abandon"/> collects rollback failures rather than
+        /// raising them: the caller is already carrying the camera failure, and that is the
+        /// actionable fact. Replacing "the camera is already in use by another application" with
+        /// "the process cannot access the file camera.mp4" would hide the cause behind its symptom.
+        /// </summary>
+        private static void DiscardEmptyRecordingDirectory(string dir)
+        {
+            try
             {
-                string camPath = Path.Combine(dir, "camera.mp4");
-                long camSize = File.Exists(camPath) ? new FileInfo(camPath).Length : 0;
-                string camSizeText = camSize >= 1024 * 1024
-                    ? $"{camSize / 1024.0 / 1024.0:F1} MB"
-                    : $"{camSize / 1024.0:F0} KB";
-                Console.WriteLine($"[ok] camera.mp4 ({cameraRec.CapturedSeconds:F1}s, {camSizeText}), video only");
+                Directory.Delete(dir, recursive: true);
             }
-            Console.WriteLine($"[ok] manifest.json written to {dir}");
-            return 0;
+            catch (Exception ex)
+            {
+                Log.Error($"[Commands] Video: removing the empty recording directory {dir} after a failed "
+                          + "camera start FAILED - it is left on disk", ex);
+            }
         }
 
         // ---- package -------------------------------------------------------
