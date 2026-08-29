@@ -49,7 +49,54 @@ namespace AgentEyes.Tests
         // The HUD's own numbers, so a reader sees the reproduction rather than infers it.
         private const double PillWidth = 367, PillHeight = 52;                 // QA's measured pill
         private const double DefaultPreviewWidth = 520, DefaultPreviewHeight = 400;
-        private const double ResizedWidth = 1560, ResizedHeight = 400;         // 3x the default width (AC7)
+
+        /// <summary>
+        /// AC7's size - three times the default preview width - or as much of it as the display
+        /// running the suite can actually give a window.
+        ///
+        /// THIS WAS A LITERAL 1560 AND IT BROKE THE v1.7.0 RELEASE. Windows will not make a
+        /// resizable window wider than its maximum tracking size, which is the virtual screen plus
+        /// the frame, so on the GitHub runner's 1024x768 desktop the widest window that exists is
+        /// 1044. Every test below that asked for 1560 got 1044 and failed - eleven of them - while
+        /// the same tests were green on a developer machine with room to spare. The number was a
+        /// fact about the developer's monitor, not about the HUD.
+        ///
+        /// So the size is MEASURED (see <see cref="TheDisplayUnderTest"/>) rather than named: 1560
+        /// wherever it fits, this display's ceiling where it does not, and in either case a size a
+        /// window has already been observed to take here. Note this is not a scaling fix and never
+        /// was one - both sides of these assertions are WPF device-independent pixels already, and
+        /// the only crossing into device pixels (<c>HudRig.ResizeTheHwnd</c>) converts
+        /// through the window's own DPI. 1560/1044 merely happens to look like 1.5.
+        /// </summary>
+        private static readonly Size Resized =
+            TheDisplayUnderTest.AtMost(3 * DefaultPreviewWidth, DefaultPreviewHeight);
+
+        private static readonly double ResizedWidth = Resized.Width;
+        private static readonly double ResizedHeight = Resized.Height;
+
+        /// <summary>
+        /// THE INSTRUMENT CHECK FOR EVERY AC7 TEST IN THIS FILE. A measured size cannot invent room
+        /// a display does not have, so a desktop too small to hold the windows these tests resize
+        /// would leave them "passing" over resizes that never grew anything. That is exactly the
+        /// fail-open shape this suite refuses elsewhere, so the precondition is asserted by name:
+        /// a display that cannot run these tests says so, instead of producing a mystery number.
+        /// </summary>
+        [Fact]
+        public void TheDisplayRunningThisSuite_CanHoldTheWindowsTheseTestsResize()
+        {
+            Assert.True(ResizedWidth > DefaultPreviewWidth,
+                $"The widest window this display allows is {TheDisplayUnderTest.LargestWindowWidth:0.##}, "
+                + $"which is no wider than the preview panel's own {DefaultPreviewWidth} default. The "
+                + "AC7 tests below would then 'resize' the HUD to the size it already was and prove "
+                + "nothing. Run the suite on a desktop with room to enlarge a window.");
+
+            Assert.True(TheDisplayUnderTest.LargestWindowWidth >= DefaultPreviewWidth + 140
+                     && TheDisplayUnderTest.LargestWindowHeight >= DefaultPreviewHeight + 60,
+                $"This display allows at most a {TheDisplayUnderTest.LargestWindowWidth:0.##}x"
+                + $"{TheDisplayUnderTest.LargestWindowHeight:0.##} window, which cannot take the grip "
+                + $"drag in DraggingTheGrip_IsRemembered ({DefaultPreviewWidth + 140}x"
+                + $"{DefaultPreviewHeight + 60}). That test would measure a clamp rather than a drag.");
+        }
 
         /// <summary>
         /// AC1, and the shipped defect. The panel is toggled on while the window is already on
