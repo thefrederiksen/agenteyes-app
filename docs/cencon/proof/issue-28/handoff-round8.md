@@ -182,7 +182,14 @@ which is itself evidence that the derived kind reproduces the behaviour the gate
 | `dotnet build AgentEyes.sln -c Release` (own worktree, own restore) | `Build succeeded.` **0 Error(s)**, 4 pre-existing warnings |
 | `dotnet test AgentEyes.sln -c Release` | **Passed! Failed: 0, Passed: 947, Skipped: 0, Total: 947** |
 | `git diff --check origin/main...HEAD` | clean |
-| Stack merge into `origin/issue-36-circular-camera-overlay` | see below |
+| Stack merge into `origin/issue-36-circular-camera-overlay` | conflict-free; Release build clean; **1159 passed, 0 failed, 0 skipped** |
+
+The stack check was done in a throwaway detached worktree at `origin/issue-36-circular-camera-overlay`
+(`75e62ad`), merging `origin/issue-28-camera-failure-boundaries` with `--no-commit --no-ff`: the merge
+completed with no conflicts (only `FfmpegCameraRecorder.cs` auto-merged), `dotnet restore` then
+`dotnet build -c Release` succeeded with 0 errors and the same 4 pre-existing warnings, and the
+suite was **1159 passed, 0 failed, 0 skipped** - the 1154 the gate previously verified plus this
+round's 5 new tests. The worktree was then removed.
 
 Release output is `bin\x64\Release\net8.0-windows10.0.19041.0`. A build or a targeted test command
 that omits the solution's x64 platform finds no assembly, and that empty result is a broken
