@@ -79,12 +79,22 @@ namespace AgentEyes.App
         /// </summary>
         private readonly HudSizeMemory _size;
 
+        /// <summary>
+        /// The only thing that ever writes to <see cref="_size"/> (issue #33, AC7). It watches for
+        /// the three gestures by which a PERSON can resize this window - a drag of the sizing
+        /// border, the preview panel's grip, and a UI Automation TransformPattern command - and
+        /// nothing else. Nothing in this window is subscribed to SizeChanged or LayoutUpdated, so a
+        /// size the layout produced cannot be mistaken for a size somebody chose.
+        /// </summary>
+        private readonly HudUserResize _userResize;
+
         private static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
         internal HudWindow(RecordingService svc, Config cfg, Func<Task> stop, Func<Task> discard)
         {
             _svc = svc; _cfg = cfg; _stop = stop; _discard = discard;
             _size = new HudSizeMemory(cfg.HudWidth, cfg.HudHeight);
+            _userResize = new HudUserResize(this, _size);
 
             Title = "Recording HUD";   // no visible chrome; the name serves UI Automation
             WindowStyle = WindowStyle.None;
@@ -276,7 +286,7 @@ namespace AgentEyes.App
                 Template = GripTemplate(),
             };
             AutomationName(grip, "HUD resize");
-            grip.DragDelta += (_, e) => ResizeBy(e.HorizontalChange, e.VerticalChange);
+            grip.DragDelta += (_, e) => _userResize.ByGrip(e.HorizontalChange, e.VerticalChange);
 
             var surfaceHost = new Grid { Margin = new Thickness(14, 0, 12, 10) };
             surfaceHost.Children.Add(new Border
@@ -316,13 +326,12 @@ namespace AgentEyes.App
             _feed = new PreviewFrameFeed(Dispatcher, ShowFrames);
 
             MouseLeftButtonDown += (_, _) => { try { DragMove(); } catch { /* click without drag */ } };
-            // Every size this window takes is offered to the memory as it happens (issue #33, AC7).
-            // It has to be here rather than in SavePosition: by the time Closed runs, the stop has
-            // already auto-sized the HUD back to the pill and the panel's size is gone. Which of
-            // those reports is a size a PERSON chose - and which is this window mid-transition, with
-            // WPF reporting a half-applied size from inside an assignment - is decided by
-            // HudSizeMemory, not here. See HudPreviewSizing.
-            HudPreviewSizing.Attach(this, _size, () => _preview.Visible);
+            // A size is remembered when a PERSON resizes this window, and at no other time
+            // (issue #33, AC7). It cannot be read back at save time - by the time Closed runs, the
+            // stop has already auto-sized the HUD to the pill and the panel's size is gone - and it
+            // must not be taken from the window's own size reports either: three defects were
+            // shipped trying to sort those into the person's and the layout's. See HudUserResize.
+            _userResize.Watch();
             Loaded += (_, _) => Position();
             SourceInitialized += (_, _) => ApplyWindowStyles();
             Closed += (_, _) => { _timer.Stop(); SavePosition(); ClosePreview(); };
@@ -641,11 +650,14 @@ namespace AgentEyes.App
             }
         }
 
-        private void ResizeBy(double dx, double dy)
-        {
-            Width = Math.Max(MinWidth, ActualWidth + dx);
-            Height = Math.Max(MinHeight, ActualHeight + dy);
-        }
+        /// <summary>
+        /// Serve UI Automation's TransformPattern from WPF rather than from the default HWND
+        /// provider, so an accessibility tool's (or QA's) resize arrives as a typed COMMAND that
+        /// this window can attribute to a person - see <see cref="HudUserResize"/>. Everything else
+        /// about the HUD's automation surface is the base peer's, unchanged.
+        /// </summary>
+        protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
+            _userResize.CreatePeer();
 
         private void SavePreviewChoices()
         {

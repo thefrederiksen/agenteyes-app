@@ -135,17 +135,17 @@ MUTATIONS = [
     # sizing became the remembered size - and the panel opened at 367x52 with a zero-sized picture.
     # Round 3 makes the transition explicit, and these mutations break each part of it in turn.
 
-    ("M19 the size memory keeps whatever the window last reported, panel down and all",
+    ("M19 a half-specified saved size is restored (a config with only a width becomes a size)",
      r"src\AgentEyes.App\HudSizeMemory.cs",
-     "            if (!panelVisible || !manuallySized) return;",
-     "            // mutation: any size the window reports is remembered, the pill's included",
-     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+     "            if (savedWidth is > 0 && savedHeight is > 0)",
+     "            if (savedWidth is > 0 || savedHeight is > 0)",
+     "FullyQualifiedName~HudSizeMemoryTests"),
 
-    ("M20 the size memory FORGETS on an auto-sized report (round 1's shape: the stop clears it)",
-     r"src\AgentEyes.App\HudSizeMemory.cs",
-     "            if (!panelVisible || !manuallySized) return;",
-     "            if (!panelVisible || !manuallySized) { _width = null; _height = null; return; }",
-     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M20 taking the panel down leaves the HUD manually sized, so it never returns to its pill",
+     r"src\AgentEyes.App\HudPreviewSizing.cs",
+     "            window.SizeToContent = SizeToContent.WidthAndHeight;",
+     "            // mutation: the panel comes down but the window stays manually sized",
+     "FullyQualifiedName~HudPreviewSizingOrderTests"),
 
     ("M21 SavePosition goes back to reading the window's live size at close time (round 1's bug)",
      r"src\AgentEyes.App\HudWindow.cs",
@@ -153,35 +153,42 @@ MUTATIONS = [
      "            if (SizeToContent == SizeToContent.Manual && ActualWidth > 0 && ActualHeight > 0)\n            {\n                _cfg.HudWidth = ActualWidth;\n                _cfg.HudHeight = ActualHeight;\n            }",
      "FullyQualifiedName~HudSizeMemoryTests"),
 
-    ("M22 the window never offers its sizes to the memory (a memory nothing feeds)",
+    # ---- issue #33 round 4: the HUD's size memory is written by GESTURES, not by size reports.
+    # M22-M32 were re-aimed when the polarity was inverted (round 4). The decisions they used to
+    # break - "is the transition over", "is this report trustworthy" - no longer exist, because
+    # nothing observes the window's size any more. What is breakable now is the identification of
+    # the gesture and the wiring that carries it.
+
+    ("M22 the window never watches for user resizes (a memory nothing can ever feed)",
      r"src\AgentEyes.App\HudWindow.cs",
-     "            HudPreviewSizing.Attach(this, _size, () => _preview.Visible);",
-     "            // mutation: the window keeps its sizes to itself",
-     "FullyQualifiedName~HudSizeMemoryTests"),
+     "            _userResize.Watch();",
+     "            // mutation: nobody is watching for the person's resize",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 
-    ("M23 opening the panel is not announced as a transition, so its half-applied reports are trusted",
-     r"src\AgentEyes.App\HudSizeMemory.cs",
-     "            _settling = true;\n            return (_commandedWidth, _commandedHeight);",
-     "            _settling = false;   // mutation: every report during the switch is taken at face value\n            return (_commandedWidth, _commandedHeight);",
-     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M23 a window MOVE is taken for a resize (WM_SIZING is no longer required)",
+     r"src\AgentEyes.App\HudUserResize.cs",
+     "                    if (!_draggingASizingEdge) return;",
+     "                    // mutation: any finished modal loop counts as a resize",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 
-    ("M24 ROUND 2'S SHIPPED CODE, RECONSTRUCTED: no transition, and the size read back after the switch",
-     r"src\AgentEyes.App\HudPreviewSizing.cs",
-     "            window.SizeToContent = SizeToContent.Manual;\n            window.Width = width;\n            window.Height = height;",
-     "            memory.Settled();\n            window.SizeToContent = SizeToContent.Manual;\n            window.Width = memory.Width ?? defaultWidth;\n            window.Height = memory.Height ?? defaultHeight;",
-     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M24 ROUND 3'S SHIPPED MECHANISM, RECONSTRUCTED: the window's own size reports are trusted",
+     r"src\AgentEyes.App\HudUserResize.cs",
+     "            if (new WindowInteropHelper(_window).Handle != IntPtr.Zero) { HookTheWindowMessages(); return; }",
+     "            _window.SizeChanged += (_, _) => Record(ThePanelIsUp, null);   // mutation: rounds 2-3\n"
+     "            if (new WindowInteropHelper(_window).Handle != IntPtr.Zero) { HookTheWindowMessages(); return; }",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 
-    ("M25 taking the panel down forgets the size the person chose",
-     r"src\AgentEyes.App\HudSizeMemory.cs",
-     "        public void PanelClosed() => _settling = false;",
-     "        public void PanelClosed() { _settling = false; _width = null; _height = null; }",
-     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M25 the peer stops advertising Transform, so UI Automation resizes the HUD behind WPF's back",
+     r"src\AgentEyes.App\HudUserResize.cs",
+     "            patternInterface == PatternInterface.Transform ? this : base.GetPattern(patternInterface);",
+     "            base.GetPattern(patternInterface);",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 
-    ("M26 the transition never ends, so no resize is ever attributed to the person",
-     r"src\AgentEyes.App\HudSizeMemory.cs",
-     "        public void Settled() => _settling = false;",
-     "        public void Settled() { /* mutation: the transition never ends */ }",
-     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M26 the panel's state is read at the END of the gesture, so a pill drag becomes a panel size",
+     r"src\AgentEyes.App\HudUserResize.cs",
+     "                    Record(_thePanelWasUpWhenTheGestureBegan, \"the sizing border\");",
+     "                    Record(ThePanelIsUp, \"the sizing border\");",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 
     ("M27 HudWindow sizes the window by hand again, where no test can drive it",
      r"src\AgentEyes.App\HudWindow.cs",
@@ -191,9 +198,9 @@ MUTATIONS = [
 
     ("M28 the panel always opens at the default, ignoring the size the person left it at",
      r"src\AgentEyes.App\HudSizeMemory.cs",
-     "            _commandedWidth = _width ?? defaultWidth;\n            _commandedHeight = _height ?? defaultHeight;",
-     "            _commandedWidth = defaultWidth;\n            _commandedHeight = defaultHeight;",
-     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+     "            return (_width ?? defaultWidth, _height ?? defaultHeight);",
+     "            return (defaultWidth, defaultHeight);",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 
     ("M29 the HUD stops seeding its memory from the config (QA round-2 blind spot Q1)",
      r"src\AgentEyes.App\HudWindow.cs",
@@ -201,23 +208,23 @@ MUTATIONS = [
      "            _size = new HudSizeMemory(null, null);",
      "FullyQualifiedName~HudSizeMemoryTests"),
 
-    ("M30 the window claims the panel is up and manually sized whatever it is doing (QA blind spot Q3)",
-     r"src\AgentEyes.App\HudPreviewSizing.cs",
-     "                panelVisible(),\n                window.SizeToContent == SizeToContent.Manual,",
-     "                true,\n                true,",
-     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M30 the sizing-mode narrowing is dropped, so a gesture on the pill becomes a panel size",
+     r"src\AgentEyes.App\HudUserResize.cs",
+     "            if (!thePanelWasUpWhenTheGestureBegan) return;",
+     "            // mutation: any gesture records, whatever the window is doing",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 
-    ("M31 the window never claims to be manually sized, so nothing is remembered (QA blind spot Q4)",
-     r"src\AgentEyes.App\HudPreviewSizing.cs",
-     "                window.SizeToContent == SizeToContent.Manual,",
-     "                false,",
-     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M31 a degenerate 0x0 layout is accepted as a size somebody chose",
+     r"src\AgentEyes.App\HudSizeMemory.cs",
+     "            if (!(width > 0) || !(height > 0)) return;",
+     "            // mutation: a window that has not been laid out counts as a size",
+     "FullyQualifiedName~HudSizeMemoryTests"),
 
-    ("M32 ONLY the sizing-mode claim is broken, the panel-visible one left honest (QA's Q3 verbatim)",
-     r"src\AgentEyes.App\HudPreviewSizing.cs",
-     "                window.SizeToContent == SizeToContent.Manual,",
-     "                true,",
-     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+    ("M32 the resize grip stops recording, so a drag of it is lost at the next recording",
+     r"src\AgentEyes.App\HudUserResize.cs",
+     "            Record(panelWasUp, null);",
+     "            // mutation: the grip resizes but is never remembered",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests|FullyQualifiedName~HudUserResizeTests"),
 ]
 
 
