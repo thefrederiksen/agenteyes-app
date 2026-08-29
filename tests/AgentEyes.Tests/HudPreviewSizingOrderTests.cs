@@ -339,6 +339,141 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>
+        /// WINDOWS SNAP. The Review Gate found this route missing on round 1 of PR #34: dragging the
+        /// HUD's title to a screen edge resizes it through a MOVE loop that never sends WM_SIZING, so
+        /// the allowlist saw a move and recorded nothing - and the next recording came back at the
+        /// old size. The evidence that identifies it is that the window came out of the loop a
+        /// different size than it went in; nothing in this app resizes the HUD mid-drag.
+        /// </summary>
+        [Fact]
+        public void SnappingTheWindowToAScreenEdge_IsRemembered()
+        {
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                rig.UserSnapsTheWindow(ResizedWidth, ResizedHeight);
+
+                Assert.Equal(ResizedWidth, rig.Window.ActualWidth, 1);   // the window really did resize
+                Assert.True(rig.Memory.HasSize,
+                    "Snapping the HUD to a screen edge left nothing remembered, so the next recording "
+                    + "opens at the old size. " + rig.Trace());
+                Assert.Equal(ResizedWidth, rig.Memory.Width!.Value, 1);
+                Assert.Equal(ResizedHeight, rig.Memory.Height!.Value, 1);
+            });
+        }
+
+        /// <summary>
+        /// MAXIMISE. The other route the Review Gate measured missing: no modal loop at all, so the
+        /// maximised size was never recorded and SavePosition persisted the old one. The
+        /// identification is provable rather than assumed - nothing in AgentEyesApp assigns this
+        /// window's WindowState, which
+        /// <c>HudUserResizeTests.NothingInTheHudEverSetsItsOwnWindowState</c> asserts against the IL.
+        /// </summary>
+        [Fact]
+        public void MaximisingTheWindow_IsRemembered()
+        {
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                double asOpened = rig.Window.ActualWidth;
+
+                rig.UserChangesTheWindowState(WindowState.Maximized);
+
+                Assert.True(rig.Window.ActualWidth > asOpened,
+                    $"the window did not actually grow when maximised (still {rig.Window.ActualWidth}), "
+                    + "so this test measured nothing. " + rig.Trace());
+                Assert.True(rig.Memory.HasSize,
+                    "Maximising the HUD left nothing remembered, so the next recording opens at the "
+                    + "old size (Review Gate round 1 on PR #34). " + rig.Trace());
+                Assert.Equal(rig.Window.ActualWidth, rig.Memory.Width!.Value, 1);
+                Assert.Equal(rig.Window.ActualHeight, rig.Memory.Height!.Value, 1);
+            });
+        }
+
+        /// <summary>
+        /// AND THE ROUTE THAT MUST STAY SHUT. A restore from minimise is a window-state change that
+        /// puts a size BACK rather than choosing one, and it is one of the layout transitions the
+        /// three shipped defects were built on. Widening the allowlist must not widen it to this.
+        /// </summary>
+        [Fact]
+        public void MinimisingAndRestoringTheWindow_IsNeverRemembered()
+        {
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                rig.UserChangesTheWindowState(WindowState.Minimized);
+                rig.UserChangesTheWindowState(WindowState.Normal);
+
+                Assert.False(rig.Memory.HasSize,
+                    $"A minimise and restore recorded {rig.Memory.Width}x{rig.Memory.Height} as a size "
+                    + "the person chose. " + rig.Trace());
+            });
+        }
+
+        // ---- the completeness canary (Review Gate round 1, PR #34) -------------
+
+        /// <summary>
+        /// THE ALLOWLIST WATCHING ITSELF. An allowlist proves its members and cannot prove its own
+        /// exhaustiveness - which is exactly how maximise went unnoticed until a reviewer measured
+        /// it. So when the panel comes down, the size the HUD ACTUALLY ended up at is compared with
+        /// the size it was opened at or last recorded, and a difference is reported by name and by
+        /// number.
+        ///
+        /// THE KNOWN-BAD ARM, which is what makes this a check rather than a decoration: a size
+        /// change with no gesture behind it - a fifth resize route, standing in for whichever one
+        /// nobody has enumerated yet - and the canary must FIRE.
+        /// </summary>
+        [Fact]
+        public void AResizeNoGestureClaimed_IsReportedByTheCompletenessCanary()
+        {
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                rig.AResizeWithNoGestureBehindIt(ResizedWidth, ResizedHeight);
+                rig.HidePanel();
+
+                Assert.False(rig.Memory.HasSize,
+                    "the unattributed size was RECORDED, which is the defect the canary reports on "
+                    + "rather than the report itself. " + rig.Trace());
+                Assert.NotNull(rig.LastUnattributedSize);
+                Assert.Contains("unaccounted for", rig.LastUnattributedSize!);
+                Assert.Contains(ResizedWidth.ToString("0.##"), rig.LastUnattributedSize!);
+            });
+        }
+
+        /// <summary>
+        /// THE KNOWN-GOOD ARM. A size a real gesture produced is accounted for, so the canary stays
+        /// silent - without this the test above would pass over a canary that fires at everything,
+        /// which would report nothing usable.
+        /// </summary>
+        [Fact]
+        public void AResizeAGestureClaimed_IsNotReportedByTheCompletenessCanary()
+        {
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                rig.UserDragsTheSizingBorder(ResizedWidth, ResizedHeight);
+                rig.HidePanel();
+
+                Assert.Null(rig.LastUnattributedSize);
+            });
+        }
+
+        /// <summary>An untouched recording, opened and closed at the default: nothing to be
+        /// surprised by, so nothing is reported.</summary>
+        [Fact]
+        public void AHandsOffRecording_ReportsNoUnattributedSize()
+        {
+            RunOnHudRig(rig =>
+            {
+                rig.ShowPanel();
+                rig.HidePanel();
+
+                Assert.Null(rig.LastUnattributedSize);
+            });
+        }
+
+        /// <summary>
         /// A gesture made while the panel is DOWN is a drag of the PILL's border, and the pill's
         /// dimensions are not the preview panel's size.
         ///
@@ -453,11 +588,17 @@ namespace AgentEyes.Tests
                 Pump();
             }
 
+            /// <summary>The completeness canary the last <see cref="HidePanel"/> reported, or null
+            /// when the size the HUD ended up at was accounted for (issue #33, AC7; Review Gate
+            /// round 1 on PR #34).</summary>
+            public string? LastUnattributedSize { get; private set; }
+
             public void HidePanel()
             {
                 _panel.Visibility = Visibility.Collapsed;
                 _log.Add("-- hide preview --");
-                HudPreviewSizing.HidePanel(Window, Memory);
+                LastUnattributedSize = HudPreviewSizing.HidePanel(Window, Memory);
+                if (LastUnattributedSize != null) _log.Add("   canary: " + LastUnattributedSize);
             }
 
             /// <summary>
@@ -471,7 +612,8 @@ namespace AgentEyes.Tests
             {
                 _panel.Visibility = Visibility.Collapsed;
                 _log.Add("-- stop (SetStatus) --");
-                HudPreviewSizing.HidePanel(Window, Memory);
+                LastUnattributedSize = HudPreviewSizing.HidePanel(Window, Memory);
+                if (LastUnattributedSize != null) _log.Add("   canary: " + LastUnattributedSize);
                 Pump();
             }
 
@@ -522,6 +664,36 @@ namespace AgentEyes.Tests
                 var hwnd = new System.Windows.Interop.WindowInteropHelper(Window).Handle;
                 SendMessage(hwnd, WM_ENTERSIZEMOVE, IntPtr.Zero, IntPtr.Zero);
                 SendMessage(hwnd, WM_EXITSIZEMOVE, IntPtr.Zero, IntPtr.Zero);
+                Pump();
+            }
+
+            /// <summary>
+            /// AERO SNAP: the person drags the window's TITLE to a screen edge and Windows resizes it
+            /// to half the desktop. It is the SAME modal loop a move runs - WM_ENTERSIZEMOVE, no
+            /// WM_SIZING anywhere, WM_EXITSIZEMOVE - and the window is a different size at the end.
+            /// That difference is the only evidence there is, and it is what identifies the gesture.
+            /// </summary>
+            public void UserSnapsTheWindow(double width, double height)
+            {
+                _log.Add($"-- user snaps the window to {width}x{height} (a move loop, no WM_SIZING) --");
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(Window).Handle;
+                SendMessage(hwnd, WM_ENTERSIZEMOVE, IntPtr.Zero, IntPtr.Zero);
+                ResizeTheHwnd(width, height);
+                SendMessage(hwnd, WM_EXITSIZEMOVE, IntPtr.Zero, IntPtr.Zero);
+                Pump();
+            }
+
+            /// <summary>
+            /// A WINDOW-STATE COMMAND: the maximise button, Win+Up, a double-click on the title, a
+            /// drag to the top of the screen. Measured by the Review Gate on round 1 of PR #34: it
+            /// produces WM_SYSCOMMAND 0xF030, WM_WINDOWPOSCHANGED and WM_SIZE, and NO
+            /// WM_ENTERSIZEMOVE / WM_SIZING / WM_EXITSIZEMOVE - so the modal-loop route above cannot
+            /// see it at all, and the maximised size was silently dropped.
+            /// </summary>
+            public void UserChangesTheWindowState(WindowState state)
+            {
+                _log.Add($"-- user sets the window state to {state} --");
+                Window.WindowState = state;
                 Pump();
             }
 

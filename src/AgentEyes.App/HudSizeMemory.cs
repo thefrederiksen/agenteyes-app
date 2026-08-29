@@ -38,11 +38,32 @@ namespace AgentEyes.App
     /// transition nobody enumerated, because transitions are not an input to this class.
     ///
     /// A size on disk is a claim that somebody chose one. Only a gesture can make that claim.
+    ///
+    /// AND THE ALLOWLIST WATCHES ITSELF (Review Gate round 1 on PR #34). An allowlist proves its
+    /// members and cannot prove its own exhaustiveness: nothing in this process can demonstrate that
+    /// Windows has no further way to resize a window. So this class also remembers the size the
+    /// window is SUPPOSED to have right now - the one the panel was opened at, or the last one a
+    /// gesture recorded - and <see cref="UnattributedSize"/> compares that against the size the
+    /// window actually ended up at. A difference is a resize route nobody listed, reported by name
+    /// and by number when the panel comes down. It cannot record the missing size (it has no gesture
+    /// to attribute it to, and inventing one is the defect this class exists to prevent), but a
+    /// missing route stops being invisible, which is the most an in-process check can honestly do.
     /// </summary>
     internal sealed class HudSizeMemory
     {
+        /// <summary>How far an observed size may differ from the accounted one and still be the same
+        /// size. Absorbs sub-pixel layout rounding and nothing else.</summary>
+        private const double SamePixel = 1.0;
+
         private double? _width;
         private double? _height;
+
+        /// <summary>The size the window is expected to have while the panel is up: the size the panel
+        /// was opened at, or the last size a gesture recorded. NOT what gets persisted - it is the
+        /// yardstick <see cref="UnattributedSize"/> measures against, and it is null until a panel
+        /// has actually been opened, because before that there is nothing to be surprised by.</summary>
+        private double? _accountedWidth;
+        private double? _accountedHeight;
 
         /// <summary>
         /// Seed from what a previous HUD saved. A missing, zero or negative pair is "never resized",
@@ -103,6 +124,51 @@ namespace AgentEyes.App
 
             _width = width;
             _height = height;
+            _accountedWidth = width;
+            _accountedHeight = height;
+        }
+
+        /// <summary>
+        /// The panel has just been COMMANDED to open at this size. Not a resize and not a claim that
+        /// anybody chose it - it is the yardstick <see cref="UnattributedSize"/> measures against, so
+        /// that a size the window later acquires without a gesture can be seen.
+        /// </summary>
+        public void NoteOpenedAt(double width, double height)
+        {
+            if (!(width > 0) || !(height > 0)) return;
+
+            _accountedWidth = width;
+            _accountedHeight = height;
+        }
+
+        /// <summary>
+        /// The completeness canary (issue #33, AC7; Review Gate round 1 on PR #34). Returns a
+        /// description of a size the window ended up at that NO gesture ever claimed, or null when
+        /// the size is accounted for.
+        ///
+        /// This is the honest half of an allowlist design. The four gesture routes in
+        /// <see cref="HudUserResize"/> are each positively identified, but the list cannot prove it
+        /// covers every way Windows can resize a window - exactly how a maximise went unrecorded
+        /// until a reviewer measured it. So the size the window ACTUALLY has when the panel comes
+        /// down is compared with the size it was opened at or last recorded, and a difference is
+        /// reported. It deliberately does NOT record the size: an unattributed size is one nobody has
+        /// shown a person chose, and recording sizes nobody chose is the defect this class exists to
+        /// prevent. It makes the gap visible; it does not paper over it.
+        ///
+        /// Null when no panel has been opened yet: there is no expectation to violate.
+        /// </summary>
+        public string? UnattributedSize(double width, double height)
+        {
+            if (_accountedWidth is not > 0 || _accountedHeight is not > 0) return null;
+            if (!(width > 0) || !(height > 0)) return null;
+            if (Math.Abs(width - _accountedWidth.Value) <= SamePixel
+             && Math.Abs(height - _accountedHeight.Value) <= SamePixel) return null;
+
+            return $"hud: the HUD ended up at {width:0.##}x{height:0.##} but the last size anything "
+                 + $"attributed to a person was {_accountedWidth.Value:0.##}x{_accountedHeight.Value:0.##}. "
+                 + "A resize route is unaccounted for (issue #33, AC7): the size will NOT be "
+                 + "remembered, because no gesture claimed it. If this is reproducible, the gesture "
+                 + "that produced it needs a route in HudUserResize.";
         }
     }
 }

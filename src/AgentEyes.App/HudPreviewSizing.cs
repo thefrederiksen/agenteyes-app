@@ -57,21 +57,36 @@ namespace AgentEyes.App
             window.SizeToContent = SizeToContent.Manual;
             window.Width = width;
             window.Height = height;
+
+            // Not a resize and not a claim that anybody chose this - it is the yardstick the
+            // completeness canary in HidePanel measures against.
+            memory.NoteOpenedAt(width, height);
         }
 
         /// <summary>
         /// Take the panel down and let the window auto-size back to the pill. The remembered size
         /// survives this on purpose: hiding the preview and stopping the recording BOTH come through
         /// here, so forgetting here would lose the size before it could ever be saved.
+        ///
+        /// Returns the COMPLETENESS CANARY (issue #33, AC7; Review Gate round 1 on PR #34): a
+        /// description of a size the HUD ended up at that no gesture ever claimed, or null when the
+        /// size is accounted for. This is the last instant at which the question can be asked - the
+        /// assignment below auto-sizes the window back to the pill and the panel's size is gone - and
+        /// it is returned rather than only logged so a test can drive the known-bad arm and see it
+        /// fire. The caller logs it; nothing acts on it, because an unattributed size is precisely a
+        /// size nobody has shown a person chose.
         /// </summary>
-        public static void HidePanel(Window window, HudSizeMemory memory)
+        public static string? HidePanel(Window window, HudSizeMemory memory)
         {
             if (window is null) throw new ArgumentNullException(nameof(window));
             if (memory is null) throw new ArgumentNullException(nameof(memory));
 
+            string? unattributed = memory.UnattributedSize(window.ActualWidth, window.ActualHeight);
+
             window.SizeToContent = SizeToContent.WidthAndHeight;
             Log.Info("hud: preview panel down; the HUD is back to its pill size, remembering "
                    + (memory.HasSize ? $"{memory.Width}x{memory.Height}" : "no size"));
+            return unattributed;
         }
     }
 }

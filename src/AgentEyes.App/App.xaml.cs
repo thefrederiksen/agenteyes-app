@@ -264,6 +264,14 @@ namespace AgentEyes.App
             try { _tray?.Dispose(); } catch { }
             try { _mutex?.ReleaseMutex(); } catch { }
             try { _mutex?.Dispose(); } catch { }
+            // The recording HUD saves its preview choices and its position WITHOUT blocking the UI
+            // thread (issue #33), so a save made moments before exit may still be in flight. Bounded
+            // on purpose: the writer is allowed to be stuck in a filesystem call, and exit is not.
+            try { Config.FlushPendingSave(2000); }
+            catch (Exception ex)
+            {
+                AgentEyes.Log.Warn($"app exit: flushing the config failed - {ex.Message}");
+            }
             UpdateChecker.StartPendingRestart();   // after the mutex is gone, so the new exe can take it
             AgentEyes.Log.Info("app exit");
             base.OnExit(e);

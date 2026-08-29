@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using AgentEyes;
 
 namespace AgentEyes.App
 {
@@ -61,8 +62,21 @@ namespace AgentEyes.App
         private static string FilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "config.json");
 
+        /// <summary>The ONE thing that ever writes config.json, so a synchronous save and a
+        /// background one cannot land on the file at the same moment and lose each other.</summary>
+        private static readonly object WriteGate = new();
+
+        /// <summary>The background writer behind <see cref="SaveWithoutBlockingTheUiThread"/>. Its
+        /// thread is started by <see cref="Load"/> - at application startup, before any window
+        /// exists - and never lazily from a UI path, so the write loop is not reachable from the
+        /// HUD's click handlers even through the call graph.</summary>
+        private static readonly BackgroundFileWriter Writer = new(FilePath, WriteJson);
+
         public static Config Load()
         {
+            // Loading the config is what brings its writer to life: every save in the process goes
+            // through that one writer, and it must exist before anything can ask for one.
+            Writer.Start();
             try
             {
                 if (File.Exists(FilePath))
@@ -72,14 +86,51 @@ namespace AgentEyes.App
             return new Config();
         }
 
+        /// <summary>
+        /// Write config.json now, on the calling thread. For the launcher's dialogs, where a
+        /// blocking write has always been what happens and the window is modal anyway.
+        ///
+        /// NOT for the recording HUD: it is the window a person uses to STOP a recording, and a
+        /// dispatcher blocked inside this call cannot serve the Stop button (repo coding standard 1;
+        /// Review Gate round 1 on PR #34). That path uses
+        /// <see cref="SaveWithoutBlockingTheUiThread"/>.
+        /// </summary>
         public void Save()
         {
-            try
+            try { WriteJson(FilePath, Serialize()); }
+            catch (Exception ex)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-                File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+                Log.Warn($"[Config] Save FAILED: {FilePath} - {ex.Message}. "
+                         + "The change is held in memory for this session but is not on disk.");
             }
-            catch { }
+        }
+
+        /// <summary>
+        /// Persist the config WITHOUT waiting for the disk (issue #33). The JSON is produced here, on
+        /// the caller's thread - microseconds of in-memory work, and it is what stops the writer ever
+        /// seeing a half-changed object - and the write itself is handed to a background thread.
+        ///
+        /// The caller returns immediately whatever the filesystem is doing, which is the whole point:
+        /// this is called from the recording HUD's click handlers, and the same dispatcher serves the
+        /// Stop button.
+        /// </summary>
+        public void SaveWithoutBlockingTheUiThread() => Writer.Queue(Serialize());
+
+        /// <summary>Wait, bounded, for a queued background save to reach the disk. Called at
+        /// application exit. Returns false when it did not land, which is reported rather than waited
+        /// out - the writer is allowed to be stuck in a filesystem call, and exit is not.</summary>
+        public static bool FlushPendingSave(int milliseconds) => Writer.Flush(milliseconds);
+
+        private string Serialize() =>
+            JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+
+        private static void WriteJson(string path, string json)
+        {
+            lock (WriteGate)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, json);
+            }
         }
     }
 }

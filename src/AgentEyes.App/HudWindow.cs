@@ -336,7 +336,14 @@ namespace AgentEyes.App
             SourceInitialized += (_, _) => ApplyWindowStyles();
             Closed += (_, _) => { _timer.Stop(); SavePosition(); ClosePreview(); };
 
-            ApplyPreviewState(fromUser: true);
+            // Constructing a HUD is not a person choosing anything, and the comment in
+            // ApplyPreviewState always said so - but the call passed a `fromUser: true` flag, so
+            // every HUD ever built rewrote config.json while it was being put on screen (Review Gate
+            // round 1 on PR #34). The flag is gone: there are two methods now, and which one the
+            // constructor calls is a fact readable from the compiled call graph rather than from an
+            // argument. The in-memory half still runs here - arming the next recording, telling the
+            // taps whether to publish; only remembering the choice belongs to a person.
+            ApplyPreviewState();
 
             _timer.Tick += (_, _) => OnTick();
             _timer.Start();
@@ -457,7 +464,7 @@ namespace AgentEyes.App
         {
             bool visible = _preview.ToggleVisible();
             Log.Info($"hud: preview toggled -> {(visible ? "shown" : "hidden")}");
-            ApplyPreviewState(fromUser: true);
+            ApplyAndRememberPreviewChoice();
         }
 
         private void ChooseMode(PreviewMode mode)
@@ -469,21 +476,41 @@ namespace AgentEyes.App
                 return;
             }
             Log.Info($"hud: preview mode -> {PreviewNames.Text(mode)}");
-            ApplyPreviewState(fromUser: true);
+            ApplyAndRememberPreviewChoice();
         }
 
         private void ChooseCorner(PreviewCorner corner)
         {
             _preview.SetCorner(corner);
             Log.Info($"hud: preview corner -> {PreviewNames.Text(corner)}");
-            ApplyPreviewState(fromUser: true);
+            ApplyAndRememberPreviewChoice();
         }
 
         /// <summary>
-        /// Push the current preview decisions into the window, the frame feed, the service and the
-        /// config. One place, so a mode change, a corner change and the toggle cannot drift apart.
+        /// Apply the current preview decisions AND remember them - what a person's click does.
+        ///
+        /// It is a separate method rather than a boolean argument on purpose (Review Gate round 1 on
+        /// PR #34): the constructor used to pass "this is a person's choice" and rewrite config.json
+        /// while the HUD was being put on screen, and no call-graph guard could see that, because an
+        /// argument is invisible to one. Two methods make it visible - the constructor does not
+        /// reach <see cref="SavePreviewChoices"/>, and <c>HudResponsivenessTests</c> asserts exactly
+        /// that against the IL.
         /// </summary>
-        private void ApplyPreviewState(bool fromUser)
+        private void ApplyAndRememberPreviewChoice()
+        {
+            ApplyPreviewState();
+            SavePreviewChoices();
+        }
+
+        /// <summary>
+        /// Push the current preview decisions into the window, the frame feed and the service. One
+        /// place, so a mode change, a corner change and the toggle cannot drift apart.
+        ///
+        /// It PERSISTS NOTHING. Everything here is in memory: visibilities, the frame feed's wants,
+        /// two flags on the recording service. That is what makes it safe to call while the HUD is
+        /// being constructed, and <c>HudResponsivenessTests</c> asserts it against the IL.
+        /// </summary>
+        private void ApplyPreviewState()
         {
             _previewToggle.Content = _preview.ToggleLabel;
             System.Windows.Automation.AutomationProperties.SetHelpText(
@@ -513,7 +540,11 @@ namespace AgentEyes.App
             }
             else
             {
-                HudPreviewSizing.HidePanel(this, _size);
+                // The completeness canary (issue #33, AC7): the last instant at which a size the HUD
+                // ended up at, that no gesture ever claimed, can still be seen. It is reported, never
+                // acted on - a size nobody was shown to have chosen is not a size to remember.
+                string? unattributed = HudPreviewSizing.HidePanel(this, _size);
+                if (unattributed != null) Log.Warn(unattributed);
                 _feed.Want(null, false, null, false);
                 _screenImage.Source = null;
                 _cameraImage.Source = null;
@@ -531,11 +562,12 @@ namespace AgentEyes.App
             _svc.SetPreviewPublishing(_preview.Visible);
             // The framing hint for manifest.json (AC5) - null whenever no overlay was framed.
             _svc.SetPreviewOverlayCorner(_preview.ManifestCorner);
-
-            // Writing config.json is file I/O, so it happens only when a person actually chose
-            // something - never on the construction path, which runs while the HUD is being put on
-            // screen (repo coding standard 1).
-            if (fromUser) SavePreviewChoices();
+            // Arming is a choice about the NEXT recording, not this one: ffmpeg's outputs are fixed
+            // when the process starts, so a feed can only be created at a recording's start. An
+            // in-memory flag on the service, so it runs on EVERY apply including the construction
+            // one - which is what keeps the service's arming and the HUD's state from drifting apart
+            // now that construction no longer writes config.
+            _svc.PreviewArmed = _preview.ArmNextRecording;
         }
 
         private static void Select(Button[] buttons, int index)
@@ -659,15 +691,18 @@ namespace AgentEyes.App
         protected override System.Windows.Automation.Peers.AutomationPeer OnCreateAutomationPeer() =>
             _userResize.CreatePeer();
 
+        /// <summary>
+        /// Persist what the person just chose. Runs on the UI thread and must therefore not touch a
+        /// disk: the config is serialised here and WRITTEN on a background thread, because the
+        /// dispatcher this returns to is the one that serves the Stop button (Review Gate round 1 on
+        /// PR #34).
+        /// </summary>
         private void SavePreviewChoices()
         {
-            // Arming is a choice about the NEXT recording, not this one: ffmpeg's outputs are fixed
-            // when the process starts, so a feed can only be created at a recording's start.
-            _svc.PreviewArmed = _preview.ArmNextRecording;
             _cfg.HudPreviewVisible = _preview.Visible;
             _cfg.HudPreviewMode = PreviewNames.Text(_preview.Mode);
             _cfg.HudPreviewCorner = PreviewNames.Text(_preview.Corner);
-            _cfg.Save();
+            _cfg.SaveWithoutBlockingTheUiThread();
         }
 
         /// <summary>Stop reading frames and stop the taps writing them. Safe to call twice.</summary>
@@ -711,7 +746,10 @@ namespace AgentEyes.App
             }
             Log.Info($"hud: saving position left={_cfg.HudLeft} top={_cfg.HudTop} "
                    + $"width={_cfg.HudWidth?.ToString() ?? "none"} height={_cfg.HudHeight?.ToString() ?? "none"}");
-            _cfg.Save();
+            // Closed is a UI-thread lifecycle handler, and the app carries on running after the HUD
+            // goes: a synchronous write here stalls the dispatcher for every other window too. The
+            // write is flushed at application exit (App.OnExit).
+            _cfg.SaveWithoutBlockingTheUiThread();
         }
 
         // ---- window styles ----------------------------------------------------

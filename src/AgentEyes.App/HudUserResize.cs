@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using AgentEyes;
 
 namespace AgentEyes.App
@@ -21,26 +22,56 @@ namespace AgentEyes.App
     /// them was one release away from being recorded as a deliberate size.
     ///
     /// So the polarity is inverted. NOTHING is recorded unless a person resizing this window has been
-    /// POSITIVELY IDENTIFIED, and there are exactly three ways that can happen:
+    /// POSITIVELY IDENTIFIED. Windows offers a person exactly two mechanisms for resizing somebody
+    /// else's top-level window, plus the two this app supplies itself, and each arrives here as its
+    /// own typed route:
     ///
-    ///  1. <b>The Win32 resize-modal loop</b> - the person drags the window's sizing border.
-    ///     <c>WM_SIZING</c> is sent ONLY while a sizing edge is being dragged; it is not a
-    ///     notification that the window's size changed (that is <c>WM_SIZE</c>), it is a
-    ///     notification that a human is dragging one. A layout pass, a DPI change, a restore, a
-    ///     construction and a <c>Width =</c> assignment all produce <c>WM_WINDOWPOSCHANGED</c> +
-    ///     <c>WM_SIZE</c> and NEVER <c>WM_SIZING</c>. Measured, not assumed - see the ordering in
-    ///     the handoff for issue #33 round 4.
-    ///  2. <b>The panel's resize grip</b> - <c>Thumb.DragDelta</c>, a mouse gesture on a control.
+    ///  1. <b>The Win32 move/size modal loop</b> - the person is dragging the window. Everything the
+    ///     shell drives through the window's own sizing UI runs this loop: a sizing-border drag, an
+    ///     Aero Snap to a screen edge, a drag to the top of the screen. It is recognised as a RESIZE
+    ///     when either
+    ///     <list type="bullet">
+    ///     <item><description><c>WM_SIZING</c> arrived - sent ONLY while a sizing edge is being
+    ///     dragged; a layout pass, a DPI change, a restore, a construction and a <c>Width =</c>
+    ///     assignment all produce <c>WM_WINDOWPOSCHANGED</c> + <c>WM_SIZE</c> and NEVER
+    ///     <c>WM_SIZING</c>; or</description></item>
+    ///     <item><description>the window came OUT of the loop a different size than it went in.
+    ///     That is how Aero Snap resizes a window: the person drags the title bar to a screen edge,
+    ///     so the loop is a MOVE loop with no <c>WM_SIZING</c> in it, and the window is nevertheless
+    ///     half the desktop by the end. Nothing in this app resizes the HUD during a modal drag, so a
+    ///     size that changed across the loop is the person's - and a plain move, where the size is
+    ///     identical, still records nothing.</description></item>
+    ///     </list>
+    ///  2. <b>A window-STATE command</b> - maximise, restore, snap-to-top. These do NOT run the modal
+    ///     loop at all (measured: posting the user maximise command produces <c>WM_SYSCOMMAND</c>
+    ///     0xF030, <c>WM_WINDOWPOSCHANGED</c> and <c>WM_SIZE</c>, and no <c>WM_ENTERSIZEMOVE</c>,
+    ///     <c>WM_SIZING</c> or <c>WM_EXITSIZEMOVE</c>) - which is how the Review Gate found the HUD
+    ///     dropping a maximise on round 1 of PR #34. They arrive as <see cref="Window.StateChanged"/>,
+    ///     and THE IDENTIFICATION IS PROVABLE RATHER THAN ASSUMED: nothing in AgentEyesApp ever
+    ///     assigns this window's <c>WindowState</c>, so every state change it sees came from outside
+    ///     the app - the person, or the shell acting for them. <c>HudUserResizeTests</c> asserts that
+    ///     against the compiled IL, so the day somebody adds an app-driven maximise, this route stops
+    ///     being a positive identification and the suite says so.
+    ///  3. <b>The panel's resize grip</b> - <c>Thumb.DragDelta</c>, a mouse gesture on a control.
     ///     The HUD is chromeless, so this is the affordance most people will actually find.
-    ///  3. <b>UI Automation's TransformPattern</b> - an accessibility tool, or QA, commanding a
+    ///  4. <b>UI Automation's TransformPattern</b> - an accessibility tool, or QA, commanding a
     ///     resize through a typed API. It arrives at <see cref="ByAutomation"/> only because
     ///     <see cref="HudWindowAutomationPeer"/> advertises the pattern; layout cannot call it.
     ///
-    /// There is no fourth way, because there is no subscription to <c>SizeChanged</c> or
-    /// <c>LayoutUpdated</c> anywhere in the HUD any more. A panel added to this window next year
-    /// cannot reintroduce the defect by resizing the window during its own layout, because resizing
-    /// the window is not what records a size - a gesture is, and it has to come through here.
-    /// <c>HudUserResizeTests</c> holds that shut against the compiled IL.
+    /// There is no fifth way FROM INSIDE THIS APP, because there is no subscription to
+    /// <c>SizeChanged</c> or <c>LayoutUpdated</c> anywhere in the HUD any more. A panel added to this
+    /// window next year cannot reintroduce the defect by resizing the window during its own layout,
+    /// because resizing the window is not what records a size - a gesture is, and it has to come
+    /// through here. <c>HudUserResizeTests</c> holds that shut against the compiled IL.
+    ///
+    /// WHAT THAT LIST STILL CANNOT PROVE, stated rather than implied (DEVELOPMENT_METHOD.md 6c.5).
+    /// It is an allowlist of routes, and an allowlist proves its members, not its own exhaustiveness:
+    /// no test in this repository can prove that Windows has no fifth way to resize a window that
+    /// produces neither a modal loop nor a state change. What the code does instead is DETECT its own
+    /// incompleteness - <see cref="HudSizeMemory.UnattributedSize"/> is checked when the panel comes
+    /// down and reports, by name and by number, a size the HUD ended up at that no gesture ever
+    /// claimed. A missing route is then a WARNING in the log rather than a silent wrong size, which
+    /// is the most an in-process check can honestly offer.
     /// </summary>
     internal sealed class HudUserResize
     {
@@ -58,13 +89,28 @@ namespace AgentEyes.App
         /// ActualWidth/ActualHeight here is what the person let go of.</summary>
         private const int WM_EXITSIZEMOVE = 0x0232;
 
+        /// <summary>How far a size may differ across a modal drag loop and still count as "the same
+        /// size". A move produces an exactly identical size; this only absorbs sub-pixel layout
+        /// rounding, and is deliberately far below any resize a person can perform with a mouse.</summary>
+        private const double SamePixel = 0.5;
+
         private readonly Window _window;
         private readonly HudSizeMemory _memory;
 
-        /// <summary>Whether the modal loop currently running is a RESIZE. False until a WM_SIZING
-        /// arrives, so a plain window move - which runs the same modal loop and ends with the same
-        /// WM_EXITSIZEMOVE - records nothing.</summary>
+        /// <summary>Whether the modal loop currently running has been positively identified as a
+        /// RESIZE by a WM_SIZING. False until one arrives - but no longer the only evidence, because
+        /// Aero Snap resizes a window through a MOVE loop that never sends one.</summary>
         private bool _draggingASizingEdge;
+
+        /// <summary>Whether a modal loop is actually running. Without it a stray WM_EXITSIZEMOVE that
+        /// never had a WM_ENTERSIZEMOVE would compare the window against a starting size of zero,
+        /// find a difference, and record a size no loop ever produced.</summary>
+        private bool _inAModalLoop;
+
+        /// <summary>The size the window had when the modal loop started. A loop that ends at a
+        /// different size resized the window, whatever messages it did or did not send.</summary>
+        private double _widthWhenTheLoopBegan;
+        private double _heightWhenTheLoopBegan;
 
         /// <summary>Whether the preview panel was up when the modal loop started. Read at the START
         /// of the gesture on purpose: dragging the PILL's border resizes the HUD, and Windows
@@ -74,19 +120,26 @@ namespace AgentEyes.App
         /// apart.</summary>
         private bool _thePanelWasUpWhenTheGestureBegan;
 
+        /// <summary>The window state the last state change left behind, so a restore FROM minimised -
+        /// which puts a size back rather than choosing one - can be told from a maximise.</summary>
+        private WindowState _lastWindowState;
+
         public HudUserResize(Window window, HudSizeMemory memory)
         {
             _window = window ?? throw new ArgumentNullException(nameof(window));
             _memory = memory ?? throw new ArgumentNullException(nameof(memory));
+            _lastWindowState = window.WindowState;
         }
 
         /// <summary>
-        /// Start listening for the window's resize-modal loop. Safe to call before the window has an
-        /// HWND (the HUD calls this from its constructor) or after it has one.
+        /// Start listening for the window's resize-modal loop and for its window-state commands. Safe
+        /// to call before the window has an HWND (the HUD calls this from its constructor) or after
+        /// it has one.
         /// </summary>
         public void Watch()
         {
-            Log.Info("hud: watching for user resizes (sizing border, grip, UI Automation)");
+            Log.Info("hud: watching for user resizes (sizing border, snap, maximise, grip, UI Automation)");
+            _window.StateChanged += (_, _) => ByWindowState();
             if (new WindowInteropHelper(_window).Handle != IntPtr.Zero) { HookTheWindowMessages(); return; }
             _window.SourceInitialized += (_, _) => HookTheWindowMessages();
         }
@@ -110,19 +163,22 @@ namespace AgentEyes.App
 
         /// <summary>
         /// The resize-modal-loop state machine, taken apart from the HWND so a test can drive it:
-        /// a loop begins, a sizing edge is (or is not) dragged, the loop ends. Only the combination
-        /// "a loop that dragged a sizing edge, now finished" is a resize somebody performed.
+        /// a loop begins, the window is (or is not) resized during it, the loop ends. A loop that
+        /// resized the window is a resize somebody performed; a loop that only moved it is not.
         /// </summary>
         internal void OnWindowMessage(int message)
         {
             switch (message)
             {
                 case WM_ENTERSIZEMOVE:
-                    // A modal loop is starting. Until a WM_SIZING says otherwise this is a MOVE, and
-                    // a move must leave the remembered size alone - the window's current size at the
+                    // A modal loop is starting. Until something says otherwise this is a MOVE, and a
+                    // move must leave the remembered size alone - the window's current size at the
                     // end of a drag across the desktop is whatever the panel happens to be, which is
                     // exactly the "size nobody chose" this class exists to keep out of config.
                     _draggingASizingEdge = false;
+                    _inAModalLoop = true;
+                    _widthWhenTheLoopBegan = _window.ActualWidth;
+                    _heightWhenTheLoopBegan = _window.ActualHeight;
                     _thePanelWasUpWhenTheGestureBegan = ThePanelIsUp;
                     break;
 
@@ -131,11 +187,53 @@ namespace AgentEyes.App
                     break;
 
                 case WM_EXITSIZEMOVE:
-                    if (!_draggingASizingEdge) return;
+                    if (!_inAModalLoop) return;
+                    _inAModalLoop = false;
+                    bool snapped = TheLoopChangedTheWindowsSize();
+                    if (!_draggingASizingEdge && !snapped) return;
                     _draggingASizingEdge = false;
-                    Record(_thePanelWasUpWhenTheGestureBegan, "the sizing border");
+                    Record(_thePanelWasUpWhenTheGestureBegan, snapped ? "a snap or edge drag" : "the sizing border");
                     break;
             }
+        }
+
+        /// <summary>
+        /// Whether the window is a different size than when the modal loop began - the evidence that
+        /// identifies an Aero Snap, which resizes the window through a loop that sends no WM_SIZING
+        /// at all. Nothing in this app resizes the HUD while a person is dragging it, so a size that
+        /// changed across the loop was changed by the shell on the person's behalf.
+        /// </summary>
+        private bool TheLoopChangedTheWindowsSize() =>
+            Math.Abs(_window.ActualWidth - _widthWhenTheLoopBegan) > SamePixel
+         || Math.Abs(_window.ActualHeight - _heightWhenTheLoopBegan) > SamePixel;
+
+        /// <summary>
+        /// The person maximised, restored, or snapped the HUD to the top of the screen. None of those
+        /// runs the modal loop, which is why the loop above cannot see them and why the Review Gate
+        /// found a maximised HUD coming back at its old size.
+        ///
+        /// This is a POSITIVE identification and not a guess about layout: nothing in AgentEyesApp
+        /// assigns this window's WindowState, so a state change here came from outside the app.
+        /// <c>HudUserResizeTests.NothingInTheHudEverSetsItsOwnWindowState</c> asserts that against the
+        /// compiled IL, so the claim fails loudly the day it stops being true.
+        ///
+        /// The size is read one dispatcher turn later, at Background priority: WPF's layout runs at
+        /// Render priority, which is higher, so by then the window has the size the new state gave it
+        /// rather than the size it is leaving.
+        /// </summary>
+        public void ByWindowState()
+        {
+            var was = _lastWindowState;
+            var now = _window.WindowState;
+            _lastWindowState = now;
+
+            // Minimised is not a size anybody chose, and neither is the size a restore puts back.
+            if (now == WindowState.Minimized || was == WindowState.Minimized) return;
+
+            bool panelWasUp = ThePanelIsUp;
+            Log.Info($"hud: window state -> {now}; reading the size it settles at");
+            _window.Dispatcher.BeginInvoke(DispatcherPriority.Background,
+                new Action(() => Record(panelWasUp, $"the {now} window command")));
         }
 
         /// <summary>
@@ -188,8 +286,8 @@ namespace AgentEyes.App
         ///
         /// <paramref name="thePanelWasUpWhenTheGestureBegan"/> is a NARROWING, not a gate that can
         /// let something through. It can only ever suppress a recording, never authorise one - the
-        /// authorisation is the caller, and there are exactly three callers, each a gesture no
-        /// layout pass can perform.
+        /// authorisation is the caller, and there are exactly four callers, each a gesture no layout
+        /// pass can perform.
         /// </summary>
         private void Record(bool thePanelWasUpWhenTheGestureBegan, string? gesture)
         {

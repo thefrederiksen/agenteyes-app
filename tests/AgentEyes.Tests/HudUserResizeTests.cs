@@ -83,15 +83,30 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>
-        /// And Record itself is reached only from the three gestures. Without this, the guard above
+        /// And Record itself is reached only from the four gestures. Without this, the guard above
         /// could be satisfied by a Record that some layout handler calls.
+        ///
+        /// WHAT THIS CANNOT DO, stated rather than implied (DEVELOPMENT_METHOD.md 6c.5, and the
+        /// Review Gate's round-1 finding on PR #34). It proves that nothing OUTSIDE this list reaches
+        /// Record; it cannot prove the list is COMPLETE - that Windows has no further way for a
+        /// person to resize a window. That is precisely how maximise was missed: it was a genuine
+        /// route that was never listed, and no enumeration can report a member it does not have.
+        /// Two things carry that weight instead, and neither is another hand-written list:
+        ///  - <see cref="NothingInTheHudEverSetsItsOwnWindowState"/> turns the newest route's
+        ///    identification from a claim about Windows into a claim about the COMPILED CODE, which
+        ///    is checkable here: every WindowState change the HUD sees came from outside the app,
+        ///    because the app never assigns one.
+        ///  - The RUNTIME canary, <c>HudSizeMemory.UnattributedSize</c>, reports a size the HUD ended
+        ///    up at that no gesture claimed - so a route that is still missing shows up as a WARNING
+        ///    naming the size, instead of as a silently wrong config.
         /// </summary>
         [Fact]
         public void Record_IsOnlyEverReachedFromAPositivelyIdentifiedGesture()
         {
             string[] gestures =
             {
-                "AgentEyes.App.HudUserResize::OnWindowMessage",   // the Win32 resize-modal loop
+                "AgentEyes.App.HudUserResize::OnWindowMessage",   // the Win32 move/size modal loop: border drag, Aero Snap
+                "AgentEyes.App.HudUserResize::ByWindowState",     // maximise / restore / snap to the top of the screen
                 "AgentEyes.App.HudUserResize::ByGrip",            // the preview panel's resize grip
                 "AgentEyes.App.HudUserResize::ByAutomation",      // UI Automation's TransformPattern
             };
@@ -109,7 +124,7 @@ namespace AgentEyes.Tests
 
             var strangers = callers.Where(c => !gestures.Contains(c)).ToList();
             Assert.True(strangers.Count == 0,
-                "HudUserResize.Record is reached from something that is not one of the three "
+                "HudUserResize.Record is reached from something that is not one of the four "
                 + "gestures a person can resize this window with: " + string.Join(", ", strangers)
                 + ". Whatever it is, it cannot prove a person did anything, and issue #33 has been "
                 + "shipped three times on exactly that assumption.");
@@ -157,13 +172,14 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>
-        /// The three gestures are wired to the window. Each of them is a fact no behavioural test of
-        /// HudUserResize can see, and all three are load-bearing: without the hook a border drag is
-        /// invisible, without the peer UI Automation resizes the HUD behind WPF's back, and without
-        /// the grip the chromeless window has no affordance anybody can find.
+        /// The four gestures are wired to the window. Each of them is a fact no behavioural test of
+        /// HudUserResize can see, and all four are load-bearing: without the hook a border drag and a
+        /// snap are invisible, without the StateChanged subscription a maximise is, without the peer
+        /// UI Automation resizes the HUD behind WPF's back, and without the grip the chromeless
+        /// window has no affordance anybody can find.
         /// </summary>
         [Fact]
-        public void HudWindow_WiresUpAllThreeGestures()
+        public void HudWindow_WiresUpEveryGestureRoute()
         {
             var wiring = CompiledCode
                 .CallSites(CompiledCode.AppAssembly, c => c.StartsWith("AgentEyes.App.HudUserResize::",
@@ -173,10 +189,50 @@ namespace AgentEyes.Tests
 
             Assert.Contains("AgentEyes.App.HudWindow::.ctor -> AgentEyes.App.HudUserResize::Watch", wiring);
             Assert.Contains("AgentEyes.App.HudWindow::.ctor -> AgentEyes.App.HudUserResize::ByGrip", wiring);
+            Assert.Contains("AgentEyes.App.HudUserResize::Watch "
+                          + "-> AgentEyes.App.HudUserResize::ByWindowState", wiring);
             Assert.Contains("AgentEyes.App.HudWindow::OnCreateAutomationPeer "
                           + "-> AgentEyes.App.HudUserResize::CreatePeer", wiring);
             Assert.Contains("AgentEyes.App.HudWindowAutomationPeer::Resize "
                           + "-> AgentEyes.App.HudUserResize::ByAutomation", wiring);
+        }
+
+        /// <summary>
+        /// WHAT MAKES THE MAXIMISE ROUTE A POSITIVE IDENTIFICATION RATHER THAN A GUESS, and the one
+        /// piece of the completeness argument that IS checkable in-process (Review Gate round 1 on
+        /// PR #34, DEVELOPMENT_METHOD.md 6c.5).
+        ///
+        /// A window-state change is treated as the person's doing. That is only sound while the app
+        /// itself never changes this window's state: the moment somebody adds an app-driven maximise,
+        /// restore or minimise to the HUD, a size the LAYOUT produced starts being recorded as a size
+        /// somebody chose - which is issue #33's defect class, shipped three times already.
+        ///
+        /// So the claim is not left as a comment. It is read from the compiled IL, where a property
+        /// assignment is one instruction carrying one metadata token however the C# was spelled.
+        ///
+        /// SCOPE, stated rather than implied: this covers the HUD's own classes. The launcher, the
+        /// preset editor and the test panel legitimately set THEIR windows' states, and none of them
+        /// is the HUD or writes the HUD's size memory.
+        /// </summary>
+        [Fact]
+        public void NothingInTheHudEverSetsItsOwnWindowState()
+        {
+            var setters = CompiledCode
+                .CallSites(CompiledCode.AppAssembly,
+                           c => c.EndsWith("::set_WindowState", StringComparison.Ordinal))
+                .Where(s => s.Method.StartsWith("AgentEyes.App.Hud", StringComparison.Ordinal))
+                .Select(s => $"{s.Method} -> {s.Callee}")
+                .Distinct()
+                .ToList();
+
+            Assert.True(setters.Count == 0,
+                "The HUD sets its own WindowState: " + string.Join(", ", setters)
+                + ". That breaks the only reason a window-state change can be attributed to a PERSON "
+                + "(HudUserResize.ByWindowState): until now every state change this window saw came "
+                + "from outside the app. An app-driven maximise or restore would be recorded as a "
+                + "size somebody chose, which is issue #33's defect class - a layout event mistaken "
+                + "for intent. Either remove the assignment, or give ByWindowState a way to tell the "
+                + "app's own state changes from the person's before it records anything.");
         }
 
         /// <summary>
@@ -313,6 +369,95 @@ namespace AgentEyes.Tests
         }
 
         /// <summary>
+        /// AERO SNAP, at the message level. The person drags the title bar to a screen edge: the same
+        /// modal loop a move runs, no WM_SIZING anywhere in it, and the window is a different size by
+        /// the end. Requiring WM_SIZING dropped this resize entirely (Review Gate round 1 on PR #34).
+        /// </summary>
+        [Fact]
+        public void ALoopThatEndedAtADifferentSize_RecordsTheSizeItEndedAt()
+        {
+            RunOnRig(rig =>
+            {
+                rig.TheWindowBecomes(900, 300);
+
+                rig.Send(WM_ENTERSIZEMOVE);
+                rig.TheWindowBecomes(1560, 400);   // Windows snaps it, mid-loop
+                rig.Send(WM_EXITSIZEMOVE);
+
+                Assert.True(rig.Memory.HasSize,
+                    "A modal loop the window came out of at a different size recorded nothing, so a "
+                    + "Windows snap is dropped and the HUD comes back at its old size.");
+                Assert.Equal(1560, rig.Memory.Width!.Value, 1);
+                Assert.Equal(400, rig.Memory.Height!.Value, 1);
+            });
+        }
+
+        /// <summary>
+        /// And the size-difference evidence must not be readable outside a loop. A stray
+        /// WM_EXITSIZEMOVE with no WM_ENTERSIZEMOVE before it has no starting size to compare
+        /// against, and comparing against nothing would record whatever the window happens to be.
+        /// </summary>
+        [Fact]
+        public void AnExitWithNoLoopBeforeIt_RecordsNothing()
+        {
+            RunOnRig(rig =>
+            {
+                rig.TheWindowBecomes(1560, 400);
+
+                rig.Send(WM_EXITSIZEMOVE);
+                rig.Send(WM_EXITSIZEMOVE);
+
+                Assert.False(rig.Memory.HasSize,
+                    $"An unpaired WM_EXITSIZEMOVE recorded {rig.Memory.Width}x{rig.Memory.Height} as a "
+                    + "size the person chose.");
+            });
+        }
+
+        /// <summary>
+        /// A MAXIMISE, at the state-change level: no modal loop at all, and the size arrives one
+        /// dispatcher turn later, once WPF's layout (which runs at the higher Render priority) has
+        /// given the window the size its new state implies.
+        /// </summary>
+        [Fact]
+        public void AWindowStateCommand_RecordsTheSizeTheWindowSettlesAt()
+        {
+            RunOnRig(rig =>
+            {
+                rig.TheWindowBecomes(520, 400);
+
+                rig.TheWindowStateBecomes(WindowState.Maximized);
+
+                Assert.True(rig.Memory.HasSize,
+                    "Maximising the HUD recorded nothing, so the next recording opens at the old size "
+                    + "(Review Gate round 1 on PR #34).");
+                Assert.Equal(rig.Window.ActualWidth, rig.Memory.Width!.Value, 1);
+                Assert.Equal(rig.Window.ActualHeight, rig.Memory.Height!.Value, 1);
+                Assert.True(rig.Memory.Width!.Value > 520,
+                    $"the window did not actually grow when maximised (recorded {rig.Memory.Width}), "
+                    + "so this test measured nothing.");
+            });
+        }
+
+        /// <summary>A restore from minimise puts a size BACK rather than choosing one - one of the
+        /// layout transitions the three shipped defects were built on. Widening the allowlist must
+        /// not widen it to this.</summary>
+        [Fact]
+        public void AMinimiseAndRestore_RecordsNothing()
+        {
+            RunOnRig(rig =>
+            {
+                rig.TheWindowBecomes(520, 400);
+
+                rig.TheWindowStateBecomes(WindowState.Minimized);
+                rig.TheWindowStateBecomes(WindowState.Normal);
+
+                Assert.False(rig.Memory.HasSize,
+                    $"A minimise and restore recorded {rig.Memory.Width}x{rig.Memory.Height} as a size "
+                    + "the person chose.");
+            });
+        }
+
+        /// <summary>
         /// A gesture on a window that is auto-sizing to its content - the HUD with the preview panel
         /// down - leaves nothing behind. Whatever the pill is dragged to is discarded by the very
         /// next layout, so remembering it would remember a size that can never be restored.
@@ -384,6 +529,15 @@ namespace AgentEyes.Tests
                 _window.SizeToContent = SizeToContent.Manual;
                 _window.Width = width;
                 _window.Height = height;
+                Pump();
+            }
+
+            /// <summary>The person maximises, restores or minimises the window. Nothing in the app
+            /// does this to the HUD - which is exactly what makes the route a positive
+            /// identification; see NothingInTheHudEverSetsItsOwnWindowState.</summary>
+            public void TheWindowStateBecomes(WindowState state)
+            {
+                _window.WindowState = state;
                 Pump();
             }
 

@@ -114,10 +114,13 @@ namespace AgentEyes.Preview
 
             if (_length > _maxFrameBytes)
             {
+                // COUNTED, NOT LOGGED, and that is deliberate (issue #33, AC10; Review Gate round 1
+                // on PR #34). This runs on the preview DRAIN thread, the only reader of the ffmpeg
+                // pipe that is writing the recording, and the shared logger is a synchronous file
+                // append taken under a process-wide lock - either of which can stop the drain, fill
+                // the pipe and block that ffmpeg. The drop is reported where it is safe to report it:
+                // PreviewTap logs OversizeDrops from its publisher thread at the end of the stream.
                 OversizeDrops++;
-                Log.Warn($"[MjpegFramer] Append: a preview frame exceeded {_maxFrameBytes} bytes without "
-                         + $"an end-of-image marker - dropping {_length} buffered bytes and resynchronising "
-                         + $"(drops={OversizeDrops})");
                 _length = 0;
             }
 
