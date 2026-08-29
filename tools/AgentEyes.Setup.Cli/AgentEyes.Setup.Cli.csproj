@@ -9,7 +9,7 @@
     <!-- Installed to app\agenteyes-setup.exe; also the Add/Remove Programs UninstallString target. -->
     <AssemblyName>agenteyes-setup</AssemblyName>
     <RootNamespace>AgentEyes.Setup.Cli</RootNamespace>
-    <Version>1.4.9</Version>
+    <Version>1.7.0</Version>
     <ApplicationIcon>..\..\assets\setup-icon.ico</ApplicationIcon>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>

@@ -5,7 +5,7 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <RootNamespace>AgentEyes.App</RootNamespace>
     <AssemblyName>AgentEyesApp</AssemblyName>
-    <Version>1.4.9</Version>
+    <Version>1.7.0</Version>
     <ApplicationIcon>..\..\assets\icon.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
