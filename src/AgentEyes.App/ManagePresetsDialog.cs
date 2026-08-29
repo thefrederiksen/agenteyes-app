@@ -124,7 +124,7 @@ namespace AgentEyes.App
 
         private void EditAndApply(CapturePreset preset)
         {
-            var editor = new PresetEditor(preset) { Owner = this };
+            var editor = new PresetEditor(preset, _cfg) { Owner = this };
             if (editor.ShowDialog() != true || editor.SavedPreset == null) return;
             var saved = editor.SavedPreset;
             if (!_presets.Contains(saved)) _presets.Add(saved);   // new (New flow) or Save-as result

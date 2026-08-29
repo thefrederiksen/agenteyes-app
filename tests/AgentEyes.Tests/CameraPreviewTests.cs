@@ -386,17 +386,20 @@ namespace AgentEyes.Tests
         public void OpeningACameraForRecording_AsksEveryHolderToReleaseIt()
         {
             // AC7's wiring, read from IL rather than from source text, so an alias, a helper or a
-            // different spelling cannot hide it. WHAT THIS CANNOT SEE: IL presence proves the release
-            // is compiled into the one method that opens a camera for recording; it does not prove
-            // the release happens BEFORE the open (FfmpegCameraRecorder.Start carries lambdas, and an
-            // ordered read across a split body has no meaning). That ordering is what the running-app
-            // AC7 check observes.
+            // different spelling cannot hide it. The camera recorder opens in two steps on this code
+            // line - Create builds the recorder, Open launches ffmpeg - so the release belongs in
+            // Create, which every recording passes through first.
+            //
+            // WHAT THIS CANNOT SEE: IL presence proves the release is compiled into the one method
+            // that prepares a camera for recording; it does not prove the release happens BEFORE the
+            // process launch (bodies carry lambdas, and an ordered read across a split body has no
+            // meaning). That ordering is what the running-app AC7 check observes.
             var sites = CompiledCode.CallSites(
                 CompiledCode.CoreAssembly,
                 callee => callee.Contains("CameraDeviceArbiter::ReleaseForRecording", StringComparison.Ordinal));
 
             Assert.NotEmpty(sites);
-            Assert.Contains(sites, s => s.Method.Contains("FfmpegCameraRecorder::Start", StringComparison.Ordinal));
+            Assert.Contains(sites, s => s.Method.Contains("FfmpegCameraRecorder::Create", StringComparison.Ordinal));
         }
 
         [Fact]

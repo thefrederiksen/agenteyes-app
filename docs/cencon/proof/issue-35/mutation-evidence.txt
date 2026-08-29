@@ -1,0 +1,28 @@
+MUTATION EVIDENCE - issue #35
+Each new check is run against a KNOWN-BAD input to show it FIRES. A check only ever run
+against the state you hope passes has demonstrated nothing (CenCon method 6c).
+
+MUTATION 1 - rename an x:Name the automation depends on (SquareButton -> SquareBtn)
+  edit: src/AgentEyes.App/PresetEditor.xaml: 'x:Name="SquareButton"' -> 'x:Name="SquareBtn"'
+  Failed AgentEyes.Tests.PresetEditorLayoutTests.PresetEditorXaml_NamedControls_KeepTheirOriginalControlType [1 ms]
+  Failed AgentEyes.Tests.PresetEditorLayoutTests.PresetEditorXaml_AfterTabbedRewrite_KeepsEveryControlName [< 1 ms]
+  PresetEditor.xaml lost or renamed control(s) UIA depends on: SquareButton
+  Failed!  - Failed:     2, Passed:     6, Skipped:     0, Total:     8, Duration: 25 ms - AgentEyes.Tests.dll (net8.0)
+
+MUTATION 2 - delete the Camera tab's ScrollViewer safety net
+  edit: src/AgentEyes.App/PresetEditor.xaml: '<ScrollViewer x:Name="CameraScroll" VerticalScrollBarVisibility="Auto"' -> '<ScrollViewer x:Name="CameraScroll" VerticalScrollBarVisibility="Hidde'
+  Failed AgentEyes.Tests.PresetEditorLayoutTests.PresetEditorXaml_EveryTab_KeepsItsOwnScrollSafetyNet [1 ms]
+  Assert.Equal() Failure: Strings differ
+  Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 24 ms - AgentEyes.Tests.dll (net8.0)
+
+MUTATION 3 - shrink the live preview pane below the 320x240 AC8 floor
+  edit: src/AgentEyes.App/PresetEditor.xaml: '<Border x:Name="CameraPreviewPanel" Width="480" Height="360"' -> '<Border x:Name="CameraPreviewPanel" Width="200" Height="150"'
+  Failed AgentEyes.Tests.PresetEditorLayoutTests.PresetEditorXaml_CameraTab_CarriesAPreviewPaneBigEnoughToJudgeFraming [5 ms]
+  The live preview pane is 200x150; issue #35 AC8 requires at least 320x240.
+  Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 29 ms - AgentEyes.Tests.dll (net8.0)
+
+MUTATION 4 - stop gating the camera preview on the Camera tab being shown (the AC9 rule)
+  edit: src/AgentEyes.App/PresetEditor.xaml.cs: 'if (!ReferenceEquals(EditorTabs.SelectedItem, CameraTab))' -> 'if (false)'
+  Failed AgentEyes.Tests.PresetEditorLayoutTests.PresetEditorCode_CameraPreview_StopsWhenTheCameraTabIsNotShowing [1 ms]
+  Assert.Contains() Failure: Sub-string not found
+  Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 28 ms - AgentEyes.Tests.dll (net8.0)
