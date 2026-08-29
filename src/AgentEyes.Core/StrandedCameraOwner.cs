@@ -52,19 +52,30 @@ namespace AgentEyes
     /// The decision itself lives HERE, in one method each caller makes a single call to, rather than
     /// as an `if` at the two call sites. A branch at the call site is a branch that can be got wrong
     /// in one place and right in the other - and this exact rule has now been got wrong three times.
+    ///
+    /// IT OWNS ANY <see cref="IStrandedCameraProcess"/>, NOT JUST A RECORDER (issue #35, Review Gate
+    /// round 1, defect 4). The preset editor's live preview turned out to repeat the recorder's
+    /// original defect in a different file: a kill that ffmpeg ignored, a wrapper disposed anyway,
+    /// and the last handle to a live process on the webcam dropped on the floor. That is the same
+    /// failure this class exists for, so a surviving PREVIEW is handed to it - through
+    /// <see cref="RetainIfStranded"/>, which is the no-claim, no-directory door - rather than to a
+    /// second owner written to the same description and free to drift from this one. A preview owns
+    /// no recording claim and writes no file, so its row carries a default ticket and a null output;
+    /// everything else about it - retained, reaped when the process really goes, reported on
+    /// <c>/status</c> with its PID - is identical, because the problem is identical.
     /// </summary>
     internal sealed class StrandedCameraOwner
     {
         private sealed class Stranded
         {
-            public Stranded(FfmpegCameraRecorder recorder, RecordingClaimTicket claim, string? dir)
+            public Stranded(IStrandedCameraProcess recorder, RecordingClaimTicket claim, string? dir)
             {
                 Recorder = recorder;
                 Claim = claim;
                 Dir = dir;
             }
 
-            public FfmpegCameraRecorder Recorder { get; }
+            public IStrandedCameraProcess Recorder { get; }
             public RecordingClaimTicket Claim { get; }
             public string? Dir { get; }
         }
@@ -121,7 +132,7 @@ namespace AgentEyes
         /// were clean" cannot be true on one path and false on the other. Returns true when the
         /// camera was retained (and the claim therefore deliberately NOT released).
         /// </summary>
-        public bool ReleaseClaimUnlessStranded(FfmpegCameraRecorder? camera, in RecordingClaimTicket claim, string? dir)
+        public bool ReleaseClaimUnlessStranded(IStrandedCameraProcess? camera, in RecordingClaimTicket claim, string? dir)
         {
             if (TryRetain(camera, claim, dir)) return true;
 
@@ -137,7 +148,7 @@ namespace AgentEyes
         /// the process still has open and replaces an actionable camera failure with an IO error.
         /// Returns true when the camera was retained (and the directory therefore left alone).
         /// </summary>
-        public bool DiscardDirectoryUnlessStranded(FfmpegCameraRecorder? camera, string? dir, in RecordingClaimTicket claim)
+        public bool DiscardDirectoryUnlessStranded(IStrandedCameraProcess? camera, string? dir, in RecordingClaimTicket claim)
         {
             if (TryRetain(camera, claim, dir))
             {
@@ -203,7 +214,7 @@ namespace AgentEyes
         /// retry. Anything else - no camera, a camera that stopped, a camera that was force-killed -
         /// is NOT retained, which is what keeps a normal recording's claim being released normally.
         /// </summary>
-        private bool TryRetain(FfmpegCameraRecorder? camera, in RecordingClaimTicket claim, string? dir)
+        private bool TryRetain(IStrandedCameraProcess? camera, in RecordingClaimTicket claim, string? dir)
         {
             if (camera == null || !camera.IsAbandoned) return false;
 
@@ -240,7 +251,7 @@ namespace AgentEyes
         /// reportable - and the PID printed and logged is what remains actionable after the command
         /// exits. It does not, and cannot, give a finished process something to come back to.
         /// </summary>
-        public bool RetainIfStranded(FfmpegCameraRecorder? camera, string? dir) =>
+        public bool RetainIfStranded(IStrandedCameraProcess? camera, string? dir) =>
             TryRetain(camera, default, dir);
 
         /// <summary>

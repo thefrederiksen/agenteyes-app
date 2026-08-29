@@ -1,0 +1,106 @@
+QA probe for issue #35 - 2026-08-29 08:13:17
+backed up config.json and presets.json into <scratch>/qaout
+assembly AgentEyesApp: <scratch>\qaprobe\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+assembly agenteyes  : <scratch>\qaprobe\bin\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+App.xaml resources loaded: 50 keys
+editor opened: 1000x760 (XAML Width/Height 1000x760)
+
+== AC3 - tabbed layout ==
+PASS   EditorTabs has 3 tabs
+       tab headers: Capture | Audio | Camera
+
+== AC1 / AC3 - no vertical scrollbar on any tab at the default size ==
+       Capture  CaptureScroll  computed=Collapsed extent=285.7 viewport=527.9 scrollable=0.0
+PASS   Capture tab: no vertical scrollbar at default size
+       screenshot qa-tab-capture-default.png  1000x760  22 distinct colours
+       Audio    AudioScroll    computed=Collapsed extent=311.8 viewport=527.9 scrollable=0.0
+PASS   Audio tab: no vertical scrollbar at default size
+       screenshot qa-tab-audio-default.png  1000x760  22 distinct colours
+       Camera   CameraScroll   computed=Collapsed extent=515.6 viewport=527.9 scrollable=0.0
+PASS   Camera tab: no vertical scrollbar at default size
+       screenshot qa-tab-camera-default.png  1000x760  22 distinct colours
+
+== AC2 (as ruled) - each named control present and fully visible within its tab ==
+PASS   NameBox        TextBox      on header/footer (outside the tabs): present and fully visible
+PASS   MonitorBox     ComboBox     on Capture tab: present and fully visible
+PASS   CameraBox      ComboBox     on Camera tab: present and fully visible
+PASS   MicBox         ComboBox     on Audio tab: present and fully visible
+PASS   MicVol         Slider       on Audio tab: present and fully visible
+PASS   SysVol         Slider       on Audio tab: present and fully visible
+PASS   FpsBox         ComboBox     on Capture tab: present and fully visible
+PASS   ModeShot       RadioButton  on Capture tab: present and fully visible
+PASS   ModeAudio      RadioButton  on Capture tab: present and fully visible
+PASS   ModeVideo      RadioButton  on Capture tab: present and fully visible
+
+== AC8 - camera pane geometry ==
+       CameraPreviewPanel actual size = 480x360; Image.Stretch=Uniform
+PASS   preview pane is 480x360 (floor 320x240)
+
+== AC6 - at 600px tall the safety net engages and everything stays reachable ==
+       window is now 1000x600
+       Capture  computed=Collapsed extent=285.7 viewport=367.9 scrollable=0.0
+       screenshot qa-tab-capture-h600.png  1000x600  22 distinct colours
+       Audio    computed=Collapsed extent=311.8 viewport=367.9 scrollable=0.0
+       screenshot qa-tab-audio-h600.png  1000x600  22 distinct colours
+       Camera   computed=Visible extent=515.6 viewport=367.9 scrollable=147.8
+       screenshot qa-tab-camera-h600.png  1000x600  22 distinct colours
+PASS   at 600px tall at least one tab's ScrollViewer engaged (the safety net works)
+PASS   at 600px tall every checked control was reachable by scrolling to it
+
+== AC8 / AC9 - live preview and device release, camera = "HD Webcam eMeet C960" ==
+       CameraDeviceArbiter.HolderCount with the editor open = 1
+       camera picker items: (None) | HD Webcam eMeet C960 | OBS Virtual Camera
+       preview state = Running, status text = ""
+       rendered image source is 320x240
+PASS   live image is 320x240 (>= 320x240)
+       screenshot qa-camera-live-t0.png  1000x760  22 distinct colours
+       screenshot qa-camera-live-t2s.png  1000x760  22 distinct colours
+       bytes differing between the frame at t=0 and t=+2s: 172291 of 230400
+PASS   the pane is LIVE - the frame changed over 2 seconds
+       ffmpeg pids started by the preview: 10336
+
+== AC9 path 1 - a real camera recording starts WHILE the preview is running ==
+PASS   precondition: the controller HOLDS the camera
+       CameraDeviceArbiter released, ffmpeg opened: 1111 ms; opened=True
+PASS   recording opened the camera in 1111 ms (budget 2000 ms)
+       preview ffmpeg pid 10336 had exited before the recording opened
+PASS   after the recording start, the controller holds nothing
+
+== AC9 path 2 - leaving the Camera tab releases the device ==
+       state after leaving the tab = Stopped, HoldsCamera=False
+PASS   leaving the Camera tab released the device
+       recording after leaving the tab: opened=True in 633 ms
+PASS   a real recording opened the camera in 633 ms after leaving the tab
+
+== AC9 path 3 - leaving Video mode releases the device ==
+PASS   switching out of Video mode released the device
+
+== AC9 path 4 - closing the editor releases the device ==
+       preview running before close = True; arbiter holders = 1
+       arbiter holders after close = 0
+PASS   closing the editor released the device
+PASS   the controller unregistered itself from the arbiter on close
+       recording after close: opened=True in 626 ms
+PASS   a real recording opened the camera in 626 ms after the editor closed
+
+== AC10 - the editor reopens on its last tab, size and position ==
+       set: tab=2 size=1120x700 pos=140,90
+       config.json now: PresetEditorTab=2 Width=1120 Height=700 Left=140 Top=90
+PASS   the tab, size and position were written to config.json on close
+       reopened: tab=2 size=1120x700 pos=140,90
+PASS   the editor reopened on the Camera tab it was closed on
+       reopened straight onto the Camera tab: preview state = Running, status = ""
+PASS   reopening onto the Camera tab re-armed the live preview with no error
+PASS   the editor reopened at the same size and position
+PASS   the reopened editor released the camera on close
+
+== AC5 - a preset round-trips through the editor and through presets.json ==
+       after QuickSquare_Click: RegionLabel = "1080 x 1080", NameBox = "QA35 round trip"
+PASS   QuickSquare_Click still sets a 1080x1080 region
+PASS   SetExact_Click still sets an exact 800x600 region
+PASS   LoadFrom -> ReadInto is byte-identical (the Save path preserves every field)
+       presets.json round trip: identical
+PASS   the preset round-trips identically through %LOCALAPPDATA%\AgentEyes\presets.json
+
+restored config.json and presets.json from backup
+PROBE RESULT: all probe checks passed

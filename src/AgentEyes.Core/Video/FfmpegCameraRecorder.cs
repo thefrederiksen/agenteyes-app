@@ -146,7 +146,7 @@ namespace AgentEyes.Video
     /// presence and whose <c>unknown</c> is the correct answer for everything else, INCLUDING cases
     /// nobody anticipated. The one thing it may never do is claim <c>yes</c> from an absence.
     /// </summary>
-    internal sealed class FfmpegCameraRecorder : IDisposable
+    internal sealed class FfmpegCameraRecorder : IStrandedCameraProcess
     {
         /// <summary>
         /// How long a freshly started camera is given to report itself open before the open is called
@@ -559,6 +559,13 @@ namespace AgentEyes.Video
         {
             Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" fps={fps} crf={crf} "
                      + $"out={outPath} preview={(preview != null ? "yes" : "no")}");
+
+            // A DirectShow camera is EXCLUSIVE, so anything in this process that is holding one -
+            // today that is the preset editor's live preview (issue #29) - is told to let go BEFORE
+            // the device is opened, and has released by the time this returns. This is the single
+            // choke point for that: every recording path, from the launcher to POST /record/start,
+            // reaches the camera through here, so none of them can forget it.
+            CameraDeviceArbiter.ReleaseForRecording(dshowCameraName);
 
             string exe = FfmpegLocator.Ffmpeg();
             var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath, previewStream: preview != null);

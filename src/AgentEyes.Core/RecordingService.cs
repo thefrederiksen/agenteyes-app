@@ -290,7 +290,14 @@ namespace AgentEyes
         public RecordStatus Status()
         {
             var failure = _lastStopFailure;
-            var stuck = _stranded.Report();
+
+            // BOTH kinds of stuck camera, because a person reading /status wants to know that THE
+            // WEBCAM IS HELD - not which of our two owners is holding the process that is holding
+            // it. The preset editor's preview can strand an ffmpeg exactly as a recording can
+            // (issue #35, Review Gate round 1, defect 4), and a status that showed only one of them
+            // would report an empty list while a live process sat on the camera.
+            var stuck = new List<StrandedCameraReport>(_stranded.Report());
+            stuck.AddRange(Video.CameraDeviceArbiter.StrandedPreviews.Report());
             return new RecordStatus
             {
                 State = _state,

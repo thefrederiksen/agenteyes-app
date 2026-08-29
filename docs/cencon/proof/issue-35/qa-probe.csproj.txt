@@ -1,0 +1,24 @@
+<!-- QA instrument for issue #35. Saved as .txt so it is never picked up by a build.
+     To re-run it: copy this and qa-probe.cs.txt into an empty folder as QaProbe.csproj /
+     Program.cs, point the ProjectReference below and the AppXamlPath constant in
+     Program.cs at your own checkout of src/AgentEyes.App, then
+       dotnet build QaProbe.csproj -c Release
+       QaProbe.exe <output-dir> "<exact DirectShow camera name>"
+     It backs up and restores %LOCALAPPDATA%\AgentEyes\config.json and presets.json.
+     It is NOT in AgentEyes.sln and never touches the gate. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <RootNamespace>AgentEyes.QaProbe</RootNamespace>
+    <AssemblyName>QaProbe</AssemblyName>
+    <Nullable>disable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\ReposFred\agenteyes-qa35\src\AgentEyes.App\AgentEyes.App.csproj" />
+  </ItemGroup>
+</Project>

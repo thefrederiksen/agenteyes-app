@@ -1,0 +1,53 @@
+AC4 - x:Name check for the reordered branch (issue #35 replayed onto main)
+BEFORE = src/AgentEyes.App/PresetEditor.xaml at origin/main (e57d828)
+AFTER  = the same file on issue-35-preset-editor-tabs
+
+before count: 38
+after count : 48
+removed     : NONE
+renamed/retyped: NONE
+added (10)   : AudioScroll, AudioTab, CameraPreviewImage, CameraPreviewPanel, CameraPreviewStatus, CameraScroll, CameraTab, CaptureScroll, CaptureTab, EditorTabs
+
+The 38 pre-existing names, each still present with the same control type:
+   1. AspectBox              ComboBox     -> ComboBox
+   2. CameraBox              ComboBox     -> ComboBox
+   3. CameraHint             TextBlock    -> TextBlock
+   4. CancelButton           Button       -> Button
+   5. DenoiseCheck           CheckBox     -> CheckBox
+   6. ErrorText              TextBlock    -> TextBlock
+   7. ExactHeightBox         TextBox      -> TextBox
+   8. ExactWidthBox          TextBox      -> TextBox
+   9. FpsBox                 ComboBox     -> ComboBox
+  10. FullRadio              RadioButton  -> RadioButton
+  11. GateCheck              CheckBox     -> CheckBox
+  12. LandscapeButton        Button       -> Button
+  13. LevelCheck             CheckBox     -> CheckBox
+  14. MicBox                 ComboBox     -> ComboBox
+  15. MicVol                 Slider       -> Slider
+  16. MicVolText             TextBlock    -> TextBlock
+  17. ModeAudio              RadioButton  -> RadioButton
+  18. ModeShot               RadioButton  -> RadioButton
+  19. ModeVideo              RadioButton  -> RadioButton
+  20. MonitorBox             ComboBox     -> ComboBox
+  21. NameBox                TextBox      -> TextBox
+  22. NoteBox                TextBox      -> TextBox
+  23. RegionLabel            TextBlock    -> TextBlock
+  24. RegionOptions          StackPanel   -> StackPanel
+  25. RegionRadio            RadioButton  -> RadioButton
+  26. RegionWarn             TextBlock    -> TextBlock
+  27. SaveAsButton           Button       -> Button
+  28. SaveButton             Button       -> Button
+  29. SelectAreaButton       Button       -> Button
+  30. SetExactButton         Button       -> Button
+  31. ShowAreaButton         Button       -> Button
+  32. SquareButton           Button       -> Button
+  33. SrcMic                 RadioButton  -> RadioButton
+  34. SrcMixed               RadioButton  -> RadioButton
+  35. SrcSystem              RadioButton  -> RadioButton
+  36. SysVol                 Slider       -> Slider
+  37. SysVolText             TextBlock    -> TextBlock
+  38. VerticalButton         Button       -> Button
+
+FAIL-CLOSED NOTE: this is a PRESENCE check over a parsed list, and an EMPTY before-list
+would be a broken instrument, not a clean run. The before count printed above is 38 - the
+same 38 the QA round-1 report counted - so the list was really read.

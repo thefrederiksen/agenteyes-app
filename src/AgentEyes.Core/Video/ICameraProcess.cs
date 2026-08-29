@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 
 namespace AgentEyes.Video
@@ -182,5 +183,113 @@ namespace AgentEyes.Video
             _proc.Dispose();
             _stderrEof.Dispose();
         }
+    }
+
+    /// <summary>
+    /// The OS process behind a camera PREVIEW, as <see cref="FfmpegCameraPreview"/> actually uses it
+    /// (issue #35, Review Gate round 1, defect 4).
+    ///
+    /// WHY THIS SEAM EXISTS. It is the same argument <see cref="ICameraProcess"/> makes one class
+    /// up, applied to the file the gate found the defect in: "ffmpeg ignored the kill" and "Kill
+    /// threw" are not states a real ffmpeg can be asked to enter, so without a seam the preview's
+    /// ownership decisions - the ones that decide whether a live process holding the webcam stays
+    /// reachable - carried no test at all. Behind this interface each of them is one line of a fake.
+    ///
+    /// WHY IT IS NOT <see cref="ICameraProcess"/> ITSELF. A preview IS its stdout - the frames are
+    /// read off that stream by hand - while the recorder redirects stdout and hands it to an
+    /// asynchronous line reader; the two cannot both have it. And a preview writes no file, so it
+    /// never sends "q" and has nothing to finalize. Widening the recorder's seam to carry a stream
+    /// only the preview may touch would put a trap in issue #28's code. The two agree on the part
+    /// that is being fixed here, and it is stated identically in both:
+    /// <see cref="HasExited"/> is the only authority on whether the device is still held.
+    /// </summary>
+    internal interface ICameraPreviewProcess : IDisposable
+    {
+        /// <summary>Wire the stderr notification and start the process. <paramref name="onStderrLine"/>
+        /// is called for every stderr line ffmpeg writes. Throws when it cannot be started at all.</summary>
+        void Start(Action<string> onStderrLine);
+
+        /// <summary>The raw stdout stream the preview frames arrive on.</summary>
+        Stream StandardOutput { get; }
+
+        /// <summary>True once the OS process has ended. The only authority on that.</summary>
+        bool HasExited { get; }
+
+        /// <summary>The process exit code. Read only while <see cref="HasExited"/> is true and before
+        /// <see cref="IDisposable.Dispose"/>, which releases the handle it needs.</summary>
+        int ExitCode { get; }
+
+        /// <summary>The operating-system process id, or null before the process is started. It is
+        /// what names a preview ffmpeg nobody could kill to the person who has to deal with it.</summary>
+        int? ProcessId { get; }
+
+        /// <summary>Wait up to <paramref name="milliseconds"/> for the process to end. False means it
+        /// is STILL RUNNING - never "probably fine".</summary>
+        bool WaitForExit(int milliseconds);
+
+        /// <summary>Kill the process and everything it started. May throw - a kill is a request to
+        /// the operating system, not an outcome.</summary>
+        void Kill();
+    }
+
+    /// <summary>
+    /// The real <see cref="ICameraPreviewProcess"/>: one ffmpeg streaming raw frames on stdout.
+    ///
+    /// It holds NO policy, exactly as <see cref="FfmpegCameraProcess"/> holds none. How long to wait
+    /// for a kill, what a refused kill means, and when the handle may be released all live in
+    /// <see cref="FfmpegCameraPreview"/>, where a test can reach them.
+    /// </summary>
+    internal sealed class FfmpegPreviewProcess : ICameraPreviewProcess
+    {
+        private readonly Process _proc;
+        private readonly string _deviceName;
+
+        /// <summary>The OS process id, captured the instant Start succeeded. Held rather than read on
+        /// demand because <see cref="Process.Id"/> throws once the handle has been released, and the
+        /// one moment it is needed is a stop that went wrong.</summary>
+        private int? _pid;
+
+        public FfmpegPreviewProcess(ProcessStartInfo psi, string deviceName)
+        {
+            if (psi == null) throw new ArgumentNullException(nameof(psi));
+            if (string.IsNullOrWhiteSpace(deviceName))
+                throw new ArgumentException("a camera preview process must name its device", nameof(deviceName));
+            _deviceName = deviceName;
+            _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        }
+
+        public void Start(Action<string> onStderrLine)
+        {
+            if (onStderrLine == null) throw new ArgumentNullException(nameof(onStderrLine));
+
+            _proc.ErrorDataReceived += (_, e) => { if (e.Data != null) onStderrLine(e.Data); };
+
+            if (!_proc.Start())
+                throw new UsageException($"failed to start ffmpeg for the camera preview of \"{_deviceName}\".");
+
+            _pid = _proc.Id;
+            _proc.BeginErrorReadLine();
+        }
+
+        public Stream StandardOutput => _proc.StandardOutput.BaseStream;
+
+        public bool HasExited => _proc.HasExited;
+
+        public int ExitCode => _proc.ExitCode;
+
+        public int? ProcessId => _pid;
+
+        public bool WaitForExit(int milliseconds) => _proc.WaitForExit(milliseconds);
+
+        public void Kill() => _proc.Kill(entireProcessTree: true);
+
+        /// <summary>
+        /// Releases the process HANDLE. It does NOT terminate the OS process - which is exactly why
+        /// <see cref="FfmpegCameraPreview"/> refuses to call it while the process is still alive
+        /// (issue #35, gate round 1, defect 4, which is issue #28's gate round 3 defects 1 and 2 in
+        /// a different file): closing the last handle to a live ffmpeg does not take it off the
+        /// webcam, it only makes it unreachable.
+        /// </summary>
+        public void Dispose() => _proc.Dispose();
     }
 }

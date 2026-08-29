@@ -20,6 +20,15 @@ namespace AgentEyes.App
         public double? HudLeft { get; set; }
         public double? HudTop { get; set; }
 
+        // Preset editor window (issue #35, AC10): the tab it was last closed on, and the size and
+        // position it was left at. Null size/position = never moved, so the editor opens at its XAML
+        // default centred on its owner.
+        public int PresetEditorTab { get; set; }
+        public double? PresetEditorWidth { get; set; }
+        public double? PresetEditorHeight { get; set; }
+        public double? PresetEditorLeft { get; set; }
+        public double? PresetEditorTop { get; set; }
+
         // Recording HUD live preview (issue #33). Size is remembered ONLY for the preview state -
         // with the preview hidden the HUD sizes itself to its content exactly as it always has, so a
         // null here is "never resized" and not "zero".
