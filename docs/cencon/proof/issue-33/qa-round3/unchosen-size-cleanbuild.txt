@@ -1,0 +1,19 @@
+﻿==== (c) NO UNCHOSEN SIZE MAY REACH CONFIG - clean build, no instrumentation ====
+exe: D:\ReposFred\agenteyes-qa33-r3\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+exe lastwrite: 08/28/2026 22:58:29
+-- RECORDING 1: the person TOGGLES the preview on and resizes NOTHING --
+  pill:                    HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+SHOT C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\shots-r3\r3-ac1-panel-520x400.png  size=520x400  distinctColors=1
+  config after recording 1  EXPECT null / null:   "HudWidth": null,   "HudHeight": null,   "HudPreviewVisible": true,
+-- RECORDING 2: HUD is CONSTRUCTED with the preview already on. Still nobody resizes. --
+  HUD as opened:           HUD rect: X=1537 Y=16 W=520 H=400
+                           IMAGE rect=1553,113,490,276
+SHOT C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\shots-r3\r3-recording2-panel.png  size=520x400  distinctColors=1
+  config after recording 2  EXPECT null / null:   "HudWidth": 520,   "HudHeight": 400,   "HudPreviewVisible": true,
+
+==== drift: the size WRITTEN is the size the window LANDS at, not the size anybody chose ====
+  config before  (the person's remembered size):   "HudWidth": 200,   "HudHeight": 100,   "HudPreviewVisible": true
+  HUD as opened (MinWidth is 260): HUD rect: X=1644 Y=16 W=260 H=100
+  config after   EXPECT 200 / 100 unchanged - nobody touched the HUD:   "HudWidth": 260,   "HudHeight": 100,   "HudPreviewVisible": true,
+==== end ====
