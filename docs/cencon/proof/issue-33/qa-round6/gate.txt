@@ -1,0 +1,40 @@
+QA round 6 gate - run by QA, in its OWN isolated worktree at the PR head, never by the human.
+
+worktree: D:\ReposFred\agenteyes-qa33-r6 (detached at 8e1babe4812573c6226f6c9bc28e38da3a7d3658)
+control:  D:\ReposFred\agenteyes-qa33-r6-knownbad (detached at c1eb48e8f11d71a61a07a424a8bb2a8d0411f215,
+          the round-2 Gate head - built only to be the known-bad arm)
+
+dotnet restore AgentEyes.sln
+  Restored all six projects
+
+dotnet build AgentEyes.sln -c Release --no-restore --no-incremental
+  Build succeeded.
+    4 Warning(s)
+    0 Error(s)
+  The four warnings are the pre-existing xUnit analyzer warnings in PostRecordingQueueTests.cs
+  (xUnit1031 x2) and StrandedCameraOwnerTests.cs (xUnit2031 x2); neither file is touched by this
+  branch.
+
+dotnet test AgentEyes.sln -c Release --no-build --no-restore
+  Passed!  - Failed: 0, Passed: 1135, Skipped: 0, Total: 1135, Duration: 15 s
+
+Test assembly: tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+(the x64 output, never bin\Release).
+
+The suite is GREEN and it does not catch the defect in this report. That is the point of the
+report: HudPreviewSizingOrderTests.AnOrdinaryStopWithNothingUnaccountedFor_SaysNothingAboutMissing-
+Routes passes while the running app does the opposite, because the rig calls HidePanel once and
+HudWindow.SetStatus is called three times per stop.
+
+Binaries actually exercised in the runtime probes:
+  shipped   AgentEyesApp.dll B7E7A67631454E37CDA3BD96B51B7F93977B88E56473D729573E5CC3574CCF97
+            agenteyes.dll    CD9F64C8F06250B5ABF8ED28F327953E3DD59F686E5DB00A691F7B212EB8AC0F
+  known-bad AgentEyesApp.dll 7BD0E676622F52455D485BE86478E1B20C3906FD793C90B1AC7A6604676B8A83
+            agenteyes.dll    77BD8314DCA8E96E5F89A431EED4351546F845A049CEB54CB2D1A79AB6D2DF76
+
+The installed v1.6.2 tray app was displaced for the duration of the probes and restored afterwards
+("C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray, the autostart command).
+config.json and presets.json were restored byte-for-byte:
+  config.json  D60F3C217FAD8F27C0DCC14F73F5DD570B5FE68DC1ED9E357CCB603189424C84 (before and after)
+  presets.json BFFC4252433C9D4FAAE973E032B9E83874FF56DC83336719013BF42FA5C62219 (before and after)
+All 13 QA test recordings were deleted. No ffmpeg process was left behind.
