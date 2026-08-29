@@ -1,0 +1,19 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-dev33\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.Setup.Cli -> D:\ReposFred\agenteyes-dev33\tools\AgentEyes.Setup.Cli\bin\Release\net8.0-windows\agenteyes-setup.dll
+  AgentEyes.Setup -> D:\ReposFred\agenteyes-dev33\tools\AgentEyes.Setup\bin\Release\net8.0-windows\AgentEyes.Setup.dll
+  AgentEyes.Core -> D:\ReposFred\agenteyes-dev33\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.App -> D:\ReposFred\agenteyes-dev33\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+
+Build succeeded.
+
+D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+    2 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.09

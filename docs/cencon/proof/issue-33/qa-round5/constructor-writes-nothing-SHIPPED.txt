@@ -1,0 +1,16 @@
+VARIANT = shipped
+AgentEyesApp.dll sha256 = 24E786E1C0DFA2AB149860F71EB721B36CA4FA62BAE229A4ED051A8BD20B4449
+config.json IsReadOnly = True
+HUD rect: X=893 Y=150 W=520 H=400
+--- write attempts, in order, from the REC click onwards ---
+    00:00:00.000 [INFO] QA33R5-MARK-shipped-054503-REC
+    05:45:09.543 [WARN] [Config] Save FAILED: C:\Users\soren\AppData\Local\AgentEyes\config.json - Access to the path 'C:\Users\soren\AppData\Local\AgentEyes\config.json' is denied.. The change is held in memory for this session but is not on disk.
+    05:45:09.559 [INFO] hud: preview panel opening at 520x400 (the default)
+    00:00:00.000 [INFO] QA33R5-MARK-shipped-054503-STOP
+    05:45:18.714 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+    05:45:18.725 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+    05:45:24.014 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+    05:45:24.037 [INFO] hud: saving position left=893 top=150 width=none height=none
+    05:45:24.038 [WARN] [BackgroundFileWriter] WriteOnce FAILED: C:\Users\soren\AppData\Local\AgentEyes\config.json - Access to the path 'C:\Users\soren\AppData\Local\AgentEyes\config.json' is denied.. The change is held in memory for this session but is not on disk.
+config.json IsReadOnly reset to False
+DONE shipped

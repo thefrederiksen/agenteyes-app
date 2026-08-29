@@ -140,7 +140,8 @@ namespace AgentEyes.Tests
         private static readonly string[] PinnedFileWrites =
         {
             "AgentEyesApp.dll!AgentEyes.App.App::Log -> System.IO.File::WriteAllText x1",                    // AgentEyes-crash.log
-            "AgentEyesApp.dll!AgentEyes.App.Config::Save -> System.IO.File::WriteAllText x1",                // the app's config.json
+            "AgentEyesApp.dll!AgentEyes.App.BackgroundFileWriter::WriteToDisk -> System.IO.File::WriteAllText x1", // whatever file a background writer owns; today only config.json (issue #33)
+            "AgentEyesApp.dll!AgentEyes.App.Config::WriteJson -> System.IO.File::WriteAllText x1",           // the app's config.json - the ONE writer, shared by the blocking save and the background one
             "AgentEyesApp.dll!AgentEyes.App.Plugins::RunOne -> System.IO.File::WriteAllText x1",             // one plugin run's log
             "AgentEyesApp.dll!AgentEyes.App.Plugins::SaveSettings -> System.IO.File::WriteAllText x1",       // one plugin's settings file
             "AgentEyesApp.dll!AgentEyes.App.PresetStore::Save -> System.IO.File::WriteAllText x1",           // presets.json
@@ -165,6 +166,20 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::CopyDir -> System.IO.File::Copy x1",             // installing a plugin's files
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::InstallZip -> System.IO.Compression.ZipFileExtensions::ExtractToDirectory x1", // a plugin zip unpacked into its folder
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::Remove -> System.IO.File::Delete x1",            // a removed plugin's settings
+            // The HUD live preview (issue #33). Every one of these four is in %LOCALAPPDATA%\AgentEyes\
+            // preview and NONE of them is inside a recording directory - which is the property that
+            // matters to this inventory: a preview frame is a monitor overwritten ten times a second,
+            // and it must never become a file the Library, the repair passes or packaging can find.
+            //
+            // WHICH THREAD, which is the property Review Gate round 2 on PR #39 was about: all four
+            // are on a thread a recording is NOT waiting on. The two writes are the publisher's; the
+            // deletes are the chores worker's, and they moved there FROM PreviewTap::TryCreateAt (the
+            // thread that starts a recording) and PreviewTap::RemoveFrameFile (the thread that stops
+            // one), where a path that never answers could hold the recording's start or stop open.
+            "agenteyes.dll!AgentEyes.Preview.PreviewFrameFile::TryRead -> System.IO.FileStream::.ctor x1",   // READS a published preview frame (FileAccess.Read; the ctor is on the write list, this use is not a write)
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::WriteFrameToDisk -> System.IO.File::Move x1",       // preview\<track>.jpg: the rename that publishes a whole frame (publisher thread only)
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::WriteFrameToDisk -> System.IO.File::WriteAllBytes x1", // preview\<track>.jpg.tmp: the frame, before that rename (publisher thread only)
+            "agenteyes.dll!AgentEyes.Preview.PreviewChores::DoRemove -> System.IO.File::Delete x2",         // the published frame and its temp, when the preview is hidden, the recording ends, or the next one starts
             "agenteyes.dll!AgentEyes.Screenshot::CaptureRect -> System.Drawing.Image::Save x1",              // a screenshot / marker-shot PNG
             "agenteyes.dll!AgentEyes.SelfTest::RunChecks -> System.IO.File::Copy x1",                      // audio.wav of the throwaway self-test recording
             "agenteyes.dll!AgentEyes.SelfTest::WriteReport -> System.IO.File::WriteAllText x1",              // selftest-report.html

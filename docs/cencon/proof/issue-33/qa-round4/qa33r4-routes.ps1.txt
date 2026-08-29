@@ -1,0 +1,162 @@
+$ErrorActionPreference = 'Stop'
+$SP  = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$EXE = "D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a } }
+function Cfg($what) { Write-Output ("  config {0}: {1}" -f $what, (((Get-Content $cfg | Select-String 'HudWidth|HudHeight|HudLeft|HudTop|HudPreviewVisible') -join ' ') -replace '\s+', ' ')) }
+function Rec()  { & powershell -NoProfile -File "$SP\qa33r4-main.ps1" -Action click -Arg REC | Out-Null }
+function StopRec() { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action click -Arg 'HUD stop' | Out-Null }
+
+function Fresh($json) {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+    $json | Out-File -FilePath $cfg -Encoding utf8
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Milliseconds 500
+        try { Invoke-WebRequest -Uri http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {}
+    }
+    Start-Sleep -Seconds 2
+    $p = Get-Process AgentEyesApp -ErrorAction SilentlyContinue
+    Write-Output ("  [running app: " + (($p | ForEach-Object { $_.Path }) -join "; ") + "]")
+}
+
+$BASE = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@
+
+Write-Output "==== ISSUE #33 ROUND 4 - QA ROUTE ATTACK (the running app) ===="
+Write-Output "exe:           $EXE"
+Write-Output "exe lastwrite: $((Get-Item $EXE).LastWriteTime)"
+Write-Output ("dll sha256:    " + (Get-FileHash (Join-Path (Split-Path $EXE) "AgentEyesApp.dll")).Hash)
+Write-Output "run started:   $(Get-Date -Format o)"
+Write-Output ""
+
+Write-Output "==== (A) HANDS-OFF ROUTES: no size the person did not choose may reach config ===="
+Fresh $BASE
+Write-Output "-- S1 recording 1: TOGGLE the preview on, resize nothing --"
+Rec; Start-Sleep -Seconds 8
+Write-Output "  pill:        $(Hud rect)"
+Write-Output "  toggle ON:   $(Hud click 'Show preview')"
+Write-Output "               $(Hud image)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after S1  EXPECT no HudWidth / HudHeight"
+
+Write-Output "-- S2 recording 2: the HUD is CONSTRUCTED with the preview already on (round-3 defect) --"
+Rec; Start-Sleep -Seconds 9
+Write-Output "  HUD as opened (EXPECT 520x400):  $(Hud rect)"
+Write-Output "                                   $(Hud image)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after S2  EXPECT no HudWidth / HudHeight"
+
+Write-Output "-- S3 recording 3: EVERY hostile route in one run, all hands-off --"
+Rec; Start-Sleep -Seconds 9
+Write-Output "  as opened:                       $(Hud rect)"
+Write-Output "  toggle OFF:                      $(Hud click 'Show preview')"
+Write-Output "  toggle ON:                       $(Hud click 'Show preview')"
+Write-Output "  toggle OFF:                      $(Hud click 'Show preview')"
+Write-Output "  toggle ON:                       $(Hud click 'Show preview')"
+Write-Output "  move to DISPLAY1 (2100,100):     $(Hud move '2100,100')"
+Write-Output "  move to DISPLAY2 (1250,1150):    $(Hud move '1250,1150')"
+Write-Output "  move to DISPLAY3 (200,200):      $(Hud move '200,200')"
+Write-Output "  toggle OFF mid-move:             $(Hud click 'Show preview')"
+Write-Output "  move to (600,300):               $(Hud move '600,300')"
+Write-Output "  toggle ON mid-move:              $(Hud click 'Show preview')"
+Write-Output "  move to (800,400):               $(Hud move '800,400')"
+Write-Output "  minimise + restore:"
+Hud minrestore
+Write-Output "  WM_DPICHANGED:                   $(Hud dpichange)"
+Write-Output "  BARE SetWindowPos 1100x600:      $(Hud hwndresize '1100,600')"
+Write-Output "                                   $(Hud image)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after S3  EXPECT no HudWidth / HudHeight (the window really was 1100x600)"
+
+Write-Output "-- S4 two more stop/start cycles, nothing touched, to show nothing accumulates --"
+Rec; Start-Sleep -Seconds 8; Write-Output "  as opened: $(Hud rect)"; StopRec; Start-Sleep -Seconds 12
+Rec; Start-Sleep -Seconds 8; Write-Output "  as opened: $(Hud rect)"; StopRec; Start-Sleep -Seconds 12
+Cfg "after S4  EXPECT no HudWidth / HudHeight"
+
+Write-Output "-- S5 the HUD is CLOSED while the preview is open (WM_CLOSE, nothing resized) --"
+Rec; Start-Sleep -Seconds 8
+Write-Output "  as opened: $(Hud rect)"
+Hud close
+Start-Sleep -Seconds 10
+Cfg "after S5  EXPECT no HudWidth / HudHeight"
+try { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/record/stop' -Method Post -TimeoutSec 60 | Out-Null } catch { Write-Output "  (stop after WM_CLOSE: $($_.Exception.Message))" }
+Start-Sleep -Seconds 10
+Cfg "after the stop that followed S5"
+
+Write-Output ""
+Write-Output "==== (B) THE CLAMP DRIFT: a hands-off recording must leave config BYTE-IDENTICAL ===="
+Fresh @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudWidth": 200,
+  "HudHeight": 100,
+  "HudPreviewVisible": true
+}
+'@
+Cfg "before (the person's remembered size)"
+Rec; Start-Sleep -Seconds 9
+Write-Output "  HUD as opened (MinWidth is 260): $(Hud rect)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after  EXPECT 200 / 100 unchanged"
+$after = (Get-Content $cfg -Raw)
+$w = ($after | Select-String '"HudWidth":\s*([0-9.]+)').Matches.Groups[1].Value
+$h = ($after | Select-String '"HudHeight":\s*([0-9.]+)').Matches.Groups[1].Value
+Write-Output ("  RESULT: HudWidth={0} HudHeight={1} -> {2}" -f $w, $h, $(if ($w -eq '200' -and $h -eq '100') { 'PASS' } else { 'FAIL' }))
+
+Write-Output ""
+Write-Output "==== (C) AC7 END TO END: resize to 3x the default width, stop, start again ===="
+Fresh $BASE
+Rec; Start-Sleep -Seconds 8
+Write-Output "  pill:                    $(Hud rect)"
+Write-Output "  toggle ON:               $(Hud click 'Show preview')"
+Write-Output "  image at 520x400:        $(Hud image)"
+Write-Output "  move to 940,340:         $(Hud move '940,340')"
+Write-Output "  UIA resize to 1560x400 (3.0x DefaultPreviewWidth=520):"
+Hud resize '1560,400'
+Write-Output "  image after resize:      $(Hud image)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after the resize  EXPECT 1560 / 400 at 940,340"
+Write-Output "-- a NEW recording: the HUD must come back at the size AND position it was left at --"
+Rec; Start-Sleep -Seconds 9
+Write-Output "  HUD as opened:           $(Hud rect)"
+Write-Output "  image:                   $(Hud image)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after recording 2  EXPECT 1560 / 400 unchanged"
+
+Write-Output ""
+Write-Output "==== (D) THE SIZING-BORDER GESTURE: the Win32 resize-modal loop must be REMEMBERED ===="
+Fresh $BASE
+Rec; Start-Sleep -Seconds 8
+Write-Output "  toggle ON:               $(Hud click 'Show preview')"
+Write-Output "  drag the sizing border (SC_SIZE modal loop, messages posted to the window's own queue):"
+Hud borderdrag 60
+StopRec; Start-Sleep -Seconds 12
+Cfg "after the border drag  EXPECT a HudWidth WIDER than 520"
+
+Write-Output ""
+Write-Output "==== (E) A MOVE IS NOT A RESIZE ===="
+Fresh $BASE
+Rec; Start-Sleep -Seconds 8
+Write-Output "  toggle ON:               $(Hud click 'Show preview')"
+Write-Output "  move to 300,200:         $(Hud move '300,200')"
+Write-Output "  move to 700,500:         $(Hud move '700,500')"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after  EXPECT a position but NO HudWidth / HudHeight"
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output ""
+Write-Output "==== end $(Get-Date -Format o) ===="

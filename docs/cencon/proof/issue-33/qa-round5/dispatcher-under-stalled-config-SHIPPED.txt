@@ -1,0 +1,6 @@
+AgentEyesApp.dll = A7D329E45F9DD7D5B20089604A75E3C188CEA8E1F6D4C1B6D9FBCDC62CDC4792
+HUD rect: X=893 Y=150 W=520 H=400
+STALL(shipped shape)  publishing before = True
+STALL(shipped shape)  114ms -> publishing=True
+STALL(shipped shape)  publishing after = True  (both clicks served after 30007ms)
+STOP took 5763ms to reach idle, with every config write stalled 8s

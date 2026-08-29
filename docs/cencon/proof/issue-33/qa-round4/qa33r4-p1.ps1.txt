@@ -1,0 +1,68 @@
+$ErrorActionPreference = 'Stop'
+. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+$OUT = "$SP\ac-proof"
+New-Item -ItemType Directory -Force $OUT | Out-Null
+
+$ARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudPreviewVisible": true,
+  "HudPreviewMode": "both",
+  "HudPreviewCorner": "bottom-right"
+}
+'@
+
+Write-Output "==== PART 1: AC2 (screen live), AC3 (camera live + one device), AC4 (corners), AC5 (manifest) ===="
+Write-Output ("dll sha256: " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+StartApp $ARMED $false
+StartChurn 1 150
+Rec
+Start-Sleep -Seconds 10
+
+$st = Status
+Write-Output ("  status: armed=" + $st.PreviewArmed + " publishing=" + $st.PreviewPublishing + " available=" + $st.PreviewAvailable + " corner=" + $st.PreviewOverlayCorner)
+Write-Output ("  screenFrame=" + $st.PreviewScreenFrame)
+Write-Output ("  cameraFrame=" + $st.PreviewCameraFrame)
+
+$holders = FfmpegInventory
+
+Write-Output "  -- AC2/AC3 liveness: the published frames must CHANGE while the screen and camera do --"
+$sf = $st.PreviewScreenFrame; $cf = $st.PreviewCameraFrame
+$a = Status
+$s1 = Sha $sf; $c1 = Sha $cf
+Copy-Item $sf "$OUT\ac2-screen-t0.jpg" -ErrorAction SilentlyContinue
+Copy-Item $cf "$OUT\ac3-camera-t0.jpg" -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+$b = Status
+$s2 = Sha $sf; $c2 = Sha $cf
+Copy-Item $sf "$OUT\ac2-screen-t3.jpg" -ErrorAction SilentlyContinue
+Copy-Item $cf "$OUT\ac3-camera-t3.jpg" -ErrorAction SilentlyContinue
+Write-Output ("  AC2 screen t0=" + $s1 + "  t+3=" + $s2 + "  DIFFER=" + ($s1 -ne $s2))
+Write-Output ("  AC3 camera t0=" + $c1 + "  t+3=" + $c2 + "  DIFFER=" + ($c1 -ne $c2))
+Write-Output ("  framesRead screen " + $a.PreviewScreenFramesRead + "->" + $b.PreviewScreenFramesRead + "  camera " + $a.PreviewCameraFramesRead + "->" + $b.PreviewCameraFramesRead)
+
+Write-Output "  -- AC4: the four corners, through the HUD's own buttons --"
+Write-Output "  HUD tree in both mode:"
+Hud tree
+foreach ($c in @('top-left', 'top-right', 'bottom-left', 'bottom-right')) {
+    Hud click "Preview corner $c" | Out-Null
+    Start-Sleep -Milliseconds 900
+    $s = Status
+    Write-Output ("    corner button '$c' -> /status PreviewOverlayCorner=" + $s.PreviewOverlayCorner)
+    & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action tree | Where-Object { $_ -match 'Image|preview status' } | ForEach-Object { Write-Output ("      " + $_.Trim()) }
+}
+
+Write-Output "  -- AC5: the LAST corner framed must reach the manifest (set to top-right) --"
+Hud click 'Preview corner top-right' | Out-Null
+Start-Sleep -Seconds 3
+StopRec
+Start-Sleep -Seconds 25
+$dir = NewestDir
+ReportRecording $dir "AC2/AC3/AC4/AC5 armed both-mode recording"
+Write-Output ("  PROCESSES HOLDING THE CAMERA DEVICE (recorded above) = " + $holders)
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end part 1 ===="

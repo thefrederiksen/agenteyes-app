@@ -51,6 +51,12 @@ namespace AgentEyes.App
                 StorageMigration.Run();   // qa-record -> AgentEyes folders, one time
                 _cfg = Config.Load();
                 _service = new RecordingService();
+                // Issue #33: a live preview feed is a second output on the recording's own ffmpeg, so
+                // it has to be asked for BEFORE the recording starts. This carries the person's
+                // persisted "show preview" choice into the first recording of the session; the HUD
+                // updates it whenever they change their mind. Left false - the default - a recording
+                // is byte-for-byte the recording it was before the feature existed (AC11).
+                _service.PreviewArmed = _cfg.HudPreviewVisible;
 
                 // Issue #151: the post-recording sequence is wired ONCE, here, so it is identical on
                 // every stop path - including this process's normal shape, which is --tray with no
@@ -258,6 +264,21 @@ namespace AgentEyes.App
             try { _tray?.Dispose(); } catch { }
             try { _mutex?.ReleaseMutex(); } catch { }
             try { _mutex?.Dispose(); } catch { }
+            // The recording HUD saves its preview choices and its position WITHOUT blocking the UI
+            // thread (issue #33), so a save made moments before exit may still be in flight. Bounded
+            // on purpose: the writer is allowed to be stuck in a filesystem call, and exit is not.
+            try { Config.FlushPendingSave(2000); }
+            catch (Exception ex)
+            {
+                AgentEyes.Log.Warn($"app exit: flushing the config failed - {ex.Message}");
+            }
+            // The preview never waits for the log (issue #33; Review Gate round 2 on PR #39), so a
+            // line said moments before exit may still be in the appender's hands. Bounded for the
+            // same reason the config flush is: the appender is allowed to be stuck in a filesystem
+            // call, and exit is not.
+            if (!AgentEyes.Preview.PreviewLog.Settle(1000))
+                AgentEyes.Log.Warn("app exit: the preview log appender still had lines in hand; "
+                                   + "they were not waited out.");
             UpdateChecker.StartPendingRestart();   // after the mutex is gone, so the new exe can take it
             AgentEyes.Log.Info("app exit");
             base.OnExit(e);

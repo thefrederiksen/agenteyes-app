@@ -1,0 +1,26 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AgentEyes.Core -> D:\ReposFred\agenteyes-dev33\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-dev33\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.App -> D:\ReposFred\agenteyes-dev33\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+Test run for D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.20]     AgentEyes.Tests.HudSizeMemoryTests.SavePosition_DoesNotReadTheWindowsLiveSizeAtCloseTime [FAIL]
+  Failed AgentEyes.Tests.HudSizeMemoryTests.SavePosition_DoesNotReadTheWindowsLiveSizeAtCloseTime [5 ms]
+  Error Message:
+   HudWindow.SavePosition reads the window's live sizing state at close time: System.Windows.Window::get_SizeToContent, System.Windows.FrameworkElement::get_ActualWidth, System.Windows.FrameworkElement::get_ActualHeight. The stop has already put SizeToContent back to WidthAndHeight by then, so this reads the pill (or, behind a sizing-mode guard, writes nothing) - issue #33 AC7. Persist the size remembered by HudSizeMemory instead.
+  Stack Trace:
+     at AgentEyes.Tests.HudSizeMemoryTests.SavePosition_DoesNotReadTheWindowsLiveSizeAtCloseTime() in D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\HudSizeMemoryTests.cs:line 237
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.22]     AgentEyes.Tests.HudSizeMemoryTests.HudWindow_OffersEverySizeItTakesToTheMemory [FAIL]
+  Failed AgentEyes.Tests.HudSizeMemoryTests.HudWindow_OffersEverySizeItTakesToTheMemory [26 ms]
+  Error Message:
+   Nothing in AgentEyesApp calls HudSizeMemory.Observe, so the memory can never hold a size and the HUD cannot come back at the size it was left at (issue #33, AC7).
+  Stack Trace:
+     at AgentEyes.Tests.HudSizeMemoryTests.HudWindow_OffersEverySizeItTakesToTheMemory() in D:\ReposFred\agenteyes-dev33\tests\AgentEyes.Tests\HudSizeMemoryTests.cs:line 259
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     2, Passed:    18, Skipped:     0, Total:    20, Duration: 50 ms - AgentEyes.Tests.dll (net8.0)

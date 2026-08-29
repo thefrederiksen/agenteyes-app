@@ -1,0 +1,51 @@
+=================================================================
+MUTATION: canary
+=================================================================
+MUTATED canary
+Build succeeded.
+Test run for D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.04]     AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeNoGestureClaimed_ReachesTheLogOnTheOrdinaryStop [FAIL]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeNoGestureClaimed_ReachesTheLogOnTheOrdinaryStop [640 ms]
+  Error Message:
+   Assert.Contains() Failure: Sub-string not found
+String:    "08:53:40.330 [INFO] hud: watching for use"...
+Not found: "A resize route is unaccounted for"
+  Stack Trace:
+
+Failed!  - Failed:     1, Passed:     1, Skipped:     0, Total:     2, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+RESTORED canary
+=================================================================
+MUTATION: writenow
+=================================================================
+MUTATED writenow
+Build succeeded.
+Test run for D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.53]     AgentEyes.Tests.HudResponsivenessTests.ANewerBlockingSaveAfterAQueuedOne_LandsLast_AndTheOldShapeDoesNot [FAIL]
+  Failed AgentEyes.Tests.HudResponsivenessTests.ANewerBlockingSaveAfterAQueuedOne_LandsLast_AndTheOldShapeDoesNot [109 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+           v (pos 0)
+Expected: "newer blocking snapshot"
+Actual:   "older queued snapshot"
+           ? (pos 0)
+  Stack Trace:
+
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 109 ms - AgentEyes.Tests.dll (net8.0)
+RESTORED writenow
+=================================================================
+MUTATION: chores
+=================================================================
+MUTATED chores
+Build succeeded.
+Test run for D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:30.77]     AgentEyes.Tests.PreviewChoresTests.ACallerWaitingOnAWedgedWorker_GivesUpOnItsBudget [FAIL]
+  Failed AgentEyes.Tests.PreviewChoresTests.ACallerWaitingOnAWedgedWorker_GivesUpOnItsBudget [30 s]
+  Error Message:
+   A preview chore held its caller for 30005ms against a 250ms budget. That caller is a recording's start or stop (issue #33, AC10; Review Gate round 2 on PR #39): unbounded there means the recording never starts, or Stop never returns and the service sits in 'finalizing'.
+  Stack Trace:
+
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 30 s - AgentEyes.Tests.dll (net8.0)
+RESTORED chores

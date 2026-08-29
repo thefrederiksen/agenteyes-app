@@ -1,0 +1,90 @@
+param([string]$Exe)
+$ErrorActionPreference = 'Stop'
+$SP = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$SHOT = "$SP\shots-r3"
+New-Item -ItemType Directory -Force -Path $SHOT | Out-Null
+$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+
+function Hud($a, $b, $o) { if ($o) { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a -Arg $b -Out $o } elseif ($b) { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a } }
+function Rec()      { & powershell -NoProfile -File "$SP\qa-main-uia.ps1" -Action click -Arg REC }
+function Cfg($what) { Write-Output "  config ${what}: $((Get-Content $cfg | Select-String 'HudLeft|HudTop|HudWidth|HudHeight|HudPreviewVisible|HudPreviewMode') -join ' ')" }
+function Ffmpegs()  {
+    $n = 0; $cam = 0
+    Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | ForEach-Object {
+        $n++
+        if ($_.CommandLine -match '-f dshow' -and $_.CommandLine -match '-i video=') { $cam++ }
+    }
+    Write-Output ("  ffmpeg processes={0}  holding the CAMERA device={1}" -f $n, $cam)
+}
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+@'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@ | Out-File -FilePath $cfg -Encoding utf8
+
+Write-Output "==== AC7 END TO END + route probes (round 3 head) ===="
+Start-Process $Exe
+for ($i=0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest -Uri http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+
+Write-Output "-- RECORDING 1 --"
+Rec | Out-Null
+Start-Sleep -Seconds 7
+Write-Output "  pill:                    $(Hud rect)"
+Write-Output "  toggle ON:               $(Hud click 'Show preview')"
+Write-Output "                           $(Hud image)"
+Hud shot '' "$SHOT\r3-ac1-shown.png"
+
+Write-Output "-- (d) ROUTE PROBE: toggle the preview off/on three times, nobody resizes --"
+for ($k=1; $k -le 3; $k++) {
+    Write-Output "  cycle ${k} off:            $(Hud click 'Show preview')"
+    Write-Output "  cycle ${k} on:             $(Hud click 'Show preview')"
+}
+Write-Output "                           $(Hud image)"
+
+Write-Output "-- (d) ROUTE PROBE: move the window, then toggle across the move --"
+Write-Output "  move to 900,300:         $(Hud move '900,300')"
+Write-Output "  toggle OFF while moved:  $(Hud click 'Show preview')"
+Write-Output "  move to 940,340:         $(Hud move '940,340')"
+Write-Output "  toggle ON while moved:   $(Hud click 'Show preview')"
+
+Write-Output "-- (d) ROUTE PROBE: minimise and restore with the panel up --"
+Write-Output "                           $(Hud minrestore)"
+
+Write-Output "-- mode -> both (camera preview live) --"
+Write-Output "  mode both:               $(Hud click 'Preview mode both')"
+Write-Output "  corner top-right:        $(Hud click 'Preview corner top-right')"
+Ffmpegs
+
+Write-Output "-- AC7: resize to 3x the default width (1560 x 400) --"
+Write-Output "  before resize:           $(Hud rect)"
+Write-Output "                           $(Hud image)"
+Write-Output "  $(Hud resize '1560,400')"
+Write-Output "  image after resize:      $(Hud image)"
+Hud shot '' "$SHOT\r3-ac7-resized.png"
+Ffmpegs
+
+Write-Output "  stopping ..."
+Hud click 'HUD stop' | Out-Null
+Start-Sleep -Seconds 14
+Cfg "after recording 1 (resized to 1560x400 by UIA)"
+
+Write-Output "-- RECORDING 2: does the HUD come back at the size AND position it was left at? --"
+Rec | Out-Null
+Start-Sleep -Seconds 8
+Write-Output "  HUD as opened:           $(Hud rect)"
+Write-Output "                           $(Hud image)"
+Hud shot '' "$SHOT\r3-ac7-recording2.png"
+Write-Output "  stopping ..."
+Hud click 'HUD stop' | Out-Null
+Start-Sleep -Seconds 14
+Cfg "after recording 2 (NOBODY resized anything in recording 2)"
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end ===="

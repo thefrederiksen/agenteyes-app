@@ -1,0 +1,10 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AgentEyes.Core -> D:\ReposFred\agenteyes-dev33-r4\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-dev33-r4\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.App -> D:\ReposFred\agenteyes-dev33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+Test run for D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:  1137, Skipped:     0, Total:  1137, Duration: 10 s - AgentEyes.Tests.dll (net8.0)

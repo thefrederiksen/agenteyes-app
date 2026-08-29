@@ -1,0 +1,114 @@
+=== QA round 5, issue #33 - QA's own mutation sweep ===
+Worktree: D:\ReposFred\agenteyes-qa33-r5
+BASELINE: Failed:     0, Passed:  1117
+
+====================================================================================================
+QM1 the drain publishes inline again (gate defect 1 put back verbatim)
+  file: src\AgentEyes.Core\Preview\PreviewTap.cs  anchor occurrences: 1
+  Failed:     2, Passed:  1115
+  FIRED (2):
+    RED  AgentEyes.Tests.PreviewTapTests.Drain_WhilePublishingIsStalledForever_StillReadsThePipeToTheEnd
+    RED  AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem
+  restored byte-exactly: True ce50c018916e6cdf
+
+====================================================================================================
+QM2 a filesystem call inside the framer - a Core helper the drain reaches transitively
+  file: src\AgentEyes.Core\Preview\MjpegFramer.cs  anchor occurrences: 1
+  Failed:     2, Passed:  1115
+  FIRED (2):
+    RED  AgentEyes.Tests.ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite
+    RED  AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem
+  restored byte-exactly: True 8166261375407fa7
+
+====================================================================================================
+QM3 the drain calls the WRITE DELEGATE FIELD directly (the call-graph guard's blind spot)
+  file: src\AgentEyes.Core\Preview\PreviewTap.cs  anchor occurrences: 1
+  Failed:     4, Passed:  1113
+  FIRED (4):
+    RED  AgentEyes.Tests.PreviewTapTests.Drain_WhilePublishingIsStalledForever_StillReadsThePipeToTheEnd
+    RED  AgentEyes.Tests.PreviewTapTests.Pump_WhenPublishingFails_KeepsDrainingAndReportsTheFailure
+    RED  AgentEyes.Tests.PreviewTapTests.Pump_WhenPublishingRecovers_PublishesAgainAndClearsTheFailure
+    RED  AgentEyes.Tests.PreviewTapTests.Pump_WhilePublishing_WritesTheNewestFrameOutAndAccountsForEveryFrame
+  restored byte-exactly: True ce50c018916e6cdf
+
+====================================================================================================
+QM4 the snap arm removed - a move loop that ended at a different size is not a resize
+  file: src\AgentEyes.App\HudUserResize.cs  anchor occurrences: 1
+  Failed:     2, Passed:  1115
+  FIRED (2):
+    RED  AgentEyes.Tests.HudPreviewSizingOrderTests.SnappingTheWindowToAScreenEdge_IsRemembered
+    RED  AgentEyes.Tests.HudUserResizeTests.ALoopThatEndedAtADifferentSize_RecordsTheSizeItEndedAt
+  restored byte-exactly: True f69df6fba8c735c5
+
+====================================================================================================
+QM5 the window-state route removed - a maximise is invisible again
+  file: src\AgentEyes.App\HudUserResize.cs  anchor occurrences: 1
+  Failed:     3, Passed:  1114
+  FIRED (3):
+    RED  AgentEyes.Tests.HudPreviewSizingOrderTests.MaximisingTheWindow_IsRemembered
+    RED  AgentEyes.Tests.HudUserResizeTests.AWindowStateCommand_RecordsTheSizeTheWindowSettlesAt
+    RED  AgentEyes.Tests.HudUserResizeTests.HudWindow_WiresUpEveryGestureRoute
+  restored byte-exactly: True f69df6fba8c735c5
+
+====================================================================================================
+QM6 a restore FROM minimised is treated as a resize
+  file: src\AgentEyes.App\HudUserResize.cs  anchor occurrences: 1
+  Failed:     2, Passed:  1115
+  FIRED (2):
+    RED  AgentEyes.Tests.HudPreviewSizingOrderTests.MinimisingAndRestoringTheWindow_IsNeverRemembered
+    RED  AgentEyes.Tests.HudUserResizeTests.AMinimiseAndRestore_RecordsNothing
+  restored byte-exactly: True f69df6fba8c735c5
+
+====================================================================================================
+QM7 the completeness canary never fires
+  file: src\AgentEyes.App\HudSizeMemory.cs  anchor occurrences: 1
+  Failed:     1, Passed:  1116
+  FIRED (1):
+    RED  AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeNoGestureClaimed_IsReportedByTheCompletenessCanary
+  restored byte-exactly: True 36508b9f4c86c547
+
+====================================================================================================
+QM8 the HUD writes config.json synchronously on the UI thread again
+  file: src\AgentEyes.App\HudWindow.cs  anchor occurrences: 1
+  Failed:     3, Passed:  1114
+  FIRED (3):
+    RED  AgentEyes.Tests.HudResponsivenessTests.EveryPreviewButton_RemembersTheChoice
+    RED  AgentEyes.Tests.HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile
+    RED  AgentEyes.Tests.HudResponsivenessTests.TheHudSavesItsChoices_ThroughTheNonBlockingPathAndOnlyThat
+  restored byte-exactly: True 82ae8d762d5e7715
+
+====================================================================================================
+QM9 the CONSTRUCTOR remembers a choice again (the developer says nothing fires - checked here)
+  file: src\AgentEyes.App\HudWindow.cs  anchor occurrences: 1
+  Failed:     0, Passed:  1117
+  NOTHING FIRED - the suite stayed green with this defect in place
+  restored byte-exactly: True 82ae8d762d5e7715
+
+====================================================================================================
+QM10 the background writer writes on the caller's thread
+  file: src\AgentEyes.App\BackgroundFileWriter.cs  anchor occurrences: 1
+  Failed:     3, Passed:  1114
+  FIRED (3):
+    RED  AgentEyes.Tests.HudResponsivenessTests.Queue_TwiceInARow_WritesTheNewestStateAndCountsTheOneItSuperseded
+    RED  AgentEyes.Tests.HudResponsivenessTests.Queue_WhenTheWriteThrows_CountsTheFailureAndKeepsWorking
+    RED  AgentEyes.Tests.HudResponsivenessTests.Queue_WhileTheWriteIsStalled_ReturnsAtOnce
+  restored byte-exactly: True b4d7700d5ff5ffef
+
+====================================================================================================
+QM11 hiding the preview deletes the frame file on the caller's (WPF UI) thread
+  file: src\AgentEyes.Core\Preview\PreviewTap.cs  anchor occurrences: 1
+  Failed:     1, Passed:  1116
+  FIRED (1):
+    RED  AgentEyes.Tests.PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem
+  restored byte-exactly: True ce50c018916e6cdf
+
+====================================================================================================
+QM12 the bare apply persists a choice by itself
+  file: src\AgentEyes.App\HudWindow.cs  anchor occurrences: 1
+  Failed:     1, Passed:  1116
+  FIRED (1):
+    RED  AgentEyes.Tests.HudResponsivenessTests.ApplyingThePreviewState_NeverRemembersAChoiceByItself
+  restored byte-exactly: True 82ae8d762d5e7715
+
+=== final verification: the tree is back to green ===
+Failed:     0, Passed:  1117 failed: []
