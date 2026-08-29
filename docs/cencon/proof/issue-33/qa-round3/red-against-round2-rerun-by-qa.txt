@@ -1,0 +1,40 @@
+  SizeChanged stc=WidthAndHeight 367x52 panel=False -> memory nothing
+  -- show preview --
+  SizeChanged stc=Manual 520x52 panel=True -> memory 520x52
+  -- hide preview --
+  SizeChanged stc=WidthAndHeight 367x52 panel=False -> memory 520x52
+  -- show preview --
+  SizeChanged stc=Manual 520x52 panel=True -> memory 520x52
+  -- hide preview --
+  SizeChanged stc=WidthAndHeight 367x52 panel=False -> memory 520x52
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.RunOnHudRig(Action`1 body, Nullable`1 savedWidth, Nullable`1 savedHeight) in D:\ReposFred\agenteyes-qa33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 364
+   at AgentEyes.Tests.HudPreviewSizingOrderTests.ShowThenHideWithoutResizing_LeavesNoSizeToPersist() in D:\ReposFred\agenteyes-qa33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 150
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.HidingAndShowingAgainInOneRecording_ReopensAtTheResizedSize [202 ms]
+  Error Message:
+   Assert.Equal() Failure: Values are not within 1 decimal place
+Expected: 400 (rounded from 400)
+Actual:   52 (rounded from 52)
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.RunOnHudRig(Action`1 body, Nullable`1 savedWidth, Nullable`1 savedHeight) in D:\ReposFred\agenteyes-qa33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 364
+   at AgentEyes.Tests.HudPreviewSizingOrderTests.HidingAndShowingAgainInOneRecording_ReopensAtTheResizedSize() in D:\ReposFred\agenteyes-qa33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 127
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.ShowPanel_OnAnAlreadyShownPillHud_OpensAtTheDefaultAndRemembersNothing [205 ms]
+  Error Message:
+   Assert.Equal() Failure: Values are not within 1 decimal place
+Expected: 400 (rounded from 400)
+Actual:   52 (rounded from 52)
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.RunOnHudRig(Action`1 body, Nullable`1 savedWidth, Nullable`1 savedHeight) in D:\ReposFred\agenteyes-qa33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 364
+   at AgentEyes.Tests.HudPreviewSizingOrderTests.ShowPanel_OnAnAlreadyShownPillHud_OpensAtTheDefaultAndRemembersNothing() in D:\ReposFred\agenteyes-qa33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 60
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     4, Passed:     1, Skipped:     0, Total:     5, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+Round-3 code restored.
+VERDICT: Failed!  - Failed:     4, Passed:     1, Skipped:     0, Total:     5, Duration: 1 s - AgentEyes.Tests.dll (net8.0)

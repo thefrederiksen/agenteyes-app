@@ -1,0 +1,52 @@
+QA round 3, issue #33 - instrumented trace from the INSTRUMENTED build of 849ac58.
+QA added three QAPROBE log lines to HudPreviewSizing (Attach's SizeChanged handler, the
+SettleWhenLaidOut one-shot, and OpenPanel), rebuilt --no-incremental, ran qa-round2/ac7-repro.ps1
+verbatim and then the clamp-drift probe, then reverted the instrumentation (git checkout) and
+rebuilt clean. Every headline number in the report is from the CLEAN build; this trace only
+explains WHY.
+
+22:55:41 = RECORDING 1, the person toggles the preview on. CORRECT.
+22:55:58 = RECORDING 2, the HUD is CONSTRUCTED with the preview already on. THE DEFECT.
+22:57:52 = the clamp-drift probe: config says 200x100, the window lands at 260x100, 260x100 is
+           written back as if the person had chosen it.
+22:55:35.571 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+22:55:35.588 [INFO] QAPROBE SizeChanged panel=False stc=WidthAndHeight aw=366.99333333333334 ah=52 settlingBefore=False memBefore=none
+22:55:35.589 [INFO] QAPROBE   -> settlingAfter=False memAfter=none
+22:55:41.385 [INFO] hud: preview toggled -> shown
+22:55:41.386 [INFO] QAPROBE OpenPanel commanded 520x400 settling=True isLoaded=True
+22:55:41.387 [INFO] hud: preview panel opening at 520x400 (the default)
+22:55:41.393 [INFO] QAPROBE SizeChanged panel=True stc=Manual aw=367 ah=52 settlingBefore=True memBefore=none
+22:55:41.394 [INFO] QAPROBE   -> settlingAfter=True memAfter=none
+22:55:41.402 [INFO] QAPROBE SizeChanged panel=True stc=Manual aw=520 ah=52 settlingBefore=True memBefore=none
+22:55:41.402 [INFO] QAPROBE   -> settlingAfter=True memAfter=none
+22:55:41.418 [INFO] QAPROBE SizeChanged panel=True stc=Manual aw=520 ah=400 settlingBefore=True memBefore=none
+22:55:41.418 [INFO] QAPROBE   -> settlingAfter=False memAfter=none
+22:55:41.448 [INFO] QAPROBE LayoutUpdated one-shot fires: settlingBefore=False aw=520 ah=400 isLoaded=True
+22:55:46.490 [INFO] QAPROBE SizeChanged panel=True stc=WidthAndHeight aw=260 ah=52 settlingBefore=False memBefore=none
+22:55:46.490 [INFO] QAPROBE   -> settlingAfter=False memAfter=none
+22:55:46.506 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+22:55:46.516 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+22:55:51.790 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+22:55:51.816 [INFO] hud: saving position left=1537 top=16 width=none height=none
+22:55:58.793 [INFO] QAPROBE OpenPanel commanded 520x400 settling=True isLoaded=False
+22:55:58.793 [INFO] hud: preview panel opening at 520x400 (the default)
+22:55:58.805 [INFO] QAPROBE LayoutUpdated one-shot fires: settlingBefore=True aw=0 ah=0 isLoaded=False
+22:55:58.810 [INFO] QAPROBE SizeChanged panel=True stc=Manual aw=520 ah=400 settlingBefore=False memBefore=none
+22:55:58.810 [INFO] QAPROBE   -> settlingAfter=False memAfter=520x400
+22:56:06.969 [INFO] QAPROBE SizeChanged panel=True stc=WidthAndHeight aw=260 ah=52 settlingBefore=False memBefore=520x400
+22:56:06.969 [INFO] QAPROBE   -> settlingAfter=False memAfter=520x400
+22:56:06.973 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering 520x400
+22:56:06.984 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering 520x400
+22:56:12.258 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering 520x400
+22:56:12.280 [INFO] hud: saving position left=1537 top=16 width=520 height=400
+22:57:52.312 [INFO] QAPROBE OpenPanel commanded 200x100 settling=True isLoaded=False
+22:57:52.312 [INFO] hud: preview panel opening at 200x100 (the size it was left at)
+22:57:52.329 [INFO] QAPROBE LayoutUpdated one-shot fires: settlingBefore=True aw=0 ah=0 isLoaded=False
+22:57:52.345 [INFO] QAPROBE SizeChanged panel=True stc=Manual aw=260 ah=100 settlingBefore=False memBefore=200x100
+22:57:52.346 [INFO] QAPROBE   -> settlingAfter=False memAfter=260x100
+22:57:59.445 [INFO] QAPROBE SizeChanged panel=True stc=WidthAndHeight aw=260 ah=52 settlingBefore=False memBefore=260x100
+22:57:59.445 [INFO] QAPROBE   -> settlingAfter=False memAfter=260x100
+22:57:59.461 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering 260x100
+22:57:59.475 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering 260x100
+22:58:04.760 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering 260x100
+22:58:04.788 [INFO] hud: saving position left=1644 top=16 width=260 height=100

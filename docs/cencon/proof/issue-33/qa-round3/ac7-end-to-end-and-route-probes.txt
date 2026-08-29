@@ -1,0 +1,76 @@
+﻿==== AC7 END TO END + route probes (round 3 head) ====
+-- RECORDING 1 --
+  pill:                    HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+                           IMAGE: not found
+powershell.exe : 
+C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
+At line:1 char:425
++ ... cratchpad"; & powershell -NoProfile -File "$SP\qa33r3-ac7-e2e.ps1" -E ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\soren\...d-uia-r3.ps1 : :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.String' and try again.
+    + CategoryInfo          : InvalidArgument: (:) [qa-hud-uia-r3.ps1], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArgument,qa-hud-uia-r3.ps1
+ 
+-- (d) ROUTE PROBE: toggle the preview off/on three times, nobody resizes --
+  cycle 1 off:            clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=367 H=52
+  cycle 1 on:             clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  cycle 2 off:            clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=367 H=52
+  cycle 2 on:             clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  cycle 3 off:            clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=367 H=52
+  cycle 3 on:             clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+                           IMAGE: not found
+-- (d) ROUTE PROBE: move the window, then toggle across the move --
+  move to 900,300:         HUD rect after move: X=900 Y=300 W=520 H=400
+  toggle OFF while moved:  clicked 'Show preview' -> HUD rect: X=900 Y=300 W=367 H=52
+  move to 940,340:         HUD rect after move: X=940 Y=340 W=367 H=52
+  toggle ON while moved:   clicked 'Show preview' -> HUD rect: X=940 Y=340 W=520 H=400
+-- (d) ROUTE PROBE: minimise and restore with the panel up --
+                           HUD rect after minimise/restore: X=940 Y=340 W=520 H=400
+-- mode -> both (camera preview live) --
+Exception calling "Invoke" with "0" argument(s): "Unrecognized error."
+At C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1:64 
+char:9
++         ($b.GetCurrentPattern([System.Windows.Automation.InvokePatter ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : ElementNotEnabledException
+ 
+  mode both:               
+Exception calling "Invoke" with "0" argument(s): "Unrecognized error."
+At C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1:64 
+char:9
++         ($b.GetCurrentPattern([System.Windows.Automation.InvokePatter ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : ElementNotEnabledException
+ 
+  corner top-right:        
+  ffmpeg processes=2  holding the CAMERA device=0
+-- AC7: resize to 3x the default width (1560 x 400) --
+  before resize:           HUD rect: X=940 Y=340 W=520 H=400
+                           IMAGE: not found
+  CanResize=True HUD rect after resize: X=940 Y=340 W=1560 H=400
+  image after resize:      IMAGE: not found
+C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
+Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.String' and try again.
+    + CategoryInfo          : InvalidArgument: (:) [qa-hud-uia-r3.ps1], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArgument,qa-hud-uia-r3.ps1
+ 
+  ffmpeg processes=2  holding the CAMERA device=0
+  stopping ...
+  config after recording 1 (resized to 1560x400 by UIA):   "HudLeft": 940,   "HudTop": 340,   "HudWidth": 1560,   "HudHeight": 400,   "HudPreviewVisible": true,   "HudPreviewMode": "screen",
+-- RECORDING 2: does the HUD come back at the size AND position it was left at? --
+  HUD as opened:           HUD rect: X=940 Y=340 W=1560 H=400
+                           IMAGE rect=1449,422,544,306
+C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
+Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.String' and try again.
+    + CategoryInfo          : InvalidArgument: (:) [qa-hud-uia-r3.ps1], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArgument,qa-hud-uia-r3.ps1
+ 
+  stopping ...
+  config after recording 2 (NOBODY resized anything in recording 2):   "HudLeft": 940,   "HudTop": 340,   "HudWidth": 1560,   "HudHeight": 400,   "HudPreviewVisible": true,   "HudPreviewMode": "screen",
+==== end ====
