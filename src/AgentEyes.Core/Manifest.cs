@@ -141,6 +141,33 @@ namespace AgentEyes
         /// </summary>
         public string? PreviewOverlayCorner { get; set; }
 
+        /// <summary>
+        /// Issue #36: the overlay SHAPE the camera was framed in - "circle" (the default) or
+        /// "rectangle". Null, and therefore absent from manifest.json entirely, whenever no overlay
+        /// framing was chosen, exactly like <see cref="PreviewOverlayCorner"/> (AC10).
+        /// </summary>
+        public string? PreviewOverlayShape { get; set; }
+
+        /// <summary>
+        /// Issue #36: WHERE THE CIRCLE SAT IN THE CAMERA FRAME - centre and diameter as fractions of
+        /// the frame, so it survives the camera or its resolution changing (assumption E2). Null when
+        /// the overlay was a rectangle, and null when no overlay was framed.
+        ///
+        /// IT IS EDIT METADATA, NOT A CROP (assumption E1). <c>camera.mp4</c> in this same recording
+        /// is the FULL rectangular frame at its normal resolution - identical in dimensions to a
+        /// recording made with the rectangle overlay and to one made with the preview off (AC5).
+        /// Nothing was cut, so a later edit can reproduce this framing AND move it, which is the
+        /// entire reason the circle is recorded here instead of being burned into the file.
+        /// </summary>
+        public Preview.CameraOverlayCircle? PreviewOverlayCircle { get; set; }
+
+        /// <summary>
+        /// Issue #36, assumption E5: how large the inset was ON THE PREVIEW, as a fraction of the
+        /// preview's width. A different thing from the circle's diameter, which says how much of the
+        /// camera frame was inside it. Null when no overlay was framed.
+        /// </summary>
+        public double? PreviewOverlayInset { get; set; }
+
         public string? Transcript { get; set; }
         public string? Walkthrough { get; set; }
         public string? FfmpegCommand { get; set; }

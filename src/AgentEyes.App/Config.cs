@@ -47,6 +47,31 @@ namespace AgentEyes.App
         // "top-right". Parsed by PreviewNames.Corner; the documented default is bottom-right.
         public string HudPreviewCorner { get; set; } = "bottom-right";
 
+        // ---- the camera overlay's framing (issue #36) -----------------------
+        //
+        // Flat scalars rather than a nested object, so a config.json written before this feature has
+        // exactly the fields it always had and each of these simply reads as its default. The corner
+        // deliberately stays in HudPreviewCorner above: one value, one home, no drift.
+        //
+        // These are SEEDED FROM THE PRESET when a recording starts (PresetCapture.Start) and then
+        // owned by the HUD for the rest of the session - which is what lets the HUD's corner buttons
+        // keep working mid-recording without writing back into the saved preset (AC7).
+
+        // "circle" (the default, issue #36 AC1) | "rectangle" (what issue #33 shipped).
+        public string HudPreviewShape { get; set; } = "circle";
+
+        // Where the circle sits in the CAMERA FRAME, as fractions of it (assumption E2). The
+        // defaults are assumption E3: horizontally centred, in the upper portion of the frame, at
+        // 60% of the frame height.
+        public double HudPreviewCircleCentreX { get; set; } = 0.50;
+        public double HudPreviewCircleCentreY { get; set; } = 0.42;
+        public double HudPreviewCircleDiameter { get; set; } = 0.60;
+
+        // How wide the inset is on the preview, as a fraction of the preview's width. A DIFFERENT
+        // thing from the circle's diameter (assumption E5): this is how big it looks, that is how
+        // much of the camera is inside it.
+        public double HudPreviewInsetFraction { get; set; } = 0.30;
+
         // Capture feature (issue #64): global snip shortcuts, parsed with TriggerSpec.
         // Defaults: region = PrintScreen (drag a rectangle),
         // full-screen = Ctrl+PrintScreen (whole monitor). Rebinding persists across restart.

@@ -142,7 +142,7 @@ namespace AgentEyes.App
             if (preset == null) { Safe(() => _svc.Screenshot(PrimaryScreen(), null)); return; }
             Safe(() =>
             {
-                PresetCapture.Start(_svc, preset);
+                PresetCapture.Start(_svc, preset, _cfg);
                 _cfg.LastUsedPresetId = preset.Id;
                 _cfg.Save();
             });

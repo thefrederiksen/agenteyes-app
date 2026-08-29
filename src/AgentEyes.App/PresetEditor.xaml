@@ -193,7 +193,12 @@
             <!-- Camera: recorded to its own camera.mp4 alongside the screen video (issue #28), and
                  previewed live here BEFORE recording (issue #29). A DirectShow camera is EXCLUSIVE,
                  so the device is released the moment the selection changes, this tab is left, the
-                 preset leaves Video mode, a recording starts, or the dialog closes by any route. -->
+                 preset leaves Video mode, a recording starts, or the dialog closes by any route.
+
+                 Issue #36 adds the OVERLAY FRAMING controls beside that pane: the circle's centre
+                 and diameter within the camera frame, the shape, the corner and the on-screen size.
+                 They change the PREVIEW and the recording's edit metadata only - never camera.mp4,
+                 which keeps its full rectangular frame at its normal resolution. -->
             <TabItem x:Name="CameraTab" Header="Camera" Style="{StaticResource DkTabItem}">
                 <ScrollViewer x:Name="CameraScroll" VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
@@ -210,21 +215,147 @@
                                    Foreground="{StaticResource DkDim}" FontSize="11"
                                    Text="Recorded to its own camera.mp4 (video only) next to the screen video, so both can be composed later. Video mode only."/>
 
-                        <TextBlock Text="LIVE PREVIEW" Style="{StaticResource DkSection}" Margin="0,20,0,6"/>
-                        <Border x:Name="CameraPreviewPanel" Width="480" Height="360"
-                                HorizontalAlignment="Left" Background="{StaticResource DkCard}"
-                                BorderBrush="{StaticResource DkBorder}" BorderThickness="1">
-                            <Grid>
-                                <Image x:Name="CameraPreviewImage" Stretch="Uniform"/>
-                                <TextBlock x:Name="CameraPreviewStatus" Text="No camera selected."
-                                           Foreground="{StaticResource DkDim}" FontSize="11" Margin="10"
-                                           TextWrapping="Wrap" TextAlignment="Center"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Border>
-                        <TextBlock Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap" MaxWidth="620"
-                                   HorizontalAlignment="Left" Foreground="{StaticResource DkDim}"
-                                   Text="The preview runs only while this tab is open. Leaving the tab or closing this window hands the camera straight back, so a recording can take it."/>
+                        <TextBlock Text="LIVE PREVIEW AND OVERLAY FRAMING" Style="{StaticResource DkSection}" Margin="0,20,0,6"/>
+
+                        <!-- Issue #36. The circle is chosen HERE, against the live image, because a
+                             webcam is never framed with the speaker's head dead centre - a fixed
+                             centre crop cuts heads in half. The pane and the controls sit side by
+                             side so the framing is visible while it is being chosen (AC2).
+
+                             The circle is a FRAMING CHOICE, NOT A CROP (assumption E1): camera.mp4
+                             keeps recording the full rectangular frame whatever is set here. -->
+                        <Grid HorizontalAlignment="Left">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <Border x:Name="CameraPreviewPanel" Width="480" Height="360"
+                                        HorizontalAlignment="Left" Background="{StaticResource DkCard}"
+                                        BorderBrush="{StaticResource DkBorder}" BorderThickness="1">
+                                    <Grid>
+                                        <Image x:Name="CameraPreviewImage" Stretch="Uniform"/>
+                                        <!-- The circle drawn over the live image. It is hit-testable
+                                             so the centre can be placed by clicking or dragging on
+                                             the picture, which is the natural way to say "my face is
+                                             HERE"; the sliders remain the authoritative value and are
+                                             what UI Automation drives. -->
+                                        <Canvas x:Name="CameraOverlayAdorner" Background="Transparent"
+                                                MouseLeftButtonDown="OverlayAdorner_MouseDown"
+                                                MouseMove="OverlayAdorner_MouseMove"
+                                                MouseLeftButtonUp="OverlayAdorner_MouseUp"
+                                                SizeChanged="OverlayAdorner_SizeChanged">
+                                            <Path x:Name="OverlayMaskPath" Fill="#A6000000" IsHitTestVisible="False"/>
+                                            <Path x:Name="OverlayOutlinePath" Stroke="{StaticResource DkAccent}"
+                                                  StrokeThickness="2" IsHitTestVisible="False"/>
+                                        </Canvas>
+                                        <TextBlock x:Name="CameraPreviewStatus" Text="No camera selected."
+                                                   Foreground="{StaticResource DkDim}" FontSize="11" Margin="10"
+                                                   TextWrapping="Wrap" TextAlignment="Center"
+                                                   IsHitTestVisible="False"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Margin="0,8,0,0" FontSize="11" TextWrapping="Wrap" MaxWidth="480"
+                                           HorizontalAlignment="Left" Foreground="{StaticResource DkDim}"
+                                           Text="The preview runs only while this tab is open. Leaving the tab or closing this window hands the camera straight back, so a recording can take it."/>
+                            </StackPanel>
+
+                            <StackPanel x:Name="OverlayControls" Grid.Column="1" Width="420" Margin="20,0,0,0">
+                                <TextBlock Text="Shape" Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <RadioButton x:Name="OverlayShapeCircle" Content="Circle" GroupName="ovshape"
+                                                 IsChecked="True" Style="{StaticResource DkRadio}"
+                                                 VerticalAlignment="Center" Checked="OverlayShape_Changed"/>
+                                    <RadioButton x:Name="OverlayShapeRectangle" Content="Rectangle (whole frame)"
+                                                 GroupName="ovshape" Style="{StaticResource DkRadio}"
+                                                 Margin="16,0,0,0" VerticalAlignment="Center" Checked="OverlayShape_Changed"/>
+                                </StackPanel>
+
+                                <StackPanel x:Name="CircleControls" Margin="0,16,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="34"/>
+                                            <RowDefinition Height="34"/>
+                                            <RowDefinition Height="34"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Text="Left / right" VerticalAlignment="Center" Width="80"
+                                                   Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                        <Slider x:Name="CircleXSlider" Grid.Column="1" Minimum="0" Maximum="1"
+                                                Value="0.5" SmallChange="0.01" LargeChange="0.05"
+                                                Margin="8,0" VerticalAlignment="Center" ValueChanged="Overlay_Changed"/>
+                                        <TextBlock x:Name="CircleXText" Grid.Column="2" Text="50%" Width="44"
+                                                   VerticalAlignment="Center" FontFamily="Consolas" FontSize="11"
+                                                   Foreground="{StaticResource DkDim}"/>
+
+                                        <TextBlock Grid.Row="1" Text="Up / down" VerticalAlignment="Center" Width="80"
+                                                   Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                        <Slider x:Name="CircleYSlider" Grid.Row="1" Grid.Column="1" Minimum="0" Maximum="1"
+                                                Value="0.42" SmallChange="0.01" LargeChange="0.05"
+                                                Margin="8,0" VerticalAlignment="Center" ValueChanged="Overlay_Changed"/>
+                                        <TextBlock x:Name="CircleYText" Grid.Row="1" Grid.Column="2" Text="42%" Width="44"
+                                                   VerticalAlignment="Center" FontFamily="Consolas" FontSize="11"
+                                                   Foreground="{StaticResource DkDim}"/>
+
+                                        <TextBlock Grid.Row="2" Text="Diameter" VerticalAlignment="Center" Width="80"
+                                                   Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                        <Slider x:Name="CircleSizeSlider" Grid.Row="2" Grid.Column="1" Minimum="0.1" Maximum="1"
+                                                Value="0.6" SmallChange="0.01" LargeChange="0.05"
+                                                Margin="8,0" VerticalAlignment="Center" ValueChanged="Overlay_Changed"/>
+                                        <TextBlock x:Name="CircleSizeText" Grid.Row="2" Grid.Column="2" Text="60%" Width="44"
+                                                   VerticalAlignment="Center" FontFamily="Consolas" FontSize="11"
+                                                   Foreground="{StaticResource DkDim}"/>
+                                    </Grid>
+                                    <TextBlock Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                               Foreground="{StaticResource DkDim}"
+                                               Text="Click or drag on the picture to put the circle over your face. Diameter is a share of the camera frame's height."/>
+                                </StackPanel>
+
+                                <TextBlock Text="Where it sits on the recording preview" Margin="0,18,0,0"
+                                           Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <TextBlock Text="Corner" VerticalAlignment="Center" Width="80"
+                                               Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                    <ComboBox x:Name="OverlayCornerBox" Style="{StaticResource DkCombo}" Width="150" Height="28"
+                                              FontSize="12" VerticalAlignment="Center" SelectionChanged="OverlayCorner_Changed">
+                                        <ComboBoxItem IsSelected="True">Bottom right</ComboBoxItem>
+                                        <ComboBoxItem>Bottom left</ComboBoxItem>
+                                        <ComboBoxItem>Top left</ComboBoxItem>
+                                        <ComboBoxItem>Top right</ComboBoxItem>
+                                    </ComboBox>
+                                </StackPanel>
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Size on screen" VerticalAlignment="Center" Width="80"
+                                               TextWrapping="Wrap"
+                                               Foreground="{StaticResource DkDim}" FontSize="11"/>
+                                    <Slider x:Name="InsetSizeSlider" Grid.Column="1" Minimum="0.15" Maximum="0.6"
+                                            Value="0.3" SmallChange="0.01" LargeChange="0.05"
+                                            Margin="8,0" VerticalAlignment="Center" ValueChanged="Overlay_Changed"/>
+                                    <TextBlock x:Name="InsetSizeText" Grid.Column="2" Text="30%" Width="44"
+                                               VerticalAlignment="Center" FontFamily="Consolas" FontSize="11"
+                                               Foreground="{StaticResource DkDim}"/>
+                                </Grid>
+
+                                <Button x:Name="OverlayResetButton" Content="Reset framing" Style="{StaticResource DkMini}"
+                                        HorizontalAlignment="Left" Margin="0,16,0,0" Click="OverlayReset_Click"/>
+
+                                <TextBlock x:Name="OverlayHint" Margin="0,14,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{StaticResource DkDim}"
+                                           Text="The circle is a framing choice, not a crop: camera.mp4 still records the whole rectangular frame, and the circle is written into the recording's manifest so the framing can be reproduced - or moved - later."/>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

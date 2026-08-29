@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue #36 circular camera overlay</title>
+<style>
+ body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; max-width: 1100px; color: #1b1b1b; }
+ h1 { border-bottom: 2px solid #444; padding-bottom: 6px; }
+ h2 { margin-top: 34px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+ h3 { margin-top: 22px; }
+ code, pre { font-family: Consolas, monospace; font-size: 12px; }
+ pre { background: #f4f4f4; padding: 10px; overflow-x: auto; border-left: 3px solid #888; }
+ table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+ th, td { border: 1px solid #bbb; padding: 6px 9px; text-align: left; vertical-align: top; font-size: 13px; }
+ th { background: #eee; }
+ .pass { color: #0a6b25; font-weight: bold; }
+ .fail { color: #a30000; font-weight: bold; }
+ .note { background: #fff8e1; border-left: 3px solid #d9a300; padding: 10px; margin: 12px 0; }
+ .verdict { background: #e8f5e9; border-left: 4px solid #0a6b25; padding: 14px; margin: 18px 0; font-size: 15px; }
+ img { max-width: 100%; border: 1px solid #999; margin: 8px 0; }
+ .shots { display: flex; gap: 10px; flex-wrap: wrap; }
+ .shots figure { margin: 0; max-width: 340px; }
+ .shots figcaption { font-size: 12px; color: #555; }
+</style>
+</head>
+<body>
+
+<h1>QA report - issue #36: circular camera overlay</h1>
+
+<table>
+<tr><th>Issue</th><td>#36 - [Capture] Circular camera overlay - set up a circle around the face, shown in the preview and recorded as edit metadata</td></tr>
+<tr><th>Pull request</th><td>#38 (<code>issue-36-circular-camera-overlay</code> -&gt; <code>issue-35-preset-editor-two-columns</code>)</td></tr>
+<tr><th>Head verified</th><td><code>75e62adbb1ddd8ddcf6e8075fc3298442a242ddb</code></td></tr>
+<tr><th>QA round</th><td>1 (first QA pass on this issue)</td></tr>
+<tr><th>Date</th><td>2026-08-29</td></tr>
+<tr><th>Worktree</th><td><code>D:\ReposFred\agenteyes-qa36</code> - isolated, restored, built from scratch. Not the shared clone, and not the installed app's output.</td></tr>
+<tr><th>Result</th><td class="pass">PASS - 11/11 acceptance criteria verified</td></tr>
+</table>
+
+<div class="verdict">
+<strong>VERIFIED - all acceptance criteria met.</strong>
+The circle is a framing choice and not a crop: <code>camera.mp4</code> came back 1920x1080 from the
+circle run, the rectangle run and the preview-off run alike, and the geometry travels to
+<code>manifest.json</code> as edit metadata. Every criterion was exercised against the running app on
+this machine, not inferred from the developer's report. Four non-blocking findings are recorded at the
+end for the Review Gate; none of them contradicts a criterion as written.
+</div>
+
+<h2>1. How this was verified</h2>
+
+<p>Independent verification, per DEVELOPMENT_METHOD 6b. The developer's handoff note and its mutation
+evidence were read as CONTEXT and then set aside; every number below is QA's own.</p>
+
+<ul>
+<li><strong>Own isolated worktree.</strong> <code>git worktree add</code> on <code>origin/issue-36-circular-camera-overlay</code>
+    at 75e62ad, <code>dotnet restore</code>, then a full <code>-t:Rebuild</code>. The human's installed
+    v1.6.2 tray app locks the normal Release output, so building anywhere else risks a stale false green.
+    All binaries read from <code>bin\x64\Release\</code>, never <code>bin\Release\</code>.</li>
+<li><strong>Own diff review</strong> of <code>git diff origin/issue-35-preset-editor-two-columns...origin/issue-36-circular-camera-overlay</code>
+    (29 files, +3192/-75). Only this branch's own diff; the layers below it (#35, #33, #28) have their
+    own issues and were not re-verified.</li>
+<li><strong>Own mutations.</strong> Twelve mutations of the product code, each removing exactly one
+    thing this feature claims, each built and run against the whole suite. Section 4.</li>
+<li><strong>Own running-app proof.</strong> The app was driven by the loopback Control API on
+    <code>127.0.0.1:7882</code>, by UI Automation, and by <code>PrintWindow</code> captures. The app was
+    never force-foregrounded and no input was synthesised into the human's session. Eight recordings
+    were made and every one of them has been deleted again; the human's <code>config.json</code> and
+    <code>presets.json</code> were restored byte-for-byte (Section 6).</li>
+</ul>
+
+<h3>An instrument failure QA caught in itself, stated rather than buried</h3>
+<div class="note">
+<p>The first attempt at AC7 reported that the HUD's corner buttons were dead: the log showed
+<code>hud: preview corner -&gt; bottom-left</code> followed immediately by
+<code>SetPreviewOverlay: overlay=circle top-right</code>, twice.</p>
+<p>That was <strong>QA's own fault, not a product defect</strong>. The mutation harness reverted the
+SOURCE after each mutation but left the MUTATED BINARIES in <code>bin\x64\Release\</code>, and the last
+mutation run was M12 - <code>SetCorner</code> replaced by an empty body. The app being driven was that
+build. After a full <code>-t:Rebuild</code> and a re-run of the suite (1138 passed), the same click
+moved the corner immediately and correctly.</p>
+<p>It is recorded here because it is exactly the trap the repo's project-instructions build note warns about, in a new
+shape: a stale binary that came from QA's own instrument rather than from a stale checkout. Every
+runtime result in this report was produced <em>after</em> that rebuild. Two screenshots taken before it
+were discarded rather than committed.</p>
+</div>
+
+<h2>2. The gate (AC11)</h2>
+
+<pre>
+D:\ReposFred\agenteyes-qa36&gt; dotnet build AgentEyes.sln -c Release
+  AgentEyes.Core -&gt; ...\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.App  -&gt; ...\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+  AgentEyes.Tests -&gt; ...\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+
+Build succeeded.
+    2 Warning(s)
+    0 Error(s)
+
+D:\ReposFred\agenteyes-qa36&gt; dotnet test AgentEyes.sln -c Release
+Passed!  - Failed:     0, Passed:  1138, Skipped:     0, Total:  1138, Duration: 4 s
+</pre>
+
+<p>The 2 warnings are <code>xUnit1031</code> at <code>PostRecordingQueueTests.cs</code> lines 309 and 314 -
+pre-existing on the base and in a file this change does not touch. The developer's own correction
+comment on the issue is accurate; the original "0 Warning(s)" line was an incremental-build artefact.
+This change contributes zero warnings of its own.</p>
+
+<p>The geometry model and manifest round-trip tests AC11 asks for are present and real:
+<code>CameraOverlayGeometryTests</code> (26 tests: centre/diameter normalisation, clamping to the frame,
+aspect handling, the Contain fit), <code>CameraOverlayManifestTests</code> (8, including the preset and
+manifest round-trips and the "written before this feature" case), <code>CameraOverlaySyncTests</code>,
+<code>CameraOverlayStopCopyTests</code>, <code>CameraOverlayUiTests</code>,
+<code>CameraFrameSizeRealCaptureTests</code>.</p>
+
+<h2>3. Acceptance criteria</h2>
+
+<h3 id="ac1">AC1 - Circle is the default overlay shape <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>In the HUD preview's <code>both</code> mode the camera inset renders as a CIRCLE by default, and the area outside the circle is fully transparent to the screen preview beneath.</td></tr>
+<tr><th>Actual</th><td>Circle, by default, with the screen showing through the bounding box's corners.</td></tr>
+</table>
+
+<p><strong>Default proven on a preset that pre-dates the feature.</strong> The strongest available
+instrument for "default" is a preset with no <code>Overlay</code> key at all on disk. The human's own
+<code>Demo Screen Capture With Camera</code> is exactly that. Recorded with it, with nothing else
+changed:</p>
+<pre>
+GET /status   -&gt; "PreviewOverlayShape": "circle", "PreviewOverlayCorner": "bottom-right"
+manifest.json -&gt; "PreviewOverlayShape": "circle"
+                 "PreviewOverlayCircle": { "CentreX": 0.5, "CentreY": 0.42, "Diameter": 0.6 }
+                 "PreviewOverlayInset": 0.3
+</pre>
+<p>Those are assumption E3's documented defaults exactly, reached from a file that has never heard of
+this feature. Backward compatibility and the default are the same observation.</p>
+
+<p><strong>It is a TRUE CROP, not a mask over a shrunken frame.</strong> Three independent confirmations:</p>
+<ol>
+<li><em>Code.</em> <code>HudWindow.PaintCameraFrame</code> (src/AgentEyes.App/HudWindow.cs:630-663) fills
+    an <code>Ellipse</code> with an <code>ImageBrush</code> whose <code>Viewbox</code> is the circle's
+    bounding square in relative units, and sets <code>_cameraImage.Source = null</code>. In circle mode
+    <code>_cameraImage</code> (the whole frame) is <code>Collapsed</code> and only the ellipse is drawn
+    (HudWindow.cs:616-620). There is no mask element in the HUD at all.</li>
+<li><em>Layout.</em> <code>LayOutInset</code> gives the circle host a SQUARE size,
+    <code>Background = Brushes.Transparent</code> and <code>BorderThickness = 0</code>
+    (HudWindow.cs:585-597) - so the corners of the inset's bounding box are genuinely empty.</li>
+<li><em>Pixels.</em> The screenshot below. Browser content from the screen preview is plainly visible at
+    all four corners of the circle's bounding square, and the circle contains only part of the room -
+    compare the rectangle run at AC6, where the whole room is in the box.</li>
+</ol>
+
+<div class="shots">
+<figure><img src="qa/ac1-hud-circle.png" alt="HUD with the circular camera inset in the top-right corner">
+<figcaption>AC1 - HUD, <code>MQS_HUD_CAPTURABLE=1</code>. Circular inset, top-right. Status line reads
+<code>both circle top-right | live</code>. Screen content visible at every corner of the inset's bounding box.</figcaption></figure>
+</div>
+
+<h3 id="ac2">AC2 - The circle is positionable and sizeable, against a live image <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>Centre and diameter controls over a LIVE camera image; moving the centre and changing the diameter each visibly change what the circle contains. Three screenshots: default, centre moved, diameter changed.</td></tr>
+<tr><th>Actual</th><td>All three, each showing a different part of the frame inside the circle.</td></tr>
+</table>
+
+<p>The Camera tab of the preset editor carries <em>Shape</em> (Circle / Rectangle), <em>Left / right</em>,
+<em>Up / down</em>, <em>Diameter</em>, <em>Corner</em>, <em>Size on screen</em> and <em>Reset framing</em>,
+beside a live 480x360 pane. The sliders were driven through UI Automation
+(<code>RangeValuePattern.SetValue</code>) on <code>CircleXSlider</code>, <code>CircleYSlider</code>,
+<code>CircleSizeSlider</code>.</p>
+
+<div class="shots">
+<figure><img src="qa/ac2-editor-default.png" alt="Preset editor, circle at 30/30 diameter 35">
+<figcaption>1. As loaded: 30% / 30%, diameter 35%. Circle sits high-left, over the framed picture on the wall.</figcaption></figure>
+<figure><img src="qa/ac2-editor-centre-moved.png" alt="Preset editor, circle moved to 78/68">
+<figcaption>2. Centre moved to 78% / 68%, diameter unchanged. Circle now contains the desk corner and the chair - a different part of the frame.</figcaption></figure>
+<figure><img src="qa/ac2-editor-diameter-changed.png" alt="Preset editor, diameter raised to 95">
+<figcaption>3. Diameter raised to 95%. Circle contains most of the frame height, and has been pushed inward to fit - the clamping is visible.</figcaption></figure>
+</div>
+
+<p>Worth noting because it is the trap the developer flagged and it holds: the pane shows a
+<strong>padded</strong> 320x240 buffer, and the camera is 1920x1080, so the picture occupies a
+letterboxed band with black bars above and below. The circle is drawn inside <em>that band</em>, not
+across the whole pane - visible in all three screenshots - and the hint reads
+"Circle shown over this camera's own 1920x1080 frame." When the size has not been reported,
+<code>PreviewContentRect()</code> returns null and the editor draws nothing and says so
+(PresetEditor.xaml.cs:557-573, 587-606). It never assumes the picture fills the pane.</p>
+
+<h3 id="ac3">AC3 - The choice reaches the recording <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>A preset saved with a chosen centre and diameter produces a HUD preview during recording whose circle matches that choice.</td></tr>
+<tr><th>Actual</th><td>It matches, and the match was checked arithmetically as well as by eye.</td></tr>
+</table>
+
+<p>The preset <code>QA36 editor</code> was saved from the editor with centre 0.78 / 0.68, diameter 0.35,
+corner bottom-left, size-on-screen 0.45. Starting a recording from it seeded the config exactly:</p>
+<pre>
+config.json after PresetCapture.Start -&gt; HudOverlayConfig.Seed:
+  HudPreviewShape          : circle
+  HudPreviewCorner         : bottom-left
+  HudPreviewInsetFraction  : 0.45
+  HudPreviewCircleCentreX  : 0.78
+  HudPreviewCircleCentreY  : 0.68
+  HudPreviewCircleDiameter : 0.35
+</pre>
+
+<p>Rather than rely on "these two pictures look alike", QA computed the crop the geometry model says
+the HUD must draw and compared it against what the HUD drew. From the un-padded 480x270 tap frame,
+for centre (0.78, 0.68) and diameter 0.35 at aspect 1.7778, the viewbox is
+<code>x=327.2 y=136.4 w=94.5 h=94.5</code> px. That region of the raw frame is a dark cabinet with a
+lighter vertical wall strip on its right - which is exactly what the HUD circle contains.</p>
+
+<div class="shots">
+<figure><img src="qa/ac3-editor-saved-framing.png" alt="Editor showing the saved framing">
+<figcaption>Editor at the moment of Save: 78% / 68%, diameter 35%, corner Bottom left, size 45%.</figcaption></figure>
+<figure><img src="qa/ac3-hud-matching-framing.png" alt="HUD showing the same framing">
+<figcaption>HUD during the recording started from that preset: same framing, bottom-left, visibly larger inset (0.45 rather than 0.30).</figcaption></figure>
+</div>
+<div class="shots">
+<figure><img src="qa/ac3-raw-camera-frame.jpg" alt="Raw un-padded 480x270 preview frame">
+<figcaption>The raw 480x270 tap frame the HUD was drawing from.</figcaption></figure>
+<figure><img src="qa/ac3-expected-crop.png" alt="Expected crop computed from the geometry model">
+<figcaption>The crop the geometry model predicts (x=327.2 y=136.4 94.5x94.5). It is what the HUD circle shows.</figcaption></figure>
+</div>
+
+<h3 id="ac4">AC4 - Geometry is written to the manifest <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>After a circle-overlay recording, <code>manifest.json</code> records the shape, the circle centre and diameter (resolution-independent), the corner and the inset size.</td></tr>
+<tr><th>Actual</th><td>All four present, the circle as fractions of the frame.</td></tr>
+</table>
+<pre>
+manifest.json  (2026-08-29_033356_video, circle run - committed as qa/ac4-manifest-circle.json)
+
+  "CameraFile": "camera.mp4",
+  "CameraComplete": "yes",
+  "PreviewOverlayCorner": "bottom-left",
+  "PreviewOverlayShape": "circle",
+  "PreviewOverlayCircle": {
+    "CentreX": 0.5,
+    "CentreY": 0.42,
+    "Diameter": 0.6
+  },
+  "PreviewOverlayInset": 0.3,
+</pre>
+<p>The centre and diameter are fractions, not pixels (assumption E2), so the preset survives a camera or
+resolution change - <code>CameraOverlayCircle.ClampedTo</code> fits stored fractions to whatever frame it
+is handed at draw time rather than rewriting them on save
+(src/AgentEyes.Core/Preview/CameraOverlay.cs:118-141).</p>
+
+<h3 id="ac5">AC5 - camera.mp4 is NOT cropped <span class="pass">PASS</span> - the defining criterion</h3>
+<table>
+<tr><th>Expected</th><td><code>ffprobe</code> width/height for a circle recording, a rectangle recording and a preview-off recording, all identical.</td></tr>
+<tr><th>Actual</th><td>1920x1080 in all three. Nothing was cropped.</td></tr>
+</table>
+<pre>
+ffprobe -v error -select_streams v:0 -show_entries stream=width,height,codec_name ... camera.mp4
+
+=== circle       2026-08-29_033356_video ===   codec_name=h264  width=1920  height=1080  duration=39.23
+=== rectangle    2026-08-29_033542_video ===   codec_name=h264  width=1920  height=1080  duration=26.83
+=== preview-off  2026-08-29_033641_video ===   codec_name=h264  width=1920  height=1080  duration=16.00
+</pre>
+<p>A circle of diameter 0.60 baked into the file would have produced roughly 648x648. It did not, in the
+run whose own manifest records <code>"PreviewOverlayShape": "circle"</code>. The full rectangular frame
+survives, which is the whole point: the framing can be moved later because the pixels outside the circle
+were never thrown away.</p>
+<p>The code path agrees. No overlay value reaches the camera recorder:
+<code>FfmpegArgs.cs</code> and <code>FfmpegCameraRecorder.cs</code> contain no reference to the overlay,
+and <code>RecordingService</code> passes the framing only to <code>manifest</code>
+(RecordingService.cs:754-769). The committed test <code>TheOverlay_NeverReachesTheCameraRecorder</code>
+asserts the same thing as a source scan - which is an ABSENCE check and therefore fails open; its own
+file header says so, and says that camera.mp4 is ffprobe's answer. It is. The ffprobe numbers above are
+the load-bearing instrument for AC5, not that test.</p>
+
+<h3 id="ac6">AC6 - Rectangle still available <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>Selecting <code>rectangle</code> reproduces today's rectangular inset.</td></tr>
+<tr><th>Actual</th><td>The #33 inset exactly: bordered box on black, whole frame, auto-height from the frame's aspect.</td></tr>
+</table>
+<div class="shots">
+<figure><img src="qa/ac6-hud-rectangle.png" alt="HUD with the rectangular camera inset">
+<figcaption>AC6 - <code>QA36 rectangle</code> preset. Status <code>both rectangle bottom-right | live</code>.
+The WHOLE camera frame is inset, which is the visible difference from AC1's crop.</figcaption></figure>
+</div>
+<pre>
+manifest.json (rectangle run - qa/ac6-manifest-rectangle.json)
+  "PreviewOverlayCorner": "bottom-right",
+  "PreviewOverlayShape": "rectangle",
+  "PreviewOverlayInset": 0.3,
+  (no "PreviewOverlayCircle" key at all - a rectangle frames the whole frame, so there is no circle to record)
+</pre>
+
+<h3 id="ac7">AC7 - Preset and HUD stay in sync <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>The corner chosen in the preset is the corner the HUD shows at recording start; changing the corner on the HUD mid-recording takes effect immediately and does not corrupt the saved preset.</td></tr>
+<tr><th>Actual</th><td>All three, and the preset file is byte-identical afterwards.</td></tr>
+</table>
+<p>The test was set up so a failure could not hide: the preset said <code>top-right</code> while
+<code>config.json</code> still said <code>top-left</code>. If seeding were absent the HUD would have shown
+top-left.</p>
+<pre>
+before REC:  presets.json "QA36 circle".Overlay.Corner = "top-right"
+             config.json  HudPreviewCorner            = "top-left"
+
+after REC:   GET /status  PreviewOverlayCorner        = "top-right"     &lt;- the PRESET won
+             HUD status line                          = "both circle top-right | live"
+             HUD screenshot                           = circle in the TOP-RIGHT corner
+
+click HUD "Preview corner bottom-left":
+             GET /status  PreviewOverlayCorner        = "bottom-left"   (immediately, same second)
+             HUD status line                          = "both circle bottom-left | live"
+             HUD screenshot                           = circle in the BOTTOM-LEFT corner, BL chip selected
+             config.json  HudPreviewCorner            = "bottom-left"
+             presets.json SHA256 before               = E0FB2B6F...C2085
+             presets.json SHA256 after                = E0FB2B6F...C2085   (unchanged)
+             presets.json "QA36 circle".Overlay.Corner= "top-right"     (the preset is intact)
+</pre>
+<div class="shots">
+<figure><img src="qa/ac7-hud-corner-bottomleft.png" alt="HUD after the mid-recording corner change">
+<figcaption>AC7 - after the mid-recording corner change. The circle has moved to bottom-left and the saved preset still says top-right.</figcaption></figure>
+</div>
+<p>The design that makes this structural rather than lucky: <code>HudOverlayConfig</code> is one-way -
+<code>preset --Seed()--&gt; config --Read()--&gt; HudPreviewState --Write()--&gt; config</code> - and there is no
+code path from the HUD to <code>presets.json</code> at all (src/AgentEyes.App/HudOverlayConfig.cs).</p>
+
+<h3 id="ac8">AC8 - Preview failure is still subordinate <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>With the circle overlay active, killing the preview feed mid-recording leaves the recording running and completing normally - both files valid, <code>CameraComplete: yes</code> on a clean stop. #33's AC10 must still hold.</td></tr>
+<tr><th>Actual</th><td>It holds.</td></tr>
+</table>
+<p>The kill: exclusive <code>FileShare.None</code> handles taken on
+<code>%LOCALAPPDATA%\AgentEyes\preview\camera.jpg</code> and <code>screen.jpg</code> while a
+circle-overlay recording was running, held for 23 seconds, released only after the stop was issued.
+That makes <code>PreviewTap.Publish</code>'s <code>File.Move</code> fail on every frame.</p>
+<pre>
+before kill :  state=recording  shape=circle  corner=bottom-left  PreviewFailed=False  camFrames=765
+during kill :  state=recording  elapsed=94.1  PreviewFailed=True   camFrames=945   &lt;- the DRAIN kept reading
+still later :  state=recording  elapsed=99.3
+after stop  :  DurationSeconds       = 104
+               CameraCapturedSeconds = 104.59
+               CameraStopKind        = "clean-quit"
+               CameraComplete        = "yes"
+               PreviewOverlayShape   = "circle"   (the framing still reached the manifest)
+
+ffprobe recording.mp4 -&gt; h264 1920x1080 + aac, duration 104.000, size 2,998,041
+ffprobe camera.mp4    -&gt; h264 1920x1080,        duration 104.700, size 315,138,631
+</pre>
+<p>The frame counter rising from 765 to 945 <em>while</em> <code>PreviewFailed</code> was true is the
+load-bearing number: the pipe drain never stopped, which is what keeps a full pipe from blocking the
+ffmpeg that is writing the recording.</p>
+<div class="shots">
+<figure><img src="qa/ac8-hud-during-killed-feed.png" alt="HUD during the killed preview feed">
+<figcaption>AC8 - the HUD during the kill: "Preview unavailable - no frames from the recorder. The recording is unaffected." Status <code>both circle bottom-left | no fra...</code>. The recording ran on.</figcaption></figure>
+</div>
+
+<h3 id="ac9">AC9 - Bounded cost <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>A 60-second circle-overlay recording drops no more frames than a preview-off control of the same length on the same machine, and still meets the camera-track duration limit. Report both numbers.</td></tr>
+<tr><th>Actual</th><td>5 dropped frames with the overlay, 5 without. Both numbers reported below.</td></tr>
+</table>
+<p>Two back-to-back 60-second runs on this machine, same preset, same monitor, same camera, driven by
+identical scripted timings. Full log lines are committed at <code>qa/ac9-ffmpeg-drop-counts.txt</code>.</p>
+<table>
+<tr><th></th><th>A - circle overlay active</th><th>B - preview OFF (control)</th></tr>
+<tr><td>screen ffmpeg frames</td><td>976</td><td>975</td></tr>
+<tr><td><strong>screen ffmpeg drop=</strong></td><td><strong>5</strong></td><td><strong>5</strong></td></tr>
+<tr><td>screen dup=</td><td>0</td><td>0</td></tr>
+<tr><td>camera ffmpeg frames</td><td>1313</td><td>1313</td></tr>
+<tr><td>DurationSeconds</td><td>65.87</td><td>65.87</td></tr>
+<tr><td>CameraCapturedSeconds</td><td>66.43</td><td>66.43</td></tr>
+<tr><td>CameraComplete</td><td>yes</td><td>yes</td></tr>
+<tr><td>CameraStopKind</td><td>clean-quit</td><td>clean-quit</td></tr>
+</table>
+<pre>
+A: frame=  976 fps= 15 q=-1.0 Lq=8.0 size= 1568KiB time=00:01:04.34 dup=0 drop=5 speed=0.99x
+B: frame=  975 fps= 15 q=-1.0 Lsize= 1565KiB time=00:01:04.18 dup=0 drop=5 speed=0.987x
+</pre>
+<p>Equal, not merely "no worse within noise". The camera-track duration limit is met in both:
+<code>CameraComplete</code> is <code>"yes"</code>, which <code>CameraTrackRecord</code> will not write
+unless the observed capture and the stderr completeness both agree.</p>
+<p>Honest limit on this measurement: gdigrab drop counts on a live desktop are load-dependent, and #33's
+own table showed identical control runs varying from 2 to 53. Two runs cannot resolve a small effect.
+What they can and do resolve is the failure AC9 is guarding against - masking becoming the thing that
+costs frames - which would not present as 5 vs 5.</p>
+
+<h3 id="ac10">AC10 - No regression with the overlay unused <span class="pass">PASS</span></h3>
+<table>
+<tr><th>Expected</th><td>A recording made with the preview off is identical in shape and manifest content to what it is today, with no overlay geometry written.</td></tr>
+<tr><th>Actual</th><td>Zero <code>PreviewOverlay*</code> keys in the manifest; camera.mp4 unchanged at 1920x1080.</td></tr>
+</table>
+<pre>
+Run with HudPreviewVisible=false, camera preset unchanged (2026-08-29_033641_video):
+
+GET /status  -&gt; PreviewOverlayShape = (null), PreviewOverlayCorner = (null),
+                PreviewPublishing = False, PreviewAvailable = False
+
+manifest.json:  regex /PreviewOverlay\w*/ matched 0 times in the whole file
+                (not "null" - the keys are ABSENT, because Manifest.JsonOptions carries
+                 DefaultIgnoreCondition = WhenWritingNull)
+
+ffprobe camera.mp4 -&gt; 1920x1080, same as the circle and rectangle runs
+</pre>
+<p>This one was verified at runtime deliberately rather than left to the suite - see finding F1.</p>
+
+<h3 id="ac11">AC11 - Gate <span class="pass">PASS</span></h3>
+<p>Section 2. Build clean from an isolated worktree, 1138/1138 tests green, geometry-model and
+manifest round-trip tests present and shown to fire (Section 4).</p>
+
+<h2>4. QA's own mutations</h2>
+
+<p>Per DEVELOPMENT_METHOD 6c item 3, a check only ever run against the state you hope passes has
+demonstrated nothing. Twelve mutations were applied to the PRODUCT code in QA's worktree, each built and
+run against the full suite, each reverted afterwards. The developer's own mutation evidence was not
+reused.</p>
+
+<table>
+<tr><th>#</th><th>Mutation</th><th>Claim it attacks</th><th>Suite result</th></tr>
+<tr><td>M1</td><td><code>PreviewNames.Shape</code> unknown-value default flipped Circle -&gt; Rectangle</td><td>AC1 default</td><td>6 failed</td></tr>
+<tr><td>M2</td><td><code>manifest.PreviewOverlayShape = ...</code> deleted from the stop path</td><td>AC4</td><td>1 failed</td></tr>
+<tr><td>M3</td><td><code>... = previewOverlay?.Shape ?? "circle"</code> - writes overlay when NONE was framed</td><td>AC10</td><td class="fail">0 failed - SILENT (finding F1)</td></tr>
+<tr><td>M4</td><td><code>HudOverlayConfig.Seed</code> made a no-op</td><td>AC3, AC7</td><td>4 failed</td></tr>
+<tr><td>M5</td><td><code>ClampedTo</code> stops clamping the centre into the frame</td><td>AC11 clamping</td><td>2 failed</td></tr>
+<tr><td>M6</td><td><code>ImageBrush.Viewbox</code> removed from the HUD circle - a shrunken whole frame instead of a crop</td><td>AC1 crop</td><td>1 failed</td></tr>
+<tr><td>M7</td><td>Circle host given a black background and a border again</td><td>AC1 transparency</td><td>1 failed</td></tr>
+<tr><td>M8</td><td><code>CameraFrameSize</code> reads ffmpeg's Output block as well as Input</td><td>AC2 placement</td><td>1 failed</td></tr>
+<tr><td>M9</td><td><code>ManifestOverlay</code> returns the live object rather than a copy</td><td>AC4 immutability</td><td>1 failed</td></tr>
+<tr><td>M10</td><td><code>CapturePreset.Clone</code> shares the overlay instead of deep-copying</td><td>preset isolation</td><td>1 failed</td></tr>
+<tr><td>M11</td><td>Inset width hard-coded back to 0.30</td><td>E5 inset size</td><td>1 failed</td></tr>
+<tr><td>M12</td><td><code>HudPreviewState.SetCorner</code> made a no-op</td><td>AC7 mid-recording</td><td>5 failed</td></tr>
+</table>
+
+<p>Eleven of twelve fired. The one that did not is recorded as finding F1 rather than glossed, and the
+claim it failed to defend was verified at runtime instead (AC10 above).</p>
+
+<h2>5. Findings for the Review Gate (none blocking)</h2>
+
+<h3>F1 - AC10's manifest half has no test that can fail</h3>
+<p>Mutation M3 - <code>manifest.PreviewOverlayShape = previewOverlay?.Shape ?? "circle"</code>, which
+writes overlay metadata into a recording that never framed an overlay - passes all 1138 tests.
+<code>Manifest_WithNoOverlayAtAll_WritesNoneOfTheOverlayFields</code> builds a <code>Manifest</code>
+directly and never exercises <code>RecordingService</code>'s real write path (RecordingService.cs:754-769),
+so nothing guards the "null in, absent out" contract where it actually happens. The product code is
+correct and QA proved it at runtime, but the regression guard is missing. Suggested follow-up: a test
+that drives the stop path with <code>_previewOverlay == null</code> and asserts the four keys are absent.</p>
+
+<h3>F2 - presets.json stores derived values next to the authoritative ones</h3>
+<p><code>CameraOverlaySettings</code> exposes <code>ShapeValue</code>, <code>CornerValue</code> and
+<code>ClampedInsetFraction</code> as public get-only properties, so System.Text.Json serialises them into
+<code>presets.json</code> alongside the fields they are derived from:</p>
+<pre>
+"Overlay": {
+  "Shape": "circle", "Circle": { ... }, "Corner": "bottom-left", "InsetFraction": 0.45,
+  "ShapeValue": 0, "CornerValue": 1, "ClampedInsetFraction": 0.45      &lt;- derived, written to disk
+}
+</pre>
+<p>QA verified the round-trip is unaffected: reopening the editor loaded 0.78 / 0.68 / 0.35 / 0.45 and
+Bottom left correctly, because get-only properties are ignored on deserialisation. So this is not a
+defect against any criterion. It is a durability trap: a human editing <code>Shape</code> by hand leaves
+a <code>ShapeValue</code> on disk that contradicts it, in a file the project's own comment describes as
+"one value, one home, no drift". Suggested follow-up: <code>[JsonIgnore]</code> on the three derived
+properties.</p>
+
+<h3>F3 - the handoff note's UIA instruction is wrong</h3>
+<p>The handoff tells QA that "the UIA element <em>HUD preview status</em> now reads
+<code>&lt;mode&gt; &lt;shape&gt; &lt;corner&gt; | live</code>" and that this is the assertable surface,
+since the HUD cannot be screenshotted. It is not. <code>AutomationName(_previewStatus, "HUD preview status")</code>
+(HudWindow.cs:275) sets <code>AutomationProperties.Name</code>, which REPLACES the TextBlock's text as the
+UIA Name. Measured on the running app:</p>
+<pre>
+UIA Name of the element   : "HUD preview status"      &lt;- the label, not the status
+TextPattern               : not supported
+ValuePattern / HelpText   : not supported / empty
+</pre>
+<p>The status text is readable only from a <code>PrintWindow</code> capture with
+<code>MQS_HUD_CAPTURABLE=1</code>. The screenshot-free surface that DOES work is
+<code>GET /status</code>, which this change correctly extends with <code>PreviewOverlayShape</code>
+alongside <code>PreviewOverlayCorner</code> - QA used it throughout. No product change is needed; the
+handoff note should be corrected so the next agent does not lose time on it.</p>
+
+<h3>F4 - a merge conflict is waiting further down the stack</h3>
+<p>This branch sits on <code>issue-35-preset-editor-two-columns</code>, which forked from
+<code>issue-33-hud-live-preview</code> at <code>178cf2a</code>. #33's round 4 (tip <code>b61f71a</code>)
+introduced <code>HudUserResize.cs</code>, removed <code>HudWindow.ResizeBy</code> and added an
+<code>OnCreateAutomationPeer</code> override - <strong>none of which is in this branch's base</strong>.</p>
+<p>QA checked #36's compliance with both: it adds no automation peer of any kind (the diff contains no
+<code>AutomationPeer</code>), and it does not call <code>ResizeBy</code> from any new code - the single
+call site is the pre-existing grip handler at HudWindow.cs:291. So #36 is compliant. But #36's additions
+to <code>LayOutInset</code> and the new <code>PaintCameraFrame</code> sit close to the code #33 round 4
+rewrites, so the eventual reconciliation of the stack will need a real merge of
+<code>HudWindow.cs</code> rather than a fast-forward. Flagged for the orchestrator, not a defect in this PR.</p>
+
+<h3>F5 - the branch build is already installed on this machine</h3>
+<p><code>%LOCALAPPDATA%\AgentEyes\app\AgentEyesApp.exe</code> reports
+<code>ProductVersion 1.6.2+75e62adbb1ddd8ddcf6e8075fc3298442a242ddb</code> - the unmerged head of this
+PR, deployed before QA ran. Noted only because DEVELOPMENT_METHOD 6a treats deploying as a separate,
+explicitly-requested step; it has no bearing on the criteria. QA verified against its own worktree build
+throughout, never this one, and restored it at the end.</p>
+
+<h2>6. Environment left as it was found</h2>
+<table>
+<tr><th>Item</th><th>State</th></tr>
+<tr><td>Installed v1.6.2 tray app</td><td>Displaced for the duration (it owns port 7882 and the DirectShow camera), then relaunched. <code>GET /version</code> -&gt; <code>{"app":"AgentEyes","version":"1.6.2"}</code>.</td></tr>
+<tr><td><code>config.json</code></td><td>Restored. SHA256 <code>D60F3C217FAD8F27C0DCC14F73F5DD570B5FE68DC1ED9E357CCB603189424C84</code> - identical to the pre-QA hash.</td></tr>
+<tr><td><code>presets.json</code></td><td>Restored. SHA256 <code>BFFC4252433C9D4FAAE973E032B9E83874FF56DC83336719013BF42FA5C62219</code> - identical to the pre-QA hash. The three <code>QA36 *</code> presets are gone.</td></tr>
+<tr><td>Test recordings</td><td>All 8 deleted from <code>%USERPROFILE%\Videos\AgentEyes</code>. Newest surviving directory is <code>2026-08-28_234202_video</code>, which is the human's.</td></tr>
+<tr><td>ffmpeg processes</td><td>Zero. Checked after the run: <code>Get-Process ffmpeg</code> returns nothing.</td></tr>
+<tr><td>Branches / worktrees</td><td>QA worked in its own <code>agenteyes-qa36</code> worktree. Nothing was touched in <code>issue-28-*</code>, <code>issue-33-*</code> or <code>issue-35-*</code>.</td></tr>
+</table>
+
+<h2>7. Verdict</h2>
+<div class="verdict">
+<p><strong>PASS - 11 of 11 acceptance criteria verified with proof.</strong> No criterion was passed
+blind, no criterion was redefined to make it pass, and every criterion that needed the running app was
+driven by QA rather than handed to anyone else.</p>
+<p>Per DEVELOPMENT_METHOD decision D7, QA does not merge. The issue moves to
+<code>flow:ready-gate</code> for the independent Review Gate, with findings F1-F5 above offered as
+review material.</p>
+</div>
+
+<p style="color:#666;font-size:12px;margin-top:30px;">
+QA Agent - CenCon Development Method - AgentEyes. Issue #36, PR #38, head 75e62ad. 2026-08-29.
+</p>
+
+</body>
+</html>

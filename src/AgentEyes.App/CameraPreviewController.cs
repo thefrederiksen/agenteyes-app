@@ -129,6 +129,20 @@ namespace AgentEyes.App
         public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
         /// <summary>
+        /// The size of the frames the CAMERA is producing, as ffmpeg reported them, or null when no
+        /// session is running or ffmpeg has not said yet (issue #36).
+        ///
+        /// The preset editor needs it because the pane shows a PADDED 320x240 buffer: without the
+        /// camera's real shape it cannot know where the black bars are, and the circle overlay would
+        /// be drawn over the wrong part of the picture. Null is "not observed" and the editor says
+        /// so - it does not assume the picture fills the pane.
+        /// </summary>
+        public CameraFrameSize? SourceSize
+        {
+            get { lock (_gate) { return _session?.SourceSize; } }
+        }
+
+        /// <summary>
         /// True while this controller holds - or may be holding - a camera.
         ///
         /// AN UNRESOLVED OPEN COUNTS (issue #35, gate round 1, defect 3). An open that was waited for

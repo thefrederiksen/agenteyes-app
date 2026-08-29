@@ -716,6 +716,11 @@ namespace AgentEyes.Tests
             /// it is abandoned once a stop has been attempted and it is still holding the device.</summary>
             public bool IsAbandoned => StopCalls > 0 && SurvivesTheStop;
 
+            /// <summary>Issue #36: what ffmpeg would have reported the camera is producing. Null
+            /// until a test says otherwise, which is the "not observed yet" case the editor has to
+            /// handle honestly.</summary>
+            public AgentEyes.Video.CameraFrameSize? SourceSize { get; set; }
+
             public int StopCalls => Volatile.Read(ref _stops);
             public int DisposeCalls => Volatile.Read(ref _disposes);
 

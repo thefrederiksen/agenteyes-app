@@ -48,6 +48,12 @@ namespace AgentEyes.Preview
         public const string TopLeft = "top-left";
         public const string TopRight = "top-right";
 
+        // Issue #36: the overlay SHAPE. Circle is the default and is spelled out here with the rest
+        // of the wire vocabulary, so config.json, presets.json and manifest.json cannot each invent
+        // their own spelling of the same choice.
+        public const string Circle = "circle";
+        public const string Rectangle = "rectangle";
+
         public static string Text(PreviewMode mode) => mode switch
         {
             PreviewMode.Screen => Screen,
@@ -85,6 +91,23 @@ namespace AgentEyes.Preview
             TopLeft => PreviewCorner.TopLeft,
             TopRight => PreviewCorner.TopRight,
             _ => PreviewCorner.BottomRight,
+        };
+
+        public static string Text(CameraOverlayShape shape) => shape switch
+        {
+            CameraOverlayShape.Circle => Circle,
+            CameraOverlayShape.Rectangle => Rectangle,
+            // No default that guesses, for the same reason as the mode above.
+            _ => throw new ArgumentOutOfRangeException(nameof(shape), shape, "unknown camera overlay shape"),
+        };
+
+        /// <summary>Parse a stored overlay shape. An unknown or absent value reads as
+        /// <see cref="CameraOverlayShape.Circle"/>, the documented default (issue #36, AC1) - which
+        /// is also what a preset written before this field existed deserializes to.</summary>
+        public static CameraOverlayShape Shape(string? text) => text switch
+        {
+            Rectangle => CameraOverlayShape.Rectangle,
+            _ => CameraOverlayShape.Circle,
         };
     }
 }
