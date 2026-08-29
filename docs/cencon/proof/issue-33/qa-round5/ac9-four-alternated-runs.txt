@@ -1,0 +1,22 @@
+AC9: four alternated 60-second runs on identical changing content
+  control-1 (preview OFF) armed=False publishing=False framesRead=0/0
+    drops=8 deliveredFrames=1054 screenDur=71.533008 cameraDur=72.166595
+    pipe:1 in the ffmpeg command = False   dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_053721_video
+    "DurationSeconds": 71.53,
+    "CameraComplete": "yes",
+  preview-1 (preview ON)  armed=True publishing=True framesRead=662/669
+    drops=5 deliveredFrames=1061 screenDur=71.533008 cameraDur=72.166595
+    pipe:1 in the ffmpeg command = True   dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_053849_video
+    "DurationSeconds": 71.53,
+    "CameraComplete": "yes",
+  control-2 (preview OFF) armed=False publishing=False framesRead=0/0
+    drops=8 deliveredFrames=1061 screenDur=72 cameraDur=72.666594
+    pipe:1 in the ffmpeg command = False   dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_054018_video
+    "DurationSeconds": 72,
+    "CameraComplete": "yes",
+  preview-2 (preview ON)  armed=True publishing=True framesRead=662/668
+    drops=8 deliveredFrames=1061 screenDur=72 cameraDur=72.633261
+    pipe:1 in the ffmpeg command = True   dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_054146_video
+    "DurationSeconds": 72,
+    "CameraComplete": "yes",
+DONE AC9

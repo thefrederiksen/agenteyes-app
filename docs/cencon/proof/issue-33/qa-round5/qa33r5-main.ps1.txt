@@ -1,0 +1,28 @@
+param([string]$Action = 'inspect', [string]$Arg = '')
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+function Find-Main {
+    for ($i = 0; $i -lt 40; $i++) {
+        $w = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'AgentEyes') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+        if ($w) { return $w }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'main window not found'
+}
+$win = Find-Main
+switch ($Action) {
+    'inspect' {
+        $all = $win.FindAll('Descendants', (TypeIs ([System.Windows.Automation.ControlType]::Button)))
+        foreach ($e in $all) { Write-Output ("  BUTTON '{0}' enabled={1}" -f $e.Current.Name, $e.Current.IsEnabled) }
+    }
+    'click' {
+        $b = $win.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found" }
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Write-Output "clicked '$Arg'"
+    }
+}

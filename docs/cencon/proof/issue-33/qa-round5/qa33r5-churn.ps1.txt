@@ -1,0 +1,30 @@
+param([int]$X = 1980, [int]$Y = 55, [int]$W = 640, [int]$H = 400, [int]$Seconds = 120)
+# A plain, VISIBLE, topmost window that repaints ten times a second, so the screen preview has
+# something to differ about. It is never activated and no input is synthesized.
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+$f = New-Object System.Windows.Forms.Form
+$f.FormBorderStyle = 'None'
+$f.StartPosition = 'Manual'
+$f.Bounds = New-Object System.Drawing.Rectangle $X, $Y, $W, $H
+$f.TopMost = $true
+$f.ShowInTaskbar = $false
+$f.BackColor = [System.Drawing.Color]::Black
+$f.DoubleBuffered = $true
+$script:n = 0
+$f.Add_Paint({
+    param($s, $e)
+    $e.Graphics.Clear($(if ($script:n % 2 -eq 0) { [System.Drawing.Color]::Black } else { [System.Drawing.Color]::DarkSlateBlue }))
+    $font = New-Object System.Drawing.Font 'Consolas', 96, ([System.Drawing.FontStyle]::Bold)
+    $e.Graphics.DrawString(("QA33R5 " + $script:n.ToString('0000')), $font, [System.Drawing.Brushes]::White, 20, 20)
+    $e.Graphics.FillRectangle([System.Drawing.Brushes]::Orange, (20 + ($script:n * 7) % 400), 220, 160, 120)
+    $font.Dispose()
+})
+$t = New-Object System.Windows.Forms.Timer
+$t.Interval = 100
+$t.Add_Tick({ $script:n++; $f.Invalidate() })
+$t.Start()
+$life = New-Object System.Windows.Forms.Timer
+$life.Interval = $Seconds * 1000
+$life.Add_Tick({ $life.Stop(); $f.Close() })
+$life.Start()
+[System.Windows.Forms.Application]::Run($f)

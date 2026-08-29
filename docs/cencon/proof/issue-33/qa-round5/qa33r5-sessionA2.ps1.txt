@@ -1,0 +1,132 @@
+$ErrorActionPreference = 'Continue'
+$SP  = "<QA-SCRATCH>"
+$EXE = "D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$CFG = "$env:LOCALAPPDATA\AgentEyes\config.json"
+$SEED = "$SP\backup\config.json"
+$VIDEOS = "$env:USERPROFILE\Videos\AgentEyes"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a } }
+function Main($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a } }
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 20 }
+function Rec() { Main click 'REC' | Out-Null; Start-Sleep -Seconds 8 }
+function StopRec() { Hud click 'HUD stop' | Out-Null; Start-Sleep -Seconds 6 }
+function CfgHash() { (Get-FileHash $CFG).Hash.Substring(0,16) }
+function CfgWrite() { (Get-Item $CFG).LastWriteTime.ToString('HH:mm:ss.fff') }
+function Cfg() { $j = Get-Content $CFG -Raw | ConvertFrom-Json; "Left=$($j.HudLeft) Top=$($j.HudTop) Width=$($j.HudWidth) Height=$($j.HudHeight) Visible=$($j.HudPreviewVisible) Mode=$($j.HudPreviewMode) Corner=$($j.HudPreviewCorner)" }
+function Line($s) { Write-Output ("`n===== " + $s + " =====") }
+function Restart($reseed) {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+    if ($reseed) { Copy-Item $SEED $CFG -Force }
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+    Start-Sleep -Seconds 3
+}
+function Sha($p) { if (-not (Test-Path $p)) { return '(missing)' }; try { $b=[IO.File]::ReadAllBytes($p) } catch { return '(locked)' }; ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($b)) -replace '-','').Substring(0,16) + " len=" + $b.Length }
+function NewestDir() { (Get-ChildItem $VIDEOS -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
+
+Write-Output ("QA app dll sha256: " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+Write-Output ("Core dll sha256:   " + (Get-FileHash (Join-Path (Split-Path $EXE) 'agenteyes.dll')).Hash)
+
+Line "0. stop whatever is recording, restart clean on the seed config"
+try { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/record/stop' -Method Post -TimeoutSec 90 | Out-Null } catch {}
+Start-Sleep -Seconds 4
+Restart $true
+Write-Output ("seed: sha=" + (CfgHash) + " " + (Cfg))
+
+Line "B1. hands-off recording #1 - establishes the HUD position the seed already carries"
+Rec
+Hud rect
+StopRec
+Write-Output ("after hands-off #1: sha=" + (CfgHash) + " " + (Cfg))
+$base = CfgHash
+
+Line "B2. hands-off recording #2 - AC1, and the constructor must write NOTHING"
+$w0 = CfgWrite
+Write-Output ("config before: sha=" + $base + " written=" + $w0)
+Rec
+Write-Output ("config right after the HUD was constructed: sha=" + (CfgHash) + " written=" + (CfgWrite))
+Write-Output ("  the CONSTRUCTOR rewrote config.json? " + (((CfgWrite) -ne $w0) -or ((CfgHash) -ne $base)) + "   (expected: False)")
+Hud rect
+Hud image
+$st = Status
+Write-Output ("  status: armed=" + $st.PreviewArmed + " publishing=" + $st.PreviewPublishing + " corner=" + $st.PreviewOverlayCorner + " framesRead=" + $st.PreviewScreenFramesRead + "/" + $st.PreviewCameraFramesRead)
+Write-Output "  -- AC2/AC3 liveness --"
+$sf = $st.PreviewScreenFrame; $cf = $st.PreviewCameraFrame
+$s1 = Sha $sf; $c1 = Sha $cf; $a = Status
+Start-Sleep -Seconds 3
+$s2 = Sha $sf; $c2 = Sha $cf; $b = Status
+Write-Output ("  AC2 screen t0=" + $s1 + "  t+3=" + $s2 + "  DIFFER=" + ($s1 -ne $s2))
+Write-Output ("  AC3 camera t0=" + $c1 + "  t+3=" + $c2 + "  DIFFER=" + ($c1 -ne $c2))
+Write-Output ("  framesRead screen " + $a.PreviewScreenFramesRead + "->" + $b.PreviewScreenFramesRead + " camera " + $a.PreviewCameraFramesRead + "->" + $b.PreviewCameraFramesRead)
+Write-Output "  -- AC3: exactly ONE process holds the camera --"
+$rows = Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'"
+$holders = 0
+foreach ($r in $rows) { $v = ([regex]::Matches($r.CommandLine, '-i "?video=')).Count; if ($v -gt 0) { $holders++ }
+  Write-Output ("    pid=" + $r.ProcessId + " (-i video=)=" + $v + " pipe:1=" + $r.CommandLine.Contains('pipe:1') + " mjpeg=" + $r.CommandLine.Contains('mjpeg')) }
+Write-Output ("  PROCESSES HOLDING THE CAMERA = " + $holders + " (expected 1)")
+StopRec
+$d = NewestDir
+Write-Output ("after hands-off #2: sha=" + (CfgHash) + " -> BYTE-IDENTICAL to before? " + ((CfgHash) -eq $base))
+Write-Output ("  " + (Cfg))
+Get-Content (Join-Path $d 'manifest.json') | Where-Object { $_ -match 'CameraComplete|CameraStopKind|DurationSeconds|PreviewOverlayCorner|CameraCaptured' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+
+Line "B3. the hands-off route attack, inside one live recording - nothing may be remembered"
+Rec
+Hud rect
+Write-Output "  route: a REAL modal MOVE loop with no size change"
+Hud moveloop
+Write-Output "  route: minimise and restore"
+Hud minrestore
+Write-Output "  route: WM_DPICHANGED"
+Hud dpichange
+Write-Output "  route: a bare SetWindowPos to 1100x600 (no gesture)"
+Hud hwndresize '1100,600'
+Hud rect
+Hud image
+StopRec
+Write-Output ("after the route attack: " + (Cfg))
+Write-Output ("  sha=" + (CfgHash) + " -> still byte-identical? " + ((CfgHash) -eq $base))
+
+Line "B4. MAXIMISE - the Review Gate's blocking defect 2"
+Rec
+Hud rect
+Hud maximise
+StopRec
+Write-Output ("config after a maximise: " + (Cfg))
+Write-Output "  -- a NEW recording must open at the maximised size --"
+Rec
+Hud rect
+Hud image
+StopRec
+Write-Output ("config after that recording: " + (Cfg))
+
+Line "B5. AERO SNAP's shape: a REAL modal move loop that ends at a different size"
+Restart $true
+Write-Output ("reseeded: " + (Cfg))
+Rec
+Hud rect
+Hud snaploop '960,700'
+StopRec
+Write-Output ("config after the snap-shaped loop: " + (Cfg))
+Write-Output "  -- a NEW recording must open at that size --"
+Rec
+Hud rect
+StopRec
+
+Line "B6. AC7 proper: 3x the default width through UI Automation, and it survives a restart"
+Restart $true
+Rec
+Hud rect
+Hud resize '1560,400'
+Hud image
+StopRec
+Write-Output ("config after a 3x UI Automation resize: " + (Cfg))
+Restart $false
+Rec
+Hud rect
+Hud image
+StopRec
+Write-Output ("config after the next app run: " + (Cfg))
+
+Line "DONE session A2"
