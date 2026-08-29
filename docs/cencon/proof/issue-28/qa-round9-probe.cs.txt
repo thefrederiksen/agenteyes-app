@@ -1,0 +1,578 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using AgentEyes.Video;
+using Xunit;
+
+namespace AgentEyes.Tests
+{
+    /// <summary>
+    /// QA round 9 INDEPENDENT probe for issue #28. Written by QA, not reused from the branch's own
+    /// tests: its own fake process, its own scenario driver, its own expectations table. It drives
+    /// the real FfmpegCameraRecorder through the real ICameraProcess seam and reads the DERIVED
+    /// stop kind and completeness back.
+    ///
+    /// Every row states its EXPECTED value, so an empty or absent result is a FAIL, never a pass.
+    /// </summary>
+    public class QaRound9Probe
+    {
+        private static readonly string Out = Path.Combine(Path.GetTempPath(), "qa-r9", "camera.mp4");
+        private static readonly string LogPath = Path.Combine(Path.GetTempPath(), "qa-r9", "camera-ffmpeg.log");
+
+        private const string InputOpen = "Input #0, dshow, from 'video=QA Probe Cam':";
+        private const string OutputOpen = "Output #0, mp4, to 'D:\\qa\\camera.mp4':";
+
+        private static string TickAt(double seconds)
+        {
+            var t = TimeSpan.FromSeconds(seconds);
+            return $"frame= {(int)(seconds * 30),4} fps= 30 q=28.0 size= 64KiB "
+                   + $"time={t:hh\\:mm\\:ss\\.ff} bitrate=1048.6kbits/s speed=1x";
+        }
+
+        private sealed class Clock
+        {
+            private DateTime _utc = new(2026, 8, 29, 9, 0, 0, DateTimeKind.Utc);
+            public DateTime Now() => _utc;
+            public void Advance(TimeSpan by) => _utc += by;
+        }
+
+        /// <summary>What the process does when a "q" is written to it, in one round.</summary>
+        private sealed class QuitBehaviour
+        {
+            /// <summary>The write to stdin FAILS (the pipe is gone) - so no delivery is recorded.</summary>
+            public bool WriteFails;
+
+            /// <summary>The process exits with this code as part of this quit. Combined with
+            /// WriteFails this is the pipe/exit race: the write fails WHILE the process exits.</summary>
+            public int? Exits;
+        }
+
+        /// <summary>What the process does when a kill is issued, in one round.</summary>
+        private sealed class KillBehaviour
+        {
+            public bool EndsIt;
+            public int ExitCode = -1;
+            public bool Throws;
+        }
+
+        private sealed class Proc : ICameraProcess
+        {
+            private Action<string>? _onStderr;
+            private Action? _onExited;
+
+            public readonly List<QuitBehaviour> Quits = new();
+            public readonly List<KillBehaviour> Kills = new();
+            public bool StderrEof = true;
+            public bool ReportsHeaders = true;
+
+            public int QuitCalls;
+            public int KillCalls;
+            public int Drains;
+            public int Disposes;
+
+            public bool HasExited { get; private set; }
+            public int ExitCode { get; private set; }
+            public int? ProcessId { get; private set; }
+
+            public void Start(Action<string> onStderrLine, Action onExited)
+            {
+                _onStderr = onStderrLine;
+                _onExited = onExited;
+                ProcessId = 40404;
+                if (ReportsHeaders) { Emit(InputOpen); Emit(OutputOpen); }
+            }
+
+            public void Emit(string line) => _onStderr!(line);
+
+            public void End(int code)
+            {
+                if (HasExited) return;
+                ExitCode = code;
+                HasExited = true;
+                _onExited!();
+            }
+
+            public void SendQuit()
+            {
+                QuitCalls++;
+                QuitBehaviour b = Pick(Quits, QuitCalls);
+                if (b.Exits.HasValue) End(b.Exits.Value);
+                if (b.WriteFails) throw new IOException("the pipe has been ended.");
+            }
+
+            public bool WaitForExit(int milliseconds) => HasExited;
+
+            public bool DrainStderr(int milliseconds) { Drains++; return StderrEof; }
+
+            public void Kill()
+            {
+                KillCalls++;
+                KillBehaviour b = Pick(Kills, KillCalls);
+                if (b.Throws) throw new InvalidOperationException("access is denied");
+                if (b.EndsIt) End(b.ExitCode);
+            }
+
+            public void Dispose() => Disposes++;
+
+            private static T Pick<T>(List<T> script, int oneBased) where T : new()
+            {
+                if (script.Count == 0) return new T();
+                return oneBased <= script.Count ? script[oneBased - 1] : script[script.Count - 1];
+            }
+        }
+
+        private sealed class Row
+        {
+            public string Name = "";
+            public string ExpectedKind = "";
+            public string ExpectedComplete = "";
+            public string ActualKind = "";
+            public string ActualComplete = "";
+            public int Quits, Kills;
+            public bool Exited, Abandoned;
+            public string Notes = "";
+
+            public bool Ok => ActualKind == ExpectedKind && ActualComplete == ExpectedComplete;
+
+            public override string ToString() =>
+                $"{(Ok ? "PASS" : "FAIL")} {Name} quits={Quits} kills={Kills} exited={Exited} "
+                + $"kind={ActualKind} complete={ActualComplete} abandoned={Abandoned}"
+                + (Ok ? "" : $"  <-- EXPECTED kind={ExpectedKind} complete={ExpectedComplete}")
+                + (Notes.Length == 0 ? "" : $"  [{Notes}]");
+        }
+
+        private static string KindText(CameraStopKind? k) => CameraObservation.Text(k) ?? "absent";
+
+        private static string CompleteText(CameraCompleteness c) => CameraObservation.Text(c);
+
+        /// <summary>Build an OPEN recorder with two real progress advances inside the stall window,
+        /// so the AC13 clause is satisfied and completeness is decided by the stop kind alone.</summary>
+        private static (FfmpegCameraRecorder rec, Proc proc, Clock clock) Healthy(
+            Action<Proc>? configure = null, bool twoAdvances = true)
+        {
+            var proc = new Proc();
+            configure?.Invoke(proc);
+            var clock = new Clock();
+            var rec = FfmpegCameraRecorder.CreateOver(proc, "QA Probe Cam", Out, LogPath,
+                TimeSpan.FromSeconds(5), clock.Now);
+            rec.Open();
+            if (twoAdvances)
+            {
+                clock.Advance(TimeSpan.FromSeconds(1));
+                proc.Emit(TickAt(1.0));
+                clock.Advance(TimeSpan.FromSeconds(1));
+                proc.Emit(TickAt(2.0));
+            }
+            return (rec, proc, clock);
+        }
+
+        private static Row Record(string name, string expectKind, string expectComplete,
+            FfmpegCameraRecorder rec, Proc proc, string notes = "") => new()
+            {
+                Name = name,
+                ExpectedKind = expectKind,
+                ExpectedComplete = expectComplete,
+                ActualKind = KindText(rec.StopKind),
+                ActualComplete = CompleteText(rec.Completeness),
+                Quits = proc.QuitCalls,
+                Kills = proc.KillCalls,
+                Exited = proc.HasExited,
+                Abandoned = rec.IsAbandoned,
+                Notes = notes,
+            };
+
+        private static void Try(Action a, List<string> thrown)
+        {
+            try { a(); }
+            catch (Exception ex) { thrown.Add(ex.GetType().Name); }
+        }
+
+        // ================= THE SCENARIOS =================
+
+        private static List<Row> RunAll(StringBuilder log)
+        {
+            var rows = new List<Row>();
+
+            // ---- THE THREE ROWS GATE ROUND 7 TURNS ON --------------------------------------
+            // A: round 1 delivers q and is REFUSED; the Dispose retry's write FAILS while the
+            //    process exits 0. The delivery belongs to a different round than the exit.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());                                // r1: delivered, ignored
+                    p.Quits.Add(new QuitBehaviour { WriteFails = true, Exits = 0 }); // r2: write fails, exits 0
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });               // r1: kill refused
+                });
+                Try(rec.Stop, thrown);
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0",
+                    "absent", "unknown", rec, proc, string.Join(",", thrown)));
+            }
+
+            // B (control): same, but round 1's quit was never delivered either.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour { WriteFails = true });            // r1: write fails, alive
+                    p.Quits.Add(new QuitBehaviour { WriteFails = true, Exits = 0 }); // r2: write fails, exits 0
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Stop, thrown);
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0",
+                    "absent", "unknown", rec, proc, string.Join(",", thrown)));
+            }
+
+            // C (control): the retry quit REALLY IS delivered and the process exits 0 in that
+            //    same round. Recovery success must still be recognised.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());              // r1: delivered, ignored
+                    p.Quits.Add(new QuitBehaviour { Exits = 0 });  // r2: delivered, exits 0
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Stop, thrown);
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("PRIOR_REFUSAL_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0",
+                    "clean-quit", "yes", rec, proc, string.Join(",", thrown)));
+            }
+
+            // C2: same as C but round 1's quit was NOT delivered - the recovery round alone earns it.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour { WriteFails = true });
+                    p.Quits.Add(new QuitBehaviour { Exits = 0 });
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Stop, thrown);
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0",
+                    "clean-quit", "yes", rec, proc, string.Join(",", thrown)));
+            }
+
+            // C3: the same cross-round join with the OTHER accepted code, 255.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Quits.Add(new QuitBehaviour { WriteFails = true, Exits = 255 });
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Stop, thrown);
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_255",
+                    "absent", "unknown", rec, proc, string.Join(",", thrown)));
+            }
+
+            // ---- ROUND-5 BLOCKERS ----------------------------------------------------------
+            // A delivered quit answered by ffmpeg's OWN error exit is not a clean quit.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p => p.Quits.Add(new QuitBehaviour { Exits = 1 }));
+                Try(rec.Stop, thrown);
+                rows.Add(Record("DELIVERED_QUIT_THEN_EXIT_1", "absent", "unknown", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            // The process died between the failed stop and the Dispose retry, unwatched.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Stop, thrown);
+                proc.End(0);                       // it died on its own, for a reason nothing watched
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("DIED_BEFORE_DISPOSE_RETRY", "absent", "unknown", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            // ---- ROUND-6 BLOCKERS ----------------------------------------------------------
+            // A DIRECT Dispose is itself the first round: one refused kill is not "abandoned".
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });    // r1 refused
+                    p.Kills.Add(new KillBehaviour { EndsIt = true });     // r2 kill lands
+                });
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("DIRECT_DISPOSE_ONE_KILL_THEN_RETRY_KILL_LANDS", "force-killed", "no",
+                    rec, proc, $"kills={proc.KillCalls};{string.Join(",", thrown)}"));
+            }
+
+            // Genuine three-clause abandoned: two refused rounds, two quits, two kills.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("DIRECT_DISPOSE_TWO_REFUSED_ROUNDS", "abandoned", "unknown", rec, proc,
+                    $"quits={proc.QuitCalls} kills={proc.KillCalls};{string.Join(",", thrown)}"));
+            }
+
+            // Recovery after a genuinely earned abandoned: the durable record stays abandoned.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Quits.Add(new QuitBehaviour { Exits = 0 });   // the recovery quit lands
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Dispose, thrown);
+                string earned = KindText(rec.StopKind);
+                Try(rec.Stop, thrown);                              // recovery sweep
+                rows.Add(Record("RECOVERY_AFTER_ABANDONED", "abandoned", "unknown", rec, proc,
+                    $"earnedBefore={earned};{string.Join(",", thrown)}"));
+            }
+
+            // Repeated Dispose after an earned abandoned.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Dispose, thrown);
+                Try(rec.Dispose, thrown);
+                Try(rec.Dispose, thrown);
+                rows.Add(Record("REPEATED_DISPOSE", "abandoned", "unknown", rec, proc,
+                    $"quits={proc.QuitCalls} kills={proc.KillCalls};{string.Join(",", thrown)}"));
+            }
+
+            // Stop -> Dispose -> Recover on a recorder whose process is finally reachable.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Quits.Add(new QuitBehaviour { Exits = 255 });
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });
+                });
+                Try(rec.Stop, thrown);
+                Try(rec.Dispose, thrown);
+                Try(rec.Stop, thrown);
+                rows.Add(Record("STOP_DISPOSE_RECOVER", "abandoned", "unknown", rec, proc,
+                    $"quits={proc.QuitCalls} kills={proc.KillCalls};{string.Join(",", thrown)}"));
+            }
+
+            // A stop attempt interleaved with a recovery sweep on a LIVE recorder, then it dies.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());                       // r1 delivered, ignored
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });      // r1 refused
+                    p.Quits.Add(new QuitBehaviour { WriteFails = true });   // sweep: write fails, alive
+                    p.Kills.Add(new KillBehaviour { EndsIt = false });      // sweep: refused -> abandoned
+                });
+                Try(rec.Stop, thrown);
+                Try(rec.Stop, thrown);
+                proc.End(0);                                                // it dies unwatched afterwards
+                rows.Add(Record("STOP_SWEEP_THEN_UNWATCHED_EXIT_0", "abandoned", "unknown", rec, proc,
+                    $"quits={proc.QuitCalls} kills={proc.KillCalls};{string.Join(",", thrown)}"));
+            }
+
+            // ---- AC17 POSITIVE CONTROL AND THE EXIT SET ------------------------------------
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p => p.Quits.Add(new QuitBehaviour { Exits = 255 }));
+                Try(rec.Stop, thrown);
+                rows.Add(Record("AC17_HEALTHY_EXIT_255", "clean-quit", "yes", rec, proc,
+                    string.Join(",", thrown)));
+            }
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p => p.Quits.Add(new QuitBehaviour { Exits = 0 }));
+                Try(rec.Stop, thrown);
+                rows.Add(Record("AC17_HEALTHY_EXIT_0", "clean-quit", "yes", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            // 255 earns the STOP KIND only - not completeness - when stderr is incomplete.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour { Exits = 255 });
+                    p.StderrEof = false;
+                });
+                Try(rec.Stop, thrown);
+                rows.Add(Record("EXIT_255_INCOMPLETE_STDERR", "clean-quit", "unknown", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            // The enumerated accepted set: everything else earns NO stop kind.
+            foreach (int code in new[] { 1, 2, 69, 137, 254, 256, int.MaxValue, -5, -1 })
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p => p.Quits.Add(new QuitBehaviour { Exits = code }));
+                Try(rec.Stop, thrown);
+                rows.Add(Record($"DELIVERED_QUIT_THEN_EXIT_{code}", "absent", "unknown", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            // ---- AC13 / AC14 / AC15 / AC10 -------------------------------------------------
+            // AC13: one tick, then a stall for the rest of the session, then a clean quit.
+            {
+                var thrown = new List<string>();
+                var proc = new Proc();
+                proc.Quits.Add(new QuitBehaviour { Exits = 0 });
+                var clock = new Clock();
+                var rec = FfmpegCameraRecorder.CreateOver(proc, "QA Probe Cam", Out, LogPath,
+                    TimeSpan.FromSeconds(5), clock.Now);
+                rec.Open();
+                clock.Advance(TimeSpan.FromSeconds(0.5));
+                proc.Emit(TickAt(0.5));                       // ONE advance
+                clock.Advance(TimeSpan.FromSeconds(30));      // then a 30s stall
+                proc.Emit(TickAt(0.5));                       // repeats, never advances
+                Try(rec.Stop, thrown);
+                rows.Add(Record("AC13_ONE_TICK_THEN_STALL", "clean-quit", "unknown", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            // AC14: ffmpeg ignores q, the kill lands - force-killed, no, and the stop THROWS.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour());
+                    p.Kills.Add(new KillBehaviour { EndsIt = true });
+                });
+                Try(rec.Stop, thrown);
+                rows.Add(Record("AC14_FORCE_KILLED", "force-killed", "no", rec, proc,
+                    $"threw={string.Join(",", thrown)}"));
+            }
+
+            // AC15: clean quit, but the stderr never reached EOF.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy(p =>
+                {
+                    p.Quits.Add(new QuitBehaviour { Exits = 0 });
+                    p.StderrEof = false;
+                });
+                Try(rec.Stop, thrown);
+                rows.Add(Record("AC15_INCOMPLETE_STDERR", "clean-quit", "unknown", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            // AC10: the camera died mid-run, before any stop was asked for.
+            {
+                var thrown = new List<string>();
+                var (rec, proc, _) = Healthy();
+                proc.End(0);
+                Try(rec.Stop, thrown);
+                rows.Add(Record("AC10_EXITED_EARLY", "exited-early", "no", rec, proc,
+                    string.Join(",", thrown)));
+            }
+
+            foreach (Row r in rows) log.AppendLine(r.ToString());
+            return rows;
+        }
+
+        /// <summary>
+        /// THE DESIGN PROPERTY, checked over the COMPILED ARTIFACT rather than over source text: a
+        /// call site must not be able to record a stop kind it has not earned.
+        ///
+        /// Three arms. Expected: no stored/assignable CameraStopKind anywhere in AgentEyes.Core
+        /// outside the derivation, and the inventory is NON-EMPTY. Bad: any writable holder.
+        /// EMPTY inventory = a broken instrument (which is exactly what happened when this was first
+        /// attempted through Assembly.LoadFrom from PowerShell - GetTypes threw and the check printed
+        /// "NONE"), so the type count is asserted before anything is concluded from an absence.
+        /// </summary>
+        [Fact]
+        public void QaRound9_NoCallSiteCanStoreAStopKind()
+        {
+            System.Reflection.Assembly core = typeof(CameraStopKind).Assembly;
+            Type[] types = core.GetTypes();
+            Assert.True(types.Length > 50,
+                $"the type inventory returned only {types.Length} types - a broken instrument, not a clean run");
+
+            const System.Reflection.BindingFlags All =
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic
+                | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static;
+
+            static Type Unwrap(Type t) =>
+                t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>)
+                    ? t.GetGenericArguments()[0] : t;
+
+            var holders = new List<string>();
+            var writableProps = new List<string>();
+            var takesOne = new List<string>();
+            int inspected = 0;
+
+            foreach (Type t in types)
+            {
+                inspected++;
+                // The enum's OWN members are literal static fields of the enum type - they are the
+                // vocabulary, not a place a call site could store an answer. Everything else is.
+                if (!t.IsEnum)
+                    foreach (var f in t.GetFields(All))
+                        if (!f.IsLiteral && Unwrap(f.FieldType) == typeof(CameraStopKind))
+                            holders.Add($"{t.FullName}.{f.Name}");
+
+                foreach (var p in t.GetProperties(All))
+                    if (Unwrap(p.PropertyType) == typeof(CameraStopKind) && p.CanWrite)
+                        writableProps.Add($"{t.FullName}.{p.Name}");
+
+                foreach (var m in t.GetMethods(All))
+                    foreach (var par in m.GetParameters())
+                        if (Unwrap(par.ParameterType) == typeof(CameraStopKind))
+                            takesOne.Add($"{t.FullName}.{m.Name}({par.Name})");
+            }
+
+            var report = new StringBuilder();
+            report.AppendLine($"types inspected: {inspected}");
+            report.AppendLine($"fields storing a CameraStopKind: {holders.Count} [{string.Join(", ", holders)}]");
+            report.AppendLine($"writable CameraStopKind properties: {writableProps.Count} "
+                              + $"[{string.Join(", ", writableProps)}]");
+            report.AppendLine($"methods accepting a CameraStopKind: {takesOne.Count} "
+                              + $"[{string.Join(", ", takesOne)}]");
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "qa-r9-designprop.txt"), report.ToString());
+
+            // A stored stop kind is the shape every one of gate rounds 3-6 rejected: something a
+            // call site can write. The derivation is a computed property over the history, so it
+            // needs no storage at all.
+            Assert.True(holders.Count == 0, "\n" + report);
+            Assert.True(writableProps.Count == 0, "\n" + report);
+            // Nothing may TAKE a stop kind either - that is how a caller would say "abandoned".
+            // CameraObservation.Text is the manifest's renderer, not a recorder, so it is the one
+            // permitted member and it is named explicitly rather than filtered by a pattern.
+            Assert.All(takesOne, s => Assert.Equal("AgentEyes.Video.CameraObservation.Text(kind)", s));
+            // PRESENCE, not absence: the two permitted members must actually have been seen, or the
+            // filter walked past the type it was meant to inspect.
+            Assert.Equal(2, takesOne.Count);
+        }
+
+        [Fact]
+        public void QaRound9_TerminationHistoryProbe()
+        {
+            var log = new StringBuilder();
+            List<Row> rows = RunAll(log);
+            string text = log.ToString();
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "qa-r9-probe-output.txt"), text);
+            Assert.True(rows.Count >= 25,
+                $"the probe produced only {rows.Count} rows - a broken instrument, not a clean run");
+            Assert.True(rows.TrueForAll(r => r.Ok), "\n" + text);
+        }
+    }
+}
