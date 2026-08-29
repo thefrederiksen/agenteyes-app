@@ -1,0 +1,47 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-08-29T07:35:42.7223282Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "Microphone (HD Webcam eMeet C960)",
+  "DurationSeconds": 26.2,
+  "VideoFile": "recording.mp4",
+  "CameraFile": "camera.mp4",
+  "CameraStartOffsetSeconds": -0.59,
+  "CameraCapturedSeconds": 26.69,
+  "CameraStopKind": "clean-quit",
+  "CameraStderrComplete": true,
+  "CameraComplete": "yes",
+  "PreviewOverlayCorner": "bottom-right",
+  "PreviewOverlayShape": "rectangle",
+  "PreviewOverlayInset": 0.3,
+  "FfmpegCommand": "\u0022C:\\Users\\soren\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\ffmpeg.exe\u0022 -y -f gdigrab -thread_queue_size 1024 -framerate 15 -offset_x 1920 -offset_y -5 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i \u0022audio=Microphone (HD Webcam eMeet C960)\u0022 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k C:\\Users\\soren\\Videos\\AgentEyes\\2026-08-29_033542_video\\raw.mp4 -map 0:v -vf \u0022fps=10,scale=-2:270:flags=neighbor\u0022 -q:v 8 -pix_fmt yuvj420p -an -f mjpeg -flush_packets 1 pipe:1",
+  "Transcripts": {},
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [],
+  "Files": [
+    "recording.mp4",
+    "camera.mp4",
+    "recording.original.mp4"
+  ],
+  "OriginalFiles": [
+    "recording.original.mp4"
+  ],
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-08-29T07:36:10.7766866Z"
+    },
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-08-29T07:36:11.4620073Z"
+    }
+  }
+}
