@@ -1,0 +1,99 @@
+param([string]$Action = 'inspect', [string]$Arg = '', [string]$Out = '')
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
+
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+
+function Find-Hud {
+    for ($i = 0; $i -lt 30; $i++) {
+        $w = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'Recording HUD') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+        if ($w) { return $w }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'HUD window "Recording HUD" not found within 12s'
+}
+
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class PW {
+  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint f);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+}
+"@
+
+function Save-HudShot($hud, $path) {
+    $h = [IntPtr]$hud.Current.NativeWindowHandle
+    $r = New-Object PW+RECT
+    [void][PW]::GetWindowRect($h, [ref]$r)
+    $w = $r.R - $r.L; $ht = $r.B - $r.T
+    $bmp = New-Object System.Drawing.Bitmap($w, $ht)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $hdc = $g.GetHdc()
+    [void][PW]::PrintWindow($h, $hdc, 2)
+    $g.ReleaseHdc($hdc); $g.Dispose()
+    $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+    # non-blank check: count distinct colours
+    $colors = @{}
+    for ($y = 0; $y -lt $bmp.Height; $y += 7) { for ($x = 0; $x -lt $bmp.Width; $x += 7) { $colors[$bmp.GetPixel($x, $y).ToArgb()] = 1 } }
+    $n = $colors.Count
+    $bmp.Dispose()
+    Write-Output ("SHOT {0}  size={1}x{2}  distinctColors={3}" -f $path, $w, $ht, $n)
+}
+
+$hud = Find-Hud
+$hwnd = $hud.Current.NativeWindowHandle
+
+switch ($Action) {
+    'inspect' {
+        $br = $hud.Current.BoundingRectangle
+        Write-Output ("HUD rect: X={0} Y={1} W={2} H={3}" -f $br.X, $br.Y, $br.Width, $br.Height)
+        $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+        function Dump($e, $d) {
+            if ($d -gt 6) { return }
+            $c = $walker.GetFirstChild($e)
+            while ($c) {
+                $help = ''
+                try { $help = $c.Current.HelpText } catch {}
+                $en = ''
+                try { $en = $c.Current.IsEnabled } catch {}
+                Write-Output ("{0}[{1}] name='{2}' help='{3}' enabled={4} rect={5}" -f ('  ' * $d), $c.Current.ControlType.ProgrammaticName, $c.Current.Name, $help, $en, $c.Current.BoundingRectangle)
+                Dump $c ($d + 1)
+                $c = $walker.GetNextSibling($c)
+            }
+        }
+        Dump $hud 1
+    }
+    'shot' { Save-HudShot $hud $Out }
+    'click' {
+        $b = $hud.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found" }
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Start-Sleep -Milliseconds 700
+        Write-Output "clicked '$Arg'"
+    }
+    'read' {
+        $t = $hud.FindFirst('Descendants', (NameIs $Arg))
+        if (-not $t) { throw "element '$Arg' not found" }
+        $v = ''
+        try { $v = ($t.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)).Current.Value } catch {}
+        Write-Output ("ELEMENT '{0}' name='{1}' help='{2}' value='{3}' rect={4}" -f $Arg, $t.Current.Name, $t.Current.HelpText, $v, $t.Current.BoundingRectangle)
+    }
+    'resize' {
+        $parts = $Arg.Split(',')
+        $tp = $hud.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        Write-Output ("CanResize={0}" -f $tp.Current.CanResize)
+        $tp.Resize([double]$parts[0], [double]$parts[1])
+        Start-Sleep -Milliseconds 800
+        $br = $hud.Current.BoundingRectangle
+        Write-Output ("HUD rect after resize: X={0} Y={1} W={2} H={3}" -f $br.X, $br.Y, $br.Width, $br.Height)
+    }
+    'rect' {
+        $br = $hud.Current.BoundingRectangle
+        Write-Output ("HUD rect: X={0} Y={1} W={2} H={3}" -f $br.X, $br.Y, $br.Width, $br.Height)
+    }
+}
