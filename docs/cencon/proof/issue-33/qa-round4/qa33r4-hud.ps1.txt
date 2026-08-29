@@ -1,0 +1,165 @@
+param([string]$Action = 'rect', [string]$Arg = '')
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+
+if (-not ('W32' -as [type])) {
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class W32 {
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", SetLastError=true)] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);
+}
+'@
+}
+
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+
+function Find-Hud {
+    for ($i = 0; $i -lt 30; $i++) {
+        $w = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'Recording HUD') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+        if ($w) { return $w }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'HUD window "Recording HUD" not found within 12s'
+}
+$hud = Find-Hud
+function Rect() { $br = $hud.Current.BoundingRectangle; "X=$($br.X) Y=$($br.Y) W=$($br.Width) H=$($br.Height)" }
+
+switch ($Action) {
+    'rect'  { Write-Output ("HUD rect: " + (Rect)) }
+    'image' {
+        $img = $hud.FindFirst('Descendants', (TypeIs ([System.Windows.Automation.ControlType]::Image)))
+        if (-not $img) { Write-Output "IMAGE: not found"; break }
+        Write-Output ("IMAGE rect=" + $img.Current.BoundingRectangle)
+    }
+    'tree' {
+        $all = $hud.FindAll('Descendants', [System.Windows.Automation.Condition]::TrueCondition)
+        foreach ($e in $all) {
+          Write-Output ("  [{0}] name='{1}' help='{2}' enabled={3} rect={4}" -f $e.Current.ControlType.ProgrammaticName.Replace('ControlType.',''), $e.Current.Name, $e.Current.HelpText, $e.Current.IsEnabled, $e.Current.BoundingRectangle)
+        }
+    }
+    'text' {
+        $all = $hud.FindAll('Descendants', (TypeIs ([System.Windows.Automation.ControlType]::Text)))
+        foreach ($e in $all) { Write-Output ("  TEXT name='{0}' value='{1}'" -f $e.Current.Name, $e.Current.Name) }
+    }
+    'click' {
+        $b = $hud.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found" }
+        if (-not $b.Current.IsEnabled) { Write-Output "button '$Arg' is DISABLED"; break }
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Start-Sleep -Milliseconds 700
+        Write-Output ("clicked '$Arg' -> HUD rect: " + (Rect))
+    }
+    'resize' {
+        $p = $Arg.Split(',')
+        $tp = $hud.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        Write-Output ("CanResize=" + $tp.Current.CanResize)
+        $tp.Resize([double]$p[0], [double]$p[1])
+        Start-Sleep -Milliseconds 900
+        Write-Output ("HUD rect after resize: " + (Rect))
+    }
+    'move' {
+        $p = $Arg.Split(',')
+        $tp = $hud.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        $tp.Move([double]$p[0], [double]$p[1])
+        Start-Sleep -Milliseconds 800
+        Write-Output ("HUD rect after move: " + (Rect))
+    }
+    'minrestore' {
+        $h = [IntPtr]$hud.Current.NativeWindowHandle
+        [void][W32]::ShowWindow($h, 6)     # SW_MINIMIZE
+        Start-Sleep -Milliseconds 900
+        Write-Output ("minimised: IsIconic=" + [W32]::IsIconic($h))
+        [void][W32]::ShowWindow($h, 9)     # SW_RESTORE
+        Start-Sleep -Milliseconds 1200
+        Write-Output ("restored -> HUD rect: " + (Rect))
+    }
+    'gripdrag' {
+        # Drag the preview panel's resize grip by POSTING mouse messages to the HUD's own message
+        # queue (client coordinates). No global input is synthesized: the physical cursor is not
+        # moved, no window is force-foregrounded, and nothing is stolen from the human's session.
+        $delta = $Arg.Split(',')
+        $g = $hud.FindFirst('Descendants', (NameIs 'HUD resize'))
+        if (-not $g) { throw 'grip "HUD resize" not found' }
+        $gr = $g.Current.BoundingRectangle
+        $wr = $hud.Current.BoundingRectangle
+        $h  = [IntPtr]$hud.Current.NativeWindowHandle
+        $cx = [int]($gr.X + $gr.Width / 2 - $wr.X)
+        $cy = [int]($gr.Y + $gr.Height / 2 - $wr.Y)
+        Write-Output ("grip client point = $cx,$cy ; HUD rect before: " + (Rect))
+        function MkLParam($x, $y) { [IntPtr][int]((([int]$y -band 0xFFFF) * 65536) + ([int]$x -band 0xFFFF)) }
+        [void][W32]::PostMessage($h, 0x0201, [IntPtr]1, (MkLParam $cx $cy))              # WM_LBUTTONDOWN
+        Start-Sleep -Milliseconds 250
+        for ($i = 1; $i -le 8; $i++) {
+            [void][W32]::PostMessage($h, 0x0200, [IntPtr]1, (MkLParam ($cx + [int]$delta[0] * $i / 8) ($cy + [int]$delta[1] * $i / 8)))
+            Start-Sleep -Milliseconds 90
+        }
+        [void][W32]::PostMessage($h, 0x0202, [IntPtr]0, (MkLParam ($cx + [int]$delta[0]) ($cy + [int]$delta[1])))  # WM_LBUTTONUP
+        Start-Sleep -Milliseconds 900
+        Write-Output ("after the grip drag: HUD rect: " + (Rect))
+    }
+    'grippatterns' {
+        $g = $hud.FindFirst('Descendants', (BothOf (NameIs 'HUD resize') ([System.Windows.Automation.Condition]::TrueCondition)))
+        if (-not $g) { Write-Output 'GRIP: not found'; break }
+        Write-Output ("GRIP rect=" + $g.Current.BoundingRectangle + " type=" + $g.Current.ControlType.ProgrammaticName)
+        foreach ($p in $g.GetSupportedPatterns()) { Write-Output ("  pattern: " + $p.ProgrammaticName) }
+    }
+    'grip' {
+        # Drive the panel's resize grip through the Thumb's OWN automation peer. WPF's
+        # ThumbAutomationPeer serves TransformPattern.Move by raising the Thumb's real
+        # DragStarted/DragDelta/DragCompleted - i.e. the production grip path, with no global
+        # input synthesized and no window force-foregrounded.
+        $p = $Arg.Split(',')
+        $g = $hud.FindFirst('Descendants', (NameIs 'HUD resize'))
+        if (-not $g) { throw 'grip "HUD resize" not found' }
+        $tp = $g.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        $tp.Move([double]$p[0], [double]$p[1])
+        Start-Sleep -Milliseconds 900
+        Write-Output ("after the grip drag: HUD rect: " + (Rect))
+    }
+    'hwndresize' {
+        # A bare SetWindowPos with NO gesture behind it - the general shape of every layout-driven
+        # size change (a DPI change, a monitor change, a restore, a future panel's own layout, and
+        # what UI Automation itself did before the HUD served TransformPattern). The window really
+        # takes the size; nothing may be remembered from it.
+        $p = $Arg.Split(',')
+        $h = [IntPtr]$hud.Current.NativeWindowHandle
+        [void][W32]::SetWindowPos($h, [IntPtr]0, 0, 0, [int]$p[0], [int]$p[1], 0x0002 -bor 0x0004 -bor 0x0010)
+        Start-Sleep -Milliseconds 900
+        Write-Output ("after a bare SetWindowPos to $Arg (no gesture): HUD rect: " + (Rect))
+    }
+    'dpichange' {
+        # WM_DPICHANGED posted to the window's own queue, then a real size change with no gesture.
+        $h = [IntPtr]$hud.Current.NativeWindowHandle
+        [void][W32]::PostMessage($h, 0x02E0, [IntPtr]((120 -shl 16) -bor 120), [IntPtr]0)
+        Start-Sleep -Milliseconds 800
+        Write-Output ("after WM_DPICHANGED: HUD rect: " + (Rect))
+    }
+    'close' {
+        $h = [IntPtr]$hud.Current.NativeWindowHandle
+        [void][W32]::PostMessage($h, 0x0010, [IntPtr]0, [IntPtr]0)      # WM_CLOSE
+        Start-Sleep -Milliseconds 1500
+        Write-Output "WM_CLOSE posted to the HUD"
+    }
+    'borderdrag' {
+        # Drive the REAL Win32 resize-modal loop with messages POSTED to the window's own queue.
+        # No global input is synthesized and the window is never force-foregrounded.
+        $h = [IntPtr]$hud.Current.NativeWindowHandle
+        $steps = [int]$Arg; if ($steps -le 0) { $steps = 40 }
+        [void][W32]::PostMessage($h, 0x0112, [IntPtr]0xF008, [IntPtr]0)   # WM_SYSCOMMAND SC_SIZE
+        Start-Sleep -Milliseconds 600
+        [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x27, [IntPtr]0)     # VK_RIGHT: pick the right edge
+        Start-Sleep -Milliseconds 200
+        for ($i = 0; $i -lt $steps; $i++) { [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x27, [IntPtr]0); Start-Sleep -Milliseconds 25 }
+        [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x0D, [IntPtr]0)     # VK_RETURN: commit
+        Start-Sleep -Milliseconds 1200
+        Write-Output ("after border drag: HUD rect: " + (Rect))
+    }
+}

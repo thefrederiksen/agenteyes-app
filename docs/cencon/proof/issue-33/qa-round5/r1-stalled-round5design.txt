@@ -1,0 +1,39 @@
+[05:02:04.658] ARMED=True
+[05:02:04.667] TAG=R1-STALLED-round5design seconds=45 camera='HD Webcam eMeet C960'
+[05:02:04.667] Core assembly: <QA-SCRATCH>\r5probe\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+[05:02:04.668] Core assembly written: 2026-08-29T05:02:03
+[05:02:07.444] state=recording dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_050206_video PreviewAvailable=True
+[05:02:08.458]   +1s state=recording elapsed=1.04 framesRead screen=15 camera=16 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:02:09.469]   +2s state=recording elapsed=2.06 framesRead screen=25 camera=26 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:02:10.479]   +3s state=recording elapsed=3.07 framesRead screen=35 camera=36 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:02:12.511]   +5s state=recording elapsed=5.1 framesRead screen=55 camera=56 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:02:17.577]   +10s state=recording elapsed=10.17 framesRead screen=106 camera=107 publishing=True previewFailed=False screenFrameFile=13929B cameraFrameFile=1573B
+[05:02:22.640]   +15s state=recording elapsed=15.23 framesRead screen=153 camera=157 publishing=True previewFailed=False screenFrameFile=13929B cameraFrameFile=1573B
+[05:02:27.712]   +20s state=recording elapsed=20.3 framesRead screen=204 camera=208 publishing=True previewFailed=False screenFrameFile=13738B cameraFrameFile=1746B
+[05:02:32.776]   +25s state=recording elapsed=25.36 framesRead screen=255 camera=259 publishing=True previewFailed=False screenFrameFile=13665B cameraFrameFile=1930B
+[05:02:37.850]   +30s state=recording elapsed=30.44 framesRead screen=306 camera=310 publishing=True previewFailed=False screenFrameFile=13665B cameraFrameFile=1930B
+[05:02:42.922]   +35s state=recording elapsed=35.51 framesRead screen=356 camera=360 publishing=True previewFailed=False screenFrameFile=13734B cameraFrameFile=2082B
+[05:02:47.997]   +40s state=recording elapsed=40.59 framesRead screen=405 camera=411 publishing=True previewFailed=False screenFrameFile=13831B cameraFrameFile=1784B
+[05:02:53.064]   +45s state=recording elapsed=45.66 framesRead screen=456 camera=462 publishing=True previewFailed=False screenFrameFile=13831B cameraFrameFile=1784B
+[05:02:53.068] STOPPING at wall=47.2s elapsed=45.66
+[05:03:03.141] Stop() returned in 10072ms
+[05:03:05.659] after stop: state=idle LastStopFailed=False err=(none)
+[05:03:05.659] final framesRead screen=456 camera=462
+[05:03:05.659] raw.mp4       exists=True size=2545246
+[05:03:05.803] ffprobe raw.mp4      : duration=49.066016
+[05:03:05.804] recording.mp4 exists=False size=-
+[05:03:05.804] camera.mp4    exists=True size=43878837
+[05:03:05.956] ffprobe recording.mp4: C:\Users\soren\Videos\AgentEyes\2026-08-29_050206_video\recording.mp4: No such file or directory
+[05:03:06.060] ffprobe camera.mp4   : duration=49.433284
+[05:03:06.060]    manifest| "DurationSeconds": 45.67,
+[05:03:06.060]    manifest| "CameraFile": "camera.mp4",
+[05:03:06.060]    manifest| "CameraStartOffsetSeconds": -0.587,
+[05:03:06.060]    manifest| "CameraCapturedSeconds": 49.29,
+[05:03:06.060]    manifest| "CameraStopKind": "clean-quit",
+[05:03:06.060]    manifest| "CameraStderrComplete": true,
+[05:03:06.060]    manifest| "CameraComplete": "yes",
+[05:03:06.060]    manifest| "PreviewOverlayCorner": "bottom-right",
+[05:03:06.060]    manifest| "FfmpegCommand": "\u0022C:\\Users\\soren\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\ffmpeg.exe\u0022 -y -f gdigrab -thread_queue_size 1024 -framerate 30 -offset_x 1920 -offset_y -5 -video_size 1920x1080 -i desktop -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 C:\\Users\\soren\\V ...
+[05:03:06.060]    manifest| "RawDurationSeconds": 45.67,
+[05:03:06.060] DIR=C:\Users\soren\Videos\AgentEyes\2026-08-29_050206_video
+[05:03:06.060] DONE R1-STALLED-round5design

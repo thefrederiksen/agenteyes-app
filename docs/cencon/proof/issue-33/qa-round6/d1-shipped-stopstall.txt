@@ -1,0 +1,41 @@
+﻿===================================================================
+DEFECT 1 RUNTIME PROBE   build=shipped  scenario=stopstall  run=12s
+exe = D:\ReposFred\agenteyes-qa33-r6\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+AgentEyesApp.dll sha256 = B7E7A67631454E37CDA3BD96B51B7F93977B88E56473D729573E5CC3574CCF97
+agenteyes.dll    sha256 = CD9F64C8F06250B5ABF8ED28F327953E3DD59F686E5DB00A691F7B212EB8AC0F
+===================================================================
+PREVIEW PATH BEFORE START: real local directory
+armed=True state=idle
+START  POST /record/start -> HTTP 200 in 1.7 s
+START  /status reached 'recording' = True after 15 ms (state=recording)
+MID    framesRead=118/123 publishing=False previewFailed=False
+MID    files in the preview dir before the stall: 
+MID    PREVIEW PATH SWAPPED MID-RECORDING: C:\Users\soren\AppData\Local\AgentEyes\preview is a SymbolicLink -> UNC\149.112.112.112\share
+MID    +4s state=recording framesRead=159/164 previewFailed=False
+STOP   POST /record/stop -> HTTP 200 in 8.92 s
+STOP   /status returned to 'idle' = True after 8 ms (state=idle)
+  recording dir: C:\Users\soren\Videos\AgentEyes\2026-08-29_092910_video
+    recording.mp4 duration=20.2
+    camera.mp4    duration=20.799979
+    "DurationSeconds": 20.2,
+    "CameraStopKind": "clean-quit",
+    "CameraComplete": "yes",
+--- preview / chores lines in the shared log after the marker ---
+    09:29:10.647 [INFO] [PreviewTap] TryCreate: track=screen frame=C:\Users\soren\AppData\Local\AgentEyes\preview\screen.jpg
+    09:29:10.648 [INFO] [PreviewTap] TryCreate: track=screen ready
+    09:29:10.648 [INFO] [PreviewTap] TryCreate: track=camera frame=C:\Users\soren\AppData\Local\AgentEyes\preview\camera.jpg
+    09:29:10.648 [INFO] [PreviewTap] TryCreate: track=camera ready
+    09:29:10.648 [INFO] [RecordingService] StartVideo: preview armed=True screenTap=True cameraTap=True
+    09:29:10.674 [INFO] [PreviewTap] Pump: track=camera starting
+    09:29:11.401 [INFO] [PreviewTap] Pump: track=screen starting
+    09:29:11.514 [INFO] [PreviewTap] Drain: track=camera first frame, 15172 bytes
+    09:29:12.690 [INFO] [PreviewTap] Drain: track=screen first frame, 21029 bytes
+    09:29:31.997 [INFO] [PreviewTap] Drain: track=screen ended at end of stream (framesRead=202 framesPublished=0 framesDropped=0 oversizeDrops=0)
+    09:29:33.154 [INFO] [PreviewTap] Drain: track=camera ended at end of stream (framesRead=208 framesPublished=0 framesDropped=0 oversizeDrops=0)
+    09:29:33.170 [INFO] [PreviewTap] Dispose: track=screen framesRead=202 framesPublished=0 framesDropped=0
+    09:29:35.173 [WARN] [PreviewChores] Remove for C:\Users\soren\AppData\Local\AgentEyes\preview\screen.jpg did not finish within 2000ms. The preview filesystem is not answering, so this recording carries on without waiting for it (issue #33, AC10).
+    09:29:35.173 [INFO] [PreviewTap] PublishLoop: track=screen ended (framesPublished=0 framesDropped=0)
+    09:29:35.173 [INFO] [PreviewTap] Dispose: track=camera framesRead=208 framesPublished=0 framesDropped=0
+    09:29:37.188 [WARN] [PreviewChores] Remove for C:\Users\soren\AppData\Local\AgentEyes\preview\camera.jpg did not finish within 2000ms. The preview filesystem is not answering, so this recording carries on without waiting for it (issue #33, AC10).
+    09:29:37.188 [INFO] [PreviewTap] PublishLoop: track=camera ended (framesPublished=0 framesDropped=0)
+DONE

@@ -50,13 +50,20 @@ namespace AgentEyes.Video
             _logPath = logPath;
         }
 
+        /// <param name="preview">Issue #33: the HUD's live screen preview, or null for none. When one
+        /// is supplied ffmpeg gains a second, small MJPEG output on its STDOUT and this hands the tap
+        /// that pipe. The tap drains it unconditionally for the life of the process - an anonymous
+        /// pipe nobody reads fills, and a full pipe would block the ffmpeg writing the recording, so
+        /// the preview output is added ONLY when there is a tap to drain it.</param>
         public static FfmpegRecorder Start(
-            Drawing.Rectangle capture, string? dshowMicName, int fps, int crf, string outPath)
+            Drawing.Rectangle capture, string? dshowMicName, int fps, int crf, string outPath,
+            Preview.PreviewTap? preview = null)
         {
             string exe = FfmpegLocator.Ffmpeg();
             // Pass the virtual-desktop bounds so an oversized social-format region is grabbed clamped
             // and padded back to its exact size instead of failing gdigrab (issue #69).
-            var args = FfmpegArgs.VideoCapture(capture, dshowMicName, fps, crf, outPath, Monitors.VirtualBounds());
+            var args = FfmpegArgs.VideoCapture(
+                capture, dshowMicName, fps, crf, outPath, Monitors.VirtualBounds(), previewStream: preview != null);
             string cmd = FfmpegArgs.ToCommandLine(exe, args);
 
             var psi = new ProcessStartInfo
@@ -84,7 +91,10 @@ namespace AgentEyes.Video
                 long ms = ParseProgressMs(e.Data);
                 if (ms >= 0) System.Threading.Interlocked.Exchange(ref rec._mediaMs, ms);
             };
-            proc.OutputDataReceived += (_, _) => { };
+            // Stdout carries the preview stream when there is a tap, and nothing at all when there is
+            // not. The two readers are mutually exclusive by construction: BeginOutputReadLine takes
+            // the stream for itself, so wiring both would leave the preview reading a closed pipe.
+            if (preview == null) proc.OutputDataReceived += (_, _) => { };
 
             if (!proc.Start())
             {
@@ -92,7 +102,8 @@ namespace AgentEyes.Video
             }
             rec.StartedUtc = DateTime.UtcNow;
             proc.BeginErrorReadLine();
-            proc.BeginOutputReadLine();
+            if (preview == null) proc.BeginOutputReadLine();
+            else preview.Pump(proc.StandardOutput.BaseStream);
 
             // Give ffmpeg a moment to initialize the capture; surface an early crash clearly.
             Thread.Sleep(400);

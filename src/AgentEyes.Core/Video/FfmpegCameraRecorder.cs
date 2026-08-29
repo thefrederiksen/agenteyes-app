@@ -549,9 +549,16 @@ namespace AgentEyes.Video
         /// (issue #155): "a field is set the moment its writer is constructed, so a writer whose
         /// Start threw is still in <c>LiveWriters</c> and still gets stopped and disposed."
         /// </summary>
-        public static FfmpegCameraRecorder Create(string dshowCameraName, int fps, int crf, string outPath)
+        /// <param name="preview">Issue #33: the HUD's live camera preview, or null for none. Supplying
+        /// one adds a second, small MJPEG output on ffmpeg's STDOUT and hands the tap that pipe. It is
+        /// the only mechanism that can preview this camera at all while the recording runs, because
+        /// this process holds the DirectShow device exclusively (assumption C1) - and it is the reason
+        /// the preview cannot cost the recording its device.</param>
+        public static FfmpegCameraRecorder Create(
+            string dshowCameraName, int fps, int crf, string outPath, Preview.PreviewTap? preview = null)
         {
-            Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" fps={fps} crf={crf} out={outPath}");
+            Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" fps={fps} crf={crf} "
+                     + $"out={outPath} preview={(preview != null ? "yes" : "no")}");
 
             // A DirectShow camera is EXCLUSIVE, so anything in this process that is holding one -
             // today that is the preset editor's live preview (issue #29) - is told to let go BEFORE
@@ -561,7 +568,7 @@ namespace AgentEyes.Video
             CameraDeviceArbiter.ReleaseForRecording(dshowCameraName);
 
             string exe = FfmpegLocator.Ffmpeg();
-            var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath);
+            var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath, previewStream: preview != null);
             string cmd = FfmpegArgs.ToCommandLine(exe, args);
 
             var psi = new ProcessStartInfo
@@ -577,7 +584,7 @@ namespace AgentEyes.Video
             foreach (var a in args) psi.ArgumentList.Add(a);
 
             return new FfmpegCameraRecorder(
-                new FfmpegCameraProcess(psi, dshowCameraName), dshowCameraName, outPath, cmd,
+                new FfmpegCameraProcess(psi, dshowCameraName, preview), dshowCameraName, outPath, cmd,
                 outPath + ".ffmpeg.log", DateTime.UtcNow, OpenTimeout, () => DateTime.UtcNow);
         }
 

@@ -1,0 +1,134 @@
+$ErrorActionPreference = 'Continue'
+$SP  = "<QA-SCRATCH>"
+$EXE = "D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$CFG = "$env:LOCALAPPDATA\AgentEyes\config.json"
+$SEED = "$SP\backup\config.json"
+$VIDEOS = "$env:USERPROFILE\Videos\AgentEyes"
+$OUT = "$SP\img"
+New-Item -ItemType Directory -Force $OUT | Out-Null
+$FFPROBE = (Get-Command ffprobe).Source
+$FFMPEG = (Get-Command ffmpeg).Source
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a } }
+function Main($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a } }
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 20 }
+function Rec() { Main click 'REC' | Out-Null; Start-Sleep -Seconds 8 }
+function StopRec() { Hud click 'HUD stop' | Out-Null; Start-Sleep -Seconds 12 }
+function Cfg() { $j = Get-Content $CFG -Raw | ConvertFrom-Json; "Left=$($j.HudLeft) Top=$($j.HudTop) Width=$($j.HudWidth) Height=$($j.HudHeight) Visible=$($j.HudPreviewVisible) Mode=$($j.HudPreviewMode) Corner=$($j.HudPreviewCorner)" }
+function Line($s) { Write-Output ("`n===== " + $s + " =====") }
+function Restart($capturable) {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+    Copy-Item $SEED $CFG -Force
+    if ($capturable) { $env:MQS_HUD_CAPTURABLE = '1' } else { Remove-Item Env:MQS_HUD_CAPTURABLE -ErrorAction SilentlyContinue }
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+    Start-Sleep -Seconds 3
+}
+function Sha($p) { if (-not (Test-Path $p)) { return '(missing)' }; try { $b=[IO.File]::ReadAllBytes($p) } catch { return '(locked)' }; ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($b)) -replace '-','').Substring(0,16) + " len=" + $b.Length }
+function NewestDir() { (Get-ChildItem $VIDEOS -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
+function Drops($log) { if (-not (Test-Path $log)) { return -1 }; $n=-1; foreach ($l in Get-Content $log) { $m=[regex]::Match($l,'drop=\s*(\d+)'); if ($m.Success) { $n=[Math]::Max($n,[int]$m.Groups[1].Value) } }; return $n }
+function Dur($f) { if (-not (Test-Path $f)) { return -1 }; $o = & $FFPROBE -v error -show_entries format=duration -of default=nw=1:nk=1 $f 2>$null; if ($o) { return [double]$o } else { return -1 } }
+function Churn($seconds) { Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',"$SP\qa33r5-churn.ps1",'-Seconds',"$seconds"; Start-Sleep -Seconds 4 }
+function KillChurn() { Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*qa33r5-churn*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }
+function Colours($png) {
+    Add-Type -AssemblyName System.Drawing
+    $b = [System.Drawing.Bitmap]::FromFile($png)
+    $set = New-Object 'System.Collections.Generic.HashSet[int]'
+    for ($y = 0; $y -lt $b.Height; $y += 3) { for ($x = 0; $x -lt $b.Width; $x += 3) { [void]$set.Add($b.GetPixel($x,$y).ToArgb()) } }
+    $b.Dispose()
+    return $set.Count
+}
+
+Line "D1. AC2 - the screen preview is LIVE (with something moving on the captured monitor)"
+Restart $false
+Churn 200
+Rec
+$st = Status
+$sf = $st.PreviewScreenFrame; $cf = $st.PreviewCameraFrame
+$a = Status; $s1 = Sha $sf; $c1 = Sha $cf
+Copy-Item $sf "$OUT\ac2-screen-t0.jpg" -ErrorAction SilentlyContinue
+Copy-Item $cf "$OUT\ac3-camera-t0.jpg" -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+$b2 = Status; $s2 = Sha $sf; $c2 = Sha $cf
+Copy-Item $sf "$OUT\ac2-screen-t3.jpg" -ErrorAction SilentlyContinue
+Copy-Item $cf "$OUT\ac3-camera-t3.jpg" -ErrorAction SilentlyContinue
+Write-Output ("  AC2 screen t0=" + $s1 + "  t+3=" + $s2 + "  DIFFER=" + ($s1 -ne $s2))
+Write-Output ("  AC3 camera t0=" + $c1 + "  t+3=" + $c2 + "  DIFFER=" + ($c1 -ne $c2))
+Write-Output ("  framesRead screen " + $a.PreviewScreenFramesRead + "->" + $b2.PreviewScreenFramesRead + " camera " + $a.PreviewCameraFramesRead + "->" + $b2.PreviewCameraFramesRead)
+
+Line "D2. AC6 - the HUD, parked ON the captured monitor, must not appear in recording.mp4"
+Hud move '2300,300'
+Hud rect
+Start-Sleep -Seconds 20
+StopRec
+KillChurn
+$d = NewestDir
+Write-Output ("  recording: " + $d)
+$rec = Join-Path $d 'recording.mp4'
+Write-Output ("  recording.mp4 duration=" + (Dur $rec) + " camera.mp4 duration=" + (Dur (Join-Path $d 'camera.mp4')))
+Get-Content (Join-Path $d 'manifest.json') | Where-Object { $_ -match 'CameraComplete|CameraStopKind|DurationSeconds|PreviewOverlayCorner' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+# The HUD sat at 2300,300 on a monitor captured from 1920,-5 -> crop 520x400 at 380,305.
+& $FFMPEG -v error -y -i $rec -vf "crop=520:400:380:305,fps=1/4" -frames:v 4 "$OUT\ac6-excluded-%02d.png" 2>&1 | Out-Null
+Get-ChildItem "$OUT\ac6-excluded-*.png" | ForEach-Object { Write-Output ("    " + $_.Name + " distinctColours=" + (Colours $_.FullName)) }
+
+Line "D3. AC6 known-bad control - the same crop with the capture exclusion switched OFF"
+Restart $true
+$env:MQS_HUD_CAPTURABLE = '1'
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 3
+Start-Process $EXE
+for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+Start-Sleep -Seconds 3
+Churn 90
+Rec
+Hud move '2300,300'
+Hud rect
+Start-Sleep -Seconds 20
+StopRec
+KillChurn
+Remove-Item Env:MQS_HUD_CAPTURABLE -ErrorAction SilentlyContinue
+$d2 = NewestDir
+$rec2 = Join-Path $d2 'recording.mp4'
+Write-Output ("  known-bad recording: " + $d2 + " duration=" + (Dur $rec2))
+& $FFMPEG -v error -y -i $rec2 -vf "crop=520:400:380:305,fps=1/4" -frames:v 4 "$OUT\ac6-knownbad-%02d.png" 2>&1 | Out-Null
+Get-ChildItem "$OUT\ac6-knownbad-*.png" | ForEach-Object { Write-Output ("    " + $_.Name + " distinctColours=" + (Colours $_.FullName)) }
+
+Line "D4. AC9 - 60s with the preview ON and 60s with it OFF, both numbers reported"
+Restart $false
+Churn 200
+Rec
+Write-Output ("  preview ON: publishing=" + (Status).PreviewPublishing)
+Start-Sleep -Seconds 60
+$onStatus = Status
+StopRec
+$dOn = NewestDir
+Write-Output ("  ON  dir=" + $dOn + " framesRead=" + $onStatus.PreviewScreenFramesRead + "/" + $onStatus.PreviewCameraFramesRead)
+Write-Output ("  ON  raw drops=" + (Drops (Join-Path $dOn 'raw.mp4.ffmpeg.log')) + " recording=" + (Dur (Join-Path $dOn 'recording.mp4')) + " camera=" + (Dur (Join-Path $dOn 'camera.mp4')))
+Get-Content (Join-Path $dOn 'manifest.json') | Where-Object { $_ -match 'CameraComplete|DurationSeconds' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+
+# preview OFF: turn it off in config so no tap is ever armed
+$j = Get-Content $SEED -Raw | ConvertFrom-Json
+$j.HudPreviewVisible = $false
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 3
+$j | ConvertTo-Json | Out-File -FilePath $CFG -Encoding utf8
+Start-Process $EXE
+for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+Start-Sleep -Seconds 3
+Rec
+Write-Output ("  preview OFF: armed=" + (Status).PreviewArmed + " publishing=" + (Status).PreviewPublishing)
+Start-Sleep -Seconds 60
+$offStatus = Status
+StopRec
+KillChurn
+$dOff = NewestDir
+Write-Output ("  OFF dir=" + $dOff + " framesRead=" + $offStatus.PreviewScreenFramesRead + "/" + $offStatus.PreviewCameraFramesRead)
+Write-Output ("  OFF raw drops=" + (Drops (Join-Path $dOff 'raw.mp4.ffmpeg.log')) + " recording=" + (Dur (Join-Path $dOff 'recording.mp4')) + " camera=" + (Dur (Join-Path $dOff 'camera.mp4')))
+Get-Content (Join-Path $dOff 'manifest.json') | Where-Object { $_ -match 'CameraComplete|DurationSeconds|PreviewOverlayCorner' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+Write-Output ("  AC11: is PreviewOverlayCorner absent from the OFF manifest? " + (-not (Select-String -Path (Join-Path $dOff 'manifest.json') -Pattern 'PreviewOverlayCorner' -Quiet)))
+Write-Output ("  AC11: is pipe:1 absent from the OFF manifest's ffmpeg command? " + (-not (Select-String -Path (Join-Path $dOff 'manifest.json') -Pattern 'pipe:1' -Quiet)))
+$onMan = Join-Path $dOn 'manifest.json'
+Write-Output ("  ON : is pipe:1 present in the ON manifest's ffmpeg command? " + (Select-String -Path $onMan -Pattern 'pipe:1' -Quiet))
+
+Line "DONE session C"

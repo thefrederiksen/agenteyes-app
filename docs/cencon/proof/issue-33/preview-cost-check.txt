@@ -1,0 +1,33 @@
+ffmpeg   : C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe
+capture  : 1920x1080 @ 30fps for 30s, 5 round(s) of each
+
+round 0
+  control0         exit=0 duration=30.000s cpu=28.88s drops=40 previewFrames=0 previewBytes=0 wall=30.2s
+  preview0         exit=0 duration=30.000s cpu=28.48s drops=23 previewFrames=300 previewBytes=3786850 wall=30.3s
+round 1
+  control1         exit=0 duration=30.000s cpu=27.09s drops=23 previewFrames=0 previewBytes=0 wall=30.2s
+  preview1         exit=0 duration=30.000s cpu=26.36s drops=11 previewFrames=300 previewBytes=4503669 wall=30.2s
+round 2
+  control2         exit=0 duration=30.000s cpu=28.98s drops=2 previewFrames=0 previewBytes=0 wall=30.2s
+  preview2         exit=0 duration=30.000s cpu=31.23s drops=20 previewFrames=300 previewBytes=3814185 wall=30.3s
+round 3
+  control3         exit=0 duration=30.000s cpu=26.50s drops=5 previewFrames=0 previewBytes=0 wall=30.2s
+  preview3         exit=0 duration=30.000s cpu=25.42s drops=8 previewFrames=300 previewBytes=4812939 wall=30.3s
+round 4
+  control4         exit=0 duration=30.000s cpu=20.03s drops=53 previewFrames=0 previewBytes=0 wall=30.3s
+  preview4         exit=0 duration=29.967s cpu=24.11s drops=38 previewFrames=300 previewBytes=4841699 wall=30.2s
+
+PASS   every run produced a recording at all
+       control=[True, True, True, True, True] preview=[True, True, True, True, True] (False is a run that measured NOTHING - a broken instrument, never a clean result)
+PASS   every run records the full length
+       control=[30.0, 30.0, 30.0, 30.0, 30.0] preview=[30.0, 30.0, 30.0, 30.0, 29.967] (requested 30s; a preview that truncated the recording shows here, and a run missing from these lists is a broken instrument)
+PASS   the control produces no preview frames
+       control preview frames=[0, 0, 0, 0, 0]
+PASS   the preview run produces live frames
+       whole JPEG frames=[300, 300, 300, 300, 300] (expected about 300 at 10fps; an EMPTY count is a broken instrument, never a clean run)
+INFO   dropped frames, reported not judged
+       control=[40, 23, 2, 5, 53] (median 23.0)  preview=[23, 11, 20, 8, 38] (median 20.0)
+PASS   the preview costs the recording less than 25% more CPU (AC9, the measure that resolves)
+       control cpu=[28.88, 27.09, 28.98, 26.5, 20.03] (median 27.09s)  preview cpu=[28.48, 26.36, 31.23, 25.42, 24.11] (median 26.36s) over 30s of 1920x1080/30fps capture - an empty or zero CPU list is a broken instrument, never a free preview
+
+RESULT: all checks passed

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using AgentEyes.Audio;
+using AgentEyes.Preview;
 using AgentEyes.Video;
 using Drawing = System.Drawing;
 
@@ -52,6 +53,45 @@ namespace AgentEyes
         // One row per stuck camera process, each carrying its PID - the field that makes it
         // actionable rather than merely alarming. Empty in the normal state.
         public IReadOnlyList<StrandedCameraReport> StuckCameras { get; set; } = Array.Empty<StrandedCameraReport>();
+
+        // ---- the HUD live preview (issue #33) ------------------------------
+        //
+        // These are here so the preview is verifiable WITHOUT a screenshot. The HUD is deliberately
+        // excluded from screen capture (WDA_EXCLUDEFROMCAPTURE), which is exactly what stops a screen
+        // preview inside it becoming a mirror tunnel - and also what makes a full-screen grab useless
+        // as evidence about it. /status is the focus-free way to read preview state instead.
+
+        // Where the screen / camera preview frame is published, or null when this recording has no
+        // such tap. The file exists only while PreviewPublishing is true.
+        public string? PreviewScreenFrame { get; set; }
+        public string? PreviewCameraFrame { get; set; }
+
+        // Whether this recording carries a preview feed at all. False means it was started with the
+        // preview switched off, so its ffmpeg has no preview output and the HUD panel has nothing to
+        // show - the honest reading, and the one that keeps a preview-less recording identical to
+        // what it was before this feature (issue #33, AC11).
+        public bool PreviewAvailable { get; set; }
+
+        // Whether the NEXT recording will carry one.
+        public bool PreviewArmed { get; set; }
+
+        // Whether frames are being written out right now (i.e. the HUD panel is showing).
+        public bool PreviewPublishing { get; set; }
+
+        // Whole preview frames taken off each ffmpeg pipe so far. These are a PRESENCE: a count that
+        // climbs is a live tap, and a count stuck at zero is a tap that has never seen a frame - a
+        // distinction "the file exists" cannot make.
+        public long PreviewScreenFramesRead { get; set; }
+        public long PreviewCameraFramesRead { get; set; }
+
+        // True when a tap is currently failing to publish (the preview directory is gone, read-only
+        // or full). It says the PREVIEW is broken and says nothing about the recording, which is
+        // unaffected by design (issue #33, AC10).
+        public bool PreviewFailed { get; set; }
+
+        // The overlay corner framed during this recording, or null when none was. The same value that
+        // reaches manifest.json at the stop.
+        public string? PreviewOverlayCorner { get; set; }
     }
 
     internal sealed class RecordResult
@@ -94,6 +134,24 @@ namespace AgentEyes
 
         /// <summary>The exact DirectShow name of <see cref="_camera"/>'s device, for /status.</summary>
         private volatile string? _cameraName;
+
+        /// <summary>
+        /// The live preview taps for this session (issue #33) - one per recorded video track, null
+        /// when the track is not being recorded or when the machine could not host a preview.
+        ///
+        /// They are NOT writers and are deliberately absent from the start/stop step sequences. A
+        /// writer's failure is the recording's failure; a tap's failure costs a picture (AC10). Being
+        /// outside those sequences is what keeps a preview problem out of
+        /// <see cref="RecordingStopReport"/> and off the "this stop failed" surface.
+        /// </summary>
+        private PreviewTap? _screenTap, _cameraTap;
+
+        /// <summary>
+        /// The overlay corner the person chose while this recording ran, or null if they never framed
+        /// one (issue #33, AC5). Written into the manifest at the stop as an EDITING HINT - it
+        /// composites nothing.
+        /// </summary>
+        private volatile string? _previewCorner;
 
         /// <summary>
         /// This session's OWN capture claim on <see cref="_dir"/> (issue #154, round 3) - the only
@@ -155,6 +213,80 @@ namespace AgentEyes
         /// surface (issue #28, AC16).</summary>
         public StrandedCameraOwner StrandedCameras => _stranded;
 
+        // ---- live preview (issue #33) --------------------------------------
+
+        /// <summary>
+        /// Whether the next recording should carry a live preview feed. FALSE BY DEFAULT, and that
+        /// default is load-bearing rather than cautious (issue #33, AC11).
+        ///
+        /// A preview feed is a SECOND OUTPUT on the recording's own ffmpeg, so arming it changes the
+        /// command line - and that command line is written into manifest.json as
+        /// <see cref="Manifest.FfmpegCommand"/>. With this false, a recording is byte-for-byte the
+        /// recording it was before this feature existed: same arguments, same files, same manifest.
+        /// The CLI never sets it, so <c>agenteyes video</c> is untouched by the feature entirely.
+        ///
+        /// The app sets it from the persisted "show preview" choice, so the cost is paid only by
+        /// someone who actually uses the preview - which is also what makes AC9's preview-OFF control
+        /// run a genuine control rather than the same run under a different name.
+        ///
+        /// It is read once, at the start of a recording. Changing it mid-recording arms the NEXT one:
+        /// ffmpeg's outputs are fixed when the process starts, and restarting ffmpeg to add a monitor
+        /// would interrupt the thing being monitored.
+        /// </summary>
+        public bool PreviewArmed { get; set; }
+
+        /// <summary>
+        /// True when THIS recording carries a preview feed, i.e. the HUD can show live frames. False
+        /// says the panel has nothing to show and should say so rather than sit blank - a recording
+        /// started while <see cref="PreviewArmed"/> was false has no feed and cannot grow one.
+        /// </summary>
+        public bool PreviewAvailable => _screenTap != null || _cameraTap != null;
+
+        /// <summary>
+        /// The file the HUD reads for the SCREEN preview, or null when this recording has no screen
+        /// preview tap. The file only exists while <see cref="PreviewPublishing"/> is on.
+        /// </summary>
+        public string? PreviewScreenFrame => _screenTap?.FramePath;
+
+        /// <summary>The file the HUD reads for the CAMERA preview, or null when this recording has no
+        /// camera track (or no tap on it).</summary>
+        public string? PreviewCameraFrame => _cameraTap?.FramePath;
+
+        /// <summary>Whether preview frames are being written out right now.</summary>
+        public bool PreviewPublishing => _screenTap?.Publishing == true || _cameraTap?.Publishing == true;
+
+        /// <summary>The overlay corner recorded for this session, or null when none was framed.</summary>
+        public string? PreviewOverlayCorner => _previewCorner;
+
+        /// <summary>
+        /// Turn frame publishing on or off for every tap in this session. This is the WHOLE cost of
+        /// showing or hiding the preview mid-recording (AC8): no ffmpeg is restarted, no output is
+        /// added or removed, and the recording is not told. Cheap enough to call from a UI click
+        /// handler, and safe when there is no recording - it does nothing.
+        /// </summary>
+        public void SetPreviewPublishing(bool on)
+        {
+            Log.Info($"[RecordingService] SetPreviewPublishing: on={on}");
+            var screen = _screenTap;
+            var camera = _cameraTap;
+            if (screen != null) screen.Publishing = on;
+            if (camera != null) camera.Publishing = on;
+        }
+
+        /// <summary>
+        /// Record which corner the camera was being watched in (issue #33, AC5), or null to record
+        /// none. Sticky for the session: the LAST corner framed is what reaches manifest.json at the
+        /// stop, because that is the framing the person settled on.
+        ///
+        /// It writes an editing hint and nothing else - it composites nothing and changes no recorded
+        /// file. Safe when there is no recording; the value is simply dropped at the next start.
+        /// </summary>
+        public void SetPreviewOverlayCorner(string? corner)
+        {
+            Log.Info($"[RecordingService] SetPreviewOverlayCorner: corner={corner ?? "(none)"}");
+            _previewCorner = corner;
+        }
+
         public RecordStatus Status()
         {
             var failure = _lastStopFailure;
@@ -183,6 +315,15 @@ namespace AgentEyes
                 LastStopDir = failure?.Dir,
                 CameraStuck = stuck.Count > 0,
                 StuckCameras = stuck,
+                PreviewScreenFrame = _state == "idle" ? null : _screenTap?.FramePath,
+                PreviewCameraFrame = _state == "idle" ? null : _cameraTap?.FramePath,
+                PreviewAvailable = _state != "idle" && this.PreviewAvailable,
+                PreviewArmed = this.PreviewArmed,
+                PreviewPublishing = _state != "idle" && PreviewPublishing,
+                PreviewScreenFramesRead = _screenTap?.FramesRead ?? 0,
+                PreviewCameraFramesRead = _cameraTap?.FramesRead ?? 0,
+                PreviewFailed = _screenTap?.PublishFailed == true || _cameraTap?.PublishFailed == true,
+                PreviewOverlayCorner = _previewCorner,
             };
         }
 
@@ -378,6 +519,35 @@ namespace AgentEyes
                     "video", src, micWav: null, _sysWav, _rawVideo,
                     finalFile: finalPath, rawDurationSeconds: 0, opts);
 
+                // The live preview taps (issue #33). Created BEFORE the writers because each one has
+                // to exist when its ffmpeg starts: the preview output is only added to a command line
+                // when there is a tap to drain the pipe it writes to, and an undrained pipe would
+                // block the process recording the file.
+                //
+                // NOT ARMED, NOTHING CHANGES. With PreviewArmed false there is no tap, so no second
+                // output, so the same command line, the same files and the same manifest this
+                // recording had before the feature existed (AC11) - which is also the CLI's position,
+                // since it never arms one.
+                //
+                // TryCreate returning null is the same complete answer for a machine that cannot host
+                // a preview: record without one. A preview that cannot be prepared never stops a
+                // recording from starting (AC10).
+                //
+                // AND IT CANNOT DELAY ONE EITHER (Review Gate round 2 on PR #39, defect 1). This is
+                // the thread that starts the recording, and preparing a preview directory used to be
+                // synchronous filesystem work right here - so a preview path that never answered (a
+                // reparse point onto an unavailable share) meant the recording never started at all.
+                // The preparing is done by PreviewChores on its own thread now, and the most this
+                // line can cost is PreviewChores.BudgetMs before it gives up and records without a
+                // preview.
+                _screenTap = PreviewArmed ? PreviewTap.TryCreate(PreviewPaths.ScreenTrack) : null;
+                _cameraTap = PreviewArmed && dshowCamera != null
+                    ? PreviewTap.TryCreate(PreviewPaths.CameraTrack)
+                    : null;
+                _previewCorner = null;
+                Log.Info($"[RecordingService] StartVideo: preview armed={PreviewArmed} "
+                         + $"screenTap={_screenTap != null} cameraTap={_cameraTap != null}");
+
                 // Issue #155: the publish AND every writer start run inside ONE failure boundary
                 // (RecordingStartSequence). ffmpeg is already writing frames by the time the loopback
                 // can fail - a rollback that did not stop it left the screen being recorded while the
@@ -410,14 +580,15 @@ namespace AgentEyes
                         // was still null. Now Open() fails with the recorder already in the field,
                         // so the rollback retries the termination like any other writer.
                         _camera = FfmpegCameraRecorder.Create(
-                            dshowCamera, cameraFps, 23, Path.Combine(_dir!, "camera.mp4"));
+                            dshowCamera, cameraFps, 23, Path.Combine(_dir!, "camera.mp4"), _cameraTap);
                         _camera.Open();
                     }));
                 }
 
                 steps.Add(new RecordingStartStep("video", () =>
                 {
-                    _video = FfmpegRecorder.Start(capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut);
+                    _video = FfmpegRecorder.Start(
+                        capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut, _screenTap);
                     _manifest!.FfmpegCommand = _video.CommandLine;
 
                     // The alignment hint (assumption A5): how far the camera start sits from the
@@ -525,10 +696,14 @@ namespace AgentEyes
             // Flip to finalizing under lock, then flush the raw files outside the lock.
             AudioCapture? audio; LoopbackCapture? loop; FfmpegRecorder? video; FfmpegCameraRecorder? camera;
             string? micWav, sysWav, rawVideo, dir; Manifest? manifest; string mode; AudioSourceKind src; AudioMixOptions opts;
+            string? previewCorner;
             lock (_lock)
             {
                 if (_state != "recording") throw new UsageException("not recording");
                 _state = "finalizing";
+                // Taken with the rest of the session state so the corner written into the manifest is
+                // the one this recording was framed with, not one a later recording chose.
+                previewCorner = _previewCorner;
                 audio = _audio; loop = _loop; video = _video; camera = _camera;
                 micWav = _micWav; sysWav = _sysWav; rawVideo = _rawVideo;
                 dir = _dir; manifest = _manifest; mode = _mode; src = _src; opts = _opts;
@@ -575,6 +750,13 @@ namespace AgentEyes
                 deferred = manifest.PendingMux != null;
 
                 manifest.DurationSeconds = Math.Round(elapsed, 2);
+
+                // The framing the person settled on while recording (issue #33, AC5). An EDITING
+                // HINT: nothing was composited and neither recorded file was touched. Null when no
+                // overlay was framed, and a null field is not written at all - so a recording made
+                // without the overlay has the manifest it always had (AC11).
+                manifest.PreviewOverlayCorner = previewCorner;
+
                 if (manifest.AudioFile != null && !manifest.Files.Contains(manifest.AudioFile)) manifest.Files.Add(manifest.AudioFile);
                 if (manifest.VideoFile != null && !manifest.Files.Contains(manifest.VideoFile)) manifest.Files.Add(manifest.VideoFile);
 
@@ -617,6 +799,7 @@ namespace AgentEyes
                     m.DurationSeconds = manifest.DurationSeconds;
                     m.PendingMux = manifest.PendingMux;
                     m.FfmpegCommand = manifest.FfmpegCommand;
+                    m.PreviewOverlayCorner = manifest.PreviewOverlayCorner;
                     CameraTrackRecord.CopyTo(m, manifest);
                     // The shot index belongs to the session: only MarkerShot adds to it, and only
                     // while this session is running, so the session's list IS the truth for it.
@@ -644,11 +827,24 @@ namespace AgentEyes
             }
             finally
             {
+                // The preview taps come down HERE - after the stop sequence, so every ffmpeg has
+                // already closed its pipe and each pump has ended by itself, and before the session
+                // fields are cleared. They are not stop steps: a preview that failed to close must
+                // not be able to turn a clean recording into a failed stop (issue #33, AC10).
+                //
+                // THIS IS BEFORE THE SERVICE RETURNS TO IDLE, which is why every wait inside that
+                // disposal is bounded (Review Gate round 2 on PR #39, defect 1). It used to log,
+                // flush and delete synchronously on this thread, on the very preview path a wedged
+                // publisher was already stuck in - so a share that stopped answering left Stop unable
+                // to return and the service reporting "finalizing" forever.
+                DisposePreviewTaps();
+
                 RecordingClaimTicket claim;
                 lock (_lock)
                 {
                     _manifest = null; _dir = null; _monitor = null;
                     _cameraName = null;
+                    _previewCorner = null;
                     _peakMic = _peakSys = 0;
                     _state = "idle";
 
@@ -885,6 +1081,8 @@ namespace AgentEyes
             _dir = null; _manifest = null; _monitor = null;
             _captureClaim = default;
             _peakMic = _peakSys = 0;
+            DisposePreviewTaps();
+            _previewCorner = null;
 
             if (dir == null) return;
 
@@ -899,6 +1097,32 @@ namespace AgentEyes
             // ffmpeg - it fails on the file it holds open and replaces "the camera is already in use"
             // with an IO error about camera.mp4.
             _stranded.DiscardDirectoryUnlessStranded(camera, dir, claim);
+        }
+
+        /// <summary>
+        /// Shut the live preview taps down (issue #33). Called AFTER the writers are stopped, on both
+        /// the stop path and the failed-start rollback, and deliberately OUTSIDE the stop/start step
+        /// sequences: a preview problem must never be collected as a failure of the recording, and it
+        /// must never be reported on the "this stop failed" surface (AC10).
+        ///
+        /// Order matters. A tap's Dispose joins its pump thread, and that thread only ends when
+        /// ffmpeg closes the pipe - so disposing before the writers are stopped would wait on a
+        /// process that is still recording.
+        /// </summary>
+        private void DisposePreviewTaps()
+        {
+            var screen = _screenTap;
+            var camera = _cameraTap;
+            _screenTap = null;
+            _cameraTap = null;
+
+            // An entry point for the preview's own failures: this is the last place they can be
+            // reported, and the caller is either finishing a recording or already carrying a real
+            // failure. Neither may be turned into a preview problem.
+            try { screen?.Dispose(); }
+            catch (Exception ex) { Log.Error("[RecordingService] DisposePreviewTaps: the screen preview tap failed to close", ex); }
+            try { camera?.Dispose(); }
+            catch (Exception ex) { Log.Error("[RecordingService] DisposePreviewTaps: the camera preview tap failed to close", ex); }
         }
 
         /// <summary>
@@ -941,6 +1165,12 @@ namespace AgentEyes
             _monitor = mon; _mode = mode; _src = src; _opts = opts;
             _peakMic = _peakSys = 0;
             _micWav = _sysWav = _rawVideo = null;
+            // A tap belongs to exactly one session (issue #33). Both exits from a session - the stop
+            // and the failed-start rollback - already close them, so this normally closes nothing;
+            // it is here so that a tap which somehow outlived its session cannot be inherited by the
+            // next one and show it a picture of the last recording.
+            DisposePreviewTaps();
+            _previewCorner = null;
             // Issue #153: the previous stop's failure belongs to the previous recording. It is
             // reported until a new one starts, and this is that moment.
             _lastStopFailure = null;

@@ -1,0 +1,66 @@
+Round-2 code restored. Running: dotnet test --filter FullyQualifiedName~HudPreviewSizingOrderTests
+====================================================================================================
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AgentEyes.Core -> D:\ReposFred\agenteyes-dev33-r3\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-dev33-r3\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.App -> D:\ReposFred\agenteyes-dev33-r3\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+Test run for D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.ResizeToThreeTimesTheDefault_ThenStop_IsWhatTheNextRecordingOpensAt [518 ms]
+  Error Message:
+   Assert.Equal() Failure: Values are not within 1 decimal place
+Expected: 400 (rounded from 400)
+Actual:   52 (rounded from 52)
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.RunOnHudRig(Action`1 body, Nullable`1 savedWidth, Nullable`1 savedHeight) in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 365
+   at AgentEyes.Tests.HudPreviewSizingOrderTests.ResizeToThreeTimesTheDefault_ThenStop_IsWhatTheNextRecordingOpensAt() in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 110
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.ShowThenHideWithoutResizing_LeavesNoSizeToPersist [203 ms]
+  Error Message:
+   520x52 would be written to config, but the person never resized the HUD. 
+Ordering:
+  SizeChanged stc=WidthAndHeight 367x52 panel=False -> memory nothing
+  -- show preview --
+  SizeChanged stc=Manual 520x52 panel=True -> memory 520x52
+  -- hide preview --
+  SizeChanged stc=WidthAndHeight 367x52 panel=False -> memory 520x52
+  -- show preview --
+  SizeChanged stc=Manual 520x52 panel=True -> memory 520x52
+  -- hide preview --
+  SizeChanged stc=WidthAndHeight 367x52 panel=False -> memory 520x52
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.RunOnHudRig(Action`1 body, Nullable`1 savedWidth, Nullable`1 savedHeight) in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 365
+   at AgentEyes.Tests.HudPreviewSizingOrderTests.ShowThenHideWithoutResizing_LeavesNoSizeToPersist() in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 151
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.HidingAndShowingAgainInOneRecording_ReopensAtTheResizedSize [212 ms]
+  Error Message:
+   Assert.Equal() Failure: Values are not within 1 decimal place
+Expected: 400 (rounded from 400)
+Actual:   52 (rounded from 52)
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.RunOnHudRig(Action`1 body, Nullable`1 savedWidth, Nullable`1 savedHeight) in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 365
+   at AgentEyes.Tests.HudPreviewSizingOrderTests.HidingAndShowingAgainInOneRecording_ReopensAtTheResizedSize() in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 128
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.ShowPanel_OnAnAlreadyShownPillHud_OpensAtTheDefaultAndRemembersNothing [245 ms]
+  Error Message:
+   Assert.Equal() Failure: Values are not within 1 decimal place
+Expected: 400 (rounded from 400)
+Actual:   52 (rounded from 52)
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.RunOnHudRig(Action`1 body, Nullable`1 savedWidth, Nullable`1 savedHeight) in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 365
+   at AgentEyes.Tests.HudPreviewSizingOrderTests.ShowPanel_OnAnAlreadyShownPillHud_OpensAtTheDefaultAndRemembersNothing() in D:\ReposFred\agenteyes-dev33-r3\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 61
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     4, Passed:     1, Skipped:     0, Total:     5, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+Round-3 code restored.
+VERDICT: Failed!  - Failed:     4, Passed:     1, Skipped:     0, Total:     5, Duration: 1 s - AgentEyes.Tests.dll (net8.0)

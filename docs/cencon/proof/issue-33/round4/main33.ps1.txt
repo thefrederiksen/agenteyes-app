@@ -1,0 +1,32 @@
+param([string]$Action = 'click', [string]$Arg = 'REC')
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+
+function Find-Main {
+    for ($i = 0; $i -lt 40; $i++) {
+        $w = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'AgentEyes') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+        if ($w) { return $w }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'Main window "AgentEyes" not found within 16s'
+}
+
+$main = Find-Main
+switch ($Action) {
+    'click' {
+        $b = $main.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found on the main window" }
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Start-Sleep -Milliseconds 900
+        Write-Output "clicked '$Arg' on the main window"
+    }
+    'buttons' {
+        $bs = $main.FindAll('Descendants', (TypeIs ([System.Windows.Automation.ControlType]::Button)))
+        foreach ($b in $bs) { Write-Output ("  button: " + $b.Current.Name) }
+    }
+}

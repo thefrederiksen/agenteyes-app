@@ -1,0 +1,141 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
+using AgentEyes;
+using AgentEyes.Audio;
+
+namespace Qa33R5
+{
+    internal sealed class Churn : Form
+    {
+        private readonly System.Windows.Forms.Timer _t = new System.Windows.Forms.Timer { Interval = 100 };
+        private int _n;
+        protected override bool ShowWithoutActivation { get { return true; } }
+        protected override CreateParams CreateParams
+        { get { var cp = base.CreateParams; cp.ExStyle |= 0x08000000 | 0x00000080; return cp; } }
+        public Churn(Rectangle where)
+        {
+            FormBorderStyle = FormBorderStyle.None; StartPosition = FormStartPosition.Manual;
+            Bounds = where; TopMost = true; ShowInTaskbar = false; BackColor = Color.Black;
+            DoubleBuffered = true; _t.Tick += (s, e) => { _n++; Invalidate(); }; _t.Start();
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(_n % 2 == 0 ? Color.Black : Color.DarkSlateBlue);
+            using (var f = new Font("Consolas", 96, FontStyle.Bold))
+                e.Graphics.DrawString("QA33R5 " + _n.ToString("0000"), f, Brushes.White, 20, 20);
+            e.Graphics.FillRectangle(Brushes.Orange, 20 + (_n * 7) % 400, 220, 160, 120);
+        }
+    }
+
+    public static class Program
+    {
+        static void L(string s) { Console.WriteLine("[" + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + s); Console.Out.Flush(); }
+
+        static string FfprobeExe()
+        {
+            var p0 = Process.Start(new ProcessStartInfo("where", "ffprobe")
+            { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true });
+            string w = p0.StandardOutput.ReadToEnd().Trim(); p0.WaitForExit();
+            if (w.Length > 0) return w.Split('\n')[0].Trim();
+            string sibling = Path.Combine(Path.GetDirectoryName(AgentEyes.Video.FfmpegLocator.Ffmpeg()), "ffprobe.exe");
+            return File.Exists(sibling) ? sibling : null;
+        }
+
+        static string Ffprobe(string file, string entries)
+        {
+            string exe = FfprobeExe();
+            if (exe == null) return "(no ffprobe)";
+            var psi = new ProcessStartInfo(exe, "-v error -show_entries " + entries + " -of default=nw=1 \"" + file + "\"")
+            { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+            using (var p = Process.Start(psi))
+            {
+                string o = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
+                p.WaitForExit();
+                return o.Replace("\r", "").Replace("\n", " ").Trim();
+            }
+        }
+
+        [STAThread]
+        public static void Main(string[] args)
+        {
+            string tag = args.Length > 0 ? args[0] : "run";
+            int seconds = args.Length > 1 ? int.Parse(args[1]) : 45;
+            bool armed = !(args.Length > 2 && args[2] == "nopreview");
+            int screen = 1;
+            string camera = "HD Webcam eMeet C960";
+
+            L("ARMED=" + armed); L("TAG=" + tag + " seconds=" + seconds + " camera='" + camera + "'");
+            L("Core assembly: " + typeof(RecordingService).Assembly.Location);
+            L("Core assembly written: " + File.GetLastWriteTime(typeof(RecordingService).Assembly.Location).ToString("s"));
+
+            Churn churn = null;
+            var bounds = Screen.AllScreens[Math.Min(screen - 1, Screen.AllScreens.Length - 1)].Bounds;
+            var box = new Rectangle(bounds.Left + 60, bounds.Top + 60, 640, 400);
+            var ct = new Thread(delegate () { churn = new Churn(box); Application.Run(churn); });
+            ct.IsBackground = true; ct.SetApartmentState(ApartmentState.STA); ct.Start();
+            Thread.Sleep(1200);
+
+            var svc = new RecordingService();
+            svc.PreviewArmed = armed;
+            var wall = Stopwatch.StartNew();
+            svc.StartVideo(screen, AudioSourceKind.System, null, null, new AudioMixOptions(), 30, camera, 30);
+            var st0 = svc.Status();
+            string dir = st0.Dir;
+            L("state=" + st0.State + " dir=" + dir + " PreviewAvailable=" + st0.PreviewAvailable);
+            if (armed) { svc.SetPreviewPublishing(true); svc.SetPreviewOverlayCorner("bottom-right"); }
+
+            long lastS = -1, lastC = -1;
+            for (int i = 1; i <= seconds; i++)
+            {
+                Thread.Sleep(1000);
+                var s = svc.Status();
+                if (i % 5 == 0 || i <= 3)
+                {
+                    string sf = s.PreviewScreenFrame, cf = s.PreviewCameraFrame;
+                    L("  +" + i + "s state=" + s.State + " elapsed=" + s.ElapsedSeconds
+                      + " framesRead screen=" + s.PreviewScreenFramesRead + " camera=" + s.PreviewCameraFramesRead
+                      + " publishing=" + s.PreviewPublishing + " previewFailed=" + s.PreviewFailed
+                      + " screenFrameFile=" + (sf != null && File.Exists(sf) ? new FileInfo(sf).Length + "B" : "ABSENT")
+                      + " cameraFrameFile=" + (cf != null && File.Exists(cf) ? new FileInfo(cf).Length + "B" : "ABSENT"));
+                }
+                lastS = s.PreviewScreenFramesRead; lastC = s.PreviewCameraFramesRead;
+            }
+            L("STOPPING at wall=" + wall.Elapsed.TotalSeconds.ToString("0.0") + "s elapsed=" + svc.Status().ElapsedSeconds);
+            var stopClock = Stopwatch.StartNew();
+            svc.Stop();
+            stopClock.Stop();
+            L("Stop() returned in " + stopClock.ElapsedMilliseconds + "ms");
+            Thread.Sleep(2500);
+            var end = svc.Status();
+            L("after stop: state=" + end.State + " LastStopFailed=" + end.LastStopFailed + " err=" + (end.LastStopError ?? "(none)"));
+            L("final framesRead screen=" + lastS + " camera=" + lastC);
+
+            string raw = Path.Combine(dir, "raw.mp4");
+            L("raw.mp4       exists=" + File.Exists(raw) + " size=" + (File.Exists(raw) ? new FileInfo(raw).Length.ToString() : "-"));
+            L("ffprobe raw.mp4      : " + Ffprobe(raw, "format=duration"));
+            string rec = Path.Combine(dir, "recording.mp4");
+            string cam = Path.Combine(dir, "camera.mp4");
+            L("recording.mp4 exists=" + File.Exists(rec) + " size=" + (File.Exists(rec) ? new FileInfo(rec).Length.ToString() : "-"));
+            L("camera.mp4    exists=" + File.Exists(cam) + " size=" + (File.Exists(cam) ? new FileInfo(cam).Length.ToString() : "-"));
+            L("ffprobe recording.mp4: " + Ffprobe(rec, "format=duration"));
+            L("ffprobe camera.mp4   : " + Ffprobe(cam, "format=duration"));
+            string man = Path.Combine(dir, "manifest.json");
+            if (File.Exists(man))
+            {
+                foreach (var line in File.ReadAllLines(man))
+                    if (line.Contains("Camera") || line.Contains("Preview") || line.Contains("Duration")
+                     || line.Contains("Stop") || line.Contains("pipe:1"))
+                        L("   manifest| " + (line.Trim().Length > 300 ? line.Trim().Substring(0, 300) + " ..." : line.Trim()));
+            }
+            L("DIR=" + dir);
+            L("DONE " + tag);
+            Environment.Exit(0);
+        }
+    }
+}

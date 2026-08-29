@@ -1,0 +1,114 @@
+$ErrorActionPreference = 'Continue'
+$Global:SP      = "<QA-SCRATCH>"
+$Global:AE      = "$env:LOCALAPPDATA\AgentEyes"
+$Global:CFG     = "$Global:AE\config.json"
+$Global:SEED    = "$Global:SP\backup\config.json"
+$Global:PREVIEW = "$Global:AE\preview"
+$Global:LOGDIR  = "$Global:AE\logs"
+$Global:LOG     = "$Global:LOGDIR\AgentEyes-" + (Get-Date -Format 'yyyyMMdd') + ".log"
+$Global:VIDEOS  = "$env:USERPROFILE\Videos\AgentEyes"
+$Global:SHIPPED = "D:\ReposFred\agenteyes-qa33-r6\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$Global:KNOWNBAD= "D:\ReposFred\agenteyes-qa33-r6-knownbad\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+
+function Say($t) { Write-Output $t }
+
+function Stop-App() {
+    $p = Get-Process AgentEyesApp -ErrorAction SilentlyContinue
+    if ($p) { $p | Stop-Process -Force; Start-Sleep -Seconds 3 }
+    $f = Get-Process ffmpeg -ErrorAction SilentlyContinue
+    if ($f) { Say ("  WARNING: ffmpeg still alive: " + ($f.Id -join ',')) }
+}
+
+function Start-App($exe) {
+    Copy-Item $Global:SEED $Global:CFG -Force
+    Start-Process $exe
+    for ($i = 0; $i -lt 80; $i++) {
+        Start-Sleep -Milliseconds 500
+        try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; return $true } catch {}
+    }
+    return $false
+}
+
+# Replace the preview directory with a directory SYMLINK onto a blackholed UNC path. The IP is a
+# real, routed host that silently DROPS SMB, so the redirector sits in a TCP connect - a filesystem
+# call that neither returns nor throws for ~21s. That is the "reparse point onto an unavailable
+# share" the Review Gate named, on the REAL %LOCALAPPDATA%\AgentEyes\preview path.
+function Set-StalledPreview($ip) {
+    if (Test-Path $Global:PREVIEW) {
+        for ($i = 0; $i -lt 5; $i++) {
+            try { cmd /c "rmdir /S /Q `"$Global:PREVIEW`"" 2>&1 | Out-Null } catch {}
+            if (-not (Test-Path $Global:PREVIEW)) { break }
+            Start-Sleep -Milliseconds 400
+        }
+    }
+    cmd /c "mklink /D `"$Global:PREVIEW`" `"\\$ip\share`"" | Out-Null
+    $it = Get-Item $Global:PREVIEW -Force
+    return ($it.LinkType + " -> " + ($it.Target -join ','))
+}
+
+function Clear-Preview() {
+    if (Test-Path $Global:PREVIEW) { cmd /c "rmdir /S /Q `"$Global:PREVIEW`"" 2>&1 | Out-Null }
+}
+
+function Mark-Log($tag) {
+    Add-Content -Path $Global:LOG -Value ("00:00:00.000 [INFO] ===== $tag =====")
+    return $tag
+}
+
+function Log-Since($tag, $pattern, $max) {
+    if (-not (Test-Path $Global:LOG)) { return @("BROKEN INSTRUMENT: no log file at $Global:LOG") }
+    $lines = Get-Content $Global:LOG -Tail 6000
+    $hit = $lines | Select-String -SimpleMatch $tag | Select-Object -Last 1
+    if (-not $hit) { return @("BROKEN INSTRUMENT: marker $tag not found in the last 6000 log lines") }
+    $out = $lines | Select-Object -Skip $hit.LineNumber | Where-Object { $_ -match $pattern } | Select-Object -First $max
+    if (-not $out) { return @("(no line matching '$pattern' after the marker)") }
+    return $out
+}
+
+function Time-It($block) {
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    $err = $null
+    try { & $block | Out-Null } catch {
+        $err = $_.Exception.Message
+        try {
+            $r = $_.Exception.Response
+            if ($r) { $sr = New-Object IO.StreamReader($r.GetResponseStream()); $err = $err + ' | body: ' + $sr.ReadToEnd() }
+        } catch {}
+    }
+    $sw.Stop()
+    return @{ Ms = $sw.ElapsedMilliseconds; Err = $err }
+}
+
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 120 }
+
+function Wait-State($state, $seconds) {
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while ($sw.Elapsed.TotalSeconds -lt $seconds) {
+        try { $s = Status; if ($s.State -eq $state) { $sw.Stop(); return @{ Ok = $true; Ms = $sw.ElapsedMilliseconds; State = $s.State } } } catch {}
+        Start-Sleep -Milliseconds 250
+    }
+    $sw.Stop()
+    $last = 'unknown'
+    try { $last = (Status).State } catch {}
+    return @{ Ok = $false; Ms = $sw.ElapsedMilliseconds; State = $last }
+}
+
+function Dur($f) {
+    if (-not (Test-Path $f)) { return -1 }
+    $o = & ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 $f 2>$null
+    if ($o) { return [double]$o } else { return -1 }
+}
+
+function Report-Recording($dir) {
+    Say ("  recording dir: " + $dir)
+    Say ("    recording.mp4 duration=" + (Dur (Join-Path $dir 'recording.mp4')))
+    Say ("    camera.mp4    duration=" + (Dur (Join-Path $dir 'camera.mp4')))
+    $mf = Join-Path $dir 'manifest.json'
+    if (Test-Path $mf) {
+        Get-Content $mf | Where-Object { $_ -match 'CameraComplete|CameraStopKind|DurationSeconds|PreviewOverlayCorner|PreviewOverlayShape' } | ForEach-Object { Say ("    " + $_.Trim()) }
+    } else { Say "    BROKEN INSTRUMENT: no manifest.json" }
+}
+
+function Latest-Recording() {
+    return (Get-ChildItem $Global:VIDEOS -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+}

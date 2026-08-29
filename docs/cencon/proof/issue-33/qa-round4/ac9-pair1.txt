@@ -1,0 +1,5 @@
+==== PART 5: AC9 bounded cost - paired 60s runs, both numbers reported ====
+dll sha256: A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8
+  [app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe  MQS_HUD_CAPTURABLE=(unset)]
+  control-1      screenDrops=4    cameraDrops=-1   deliveredFrames=1022   screenDur=69.067   cameraDur=69.6     delta=0.533  2026-08-29_012445_video
+  [app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe  MQS_HUD_CAPTURABLE=(unset)]

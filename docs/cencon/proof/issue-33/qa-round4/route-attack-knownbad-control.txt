@@ -1,0 +1,16 @@
+==== KNOWN-BAD CONTROL: the running-app check must FIRE against round 3's mechanism ====
+dll sha256:    B41A5F9283B6985CEFA37C2922D3594B5BC2902B0963C877309C3477FAE2C0BF
+-- S1 toggle the preview on, resize nothing --
+  pill:        HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:   clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+               IMAGE: not found
+  config after S1  (pristine gave null/null; known-bad is expected to give 520/400):  "HudLeft": 1537, "HudTop": 16, "HudWidth": 520, "HudHeight": 400, "HudPreviewVisible": true,
+-- S3 the bare SetWindowPos with no gesture behind it --
+  as opened:                       HUD rect: X=1537 Y=16 W=520 H=400
+  BARE SetWindowPos 1100x600:      after a bare SetWindowPos to 1100,600 (no gesture): HUD rect: X=1537 Y=16 W=1100 H=600
+  config after S3  (pristine gave null/null; known-bad is expected to give 1100/600):  "HudLeft": 1537, "HudTop": 16, "HudWidth": 1100, "HudHeight": 600, "HudPreviewVisible": true,
+-- the clamp drift --
+  config before:  "HudWidth": 200, "HudHeight": 100, "HudPreviewVisible": true
+  HUD as opened (MinWidth is 260): HUD rect: X=1644 Y=16 W=260 H=100
+  config after  (pristine gave 200/100; known-bad is expected to give 260/100):  "HudLeft": 1644, "HudTop": 16, "HudWidth": 260, "HudHeight": 100, "HudPreviewVisible": true,
+==== end ====

@@ -28,9 +28,12 @@ namespace AgentEyes.Video
         /// <param name="desktop">The capturable virtual-desktop bounds (device px) used to clamp+pad an
         /// oversized region. Null (or empty) means "no bounds constraint" - grab the region as-is (used by
         /// callers/tests that guarantee the region fits). Production callers pass Monitors.VirtualBounds().</param>
+        /// <param name="previewStream">Issue #33: also emit the small MJPEG monitoring stream on stdout
+        /// (see <see cref="PreviewOutput"/>). False - the default - produces byte-for-byte the command
+        /// line this built before the HUD preview existed (AC11).</param>
         public static List<string> VideoCapture(
             Drawing.Rectangle capture, string? dshowMicName, int fps, int crf, string outPath,
-            Drawing.Rectangle? desktop = null)
+            Drawing.Rectangle? desktop = null, bool previewStream = false)
         {
             var target = RegionMath.Evenize(capture);
 
@@ -112,8 +115,71 @@ namespace AgentEyes.Video
             }
 
             a.Add(outPath);
+            if (previewStream) a.AddRange(PreviewOutput());
             return a;
         }
+
+        // ---- the HUD preview tap (issue #33) --------------------------------
+
+        /// <summary>Preview frame height in pixels. The width follows the source aspect ratio
+        /// (scale=-2 rounds it to an even number), so a 16:9 screen previews at 480x270 - the size
+        /// assumption C2 names - and a 4:3 camera at 360x270.</summary>
+        public const int PreviewHeight = 270;
+
+        /// <summary>Preview frame rate. A monitor, not a viewfinder (assumption C2): enough to see
+        /// motion, low enough that AC9's cost bound is not in question.</summary>
+        public const int PreviewFps = 10;
+
+        /// <summary>MJPEG quality for the preview (2 = best, 31 = worst). Tens of kilobytes a frame.</summary>
+        public const int PreviewQuality = 8;
+
+        /// <summary>
+        /// The preview's filter chain, and every part of it was MEASURED rather than chosen
+        /// (issue #33, AC9 - a preview must cost the recording no dropped frames).
+        ///
+        /// On a 1920x1080 30fps capture, 30-second runs on 2026-08-28:
+        ///   control (no preview)                             drops 4, 1, 5
+        ///   scale then -r 10, 4:4:4                           drops 19, 27, 37   <- REJECTED
+        ///   fps=10 then scale, 4:2:0, neighbor sampling       drops 1, 0, 0      <- this
+        ///
+        /// The two-thirds difference is the ORDER: <c>fps=10</c> comes FIRST, so ten frames a second
+        /// are scaled instead of thirty being scaled and twenty thrown away at the encoder.
+        /// <c>flags=neighbor</c> is point sampling rather than a filtered resample - the right trade
+        /// for a monitor at a quarter size, and the rest of the difference. <c>yuvj420p</c> halves
+        /// the chroma the JPEG encoder has to touch.
+        /// </summary>
+        public static string PreviewFilter => $"fps={PreviewFps},scale=-2:{PreviewHeight}:flags=neighbor";
+
+        /// <summary>
+        /// The SECOND OUTPUT that feeds the recording HUD's live preview (issue #33): the captured
+        /// video, scaled down and sent as an MJPEG stream on ffmpeg's STDOUT.
+        ///
+        /// STDOUT AND NOT A FILE, and that is the whole design decision. Handing ffmpeg a file for
+        /// this output was measured on 2026-08-28: when the preview path failed mid-run, ffmpeg's
+        /// muxer error terminated the WHOLE process and truncated a 15-second recording to 5.1
+        /// seconds. A pipe moves that failure out of ffmpeg entirely - AgentEyes drains the pipe
+        /// unconditionally (<see cref="Preview.PreviewTap"/>) and any failure downstream of the drain
+        /// costs a picture, never the recording (AC10).
+        ///
+        /// It maps input 0's video explicitly because a recording with a microphone has a second
+        /// input, and it never carries audio: the preview is a picture.
+        ///
+        /// <c>-flush_packets 1</c> is required rather than tidy. Without it the raw MJPEG muxer fills
+        /// its 32KB AVIO buffer before anything reaches the pipe, which at these frame sizes delays
+        /// every frame by two or three of them - a monitor that lags is a monitor that lies about
+        /// what is being recorded right now.
+        /// </summary>
+        public static List<string> PreviewOutput() => new()
+        {
+            "-map", "0:v",
+            "-vf", PreviewFilter,
+            "-q:v", PreviewQuality.ToString(),
+            "-pix_fmt", "yuvj420p",
+            "-an",
+            "-f", "mjpeg",
+            "-flush_packets", "1",
+            "pipe:1",
+        };
 
         /// <summary>
         /// Capture a DirectShow camera to its OWN MP4 (issue #28) - a second, independent ffmpeg
@@ -134,12 +200,18 @@ namespace AgentEyes.Video
         /// <param name="fps">Requested camera frame rate.</param>
         /// <param name="crf">x264 quality (lower = better; 23 is the screen recorder's default).</param>
         /// <param name="outPath">Where camera.mp4 is written (its FINAL path - no deferred mux, A4).</param>
-        public static List<string> CameraCapture(string dshowCameraName, int fps, int crf, string outPath)
+        /// <param name="previewStream">Issue #33: also emit the small MJPEG monitoring stream on stdout
+        /// (see <see cref="PreviewOutput"/>). This is the ONLY way a camera preview can exist while a
+        /// recording runs - ffmpeg holds the DirectShow device exclusively, so the preview cannot open
+        /// it a second time (assumption C1). False - the default - produces byte-for-byte the command
+        /// line this built before the HUD preview existed (AC11).</param>
+        public static List<string> CameraCapture(
+            string dshowCameraName, int fps, int crf, string outPath, bool previewStream = false)
         {
             if (string.IsNullOrWhiteSpace(dshowCameraName))
                 throw new UsageException("a camera capture needs an exact DirectShow device name.");
 
-            return new List<string>
+            var a = new List<string>
             {
                 "-y",
                 "-f", "dshow",
@@ -157,6 +229,9 @@ namespace AgentEyes.Video
                 "-an",
                 outPath,
             };
+
+            if (previewStream) a.AddRange(PreviewOutput());
+            return a;
         }
 
         /// <summary>
