@@ -29,6 +29,15 @@ namespace AgentEyes.App
         public double? PresetEditorLeft { get; set; }
         public double? PresetEditorTop { get; set; }
 
+        // WHICH LAYOUT THAT REMEMBERED SIZE BELONGS TO (issue #43). A size is only "the size I left
+        // it at" for the panel it was left on. Issue #43 re-laid the Camera tab out and widened the
+        // editor's default, so a 1000x760 remembered under the old two-column panel would re-open
+        // the dialog too small for the new one - putting back the very scrollbar #35 removed, for
+        // every existing installation, while a fresh one looked correct. A remembered size whose
+        // stamp is not PresetEditor.LayoutVersion is a size from a panel that no longer exists and
+        // is discarded; the editor opens at its XAML default and stamps the next size it is given.
+        public int PresetEditorLayout { get; set; }
+
         // Recording HUD live preview (issue #33). Size is remembered ONLY for the preview state -
         // with the preview hidden the HUD sizes itself to its content exactly as it always has, so a
         // null here is "never resized" and not "zero".

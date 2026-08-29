@@ -32,6 +32,18 @@ namespace AgentEyes.App
         /// <summary>What CameraBox shows while the camera list is still being enumerated.</summary>
         private const string LoadingCamerasItem = "Loading cameras...";
 
+        /// <summary>
+        /// WHICH PANEL A REMEMBERED WINDOW SIZE BELONGS TO. Bump this whenever the editor's layout
+        /// changes what size it needs, and every size remembered against an older panel is dropped -
+        /// the editor opens at its XAML default instead. 1 was issue #35's two-column Camera tab at
+        /// 1000x760; 2 is issue #43's three-column one at 1280x760, which does not fit in 1000.
+        ///
+        /// Without this, the scrollbar #35 removed would come back for every EXISTING installation
+        /// and only for those - their config already holds a 1000x760 from the old panel, so the new
+        /// default would never be applied and the defect would look fixed on a clean machine.
+        /// </summary>
+        internal const int LayoutVersion = 2;
+
         private readonly CapturePreset _preset;
 
         /// <summary>
@@ -347,7 +359,8 @@ namespace AgentEyes.App
         /// </summary>
         private void RestoreWindowState()
         {
-            if (_cfg.PresetEditorWidth is double w && _cfg.PresetEditorHeight is double h
+            if (_cfg.PresetEditorLayout == LayoutVersion
+                && _cfg.PresetEditorWidth is double w && _cfg.PresetEditorHeight is double h
                 && w >= MinWidth && h >= MinHeight)
             {
                 Width = w;
@@ -380,6 +393,7 @@ namespace AgentEyes.App
                 _cfg.PresetEditorHeight = ActualHeight;
                 _cfg.PresetEditorLeft = Left;
                 _cfg.PresetEditorTop = Top;
+                _cfg.PresetEditorLayout = LayoutVersion;   // the panel this size was chosen for
             }
             _cfg.Save();
             Log.Info($"[PresetEditor] RememberWindowState: tab={_cfg.PresetEditorTab} " +
