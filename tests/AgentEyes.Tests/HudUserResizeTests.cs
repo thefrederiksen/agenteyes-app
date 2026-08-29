@@ -48,6 +48,62 @@ namespace AgentEyes.Tests
         private const int WM_SIZING = 0x0214, WM_ENTERSIZEMOVE = 0x0231, WM_EXITSIZEMOVE = 0x0232;
         private const int WM_SIZE = 0x0005, WM_WINDOWPOSCHANGED = 0x0047, WM_DPICHANGED = 0x02E0;
 
+        /// <summary>The HUD's shipped preview-panel default; the rig's window opens at it.</summary>
+        private const double DefaultPreviewWidth = 520, DefaultPreviewHeight = 400;
+
+        /// <summary>
+        /// THE SIZE A GESTURE LEAVES THE HUD AT - AC7's three times the default preview width, or as
+        /// much of it as the display running the suite can actually give a window.
+        ///
+        /// THIS WAS A LITERAL 1560 AND IT BROKE THE v1.7.0 RELEASE. Windows will not make a
+        /// resizable window wider than its maximum tracking size - the virtual screen plus the frame
+        /// - and it enforces that on every route a size arrives by, the <c>Window.Width</c>
+        /// assignment in <c>Rig.TheWindowBecomes</c> included. The GitHub runner's desktop is
+        /// 1024x768, so the widest window that existed there was 1044: the rig asked for 1560, the
+        /// window became 1044, the production code correctly recorded the 1044 the window really
+        /// was, and the assertion compared it against a number that was only ever true of the
+        /// developer's monitor. Eleven tests failed and no release was published.
+        ///
+        /// It is NOT a scaling mismatch, which is what 1560/1044 = 1.494 makes it look like. Both
+        /// sides here are WPF device-independent pixels and always were: the rig assigns
+        /// <see cref="FrameworkElement.Width"/> and the production code reads
+        /// <see cref="FrameworkElement.ActualWidth"/>. The heights, which fit on the runner, were
+        /// all correct.
+        /// </summary>
+        private static readonly Size Resized =
+            TheDisplayUnderTest.AtMost(3 * DefaultPreviewWidth, DefaultPreviewHeight);
+
+        private static readonly double ResizedWidth = Resized.Width;
+        private static readonly double ResizedHeight = Resized.Height;
+
+        /// <summary>
+        /// A DIFFERENT size, smaller than <see cref="Resized"/> - "something else resized the
+        /// window", which is what the move tests need there to be after a gesture. Derived from the
+        /// resized size rather than named, so the two are always distinguishable however little room
+        /// the display has, and always above the window's 260x52 minimum.
+        /// </summary>
+        private static readonly double OtherWidth = ResizedWidth * 0.6, OtherHeight = ResizedHeight * 0.75;
+
+        /// <summary>
+        /// THE INSTRUMENT CHECK FOR THE GESTURE TESTS BELOW. Every one of them turns on the window
+        /// really taking a size, and a display with no room to grow a window would leave them
+        /// "passing" over resizes that never happened. The precondition is therefore asserted by
+        /// name rather than left to produce a mystery number the way the v1.7.0 release did.
+        /// </summary>
+        [Fact]
+        public void TheDisplayRunningThisSuite_CanHoldTheWindowsTheseTestsResize()
+        {
+            Assert.True(ResizedWidth > DefaultPreviewWidth,
+                $"The widest window this display allows is {TheDisplayUnderTest.LargestWindowWidth:0.##}, "
+                + $"which is no wider than the {DefaultPreviewWidth} the rig's window already opens "
+                + "at. Every gesture test below would then 'resize' it to the size it already was.");
+
+            Assert.True(OtherWidth > 260 && OtherHeight > 52,
+                $"The 'something else resized it' size works out at {OtherWidth:0.##}x{OtherHeight:0.##}, "
+                + "which is below the window's 260x52 minimum - so the window would refuse it and the "
+                + "move tests would compare a size against itself.");
+        }
+
         // ---- the compiled call graph: nothing else can write a size -----------
 
         /// <summary>
@@ -269,15 +325,15 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(1560, 400);
+                rig.TheWindowBecomes(ResizedWidth, ResizedHeight);
 
                 rig.Send(WM_ENTERSIZEMOVE);
                 rig.Send(WM_SIZING);
                 rig.Send(WM_SIZING);
                 rig.Send(WM_EXITSIZEMOVE);
 
-                Assert.Equal(1560, rig.Memory.Width!.Value, 1);
-                Assert.Equal(400, rig.Memory.Height!.Value, 1);
+                Assert.Equal(ResizedWidth, rig.Memory.Width!.Value, 1);
+                Assert.Equal(ResizedHeight, rig.Memory.Height!.Value, 1);
             });
         }
 
@@ -291,7 +347,7 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(1560, 400);
+                rig.TheWindowBecomes(ResizedWidth, ResizedHeight);
 
                 rig.Send(WM_ENTERSIZEMOVE);
                 rig.Send(WM_EXITSIZEMOVE);
@@ -309,20 +365,20 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(1560, 400);
+                rig.TheWindowBecomes(ResizedWidth, ResizedHeight);
                 rig.Send(WM_ENTERSIZEMOVE);
                 rig.Send(WM_SIZING);
                 rig.Send(WM_EXITSIZEMOVE);
-                Assert.Equal(1560, rig.Memory.Width!.Value, 1);
+                Assert.Equal(ResizedWidth, rig.Memory.Width!.Value, 1);
 
                 // Something else resizes the window - a layout pass, a new panel - and the person
                 // then merely drags the HUD somewhere else.
-                rig.TheWindowBecomes(900, 300);
+                rig.TheWindowBecomes(OtherWidth, OtherHeight);
                 rig.Send(WM_ENTERSIZEMOVE);
                 rig.Send(WM_EXITSIZEMOVE);
 
-                Assert.Equal(1560, rig.Memory.Width!.Value, 1);
-                Assert.Equal(400, rig.Memory.Height!.Value, 1);
+                Assert.Equal(ResizedWidth, rig.Memory.Width!.Value, 1);
+                Assert.Equal(ResizedHeight, rig.Memory.Height!.Value, 1);
             });
         }
 
@@ -340,7 +396,7 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(1560, 400);
+                rig.TheWindowBecomes(ResizedWidth, ResizedHeight);
 
                 for (int i = 0; i < 5; i++) rig.Send(message);
 
@@ -358,7 +414,7 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(1560, 400);
+                rig.TheWindowBecomes(ResizedWidth, ResizedHeight);
 
                 foreach (int message in new[] { WM_WINDOWPOSCHANGED, WM_SIZE, WM_SIZE,
                                                 WM_WINDOWPOSCHANGED, WM_DPICHANGED, WM_SIZE })
@@ -378,17 +434,17 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(900, 300);
+                rig.TheWindowBecomes(OtherWidth, OtherHeight);
 
                 rig.Send(WM_ENTERSIZEMOVE);
-                rig.TheWindowBecomes(1560, 400);   // Windows snaps it, mid-loop
+                rig.TheWindowBecomes(ResizedWidth, ResizedHeight);   // Windows snaps it, mid-loop
                 rig.Send(WM_EXITSIZEMOVE);
 
                 Assert.True(rig.Memory.HasSize,
                     "A modal loop the window came out of at a different size recorded nothing, so a "
                     + "Windows snap is dropped and the HUD comes back at its old size.");
-                Assert.Equal(1560, rig.Memory.Width!.Value, 1);
-                Assert.Equal(400, rig.Memory.Height!.Value, 1);
+                Assert.Equal(ResizedWidth, rig.Memory.Width!.Value, 1);
+                Assert.Equal(ResizedHeight, rig.Memory.Height!.Value, 1);
             });
         }
 
@@ -402,7 +458,7 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(1560, 400);
+                rig.TheWindowBecomes(ResizedWidth, ResizedHeight);
 
                 rig.Send(WM_EXITSIZEMOVE);
                 rig.Send(WM_EXITSIZEMOVE);
@@ -423,7 +479,7 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(520, 400);
+                rig.TheWindowBecomes(DefaultPreviewWidth, DefaultPreviewHeight);
 
                 rig.TheWindowStateBecomes(WindowState.Maximized);
 
@@ -432,7 +488,7 @@ namespace AgentEyes.Tests
                     + "(Review Gate round 1 on PR #34).");
                 Assert.Equal(rig.Window.ActualWidth, rig.Memory.Width!.Value, 1);
                 Assert.Equal(rig.Window.ActualHeight, rig.Memory.Height!.Value, 1);
-                Assert.True(rig.Memory.Width!.Value > 520,
+                Assert.True(rig.Memory.Width!.Value > DefaultPreviewWidth,
                     $"the window did not actually grow when maximised (recorded {rig.Memory.Width}), "
                     + "so this test measured nothing.");
             });
@@ -446,7 +502,7 @@ namespace AgentEyes.Tests
         {
             RunOnRig(rig =>
             {
-                rig.TheWindowBecomes(520, 400);
+                rig.TheWindowBecomes(DefaultPreviewWidth, DefaultPreviewHeight);
 
                 rig.TheWindowStateBecomes(WindowState.Minimized);
                 rig.TheWindowStateBecomes(WindowState.Normal);
