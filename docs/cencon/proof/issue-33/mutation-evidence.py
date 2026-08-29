@@ -128,24 +128,26 @@ MUTATIONS = [
      '        public string? PreviewOverlayCorner { get; set; } = "bottom-right";',
      "FullyQualifiedName~PreviewManifestTests"),
 
-    # ---- round 2: AC7's persistence half (the QA bounce of 2026-08-28) ----------------------
-    # Four shapes of the same ordering defect. The HUD auto-sizes back to the pill BEFORE it
-    # closes, so anything that reads the size at close time, or lets an auto-sized report reach
-    # the memory, loses the size the person left the panel at.
+    # ---- round 2 + round 3: AC1 and AC7, the sizing of the preview panel --------------------
+    # THREE shapes of one question: which of the sizes a window reports is a size a PERSON chose.
+    # Round 1 read it at close time, by which point the HUD had auto-sized back to the pill. Round 2
+    # recorded every manually-sized report, so the pill reported from inside the switch to manual
+    # sizing became the remembered size - and the panel opened at 367x52 with a zero-sized picture.
+    # Round 3 makes the transition explicit, and these mutations break each part of it in turn.
 
-    ("M19 the size memory keeps whatever the window last reported, pill included",
+    ("M19 the size memory keeps whatever the window last reported, panel down and all",
      r"src\AgentEyes.App\HudSizeMemory.cs",
-     "            if (!manuallySized) return;",
+     "            if (!panelVisible || !manuallySized) return;",
      "            // mutation: any size the window reports is remembered, the pill's included",
-     "FullyQualifiedName~HudSizeMemoryTests"),
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
 
-    ("M20 the size memory FORGETS on an auto-sized report (the measured shape: the stop clears it)",
+    ("M20 the size memory FORGETS on an auto-sized report (round 1's shape: the stop clears it)",
      r"src\AgentEyes.App\HudSizeMemory.cs",
-     "            if (!manuallySized) return;",
-     "            if (!manuallySized) { _width = null; _height = null; return; }",
-     "FullyQualifiedName~HudSizeMemoryTests"),
+     "            if (!panelVisible || !manuallySized) return;",
+     "            if (!panelVisible || !manuallySized) { _width = null; _height = null; return; }",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
 
-    ("M21 SavePosition goes back to reading the window's live size at close time (the original bug)",
+    ("M21 SavePosition goes back to reading the window's live size at close time (round 1's bug)",
      r"src\AgentEyes.App\HudWindow.cs",
      "            if (_size.HasSize)\n            {\n                _cfg.HudWidth = _size.Width;\n                _cfg.HudHeight = _size.Height;\n            }",
      "            if (SizeToContent == SizeToContent.Manual && ActualWidth > 0 && ActualHeight > 0)\n            {\n                _cfg.HudWidth = ActualWidth;\n                _cfg.HudHeight = ActualHeight;\n            }",
@@ -153,9 +155,69 @@ MUTATIONS = [
 
     ("M22 the window never offers its sizes to the memory (a memory nothing feeds)",
      r"src\AgentEyes.App\HudWindow.cs",
-     "            SizeChanged += (_, _) => _size.Observe(\n                SizeToContent == SizeToContent.Manual, ActualWidth, ActualHeight);\n",
-     "            // mutation: the window keeps its sizes to itself\n",
+     "            HudPreviewSizing.Attach(this, _size, () => _preview.Visible);",
+     "            // mutation: the window keeps its sizes to itself",
      "FullyQualifiedName~HudSizeMemoryTests"),
+
+    ("M23 opening the panel is not announced as a transition, so its half-applied reports are trusted",
+     r"src\AgentEyes.App\HudSizeMemory.cs",
+     "            _settling = true;\n            return (_commandedWidth, _commandedHeight);",
+     "            _settling = false;   // mutation: every report during the switch is taken at face value\n            return (_commandedWidth, _commandedHeight);",
+     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+
+    ("M24 ROUND 2'S SHIPPED CODE, RECONSTRUCTED: no transition, and the size read back after the switch",
+     r"src\AgentEyes.App\HudPreviewSizing.cs",
+     "            window.SizeToContent = SizeToContent.Manual;\n            window.Width = width;\n            window.Height = height;",
+     "            memory.Settled();\n            window.SizeToContent = SizeToContent.Manual;\n            window.Width = memory.Width ?? defaultWidth;\n            window.Height = memory.Height ?? defaultHeight;",
+     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+
+    ("M25 taking the panel down forgets the size the person chose",
+     r"src\AgentEyes.App\HudSizeMemory.cs",
+     "        public void PanelClosed() => _settling = false;",
+     "        public void PanelClosed() { _settling = false; _width = null; _height = null; }",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+
+    ("M26 the transition never ends, so no resize is ever attributed to the person",
+     r"src\AgentEyes.App\HudSizeMemory.cs",
+     "        public void Settled() => _settling = false;",
+     "        public void Settled() { /* mutation: the transition never ends */ }",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+
+    ("M27 HudWindow sizes the window by hand again, where no test can drive it",
+     r"src\AgentEyes.App\HudWindow.cs",
+     "                HudPreviewSizing.ShowPanel(this, _size, DefaultPreviewWidth, DefaultPreviewHeight);",
+     "                if (SizeToContent != SizeToContent.Manual)\n                {\n                    SizeToContent = SizeToContent.Manual;\n                    Width = _size.Width ?? DefaultPreviewWidth;\n                    Height = _size.Height ?? DefaultPreviewHeight;\n                }",
+     "FullyQualifiedName~HudSizeMemoryTests"),
+
+    ("M28 the panel always opens at the default, ignoring the size the person left it at",
+     r"src\AgentEyes.App\HudSizeMemory.cs",
+     "            _commandedWidth = _width ?? defaultWidth;\n            _commandedHeight = _height ?? defaultHeight;",
+     "            _commandedWidth = defaultWidth;\n            _commandedHeight = defaultHeight;",
+     "FullyQualifiedName~HudSizeMemoryTests|FullyQualifiedName~HudPreviewSizingOrderTests"),
+
+    ("M29 the HUD stops seeding its memory from the config (QA round-2 blind spot Q1)",
+     r"src\AgentEyes.App\HudWindow.cs",
+     "            _size = new HudSizeMemory(cfg.HudWidth, cfg.HudHeight);",
+     "            _size = new HudSizeMemory(null, null);",
+     "FullyQualifiedName~HudSizeMemoryTests"),
+
+    ("M30 the window claims the panel is up and manually sized whatever it is doing (QA blind spot Q3)",
+     r"src\AgentEyes.App\HudPreviewSizing.cs",
+     "                panelVisible(),\n                window.SizeToContent == SizeToContent.Manual,",
+     "                true,\n                true,",
+     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+
+    ("M31 the window never claims to be manually sized, so nothing is remembered (QA blind spot Q4)",
+     r"src\AgentEyes.App\HudPreviewSizing.cs",
+     "                window.SizeToContent == SizeToContent.Manual,",
+     "                false,",
+     "FullyQualifiedName~HudPreviewSizingOrderTests"),
+
+    ("M32 ONLY the sizing-mode claim is broken, the panel-visible one left honest (QA's Q3 verbatim)",
+     r"src\AgentEyes.App\HudPreviewSizing.cs",
+     "                window.SizeToContent == SizeToContent.Manual,",
+     "                true,",
+     "FullyQualifiedName~HudPreviewSizingOrderTests"),
 ]
 
 
@@ -170,8 +232,13 @@ def run(filter_expr):
 
 
 def main():
+    # Optional: run a subset by mutation id, e.g. "python mutation-evidence.py M19 M20". No
+    # arguments runs every mutation, which is what the recorded evidence file is.
+    wanted = set(sys.argv[1:])
     results = []
     for label, rel, old, new, filt in MUTATIONS:
+        if wanted and label.split()[0] not in wanted:
+            continue
         path = os.path.join(WT, rel)
         src = io.open(path, encoding="utf-8").read()
         if src.count(old) != 1:
