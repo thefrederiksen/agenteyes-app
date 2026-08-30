@@ -28,7 +28,8 @@
       "SystemGain": 0.7,
       "NoiseSuppression": true,
       "NoiseGate": true,
-      "GateThreshold": 0.02,
+      "GateThresholdLinear": null,
+      "GateCalibrated": false,
       "VoiceLeveling": true,
       "RnnoiseModelPath": null
     }

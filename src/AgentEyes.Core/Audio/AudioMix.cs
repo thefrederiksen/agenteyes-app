@@ -12,14 +12,14 @@ namespace AgentEyes.Audio
         /// <summary>Mic WAV + system WAV -> one mixed WAV.</summary>
         public static void MixWavs(string micWav, string sysWav, string outWav, AudioMixOptions o)
         {
-            Prepare(o);
+            Prepare(o, micWav);
             Ffmpeg.Run(FfmpegArgs.MixTwoWav(micWav, sysWav, outWav, o), "mix mic+system");
         }
 
         /// <summary>Video (with mic track) + system WAV -> final MP4 with mixed audio.</summary>
         public static void MuxVideoMixed(string rawMp4, string sysWav, string outMp4, AudioMixOptions o)
         {
-            Prepare(o);
+            Prepare(o, rawMp4);
             Ffmpeg.Run(FfmpegArgs.MuxVideoMixMicSystem(rawMp4, sysWav, outMp4, o), "mux video+mic+system");
         }
 
@@ -30,15 +30,45 @@ namespace AgentEyes.Audio
         /// <summary>Video with a mic-only track -> final MP4 with the mic run through the clean-voice chain.</summary>
         public static void ProcessVideoMic(string rawMp4, string outMp4, AudioMixOptions o)
         {
-            Prepare(o);
+            Prepare(o, rawMp4);
             Ffmpeg.Run(FfmpegArgs.FilterVideoMic(rawMp4, outMp4, o), "process mic audio");
         }
 
-        /// <summary>Materialize the RNNoise model on disk when suppression is enabled.</summary>
-        private static void Prepare(AudioMixOptions o)
+        /// <summary>
+        /// Everything the mic chain needs before it can be built: the RNNoise model materialized on
+        /// disk, and the gate threshold measured from the capture that is about to be processed.
+        /// </summary>
+        private static void Prepare(AudioMixOptions o, string micSource)
         {
             if (o.NoiseSuppression && string.IsNullOrWhiteSpace(o.RnnoiseModelPath))
                 o.RnnoiseModelPath = RnnoiseModel.Ensure();
+
+            Calibrate(o, micSource);
+        }
+
+        /// <summary>
+        /// Measures <paramref name="micSource"/> and sets the gate threshold from what it finds.
+        ///
+        /// Always re-measures rather than trusting a value already on the options: these options are
+        /// serialized into the manifest for a deferred mux, so a stale threshold from an earlier
+        /// attempt could otherwise be applied to a different capture.
+        /// </summary>
+        internal static void Calibrate(AudioMixOptions o, string micSource)
+        {
+            if (!o.NoiseGate)
+            {
+                // Nothing to measure for. Mark it resolved so the chain builder can tell "the person
+                // turned the gate off" apart from "nobody measured yet".
+                o.GateThresholdLinear = null;
+                o.GateCalibrated = true;
+                return;
+            }
+
+            var levels = MicMeasure.Measure(micSource);
+            o.GateThresholdLinear = GateCalibration.ThresholdLinear(levels);
+            o.GateCalibrated = true;
+
+            Log.Info($"[AudioMix] Calibrate: source={micSource} {levels} -> {o.GateDescription()}");
         }
     }
 }

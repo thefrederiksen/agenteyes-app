@@ -429,12 +429,14 @@ namespace AgentEyes
                     Console.WriteLine("     mixing audio...");
                     if (mix) AgentEyes.Audio.AudioMix.MuxVideoMixed(ffOut, sysWav!, finalPath, mixOpts);
                     else AgentEyes.Audio.AudioMix.MuxVideoSystemOnly(ffOut, sysWav!, finalPath, mixOpts.SystemGain);
+                    if (mix) Console.WriteLine($"     {mixOpts.GateDescription()}");
                     originals.AddRange(OriginalBackup.Preserve(dir, "video", src));
                 }
                 else if (micPost)
                 {
                     Console.WriteLine("     processing mic audio...");
                     AgentEyes.Audio.AudioMix.ProcessVideoMic(ffOut, finalPath, mixOpts);
+                    Console.WriteLine($"     {mixOpts.GateDescription()}");
                     originals.AddRange(OriginalBackup.Preserve(dir, "video", AudioSourceKind.Mic));
                 }
 
@@ -701,7 +703,9 @@ namespace AgentEyes
         {
             var fx = new System.Collections.Generic.List<string>();
             if (m.NoiseSuppression) fx.Add("denoise");
-            if (m.NoiseGate) fx.Add("gate");
+            // Before the capture exists there is nothing to measure, so the gate can only be
+            // announced as measured; the threshold it actually chose is printed after processing.
+            if (m.NoiseGate) fx.Add(m.GateCalibrated ? m.GateDescription() : "gate (measured)");
             if (m.VoiceLeveling) fx.Add("level");
             return fx.Count > 0 ? string.Join("+", fx) : "no fx";
         }
