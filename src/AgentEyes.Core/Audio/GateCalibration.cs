@@ -35,7 +35,9 @@ namespace AgentEyes.Audio
         public double RmsDb { get; }
 
         public override string ToString() =>
-            $"noise floor {NoiseFloorDb:0.0} dBFS, RMS {RmsDb:0.0} dBFS";
+            $"noise floor {GateCalibration.Text(NoiseFloorDb)} dBFS, RMS {GateCalibration.Text(RmsDb)} dBFS";
+
+
     }
 
     /// <summary>
@@ -117,6 +119,18 @@ namespace AgentEyes.Audio
 
         /// <summary>dBFS to linear amplitude (0 dBFS = 1.0).</summary>
         public static double ToLinear(double db) => Math.Pow(10.0, db / 20.0);
+
+        /// <summary>
+        /// A dBFS level as PLAIN ASCII. .NET renders an infinity as the Unicode INFINITY symbol,
+        /// which put a non-ASCII character into the log the first time a silent take was measured.
+        /// This repository is ASCII-only everywhere, logs included, because Windows terminals and
+        /// log readers mis-render or choke on anything else.
+        /// </summary>
+        public static string Text(double db) =>
+            double.IsNegativeInfinity(db) ? "-inf"
+            : double.IsPositiveInfinity(db) ? "+inf"
+            : double.IsNaN(db) ? "nan"
+            : db.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
 
         /// <summary>Linear amplitude to dBFS. Zero and below is treated as digital silence.</summary>
         public static double ToDb(double linear) =>

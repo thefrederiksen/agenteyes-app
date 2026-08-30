@@ -57,7 +57,7 @@ namespace AgentEyes
             if (!GateCalibrated) return "gate on (not yet measured)";
             return GateThresholdLinear == null
                 ? "gate off (measured: no room between the noise floor and the voice)"
-                : $"gate at {Audio.GateCalibration.ToDb(GateThresholdLinear.Value):0.0} dBFS (measured)";
+                : $"gate at {Audio.GateCalibration.Text(Audio.GateCalibration.ToDb(GateThresholdLinear.Value))} dBFS (measured)";
         }
     }
 }

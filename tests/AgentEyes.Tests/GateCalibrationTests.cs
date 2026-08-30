@@ -135,6 +135,50 @@ namespace AgentEyes.Tests
             Assert.Equal(-78.0, GateCalibration.ToDb(GateCalibration.ToLinear(-78.0)), 9);
         }
 
+        [Fact]
+        public void Levels_and_gate_descriptions_are_plain_ascii_even_for_infinities()
+        {
+            // REGRESSION. .NET renders an infinity as the Unicode INFINITY symbol, and the first
+            // silent take measured after the -inf fix wrote "noise floor -inf" as a NON-ASCII
+            // character into AgentEyes-20260830.log. This repo is ASCII-only everywhere, logs
+            // included.
+            var silent = new MicLevels(double.NegativeInfinity, double.NegativeInfinity);
+            var normal = new MicLevels(-88.0, -38.0);
+
+            foreach (var text in new[]
+            {
+                silent.ToString(),
+                normal.ToString(),
+                GateCalibration.Text(double.NegativeInfinity),
+                GateCalibration.Text(double.PositiveInfinity),
+                GateCalibration.Text(double.NaN),
+                GateCalibration.Text(-77.9),
+            })
+            {
+                Assert.All(text, ch => Assert.InRange(ch, (char)0x20, (char)0x7E));
+            }
+
+            Assert.Contains("-inf", silent.ToString());
+        }
+
+        [Fact]
+        public void GateDescription_is_plain_ascii_for_every_state()
+        {
+            var o = new AudioMixOptions { NoiseGate = true };
+            var states = new System.Collections.Generic.List<string> { o.GateDescription() };
+            o.GateCalibrated = true;
+            states.Add(o.GateDescription());
+            o.GateThresholdLinear = GateCalibration.ToLinear(-77.9);
+            states.Add(o.GateDescription());
+            o.NoiseGate = false;
+            states.Add(o.GateDescription());
+
+            foreach (var text in states)
+            {
+                Assert.All(text, ch => Assert.InRange(ch, (char)0x20, (char)0x7E));
+            }
+        }
+
         // ---- what the filter chain does with the decision ----------------------
 
         private static AudioMixOptions GatedOpts() => new()
