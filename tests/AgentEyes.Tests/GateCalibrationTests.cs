@@ -81,13 +81,33 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void ThresholdDb_rejects_a_non_finite_measurement()
+        public void ThresholdDb_rejects_a_nan_measurement()
         {
-            // Digital silence measures as -inf; that is a broken instrument, not a level to gate on.
-            Assert.Throws<ArgumentOutOfRangeException>(
-                () => GateCalibration.ThresholdDb(new MicLevels(double.NegativeInfinity, -38.0)));
+            // NaN is a broken instrument, not a level - fail loudly rather than quietly not gating.
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => GateCalibration.ThresholdDb(new MicLevels(-88.0, double.NaN)));
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => GateCalibration.ThresholdDb(new MicLevels(double.NaN, -38.0)));
+        }
+
+        [Fact]
+        public void ThresholdDb_treats_digital_silence_as_do_not_gate_not_as_an_error()
+        {
+            // REGRESSION - Review Gate round 1, defect 1. astats reports a noise floor of -inf for a
+            // take containing digital silence (100 ms of zero samples is enough). That is a valid
+            // measurement, and throwing on it failed the whole recording: the mux threw, the pending
+            // mux was never cleared, and all three retries failed identically against the same file.
+            // The correct answer is a resolved no-gate decision.
+            Assert.Null(GateCalibration.ThresholdDb(new MicLevels(double.NegativeInfinity, -21.5)));
+            Assert.Null(GateCalibration.ThresholdLinear(new MicLevels(double.NegativeInfinity, -21.5)));
+        }
+
+        [Fact]
+        public void ThresholdDb_treats_an_entirely_silent_track_as_do_not_gate()
+        {
+            Assert.Null(GateCalibration.ThresholdDb(
+                new MicLevels(double.NegativeInfinity, double.NegativeInfinity)));
+            Assert.Null(GateCalibration.ThresholdDb(new MicLevels(-88.0, double.NegativeInfinity)));
         }
 
         [Fact]
@@ -238,12 +258,38 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void ParseOverall_returns_null_for_digital_silence()
+        public void ParseOverall_reads_digital_silence_as_a_measurement_not_a_missing_figure()
         {
-            // astats reports -inf for a silent track. That is not a level to calibrate against, and
-            // reading it as one would produce a nonsense threshold.
-            Assert.Null(MicMeasure.ParseOverall(
-                "[astats] Overall\n[astats] RMS level dB: -inf\n[astats] Noise floor dB: -inf\n"));
+            // REGRESSION - Review Gate round 1, defect 1. This test previously asserted NULL here,
+            // which is what locked the defect in: -inf is ffmpeg's VALID report that the quietest
+            // part of the take is digital zero. Erasing it to "no measurement" made Measure throw,
+            // and that took the whole recording down with it.
+            var levels = MicMeasure.ParseOverall(@"
+[astats] Overall
+[astats] RMS level dB: -21.487727
+[astats] Noise floor dB: -inf
+");
+
+            Assert.NotNull(levels);
+            Assert.True(double.IsNegativeInfinity(levels!.Value.NoiseFloorDb));
+            Assert.Equal(-21.487727, levels.Value.RmsDb, 6);
+
+            // And it resolves the way AC2(c) requires: no gate, not a failure.
+            Assert.Null(GateCalibration.ThresholdDb(levels.Value));
+        }
+
+        [Fact]
+        public void ParseOverall_reads_a_fully_silent_track()
+        {
+            var levels = MicMeasure.ParseOverall(@"
+[astats] Overall
+[astats] RMS level dB: -inf
+[astats] Noise floor dB: -inf
+");
+
+            Assert.NotNull(levels);
+            Assert.True(double.IsNegativeInfinity(levels!.Value.RmsDb));
+            Assert.Null(GateCalibration.ThresholdDb(levels.Value));
         }
 
         // ---- upgrading from a manifest that carried the old fixed threshold ----

@@ -17,7 +17,10 @@ namespace AgentEyes.Audio
             RmsDb = rmsDb;
         }
 
-        /// <summary>The quietest sustained level in the take - the room, the fan, the hiss.</summary>
+        /// <summary>
+        /// The quietest sustained level in the take - the room, the fan, the hiss. May be -inf when
+        /// the take contains digital silence, which is a valid report and resolves to "do not gate".
+        /// </summary>
         public double NoiseFloorDb { get; }
 
         /// <summary>
@@ -26,6 +29,8 @@ namespace AgentEyes.Audio
         /// pushes the computed threshold DOWN and makes the gate gentler rather than harsher. That
         /// direction of error is the safe one - the defect this calibration exists to fix was a
         /// threshold that was too HIGH.
+        ///
+        /// May be -inf: a track of pure digital silence. That is a measurement, not an error.
         /// </summary>
         public double RmsDb { get; }
 
@@ -75,13 +80,22 @@ namespace AgentEyes.Audio
         /// </summary>
         public static double? ThresholdDb(MicLevels levels)
         {
-            if (double.IsNaN(levels.NoiseFloorDb) || double.IsInfinity(levels.NoiseFloorDb)
-                || double.IsNaN(levels.RmsDb) || double.IsInfinity(levels.RmsDb))
+            // NaN is a BROKEN INSTRUMENT - the measurement machinery produced nonsense, and that is
+            // worth failing loudly over rather than silently not gating.
+            if (double.IsNaN(levels.NoiseFloorDb) || double.IsNaN(levels.RmsDb))
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(levels), levels.ToString(),
-                    "gate calibration needs finite measured levels in dBFS");
+                    "gate calibration cannot read a measurement of NaN");
             }
+
+            // An INFINITY is a real measurement, not a broken one, and it resolves to "do not gate"
+            // (Review Gate round 1, defect 1). A noise floor of -inf means the quietest part of the
+            // take is digital zero: there is no noise for a gate to remove, only speech for it to
+            // damage. An RMS of -inf means the track is silent throughout. Either way there is no
+            // honest threshold, which is the same answer as a span that is too narrow - and it must
+            // not fail the recording, which is what throwing here used to do.
+            if (double.IsInfinity(levels.NoiseFloorDb) || double.IsInfinity(levels.RmsDb)) return null;
 
             double span = levels.RmsDb - levels.NoiseFloorDb;
             if (span < MinUsableSpanDb) return null;

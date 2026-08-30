@@ -24,8 +24,14 @@ namespace AgentEyes.Audio
 
         /// <summary>
         /// The overall noise floor and RMS of the first audio stream in <paramref name="mediaPath"/>.
-        /// Throws when the file has no readable audio or astats does not report both figures - the
-        /// caller must not proceed to gate on a measurement that did not happen.
+        ///
+        /// Throws ONLY when astats did not report the figures at all - a measurement that did not
+        /// happen. It does NOT throw for a figure of -inf: that is ffmpeg's valid report of digital
+        /// silence, and it is carried through so <see cref="GateCalibration"/> can resolve it to a
+        /// no-gate decision. Conflating the two failed the whole recording (Review Gate round 1,
+        /// defect 1): 100 ms of zero samples on the mic made a mixed capture unfinalizable, because
+        /// the mux threw, the pending mux was never cleared, and all three retries failed identically
+        /// against the same unchanged file.
         /// </summary>
         public static MicLevels Measure(string mediaPath)
         {
@@ -81,11 +87,21 @@ namespace AgentEyes.Audio
             while (end < text.Length && text[end] != '\n' && text[end] != '\r') end++;
 
             string raw = text.Substring(start, end - start).Trim();
-            if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
-                return null;
 
-            // astats reports digital silence as -inf; that is not a level we can calibrate against.
-            return double.IsNaN(value) || double.IsInfinity(value) ? (double?)null : value;
+            // ffmpeg spells these itself and .NET's parser does not recognise them. INFINITIES ARE
+            // VALUES, NOT FAILURES: astats writes "-inf" for a track containing digital silence, and
+            // that is a true statement about the audio - the quietest part really is zero. Erasing it
+            // to "no measurement" here is what made a 100 ms run of zero samples fail a whole mixed
+            // recording (Review Gate round 1, defect 1). It is carried out so the calibration can
+            // decide what it means.
+            if (raw.Equals("-inf", StringComparison.OrdinalIgnoreCase)) return double.NegativeInfinity;
+            if (raw.Equals("inf", StringComparison.OrdinalIgnoreCase)
+                || raw.Equals("+inf", StringComparison.OrdinalIgnoreCase)) return double.PositiveInfinity;
+            if (raw.Equals("nan", StringComparison.OrdinalIgnoreCase)) return double.NaN;
+
+            return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+                ? value
+                : (double?)null;
         }
 
         private static string RunAstats(string mediaPath)

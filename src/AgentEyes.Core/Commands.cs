@@ -173,6 +173,11 @@ namespace AgentEyes
                 Console.WriteLine();
 
                 AgentEyes.Audio.AudioMix.MixWavs(micWav, sysNative, wav, mixOpts);
+                // Issue #46, AC5: the gate's decision is announced AFTER the measurement, on every
+                // entry point that gates. Without this the mixed path printed only the pre-capture
+                // "gate (measured)" placeholder and never said which threshold it used, or whether
+                // it gated at all - exactly the invisible decision AC5 exists to remove.
+                Console.WriteLine($"     {mixOpts.GateDescription()}");
                 originals.AddRange(OriginalBackup.Preserve(dir, "audio", AudioSourceKind.Mixed));
             }
             else if (loopback)
