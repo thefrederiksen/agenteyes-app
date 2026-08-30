@@ -70,6 +70,17 @@ namespace AgentEyes
         public string? CameraFile { get; set; }
 
         /// <summary>
+        /// Issue #47: true once the camera has been rendered INTO <see cref="VideoFile"/>, with the
+        /// screen-only cut kept beside it as "recording.screen.mp4".
+        ///
+        /// It exists so "has this been composed" is a fact on the record rather than something
+        /// inferred from which files happen to be present, and so re-running the compose is a
+        /// deliberate act rather than an accident. Absent (null) on every manifest written before
+        /// this feature, which reads correctly as "not composed".
+        /// </summary>
+        public bool? ComposedCamera { get; set; }
+
+        /// <summary>
         /// Issue #28: how far the camera capture started AFTER the screen capture, in seconds -
         /// negative when the camera started first, which is the normal case (the camera is opened
         /// before the screen so that a camera which cannot be opened fails the start before any

@@ -236,7 +236,10 @@ namespace AgentEyes.App
                 // Issue #28, assumption A1: the camera is a video-mode setting. A camera saved on a
                 // preset that is now "shot" or "audio" is ignored rather than silently changing what
                 // those modes do.
-                default: svc.StartVideo(screen, src, mic, region, opts, p.Fps, p.Camera, p.CameraFps); return null;
+                // Issue #47: the preset's own framing goes in with the start, so the composed
+                // video can be laid out even when no preview window ever opened.
+                default: svc.StartVideo(screen, src, mic, region, opts, p.Fps, p.Camera, p.CameraFps,
+                    string.IsNullOrWhiteSpace(p.Camera) ? null : p.Overlay); return null;
             }
         }
     }

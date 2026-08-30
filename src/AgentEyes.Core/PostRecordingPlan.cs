@@ -57,6 +57,26 @@ namespace AgentEyes
         /// </summary>
         public static bool NeedsThumbnail(string dir) => Thumbnails.NeedsThumb(dir, respectClaim: false);
 
+        /// <summary>
+        /// Issue #47: true when this recording has a camera track and a recorded framing, and the
+        /// camera has not been rendered in yet. A recording with no camera, or one whose framing was
+        /// never recorded, needs no compose - and a composed one is never composed twice.
+        /// </summary>
+        public static bool NeedsCompose(string dir)
+        {
+            // A stranded recording with no manifest has no framing to read and must not throw out of
+            // a predicate the recovery scan calls on every directory it finds - the same guard
+            // NeedsMux carries, and for the same reason.
+            if (!Directory.Exists(dir)) return false;
+            if (!File.Exists(Path.Combine(dir, "manifest.json"))) return false;
+
+            var m = Manifest.Load(dir);
+            if (m.ComposedCamera == true) return false;
+            if (string.IsNullOrWhiteSpace(m.CameraFile)) return false;
+            return !string.IsNullOrWhiteSpace(m.PreviewOverlayCorner)
+                && !string.IsNullOrWhiteSpace(m.PreviewOverlayShape);
+        }
+
         /// <summary>True when this recording has media but no transcript, and has attempts left.</summary>
         public static bool NeedsPackage(string dir) => TranscriptionBacklog.NeedsTranscription(dir);
 
@@ -70,6 +90,7 @@ namespace AgentEyes
         {
             var stages = new List<string>();
             if (NeedsMux(dir)) stages.Add(PostStage.Mux);
+            if (NeedsCompose(dir)) stages.Add(PostStage.Compose);
             if (NeedsThumbnail(dir)) stages.Add(PostStage.Thumbnail);
             if (NeedsPackage(dir)) stages.Add(PostStage.Package);
             return stages;

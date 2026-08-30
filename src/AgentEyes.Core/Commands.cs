@@ -542,6 +542,52 @@ namespace AgentEyes
             }
         }
 
+        // ---- compose (issue #47) -------------------------------------------
+
+        /// <summary>
+        /// Render the camera into the screen recording at the framing the preset chose.
+        ///
+        /// Exists as its own command for two reasons: it makes the compose stage verifiable on a
+        /// directory that already exists, and it is how a recording made before this feature - or one
+        /// whose framing has been changed since - gets its composed video without recording again.
+        /// </summary>
+        public static int Compose(CliArgs opts)
+        {
+            if (opts.Positional.Count == 0)
+            {
+                throw new UsageException("compose needs a recording directory: agenteyes compose <dir>");
+            }
+
+            string dir = opts.Positional[0];
+            var outcome = CameraCompose.Run(dir);
+
+            switch (outcome)
+            {
+                case CameraCompose.Outcome.Composed:
+                    Console.WriteLine($"[ok] composed  {Path.Combine(dir, "recording.mp4")}");
+                    Console.WriteLine($"     the screen-only cut is {CameraCompose.ScreenOnlyFile}");
+                    Console.WriteLine("     camera.mp4 is unchanged - re-run compose after changing the framing");
+                    return 0;
+
+                // Not silent successes: a person asked for a composed video and is not getting one,
+                // so say which of the two reasons it is and exit non-zero.
+                case CameraCompose.Outcome.NoCamera:
+                    Console.WriteLine($"[skip] {dir} has no camera track (no CameraFile in manifest.json).");
+                    Console.WriteLine("       Record with a preset that has a camera to get one.");
+                    return 2;
+
+                case CameraCompose.Outcome.NoFraming:
+                    Console.WriteLine($"[skip] {dir} has a camera track but no framing was recorded.");
+                    Console.WriteLine("       PreviewOverlayCorner / PreviewOverlayShape are absent from manifest.json,");
+                    Console.WriteLine("       so there is no layout to render. Recordings made before the framing was");
+                    Console.WriteLine("       persisted are in this state.");
+                    return 3;
+
+                default:
+                    throw new UsageException($"unhandled compose outcome: {outcome}");
+            }
+        }
+
         // ---- package -------------------------------------------------------
 
         public static int Package(CliArgs opts)

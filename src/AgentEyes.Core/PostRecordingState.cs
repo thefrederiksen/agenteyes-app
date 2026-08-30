@@ -14,6 +14,11 @@ namespace AgentEyes
         /// produces the final recording.mp4 / audio.wav.</summary>
         public const string Mux = "mux";
 
+        /// <summary>Issue #47: render the camera into the final video as a corner inset. Runs after
+        /// the mux (it needs the final media file) and BEFORE the thumbnail, so the Library tile is
+        /// made from the video people actually get.</summary>
+        public const string Compose = "compose";
+
         /// <summary>Generate the Library poster / waveform tile.</summary>
         public const string Thumbnail = "thumbnail";
 
@@ -24,7 +29,7 @@ namespace AgentEyes
         public const string Plugins = "plugins";
 
         /// <summary>Every stage, in the order the sequence runs them.</summary>
-        public static readonly string[] All = { Mux, Thumbnail, Package, Plugins };
+        public static readonly string[] All = { Mux, Compose, Thumbnail, Package, Plugins };
     }
 
     /// <summary>The states a stage record can carry (issue #152).</summary>

@@ -462,8 +462,14 @@ namespace AgentEyes
         /// before anything touches disk; absent or ambiguous fails the start.</param>
         /// <param name="cameraFps">Frame rate requested from the camera. The camera's own default
         /// resolution is used (assumption A2).</param>
+        /// <param name="overlay">Issue #47: the camera framing chosen in the PRESET, seeded here so it
+        /// is on the record from the first frame. Before this it arrived only from the HUD preview
+        /// window (SetPreviewOverlay), so a recording made without that window open wrote no framing
+        /// at all and there was nothing for the compose stage to lay out. The HUD can still refine it
+        /// while recording; this is the starting value, not a competing one.</param>
         public void StartVideo(int screen, AudioSourceKind src, string? micFragment, int[]? region,
-            AudioMixOptions opts, int fps, string? cameraFragment = null, int cameraFps = 30)
+            AudioMixOptions opts, int fps, string? cameraFragment = null, int cameraFps = 30,
+            CameraOverlaySettings? overlay = null)
         {
             // Retained recorders are only worth retaining if something ever uses them again (issue
             // #28, AC16). This is that moment: the user is asking for a camera recording, which is
@@ -559,7 +565,12 @@ namespace AgentEyes
                 _cameraTap = PreviewArmed && dshowCamera != null
                     ? PreviewTap.TryCreate(PreviewPaths.CameraTrack)
                     : null;
-                _previewOverlay = null;
+                // Issue #47: seed the preset's framing rather than clearing it. Clearing here was
+                // what made the chosen corner a property of the preview WINDOW instead of the
+                // recording - with no HUD open, the manifest got no framing and the composed video
+                // could not be laid out.
+                _previewOverlay = overlay?.Canonical();
+                Log.Info($"[RecordingService] StartVideo: framing={(_previewOverlay == null ? "(none)" : _previewOverlay.ToString())}");
                 Log.Info($"[RecordingService] StartVideo: preview armed={PreviewArmed} "
                          + $"screenTap={_screenTap != null} cameraTap={_cameraTap != null}");
 

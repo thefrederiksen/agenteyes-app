@@ -157,6 +157,13 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Delete x1",               // THE manifest path: temp cleanup after a failed rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Move x1",                 // THE manifest path: the atomic rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.FileStream::.ctor x1",          // THE manifest path: the flushed temp
+            // Issue #47, composing the camera into the final video. None of these touches camera.mp4,
+            // which stays the untouched full frame; they move the composed result into place and
+            // clear the scaffolding (the temp output and the circle mask).
+            "agenteyes.dll!AgentEyes.CameraCompose::Run -> System.IO.File::Delete x2",                       // the circle mask and the temp compose output
+            "agenteyes.dll!AgentEyes.CameraCompose::Swap -> System.IO.File::Delete x1",                      // the superseded screen-only cut on a re-compose
+            "agenteyes.dll!AgentEyes.CameraCompose::Swap -> System.IO.File::Move x2",                        // screen-only preserved, composed put in its place
+            "agenteyes.dll!AgentEyes.Video.CircleMask::Write -> System.Drawing.Image::Save x1",              // the circular alpha mask (temp, deleted after the compose)
             "agenteyes.dll!AgentEyes.OriginalBackup::Preserve -> System.IO.File::Move x1",                   // the .original audio backup
             "agenteyes.dll!AgentEyes.Package::RunAsync -> System.IO.File::WriteAllText x1",                  // walkthrough.html
             "agenteyes.dll!AgentEyes.Package::WriteTranscript -> System.IO.File::WriteAllText x2",           // transcript.json, transcript.<lang>.vtt
@@ -206,6 +213,7 @@ namespace AgentEyes.Tests
         {
             "AgentEyesApp.dll!AgentEyes.App.MainWindow::RenameRecording_Click -> AgentEyes.ManifestStore::Update x1",   // the Library rename sets DisplayName
             "AgentEyesApp.dll!AgentEyes.App.RecordingDetailWindow::CommitRename -> AgentEyes.ManifestStore::Update x1", // the detail-window rename
+            "agenteyes.dll!AgentEyes.CameraCompose::Run -> AgentEyes.ManifestStore::Update x1",            // issue #47: the composed-camera flag and the screen-only cut
             "agenteyes.dll!AgentEyes.Commands::Audio -> AgentEyes.ManifestStore::Replace x1",                  // a CLI audio session's own record
             "agenteyes.dll!AgentEyes.Commands::Shot -> AgentEyes.ManifestStore::Replace x1",                   // a CLI screenshot's own record
             "agenteyes.dll!AgentEyes.Commands::Video -> AgentEyes.ManifestStore::Replace x1",                  // a CLI video session's own record
