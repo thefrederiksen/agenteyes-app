@@ -68,8 +68,19 @@ namespace AgentEyes.Video
             }
 
             // A positive offset means the camera started LATE, so the inset must appear late too.
+            //
+            // TWO PARTS, and the second is the one that was missing (Review Gate round 1, defect 3).
+            // tpad shifts the camera's timing by padding its head with black frames - but padding
+            // CONTENT is not the same as delaying the OVERLAY, and those black frames were composited
+            // like any other, painting an opaque black box over the screen for the first second of a
+            // recording whose camera started late. The enable expression below is what actually
+            // withholds the inset until there is camera footage to draw; before then the screen is
+            // passed through untouched, which is the only honest thing to show.
             string delay = cameraStartOffsetSeconds > 0
                 ? $"tpad=start_duration={Seconds(cameraStartOffsetSeconds)}:start_mode=add:color=black,"
+                : "";
+            string appear = cameraStartOffsetSeconds > 0
+                ? $":enable='gte(t,{Seconds(cameraStartOffsetSeconds)})'"
                 : "";
 
             string crop = $"crop={Num(c.CameraCrop.Width)}:{Num(c.CameraCrop.Height)}:"
@@ -82,12 +93,12 @@ namespace AgentEyes.Video
                 fc = $"[1:v]{delay}{crop},{scale},format=rgba[cam];"
                    + $"[2:v]{scale},format=gray[mask];"
                    + "[cam][mask]alphamerge[inset];"
-                   + $"[0:v][inset]overlay={c.X}:{c.Y}:eof_action=pass[v]";
+                   + $"[0:v][inset]overlay={c.X}:{c.Y}:eof_action=pass{appear}[v]";
             }
             else
             {
                 fc = $"[1:v]{delay}{crop},{scale}[inset];"
-                   + $"[0:v][inset]overlay={c.X}:{c.Y}:eof_action=pass[v]";
+                   + $"[0:v][inset]overlay={c.X}:{c.Y}:eof_action=pass{appear}[v]";
             }
 
             a.AddRange(new[]

@@ -83,16 +83,21 @@ namespace AgentEyes.Preview
 
             // How big it is on the screen. A circle's bounding square is square, so the inset is
             // square too; a rectangle keeps the camera's own proportions.
-            int insetWidth = Even((int)Math.Round(screenWidth * settings.ClampedInsetFraction));
-            int insetHeight = circular
-                ? insetWidth
-                : Even((int)Math.Round(insetWidth * (crop.Height / crop.Width)));
+            double wantWidth = screenWidth * settings.ClampedInsetFraction;
+            double wantHeight = circular ? wantWidth : wantWidth * (crop.Height / crop.Width);
 
             // An inset can never be larger than the frame it sits in, however the fractions were set.
-            insetWidth = Even(Math.Min(insetWidth, screenWidth));
-            insetHeight = Even(Math.Min(insetHeight, screenHeight));
+            // SHRINK BOTH AXES BY THE SAME FACTOR (Review Gate round 1, defect 2). Clamping them
+            // independently turned a circle into an ellipse the moment only one axis was too big:
+            // on a 3840x1080 output at the supported maximum inset of 0.60, the width wanted 2304
+            // and the height was cut to 1080, and the round mask was then stretched across it.
+            double fit = Math.Min(1.0, Math.Min(screenWidth / wantWidth, screenHeight / wantHeight));
+            int insetWidth = Even((int)Math.Round(wantWidth * fit));
+            int insetHeight = circular ? insetWidth : Even((int)Math.Round(wantHeight * fit));
+
             if (insetWidth < 2) insetWidth = 2;
             if (insetHeight < 2) insetHeight = 2;
+            if (circular) insetHeight = insetWidth;   // squareness is the whole property here
 
             int margin = Even((int)Math.Round(screenWidth * MarginFraction));
 

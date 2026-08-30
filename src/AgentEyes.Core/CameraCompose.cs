@@ -69,9 +69,18 @@ namespace AgentEyes
                 return Outcome.NoFraming;
             }
 
-            string screen = Path.Combine(dir, manifest.VideoFile ?? "recording.mp4");
+            // COMPOSE FROM THE SCREEN-ONLY CUT WHENEVER ONE EXISTS (Review Gate round 1, defect 1).
+            // manifest.VideoFile is recording.mp4, which after a first compose is ALREADY composed.
+            // Reading it back in drew the new inset on top of the old one, so changing the framing
+            // and re-running produced a video with two camera circles - the exact operation the
+            // command's own success message invites.
+            string final = Path.Combine(dir, manifest.VideoFile ?? "recording.mp4");
+            string screenOnly = Path.Combine(dir, ScreenOnlyFile);
+            bool recomposing = File.Exists(screenOnly);
+            string screen = recomposing ? screenOnly : final;
+
             string camera = Path.Combine(dir, manifest.CameraFile!);
-            RequireFile(screen, "the screen recording");
+            RequireFile(screen, recomposing ? "the screen-only cut" : "the screen recording");
             RequireFile(camera, "the camera track");
 
             var (screenW, screenH) = MediaProbe.VideoSize(screen);
@@ -96,7 +105,7 @@ namespace AgentEyes
                         manifest.CameraStartOffsetSeconds ?? 0.0, Crf),
                     "compose camera inset");
 
-                Swap(dir, screen, composed);
+                Swap(final, screenOnly, composed);
             }
             finally
             {
@@ -124,20 +133,27 @@ namespace AgentEyes
         /// audio processing. Two different "originals" under one name would make it impossible to say
         /// which one a directory held.
         /// </summary>
-        private static void Swap(string dir, string screen, string composed)
+        private static void Swap(string final, string screenOnly, string composed)
         {
             if (!File.Exists(composed) || new FileInfo(composed).Length == 0)
                 throw new UsageException(
                     "the compose step produced no output; recording.mp4 has been left untouched");
 
-            string screenOnly = Path.Combine(dir, ScreenOnlyFile);
+            // FIRST make sure a screen-only cut exists, and only THEN replace the final file. In this
+            // order the screen-only video is on disk before anything is destroyed, so a crash between
+            // the two steps leaves both the screen-only cut and the old final file - never neither.
+            if (!File.Exists(screenOnly))
+            {
+                File.Move(final, screenOnly);
+            }
+            else
+            {
+                // Re-composing: the screen-only cut is already preserved and is what we just composed
+                // FROM, so the current final file is a superseded composed video and nothing else.
+                if (File.Exists(final)) File.Delete(final);
+            }
 
-            // Re-composing a directory that was already composed must not bury the screen-only cut
-            // under a composed one - the first preserved copy is the real screen-only video.
-            if (!File.Exists(screenOnly)) File.Move(screen, screenOnly);
-            else File.Delete(screen);
-
-            File.Move(composed, screen);
+            File.Move(composed, final);
         }
 
         /// <summary>

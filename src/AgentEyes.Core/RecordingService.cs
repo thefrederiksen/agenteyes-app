@@ -514,6 +514,26 @@ namespace AgentEyes
                 // recording interrupted before its stop still says on disk that a camera track exists.
                 if (dshowCamera != null) _manifest.CameraFile = "camera.mp4";
 
+                // Issue #47, AC1, and the half of it the Review Gate found missing (round 1,
+                // defect 5). The framing was only ever written to the manifest by the STOP path, so
+                // a recording killed before it stopped had a durable manifest naming camera.mp4 with
+                // no framing beside it - and recovery, which decides from that manifest, then saw
+                // nothing to compose. The framing is known before the first byte is captured, so it
+                // belongs in the first manifest with everything else that is known then. The stop
+                // still writes the final value, which may have been refined in the HUD meanwhile.
+                if (dshowCamera != null && overlay != null)
+                {
+                    var framing = overlay.Canonical();
+                    _manifest.PreviewOverlayCorner = framing.Corner;
+                    _manifest.PreviewOverlayShape = framing.Shape;
+                    _manifest.PreviewOverlayInset = framing.InsetFraction;
+                    _manifest.PreviewOverlayCircle =
+                        framing.ShapeValue == Preview.CameraOverlayShape.Circle
+                            ? framing.Circle.Clone()
+                            : null;
+                    Log.Info($"[RecordingService] StartVideo: framing recorded at start - {framing}");
+                }
+
                 // Mixed/system capture the system loopback and mux after; a mic-only recording
                 // gets a post pass too (no loopback!) when any mic processing (suppression,
                 // gate, leveling, volume) is on, so clean-voice applies to plain narration.

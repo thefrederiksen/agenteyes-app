@@ -72,6 +72,17 @@ namespace AgentEyes
         /// </summary>
         public const int MaxMuxAttempts = 3;
 
+        /// <summary>
+        /// How many times the camera compose is attempted automatically before the recovery pass
+        /// leaves the recording alone (issue #47; Review Gate round 1, defect 4).
+        ///
+        /// It needs its own ceiling for exactly the reason the mux does: the compose has no
+        /// artifact-based counter, and an unreadable or truncated camera.mp4 would otherwise launch
+        /// ffmpeg again on every 15-minute repair tick, forever. Counting the attempts without ever
+        /// READING them is the same as not counting them.
+        /// </summary>
+        public const int MaxComposeAttempts = 3;
+
         /// <summary>How much of a failure message is kept in the manifest. The log holds the full
         /// exception; this is the at-a-glance diagnosis next to the recording.</summary>
         public const int MaxErrorChars = 300;

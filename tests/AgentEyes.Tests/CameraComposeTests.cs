@@ -141,6 +141,51 @@ namespace AgentEyes.Tests
                 () => CameraComposition.For(ScreenW, ScreenH, CamW, 0, Overlay()));
         }
 
+        [Fact]
+        public void Composition_keeps_a_circle_square_on_an_ultrawide_output()
+        {
+            // REGRESSION - Review Gate round 1, defect 2. Clamping width and height independently
+            // turned the circle into an ellipse: on 3840x1080 at the supported maximum inset of
+            // 0.60 the width wanted 2304 while the height was cut to 1080, and the round mask was
+            // then stretched across those non-square dimensions.
+            var c = CameraComposition.For(3840, 1080, 1920, 1080, Overlay(inset: 0.60));
+
+            Assert.True(c.Circular);
+            Assert.Equal(c.InsetWidth, c.InsetHeight);
+            Assert.True(c.InsetHeight <= 1080);
+            Assert.True(c.Bottom <= 1080 && c.Right <= 3840);
+        }
+
+        [Theory]
+        [InlineData(3840, 1080)]
+        [InlineData(5120, 1440)]
+        [InlineData(1080, 1920)]   // a vertical capture
+        [InlineData(640, 480)]
+        public void Composition_circles_are_square_on_every_shape_of_output(int w, int h)
+        {
+            foreach (var inset in new[] { 0.15, 0.30, 0.45, 0.60 })
+            {
+                var c = CameraComposition.For(w, h, 1920, 1080, Overlay(inset: inset));
+                Assert.True(c.InsetWidth == c.InsetHeight,
+                    $"{w}x{h} at inset {inset} produced {c.InsetWidth}x{c.InsetHeight} - an ellipse");
+                Assert.True(c.Right <= w && c.Bottom <= h,
+                    $"{w}x{h} at inset {inset} placed the inset outside the frame");
+            }
+        }
+
+        [Fact]
+        public void Composition_of_a_rectangle_keeps_its_aspect_when_the_height_is_the_limit()
+        {
+            // The same independent-clamp bug would squash a rectangle instead of stretching a circle.
+            var c = CameraComposition.For(3840, 400, 1920, 1080, Overlay(shape: "rectangle", inset: 0.60));
+
+            double wanted = 1920.0 / 1080.0;
+            double got = (double)c.InsetWidth / c.InsetHeight;
+            Assert.True(Math.Abs(got - wanted) < 0.05,
+                $"aspect {got:0.###} drifted from the camera's {wanted:0.###}");
+            Assert.True(c.Bottom <= 400);
+        }
+
         // ---- the ffmpeg command ------------------------------------------------
 
         private static string Graph(System.Collections.Generic.List<string> args)
@@ -240,6 +285,40 @@ namespace AgentEyes.Tests
             Assert.Contains("eof_action=pass", Graph(args));
         }
 
+        [Fact]
+        public void CameraInset_does_not_paint_the_inset_before_the_camera_starts()
+        {
+            // REGRESSION - Review Gate round 1, defect 3. tpad pads the camera's head with OPAQUE
+            // BLACK frames, and those were composited like any other: a recording whose camera
+            // started one second late got a black box over the screen for that second. Padding
+            // content is not the same as delaying the overlay; the enable expression is what
+            // actually withholds it.
+            var c = CameraComposition.For(ScreenW, ScreenH, CamW, CamH, Overlay());
+            string g = Graph(ComposeArgs.CameraInset("s.mp4", "c.mp4", "m.png", "o.mp4", c, 1.0, 23));
+
+            Assert.Contains("tpad=start_duration=1", g);
+            Assert.Contains("enable='gte(t,1)'", g);
+        }
+
+        [Fact]
+        public void CameraInset_has_no_enable_guard_when_the_camera_did_not_start_late()
+        {
+            var c = CameraComposition.For(ScreenW, ScreenH, CamW, CamH, Overlay());
+
+            Assert.DoesNotContain("enable=",
+                Graph(ComposeArgs.CameraInset("s.mp4", "c.mp4", "m.png", "o.mp4", c, -0.855, 23)));
+            Assert.DoesNotContain("enable=",
+                Graph(ComposeArgs.CameraInset("s.mp4", "c.mp4", "m.png", "o.mp4", c, 0, 23)));
+        }
+
+        [Fact]
+        public void CameraInset_guards_a_rectangle_the_same_way_as_a_circle()
+        {
+            var c = CameraComposition.For(ScreenW, ScreenH, CamW, CamH, Overlay(shape: "rectangle"));
+            Assert.Contains("enable='gte(t,1.5)'",
+                Graph(ComposeArgs.CameraInset("s.mp4", "c.mp4", null, "o.mp4", c, 1.5, 23)));
+        }
+
         // ---- when the stage runs -----------------------------------------------
 
         private static string NewDir()
@@ -303,6 +382,32 @@ namespace AgentEyes.Tests
 
             // A composed recording must never be composed again - that would inset the camera twice.
             Assert.False(PostRecordingPlan.NeedsCompose(dir));
+        }
+
+        [Fact]
+        public void NeedsCompose_stops_after_the_attempt_ceiling()
+        {
+            // REGRESSION - Review Gate round 1, defect 4. The stage counted every attempt but the
+            // predicate never read the count, so an unreadable camera.mp4 relaunched ffmpeg on every
+            // 15-minute repair tick forever. Counting attempts without reading them is not a ceiling.
+            string dir = NewDir();
+            Write(dir, m =>
+            {
+                m.CameraFile = "camera.mp4";
+                m.PreviewOverlayCorner = "bottom-right";
+                m.PreviewOverlayShape = "circle";
+            });
+
+            for (int i = 0; i < PostRecordingState.MaxComposeAttempts; i++)
+            {
+                Assert.True(PostRecordingPlan.NeedsCompose(dir), $"should still admit attempt {i + 1}");
+                PostRecordingState.NoteStarted(dir, PostStage.Compose);
+                PostRecordingState.NoteFailed(dir, PostStage.Compose, "ffmpeg could not open camera.mp4");
+            }
+
+            Assert.False(PostRecordingPlan.NeedsCompose(dir),
+                "a compose that has burned its attempts must drop out of the automatic pass");
+            Assert.DoesNotContain(PostStage.Compose, PostRecordingPlan.Outstanding(dir));
         }
 
         [Fact]

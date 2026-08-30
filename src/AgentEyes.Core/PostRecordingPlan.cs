@@ -73,8 +73,16 @@ namespace AgentEyes
             var m = Manifest.Load(dir);
             if (m.ComposedCamera == true) return false;
             if (string.IsNullOrWhiteSpace(m.CameraFile)) return false;
-            return !string.IsNullOrWhiteSpace(m.PreviewOverlayCorner)
-                && !string.IsNullOrWhiteSpace(m.PreviewOverlayShape);
+            if (string.IsNullOrWhiteSpace(m.PreviewOverlayCorner)
+                || string.IsNullOrWhiteSpace(m.PreviewOverlayShape))
+            {
+                return false;
+            }
+
+            // Bounded like the mux above it (Review Gate round 1, defect 4). The stage counted its
+            // attempts but nothing ever read them, so a camera.mp4 ffmpeg can never open re-ran on
+            // every 15-minute repair tick indefinitely - the exact condition the counting was for.
+            return PostRecordingState.Attempts(m, PostStage.Compose) < PostRecordingState.MaxComposeAttempts;
         }
 
         /// <summary>True when this recording has media but no transcript, and has attempts left.</summary>
