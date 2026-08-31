@@ -161,8 +161,11 @@ namespace AgentEyes.Tests
             // which stays the untouched full frame; they move the composed result into place and
             // clear the scaffolding (the temp output and the circle mask).
             "agenteyes.dll!AgentEyes.CameraCompose::Run -> System.IO.File::Delete x2",                       // the circle mask and the temp compose output
-            "agenteyes.dll!AgentEyes.CameraCompose::Swap -> System.IO.File::Delete x1",                      // the superseded screen-only cut on a re-compose
-            "agenteyes.dll!AgentEyes.CameraCompose::Swap -> System.IO.File::Move x2",                        // screen-only preserved, composed put in its place
+            // Swap has NO File::Delete on purpose (Review Gate round 2, defect 2): deleting the final
+            // file and then moving the new one in was two operations, and dying between them left the
+            // recording with no recording.mp4 that recovery would ever rebuild. Two Moves: the
+            // screen-only cut preserved, then ONE overwriting move that replaces the final file.
+            "agenteyes.dll!AgentEyes.CameraCompose::Swap -> System.IO.File::Move x2",                        // screen-only preserved, then an atomic replace
             "agenteyes.dll!AgentEyes.Video.CircleMask::Write -> System.Drawing.Image::Save x1",              // the circular alpha mask (temp, deleted after the compose)
             "agenteyes.dll!AgentEyes.OriginalBackup::Preserve -> System.IO.File::Move x1",                   // the .original audio backup
             "agenteyes.dll!AgentEyes.Package::RunAsync -> System.IO.File::WriteAllText x1",                  // walkthrough.html

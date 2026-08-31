@@ -121,6 +121,16 @@ namespace AgentEyes
                 m.ComposedCamera = true;
             });
 
+            // The stage journal is recorded HERE, not only by the automatic sequence (Review Gate
+            // round 2, defect 1). `agenteyes compose` calls this method directly and bypasses
+            // PostRecording, so a successful CLI compose used to leave the journal saying the
+            // compose had FAILED - or saying nothing at all on an older recording - while the video
+            // was in fact composed. Marking it done from the one place that actually does the work
+            // makes the record true whichever path ran it. Only the outcome is recorded: the attempt
+            // is counted by the automatic sequence before it starts, and counting it again here
+            // would burn the ceiling twice for one attempt.
+            PostRecordingState.NoteDone(dir, PostStage.Compose);
+
             Log.Info($"[CameraCompose] Run: composed; the screen-only cut is {ScreenOnlyFile}");
             return Outcome.Composed;
         }
@@ -139,21 +149,19 @@ namespace AgentEyes
                 throw new UsageException(
                     "the compose step produced no output; recording.mp4 has been left untouched");
 
-            // FIRST make sure a screen-only cut exists, and only THEN replace the final file. In this
-            // order the screen-only video is on disk before anything is destroyed, so a crash between
-            // the two steps leaves both the screen-only cut and the old final file - never neither.
-            if (!File.Exists(screenOnly))
-            {
-                File.Move(final, screenOnly);
-            }
-            else
-            {
-                // Re-composing: the screen-only cut is already preserved and is what we just composed
-                // FROM, so the current final file is a superseded composed video and nothing else.
-                if (File.Exists(final)) File.Delete(final);
-            }
+            // FIRST make sure a screen-only cut exists, and only THEN put the composed file in place.
+            // In this order the screen-only video is on disk before anything is replaced, so an
+            // interruption leaves both the screen-only cut and the old final - never neither.
+            if (!File.Exists(screenOnly)) File.Move(final, screenOnly);
 
-            File.Move(composed, final);
+            // ONE operation, not delete-then-move (Review Gate round 2, defect 2). Deleting the final
+            // file and then moving the new one into its place is two filesystem operations with a
+            // window between them, and dying in that window left the recording with NO recording.mp4
+            // at all - which automatic recovery would never rebuild, because ComposedCamera is
+            // already true and NeedsCompose returns false on that flag before it looks at any file.
+            // An overwriting move is a single replace: the name always resolves to one of the two
+            // videos, never to nothing.
+            File.Move(composed, final, overwrite: true);
         }
 
         /// <summary>

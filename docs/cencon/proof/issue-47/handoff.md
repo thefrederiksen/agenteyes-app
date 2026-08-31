@@ -104,8 +104,11 @@ skip paths are not silent successes: no camera exits 2, no recorded framing exit
 the reason. Exit 3 is what your existing recordings hit, since they predate AC1.
 
 **AC9 (gate)** - `dotnet build AgentEyes.sln -c Release`: Build succeeded, 0 Error(s).
-`dotnet test AgentEyes.sln -c Release`: Passed, 1345 tests, 0 failed. The app was stopped for the
-run; a running AgentEyes holds the webcam and makes the camera tests flaky.
+`dotnet test AgentEyes.sln -c Release`: Passed, **1357** tests, 0 failed, at the current head. The
+app was stopped for the run AND no other worktree was running tests: a running AgentEyes holds the
+webcam, and a concurrent suite in another worktree races this one on shared user-environment state
+(`SetupEngineTests.SetBundleExtractBaseDir...`, `PublishedPluginAssetTests...`). Round 2 saw both of
+those fail for exactly that reason.
 
 ## Three things the reviewer should look at
 
@@ -122,3 +125,54 @@ run; a running AgentEyes holds the webcam and makes the camera tests flaky.
    the documented defaults (centre 0.50/0.42) put the head cropped at the top of the circle. That is
    issue #36's stated starting point rather than a bug here - and this feature is what finally makes
    it visible, since the framing now reaches the output. It may deserve a follow-up issue.
+
+
+---
+
+## Review Gate rounds - what changed after each
+
+**Round 1 (REJECT)** - `docs/cencon/review/pr49-issue47-gate-round1.md`. Five defects: re-composing
+drew a second inset; a circle became an ellipse on a wide output; a late camera painted an opaque
+black box; a failing compose retried forever; and the framing was absent from the durable start
+manifest. All five fixed in `8a91e60`.
+
+**Round 2 (REJECT)** - `docs/cencon/review/pr49-issue47-gate-round2.md`. Round 2 independently
+CONFIRMED the five round-1 fixes on compiled head, and found four more:
+
+1. **A successful CLI compose left the stage journal stale.** `agenteyes compose` calls
+   `CameraCompose.Run` directly and bypasses `PostRecording`, so a compose that succeeded after an
+   automatic failure still read `State: failed`. `CameraCompose.Run` now records `NoteDone` itself -
+   the one place that actually does the work - so the record is true whichever path ran it. It does
+   NOT record `NoteStarted`; the automatic sequence already counts the attempt, and counting twice
+   would burn the ceiling on one try.
+2. **`Swap` could lose `recording.mp4` permanently.** Delete-then-move is two operations, and dying
+   between them left no final file - which recovery would never rebuild, because `ComposedCamera` is
+   already true and `NeedsCompose` returns false on that flag before looking at any artifact. It is
+   now a single overwriting move, so the name always resolves to one of the two videos.
+3. **The full suite was not green on head.** Both failures were shared-environment races with the
+   concurrent gate worktrees; the clean run above is the answer.
+4. **The independent QA seat is still absent.** See below - that one is not a code defect.
+
+### Verifying the round-2 fixes
+
+Journal (defect 1), on a copy of the real 160s recording seeded with a FAILED compose stage:
+
+```
+before:  PostProcessing.compose = {"State": "failed",  "Attempts": 1, ...}
+agenteyes compose <dir>   ->  [ok] composed
+after:   PostProcessing.compose = {"State": "done",    "Attempts": 1, ...}
+         ComposedCamera = True
+```
+
+Atomic replace (defect 2) is guarded by `Swap_replaces_the_final_file_in_one_operation`, which reads
+the source of `Swap` and fails if a `File.Delete(final)` ever returns, and by the IL write-site
+inventory, which pins `Swap` to two Moves and NO Delete.
+
+## The one thing that is still open, and it is not code
+
+Both gate rounds recorded that **the independent QA seat never ran for this issue**. The same seat
+wrote the code and produced the verification in this document. The method requires QA to be a
+separate identity that commits its own report before `flow:ready-gate`
+(`DEVELOPMENT_METHOD.md` 3.3), and the Review Gate does not retroactively create that separation.
+It is recorded on the issue and here rather than being papered over; whether to merge without it is
+the owner's decision, not this seat's.

@@ -411,6 +411,41 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void Swap_replaces_the_final_file_in_one_operation()
+        {
+            // REGRESSION - Review Gate round 2, defect 2. Swap used to Delete(final) and then
+            // Move(composed, final): two operations with a window between them. Dying in that window
+            // left the recording with no recording.mp4 at all, and automatic recovery would never
+            // rebuild it because ComposedCamera is already true and NeedsCompose returns false on
+            // that flag before looking at any artifact. There must be no delete of the final file.
+            string src = RepoSource.Read("src/AgentEyes.Core/CameraCompose.cs");
+            int swap = src.IndexOf("private static void Swap(", StringComparison.Ordinal);
+            Assert.True(swap > 0, "Swap has been renamed - re-point this guard");
+            string end = Environment.NewLine + "        }";
+            int close = src.IndexOf(end, swap, StringComparison.Ordinal);
+            if (close < 0) close = src.IndexOf("\n        }", swap, StringComparison.Ordinal);
+            Assert.True(close > swap, "could not find the end of Swap");
+            string body = src.Substring(swap, close - swap);
+
+            Assert.Contains("File.Move(composed, final, overwrite: true)", body);
+            Assert.DoesNotContain("File.Delete(final)", body);
+        }
+
+        [Fact]
+        public void A_successful_compose_records_the_stage_journal_itself()
+        {
+            // REGRESSION - Review Gate round 2, defect 1. `agenteyes compose` calls CameraCompose.Run
+            // directly and bypasses PostRecording, so a successful CLI compose left the journal
+            // saying the compose had FAILED, or saying nothing at all, while the video was composed.
+            string src = RepoSource.Read("src/AgentEyes.Core/CameraCompose.cs");
+
+            Assert.Contains("PostRecordingState.NoteDone(dir, PostStage.Compose)", src);
+            // The attempt is counted by the automatic sequence; counting it here too would burn the
+            // ceiling twice for a single attempt.
+            Assert.DoesNotContain("NoteStarted(dir, PostStage.Compose)", src);
+        }
+
+        [Fact]
         public void Compose_runs_after_the_mux_and_before_the_thumbnail()
         {
             // The order is the point: compose needs the final media the mux writes, and the
