@@ -284,20 +284,39 @@ namespace AgentEyes
         }
 
         /// <summary>
-        /// Record the overlay framing the camera is being watched in (issue #33 AC5, issue #36 AC4),
-        /// or null to record none. Sticky for the session: the LAST framing chosen is what reaches
-        /// manifest.json at the stop, because that is the framing the person settled on.
+        /// Record the overlay framing the camera is being watched in (issue #33 AC5, issue #36 AC4).
+        /// Sticky for the session: the LAST framing chosen is what reaches manifest.json at the stop,
+        /// because that is the framing the person settled on.
+        ///
+        /// NULL MEANS "THE PREVIEW HAS NOTHING TO SAY", NOT "THERE IS NO FRAMING" (issue #51). The
+        /// PRESET is the source of truth - it is what the person chose before recording, and since
+        /// issue #47 it is seeded at StartVideo. The HUD is a refinement channel on top of that, and
+        /// it reports null whenever its preview PANEL is simply not showing, which is the default.
+        ///
+        /// Assigning that null straight through is what broke the composed video in v1.8.0: the HUD's
+        /// apply-at-construction landed about 1.5 seconds after the start and erased the preset's
+        /// framing, so the stop wrote no framing, NeedsCompose returned false, and camera.mp4 was left
+        /// beside recording.mp4 exactly as it had been before the feature shipped. Hiding a monitor
+        /// panel is a choice about a preview, never about the output video.
         ///
         /// It writes EDIT METADATA and nothing else - it composites nothing, crops nothing, and
         /// changes no recorded file. The caller's object is COPIED and canonicalised here, so a later
         /// edit in the HUD cannot reach back and rewrite what this recording was framed with, and an
         /// unrecognised spelling can never reach the manifest. Safe when there is no recording; the
-        /// value is simply dropped at the next start.
+        /// value is simply dropped at the next start, which is also where a framing is cleared - the
+        /// session boundary, not a passing null.
         /// </summary>
         public void SetPreviewOverlay(CameraOverlaySettings? overlay)
         {
             var copy = overlay?.Canonical();
-            Log.Info($"[RecordingService] SetPreviewOverlay: overlay={(copy == null ? "(none)" : copy.ToString())}");
+            if (copy == null)
+            {
+                Log.Info("[RecordingService] SetPreviewOverlay: (none) - the preview is not framing "
+                         + $"anything; keeping {(_previewOverlay == null ? "(no framing)" : _previewOverlay.ToString())}");
+                return;
+            }
+
+            Log.Info($"[RecordingService] SetPreviewOverlay: overlay={copy}");
             _previewOverlay = copy;
         }
 
