@@ -356,8 +356,20 @@ namespace AgentEyes.App
             };
 
             if (mode == "shot") throw new UsageException("preset is screenshot mode - use POST /screenshot instead");
-            if (mode == "audio") _svc.StartAudio(screen, src, mic, opts);
-            else _svc.StartVideo(screen, src, mic, region, opts, fps, camera, cameraFps);
+            if (mode == "audio")
+            {
+                _svc.StartAudio(screen, src, mic, opts);
+                return;
+            }
+
+            // Issue #47: the framing follows the same precedence as everything else here - the named
+            // preset's own choice first, then the persisted overlay config - so a recording started
+            // over the API records the framing it was actually laid out with, and the composed video
+            // has a layout to render.
+            AgentEyes.Preview.CameraOverlaySettings? overlay = string.IsNullOrWhiteSpace(camera)
+                ? null
+                : (preset?.Overlay ?? HudOverlayConfig.Read(Config.Load()));
+            _svc.StartVideo(screen, src, mic, region, opts, fps, camera, cameraFps, overlay);
         }
 
         private static object Presets() => PresetStore.Load().Select(p => new

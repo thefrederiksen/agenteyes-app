@@ -14,6 +14,11 @@ namespace AgentEyes
         /// produces the final recording.mp4 / audio.wav.</summary>
         public const string Mux = "mux";
 
+        /// <summary>Issue #47: render the camera into the final video as a corner inset. Runs after
+        /// the mux (it needs the final media file) and BEFORE the thumbnail, so the Library tile is
+        /// made from the video people actually get.</summary>
+        public const string Compose = "compose";
+
         /// <summary>Generate the Library poster / waveform tile.</summary>
         public const string Thumbnail = "thumbnail";
 
@@ -24,7 +29,7 @@ namespace AgentEyes
         public const string Plugins = "plugins";
 
         /// <summary>Every stage, in the order the sequence runs them.</summary>
-        public static readonly string[] All = { Mux, Thumbnail, Package, Plugins };
+        public static readonly string[] All = { Mux, Compose, Thumbnail, Package, Plugins };
     }
 
     /// <summary>The states a stage record can carry (issue #152).</summary>
@@ -66,6 +71,17 @@ namespace AgentEyes
         /// tick forever. Three matches the thumbnail ceiling: the same local-ffmpeg cost argument.
         /// </summary>
         public const int MaxMuxAttempts = 3;
+
+        /// <summary>
+        /// How many times the camera compose is attempted automatically before the recovery pass
+        /// leaves the recording alone (issue #47; Review Gate round 1, defect 4).
+        ///
+        /// It needs its own ceiling for exactly the reason the mux does: the compose has no
+        /// artifact-based counter, and an unreadable or truncated camera.mp4 would otherwise launch
+        /// ffmpeg again on every 15-minute repair tick, forever. Counting the attempts without ever
+        /// READING them is the same as not counting them.
+        /// </summary>
+        public const int MaxComposeAttempts = 3;
 
         /// <summary>How much of a failure message is kept in the manifest. The log holds the full
         /// exception; this is the at-a-glance diagnosis next to the recording.</summary>

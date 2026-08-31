@@ -83,6 +83,8 @@ namespace AgentEyes.Tests
                 "Update: the Library rename sets DisplayName"),
             new("src/AgentEyes.App/RecordingDetailWindow.cs", Updates: 1, Replaces: 0,
                 "Update: the detail-window rename sets DisplayName"),
+            new("src/AgentEyes.Core/CameraCompose.cs", Updates: 1, Replaces: 0,
+                "Update: issue #47 - the composed-camera flag and the preserved screen-only cut"),
             new("src/AgentEyes.Core/Commands.cs", Updates: 0, Replaces: 3,
                 "Replace x3: a CLI capture session's own record (shot, audio, video)"),
             new("src/AgentEyes.Core/Package.cs", Updates: 1, Replaces: 1,
@@ -262,10 +264,10 @@ namespace AgentEyes.Tests
         {
             var found = CountWriters(ProductionSources(), CodeOf);
 
-            Assert.Equal(14, found.Count);                                  // files
-            Assert.Equal(13, found.Values.Sum(v => v.Updates));             // read-modify-write
+            Assert.Equal(15, found.Count);                                  // files
+            Assert.Equal(14, found.Values.Sum(v => v.Updates));             // read-modify-write
             Assert.Equal(9, found.Values.Sum(v => v.Replaces));             // whole-content
-            Assert.Equal(22, found.Values.Sum(v => v.Updates + v.Replaces));
+            Assert.Equal(23, found.Values.Sum(v => v.Updates + v.Replaces));
         }
 
         [Fact]

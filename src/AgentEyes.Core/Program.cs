@@ -13,6 +13,7 @@ namespace AgentEyes
     ///   audio   --screen N ...  Mode A: mic audio + on-demand screenshots
     ///   video   --screen N ...  Mode B: screen video + audio (Phase 3, not yet built)
     ///   package &lt;dir|video&gt;     transcribe + assemble walkthrough (dir with manifest, or bare video file)
+    ///   compose &lt;dir&gt;           render camera.mp4 into recording.mp4 as a corner inset
     ///   import  &lt;video&gt;          import an external video file into the recording library
     ///   translate &lt;id&gt; --to L   translate a recording's transcript into another language (VTT, timing preserved)
     ///   subtitle  &lt;id&gt; --lang L  burn a language's transcript into a new subtitled library video (ffmpeg)
@@ -54,6 +55,9 @@ namespace AgentEyes
 
                     case "package":
                         return Commands.Package(opts);
+
+                    case "compose":
+                        return Commands.Compose(opts);
 
                     case "import":
                         return Commands.Import(opts);
@@ -109,6 +113,7 @@ namespace AgentEyes
             Console.WriteLine("       mic options:  --no-denoise  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT");
             Console.WriteLine("       camera:       --camera \"NAME\" [--camera-fps N]   # webcam -> camera.mp4 (video only)");
             Console.WriteLine("  agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD]");
+            Console.WriteLine("  agenteyes compose <recording-dir>   render the camera into recording.mp4 at the framing the preset chose");
             Console.WriteLine("  agenteyes import  <video.mp4>             # import an external video into the library");
             Console.WriteLine("  agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved");
             Console.WriteLine("  agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)");

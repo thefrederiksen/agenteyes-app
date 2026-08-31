@@ -462,8 +462,14 @@ namespace AgentEyes
         /// before anything touches disk; absent or ambiguous fails the start.</param>
         /// <param name="cameraFps">Frame rate requested from the camera. The camera's own default
         /// resolution is used (assumption A2).</param>
+        /// <param name="overlay">Issue #47: the camera framing chosen in the PRESET, seeded here so it
+        /// is on the record from the first frame. Before this it arrived only from the HUD preview
+        /// window (SetPreviewOverlay), so a recording made without that window open wrote no framing
+        /// at all and there was nothing for the compose stage to lay out. The HUD can still refine it
+        /// while recording; this is the starting value, not a competing one.</param>
         public void StartVideo(int screen, AudioSourceKind src, string? micFragment, int[]? region,
-            AudioMixOptions opts, int fps, string? cameraFragment = null, int cameraFps = 30)
+            AudioMixOptions opts, int fps, string? cameraFragment = null, int cameraFps = 30,
+            CameraOverlaySettings? overlay = null)
         {
             // Retained recorders are only worth retaining if something ever uses them again (issue
             // #28, AC16). This is that moment: the user is asking for a camera recording, which is
@@ -507,6 +513,26 @@ namespace AgentEyes
                 // Named in the FIRST manifest, like every other file this session will write, so a
                 // recording interrupted before its stop still says on disk that a camera track exists.
                 if (dshowCamera != null) _manifest.CameraFile = "camera.mp4";
+
+                // Issue #47, AC1, and the half of it the Review Gate found missing (round 1,
+                // defect 5). The framing was only ever written to the manifest by the STOP path, so
+                // a recording killed before it stopped had a durable manifest naming camera.mp4 with
+                // no framing beside it - and recovery, which decides from that manifest, then saw
+                // nothing to compose. The framing is known before the first byte is captured, so it
+                // belongs in the first manifest with everything else that is known then. The stop
+                // still writes the final value, which may have been refined in the HUD meanwhile.
+                if (dshowCamera != null && overlay != null)
+                {
+                    var framing = overlay.Canonical();
+                    _manifest.PreviewOverlayCorner = framing.Corner;
+                    _manifest.PreviewOverlayShape = framing.Shape;
+                    _manifest.PreviewOverlayInset = framing.InsetFraction;
+                    _manifest.PreviewOverlayCircle =
+                        framing.ShapeValue == Preview.CameraOverlayShape.Circle
+                            ? framing.Circle.Clone()
+                            : null;
+                    Log.Info($"[RecordingService] StartVideo: framing recorded at start - {framing}");
+                }
 
                 // Mixed/system capture the system loopback and mux after; a mic-only recording
                 // gets a post pass too (no loopback!) when any mic processing (suppression,
@@ -559,7 +585,12 @@ namespace AgentEyes
                 _cameraTap = PreviewArmed && dshowCamera != null
                     ? PreviewTap.TryCreate(PreviewPaths.CameraTrack)
                     : null;
-                _previewOverlay = null;
+                // Issue #47: seed the preset's framing rather than clearing it. Clearing here was
+                // what made the chosen corner a property of the preview WINDOW instead of the
+                // recording - with no HUD open, the manifest got no framing and the composed video
+                // could not be laid out.
+                _previewOverlay = overlay?.Canonical();
+                Log.Info($"[RecordingService] StartVideo: framing={(_previewOverlay == null ? "(none)" : _previewOverlay.ToString())}");
                 Log.Info($"[RecordingService] StartVideo: preview armed={PreviewArmed} "
                          + $"screenTap={_screenTap != null} cameraTap={_cameraTap != null}");
 
