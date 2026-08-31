@@ -212,7 +212,10 @@ namespace AgentEyes.Tests
             MicGain = 1.0,
             SystemGain = 0.7,
             NoiseGate = true,
-            GateThreshold = 0.02,
+            // The threshold is measured from the capture, so a chain can only be built for options
+            // that have been calibrated. 0.02 stands in for whatever a measurement returned.
+            GateThresholdLinear = 0.02,
+            GateCalibrated = true,
             RnnoiseModelPath = @"C:\Users\u\AppData\Local\AgentEyes\models\bd.rnnn",
         };
 

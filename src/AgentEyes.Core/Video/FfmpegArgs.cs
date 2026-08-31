@@ -357,9 +357,22 @@ namespace AgentEyes.Video
                         "call RnnoiseModel.Ensure() before building mix args");
                 denoise = $"arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
             }
-            string gate = o.NoiseGate
-                ? $"agate=threshold={Inv(o.GateThreshold)}:ratio=2:attack=20:release=250,"
-                : "";
+            // The threshold is MEASURED from the capture, never assumed. Building the chain with
+            // the gate on but nothing measured is a programming error and says so, exactly like the
+            // missing RNNoise model above - it must not quietly become some default number, because
+            // an assumed threshold is the defect this replaced.
+            string gate = "";
+            if (o.NoiseGate)
+            {
+                if (!o.GateCalibrated)
+                    throw new UsageException(
+                        "the noise gate is on but the capture has not been measured - " +
+                        "call AudioMix calibration before building mix args");
+
+                // A measurement that found no room for a gate leaves the stage out entirely.
+                if (o.GateThresholdLinear != null)
+                    gate = $"agate=threshold={Inv(o.GateThresholdLinear.Value)}:ratio=2:attack=20:release=250,";
+            }
             // e=4: boost quiet speech up to 4x (+12 dB); p=0.95: normalize peaks to 95%.
             string level = o.VoiceLeveling ? "speechnorm=e=4:p=0.95," : "";
             return $"[0:a]{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
