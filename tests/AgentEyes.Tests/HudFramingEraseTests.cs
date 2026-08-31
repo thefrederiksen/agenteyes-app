@@ -1,3 +1,4 @@
+using System;
 using AgentEyes;
 using AgentEyes.Preview;
 using Xunit;
@@ -65,6 +66,78 @@ namespace AgentEyes.Tests
             svc.SetPreviewOverlay(Framing("top-left"));
 
             Assert.Equal("top-left", svc.PreviewOverlayCorner);
+        }
+
+        // ---- the SEAM the outage actually lived in (issue #53) ------------------
+        //
+        // The tests above guard the SETTER. The Review Gate on PR #52 found that they do not reach
+        // the path that produced the outage: nothing executes StartVideo with a preset overlay, so
+        // deleting the seed - or the preset's handoff of it - leaves every one of them green while a
+        // tray recording once again ends up with camera.mp4 beside an uncomposed recording.mp4.
+        //
+        // These are SOURCE guards rather than behavioural tests, and the reason is the suite's own
+        // contract: StartVideo opens ffmpeg and a physical webcam, and this suite is required to run
+        // fast and silent with neither. A source guard cannot prove the seam WORKS - the committed
+        // tray-path evidence in docs/cencon/proof/issue-51/handoff.md does that - but it does prove
+        // the seam is still WIRED, which is precisely the regression the gate described. Both are
+        // negative-controlled: deleting either line fails the matching test.
+
+        private static string RecordingServiceSource => RepoSource.Read("src/AgentEyes.Core/RecordingService.cs");
+
+        [Fact]
+        public void StartVideo_takes_the_framing_as_a_parameter()
+        {
+            // If the parameter goes, the preset has no way to hand its framing over at all.
+            Assert.Contains("CameraOverlaySettings? overlay = null)", RecordingServiceSource);
+        }
+
+        [Fact]
+        public void StartVideo_seeds_the_session_framing_from_that_parameter()
+        {
+            // THE line the gate named (RecordingService.cs:611). This is what the stop later reads,
+            // and what the HUD's null must not erase. Before issue #47 it read "_previewOverlay = null".
+            string src = RecordingServiceSource;
+
+            Assert.Contains("_previewOverlay = overlay?.Canonical();", src);
+
+            // And the clearing sites are only the three SESSION BOUNDARIES - the stop, the
+            // failed-start rollback, and Reset. A fourth would mean something clears the framing
+            // mid-session again, which is the shape of both this bug and issue #51's.
+            int clears = src.Split(new[] { "_previewOverlay = null;" }, StringSplitOptions.None).Length - 1;
+            Assert.True(clears == 3, $"expected 3 session-boundary clears, found {clears}");
+        }
+
+        [Fact]
+        public void StartVideo_also_seeds_the_durable_start_manifest()
+        {
+            // The other half, from issue #47 round-2 defect 5: a recording killed before its stop
+            // must still carry the framing on disk, or recovery finds nothing to compose.
+            string src = RecordingServiceSource;
+
+            Assert.Contains("if (dshowCamera != null && overlay != null)", src);
+            Assert.Contains("_manifest.PreviewOverlayCorner = framing.Corner;", src);
+            Assert.Contains("_manifest.PreviewOverlayShape = framing.Shape;", src);
+            Assert.Contains("_manifest.PreviewOverlayInset = framing.InsetFraction;", src);
+        }
+
+        [Fact]
+        public void The_preset_hands_its_own_framing_to_StartVideo()
+        {
+            // The tray path. Dropping this argument is the second way the gate showed the outage
+            // could return with every test still green.
+            string preset = RepoSource.Read("src/AgentEyes.App/CapturePreset.cs");
+
+            Assert.Contains("p.Overlay", preset);
+            Assert.Contains("string.IsNullOrWhiteSpace(p.Camera) ? null : p.Overlay", preset);
+        }
+
+        [Fact]
+        public void A_recording_with_no_camera_still_hands_over_no_framing()
+        {
+            // Issue #33 AC11 and issue #36 AC10: a camera-less recording's manifest must keep the
+            // shape it had before these features existed, so the handoff is conditional on a camera.
+            Assert.Contains("string.IsNullOrWhiteSpace(p.Camera) ? null : p.Overlay",
+                RepoSource.Read("src/AgentEyes.App/CapturePreset.cs"));
         }
 
         [Fact]
