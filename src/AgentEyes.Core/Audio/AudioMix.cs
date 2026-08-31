@@ -60,12 +60,14 @@ namespace AgentEyes.Audio
                 // Nothing to measure for. Mark it resolved so the chain builder can tell "the person
                 // turned the gate off" apart from "nobody measured yet".
                 o.GateThresholdLinear = null;
+                o.GateSkipReason = null;
                 o.GateCalibrated = true;
                 return;
             }
 
             var levels = MicMeasure.Measure(micSource);
             o.GateThresholdLinear = GateCalibration.ThresholdLinear(levels);
+            o.GateSkipReason = o.GateThresholdLinear == null ? GateCalibration.SkipReason(levels) : null;
             o.GateCalibrated = true;
 
             Log.Info($"[AudioMix] Calibrate: source={micSource} {levels} -> {o.GateDescription()}");

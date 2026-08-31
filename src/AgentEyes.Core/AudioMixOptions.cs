@@ -35,6 +35,12 @@ namespace AgentEyes
         /// <summary>True once the capture has actually been measured for this run.</summary>
         public bool GateCalibrated { get; set; }
 
+        /// <summary>
+        /// Why the measurement produced no threshold, in the person's terms. Null when the gate
+        /// applies or when nothing has been measured yet.
+        /// </summary>
+        public string? GateSkipReason { get; set; }
+
         /// <summary>Voice leveling on the mic (ffmpeg speechnorm) - boosts quiet speech and evens out
         /// volume so the listener never rides their volume knob.</summary>
         public bool VoiceLeveling { get; set; } = true;
@@ -56,7 +62,10 @@ namespace AgentEyes
             if (!NoiseGate) return "gate off";
             if (!GateCalibrated) return "gate on (not yet measured)";
             return GateThresholdLinear == null
-                ? "gate off (measured: no room between the noise floor and the voice)"
+                // The REASON matters and used to be misreported: a take with no measurable floor is
+                // not a take whose floor is too close to the voice, and saying so told the person
+                // something false about their own audio.
+                ? $"gate off (measured: {GateSkipReason ?? "no usable gate for this take"})"
                 : $"gate at {Audio.GateCalibration.Text(Audio.GateCalibration.ToDb(GateThresholdLinear.Value))} dBFS (measured)";
         }
     }

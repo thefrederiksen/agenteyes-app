@@ -179,6 +179,53 @@ namespace AgentEyes.Tests
             }
         }
 
+        [Fact]
+        public void A_take_with_a_zero_window_still_gets_the_gate_its_signal_deserves()
+        {
+            // REGRESSION - Review Gate round 2, defect 1. Round 1's repair over-corrected: ANY
+            // infinity became "do not gate", so 100 ms of startup zeros disabled a genuinely useful
+            // gate for the whole of a noisy take. The zeros are not noise, so MicMeasure now
+            // re-measures the floor with them removed and the ordinary rule applies.
+            //
+            // These are the levels MEASURED from the paired media (a noisy take, and the same take
+            // with 100 ms of zeros prepended): the floor comes back identical and the RMS moves by
+            // 0.2 dB, so the decision must not move either.
+            double? clean = GateCalibration.ThresholdDb(new MicLevels(-73.4, -24.1));
+            double? zeroed = GateCalibration.ThresholdDb(new MicLevels(-73.4, -24.3));
+
+            Assert.NotNull(clean);
+            Assert.NotNull(zeroed);
+            Assert.Equal(clean!.Value, zeroed!.Value, 6);
+            Assert.Equal(-63.4, clean.Value, 6);
+        }
+
+        [Fact]
+        public void SkipReason_tells_the_two_no_gate_causes_apart()
+        {
+            // Round 2 also found the explanation was false: every no-gate said "no room between the
+            // noise floor and the voice", including takes whose floor simply could not be measured.
+            Assert.Contains("recorded nothing",
+                GateCalibration.SkipReason(new MicLevels(double.NegativeInfinity, double.NegativeInfinity)));
+            Assert.Contains("could not be measured",
+                GateCalibration.SkipReason(new MicLevels(double.NegativeInfinity, -24.0)));
+            Assert.Contains("between the noise floor and the",
+                GateCalibration.SkipReason(new MicLevels(-30.0, -25.0)));
+        }
+
+        [Fact]
+        public void GateDescription_carries_the_real_reason_not_a_generic_one()
+        {
+            var o = new AudioMixOptions
+            {
+                NoiseGate = true,
+                GateCalibrated = true,
+                GateThresholdLinear = null,
+                GateSkipReason = GateCalibration.SkipReason(new MicLevels(double.NegativeInfinity, -24.0)),
+            };
+            Assert.Contains("could not be measured", o.GateDescription());
+            Assert.All(o.GateDescription(), ch => Assert.InRange(ch, (char)0x20, (char)0x7E));
+        }
+
         // ---- what the filter chain does with the decision ----------------------
 
         private static AudioMixOptions GatedOpts() => new()
@@ -241,8 +288,10 @@ namespace AgentEyes.Tests
             var unmeasured = GatedOpts();
             Assert.Contains("not yet measured", unmeasured.GateDescription());
 
-            var noRoom = GatedOpts(); noRoom.GateCalibrated = true;
-            Assert.Contains("no room", noRoom.GateDescription());
+            var noRoom = GatedOpts();
+            noRoom.GateCalibrated = true;
+            noRoom.GateSkipReason = GateCalibration.SkipReason(new MicLevels(-30.0, -25.0));
+            Assert.Contains("between the noise floor and the", noRoom.GateDescription());
 
             var measured = GatedOpts();
             measured.GateCalibrated = true;

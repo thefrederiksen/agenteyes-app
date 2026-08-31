@@ -108,6 +108,19 @@ namespace AgentEyes.Audio
         }
 
         /// <summary>
+        /// Why <see cref="ThresholdDb"/> declined to gate, in the person's terms. The two reasons are
+        /// genuinely different and reporting one as the other told people something false about
+        /// their own audio (Review Gate round 2).
+        /// </summary>
+        public static string SkipReason(MicLevels levels)
+        {
+            if (double.IsInfinity(levels.RmsDb)) return "the microphone recorded nothing at all";
+            if (double.IsInfinity(levels.NoiseFloorDb)) return "the noise floor could not be measured";
+            return $"only {levels.RmsDb - levels.NoiseFloorDb:0.0} dB between the noise floor and the "
+                 + $"voice, and a gate needs {MinUsableSpanDb:0}";
+        }
+
+        /// <summary>
         /// The same decision expressed as the LINEAR amplitude ffmpeg's <c>agate=threshold=</c>
         /// wants, or null when the take should not be gated.
         /// </summary>

@@ -15,8 +15,15 @@ New code:
   between floor and voice is smaller than the two margins together there is no honest threshold, so
   it returns null rather than inventing one - an assumed threshold is the defect being fixed.
 - `src/AgentEyes.Core/Audio/MicMeasure.cs` - one ffmpeg `astats` pass over the captured file,
-  parsing the `Overall` summary only (never a per-channel figure). Throws when the figures are
-  absent or non-finite; there is no default to fall back on.
+  parsing the `Overall` summary only (never a per-channel figure). It throws ONLY when the figures
+  are ABSENT - a measurement that did not happen. It does NOT throw for `-inf`, which is ffmpeg's
+  valid report of digital silence.
+
+  **A `-inf` floor beside a FINITE RMS means the take CONTAINS silence, not that it IS silent.**
+  A slow-starting or briefly muted microphone emits a few hundred milliseconds of zeros and then
+  records normally. Those zeros are not noise, so the floor is re-measured with them removed
+  (`ZeroTrimFilter`) and the ordinary rule then applies. The RMS is kept from the FULL take - it is
+  the level proxy for the whole recording, and trimming would only flatter it.
 
 Changed:
 
@@ -102,3 +109,43 @@ the decision is recorded on the issue.
    gate gentler. That error direction is deliberate and documented on the type - the defect being
    fixed was a threshold that was too HIGH - but it is an approximation and a reviewer should agree
    with it rather than discover it.
+
+
+---
+
+## Review Gate rounds - what changed after each
+
+**Round 1 (REJECT)** - `docs/cencon/review/pr48-issue46-gate-round1.md`. Three defects:
+a `-inf` noise floor was read as a failed measurement and threw, which made a mixed recording
+permanently unfinalizable (the mux threw, the pending mux never cleared, all three retries failed
+identically); AC5's preset-editor disclosure was absent; and the mixed-audio CLI never printed the
+resolved threshold. All three fixed in `623ca5b`. A follow-up fixed a Unicode INFINITY symbol
+reaching the log, which this repo forbids everywhere.
+
+**Round 2 (REJECT)** - `docs/cencon/review/pr48-issue46-gate-round2.md`. The round-1 repair had
+OVER-CORRECTED: any infinity became "do not gate", so 100 ms of startup zeros disabled a genuinely
+useful gate for the rest of a noisy take, and the explanation shown to the person
+("no room between the noise floor and the voice") was false for that case. Fixed by re-measuring
+the floor with digital silence removed, and by reporting the actual reason.
+
+### Reproducing the round-2 fix on real media (QA: this is the check that matters)
+
+The unit tests assert the DECISION; this asserts the MEASUREMENT, which needs real audio. It is
+deliberately not in the fast suite - `dotnet test` is contracted to run with no ffmpeg and no audio.
+
+```
+ffmpeg -f lavfi -i "anoisesrc=r=48000:c=pink:a=0.003:d=1" -ac 1 nq.wav
+ffmpeg -f lavfi -i "sine=frequency=440:r=48000" -t 1 -ac 1 t.wav
+ffmpeg -f lavfi -i "anullsrc=r=48000:cl=mono" -t 0.1 z.wav
+# pair_clean = nq + t ; pair_zero = z + nq + t   (concat demuxer, -c copy)
+```
+
+Measured through `MicMeasure.Measure` and `GateCalibration.ThresholdDb`:
+
+| take | measured | threshold |
+|---|---|---|
+| pair_clean.wav | noise floor -73.4 dBFS, RMS -24.1 dBFS | **-63.4 dBFS** |
+| pair_zero.wav (100 ms of zeros prepended) | noise floor -73.4 dBFS, RMS -24.3 dBFS | **-63.4 dBFS** |
+| z.wav (silent throughout) | noise floor -inf, RMS -inf | no gate - "the microphone recorded nothing at all" |
+
+The startup zeros no longer move the decision, which is the whole of round-2 defect 1.

@@ -40,7 +40,7 @@ namespace AgentEyes.Audio
 
             Log.Info($"[MicMeasure] Measure: path={mediaPath}");
 
-            string stderr = RunAstats(mediaPath);
+            string stderr = RunAstats(mediaPath, null);
             var levels = ParseOverall(stderr);
 
             if (levels == null)
@@ -54,9 +54,42 @@ namespace AgentEyes.Audio
                 throw new UsageException(msg);
             }
 
+            // A -inf FLOOR beside a FINITE RMS means the take CONTAINS digital silence, not that it
+            // IS silent - a slow-starting or briefly muted microphone emits a few hundred
+            // milliseconds of zeros and then records normally. Round 1 threw on that and stranded
+            // the recording; round 2 caught the over-correction, where treating the minimum as the
+            // whole answer disabled a genuinely useful gate for the rest of a noisy take.
+            //
+            // The zeros are not noise, so they are removed and the floor is measured again on the
+            // signal that is actually there. The RMS is kept from the FULL take: it is the level
+            // proxy for the whole recording, and trimming would only flatter it.
+            if (double.IsNegativeInfinity(levels.Value.NoiseFloorDb) && !double.IsInfinity(levels.Value.RmsDb))
+            {
+                var trimmed = ParseOverall(RunAstats(mediaPath, ZeroTrimFilter));
+                if (trimmed != null && !double.IsInfinity(trimmed.Value.NoiseFloorDb))
+                {
+                    levels = new MicLevels(trimmed.Value.NoiseFloorDb, levels.Value.RmsDb);
+                    Log.Info($"[MicMeasure] Measure: the take contains digital silence; floor "
+                             + $"re-measured without it -> {levels.Value}");
+                }
+                else
+                {
+                    Log.Info("[MicMeasure] Measure: the take is silent throughout - no floor to measure");
+                }
+            }
+
             Log.Info($"[MicMeasure] Measure: {levels.Value}");
             return levels.Value;
         }
+
+        /// <summary>
+        /// Drops stretches of digital silence, leading ones included, so a floor can be measured on
+        /// the signal rather than on the gaps. -100 dB is far below any real microphone noise and
+        /// well above nothing at all, so it catches zeros without eating quiet room tone.
+        /// </summary>
+        private const string ZeroTrimFilter =
+            "silenceremove=start_periods=1:start_threshold=-100dB:start_duration=0"
+            + ":stop_periods=-1:stop_threshold=-100dB:stop_duration=0.01,";
 
         /// <summary>
         /// Pulls the two figures out of astats' text output, reading only the summary section so a
@@ -104,7 +137,7 @@ namespace AgentEyes.Audio
                 : (double?)null;
         }
 
-        private static string RunAstats(string mediaPath)
+        private static string RunAstats(string mediaPath, string? prefilter)
         {
             var psi = new ProcessStartInfo
             {
@@ -119,7 +152,7 @@ namespace AgentEyes.Audio
                 "-hide_banner", "-nostats",
                 "-i", mediaPath,
                 "-map", "0:a",
-                "-af", "astats=metadata=1:reset=0",
+                "-af", (prefilter ?? "") + "astats=metadata=1:reset=0",
                 "-f", "null", "-",
             })
             {
