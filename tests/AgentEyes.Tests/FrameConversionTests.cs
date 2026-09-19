@@ -525,6 +525,49 @@ namespace AgentEyes.Tests
             }
         }
 
+        /// <summary>
+        /// The accounting pin for the repair pass (the second review's one remaining defect): a frame an
+        /// earlier pass already encoded is REPAIRED, never re-counted as converted, and its bytes are
+        /// not counted a second time - the interrupted pass reported them when it encoded them.
+        /// Without this test, patching the pre-fix counting back in leaves the whole suite green.
+        /// </summary>
+        [Fact]
+        public void Run_FinishingAnInterruptedPass_CountsItRepairedNeverReConverted()
+        {
+            string dir = MakeRecordingWithFrames(2);
+
+            // Stage 1: an interrupted pass. Both JPEGs exist beside their PNGs, encoded and verified,
+            // repointed at nothing - the state a kill between phase 1 and phase 4 leaves behind.
+            ManifestStore.InterruptBeforeReplace = _ => throw new IOException("interrupted on purpose");
+            try
+            {
+                Assert.ThrowsAny<Exception>(() => FrameConversion.Run(dir, quality: 88));
+            }
+            finally
+            {
+                ManifestStore.InterruptBeforeReplace = null;
+            }
+
+            // Stage 2: the repair pass. Only the bookkeeping remains - nothing is encoded, so nothing
+            // may be counted as converted, and no bytes may move: they were reported by the interrupted
+            // pass when it encoded the frames, and counting them again would double every repair.
+            var result = FrameConversion.Run(dir, quality: 88);
+
+            Assert.Null(result.Error);
+            Assert.Equal(0, result.Converted);
+            Assert.Equal(2, result.Repaired);
+            Assert.Equal(0, result.BytesReclaimed);
+
+            // The finish is real: every reference points at a JPEG that exists, and the PNGs are gone.
+            foreach (var shot in Manifest.Load(dir).Shots)
+            {
+                Assert.EndsWith(".jpg", shot.File, StringComparison.OrdinalIgnoreCase);
+                string path = Path.Combine(dir, shot.File.Replace('/', Path.DirectorySeparatorChar));
+                Assert.True(File.Exists(path),
+                    $"the repaired manifest still names {shot.File}, which is not on disk");
+            }
+        }
+
         /// <summary>A recording with real frames, a manifest listing them, and a page showing them.</summary>
         private string MakeRecordingWithFrames(int frames)
         {
