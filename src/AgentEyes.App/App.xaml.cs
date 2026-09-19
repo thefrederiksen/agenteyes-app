@@ -5,6 +5,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using AgentEyes;
+using AgentEyes.Setup.Engine;
 
 namespace AgentEyes.App
 {
@@ -30,11 +31,50 @@ namespace AgentEyes.App
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            // Issue #61: this type is ALSO constructed by the test suite, purely to reach the
+            // brushes and styles in App.xaml - the preset editor's markup cannot be parsed without
+            // them. WPF runs OnStartup when it does, and everything below then started up inside
+            // the test runner: the single-instance lock, the tray icon, the control interface on
+            // the live port, the repair and housekeeping timers, the update checker - against the
+            // person's real configuration and real recordings. When their own copy was already
+            // running it also put a modal "AgentEyes is already running" box on their screen, every
+            // time the suite ran. None of what follows belongs to anybody but the application, so
+            // when this is not the application, it does none of it.
+            // Which assembly's entry point started this process - NOT what the file on disk is
+            // called. The release is published as AgentEyesApp-win-x64.exe, so a file-name test
+            // would make the downloaded release start and do nothing; the same for a renamed exe.
+            var hostName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+            var appName = typeof(App).Assembly.GetName().Name;
+            if (!ApplicationHost.IsTheApplication(hostName, appName))
+            {
+                AgentEyes.Log.Info($"startup skipped: the AgentEyes application object was built inside "
+                    + $"'{hostName}', which is not the application ('{appName}'). Nothing was started.");
+                base.OnStartup(e);
+                return;
+            }
+
             // Single instance: only one process owns the tray + API port.
             _mutex = new Mutex(initiallyOwned: true, "AgentEyes-singleinstance", out bool created);
             if (!created)
             {
-                MessageBox.Show("AgentEyes is already running (see the system tray).", "AgentEyes");
+                // Issue #61: a refused second instance used to leave NOTHING in the log but the
+                // "app exit" line from OnExit - indistinguishable from a normal shutdown - so weeks
+                // of these popups could not be traced back to whatever kept launching them. Say so
+                // explicitly, with the command line, BEFORE anything else happens.
+                // The policy is asked for the host as well, not just the arguments: it is the
+                // second line of defence for any OTHER program that builds this object. Reaching
+                // here at all means the check above already said this process IS the application.
+                var response = SecondInstancePolicy.Decide(e.Args, hostName, appName);
+                AgentEyes.Log.Warn("second instance refused: another AgentEyes already holds the "
+                    + $"single-instance lock. response={response}, host={hostName}, app={appName}, "
+                    + $"commandLine={Environment.CommandLine}");
+
+                // A modal box is only right when a person is sitting there waiting for a window. A
+                // launch that asked to start hidden has nobody to tell, and a dialog it throws lands
+                // on top of whatever the person is actually doing - and blocks until it is clicked.
+                if (response == SecondInstanceResponse.TellThePerson)
+                    MessageBox.Show("AgentEyes is already running (see the system tray).", "AgentEyes");
+
                 Shutdown();
                 return;
             }
@@ -113,7 +153,9 @@ namespace AgentEyes.App
                 PostRecording.WorkIdle += UpdateChecker.OnSessionEnded;
                 if (_cfg.AutoUpdate) UpdateChecker.AutoCheckOnStartup();
 
-                bool startHidden = e.Args.Any(a => a is "--tray" or "--minimized");
+                // Issue #61: the spelling of the hidden-start flags lives in LaunchArguments, so the
+                // app and the auto-update restart cannot drift apart on what "start hidden" means.
+                bool startHidden = LaunchArguments.AsksForHiddenStart(e.Args);
                 AgentEyes.Log.Info($"app started (hidden={startHidden}, api={(_rest != null ? _rest.Url : "off")})");
 
                 // First-run / signed-out gate (issue #87): AgentEyes runs only on DevThrottle. With no

@@ -6,7 +6,10 @@ rem Run from the repo root so recordings\ land there.
 cd /d "%~dp0.."
 
 rem Put the built exe on PATH for this session (inherited by the cmd /k below).
-set "CLIBIN=%~dp0..\src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0"
+rem Issue #61: bind\Release, not bin\Release - both projects set Platforms=x64, so a
+rem "-c Release" build lands there. The old path found nothing on a fresh checkout and a
+rem months-stale binary on an older one.
+set "CLIBIN=%~dp0..\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0"
 set "PATH=%CLIBIN%;%PATH%"
 
 if not exist "%CLIBIN%\agenteyes.exe" (

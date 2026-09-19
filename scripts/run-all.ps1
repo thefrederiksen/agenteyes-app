@@ -17,7 +17,7 @@ if (-not $Confirm -and $env:MQS_RUN_TESTS -ne '1') {
 }
 $env:MQS_RUN_TESTS = '1'   # children (smokes) inherit this; they will not re-prompt
 Set-Location (Resolve-Path "$PSScriptRoot\..")
-$exe = "src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.exe"
+. (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 $results = [ordered]@{}
 
 "== build =="
@@ -29,6 +29,11 @@ dotnet test tests\AgentEyes.Tests\AgentEyes.Tests.csproj -v q
 $results['unit'] = ($LASTEXITCODE -eq 0)
 
 "== selftest (headless) =="
+# Issue #61: resolved AFTER the build above, and from the one place that knows where this solution
+# actually builds to. bin\Release is not it - both projects set Platforms=x64, so "-c Release" lands
+# in bin\x64\Release, and the old path ran the selftest against whatever months-old binary happened
+# to be sitting in bin\Release, or nothing at all.
+$exe = Get-BuiltExePath -RepoRoot (Resolve-Path "$PSScriptRoot\..") -Which cli
 & $exe selftest
 $results['selftest'] = ($LASTEXITCODE -eq 0)
 

@@ -207,8 +207,17 @@ namespace AgentEyes.App
             if (_restartExe == null) return;
             try
             {
-                AgentEyes.Log.Info($"update: old instance torn down (mutex + port released); starting new exe {_restartExe}");
-                Process.Start(new ProcessStartInfo(_restartExe) { UseShellExecute = true });
+                // Issue #61: the restart used to start the new exe with NO arguments, so an app the
+                // person starts as "AgentEyesApp.exe --tray" came back from an automatic update with
+                // a window on screen. An update must not rewrite how the app starts: hand the new
+                // process this one's own arguments, verbatim.
+                var carried = LaunchArguments.ToCarryAcrossRestart(Environment.GetCommandLineArgs());
+                var psi = new ProcessStartInfo(_restartExe) { UseShellExecute = true };
+                foreach (var a in carried) psi.ArgumentList.Add(a);
+
+                AgentEyes.Log.Info($"update: old instance torn down (mutex + port released); starting new exe {_restartExe}"
+                    + $" with argument(s): {(carried.Count == 0 ? "(none)" : string.Join(" ", carried))}");
+                Process.Start(psi);
             }
             catch (Exception ex) { AgentEyes.Log.Error("restart after update failed", ex); }
         }

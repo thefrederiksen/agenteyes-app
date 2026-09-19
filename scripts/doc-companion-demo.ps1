@@ -17,15 +17,12 @@
 # needs an API key, audio hardware, and ~2 minutes. Non-destructive - presets.json and
 # config.json are backed up and fully restored, so it does not change your state.
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type -AssemblyName System.Speech
 
 $root = Split-Path $PSScriptRoot -Parent
-$exe  = @(
-    'src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe',
-    'src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
-) | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $exe) { "DEMO: FAIL (app not built - run: dotnet build AgentEyes.sln -c Release)"; exit 1 }
+$exe  = Get-BuiltExePath -RepoRoot $root -Which app
 
 $appdir      = Join-Path $env:LOCALAPPDATA 'AgentEyes'
 $cfgPath     = Join-Path $appdir 'config.json'
@@ -51,10 +48,17 @@ function Find-Button($win,$n){$win.FindFirst('Descendants',(BothOf (NameIs $n) (
 function Wait-Button($win,$n,$sec){$sw=[Diagnostics.Stopwatch]::StartNew();while($sw.Elapsed.TotalSeconds -lt $sec){$b=Find-Button $win $n;if($b -and $b.Current.IsEnabled){return $b};Start-Sleep -Milliseconds 400};throw "button '$n' not available in ${sec}s"}
 function Click-Button($win,$n,$sec=15){((Wait-Button $win $n $sec).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()}
 
-$bakP="$presetsPath.demo-bak"; $bakC="$cfgPath.demo-bak"; $failure=$null
+$bakP="$presetsPath.demo-bak"; $bakC="$cfgPath.demo-bak"
+
+# Issue #61: refuse rather than launch a second instance on top of a running one. OUTSIDE the try:
+# this script's finally used to read "no backup file exists" as "this presets.json is mine, delete
+# it", so a refusal raised inside the try deleted the person's presets.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'doc-companion-demo.ps1'
+
+$failure=$null
+$app = $null
+$presetsWritten = $false
 try {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 700
     Copy-Item $cfgPath $bakC -Force
     if (Test-Path $presetsPath) { Copy-Item $presetsPath $bakP -Force }
 
@@ -73,13 +77,14 @@ try {
     $arr=@(); if (Test-Path $presetsPath) { $arr=@(Get-Content $presetsPath -Raw | ConvertFrom-Json) }
     $arr += $tempPreset
     ConvertTo-Json $arr -Depth 8 | Set-Content $presetsPath -Encoding UTF8
+    $presetsWritten = $true
 
     $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
     $synth.SetOutputToWaveFile($narr); $synth.Speak($narration); $synth.Dispose()
 
     $before=@{}; Get-ChildItem $vid -Directory -ErrorAction SilentlyContinue | ForEach-Object { $before[$_.Name]=$true }
 
-    Start-Process $exe
+    $app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'doc-companion-demo.ps1'
     $win = Find-MainWindow      # launches with 'doc demo' (LastUsedPresetId) active
     Click-Button $win 'REC'
     Wait-Button  $win 'STOP' 15 | Out-Null
@@ -113,11 +118,15 @@ try {
 }
 catch { $failure = $_.Exception.Message }
 finally {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
+    Stop-ScriptOwnedAgentEyes $app
     Start-Sleep -Milliseconds 400
     if (Test-Path $bakC) { Move-Item $bakC $cfgPath -Force }
+    # Issue #61: only remove presets.json if THIS script is the one that wrote it. The old
+    # "no backup file exists, so it must be mine" reading is wrong whenever the try failed before
+    # the backup was taken - the very first statement in it copies config.json, and a missing or
+    # locked config.json is enough. That path deleted the person's real presets.
     if (Test-Path $bakP) { Move-Item $bakP $presetsPath -Force }
-    elseif (Test-Path $presetsPath) { Remove-Item $presetsPath -Force }
+    elseif ($presetsWritten -and (Test-Path $presetsPath)) { Remove-Item $presetsPath -Force }
 }
 
 if ($failure) { "DEMO: FAIL ($failure)"; exit 1 }
