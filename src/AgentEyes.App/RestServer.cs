@@ -280,7 +280,18 @@ namespace AgentEyes.App
             if (seg.Length == 3 && seg[1] == "frame")
             {
                 string offset = seg[2];
-                System.Threading.ThreadPool.QueueUserWorkItem(_ => FrameSubroute(ctx, id, offset));
+                System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    // A queued work item is a NEW entry point, outside Loop()'s catch: an unhandled
+                    // exception on a pool thread ends the always-on recorder. Everything gets an
+                    // answer, and nothing gets past this net.
+                    try { FrameSubroute(ctx, id, offset); }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[RestServer] frame route for {id} at {offset}s FAILED", ex);
+                        Error(ctx, 500, "the frame could not be served: " + ex.Message, "internal");
+                    }
+                });
                 return true;
             }
 

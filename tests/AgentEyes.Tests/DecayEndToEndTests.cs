@@ -268,6 +268,34 @@ namespace AgentEyes.Tests
             Assert.Equal(cameraSize + screenSize, record.BytesReclaimed);
         }
 
+        [Fact]
+        public void APendingExpiryWhoseFramesWereRenamed_StillDeletesTheFrames()
+        {
+            // A conversion tier renamed a frame after the expiry record was written: the record
+            // names the PNG, the disk holds the JPEG. The resume must not strand the renamed file.
+            string dir = Path.Combine(_root, "2026-08-01_120000_video");
+            Directory.CreateDirectory(Path.Combine(dir, "shots"));
+            File.WriteAllText(Path.Combine(dir, "recording.mp4"), new string('v', 5_000));
+            File.WriteAllText(Path.Combine(dir, "shots", "frame_001.jpg"), new string('v', 90));
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "{\"segments\":[]}");
+
+            ManifestStore.Replace(dir, new Manifest
+            {
+                Mode = "video",
+                Label = "2026-08-01_120000_video",
+                CreatedUtc = "2026-08-01T12:00:00Z",
+                Transcript = "transcript.json",
+                PendingExpiry = new List<string> { "recording.mp4", "shots/frame_001.png" },
+            });
+
+            Housekeeper.Run(_root, Live(keepVideoDays: 30), "test", () => false, Now);
+
+            Assert.False(File.Exists(Path.Combine(dir, "recording.mp4")));
+            Assert.False(File.Exists(Path.Combine(dir, "shots", "frame_001.jpg")),
+                "a renamed frame survived the expiry because the written record named its old spelling");
+            Assert.Null(Manifest.Load(dir).PendingExpiry);
+        }
+
         // ---- on-demand frames ----------------------------------------------------------------
 
         [Fact]

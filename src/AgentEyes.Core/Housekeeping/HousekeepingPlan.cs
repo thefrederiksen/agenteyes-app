@@ -255,9 +255,14 @@ namespace AgentEyes.Housekeeping
             //
             // A recording that is being EXPIRED this pass (below) is not also converted: its frames
             // are about to be deleted, and re-encoding them first would be work done to throw away.
+            // The same suppression applies to a PENDING expiry: a resumed pass takes its doomed set
+            // from the written record, and a conversion running beside it would RENAME a frame out
+            // from under that record - the PNG the record names would become an unreachable JPEG.
             bool expiring = settings.KeepVideoDays > 0 && ageDays >= settings.KeepVideoDays && keeperOnDisk;
+            bool pendingExpiry = manifest.PendingExpiry is { Count: > 0 };
 
-            if (settings.ConvertFramesToJpeg && settings.FrameDays > 0 && ageDays >= settings.FrameDays && !expiring)
+            if (settings.ConvertFramesToJpeg && settings.FrameDays > 0 && ageDays >= settings.FrameDays
+                && !expiring && !pendingExpiry)
             {
                 long frameBytes = 0;
                 int frameCount = 0;
@@ -332,8 +337,6 @@ namespace AgentEyes.Housekeeping
             // A recording being EXPIRED this pass does not also get input steps: the expire step
             // names the inputs in its own cost and deletes them itself, so separate steps would
             // double-count the same bytes in the report and the record.
-            bool pendingExpiry = manifest.PendingExpiry is { Count: > 0 };
-
             if (windowPassed && keeperOnDisk && !muxPending && !expiring && !pendingExpiry)
             {
                 foreach (string input in CompositionInputFiles)

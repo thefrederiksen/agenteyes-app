@@ -353,6 +353,23 @@ namespace AgentEyes.Housekeeping
             if (manifestNow.PendingExpiry is { Count: > 0 })
             {
                 foreach (string name in manifestNow.PendingExpiry) Consider(name);
+
+                // Belt and braces: the written record is the authority for the video and the
+                // composition inputs, but a frame a LATER tier renamed (PNG -> JPEG) after the record
+                // was written would sit at a name the record does not know. Whatever extracted
+                // frames are on disk join the doomed set - the recording is being deleted either
+                // way, and a dedupe set keeps the double-naming harmless.
+                string shots = Path.Combine(dir, HousekeepingPlan.FramesDirectory);
+                if (Directory.Exists(shots))
+                {
+                    foreach (string pattern in new[] { "frame_*.png", "frame_*.jpg" })
+                    {
+                        foreach (string frame in Directory.EnumerateFiles(shots, pattern))
+                        {
+                            Consider(Path.GetRelativePath(dir, frame).Replace('\\', '/'));
+                        }
+                    }
+                }
             }
             else
             {
@@ -393,7 +410,7 @@ namespace AgentEyes.Housekeeping
                 // The intent goes on the record first: if this process dies before the deletes
                 // finish, the next pass completes the expiry from these names rather than from a
                 // keeper it can no longer see.
-                m.PendingExpiry = doomed.Select(d => d.Relative).ToList();
+                m.PendingExpiry = doomed.Count > 0 ? doomed.Select(d => d.Relative).ToList() : null;
                 m.VideoFile = null;
                 foreach (string input in HousekeepingPlan.CompositionInputFiles)
                 {

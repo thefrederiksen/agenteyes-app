@@ -292,7 +292,6 @@ namespace AgentEyes
         }
 
         /// <summary>
-        /// <summary>
         /// The page's shot list from the manifest as it stands: the owner's own marker shots, each as
         /// a relative path. An entry with an EMPTY File is an earlier pass's on-demand frame
         /// (issue #59) - the fresh set the caller is about to build replaces it, and rendering it
@@ -309,6 +308,7 @@ namespace AgentEyes
             return shots;
         }
 
+        /// <summary>
         /// The shot list for a recording whose frames are served on demand (issue #59): one frame
         /// reference every <paramref name="intervalSeconds"/>, from zero to the recording's end,
         /// each pointing at the local control endpoint that extracts that frame from the video when

@@ -149,8 +149,12 @@ namespace AgentEyes.App
             // Structural, not by value: an expiry sooner than the preserved-original window would
             // delete the composed video while the RAW copies it was cleaned from are still
             // protected - the recording would lose its regenerable form before its raw one. The
-            // clamp makes the nonsense config impossible rather than merely untested.
-            KeepVideoDays = Math.Max(HousekeepingKeepVideoDays, HousekeepingPreservedOriginalDays),
+            // clamp makes the nonsense config impossible rather than merely untested - but ZERO is
+            // the documented off switch for a one-way tier, and a clamp must never turn "off" back
+            // into "on".
+            KeepVideoDays = HousekeepingKeepVideoDays <= 0
+                ? 0
+                : Math.Max(HousekeepingKeepVideoDays, HousekeepingPreservedOriginalDays),
             PreservedAudioMustBeBitExact = HousekeepingBitExactAudio,
             CeilingBytes = HousekeepingCeilingGb <= 0 ? 0 : (long)(HousekeepingCeilingGb * 1024 * 1024 * 1024),
         };

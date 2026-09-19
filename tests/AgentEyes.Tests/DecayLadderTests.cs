@@ -375,5 +375,35 @@ namespace AgentEyes.Tests
 
             Assert.Equal(30, cfg.HousekeepingSettings().KeepVideoDays);
         }
+
+        [Fact]
+        public void TheAppConfig_KeepVideoDaysZero_StaysOff()
+        {
+            // Zero is the documented off switch for a one-way tier; a clamp must never turn "off"
+            // back into "on". Found by the re-review: Math.Max(0, 30) silently armed the tail.
+            var cfg = new AgentEyes.App.Config { HousekeepingKeepVideoDays = 0, HousekeepingPreservedOriginalDays = 30 };
+
+            Assert.Equal(0, cfg.HousekeepingSettings().KeepVideoDays);
+        }
+
+        [Fact]
+        public void Plan_APendingExpiry_DoesNotAlsoPlanFrameConversion()
+        {
+            // A conversion running beside a resume would RENAME a frame out from under the written
+            // record - the PNG the record names becomes an unreachable JPEG. Found by the re-review.
+            var manifest = new Manifest
+            {
+                Mode = "video",
+                CreatedUtc = "2026-08-01T10:00:00Z",
+                Transcript = "transcript.json",
+                PendingExpiry = new List<string> { "recording.mp4", "shots/frame_001.png" },
+            };
+            var disk = DiskWith(("recording.mp4", 5_000_000), ("shots/frame_001.png", 200_000));
+
+            var steps = HousekeepingPlan.For(manifest, disk, ageDays: 40, Ladder(), out _);
+
+            Assert.DoesNotContain(steps, s => s.Kind == HousekeepingKind.ConvertFramesToJpeg);
+            Assert.Contains(steps, s => s.Kind == HousekeepingKind.ExpireRecording);
+        }
     }
 }
