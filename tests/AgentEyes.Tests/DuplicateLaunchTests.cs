@@ -288,7 +288,10 @@ namespace AgentEyes.Tests
             Assert.True(offenders.Count == 0,
                 "These scripts start the app but do not stop it from a finally block, so a failure "
                 + "part way through orphans the instance they started - and that orphan then makes "
-                + "every later run refuse (issue #61): " + string.Join(", ", offenders));
+                + "every later run refuse (issue #61). The call must be the FIRST statement in the "
+                + "finally, after any comments: stopping the app is what the block is for, and "
+                + "putting it first is what keeps it from being skipped by something above it "
+                + "throwing. Offending scripts: " + string.Join(", ", offenders));
         }
 
         /// <summary>
