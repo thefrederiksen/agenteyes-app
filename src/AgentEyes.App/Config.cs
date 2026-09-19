@@ -114,6 +114,22 @@ namespace AgentEyes.App
         public int HousekeepingPreservedOriginalDays { get; set; } = 30;
 
         /// <summary>
+        /// Days before a video recording's composed VIDEO expires and the recording decays to its
+        /// source of truth - transcript, walkthrough text, manifest, thumbnail (issue #59). Zero
+        /// disables it. The owner's ruling, 2026-09-19: thirty days, one-way, by design.
+        /// </summary>
+        public int HousekeepingKeepVideoDays { get; set; } = 30;
+
+        /// <summary>
+        /// True extracts walkthrough frames to disk at packaging (the behaviour before issue #59).
+        /// False - the owner's default since 2026-09-19 - writes no frame files: the walkthrough page
+        /// asks the running app for each frame at its offset and the control endpoint extracts it
+        /// from the video on demand. Core reads this through LocalAppConfig, whose defaults MIRROR
+        /// these - a test pins the mirror.
+        /// </summary>
+        public bool WalkthroughExtractFrames { get; set; } = false;
+
+        /// <summary>
         /// True keeps the preserved-audio transcode BIT-EXACT (WavPack, 40.2% of the WAV). False
         /// accepts FLAC, which reaches 20.8% but writes 24 bits and so loses the low 8 bits of this
         /// 32-bit float audio - smaller, inaudible, and not something to do to an owner's archive
@@ -130,6 +146,7 @@ namespace AgentEyes.App
             Enabled = HousekeepingEnabled,
             ReportOnly = HousekeepingReportOnly,
             PreservedOriginalDays = HousekeepingPreservedOriginalDays,
+            KeepVideoDays = HousekeepingKeepVideoDays,
             PreservedAudioMustBeBitExact = HousekeepingBitExactAudio,
             CeilingBytes = HousekeepingCeilingGb <= 0 ? 0 : (long)(HousekeepingCeilingGb * 1024 * 1024 * 1024),
         };

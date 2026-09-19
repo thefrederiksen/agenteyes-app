@@ -10,7 +10,20 @@ namespace AgentEyes.Packaging
     internal sealed class WalkthroughShot
     {
         public double OffsetSeconds { get; set; }
+
+        /// <summary>
+        /// Where the page finds this shot: a relative file path under the recording directory, or -
+        /// when <see cref="ServedOnDemand"/> is true - the local control endpoint that extracts the
+        /// frame from the video when the page asks for it (issue #59).
+        /// </summary>
         public string RelativePath { get; set; } = "";
+
+        /// <summary>
+        /// True when this shot has no file: the frame is served on demand from the recording's video.
+        /// The manifest records such a shot with an EMPTY File, never with the endpoint address, so a
+        /// consumer resolving manifest names against the directory never chases a URL.
+        /// </summary>
+        public bool ServedOnDemand { get; set; }
     }
 
     /// <summary>

@@ -21,6 +21,16 @@ namespace AgentEyes.Housekeeping
 
         /// <summary>Re-encode a recording's extracted walkthrough frames from PNG to JPEG.</summary>
         ConvertFramesToJpeg,
+
+        /// <summary>
+        /// Delete a composition input (camera.mp4, recording.screen.mp4) whose composed keeper exists
+        /// and whose window has passed.</summary>
+        DeleteCompositionInput,
+
+        /// <summary>
+        /// Expire the recording: delete the composed video, the composition inputs and the extracted
+        /// frames, and rewrite the walkthrough so nothing points at what is gone. The text survives.</summary>
+        ExpireRecording,
     }
 
     /// <summary>
@@ -77,6 +87,19 @@ namespace AgentEyes.Housekeeping
         /// </summary>
         public static readonly string[] DerivedFiles = { "audio_16k.wav" };
 
+        /// <summary>
+        /// The composition inputs: the raw camera and screen tracks that CameraCompose built the
+        /// composed keeper from. Exact names for the same reason as <see cref="DerivedFiles"/> - a
+        /// name is what proves where a file came from and what can recreate it.
+        ///
+        /// They are kept for a window (not deleted at composition time) because a re-frame - a
+        /// different corner, a circle instead of a rectangle - needs the raw rectangular camera track
+        /// (issue #36). After the window they are deleted, and ONLY while the composed keeper exists:
+        /// for a recording whose composition never finished they are not inputs, they are the
+        /// recording.
+        /// </summary>
+        public static readonly string[] CompositionInputFiles = { "camera.mp4", "recording.screen.mp4" };
+
         /// <summary>The subdirectory holding a recording's shots, relative and with forward slashes.</summary>
         public const string FramesDirectory = "shots";
 
@@ -90,11 +113,30 @@ namespace AgentEyes.Housekeeping
         /// </summary>
         public static bool IsExtractedFrame(string relativePath)
         {
+            if (string.IsNullOrEmpty(relativePath)) return false;
             string p = relativePath.Replace('\\', '/');
             if (!p.StartsWith(FramesDirectory + "/", StringComparison.OrdinalIgnoreCase)) return false;
             string name = p.Substring(FramesDirectory.Length + 1);
             return name.StartsWith("frame_", StringComparison.OrdinalIgnoreCase)
                 && name.EndsWith(".png", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// True for a file that WAS an extracted frame - the PNG packaging wrote or the JPEG Tier 2
+        /// converted it into. This is the enumeration the expire tier (issue #59) deletes; Tier 2
+        /// keeps using <see cref="IsExtractedFrame"/> because it converts PNGs only, and counting
+        /// JPEGs there would plan a repair pass every day forever. Hand-taken shots are excluded by
+        /// the same name rule.
+        /// </summary>
+        public static bool IsExtractedFrameFile(string relativePath)
+        {
+            if (string.IsNullOrEmpty(relativePath)) return false;
+            string p = relativePath.Replace('\\', '/');
+            if (!p.StartsWith(FramesDirectory + "/", StringComparison.OrdinalIgnoreCase)) return false;
+            string name = p.Substring(FramesDirectory.Length + 1);
+            return name.StartsWith("frame_", StringComparison.OrdinalIgnoreCase)
+                && (name.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
@@ -148,6 +190,13 @@ namespace AgentEyes.Housekeeping
             // A deferred mux (issue #77) means the raw capture files are still the durable artifact.
             // Nothing is touched until it has been completed.
             bool muxPending = manifest.PendingMux is not null;
+
+            // The composed keeper video, on disk. The tail of the ladder and the composition-input
+            // tier both key off it: the first cannot expire a recording whose video is already gone,
+            // and the second must not delete raw tracks that ARE the recording because composition
+            // never produced anything from them.
+            string? keeper = manifest.VideoFile;
+            bool keeperOnDisk = keeper is not null && filesOnDisk.ContainsKey(keeper);
 
             // ---- Tier 0: derived intermediates -------------------------------------------------
             if (transcribed && !muxPending)
@@ -203,7 +252,12 @@ namespace AgentEyes.Housekeeping
             // Only frame_* files. A shot the owner took by hand during a recording - region_*.png,
             // monitor*_full.png - is not a derived artifact, is not regenerable from the video, and is
             // never touched.
-            if (settings.ConvertFramesToJpeg && settings.FrameDays > 0 && ageDays >= settings.FrameDays)
+            //
+            // A recording that is being EXPIRED this pass (below) is not also converted: its frames
+            // are about to be deleted, and re-encoding them first would be work done to throw away.
+            bool expiring = settings.KeepVideoDays > 0 && ageDays >= settings.KeepVideoDays && keeperOnDisk;
+
+            if (settings.ConvertFramesToJpeg && settings.FrameDays > 0 && ageDays >= settings.FrameDays && !expiring)
             {
                 long frameBytes = 0;
                 int frameCount = 0;
@@ -228,7 +282,7 @@ namespace AgentEyes.Housekeeping
                 }
             }
 
-            // ---- Tiers 1 and 3: the preserved originals ----------------------------------------
+            // ---- Tier 1 and 3: the preserved originals ----------------------------------------
             // These are the files issue #83 deliberately kept instead of deleting, so a cleaned take
             // can be compared against its raw one. Tier 3 is the end of that window; Tier 1 makes the
             // window cheap. A file that has reached Tier 3 is NEVER also transcoded - it is about to
@@ -267,6 +321,65 @@ namespace AgentEyes.Housekeeping
                     Reason = settings.PreservedAudioMustBeBitExact
                         ? $"preserved audio as uncompressed PCM; {settings.PreservedAudioCodec} holds it bit for bit"
                         : $"preserved audio as uncompressed PCM; {settings.PreservedAudioCodec} is smaller and NOT bit-exact",
+                });
+            }
+
+            // ---- The composition inputs (issue #59) --------------------------------------------
+            // The raw tracks the keeper was composed from. Deleted at the same window as the
+            // preserved originals - a re-frame someone wanted has had a week to happen - and only
+            // while the composed keeper exists, because without it these files are not inputs, they
+            // are the recording. A file that IS the keeper is never an input to itself.
+            if (windowPassed && keeperOnDisk && !muxPending)
+            {
+                foreach (string input in CompositionInputFiles)
+                {
+                    if (string.Equals(input, keeper, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!filesOnDisk.TryGetValue(input, out long size)) continue;
+
+                    steps.Add(new HousekeepingStep
+                    {
+                        Kind = HousekeepingKind.DeleteCompositionInput,
+                        File = input,
+                        Bytes = size,
+                        Reason = $"a composition input the composed recording was built from; "
+                               + $"a re-frame has had {settings.PreservedOriginalDays} days to happen",
+                    });
+                }
+            }
+
+            // ---- The tail of the ladder: the keeper expires (issue #59) -----------------------
+            // One step for the whole recording, planned FIRST in nothing but the order it runs: the
+            // page is rewritten and the manifest repointed before anything is deleted, inside the
+            // Apply. What goes: the composed video, the composition inputs, and the extracted frames.
+            // What stays: the transcript, the walkthrough text, the manifest, the thumbnail, and the
+            // owner's own hand-taken shots, which no video can regenerate. ONE-WAY by design: after
+            // this the frames cannot be re-extracted either, because the video that held them is the
+            // thing that was deleted.
+            if (expiring && !muxPending)
+            {
+                long doomed = 0;
+                if (filesOnDisk.TryGetValue(keeper!, out long keeperSize)) doomed += keeperSize;
+                foreach (string input in CompositionInputFiles)
+                {
+                    if (filesOnDisk.TryGetValue(input, out long size)
+                        && !string.Equals(input, keeper, StringComparison.OrdinalIgnoreCase)) doomed += size;
+                }
+                int frameCount = 0;
+                foreach (var entry in filesOnDisk)
+                {
+                    if (!IsExtractedFrameFile(entry.Key)) continue;
+                    doomed += entry.Value;
+                    frameCount++;
+                }
+
+                steps.Add(new HousekeepingStep
+                {
+                    Kind = HousekeepingKind.ExpireRecording,
+                    File = keeper!,
+                    Bytes = doomed,
+                    Reason = $"{ageDays} days old; the recording expires to its source of truth "
+                           + $"(transcript, walkthrough, manifest) after {settings.KeepVideoDays} days"
+                           + (frameCount > 0 ? $"; {frameCount} extracted frame(s) go with it" : ""),
                 });
             }
 

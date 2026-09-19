@@ -137,6 +137,19 @@ namespace AgentEyes.Housekeeping
         public bool ConvertFramesToJpeg { get; set; } = true;
 
         /// <summary>
+        /// How old a video recording must be, in days, before its composed video expires and the
+        /// recording decays to its source of truth: transcript, walkthrough text, manifest, thumbnail
+        /// (issue #59). Zero or less turns it off.
+        ///
+        /// The owner's ruling, 2026-09-19: after about a month the recording's value is its
+        /// transcript, and the video - the largest file in the library - is the least re-read. Thirty
+        /// days is the default the owner stated, not an assumption this time. It is ONE-WAY: the
+        /// video is what the extracted frames regenerate from, so expiring it ends regeneration too,
+        /// which is the point.
+        /// </summary>
+        public int KeepVideoDays { get; set; } = 30;
+
+        /// <summary>
         /// A footprint ceiling in bytes, or 0 for none. Past the ceiling the OLDEST unpinned
         /// recordings are treated as having reached <see cref="PreservedOriginalDays"/> early, because
         /// an age rule on its own does not protect a disk from one very long capture.

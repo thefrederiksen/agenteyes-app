@@ -141,6 +141,11 @@ namespace AgentEyes
             var shots = new List<Shot>();
             foreach (var s in m.Shots)
             {
+                // An entry with an empty File is a frame served ON DEMAND (issue #59): there is no
+                // file to resolve, so it is not a shot file. Its moment is on the page and reachable
+                // through the frame endpoint; listing a path that resolves to the recording
+                // directory itself would be a lie.
+                if (string.IsNullOrEmpty(s.File)) continue;
                 string rel = s.File.Replace('\\', '/');
                 shots.Add(new Shot
                 {

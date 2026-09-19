@@ -175,9 +175,13 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::TryDelete -> System.IO.File::Delete x1",
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateWalkthrough -> System.IO.File::Move x1",
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateWalkthrough -> System.IO.File::WriteAllText x1",
-            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> System.IO.File::Delete x2",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> System.IO.File::Delete x3",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> System.IO.File::Delete x1",             // the expired recording's files, after page and manifest
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> System.IO.File::Move x1",                 // the retired page, moved atomically onto the old one
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> System.IO.File::WriteAllText x1",         // the retired page, written to a temp first (issue #59)
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyTranscode -> System.IO.File::Delete x1",
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::TruncateToTail -> System.IO.FileStream::.ctor x2",
+            "agenteyes.dll!AgentEyes.Video.VideoFrame::ExtractJpeg -> System.IO.File::Delete x1",                      // the on-demand frame's temp file (issue #59), deleted in a finally
             "agenteyes.dll!AgentEyes.Housekeeping.PreservedAudioTranscode::TryDeletePartial -> System.IO.File::Delete x1",
             "agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1",                        // the app log
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Delete x1",               // THE manifest path: temp cleanup after a failed rename
@@ -247,7 +251,8 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Commands::Shot -> AgentEyes.ManifestStore::Replace x1",                   // a CLI screenshot's own record
             "agenteyes.dll!AgentEyes.Commands::Video -> AgentEyes.ManifestStore::Replace x1",                  // a CLI video session's own record
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateManifest -> AgentEyes.ManifestStore::Update x1", // converted frames are repointed in Shots and Files
-            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> AgentEyes.ManifestStore::Update x1",           // a deleted preserved original is struck from OriginalFiles
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> AgentEyes.ManifestStore::Update x2",           // a deleted preserved original or composition input is struck from the manifest
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> AgentEyes.ManifestStore::Update x1",      // an expired recording stops naming what it lost (issue #59)
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyTranscode -> AgentEyes.ManifestStore::Update x1",  // a transcoded original is renamed in place
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Record -> AgentEyes.ManifestStore::Update x1",           // the issue #56 housekeeping record
             "agenteyes.dll!AgentEyes.Package::FinalizeManifest -> AgentEyes.ManifestStore::Update x1",         // what packaging produced

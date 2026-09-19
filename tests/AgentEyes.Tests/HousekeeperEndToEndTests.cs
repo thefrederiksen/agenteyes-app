@@ -237,9 +237,12 @@ namespace AgentEyes.Tests
         [Fact]
         public void APassPastTheWindow_DeletesThePreservedOriginal_AndNothingElse()
         {
+            // KeepVideoDays off: the recording is 230 days old, and with the decay ladder's tail armed
+            // (issue #59) it would legitimately expire its video here. This test is about the window
+            // tier alone; the expiry has its own tests.
             string dir = MakeRecording("2026-01-01_120000_video", new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc));
 
-            Housekeeper.Run(_root, Live(), "test", () => false,
+            Housekeeper.Run(_root, Live(s => s.KeepVideoDays = 0), "test", () => false,
                 new DateTime(2026, 9, 18, 12, 0, 0, DateTimeKind.Utc));
 
             Assert.False(File.Exists(Path.Combine(dir, "system.original.wav")));

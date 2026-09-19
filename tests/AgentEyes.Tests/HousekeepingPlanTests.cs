@@ -211,7 +211,9 @@ namespace AgentEyes.Tests
         [Fact]
         public void For_PastTheWindow_TouchesNothingOutsideOriginalFiles()
         {
-            var steps = HousekeepingPlan.For(Packaged(), TypicalDisk(), 40, Settings(), out _);
+            // The expire tail (issue #59) is OFF here: this test is about the preserved-original window
+            // alone. The keeper's own expiry has its own tests in DecayLadderTests.
+            var steps = HousekeepingPlan.For(Packaged(), TypicalDisk(), 40, Settings(s => s.KeepVideoDays = 0), out _);
 
             var deleted = steps.Where(s => s.Kind == HousekeepingKind.DeletePreservedOriginal)
                                .Select(s => s.File);
@@ -287,7 +289,10 @@ namespace AgentEyes.Tests
 
         /// <summary>
         /// The property that matters more than any single case: whatever the age, the settings or the
-        /// state, the planner NEVER proposes touching a file the recording actually keeps.
+        /// state, the planner NEVER proposes touching a file the recording actually keeps - with one
+        /// deliberate exception since issue #59: the composed video is the owner's to expire, and ONLY
+        /// the expire tier may propose it. It may never be touched by a delete, a transcode or a
+        /// conversion, at any age.
         /// </summary>
         [Theory]
         [InlineData(0)]
@@ -301,7 +306,16 @@ namespace AgentEyes.Tests
 
             foreach (string durable in new[] { "recording.mp4", "transcript.json", "manifest.json" })
             {
-                Assert.DoesNotContain(steps, s => string.Equals(s.File, durable, StringComparison.OrdinalIgnoreCase));
+                var proposals = steps.Where(s => string.Equals(s.File, durable, StringComparison.OrdinalIgnoreCase));
+                if (durable == "recording.mp4")
+                {
+                    // The one exception: past the keep-video age, and only ever as an expiry.
+                    Assert.All(proposals, s => Assert.Equal(HousekeepingKind.ExpireRecording, s.Kind));
+                }
+                else
+                {
+                    Assert.Empty(proposals);
+                }
             }
         }
     }
