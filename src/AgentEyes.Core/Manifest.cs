@@ -231,6 +231,64 @@ namespace AgentEyes
         public List<string> Files { get; set; } = new();
 
         /// <summary>
+        /// Issue #56: this recording is PINNED and the Housekeeper must not touch it - not one tier,
+        /// not partially. It is the escape hatch for the recording the owner is still working from,
+        /// and it is checked before any tier so that extending the tiers later cannot reach a pinned
+        /// recording by accident.
+        ///
+        /// Backward compatible: absent on every manifest written before this field existed, which
+        /// deserializes to false - not pinned, which is the correct reading.
+        /// </summary>
+        public bool Keep { get; set; }
+
+        /// <summary>
+        /// Issue #56: what the Housekeeper has actually done to this recording - one entry per action,
+        /// appended, never rewritten.
+        ///
+        /// It is in the MANIFEST and not only in the log on purpose. A sweep whose sole evidence is a
+        /// log line cannot be queried later: "what happened to my preserved original" has to be
+        /// answerable from the record months afterwards, and log files rotate. It also carries the two
+        /// decoded-stream hashes for a transcode, so the claim that a re-encode was bit-exact is
+        /// checkable after the fact rather than taken on trust.
+        /// </summary>
+        public List<HousekeepingRecord> Housekeeping { get; set; } = new();
+
+        /// <summary>One thing the Housekeeper did, or tried and refused to do (issue #56).</summary>
+        public sealed class HousekeepingRecord
+        {
+            /// <summary>The <c>HousekeepingKind</c> value, as its name.</summary>
+            public string Kind { get; set; } = "";
+
+            /// <summary>The file acted on, relative to the recording directory.</summary>
+            public string File { get; set; } = "";
+
+            /// <summary>What a transcode produced; null for the other kinds.</summary>
+            public string? Output { get; set; }
+
+            /// <summary>Bytes the disk got back. Zero or negative is honest and possible.</summary>
+            public long BytesReclaimed { get; set; }
+
+            public DateTime WhenUtc { get; set; }
+
+            /// <summary>"done", "refused", or "failed". Three values, because a refusal is not a
+            /// failure and neither is a success - collapsing them is how a sweep that did nothing
+            /// comes to look like a sweep that worked.</summary>
+            public string Outcome { get; set; } = "";
+
+            /// <summary>Why, when the outcome is not "done". Null otherwise.</summary>
+            public string? Error { get; set; }
+
+            /// <summary>For a transcode: true when the decoded audio matched the source exactly.</summary>
+            public bool? BitExact { get; set; }
+
+            /// <summary>For a transcode: the decoded-stream hash of the source that was removed.</summary>
+            public string? SourceHash { get; set; }
+
+            /// <summary>For a transcode: the decoded-stream hash of the file that replaced it.</summary>
+            public string? OutputHash { get; set; }
+        }
+
+        /// <summary>
         /// Issue #83: untouched pre-processing capture files kept alongside the cleaned output (a
         /// ".original" infix - e.g. recording.original.mp4, mic.original.wav). These are
         /// present-but-secondary: discoverable in the folder/manifest but never the primary playable

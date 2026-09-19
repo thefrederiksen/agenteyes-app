@@ -64,6 +64,17 @@ namespace AgentEyes
             return Thumbnails.Ensure(dir) != null;
         };
 
+        /// <summary>
+        /// Reduce the recordings root's footprint (issues #55, #56) - one whole pass over every
+        /// recording, not one recording, because the footprint ceiling is a property of the SET.
+        ///
+        /// Replaceable for the same reason as the three above: the capture guard sits immediately
+        /// before it, and the only way to prove the guard stops the costly work is to run the real
+        /// loop with a step that records whether it was invoked.
+        /// </summary>
+        internal static Func<string, Housekeeping.HousekeepingSettings, Func<bool>, Housekeeping.HousekeepingReport> HousekeepStep =
+            (root, settings, shouldYield) => Housekeeping.Housekeeper.Run(root, settings, "repair-pass", shouldYield, DateTime.UtcNow);
+
         /// <summary>Puts the production steps back. For tests that inject an observable step.</summary>
         internal static void RestoreDefaultSteps()
         {
@@ -74,6 +85,8 @@ namespace AgentEyes
                 Thumbnails.NoteThumbAttempt(dir);
                 return Thumbnails.Ensure(dir) != null;
             };
+            HousekeepStep = (root, settings, shouldYield) =>
+                Housekeeping.Housekeeper.Run(root, settings, "repair-pass", shouldYield, DateTime.UtcNow);
         }
 
         private readonly Func<bool> _isRecording;
@@ -106,6 +119,22 @@ namespace AgentEyes
         /// <summary>Optional notification that the pass stopped because the DevThrottle wallet is
         /// empty, so a UI can surface it. Raised on a background thread.</summary>
         public Action? CreditsExhausted { get; set; }
+
+        /// <summary>
+        /// What the housekeeping stage is allowed to do (issues #55, #56). Read FRESH on every pass,
+        /// not captured once, so turning report-only off in settings takes effect at the next tick
+        /// instead of at the next restart - this is an always-on app and a restart may be days away.
+        ///
+        /// Defaults to <see cref="Housekeeping.HousekeepingSettings"/>'s own defaults, which are
+        /// report-only. A host that never sets this therefore never deletes anything, which is the
+        /// right way round for a default.
+        /// </summary>
+        public Func<Housekeeping.HousekeepingSettings> HousekeepingSettings { get; set; } =
+            () => new Housekeeping.HousekeepingSettings();
+
+        /// <summary>The last housekeeping report this service produced, or null before the first pass.
+        /// Read by the Control API so the report is reachable without re-running the pass.</summary>
+        public Housekeeping.HousekeepingReport? LastHousekeepingReport { get; private set; }
 
         /// <summary>Arms the triggers: the post-recording signal, a sign-in, and the periodic
         /// timer.</summary>
@@ -191,6 +220,13 @@ namespace AgentEyes
 
                     // Thumbnails are local ffmpeg work, so they repair whether signed in or not.
                     await BackfillMissingThumbsAsync(epoch);
+
+                    // LAST, deliberately (issues #55, #56). Everything above either produces an
+                    // artifact or repairs one; housekeeping removes and re-encodes files, and it must
+                    // never run before the passes that might still need them. A recording whose
+                    // packaging was resumed two stages ago now has its transcript on disk, which is
+                    // the very condition the planner uses to decide the transcriber's input is spent.
+                    await ReduceFootprintAsync(epoch);
 
                     Log.Info($"[RepairService] RunAsync: trigger={trigger} done");
                 }
@@ -499,6 +535,105 @@ namespace AgentEyes
         ///
         /// Ungated on purpose - the caller holds <see cref="Gate"/>.
         /// </summary>
+        /// <summary>
+        /// Reduce the recordings root's own footprint (issues #55, #56).
+        ///
+        /// The capture guard is checked here, before the pass starts, AND handed to the pass as a
+        /// closure it re-tests before every single action. One check would not be enough: a single
+        /// transcode of a multi-gigabyte preserved WAV lasts minutes, which is long enough for a
+        /// recording to start and finish entirely inside it - the exact case issue #154 was written
+        /// for. Capture wins, always; housekeeping finishes at the next tick.
+        ///
+        /// It runs off this thread like every other costly stage, and it never throws into the pass:
+        /// a failure in one recording is recorded against that recording, and <see cref="RunAsync"/>
+        /// already logs anything that escapes.
+        /// </summary>
+        public async Task ReduceFootprintAsync(int captureEpoch)
+        {
+            if (CaptureYielded(captureEpoch, "ReduceFootprintAsync")) return;
+            await HousekeepAsync("repair-pass", captureEpoch);
+        }
+
+        /// <summary>
+        /// Run housekeeping on its own, outside the repair pass - the Control API's
+        /// <c>POST /housekeeping/run</c> and, later, the "Clean up now" button.
+        ///
+        /// It takes the SAME two guards the periodic pass takes, because an on-demand trigger is no
+        /// safer than a timed one: a request that arrives while a capture is running must be refused,
+        /// and one that arrives while a repair pass holds the gate must not put a second pass on the
+        /// same recordings. A refusal comes back as a report that says why, never as silence - the
+        /// caller asked a question and is owed an answer.
+        /// </summary>
+        public async Task<Housekeeping.HousekeepingReport> RunHousekeepingNowAsync(string trigger)
+        {
+            if (!RepairSchedule.ShouldRunNow(_isRecording()))
+            {
+                return NotRun(trigger, "a recording is in progress; housekeeping never competes with capture");
+            }
+
+            if (!_gate.TryEnter())
+            {
+                return NotRun(trigger, "a repair pass is already running");
+            }
+
+            try
+            {
+                int epoch = CaptureSignal.Epoch;
+                return await HousekeepAsync(trigger, epoch);
+            }
+            finally
+            {
+                _gate.Exit();
+            }
+        }
+
+        /// <summary>
+        /// One housekeeping pass. The capture guard is handed in as a closure the pass re-tests before
+        /// every single action - one check up front would not be enough, because a single transcode of
+        /// a multi-gigabyte preserved WAV lasts long enough for a recording to start and finish inside
+        /// it, which is the exact case issue #154 was written for.
+        /// </summary>
+        private async Task<Housekeeping.HousekeepingReport> HousekeepAsync(string trigger, int captureEpoch)
+        {
+            var settings = HousekeepingSettings();
+            if (!settings.Enabled)
+            {
+                Log.Info($"[RepairService] HousekeepAsync: trigger={trigger} - housekeeping is turned off");
+                return NotRun(trigger, "housekeeping is turned off in settings");
+            }
+
+            var report = await Task.Run(() => HousekeepStep(
+                RecordingPaths.Root,
+                settings,
+                () => CaptureYielded(captureEpoch, $"housekeeping step trigger={trigger}")));
+
+            LastHousekeepingReport = report;
+            Status?.Invoke(report.Summary());
+
+            // Housekeeping renames and removes files the Library shows, so an open view has to reload.
+            // Only when something actually changed - a report-only pass changes nothing, and firing
+            // this on every tick would reload the library four times an hour for no reason.
+            if (!report.ReportOnly && report.BytesReclaimed != 0) LibraryChanged?.Invoke();
+
+            return report;
+        }
+
+        /// <summary>A report for a pass that did not happen, saying so in the one field built for it.</summary>
+        private Housekeeping.HousekeepingReport NotRun(string trigger, string why)
+        {
+            Log.Info($"[RepairService] housekeeping not run: trigger={trigger} - {why}");
+            var now = DateTime.UtcNow;
+            var report = new Housekeeping.HousekeepingReport
+            {
+                StartedUtc = now,
+                FinishedUtc = now,
+                Trigger = trigger,
+                ReportOnly = HousekeepingSettings().ReportOnly,
+                NotRun = why,
+            };
+            return report;
+        }
+
         public async Task BackfillMissingThumbsAsync(int captureEpoch)
         {
             var missing = await Task.Run(() => Thumbnails.FindMissing(RecordingPaths.Root));

@@ -610,6 +610,84 @@ namespace AgentEyes
             return AgentEyes.Package.Run(opts.Positional[0], interval, scene);
         }
 
+        // ---- housekeep -----------------------------------------------------
+
+        /// <summary>
+        /// Run one housekeeping pass over the recordings root (issues #55, #56).
+        ///
+        /// It exists because the pass was otherwise reachable only from inside the running tray app,
+        /// which means it could not be run, inspected or proven from a command line - and a
+        /// destructive pass that the owner cannot ask "what would you do" without launching an
+        /// application is one nobody will ever check.
+        ///
+        /// It REPORTS by default and changes nothing. <c>--apply</c> is the deliberate act, and it is
+        /// the only thing that makes it write. The report shape is the same either way, so what a real
+        /// run did can be compared against what the dry run said it would do.
+        /// </summary>
+        public static int Housekeep(CliArgs opts)
+        {
+            bool apply = opts.Has("apply");
+
+            var settings = new Housekeeping.HousekeepingSettings { ReportOnly = !apply };
+            if (opts.Has("days")) settings.PreservedOriginalDays = opts.RequireInt("days", "e.g. --days 30");
+            if (opts.Has("smaller-audio")) settings.PreservedAudioMustBeBitExact = false;
+            if (opts.Has("no-transcode")) settings.TranscodePreservedAudio = false;
+            if (opts.Has("no-frames")) settings.ConvertFramesToJpeg = false;
+            if (opts.Has("frame-days")) settings.FrameDays = opts.RequireInt("frame-days", "e.g. --frame-days 7");
+            if (opts.Has("ceiling-gb"))
+            {
+                settings.CeilingBytes = (long)(opts.RequireInt("ceiling-gb", "e.g. --ceiling-gb 20")
+                                               * 1024L * 1024L * 1024L);
+            }
+
+            string root = opts.Positional.Count > 0 ? opts.Positional[0] : RecordingPaths.Root;
+
+            Console.WriteLine($"  root: {root}");
+            Console.WriteLine($"  mode: {(apply ? "APPLY - this changes files on disk" : "report only - nothing will be changed")}");
+            Console.WriteLine($"  preserved originals are deleted after {settings.PreservedOriginalDays} day(s)");
+            Console.WriteLine(settings.TranscodePreservedAudio
+                ? $"  preserved audio -> {settings.PreservedAudioCodec} "
+                  + $"({(settings.PreservedAudioMustBeBitExact ? "bit-exact" : "SMALLER, not bit-exact")})"
+                : "  preserved audio -> left alone (--no-transcode)");
+            Console.WriteLine(settings.ConvertFramesToJpeg && settings.FrameDays > 0
+                ? $"  frames -> JPEG quality {settings.FrameJpegQuality} once a recording is {settings.FrameDays} day(s) old"
+                : "  frames -> left alone");
+            Console.WriteLine();
+
+            var report = Housekeeping.Housekeeper.Run(
+                root, settings, apply ? "cli --apply" : "cli", () => false, DateTime.UtcNow);
+
+            if (report.NotRun != null)
+            {
+                Console.WriteLine($"[!] did not run: {report.NotRun}");
+                return 1;
+            }
+
+            foreach (var recording in report.Recordings)
+            {
+                Console.WriteLine($"  {recording.Recording}  ({recording.AgeDays}d)");
+                if (recording.Skipped != null) Console.WriteLine($"      skipped: {recording.Skipped}");
+                foreach (var step in recording.Steps)
+                {
+                    string size = $"{step.Bytes / 1024.0 / 1024.0:N1} MB";
+                    string got = step.BytesReclaimed == 0
+                        ? ""
+                        : $" -> reclaimed {step.BytesReclaimed / 1024.0 / 1024.0:N1} MB";
+                    string exact = step.BitExact == null ? "" : (step.BitExact.Value ? " [bit-exact]" : " [NOT bit-exact]");
+                    Console.WriteLine($"      {step.Outcome,-8} {step.Kind,-24} {step.File} ({size}){got}{exact}");
+                    if (step.Error != null) Console.WriteLine($"               reason: {step.Error}");
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"[ok] {report.Summary()}");
+            if (!apply)
+            {
+                Console.WriteLine("[ok] nothing was changed. Re-run with --apply to carry this out.");
+            }
+            return 0;
+        }
+
         // ---- import --------------------------------------------------------
 
         public static int Import(CliArgs opts)
