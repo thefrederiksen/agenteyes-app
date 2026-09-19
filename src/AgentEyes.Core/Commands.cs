@@ -635,7 +635,15 @@ namespace AgentEyes
 
             var settings = new Housekeeping.HousekeepingSettings { ReportOnly = !apply };
             if (opts.Has("days")) settings.PreservedOriginalDays = opts.RequireInt("days", "e.g. --days 30");
-            if (opts.Has("keep-video-days")) settings.KeepVideoDays = opts.RequireInt("keep-video-days", "e.g. --keep-video-days 30");
+            if (opts.Has("keep-video-days"))
+            {
+                // The same clamp the app's config applies: zero stays zero (the off switch for a
+                // one-way tier), and a positive value can never expire the composed video before
+                // the raw copies it was cleaned from leave.
+                settings.KeepVideoDays = Housekeeping.HousekeepingSettings.ClampKeepVideoDays(
+                    opts.RequireInt("keep-video-days", "e.g. --keep-video-days 30"),
+                    settings.PreservedOriginalDays);
+            }
             if (opts.Has("smaller-audio")) settings.PreservedAudioMustBeBitExact = false;
             if (opts.Has("no-transcode")) settings.TranscodePreservedAudio = false;
             if (opts.Has("no-frames")) settings.ConvertFramesToJpeg = false;

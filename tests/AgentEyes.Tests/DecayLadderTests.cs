@@ -386,6 +386,20 @@ namespace AgentEyes.Tests
             Assert.Equal(0, cfg.HousekeepingSettings().KeepVideoDays);
         }
 
+        [Theory]
+        [InlineData(0, 30, 0)]      // the off switch stays off, whatever the raw-copy window
+        [InlineData(5, 30, 30)]     // sooner than the raw copies? clamped up to them
+        [InlineData(7, 7, 7)]       // at the window: unchanged
+        [InlineData(90, 30, 90)]    // later than the window: unchanged
+        [InlineData(-1, 30, 0)]     // negative is treated as off
+        public void TheOneClampRule_HoldsAtEveryEntryPoint(int keep, int preserved, int expected)
+        {
+            // The rule lives in ONE place because it was found missing at one of two entry points:
+            // the config clamped and the command line did not, so the same nonsense config was
+            // impossible in one and one flag away in the other.
+            Assert.Equal(expected, HousekeepingSettings.ClampKeepVideoDays(keep, preserved));
+        }
+
         [Fact]
         public void Plan_APendingExpiry_DoesNotAlsoPlanFrameConversion()
         {

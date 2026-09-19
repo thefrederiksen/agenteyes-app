@@ -152,9 +152,8 @@ namespace AgentEyes.App
             // clamp makes the nonsense config impossible rather than merely untested - but ZERO is
             // the documented off switch for a one-way tier, and a clamp must never turn "off" back
             // into "on".
-            KeepVideoDays = HousekeepingKeepVideoDays <= 0
-                ? 0
-                : Math.Max(HousekeepingKeepVideoDays, HousekeepingPreservedOriginalDays),
+            KeepVideoDays = AgentEyes.Housekeeping.HousekeepingSettings.ClampKeepVideoDays(
+                HousekeepingKeepVideoDays, HousekeepingPreservedOriginalDays),
             PreservedAudioMustBeBitExact = HousekeepingBitExactAudio,
             CeilingBytes = HousekeepingCeilingGb <= 0 ? 0 : (long)(HousekeepingCeilingGb * 1024 * 1024 * 1024),
         };
