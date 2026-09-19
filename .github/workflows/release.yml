@@ -35,11 +35,12 @@ jobs:
           $tag = "${{ github.ref_name }}".TrimStart('v')
           if ($version -ne $tag) { throw "tag ${{ github.ref_name }} does not match csproj version $version" }
 
-      - name: Run tests
-        shell: pwsh
-        run: dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release
-
       - name: Download ffmpeg (essentials build)
+        # Before "Run tests": the Housekeeper end-to-end tests exercise the real encoder
+        # (a transcode, a frame conversion, a real WAV), and the runner has no ffmpeg. The
+        # suite refuses to skip - a skip is indistinguishable from a pass in every report
+        # this repository produces - so the runner gets the binary instead. QA_RECORD_FFMPEG_DIR
+        # is the name FfmpegLocator reads; FFMPEG_DIR is what the publish step passes on.
         shell: pwsh
         run: |
           $zip = "$env:RUNNER_TEMP/ffmpeg-essentials.zip"
@@ -48,6 +49,11 @@ jobs:
           $bin = Get-ChildItem "$env:RUNNER_TEMP/ffmpeg" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
           if (-not $bin) { throw "ffmpeg.exe not found in the essentials zip" }
           "FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "QA_RECORD_FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run tests
+        shell: pwsh
+        run: dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release
 
       # Publish the four first-party exes + the ffmpeg zip into dist/release, but
       # STOP before the manifest (-SkipManifest) so signing can slot in before
