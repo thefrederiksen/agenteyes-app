@@ -267,7 +267,98 @@ namespace AgentEyes.App
                 return true;
             }
 
+            // GET /recordings/{id}/frame/{offset}: one walkthrough frame extracted from the
+            // recording's video ON DEMAND (issue #59). The walkthrough page of a recording whose
+            // frames are not stored on disk asks for each frame here, so the frame category needs
+            // no disk at all. The video that does not exist (expired, or an audio-only recording)
+            // answers 404 with the reason - never a broken image with no explanation.
+            //
+            // HANDLED OFF THE LISTENER THREAD: a page can ask for hundreds of frames at once and each
+            // is a full ffmpeg process; running them on the loop thread would queue /record/stop and
+            // /health behind image requests for minutes. The extraction is stateless and writes a
+            // GUID-named temp file, so it is safe to run concurrently.
+            if (seg.Length == 3 && seg[1] == "frame")
+            {
+                string offset = seg[2];
+                System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    // A queued work item is a NEW entry point, outside Loop()'s catch: an unhandled
+                    // exception on a pool thread ends the always-on recorder. Everything gets an
+                    // answer, and nothing gets past this net.
+                    try { FrameSubroute(ctx, id, offset); }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[RestServer] frame route for {id} at {offset}s FAILED", ex);
+                        Error(ctx, 500, "the frame could not be served: " + ex.Message, "internal");
+                    }
+                });
+                return true;
+            }
+
             return false;
+        }
+
+        /// <summary>
+        /// Serve one frame extracted from a recording's video at a given offset in seconds.
+        /// Extraction is one ffmpeg invocation per request and the JPEG is never kept - the video is
+        /// the storage, this is the read. The response is cacheable by content (the same recording,
+        /// offset and video length always produce the same frame), so a page view costs one
+        /// extraction per frame per browser session rather than per scroll.
+        /// </summary>
+        private void FrameSubroute(HttpListenerContext ctx, string id, string offsetText)
+        {
+            var d = RecordingLibrary.GetDetail(id);
+            if (d == null) { Error(ctx, 404, "no recording with id: " + id, "not_found"); return; }
+
+            string? video = null;
+            if (!string.IsNullOrEmpty(d.Manifest.VideoFile)
+                && File.Exists(Path.Combine(d.Dir, d.Manifest.VideoFile)))
+            {
+                video = Path.Combine(d.Dir, d.Manifest.VideoFile);
+            }
+            else if (File.Exists(Path.Combine(d.Dir, "recording.mp4")))
+            {
+                video = Path.Combine(d.Dir, "recording.mp4");
+            }
+
+            if (video == null)
+            {
+                Error(ctx, 404, "no video for recording " + id
+                    + " (audio-only, or expired to its transcript)", "not_found");
+                return;
+            }
+
+            if (!double.TryParse(offsetText, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double offset)
+                || offset < 0)
+            {
+                Error(ctx, 400, "offset must be a non-negative number of seconds, got: " + offsetText, "bad_request");
+                return;
+            }
+
+            try
+            {
+                byte[] bytes = AgentEyes.Video.VideoFrame.ExtractJpeg(video, offset);
+
+                ctx.Response.StatusCode = 200;
+                ctx.Response.ContentType = "image/jpeg";
+                ctx.Response.Headers[HttpResponseHeader.CacheControl] = "private, max-age=86400";
+                ctx.Response.Headers[HttpResponseHeader.ETag] =
+                    "\"frame-" + id + "-" + offset.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+                    + "-" + new FileInfo(video).Length + "\"";
+                ctx.Response.ContentLength64 = bytes.Length;
+                ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                ctx.Response.OutputStream.Close();
+            }
+            catch (UsageException ux)
+            {
+                Error(ctx, 400, ux.Message, "bad_request");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RestServer] frame on demand for {id} at {offsetText}s FAILED", ex);
+                Error(ctx, 500, "the frame could not be extracted: " + ex.Message, "extract_failed");
+            }
         }
 
         /// <summary>
@@ -450,6 +541,7 @@ namespace AgentEyes.App
                 "GET /version", "GET /health", "GET /status", "GET /devices",
                 "GET /recordings {limit?, offset?}", "GET /recordings/{id}",
                 "GET /recordings/{id}/shots", "GET /recordings/{id}/transcript",
+                "GET /recordings/{id}/frame/{offset}",
                 "GET /captures", "GET /presets",
                 "GET /housekeeping", "POST /housekeeping/run",
                 "POST /screenshot {screen, region?}",

@@ -607,7 +607,12 @@ namespace AgentEyes
             double? scene = opts.Has("scene")
                 ? double.Parse(opts.Get("scene")!, System.Globalization.CultureInfo.InvariantCulture)
                 : (double?)null;
-            return AgentEyes.Package.Run(opts.Positional[0], interval, scene);
+
+            // Issue #59: frames on disk (--frames) or served on demand (--no-frames). Unstated reads
+            // the config, whose default is on demand - the owner's ruling, 2026-09-19.
+            bool? extractFrames = opts.Has("frames") ? true : opts.Has("no-frames") ? (bool?)false : null;
+
+            return AgentEyes.Package.Run(opts.Positional[0], interval, scene, extractFrames);
         }
 
         // ---- housekeep -----------------------------------------------------
@@ -630,6 +635,15 @@ namespace AgentEyes
 
             var settings = new Housekeeping.HousekeepingSettings { ReportOnly = !apply };
             if (opts.Has("days")) settings.PreservedOriginalDays = opts.RequireInt("days", "e.g. --days 30");
+            if (opts.Has("keep-video-days"))
+            {
+                // The same clamp the app's config applies: zero stays zero (the off switch for a
+                // one-way tier), and a positive value can never expire the composed video before
+                // the raw copies it was cleaned from leave.
+                settings.KeepVideoDays = Housekeeping.HousekeepingSettings.ClampKeepVideoDays(
+                    opts.RequireInt("keep-video-days", "e.g. --keep-video-days 30"),
+                    settings.PreservedOriginalDays);
+            }
             if (opts.Has("smaller-audio")) settings.PreservedAudioMustBeBitExact = false;
             if (opts.Has("no-transcode")) settings.TranscodePreservedAudio = false;
             if (opts.Has("no-frames")) settings.ConvertFramesToJpeg = false;
@@ -645,6 +659,9 @@ namespace AgentEyes
             Console.WriteLine($"  root: {root}");
             Console.WriteLine($"  mode: {(apply ? "APPLY - this changes files on disk" : "report only - nothing will be changed")}");
             Console.WriteLine($"  preserved originals are deleted after {settings.PreservedOriginalDays} day(s)");
+            Console.WriteLine(settings.KeepVideoDays > 0
+                ? $"  the recording video expires after {settings.KeepVideoDays} day(s) - the transcript survives"
+                : "  the recording video never expires");
             Console.WriteLine(settings.TranscodePreservedAudio
                 ? $"  preserved audio -> {settings.PreservedAudioCodec} "
                   + $"({(settings.PreservedAudioMustBeBitExact ? "bit-exact" : "SMALLER, not bit-exact")})"

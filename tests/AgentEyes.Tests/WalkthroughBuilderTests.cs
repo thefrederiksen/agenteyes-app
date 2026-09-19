@@ -32,7 +32,7 @@ namespace AgentEyes.Tests
             string html = WalkthroughBuilder.Build("t", Shots(), Segments());
             Assert.Contains("Hello and welcome", html);
             Assert.Contains("Now click the button", html);
-            Assert.Contains("<img src=\"shots/00m07s.png\"", html);
+            Assert.Contains("<img loading=\"lazy\" src=\"shots/00m07s.png\"", html);
         }
 
         [Fact]

@@ -10,7 +10,20 @@ namespace AgentEyes.Packaging
     internal sealed class WalkthroughShot
     {
         public double OffsetSeconds { get; set; }
+
+        /// <summary>
+        /// Where the page finds this shot: a relative file path under the recording directory, or -
+        /// when <see cref="ServedOnDemand"/> is true - the local control endpoint that extracts the
+        /// frame from the video when the page asks for it (issue #59).
+        /// </summary>
         public string RelativePath { get; set; } = "";
+
+        /// <summary>
+        /// True when this shot has no file: the frame is served on demand from the recording's video.
+        /// The manifest records such a shot with an EMPTY File, never with the endpoint address, so a
+        /// consumer resolving manifest names against the directory never chases a URL.
+        /// </summary>
+        public bool ServedOnDemand { get; set; }
     }
 
     /// <summary>
@@ -62,7 +75,10 @@ namespace AgentEyes.Packaging
         }
 
         private static string ShotHtml(WalkthroughShot s) =>
-            $"<figure class=\"shot\"><img src=\"{Enc(s.RelativePath)}\" alt=\"screenshot at {Timecodes.Clock(TimeSpan.FromSeconds(s.OffsetSeconds))}\"/>"
+            // loading="lazy" matters most for the on-demand form, where each image is an extraction
+            // from the video: a browser fetches only what is on screen rather than the whole
+            // recording's frames at once (issue #59). For file-based frames it is harmless.
+            $"<figure class=\"shot\"><img loading=\"lazy\" src=\"{Enc(s.RelativePath)}\" alt=\"screenshot at {Timecodes.Clock(TimeSpan.FromSeconds(s.OffsetSeconds))}\"/>"
             + $"<figcaption>{Timecodes.Clock(TimeSpan.FromSeconds(s.OffsetSeconds))}</figcaption></figure>";
 
         private static string SpeechHtml(TranscriptSegment seg) =>

@@ -151,6 +151,8 @@ namespace AgentEyes.Housekeeping
             {
                 HousekeepingKind.DeleteDerived => step.Bytes,
                 HousekeepingKind.DeletePreservedOriginal => step.Bytes,
+                HousekeepingKind.DeleteCompositionInput => step.Bytes,
+                HousekeepingKind.ExpireRecording => step.Bytes,
                 HousekeepingKind.TruncateLog => step.Bytes - step.KeepBytes,
                 _ => 0,
             },
@@ -197,6 +199,23 @@ namespace AgentEyes.Housekeeping
                         File.Delete(Path.Combine(dir, step.File));
                         result.Outcome = "done";
                         result.BytesReclaimed = step.Bytes;
+                        break;
+
+                    case HousekeepingKind.DeleteCompositionInput:
+                        // The same law: the manifest stops naming the input, then the input leaves the
+                        // disk. An interrupted run leaves an unreferenced file, never a dead name.
+                        ManifestStore.Update(dir, m =>
+                        {
+                            if (string.Equals(m.CameraFile, step.File, StringComparison.OrdinalIgnoreCase)) m.CameraFile = null;
+                            m.Files.RemoveAll(f => string.Equals(f, step.File, StringComparison.OrdinalIgnoreCase));
+                        });
+                        File.Delete(Path.Combine(dir, step.File));
+                        result.Outcome = "done";
+                        result.BytesReclaimed = step.Bytes;
+                        break;
+
+                    case HousekeepingKind.ExpireRecording:
+                        ApplyExpiry(dir, step, result);
                         break;
 
                     case HousekeepingKind.TranscodePreservedAudio:
@@ -300,6 +319,135 @@ namespace AgentEyes.Housekeeping
                 result.Error = $"{outcome.Converted} frame(s) converted, {outcome.Failed} left as PNG "
                              + "because they could not be re-encoded; their pages still resolve";
             }
+        }
+
+        /// <summary>
+        /// The tail of the decay ladder (issue #59): the recording's video, its composition inputs and
+        /// its extracted frames go; the transcript, the walkthrough text, the manifest, the thumbnail
+        /// and the owner's hand-taken shots stay.
+        ///
+        /// The ordering law applies to the WHOLE set: the page is rewritten and the manifest stops
+        /// naming every doomed file BEFORE anything is deleted. A crash at any point therefore leaves
+        /// references that still resolve and a pass that simply runs again - never a page or manifest
+        /// pointing at files that are gone.
+        /// </summary>
+        private static void ApplyExpiry(string dir, HousekeepingStep step, HousekeepingStepReport result)
+        {
+            // What goes, positively enumerated. In the fresh case: the keeper, the composition
+            // inputs, the extracted frames - nothing else, and a hand-taken shot is not on any list
+            // that could reach it. In the RESUME case: exactly the names an earlier pass wrote into
+            // PendingExpiry, which is the written record of the same set. Each path is considered
+            // once (a keeper that is also a composition input must not be counted or deleted twice).
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var doomed = new List<(string Path, long Bytes, string Relative)>();
+            void Consider(string relative)
+            {
+                string p = Path.Combine(dir, relative);
+                if (!seen.Add(p)) return;
+                if (!File.Exists(p)) return;
+                try { doomed.Add((p, new FileInfo(p).Length, relative)); }
+                catch (IOException) { /* a file that vanishes mid-enumeration is not one to delete */ }
+            }
+
+            var manifestNow = Manifest.Load(dir);
+            if (manifestNow.PendingExpiry is { Count: > 0 })
+            {
+                foreach (string name in manifestNow.PendingExpiry) Consider(name);
+
+                // Belt and braces: the written record is the authority for the video and the
+                // composition inputs, but a frame a LATER tier renamed (PNG -> JPEG) after the record
+                // was written would sit at a name the record does not know. Whatever extracted
+                // frames are on disk join the doomed set - the recording is being deleted either
+                // way, and a dedupe set keeps the double-naming harmless.
+                string shots = Path.Combine(dir, HousekeepingPlan.FramesDirectory);
+                if (Directory.Exists(shots))
+                {
+                    foreach (string pattern in new[] { "frame_*.png", "frame_*.jpg" })
+                    {
+                        foreach (string frame in Directory.EnumerateFiles(shots, pattern))
+                        {
+                            Consider(Path.GetRelativePath(dir, frame).Replace('\\', '/'));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                Consider(step.File);
+                foreach (string input in HousekeepingPlan.CompositionInputFiles) Consider(input);
+
+                string shots = Path.Combine(dir, HousekeepingPlan.FramesDirectory);
+                if (Directory.Exists(shots))
+                {
+                    foreach (string pattern in new[] { "frame_*.png", "frame_*.jpg" })
+                    {
+                        foreach (string frame in Directory.EnumerateFiles(shots, pattern))
+                        {
+                            Consider(Path.GetRelativePath(dir, frame).Replace('\\', '/'));
+                        }
+                    }
+                }
+            }
+
+            // 1) The page first, so nothing the reader opens points at what is about to disappear.
+            string page = Path.Combine(dir, FrameConversion.WalkthroughFile);
+            if (File.Exists(page))
+            {
+                string html = File.ReadAllText(page);
+                string retired = WalkthroughRetirement.Rewrite(html, DateTime.UtcNow);
+                if (retired != html)
+                {
+                    string temp = page + ".housekeeping.tmp";
+                    File.WriteAllText(temp, retired);
+                    File.Move(temp, page, overwrite: true);
+                    Log.Info($"[Housekeeper] {Path.GetFileName(dir)}: {FrameConversion.WalkthroughFile} retired its frame images");
+                }
+            }
+
+            // 2) The manifest stops naming every file the disk is about to lose.
+            ManifestStore.Update(dir, m =>
+            {
+                // The intent goes on the record first: if this process dies before the deletes
+                // finish, the next pass completes the expiry from these names rather than from a
+                // keeper it can no longer see.
+                m.PendingExpiry = doomed.Count > 0 ? doomed.Select(d => d.Relative).ToList() : null;
+                m.VideoFile = null;
+                foreach (string input in HousekeepingPlan.CompositionInputFiles)
+                {
+                    if (string.Equals(m.CameraFile, input, StringComparison.OrdinalIgnoreCase)) m.CameraFile = null;
+                }
+                m.Files.RemoveAll(f =>
+                    string.Equals(f, step.File, StringComparison.OrdinalIgnoreCase)
+                    || HousekeepingPlan.CompositionInputFiles.Contains(f, StringComparer.OrdinalIgnoreCase)
+                    || HousekeepingPlan.IsExtractedFrameFile(f)
+                    || (m.PendingExpiry ?? new List<string>()).Contains(f, StringComparer.OrdinalIgnoreCase));
+                m.Shots.RemoveAll(s => HousekeepingPlan.IsExtractedFrameFile(s.File));
+            });
+
+            // 3) Now the files can leave.
+            long reclaimed = 0;
+            foreach (var (path, bytes, _) in doomed)
+            {
+                try
+                {
+                    File.Delete(path);
+                    reclaimed += bytes;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"[Housekeeper] could not delete {path} while expiring {dir}: {ex.Message}");
+                }
+            }
+
+            // The deletes are done, so the written intent is spent: clear it in its own update. A
+            // crash between the deletes and this line leaves a PendingExpiry naming files that are
+            // already gone - the next pass filters those to what exists, finds nothing, and clears it.
+            ManifestStore.Update(dir, m => m.PendingExpiry = null);
+
+            result.Outcome = "done";
+            result.BytesReclaimed = reclaimed;
+            Log.Info($"[Housekeeper] expired {Path.GetFileName(dir)}: {doomed.Count} file(s), "
+                   + $"{reclaimed / 1024.0 / 1024.0:N1} MB reclaimed; the recording survives as its text");
         }
 
         /// <summary>Replace a name in a manifest list, in place, leaving order alone.</summary>
