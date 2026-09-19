@@ -22,11 +22,7 @@ Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type -AssemblyName System.Speech
 
 $root = Split-Path $PSScriptRoot -Parent
-$exe  = @(
-    'src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe',
-    'src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
-) | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $exe) { "DEMO: FAIL (app not built - run: dotnet build AgentEyes.sln -c Release)"; exit 1 }
+$exe  = Get-BuiltExePath -RepoRoot $root -Which app
 
 $appdir      = Join-Path $env:LOCALAPPDATA 'AgentEyes'
 $cfgPath     = Join-Path $appdir 'config.json'

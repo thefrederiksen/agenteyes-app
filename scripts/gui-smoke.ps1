@@ -16,14 +16,16 @@ Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 . (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 
 $root   = Split-Path $PSScriptRoot -Parent
-$exe    = Join-Path $root 'src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
-$cli    = Join-Path $root 'src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.exe'
+$exe    = Get-BuiltExePath -RepoRoot $root -Which app
+$cli    = Get-BuiltExePath -RepoRoot $root -Which cli
+
+# Issue #61: refuse rather than launch a second instance on top of a running one. As early as it
+# can be - before probing the microphone - and OUTSIDE the try below, so a refusal cannot run a
+# cleanup written for a run that had actually started.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'gui-smoke.ps1'
 $appdir = Join-Path $env:LOCALAPPDATA 'AgentEyes'
 $crash  = Join-Path $env:TEMP 'AgentEyes-crash.log'
 $vid    = Join-Path $env:USERPROFILE 'Videos\AgentEyes'
-
-if (-not (Test-Path $exe)) { "GUI-SMOKE: FAIL (app not built: $exe)"; exit 1 }
-if (-not (Test-Path $cli)) { "GUI-SMOKE: FAIL (engine not built: $cli)"; exit 1 }
 
 # ---- discover a real microphone (NAudio name; also a fragment of the dshow name) ----
 $micLines = & $cli screens | Where-Object { $_ -match '^\s+\[\d+\]\s+\S' }
@@ -92,10 +94,6 @@ function Select-Preset($win, $name) {
 # ---- run (user config backed up; restored in finally) ----
 $bakPresets = Join-Path $appdir 'presets.json.smoke-bak'
 $bakConfig  = Join-Path $appdir 'config.json.smoke-bak'
-# Issue #61: refuse rather than launch a second instance on top of a running one. OUTSIDE the try,
-# so a refusal cannot run a cleanup written for a run that had actually started.
-Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'gui-smoke.ps1'
-
 $failure = $null
 $app = $null
 try {

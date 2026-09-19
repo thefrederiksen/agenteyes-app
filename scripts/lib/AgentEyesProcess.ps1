@@ -103,3 +103,27 @@ function Stop-ScriptOwnedAgentEyes {
         Write-Host "  note: could not stop the AgentEyes this script started (pid $($Process.Id)): $($_.Exception.Message)"
     }
 }
+
+# The build output path, in ONE place (issue #61). Both projects set <Platforms>x64</Platforms>, so
+# a "-c Release" build lands in bin\x64\Release. Three of these scripts still pointed at
+# bin\Release, which on a fresh checkout does not exist at all and on an older one holds a
+# months-stale binary - running that one silently drives code nobody built. There is deliberately NO
+# fallback to bin\Release: either the build output is there, or the script says exactly what to run.
+function Get-BuiltExePath {
+    param(
+        [Parameter(Mandatory)][string]$RepoRoot,
+        [Parameter(Mandatory)][ValidateSet('app', 'cli')][string]$Which
+    )
+    $relative = if ($Which -eq 'app') {
+        'src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
+    } else {
+        'src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe'
+    }
+    $path = Join-Path $RepoRoot $relative
+    if (-not (Test-Path $path)) {
+        Write-Host "REFUSED: the build output is not there: $path"
+        Write-Host "  Build it first: dotnet build AgentEyes.sln -c Release"
+        exit 5
+    }
+    return $path
+}

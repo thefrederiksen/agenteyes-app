@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 Set-Location (Resolve-Path "$PSScriptRoot\..")
 
-$exe  = "src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$exe  = Get-BuiltExePath -RepoRoot (Resolve-Path "$PSScriptRoot\..") -Which app
 $base = "http://127.0.0.1:7882"
 $crash = Join-Path $env:TEMP 'AgentEyes-crash.log'
 Remove-Item $crash -ErrorAction SilentlyContinue
@@ -31,6 +31,14 @@ function Chk($name, $cond, $detail) {
 # Issue #61: refuse rather than launch a second instance on top of a running one.
 Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'py-client-smoke.ps1'
 $app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'py-client-smoke.ps1' -AppArguments '--tray'
+
+# Issue #61: everything from here on runs inside a try/finally so the instance this script started
+# is ALWAYS stopped - including when a bare Invoke-RestMethod throws under ErrorActionPreference
+# 'Stop', or an early exit fires. An orphan left behind holds the single-instance lock and port
+# 7882, which now makes every later run refuse until somebody quits it from the tray by hand.
+# The body below is deliberately NOT re-indented: it keeps this diff to the block markers, and in
+# py-client-smoke.ps1 a here-string's closing marker has to stay at column 0.
+try {
 
 # Wait for the API to come up.
 $up = $false
@@ -106,7 +114,11 @@ Chk "py-client" ($pyExit -eq 0) "python assertions exit=$pyExit"
 
 if (Test-Path $crash) { "CRASH LOG PRESENT:"; Get-Content $crash -Raw; $fail = 1 }
 
-Stop-ScriptOwnedAgentEyes $app
-Remove-Item $pyFile -ErrorAction SilentlyContinue
+}
+finally {
+    Stop-ScriptOwnedAgentEyes $app
+    # $pyFile is set inside the try, so it may not exist yet when we get here.
+    if ($pyFile) { Remove-Item $pyFile -ErrorAction SilentlyContinue }
+}
 
 if ($fail) { "PY-CLIENT-SMOKE: FAIL"; exit 1 } else { "PY-CLIENT-SMOKE: PASS"; exit 0 }

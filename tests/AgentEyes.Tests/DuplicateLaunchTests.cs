@@ -204,6 +204,57 @@ namespace AgentEyes.Tests
                 + "person's presets.json (issue #61): " + string.Join(", ", offenders));
         }
 
+        /// <summary>
+        /// A script that starts the app must stop it from a finally block. Without one, a bare
+        /// Invoke-RestMethod throwing under ErrorActionPreference 'Stop' - or any early exit -
+        /// leaves the instance it started running. That orphan holds the single-instance lock and
+        /// port 7882, so with the refusal in place every later run refuses until somebody finds it
+        /// and quits it from the tray by hand.
+        /// </summary>
+        [Fact]
+        public void EveryScriptThatStartsTheAppStopsItFromAFinallyBlock()
+        {
+            var offenders = new List<string>();
+
+            foreach (var file in ScriptFiles())
+            {
+                var text = File.ReadAllText(file);
+                if (!text.Contains("Start-AgentEyesForScript", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var finallyAt = text.IndexOf("finally", StringComparison.OrdinalIgnoreCase);
+                var stopAt = text.IndexOf("Stop-ScriptOwnedAgentEyes", StringComparison.OrdinalIgnoreCase);
+
+                if (finallyAt < 0 || stopAt < 0 || stopAt < finallyAt)
+                    offenders.Add(Path.GetFileName(file));
+            }
+
+            Assert.True(offenders.Count == 0,
+                "These scripts start the app but do not stop it from a finally block, so a failure "
+                + "part way through orphans the instance they started - and that orphan then makes "
+                + "every later run refuse (issue #61): " + string.Join(", ", offenders));
+        }
+
+        /// <summary>
+        /// Both projects set Platforms=x64, so a "-c Release" build lands in bin\x64\Release. A
+        /// script pointing at bin\Release finds nothing on a fresh checkout and a months-stale
+        /// binary on an older one - silently driving code nobody built. The path lives once, in
+        /// Get-BuiltExePath.
+        /// </summary>
+        [Fact]
+        public void NoScriptPointsAtTheNonExistentBuildOutputPath()
+        {
+            var offenders = ScriptFiles()
+                .Where(f => File.ReadAllText(f).Contains(@"bin\Release\", StringComparison.OrdinalIgnoreCase))
+                .Select(Path.GetFileName)
+                .ToList();
+
+            Assert.True(offenders.Count == 0,
+                @"These scripts point at bin\Release, which this solution never builds to - it builds "
+                + @"to bin\x64\Release. On an older checkout bin\Release holds a months-stale binary, "
+                + "so the script drives code nobody built (issue #61). Use Get-BuiltExePath: "
+                + string.Join(", ", offenders));
+        }
+
         /// <summary>The helper the three guards above point at must actually exist.</summary>
         [Fact]
         public void TheSharedScriptHelperExists()
@@ -212,7 +263,8 @@ namespace AgentEyes.Tests
             Assert.True(File.Exists(helper), "The shared helper is missing: " + helper);
 
             var text = File.ReadAllText(helper);
-            foreach (var fn in new[] { "Assert-NoAgentEyesRunning", "Start-AgentEyesForScript", "Stop-ScriptOwnedAgentEyes" })
+            foreach (var fn in new[] { "Assert-NoAgentEyesRunning", "Start-AgentEyesForScript",
+                                       "Stop-ScriptOwnedAgentEyes", "Get-BuiltExePath" })
                 Assert.Contains("function " + fn, text, StringComparison.Ordinal);
 
             // The process name is derived from the exe path, never typed as a literal - a literal is
