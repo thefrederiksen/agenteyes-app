@@ -21,6 +21,10 @@ namespace AgentEyes.Tests
     /// </summary>
     public sealed class DuplicateLaunchTests
     {
+        /// <summary>The application's own process name - what the host is called when AgentEyes
+        /// itself is the thing running.</summary>
+        private const string App = "AgentEyesApp";
+
         // ---- 2. the refusal decision ------------------------------------------------
 
         [Theory]
@@ -32,27 +36,27 @@ namespace AgentEyes.Tests
         {
             // Nobody is waiting for a window, so a modal box would only land on top of whatever
             // the person is actually doing - and block until it is clicked away.
-            Assert.Equal(SecondInstanceResponse.ExitQuietly, SecondInstancePolicy.Decide(new[] { flag }));
+            Assert.Equal(SecondInstanceResponse.ExitQuietly, SecondInstancePolicy.Decide(new[] { flag }, App, App));
         }
 
         [Fact]
         public void Decide_HiddenFlagAmongOthers_ExitsQuietly()
         {
             Assert.Equal(SecondInstanceResponse.ExitQuietly,
-                SecondInstancePolicy.Decide(new[] { "--something", "--tray", "--else" }));
+                SecondInstancePolicy.Decide(new[] { "--something", "--tray", "--else" }, App, App));
         }
 
         [Fact]
         public void Decide_InteractiveLaunch_TellsThePerson()
         {
             // A person double-clicked the shortcut and is waiting for a window. Say why none came.
-            Assert.Equal(SecondInstanceResponse.TellThePerson, SecondInstancePolicy.Decide(Array.Empty<string>()));
+            Assert.Equal(SecondInstanceResponse.TellThePerson, SecondInstancePolicy.Decide(Array.Empty<string>(), App, App));
         }
 
         [Fact]
         public void Decide_NullArguments_TellsThePerson()
         {
-            Assert.Equal(SecondInstanceResponse.TellThePerson, SecondInstancePolicy.Decide(null));
+            Assert.Equal(SecondInstanceResponse.TellThePerson, SecondInstancePolicy.Decide(null, App, App));
         }
 
         [Fact]
@@ -65,6 +69,54 @@ namespace AgentEyes.Tests
         public void AsksForHiddenStart_UnrelatedArgument_IsNotAHiddenStart()
         {
             Assert.False(LaunchArguments.AsksForHiddenStart(new[] { "--traytable", "-tray" }));
+        }
+
+        [Theory]
+        [InlineData("testhost")]
+        [InlineData("dotnet")]
+        [InlineData("vstest.console")]
+        public void Decide_RunningInsideAnotherProgram_ExitsQuietly(string host)
+        {
+            // The test suite builds the application object to reach the styles in App.xaml, which
+            // walks this refusal path inside the test runner. Every run of the suite while the
+            // owner's tray app was up put a modal box on his screen - with no application behind
+            // it and nobody waiting for a window. No arguments: the interactive shape, which is
+            // exactly the case that used to show the dialog.
+            Assert.Equal(SecondInstanceResponse.ExitQuietly,
+                SecondInstancePolicy.Decide(Array.Empty<string>(), host, App));
+        }
+
+        [Fact]
+        public void Decide_UnknownHost_ExitsQuietly()
+        {
+            // Environment.ProcessPath can come back empty. The safe answer to "who is running me?"
+            // is silence, never a dialog.
+            Assert.Equal(SecondInstanceResponse.ExitQuietly,
+                SecondInstancePolicy.Decide(Array.Empty<string>(), null, App));
+            Assert.Equal(SecondInstanceResponse.ExitQuietly,
+                SecondInstancePolicy.Decide(Array.Empty<string>(), "   ", App));
+            Assert.Equal(SecondInstanceResponse.ExitQuietly,
+                SecondInstancePolicy.Decide(Array.Empty<string>(), App, null));
+        }
+
+        [Fact]
+        public void Decide_HostMatchesIgnoringCase_StillTellsThePerson()
+        {
+            // The one case that must still speak: the application itself, launched by a person.
+            Assert.Equal(SecondInstanceResponse.TellThePerson,
+                SecondInstancePolicy.Decide(Array.Empty<string>(), "agenteyesapp", App));
+        }
+
+        /// <summary>
+        /// The application's process name must be DERIVED from the assembly, never typed into the
+        /// guard - deriving it is what stopped the installer's identical defect (#95) from coming
+        /// back, and the same reasoning applies here.
+        /// </summary>
+        [Fact]
+        public void TheAppProcessNameTheGuardComparesAgainstIsTheRealAssemblyName()
+        {
+            var appAssembly = typeof(AgentEyes.App.App).Assembly.GetName().Name;
+            Assert.Equal(App, appAssembly);
         }
 
         // ---- 3. the restart carries the command line --------------------------------

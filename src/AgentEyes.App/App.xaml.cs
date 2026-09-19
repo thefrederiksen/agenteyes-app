@@ -31,6 +31,25 @@ namespace AgentEyes.App
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            // Issue #61: this type is ALSO constructed by the test suite, purely to reach the
+            // brushes and styles in App.xaml - the preset editor's markup cannot be parsed without
+            // them. WPF runs OnStartup when it does, and everything below then started up inside
+            // the test runner: the single-instance lock, the tray icon, the control interface on
+            // the live port, the repair and housekeeping timers, the update checker - against the
+            // person's real configuration and real recordings. When their own copy was already
+            // running it also put a modal "AgentEyes is already running" box on their screen, every
+            // time the suite ran. None of what follows belongs to anybody but the application, so
+            // when this is not the application, it does none of it.
+            var hostName = SafeName(Environment.ProcessPath);
+            var appName = typeof(App).Assembly.GetName().Name;
+            if (!ApplicationHost.IsTheApplication(hostName, appName))
+            {
+                AgentEyes.Log.Info($"startup skipped: the AgentEyes application object was built inside "
+                    + $"'{hostName}', which is not the application ('{appName}'). Nothing was started.");
+                base.OnStartup(e);
+                return;
+            }
+
             // Single instance: only one process owns the tray + API port.
             _mutex = new Mutex(initiallyOwned: true, "AgentEyes-singleinstance", out bool created);
             if (!created)
@@ -39,9 +58,13 @@ namespace AgentEyes.App
                 // "app exit" line from OnExit - indistinguishable from a normal shutdown - so weeks
                 // of these popups could not be traced back to whatever kept launching them. Say so
                 // explicitly, with the command line, BEFORE anything else happens.
-                var response = SecondInstancePolicy.Decide(e.Args);
+                // The policy is asked for the host as well, not just the arguments: it is the
+                // second line of defence for any OTHER program that builds this object. Reaching
+                // here at all means the check above already said this process IS the application.
+                var response = SecondInstancePolicy.Decide(e.Args, hostName, appName);
                 AgentEyes.Log.Warn("second instance refused: another AgentEyes already holds the "
-                    + $"single-instance lock. response={response}, commandLine={Environment.CommandLine}");
+                    + $"single-instance lock. response={response}, host={hostName}, app={appName}, "
+                    + $"commandLine={Environment.CommandLine}");
 
                 // A modal box is only right when a person is sitting there waiting for a window. A
                 // launch that asked to start hidden has nobody to tell, and a dialog it throws lands
@@ -320,6 +343,16 @@ namespace AgentEyes.App
             MessageBox.Show("Something went wrong - it has been logged and the app will keep running.\n\n"
                 + e.Exception.Message + "\n\nLog: " + AgentEyes.Log.CurrentFile, "AgentEyes");
             e.Handled = true;
+        }
+
+        /// <summary>This process's own file name without its extension, or null when the platform
+        /// will not say. Null is answered honestly rather than guessed: the policy treats an unknown
+        /// host as "not the application", which is the quiet branch.</summary>
+        private static string? SafeName(string? processPath)
+        {
+            if (string.IsNullOrWhiteSpace(processPath)) return null;
+            try { return Path.GetFileNameWithoutExtension(processPath); }
+            catch { return null; }
         }
 
         private static void Log(Exception? ex, string where)

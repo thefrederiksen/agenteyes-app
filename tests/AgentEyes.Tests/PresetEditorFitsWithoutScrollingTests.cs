@@ -186,7 +186,17 @@ namespace AgentEyes.Tests
                         if (Application.Current == null)
                         {
                             var app = new AgentEyes.App.App();
-                            app.InitializeComponent();   // App.xaml resources only - OnStartup never runs
+
+                            // This comment used to say "App.xaml resources only - OnStartup never
+                            // runs". That was wrong, and it hid issue #61 for weeks: WPF DOES run
+                            // OnStartup here, so this rig started the whole product inside the test
+                            // runner - the single-instance lock, the tray icon, the control
+                            // interface on the live port, the housekeeping timers - against the
+                            // person's real configuration, and threw a modal dialog at them when
+                            // their own copy was already running. OnStartup now returns immediately
+                            // when it is not the application that is running, so this line really
+                            // does load nothing but the resources.
+                            app.InitializeComponent();
 
                             // The rig opens and closes windows. WPF's default ShutdownMode ends the
                             // Application when the LAST one closes, and a shut-down Application can no
