@@ -2,6 +2,7 @@
 # control API over HTTP. Asserts status transitions, produced files, and the 409 conflict.
 param([switch]$Confirm)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 # USER-INVOKED ONLY (revised 2026-06-16): launches the app and records. Agents must NOT run it.
 if (-not $Confirm -and $env:MQS_RUN_TESTS -ne '1') {
   Write-Host "REFUSED: api-smoke.ps1 launches the app and records - USER-INVOKED ONLY. Re-run with -Confirm (or set MQS_RUN_TESTS=1)."
@@ -12,9 +13,8 @@ $base = "http://127.0.0.1:7882"
 $crash = Join-Path $env:TEMP 'AgentEyes-crash.log'
 Remove-Item $crash -ErrorAction SilentlyContinue
 
-Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Milliseconds 600
-Start-Process $exe -ArgumentList '--tray'
+# Issue #61: refuse rather than launch a second instance on top of a running one.
+$app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'api-smoke.ps1' -AppArguments '--tray'
 
 # Wait for the API to come up.
 $up = $false
@@ -171,6 +171,6 @@ Chk "discovery" $discOk "routes advertised"
 
 if (Test-Path $crash) { "CRASH LOG PRESENT:"; Get-Content $crash -Raw; $fail = 1 }
 
-Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
+Stop-ScriptOwnedAgentEyes $app
 
 if ($fail) { "API-SMOKE: FAIL"; exit 1 } else { "API-SMOKE: PASS"; exit 0 }

@@ -6,6 +6,7 @@
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\py-client-smoke.ps1
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 Set-Location (Resolve-Path "$PSScriptRoot\..")
 
 $exe  = "src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
@@ -27,9 +28,8 @@ function Chk($name, $cond, $detail) {
   if ($cond) { "[PASS] $name  $detail" } else { "[FAIL] $name  $detail"; $script:fail = 1 }
 }
 
-Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
-Start-Sleep -Milliseconds 600
-Start-Process $exe -ArgumentList '--tray'
+# Issue #61: refuse rather than launch a second instance on top of a running one.
+$app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'py-client-smoke.ps1' -AppArguments '--tray'
 
 # Wait for the API to come up.
 $up = $false
@@ -105,7 +105,7 @@ Chk "py-client" ($pyExit -eq 0) "python assertions exit=$pyExit"
 
 if (Test-Path $crash) { "CRASH LOG PRESENT:"; Get-Content $crash -Raw; $fail = 1 }
 
-Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
+Stop-ScriptOwnedAgentEyes $app
 Remove-Item $pyFile -ErrorAction SilentlyContinue
 
 if ($fail) { "PY-CLIENT-SMOKE: FAIL"; exit 1 } else { "PY-CLIENT-SMOKE: PASS"; exit 0 }

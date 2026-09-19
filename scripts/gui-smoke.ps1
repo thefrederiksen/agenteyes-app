@@ -13,6 +13,7 @@ if (-not $Confirm -and $env:MQS_RUN_TESTS -ne '1') {
   exit 3
 }
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+. (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 
 $root   = Split-Path $PSScriptRoot -Parent
 $exe    = Join-Path $root 'src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
@@ -92,9 +93,10 @@ function Select-Preset($win, $name) {
 $bakPresets = Join-Path $appdir 'presets.json.smoke-bak'
 $bakConfig  = Join-Path $appdir 'config.json.smoke-bak'
 $failure = $null
+$app = $null
 try {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 600
+    # Issue #61: refuse rather than launch a second instance on top of a running one.
+    Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'gui-smoke.ps1'
     Remove-Item $crash -ErrorAction SilentlyContinue
 
     if (Test-Path (Join-Path $appdir 'presets.json')) { Copy-Item (Join-Path $appdir 'presets.json') $bakPresets -Force }
@@ -119,7 +121,7 @@ try {
     $beforeNames = @{}
     Get-ChildItem $vid -Directory -ErrorAction SilentlyContinue | ForEach-Object { $beforeNames[$_.Name] = $true }
 
-    Start-Process $exe
+    $app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'gui-smoke.ps1'
     $win = Find-MainWindow
 
     # 1) video + mixed (the mux path that previously crashed)
@@ -159,7 +161,7 @@ try {
 }
 catch { $failure = $_.Exception.Message }
 finally {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
+    Stop-ScriptOwnedAgentEyes $app
     if (Test-Path $bakPresets) { Move-Item $bakPresets (Join-Path $appdir 'presets.json') -Force }
     if (Test-Path $bakConfig)  { Move-Item $bakConfig  (Join-Path $appdir 'config.json')  -Force }
 }

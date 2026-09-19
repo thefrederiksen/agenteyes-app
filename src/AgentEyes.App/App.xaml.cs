@@ -5,6 +5,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using AgentEyes;
+using AgentEyes.Setup.Engine;
 
 namespace AgentEyes.App
 {
@@ -34,7 +35,20 @@ namespace AgentEyes.App
             _mutex = new Mutex(initiallyOwned: true, "AgentEyes-singleinstance", out bool created);
             if (!created)
             {
-                MessageBox.Show("AgentEyes is already running (see the system tray).", "AgentEyes");
+                // Issue #61: a refused second instance used to leave NOTHING in the log but the
+                // "app exit" line from OnExit - indistinguishable from a normal shutdown - so weeks
+                // of these popups could not be traced back to whatever kept launching them. Say so
+                // explicitly, with the command line, BEFORE anything else happens.
+                var response = SecondInstancePolicy.Decide(e.Args);
+                AgentEyes.Log.Warn("second instance refused: another AgentEyes already holds the "
+                    + $"single-instance lock. response={response}, commandLine={Environment.CommandLine}");
+
+                // A modal box is only right when a person is sitting there waiting for a window. A
+                // launch that asked to start hidden has nobody to tell, and a dialog it throws lands
+                // on top of whatever the person is actually doing - and blocks until it is clicked.
+                if (response == SecondInstanceResponse.TellThePerson)
+                    MessageBox.Show("AgentEyes is already running (see the system tray).", "AgentEyes");
+
                 Shutdown();
                 return;
             }
@@ -113,7 +127,9 @@ namespace AgentEyes.App
                 PostRecording.WorkIdle += UpdateChecker.OnSessionEnded;
                 if (_cfg.AutoUpdate) UpdateChecker.AutoCheckOnStartup();
 
-                bool startHidden = e.Args.Any(a => a is "--tray" or "--minimized");
+                // Issue #61: the spelling of the hidden-start flags lives in LaunchArguments, so the
+                // app and the auto-update restart cannot drift apart on what "start hidden" means.
+                bool startHidden = LaunchArguments.AsksForHiddenStart(e.Args);
                 AgentEyes.Log.Info($"app started (hidden={startHidden}, api={(_rest != null ? _rest.Url : "off")})");
 
                 // First-run / signed-out gate (issue #87): AgentEyes runs only on DevThrottle. With no

@@ -17,6 +17,7 @@
 # needs an API key, audio hardware, and ~2 minutes. Non-destructive - presets.json and
 # config.json are backed up and fully restored, so it does not change your state.
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
 Add-Type -AssemblyName System.Speech
 
@@ -52,9 +53,10 @@ function Wait-Button($win,$n,$sec){$sw=[Diagnostics.Stopwatch]::StartNew();while
 function Click-Button($win,$n,$sec=15){((Wait-Button $win $n $sec).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()}
 
 $bakP="$presetsPath.demo-bak"; $bakC="$cfgPath.demo-bak"; $failure=$null
+$app = $null
 try {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 700
+    # Issue #61: refuse rather than launch a second instance on top of a running one.
+    Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'doc-companion-demo.ps1'
     Copy-Item $cfgPath $bakC -Force
     if (Test-Path $presetsPath) { Copy-Item $presetsPath $bakP -Force }
 
@@ -79,7 +81,7 @@ try {
 
     $before=@{}; Get-ChildItem $vid -Directory -ErrorAction SilentlyContinue | ForEach-Object { $before[$_.Name]=$true }
 
-    Start-Process $exe
+    $app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'doc-companion-demo.ps1'
     $win = Find-MainWindow      # launches with 'doc demo' (LastUsedPresetId) active
     Click-Button $win 'REC'
     Wait-Button  $win 'STOP' 15 | Out-Null
@@ -113,7 +115,7 @@ try {
 }
 catch { $failure = $_.Exception.Message }
 finally {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
+    Stop-ScriptOwnedAgentEyes $app
     Start-Sleep -Milliseconds 400
     if (Test-Path $bakC) { Move-Item $bakC $cfgPath -Force }
     if (Test-Path $bakP) { Move-Item $bakP $presetsPath -Force }
