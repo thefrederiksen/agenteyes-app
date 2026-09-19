@@ -153,6 +153,27 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Commands::Audio -> System.IO.File::Move x1",                            // audio.original.wav backup
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Clear -> System.IO.File::Delete x1",    // the stored dt_ key
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Save -> System.IO.File::WriteAllBytes x1", // the DPAPI-protected dt_ key
+            // Issues #55, #56, the Housekeeper. Every delete here is of a file the pure planner named -
+            // a derived intermediate, or a preserved original past its window, or a source whose
+            // transcode has just been verified against it. The FileStream pair is one log rewritten to
+            // its tail. None of them can reach a file the planner did not put in the plan.
+            // Tier 2 (issues #55, #56). Image::Save is the in-process JPEG encode - a separate ffmpeg
+            // per frame managed two frames a second, almost all of it process start-up. Run's single
+            // Delete is a JPEG that came out no smaller than its PNG; TryDelete removes a PNG once its
+            // reference has been repointed, and a failed conversion's partial output. UpdateWalkthrough
+            // writes walkthrough.html - a path-for-path substitution through a temporary file and a
+            // rename, never an HTML edit. The PNG deletes come LAST, after the manifest and the page
+            // already point at the JPEGs, because the other order left 268 dangling references in a
+            // real recording when a run was stopped part way through.
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::EncodeJpeg -> System.Drawing.Image::Save x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::Run -> System.IO.File::Delete x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::TryDelete -> System.IO.File::Delete x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateWalkthrough -> System.IO.File::Move x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateWalkthrough -> System.IO.File::WriteAllText x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> System.IO.File::Delete x2",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyTranscode -> System.IO.File::Delete x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::TruncateToTail -> System.IO.FileStream::.ctor x2",
+            "agenteyes.dll!AgentEyes.Housekeeping.PreservedAudioTranscode::TryDeletePartial -> System.IO.File::Delete x1",
             "agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1",                        // the app log
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Delete x1",               // THE manifest path: temp cleanup after a failed rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Move x1",                 // THE manifest path: the atomic rename
@@ -220,6 +241,10 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Commands::Audio -> AgentEyes.ManifestStore::Replace x1",                  // a CLI audio session's own record
             "agenteyes.dll!AgentEyes.Commands::Shot -> AgentEyes.ManifestStore::Replace x1",                   // a CLI screenshot's own record
             "agenteyes.dll!AgentEyes.Commands::Video -> AgentEyes.ManifestStore::Replace x1",                  // a CLI video session's own record
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateManifest -> AgentEyes.ManifestStore::Update x1", // converted frames are repointed in Shots and Files
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> AgentEyes.ManifestStore::Update x1",           // a deleted preserved original is struck from OriginalFiles
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyTranscode -> AgentEyes.ManifestStore::Update x1",  // a transcoded original is renamed in place
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Record -> AgentEyes.ManifestStore::Update x1",           // the issue #56 housekeeping record
             "agenteyes.dll!AgentEyes.Package::FinalizeManifest -> AgentEyes.ManifestStore::Update x1",         // what packaging produced
             "agenteyes.dll!AgentEyes.Package::PrepareBareVideo -> AgentEyes.ManifestStore::Replace x1",        // a synthesized bare-video manifest
             "agenteyes.dll!AgentEyes.Packaging.TitleBackfill::Apply -> AgentEyes.ManifestStore::Update x1",    // the generated title, and the AI cost ADDED to the total

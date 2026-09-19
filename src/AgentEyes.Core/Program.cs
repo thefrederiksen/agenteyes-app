@@ -59,6 +59,9 @@ namespace AgentEyes
                     case "compose":
                         return Commands.Compose(opts);
 
+                    case "housekeep":
+                        return Commands.Housekeep(opts);
+
                     case "import":
                         return Commands.Import(opts);
 
@@ -114,6 +117,8 @@ namespace AgentEyes
             Console.WriteLine("       camera:       --camera \"NAME\" [--camera-fps N]   # webcam -> camera.mp4 (video only)");
             Console.WriteLine("  agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD]");
             Console.WriteLine("  agenteyes compose <recording-dir>   render the camera into recording.mp4 at the framing the preset chose");
+            Console.WriteLine("  agenteyes housekeep [root] [--apply] [--days N] [--ceiling-gb N] [--no-transcode] [--no-frames] [--frame-days N] [--smaller-audio]");
+            Console.WriteLine("       reduce the recordings folder's own footprint. REPORTS ONLY unless --apply is given.");
             Console.WriteLine("  agenteyes import  <video.mp4>             # import an external video into the library");
             Console.WriteLine("  agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved");
             Console.WriteLine("  agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)");

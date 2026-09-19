@@ -102,6 +102,38 @@ namespace AgentEyes.App
         // main branch of the one consolidated public repo (issue #186).
         public string? PluginRegistryUrl { get; set; }
 
+        // ---- Housekeeping (issues #55, #56) ---------------------------------------------------
+        // AgentEyes never reduced its own footprint: one machine's recordings root held 52.9 GiB
+        // across 43 recordings, of which the durable readable record was 11 MB. These are the knobs
+        // on the pass that fixes that. HousekeepingReportOnly starts TRUE, so a fresh install reports
+        // and changes nothing until the owner has read one report and turned it off.
+        public bool HousekeepingEnabled { get; set; } = true;
+        public bool HousekeepingReportOnly { get; set; } = true;
+
+        /// <summary>Days before a recording's preserved originals (issue #83) are deleted.</summary>
+        public int HousekeepingPreservedOriginalDays { get; set; } = 30;
+
+        /// <summary>
+        /// True keeps the preserved-audio transcode BIT-EXACT (WavPack, 40.2% of the WAV). False
+        /// accepts FLAC, which reaches 20.8% but writes 24 bits and so loses the low 8 bits of this
+        /// 32-bit float audio - smaller, inaudible, and not something to do to an owner's archive
+        /// without being asked. See HousekeepingSettings for the measurements.
+        /// </summary>
+        public bool HousekeepingBitExactAudio { get; set; } = true;
+
+        /// <summary>A footprint ceiling in gigabytes, or 0 for none.</summary>
+        public double HousekeepingCeilingGb { get; set; }
+
+        /// <summary>The config as the Core housekeeping pass wants it.</summary>
+        public AgentEyes.Housekeeping.HousekeepingSettings HousekeepingSettings() => new()
+        {
+            Enabled = HousekeepingEnabled,
+            ReportOnly = HousekeepingReportOnly,
+            PreservedOriginalDays = HousekeepingPreservedOriginalDays,
+            PreservedAudioMustBeBitExact = HousekeepingBitExactAudio,
+            CeilingBytes = HousekeepingCeilingGb <= 0 ? 0 : (long)(HousekeepingCeilingGb * 1024 * 1024 * 1024),
+        };
+
         private static string FilePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "config.json");
 

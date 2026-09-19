@@ -77,7 +77,21 @@ namespace AgentEyes.App
                 // MainWindow, and recordings are driven through the REST API above just as often as
                 // through the UI - a repair timer owned by the window did not exist in either case.
                 _repair = new RepairService(() => _service!.IsRecording);
+
+                // Issues #55, #56: housekeeping reads its settings FRESH on every pass, so changing
+                // them in Settings takes effect at the next 15-minute tick rather than at the next
+                // restart. This is an always-on app; a restart may be days away.
+                _repair.HousekeepingSettings = () => _cfg!.HousekeepingSettings();
                 _repair.Start();
+
+                // The Control API is started above, before the RepairService exists, so it is handed
+                // its housekeeping hooks here rather than in its constructor.
+                if (_rest != null)
+                {
+                    _rest.HousekeepingSettings = () => _cfg!.HousekeepingSettings();
+                    _rest.HousekeepingLastReport = () => _repair!.LastHousekeepingReport;
+                    _rest.HousekeepingRunNow = () => _repair!.RunHousekeepingNowAsync("api");
+                }
 
                 _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests);
                 InstallCaptureHooks();

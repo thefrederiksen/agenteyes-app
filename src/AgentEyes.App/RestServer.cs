@@ -39,6 +39,22 @@ namespace AgentEyes.App
             _listener.Prefixes.Add(Url);
         }
 
+        /// <summary>
+        /// How this server reaches housekeeping (issues #55, #56). Set by the app AFTER the
+        /// RepairService is constructed, because the server starts first - the alternative was to
+        /// reorder start-up around a reporting endpoint, which is the wrong thing to move.
+        ///
+        /// Null until then, and a request that arrives in that window is answered honestly with 503
+        /// rather than with an empty report that would read as "nothing to clean".
+        /// </summary>
+        public Func<AgentEyes.Housekeeping.HousekeepingReport?>? HousekeepingLastReport { get; set; }
+
+        /// <summary>Runs one pass now and returns its report, guards included.</summary>
+        public Func<System.Threading.Tasks.Task<AgentEyes.Housekeeping.HousekeepingReport>>? HousekeepingRunNow { get; set; }
+
+        /// <summary>The settings the pass would use, for the GET.</summary>
+        public Func<AgentEyes.Housekeeping.HousekeepingSettings>? HousekeepingSettings { get; set; }
+
         /// <summary>The configured save-folder override (Capture-tab Settings, null = default).</summary>
         private string? CaptureOverride => _captureSaveFolder?.Invoke();
 
@@ -82,6 +98,12 @@ namespace AgentEyes.App
                     case ("GET", "/recordings"): Json(ctx, Recordings(ctx)); return;
                     case ("GET", "/captures"): Json(ctx, Captures()); return;
                     case ("GET", "/presets"): Json(ctx, Presets()); return;
+
+                    // Issues #55, #56. GET says what housekeeping is set to do and what it last did;
+                    // POST runs one pass now. Both are how the first release is verified, because the
+                    // default is report-only and the report is the whole deliverable.
+                    case ("GET", "/housekeeping"): Json(ctx, Housekeeping()); return;
+                    case ("POST", "/housekeeping/run"): Json(ctx, HousekeepingRun()); return;
 
                     case ("POST", "/screenshot"):
                     {
@@ -379,6 +401,47 @@ namespace AgentEyes.App
             p.Camera, p.CameraFps,
         });
 
+        /// <summary>
+        /// What housekeeping is configured to do, and what it last did. Returns the settings even
+        /// before a pass has run, because "what would this do to my recordings" is answerable without
+        /// running it - and answering it is how the owner decides to turn report-only off.
+        /// </summary>
+        private object Housekeeping()
+        {
+            var settings = HousekeepingSettings?.Invoke();
+            if (settings is null) return new { available = false, reason = "housekeeping is not wired up yet" };
+
+            return new
+            {
+                available = true,
+                settings = new
+                {
+                    enabled = settings.Enabled,
+                    reportOnly = settings.ReportOnly,
+                    preservedOriginalDays = settings.PreservedOriginalDays,
+                    bitExactAudio = settings.PreservedAudioMustBeBitExact,
+                    preservedAudioCodec = settings.PreservedAudioCodec,
+                    preservedAudioExtension = settings.PreservedAudioExtension,
+                    ceilingBytes = settings.CeilingBytes,
+                    logTailBytes = settings.LogTailBytes,
+                },
+                lastReport = HousekeepingLastReport?.Invoke(),
+            };
+        }
+
+        /// <summary>
+        /// Run one pass now. Synchronous to the caller on purpose: the answer IS the report, and a
+        /// 202 with nothing in it would make the endpoint useless for verifying the behaviour.
+        /// </summary>
+        private object HousekeepingRun()
+        {
+            if (HousekeepingRunNow is null)
+            {
+                return new { available = false, reason = "housekeeping is not wired up yet" };
+            }
+            return HousekeepingRunNow.Invoke().GetAwaiter().GetResult();
+        }
+
         private static object Discovery() => new
         {
             app = "AgentEyes",
@@ -388,6 +451,7 @@ namespace AgentEyes.App
                 "GET /recordings {limit?, offset?}", "GET /recordings/{id}",
                 "GET /recordings/{id}/shots", "GET /recordings/{id}/transcript",
                 "GET /captures", "GET /presets",
+                "GET /housekeeping", "POST /housekeeping/run",
                 "POST /screenshot {screen, region?}",
                 "GET /capture-info",
                 "POST /capture {mode:full|monitor|region, screen?, region?}",
