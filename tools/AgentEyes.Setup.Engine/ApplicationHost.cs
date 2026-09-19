@@ -12,30 +12,36 @@ namespace AgentEyes.Setup.Engine;
 /// configuration and real recordings. When the person's own copy was already running it also threw
 /// a modal "AgentEyes is already running" dialog onto their screen, every time the suite ran.
 ///
-/// The question is answered by asking whether this PROCESS is the application, never by naming the
-/// programs it is not - a list of those would be out of date the first time somebody used a
-/// different test runner. An unknown host counts as "not the application", because the safe answer
-/// to "who is running me?" is to do nothing.
+/// The question is answered by asking which assembly's entry point started this process - NOT what
+/// the file on disk happens to be called. An earlier attempt compared the process's FILE NAME with
+/// the application's name, and that was wrong in a way that mattered: the release is published as
+/// AgentEyesApp-win-x64.exe, so anybody who downloaded that file and ran it got an application that
+/// started and did nothing at all. A person may also rename the executable, or a browser may save
+/// it as "AgentEyesApp (1).exe". None of that changes which program is running.
+///
+/// An unknown entry assembly counts as "not the application", because the safe answer to "who is
+/// running me?" is to do nothing.
 /// </summary>
 public static class ApplicationHost
 {
     /// <summary>
     /// True only when the running process IS the application.
     /// </summary>
-    /// <param name="hostProcessName">
-    /// The running process's file name without its extension - <c>Environment.ProcessPath</c>
-    /// through <c>Path.GetFileNameWithoutExtension</c>. AgentEyesApp when the application is what
-    /// is running; testhost, dotnet or similar when it is not.
+    /// <param name="entryAssemblyName">
+    /// The name of the assembly whose entry point started this process -
+    /// <c>Assembly.GetEntryAssembly()?.GetName().Name</c>. This is the application's assembly name
+    /// whatever the executable file is called, and it is the test runner's name when a test runner
+    /// is what is running. Null when the platform will not say, which counts as not the application.
     /// </param>
-    /// <param name="appProcessName">
-    /// The application assembly's own name, which is what the process is called when the
-    /// application is the thing running. Derived by the caller, never typed as a literal - deriving
-    /// it is what kept the installer's identical defect (#95) from coming back.
+    /// <param name="appAssemblyName">
+    /// The application assembly's own name. Derived by the caller from the application type, never
+    /// typed as a literal - deriving it is what kept the installer's identical defect (#95) from
+    /// coming back.
     /// </param>
-    public static bool IsTheApplication(string? hostProcessName, string? appProcessName)
+    public static bool IsTheApplication(string? entryAssemblyName, string? appAssemblyName)
     {
-        if (string.IsNullOrWhiteSpace(hostProcessName)) return false;
-        if (string.IsNullOrWhiteSpace(appProcessName)) return false;
-        return string.Equals(hostProcessName, appProcessName, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(entryAssemblyName)) return false;
+        if (string.IsNullOrWhiteSpace(appAssemblyName)) return false;
+        return string.Equals(entryAssemblyName, appAssemblyName, StringComparison.OrdinalIgnoreCase);
     }
 }

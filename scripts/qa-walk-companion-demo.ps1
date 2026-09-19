@@ -56,13 +56,16 @@ function Wait-Button($win,$n,$sec){
 }
 function Click-Button($win,$n,$sec=15){ ((Wait-Button $win $n $sec).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke() }
 
-$bakP = "$presetsPath.demo-bak"; $bakC = "$cfgPath.demo-bak"; # Issue #61: refuse rather than launch a second instance on top of a running one. OUTSIDE the try:
-# this script's finally reads "no backup file exists" as "this presets.json is mine, delete it", so
-# a refusal raised inside the try would delete the person's presets.
+$bakP = "$presetsPath.demo-bak"; $bakC = "$cfgPath.demo-bak"
+
+# Issue #61: refuse rather than launch a second instance on top of a running one. OUTSIDE the try:
+# this script's finally used to read "no backup file exists" as "this presets.json is mine, delete
+# it", so a refusal raised inside the try deleted the person's presets.
 Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'qa-walk-companion-demo.ps1'
 
 $failure = $null
 $app = $null
+$presetsWritten = $false
 try {
     # back up, then enable the plugin + add a temp system-audio preset (key preserved)
     Copy-Item $cfgPath $bakC -Force
@@ -82,6 +85,7 @@ try {
     $arr = @(); if (Test-Path $presetsPath) { $arr = @(Get-Content $presetsPath -Raw | ConvertFrom-Json) }
     $arr += $tempPreset
     ConvertTo-Json $arr -Depth 8 | Set-Content $presetsPath -Encoding UTF8
+    $presetsWritten = $true
 
     $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
     $synth.SetOutputToWaveFile($narr); $synth.Speak($narration); $synth.Dispose()
@@ -125,8 +129,12 @@ finally {
     Stop-ScriptOwnedAgentEyes $app
     Start-Sleep -Milliseconds 400
     if (Test-Path $bakC) { Move-Item $bakC $cfgPath -Force }
+    # Issue #61: only remove presets.json if THIS script is the one that wrote it. The old
+    # "no backup file exists, so it must be mine" reading is wrong whenever the try failed before
+    # the backup was taken - the very first statement in it copies config.json, and a missing or
+    # locked config.json is enough. That path deleted the person's real presets.
     if (Test-Path $bakP) { Move-Item $bakP $presetsPath -Force }
-    elseif (Test-Path $presetsPath) { Remove-Item $presetsPath -Force }
+    elseif ($presetsWritten -and (Test-Path $presetsPath)) { Remove-Item $presetsPath -Force }
 }
 
 if ($failure) { "DEMO: FAIL ($failure)"; exit 1 }

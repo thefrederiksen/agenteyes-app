@@ -40,7 +40,10 @@ namespace AgentEyes.App
             // running it also put a modal "AgentEyes is already running" box on their screen, every
             // time the suite ran. None of what follows belongs to anybody but the application, so
             // when this is not the application, it does none of it.
-            var hostName = SafeName(Environment.ProcessPath);
+            // Which assembly's entry point started this process - NOT what the file on disk is
+            // called. The release is published as AgentEyesApp-win-x64.exe, so a file-name test
+            // would make the downloaded release start and do nothing; the same for a renamed exe.
+            var hostName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
             var appName = typeof(App).Assembly.GetName().Name;
             if (!ApplicationHost.IsTheApplication(hostName, appName))
             {
@@ -343,16 +346,6 @@ namespace AgentEyes.App
             MessageBox.Show("Something went wrong - it has been logged and the app will keep running.\n\n"
                 + e.Exception.Message + "\n\nLog: " + AgentEyes.Log.CurrentFile, "AgentEyes");
             e.Handled = true;
-        }
-
-        /// <summary>This process's own file name without its extension, or null when the platform
-        /// will not say. Null is answered honestly rather than guessed: the policy treats an unknown
-        /// host as "not the application", which is the quiet branch.</summary>
-        private static string? SafeName(string? processPath)
-        {
-            if (string.IsNullOrWhiteSpace(processPath)) return null;
-            try { return Path.GetFileNameWithoutExtension(processPath); }
-            catch { return null; }
         }
 
         private static void Log(Exception? ex, string where)

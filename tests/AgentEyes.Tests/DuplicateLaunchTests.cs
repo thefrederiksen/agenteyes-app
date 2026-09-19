@@ -273,10 +273,15 @@ namespace AgentEyes.Tests
                 var text = File.ReadAllText(file);
                 if (!text.Contains("Start-AgentEyesForScript", StringComparison.OrdinalIgnoreCase)) continue;
 
-                var finallyAt = text.IndexOf("finally", StringComparison.OrdinalIgnoreCase);
-                var stopAt = text.IndexOf("Stop-ScriptOwnedAgentEyes", StringComparison.OrdinalIgnoreCase);
-
-                if (finallyAt < 0 || stopAt < 0 || stopAt < finallyAt)
+                // Match the finally KEYWORD and its block, not the word "finally" wherever it
+                // appears. An earlier version of this guard compared the position of the first
+                // "finally" in the file against the position of the stop call - and every one of
+                // these scripts says "finally" in a comment near the top, so the guard passed for
+                // four of five whatever the code did. Gutting a finally block left it green.
+                if (!Regex.IsMatch(text, @"(^|\s)finally\s*\{\s*(?:#[^
+]*
+\s*)*Stop-ScriptOwnedAgentEyes",
+                        RegexOptions.IgnoreCase | RegexOptions.Multiline))
                     offenders.Add(Path.GetFileName(file));
             }
 
@@ -329,7 +334,10 @@ namespace AgentEyes.Tests
         private static string[] ScriptFiles()
         {
             var dir = ScriptsDir();
-            var files = Directory.GetFiles(dir, "*.ps1", SearchOption.AllDirectories)
+            // .cmd and .bat are swept too: try.cmd pointed at the stale build output for as long
+            // as the scripts did, and a guard that only reads .ps1 would never have said so.
+            var files = new[] { "*.ps1", "*.cmd", "*.bat" }
+                .SelectMany(pattern => Directory.GetFiles(dir, pattern, SearchOption.AllDirectories))
                 .Where(f => !f.EndsWith("AgentEyesProcess.ps1", StringComparison.OrdinalIgnoreCase))
                 .ToArray();
 
