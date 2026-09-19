@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -168,6 +169,39 @@ namespace AgentEyes.Tests
                 "These scripts start the app directly instead of through Start-AgentEyesForScript, "
                 + "so they can launch a second instance on top of a running one (issue #61): "
                 + string.Join(", ", offenders));
+        }
+
+        /// <summary>
+        /// The refusal must be raised BEFORE the script's try block, never inside it.
+        ///
+        /// PowerShell runs a finally block when a script exits from inside its try, and at least
+        /// two of these scripts read "no backup file exists" as "this presets.json is mine, delete
+        /// it". A refusal raised inside the try therefore ran a cleanup written for a run that had
+        /// actually started, and deleted the person's presets - in exactly the situation this whole
+        /// change is about, their app being open. Refusing before the try means nothing has been
+        /// touched and nothing needs undoing.
+        /// </summary>
+        [Fact]
+        public void TheRefusalIsRaisedBeforeAnyTryBlock()
+        {
+            var offenders = new List<string>();
+
+            foreach (var file in ScriptFiles())
+            {
+                var text = File.ReadAllText(file);
+                var refusal = text.IndexOf("Assert-NoAgentEyesRunning", StringComparison.OrdinalIgnoreCase);
+                if (refusal < 0) continue;   // this script does not launch the app
+
+                var firstTry = Regex.Match(text, @"^\s*try\s*\{", RegexOptions.Multiline);
+                if (firstTry.Success && refusal > firstTry.Index)
+                    offenders.Add(Path.GetFileName(file));
+            }
+
+            Assert.True(offenders.Count == 0,
+                "These scripts raise the already-running refusal from INSIDE a try block. PowerShell "
+                + "runs the finally when a script exits from inside its try, so the refusal triggers a "
+                + "cleanup written for a run that never started - which in these scripts deletes the "
+                + "person's presets.json (issue #61): " + string.Join(", ", offenders));
         }
 
         /// <summary>The helper the three guards above point at must actually exist.</summary>

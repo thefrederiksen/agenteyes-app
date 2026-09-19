@@ -41,6 +41,12 @@ function Get-AgentEyesInstance {
 
 function Assert-NoAgentEyesRunning {
     # Refuses to continue while an AgentEyes the script did not start is running.
+    #
+    # CALL THIS BEFORE THE SCRIPT'S try BLOCK, never inside it. PowerShell runs a finally block when
+    # a script exits from inside its try, so a refusal raised in there would run a cleanup written
+    # for a run that had actually started - and at least two of these scripts read "no backup file
+    # exists" as "this presets.json is mine, delete it". Refusing before the try means nothing has
+    # been touched and nothing needs undoing.
     param(
         [Parameter(Mandatory)][string]$ExePath,
         [Parameter(Mandatory)][string]$ScriptName
@@ -59,12 +65,26 @@ function Assert-NoAgentEyesRunning {
 function Start-AgentEyesForScript {
     # Starts the app for a script to drive, and hands back the process so the script can stop THAT
     # one - and only that one - when it is done.
+    #
+    # This re-check exists for the narrow race where an instance appears between the script's
+    # opening Assert-NoAgentEyesRunning and this call. It THROWS rather than exiting, and the
+    # difference matters: by this point a script has usually backed the person's presets.json and
+    # config.json up and installed its own, and its finally block is what puts them back. Exiting
+    # here would skip nothing - PowerShell runs finally on exit too - but it would run that finally
+    # in a state it was never written for. A throw goes through the script's own catch, so the
+    # restore happens exactly as it does for any other mid-run failure.
     param(
         [Parameter(Mandatory)][string]$ExePath,
         [Parameter(Mandatory)][string]$ScriptName,
         [string[]]$AppArguments = @()
     )
-    Assert-NoAgentEyesRunning -ExePath $ExePath -ScriptName $ScriptName
+    $running = Get-AgentEyesInstance -ExePath $ExePath
+    if ($running.Count -gt 0) {
+        $ids = ($running | ForEach-Object { $_.Id }) -join ', '
+        throw "AgentEyes started up while $ScriptName was preparing (process id: $ids). " +
+              "$ScriptName will not run alongside it, and will not stop it - quit it from the tray icon and re-run."
+    }
+
     if ($AppArguments.Count -gt 0) {
         return Start-Process $ExePath -ArgumentList $AppArguments -PassThru
     }

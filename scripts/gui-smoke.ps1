@@ -92,11 +92,13 @@ function Select-Preset($win, $name) {
 # ---- run (user config backed up; restored in finally) ----
 $bakPresets = Join-Path $appdir 'presets.json.smoke-bak'
 $bakConfig  = Join-Path $appdir 'config.json.smoke-bak'
+# Issue #61: refuse rather than launch a second instance on top of a running one. OUTSIDE the try,
+# so a refusal cannot run a cleanup written for a run that had actually started.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'gui-smoke.ps1'
+
 $failure = $null
 $app = $null
 try {
-    # Issue #61: refuse rather than launch a second instance on top of a running one.
-    Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'gui-smoke.ps1'
     Remove-Item $crash -ErrorAction SilentlyContinue
 
     if (Test-Path (Join-Path $appdir 'presets.json')) { Copy-Item (Join-Path $appdir 'presets.json') $bakPresets -Force }

@@ -52,11 +52,14 @@ function Find-Button($win,$n){$win.FindFirst('Descendants',(BothOf (NameIs $n) (
 function Wait-Button($win,$n,$sec){$sw=[Diagnostics.Stopwatch]::StartNew();while($sw.Elapsed.TotalSeconds -lt $sec){$b=Find-Button $win $n;if($b -and $b.Current.IsEnabled){return $b};Start-Sleep -Milliseconds 400};throw "button '$n' not available in ${sec}s"}
 function Click-Button($win,$n,$sec=15){((Wait-Button $win $n $sec).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()}
 
-$bakP="$presetsPath.demo-bak"; $bakC="$cfgPath.demo-bak"; $failure=$null
+$bakP="$presetsPath.demo-bak"; $bakC="$cfgPath.demo-bak"; # Issue #61: refuse rather than launch a second instance on top of a running one. OUTSIDE the try:
+# this script's finally reads "no backup file exists" as "this presets.json is mine, delete it", so
+# a refusal raised inside the try would delete the person's presets.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'doc-companion-demo.ps1'
+
+$failure=$null
 $app = $null
 try {
-    # Issue #61: refuse rather than launch a second instance on top of a running one.
-    Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'doc-companion-demo.ps1'
     Copy-Item $cfgPath $bakC -Force
     if (Test-Path $presetsPath) { Copy-Item $presetsPath $bakP -Force }
 

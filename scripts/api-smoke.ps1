@@ -14,6 +14,7 @@ $crash = Join-Path $env:TEMP 'AgentEyes-crash.log'
 Remove-Item $crash -ErrorAction SilentlyContinue
 
 # Issue #61: refuse rather than launch a second instance on top of a running one.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'api-smoke.ps1'
 $app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'api-smoke.ps1' -AppArguments '--tray'
 
 # Wait for the API to come up.

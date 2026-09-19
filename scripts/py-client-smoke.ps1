@@ -29,6 +29,7 @@ function Chk($name, $cond, $detail) {
 }
 
 # Issue #61: refuse rather than launch a second instance on top of a running one.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'py-client-smoke.ps1'
 $app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'py-client-smoke.ps1' -AppArguments '--tray'
 
 # Wait for the API to come up.

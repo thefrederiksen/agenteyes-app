@@ -60,12 +60,14 @@ function Wait-Button($win,$n,$sec){
 }
 function Click-Button($win,$n,$sec=15){ ((Wait-Button $win $n $sec).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke() }
 
-$bakP = "$presetsPath.demo-bak"; $bakC = "$cfgPath.demo-bak"; $failure = $null
+$bakP = "$presetsPath.demo-bak"; $bakC = "$cfgPath.demo-bak"; # Issue #61: refuse rather than launch a second instance on top of a running one. OUTSIDE the try:
+# this script's finally reads "no backup file exists" as "this presets.json is mine, delete it", so
+# a refusal raised inside the try would delete the person's presets.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'qa-walk-companion-demo.ps1'
+
+$failure = $null
 $app = $null
 try {
-    # Issue #61: refuse rather than launch a second instance on top of a running one.
-    Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'qa-walk-companion-demo.ps1'
-
     # back up, then enable the plugin + add a temp system-audio preset (key preserved)
     Copy-Item $cfgPath $bakC -Force
     if (Test-Path $presetsPath) { Copy-Item $presetsPath $bakP -Force }
