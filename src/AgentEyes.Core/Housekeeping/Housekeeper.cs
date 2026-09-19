@@ -186,12 +186,15 @@ namespace AgentEyes.Housekeeping
                         break;
 
                     case HousekeepingKind.DeletePreservedOriginal:
-                        File.Delete(Path.Combine(dir, step.File));
+                        // The manifest stops naming the file BEFORE the file leaves the disk. A crash
+                        // between the two leaves an unreferenced file on disk - inert, wasted bytes
+                        // the next pass can see - never a manifest naming a file that is gone.
                         ManifestStore.Update(dir, m =>
                         {
                             m.OriginalFiles.RemoveAll(f => string.Equals(f, step.File, StringComparison.OrdinalIgnoreCase));
                             m.Files.RemoveAll(f => string.Equals(f, step.File, StringComparison.OrdinalIgnoreCase));
                         });
+                        File.Delete(Path.Combine(dir, step.File));
                         result.Outcome = "done";
                         result.BytesReclaimed = step.Bytes;
                         break;
@@ -238,6 +241,8 @@ namespace AgentEyes.Housekeeping
                 settings.PreservedAudioMustBeBitExact);
 
             result.BitExact = transcode.BitExact;
+            result.SourceHash = transcode.SourceHash;
+            result.OutputHash = transcode.OutputHash;
 
             if (!transcode.Verified)
             {
@@ -248,13 +253,17 @@ namespace AgentEyes.Housekeeping
                 return;
             }
 
-            File.Delete(source);
-
+            // Repoint BEFORE deleting, the same law FrameConversion states for itself after the defect
+            // that left 268 references pointing at deleted files. A crash between these two leaves the
+            // manifest naming the verified output (which exists) beside an orphaned WAV on disk - wasted
+            // bytes, inert - never a manifest naming a file that is gone.
             ManifestStore.Update(dir, m =>
             {
                 Swap(m.OriginalFiles, step.File, step.Output!);
                 Swap(m.Files, step.File, step.Output!);
             });
+
+            File.Delete(source);
 
             result.Outcome = "done";
             result.BytesReclaimed = transcode.SourceBytes - transcode.OutputBytes;
@@ -357,6 +366,8 @@ namespace AgentEyes.Housekeeping
                     Outcome = result.Outcome,
                     Error = result.Error,
                     BitExact = step.Kind == HousekeepingKind.TranscodePreservedAudio ? result.BitExact : null,
+                    SourceHash = step.Kind == HousekeepingKind.TranscodePreservedAudio ? result.SourceHash : null,
+                    OutputHash = step.Kind == HousekeepingKind.TranscodePreservedAudio ? result.OutputHash : null,
                 }));
             }
             catch (Exception ex)

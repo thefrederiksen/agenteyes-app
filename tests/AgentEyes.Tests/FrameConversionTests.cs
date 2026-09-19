@@ -433,13 +433,40 @@ namespace AgentEyes.Tests
             var before = Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories)
                 .ToDictionary(p => Path.GetRelativePath(dir, p), p => new FileInfo(p).Length);
 
-            Housekeeper.Run(_root, new HousekeepingSettings { ReportOnly = true }, "test", () => false,
+            var report = Housekeeper.Run(
+                _root, new HousekeepingSettings { ReportOnly = true }, "test", () => false,
                 new DateTime(2026, 9, 18, 12, 0, 0, DateTimeKind.Utc));
+
+            // Presence first: a pass that planned nothing - or refused every recording - satisfies the
+            // byte equality below while proving nothing at all. The recording is 17 days old against
+            // a 7-day frame gate, so the pass MUST have planned the conversion it then did not do.
+            Assert.Contains(report.Recordings.SelectMany(r => r.Steps),
+                s => s.Kind == nameof(HousekeepingKind.ConvertFramesToJpeg) && s.Outcome == "planned");
 
             var after = Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories)
                 .ToDictionary(p => Path.GetRelativePath(dir, p), p => new FileInfo(p).Length);
 
             Assert.Equal(before.OrderBy(k => k.Key), after.OrderBy(k => k.Key));
+        }
+
+        [Fact]
+        public void Run_WithDebrisFromAKilledEncode_SweepsTheTempAndConvertsTheFrame()
+        {
+            // The atomic write leaves a half-encoded JPEG only ever at the temporary name. The next
+            // pass must sweep it and convert the frame normally, so a killed encode costs a retry,
+            // never a page pointed at a truncated file.
+            string dir = MakeRecordingWithFrames(2);
+            string shots = Path.Combine(dir, HousekeepingPlan.FramesDirectory);
+
+            string debris = Path.Combine(shots, "frame_001.jpg.tmp");
+            File.WriteAllText(debris, "partial bytes of an encode that never finished");
+
+            var result = FrameConversion.Run(dir, quality: 88);
+
+            Assert.Null(result.Error);
+            Assert.Equal(2, result.Converted);
+            Assert.False(File.Exists(debris), "the debris from a killed encode was left behind");
+            Assert.True(File.Exists(Path.Combine(shots, "frame_001.jpg")));
         }
     }
 

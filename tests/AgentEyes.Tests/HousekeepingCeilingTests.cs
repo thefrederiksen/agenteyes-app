@@ -111,9 +111,45 @@ namespace AgentEyes.Tests
             // test is the statement that the ceiling returns NAMES and never an age of its own, which
             // is what keeps it from being a second, undocumented retention policy.
             var advanced = HousekeepingCeiling.Advance(
-                new[] { One("a", 100, 3) }, Gb(1), TierDays);
+                new[] { One("a", 100, 10) }, Gb(1), TierDays);
 
             Assert.Equal(new[] { "a" }, advanced.ToArray());
+        }
+
+        [Fact]
+        public void Advance_ARecordingInsideTheProtectedWindow_IsNeverAdvancedWhateverThePressure()
+        {
+            // The review of pull request #57 proved this live: without a floor, a recording made the
+            // SAME DAY lost both preserved originals under a 1 GiB ceiling. The epic sanctions
+            // advancing OLD recordings early; it does not sanction erasing a hot recording's raw
+            // backup, so young bytes stay in the total like pinned ones.
+            var advanced = HousekeepingCeiling.Advance(
+                new[] { One("same-day", 40, 0), One("six-days", 40, 6) }, Gb(1), TierDays);
+
+            Assert.Empty(advanced);
+        }
+
+        [Theory]
+        [InlineData(6, false)]
+        [InlineData(7, true)]
+        public void Advance_TheProtectedWindowBoundary_HoldsOnBothSides(int ageDays, bool expected)
+        {
+            var advanced = HousekeepingCeiling.Advance(
+                new[] { One("a", 40, ageDays) }, Gb(1), TierDays);
+
+            Assert.Equal(expected, advanced.Contains("a"));
+        }
+
+        [Fact]
+        public void Advance_OnlyYoungRecordingsOverTheCeiling_AdvancesNothingRatherThanReachingDown()
+        {
+            // Over the ceiling with nothing old enough to take: the disk stays over the ceiling and
+            // that is the honest answer, because the alternative is deleting a young recording's
+            // preserved originals, which no tier would ever touch on its own.
+            var advanced = HousekeepingCeiling.Advance(
+                new[] { One("day-one", 30, 1), One("day-two", 30, 2) }, Gb(1), TierDays);
+
+            Assert.Empty(advanced);
         }
 
         [Fact]

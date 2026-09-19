@@ -83,6 +83,14 @@ namespace AgentEyes.Housekeeping
             long before = 0, after = 0;
             int converted = 0, failed = 0;
 
+            // Debris from an encode that was killed mid-write, before the rename that promotes a
+            // complete file onto the final name. A completed encode never leaves one, and nothing
+            // else writes this name, so they are provably disposable.
+            foreach (string temp in Directory.GetFiles(shots, "*.jpg.tmp"))
+            {
+                TryDelete(temp);
+            }
+
             // ---- phase 1: encode, keeping every PNG ------------------------------------------
             foreach (string png in pngs)
             {
@@ -103,10 +111,12 @@ namespace AgentEyes.Housekeeping
 
                 try
                 {
-                    if (!existingJpgs.Contains(jpgName))
-                    {
-                        EncodeJpeg(png, jpg, quality);
-                    }
+                    // A JPEG already present reached its name through the same atomic rename, so it
+                    // is a completed file and this pass only finishes the bookkeeping around it.
+                    // The flag keeps that bookkeeping honest: a frame this pass did not encode is
+                    // counted as repaired, never as converted, and its bytes are not counted twice.
+                    bool encoded = !existingJpgs.Contains(jpgName);
+                    if (encoded) EncodeJpeg(png, jpg, quality);
 
                     long jpgBytes = new FileInfo(jpg).Length;
                     if (jpgBytes <= 0) throw new InvalidOperationException("the encoder produced an empty file");
@@ -117,15 +127,24 @@ namespace AgentEyes.Housekeeping
                     {
                         File.Delete(jpg);
                         existingJpgs.Remove(jpgName);
-                        before += pngBytes;
-                        after += pngBytes;
+                        if (encoded)
+                        {
+                            before += pngBytes;
+                            after += pngBytes;
+                        }
                         continue;
                     }
 
                     existingJpgs.Add(jpgName);
-                    before += pngBytes;
-                    after += jpgBytes;
-                    converted++;
+                    if (encoded)
+                    {
+                        // Only a frame THIS pass encoded is counted in the bytes. A JPEG an earlier
+                        // pass already produced had its bytes reported then; counting them again
+                        // would double every repair pass. Repaired frames are counted in phase 2.
+                        before += pngBytes;
+                        after += jpgBytes;
+                        converted++;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -148,6 +167,9 @@ namespace AgentEyes.Housekeeping
                 renames[Relative(pngName)] = Relative(jpgName);
             }
 
+            // A JPEG in the set that this pass did not encode is one an earlier pass did - either
+            // its PNG is still beside it (an interrupted repoint) or it is already gone (dangling
+            // references). Either way this pass finishes it, which is the definition of Repaired.
             int repaired = existingJpgs.Count - converted;
 
             // ---- phase 3: repoint, before anything is deleted ---------------------------------
@@ -186,6 +208,12 @@ namespace AgentEyes.Housekeeping
         /// frames - almost all of it process start-up rather than encoding. The same work through
         /// System.Drawing is hundreds of frames a second, and Screenshot.cs already writes images this
         /// way, so it is the same dependency rather than a new one.
+        ///
+        /// The write is ATOMIC: the encoder streams to a temporary name, and only a complete file is
+        /// renamed onto the final one. A pass killed mid-encode therefore leaves no truncated JPEG for a
+        /// later pass to find at the final name and repoint the walkthrough at - the hole the review of
+        /// this change proved live, in which a page was permanently broken by trusting a half-written
+        /// file on size alone.
         /// </summary>
         private static void EncodeJpeg(string pngPath, string jpgPath, int quality)
         {
@@ -199,8 +227,18 @@ namespace AgentEyes.Housekeeping
             using var parameter = new Imaging.EncoderParameter(Imaging.Encoder.Quality, (long)quality);
             parameters.Param[0] = parameter;
 
-            using var image = Drawing.Image.FromFile(pngPath);
-            image.Save(jpgPath, codec, parameters);
+            string temp = jpgPath + ".tmp";
+            try
+            {
+                using var image = Drawing.Image.FromFile(pngPath);
+                image.Save(temp, codec, parameters);
+                File.Move(temp, jpgPath, overwrite: true);
+            }
+            finally
+            {
+                // Debris only when the rename never happened; after a completed move there is no temp.
+                TryDelete(temp);
+            }
         }
 
         private static string Relative(string fileName) =>

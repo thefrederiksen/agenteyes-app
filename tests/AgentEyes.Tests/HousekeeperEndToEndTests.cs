@@ -167,6 +167,12 @@ namespace AgentEyes.Tests
             Assert.Equal("done", record.Outcome);
             Assert.True(record.BitExact, "the transcode was not bit-exact, so it should never have replaced the source");
             Assert.True(record.BytesReclaimed > 0);
+
+            // The record is the thing that makes the bit-exact claim answerable months later, so the
+            // hashes it promises have to actually be in it - not declared on the type and left null.
+            Assert.False(string.IsNullOrWhiteSpace(record.SourceHash), "the source hash never reached the record");
+            Assert.False(string.IsNullOrWhiteSpace(record.OutputHash), "the output hash never reached the record");
+            Assert.Equal(record.SourceHash, record.OutputHash);   // bit-exact means the decoded streams are identical
         }
 
         [Fact]
@@ -329,6 +335,89 @@ namespace AgentEyes.Tests
             Assert.True(first.BytesReclaimed > 0);
             Assert.Equal(0, second.BytesReclaimed);
             Assert.DoesNotContain(second.Recordings.SelectMany(r => r.Steps), s => s.Outcome == "done");
+        }
+    }
+
+    /// <summary>
+    /// The ordering law for the AUDIO tier, on the same seam the frame tier uses: the manifest is
+    /// repointed BEFORE the source is deleted. The review of this change found the audio tier still
+    /// deleting first - the exact order the frame tier's own history shows destroyed a walkthrough.
+    /// It lives in this collection because <see cref="ManifestStore.InterruptBeforeReplace"/> is a
+    /// process-wide static and the rest of the end-to-end class runs parallel.
+    /// </summary>
+    [Collection(ManifestSeamCollection.Name)]
+    public class HousekeeperTranscodeOrderTests : IDisposable
+    {
+        private readonly string _root;
+
+        public HousekeeperTranscodeOrderTests()
+        {
+            _root = Path.Combine(Path.GetTempPath(), "agenteyes-transcodeorder-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_root);
+        }
+
+        public void Dispose()
+        {
+            ManifestStore.InterruptBeforeReplace = null;
+            try { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); }
+            catch (IOException) { }
+        }
+
+        /// <summary>One recording with a real preserved WAV in the real format, and nothing else.</summary>
+        private string MakeRecording(string name, DateTime createdUtc)
+        {
+            string dir = Path.Combine(_root, name);
+            Directory.CreateDirectory(dir);
+
+            Ffmpeg.Run(new[]
+            {
+                "-v", "error", "-y",
+                "-f", "lavfi", "-i", "anoisesrc=d=3:c=pink:r=48000:a=0.5",
+                "-ac", "2", "-c:a", "pcm_f32le",
+                Path.Combine(dir, "system.original.wav"),
+            }, "test fixture preserved wav");
+
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "{\"segments\":[]}");
+            File.WriteAllText(Path.Combine(dir, "recording.mp4"), new string('v', 4096));
+
+            ManifestStore.Replace(dir, new Manifest
+            {
+                Mode = "video",
+                Label = name,
+                CreatedUtc = createdUtc.ToString("o"),
+                Transcript = "transcript.json",
+                VideoFile = "recording.mp4",
+                DurationSeconds = 3,
+                Files = new List<string> { "recording.mp4", "system.original.wav" },
+                OriginalFiles = new List<string> { "system.original.wav" },
+            });
+
+            return dir;
+        }
+
+        [Fact]
+        public void ATranscodeInterruptedAtTheRepoint_LeavesTheSourceOnDiskAndStillNamed()
+        {
+            string dir = MakeRecording("2026-09-01_120000_video", new DateTime(2026, 9, 1, 12, 0, 0, DateTimeKind.Utc));
+
+            ManifestStore.InterruptBeforeReplace = _ => throw new IOException("interrupted on purpose");
+            try
+            {
+                Housekeeper.Run(_root, new HousekeepingSettings { ReportOnly = false }, "test", () => false,
+                    new DateTime(2026, 9, 2, 12, 0, 0, DateTimeKind.Utc));
+            }
+            finally
+            {
+                ManifestStore.InterruptBeforeReplace = null;
+            }
+
+            // The delete comes AFTER the repoint, so an interrupted repoint means nothing was removed:
+            // the manifest still names the WAV, and the WAV is still on disk. The other order leaves the
+            // manifest naming a deleted file with an orphaned output beside it that no tier can reclaim.
+            var manifest = Manifest.Load(dir);
+            Assert.Contains("system.original.wav", manifest.OriginalFiles);
+            Assert.True(File.Exists(Path.Combine(dir, "system.original.wav")),
+                "the source WAV was deleted before the manifest was repointed - the ordering is wrong");
         }
     }
 }

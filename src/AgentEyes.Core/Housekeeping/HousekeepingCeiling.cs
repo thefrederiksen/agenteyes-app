@@ -27,12 +27,21 @@ namespace AgentEyes.Housekeeping
     /// It only ever advances a recording to the Tier 3 boundary. It does not invent a new tier, it does
     /// not touch anything the tiers would not eventually touch anyway, and it never advances a PINNED
     /// recording - the pin outranks the ceiling, because the pin is the owner saying "not this one" and
-    /// the ceiling is the owner saying "not this much".
+    /// the ceiling is the owner saying "not this much". A recording inside the protected window
+    /// (<see cref="MinProtectedDays"/>) is equally untouchable: the epic sanctions advancing OLD
+    /// recordings early, never erasing a hot recording's raw backup.
     ///
     /// Pure, so the policy can be proven without a disk.
     /// </summary>
     internal static class HousekeepingCeiling
     {
+        /// <summary>
+        /// Days below which the ceiling never advances a recording, whatever the pressure. A young
+        /// recording's bytes stay in the running total exactly like a pinned one's, so the pressure
+        /// moves to genuinely old recordings - and when there are none, the honest answer is an
+        /// empty set, not a same-day capture's preserved originals.
+        /// </summary>
+        public const int MinProtectedDays = 7;
         /// <summary>
         /// Which recordings should be aged forward to <paramref name="tierDays"/>.
         ///
@@ -56,6 +65,10 @@ namespace AgentEyes.Housekeeping
             {
                 if (total <= ceilingBytes) break;
                 if (c.Pinned) continue;
+
+                // The protected window outranks the pressure, the same way a pin does: a recording
+                // this young is never aged forward, and its bytes stay in the total.
+                if (c.AgeDays < MinProtectedDays) continue;
 
                 if (c.AgeDays < tierDays) advanced.Add(c.Recording);
                 total -= c.Bytes;

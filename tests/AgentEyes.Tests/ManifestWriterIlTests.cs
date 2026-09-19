@@ -158,14 +158,19 @@ namespace AgentEyes.Tests
             // transcode has just been verified against it. The FileStream pair is one log rewritten to
             // its tail. None of them can reach a file the planner did not put in the plan.
             // Tier 2 (issues #55, #56). Image::Save is the in-process JPEG encode - a separate ffmpeg
-            // per frame managed two frames a second, almost all of it process start-up. Run's single
-            // Delete is a JPEG that came out no smaller than its PNG; TryDelete removes a PNG once its
-            // reference has been repointed, and a failed conversion's partial output. UpdateWalkthrough
-            // writes walkthrough.html - a path-for-path substitution through a temporary file and a
-            // rename, never an HTML edit. The PNG deletes come LAST, after the manifest and the page
-            // already point at the JPEGs, because the other order left 268 dangling references in a
-            // real recording when a run was stopped part way through.
+            // per frame managed two frames a second, almost all of it process start-up. The encode is
+            // ATOMIC: Image::Save streams to a temporary name and only a complete file is renamed onto
+            // the final one (EncodeJpeg's File::Move), so a pass killed mid-encode leaves no truncated
+            // JPEG for a later pass to trust on size alone - the hole the review proved live. Run's
+            // single Delete is a JPEG that came out no smaller than its PNG; TryDelete removes a PNG
+            // once its reference has been repointed, a failed conversion's partial output, and encode
+            // debris at the temporary name. UpdateWalkthrough writes walkthrough.html - a path-for-path
+            // substitution through a temporary file and a rename, never an HTML edit. The PNG deletes
+            // come LAST, after the manifest and the page already point at the JPEGs, because the other
+            // order left 268 dangling references in a real recording when a run was stopped part way
+            // through.
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::EncodeJpeg -> System.Drawing.Image::Save x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::EncodeJpeg -> System.IO.File::Move x1",
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::Run -> System.IO.File::Delete x1",
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::TryDelete -> System.IO.File::Delete x1",
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateWalkthrough -> System.IO.File::Move x1",

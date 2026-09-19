@@ -37,6 +37,12 @@ namespace AgentEyes.Housekeeping
 
         public string? Error { get; set; }
         public bool? BitExact { get; set; }
+
+        /// <summary>For a transcode: the decoded-stream hash of the source that was removed.</summary>
+        public string? SourceHash { get; set; }
+
+        /// <summary>For a transcode: the decoded-stream hash of the file that replaced it.</summary>
+        public string? OutputHash { get; set; }
     }
 
     /// <summary>
