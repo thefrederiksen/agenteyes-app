@@ -75,7 +75,7 @@ namespace AgentEyes.Tests
         /// recovery record); everything that changes SOME fields of an existing recording must be an
         /// Update, or it erases whatever it never read.
         ///
-        /// 29 call sites in 17 files: 20 Update, 9 Replace.
+        /// 30 call sites in 17 files: 21 Update, 9 Replace.
         /// </summary>
         private static readonly WriterFile[] ExpectedWriters =
         {
@@ -89,10 +89,11 @@ namespace AgentEyes.Tests
                 "Replace x3: a CLI capture session's own record (shot, audio, video)"),
             new("src/AgentEyes.Core/Housekeeping/FrameConversion.cs", Updates: 1, Replaces: 0,
                 "Update: issues #55, #56 - converted frames are repointed in Shots and Files"),
-            new("src/AgentEyes.Core/Housekeeping/Housekeeper.cs", Updates: 5, Replaces: 0,
-                "Update x5: issues #55, #56, #59 - a deleted preserved original is struck from OriginalFiles, "
+            new("src/AgentEyes.Core/Housekeeping/Housekeeper.cs", Updates: 6, Replaces: 0,
+                "Update x6: issues #55, #56, #59 - a deleted preserved original is struck from OriginalFiles, "
                 + "a deleted composition input is struck from Files, a transcoded one is renamed in place, "
-                + "an expired recording stops naming what it lost, and every action is appended to the Housekeeping record"),
+                + "an expired recording records its intent and stops naming what it lost, and every action is appended to "
+                + "the Housekeeping record"),
             new("src/AgentEyes.Core/Package.cs", Updates: 1, Replaces: 1,
                 "Update: what packaging produced. Replace: a synthesized bare-video manifest"),
             new("src/AgentEyes.Core/Packaging/TitleBackfill.cs", Updates: 1, Replaces: 0,
@@ -273,9 +274,9 @@ namespace AgentEyes.Tests
             var found = CountWriters(ProductionSources(), CodeOf);
 
             Assert.Equal(17, found.Count);                                  // files
-            Assert.Equal(20, found.Values.Sum(v => v.Updates));             // read-modify-write
+            Assert.Equal(21, found.Values.Sum(v => v.Updates));             // read-modify-write
             Assert.Equal(9, found.Values.Sum(v => v.Replaces));             // whole-content
-            Assert.Equal(29, found.Values.Sum(v => v.Updates + v.Replaces));
+            Assert.Equal(30, found.Values.Sum(v => v.Updates + v.Replaces));
         }
 
         [Fact]

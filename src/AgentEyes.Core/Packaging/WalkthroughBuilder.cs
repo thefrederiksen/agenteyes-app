@@ -75,7 +75,10 @@ namespace AgentEyes.Packaging
         }
 
         private static string ShotHtml(WalkthroughShot s) =>
-            $"<figure class=\"shot\"><img src=\"{Enc(s.RelativePath)}\" alt=\"screenshot at {Timecodes.Clock(TimeSpan.FromSeconds(s.OffsetSeconds))}\"/>"
+            // loading="lazy" matters most for the on-demand form, where each image is an extraction
+            // from the video: a browser fetches only what is on screen rather than the whole
+            // recording's frames at once (issue #59). For file-based frames it is harmless.
+            $"<figure class=\"shot\"><img loading=\"lazy\" src=\"{Enc(s.RelativePath)}\" alt=\"screenshot at {Timecodes.Clock(TimeSpan.FromSeconds(s.OffsetSeconds))}\"/>"
             + $"<figcaption>{Timecodes.Clock(TimeSpan.FromSeconds(s.OffsetSeconds))}</figcaption></figure>";
 
         private static string SpeechHtml(TranscriptSegment seg) =>

@@ -272,9 +272,15 @@ namespace AgentEyes.App
             // frames are not stored on disk asks for each frame here, so the frame category needs
             // no disk at all. The video that does not exist (expired, or an audio-only recording)
             // answers 404 with the reason - never a broken image with no explanation.
+            //
+            // HANDLED OFF THE LISTENER THREAD: a page can ask for hundreds of frames at once and each
+            // is a full ffmpeg process; running them on the loop thread would queue /record/stop and
+            // /health behind image requests for minutes. The extraction is stateless and writes a
+            // GUID-named temp file, so it is safe to run concurrently.
             if (seg.Length == 3 && seg[1] == "frame")
             {
-                FrameSubroute(ctx, id, seg[2]);
+                string offset = seg[2];
+                System.Threading.ThreadPool.QueueUserWorkItem(_ => FrameSubroute(ctx, id, offset));
                 return true;
             }
 

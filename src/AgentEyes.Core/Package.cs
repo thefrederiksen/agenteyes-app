@@ -179,11 +179,7 @@ namespace AgentEyes
             }
 
             // 4) Assemble the on-demand session shots (from the manifest) + content frames.
-            var shots = new List<WalkthroughShot>();
-            foreach (var s in manifest.Shots)
-            {
-                shots.Add(new WalkthroughShot { OffsetSeconds = s.OffsetSeconds, RelativePath = s.File.Replace('\\', '/') });
-            }
+            var shots = ShotsForPage(manifest);
             shots.AddRange(contentShots);
 
             // 5) Record what this pass produced, into whatever the manifest says NOW. This runs
@@ -296,6 +292,23 @@ namespace AgentEyes
         }
 
         /// <summary>
+        /// <summary>
+        /// The page's shot list from the manifest as it stands: the owner's own marker shots, each as
+        /// a relative path. An entry with an EMPTY File is an earlier pass's on-demand frame
+        /// (issue #59) - the fresh set the caller is about to build replaces it, and rendering it
+        /// would emit an img with an empty src, which the browser resolves to the page itself.
+        /// </summary>
+        internal static List<WalkthroughShot> ShotsForPage(Manifest manifest)
+        {
+            var shots = new List<WalkthroughShot>();
+            foreach (var s in manifest.Shots)
+            {
+                if (string.IsNullOrEmpty(s.File)) continue;
+                shots.Add(new WalkthroughShot { OffsetSeconds = s.OffsetSeconds, RelativePath = s.File.Replace('\\', '/') });
+            }
+            return shots;
+        }
+
         /// The shot list for a recording whose frames are served on demand (issue #59): one frame
         /// reference every <paramref name="intervalSeconds"/>, from zero to the recording's end,
         /// each pointing at the local control endpoint that extracts that frame from the video when

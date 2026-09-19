@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using AgentEyes;
 using AgentEyes.Housekeeping;
@@ -168,6 +169,126 @@ namespace AgentEyes.Tests
             Assert.NotNull(skipped);
         }
 
+        // ---- a half-done expiry is resumable from the written record ------------------------
+
+        [Fact]
+        public void Plan_APendingExpiry_CompletesFromTheWrittenRecordEvenWithNoKeeper()
+        {
+            // The state a crash between the repoint and the deletes leaves: the manifest no longer
+            // names the video, so NO inference from the keeper can find it. Only PendingExpiry can.
+            var manifest = new Manifest
+            {
+                Mode = "video",
+                CreatedUtc = "2026-08-01T10:00:00Z",
+                Transcript = "transcript.json",
+                PendingExpiry = new List<string> { "recording.mp4", "camera.mp4", "shots/frame_001.png" },
+            };
+            var disk = DiskWith(("recording.mp4", 5_000_000), ("camera.mp4", 700_000), ("shots/frame_001.png", 200_000));
+
+            var steps = HousekeepingPlan.For(manifest, disk, ageDays: 40, Ladder(), out _);
+
+            var expire = Assert.Single(steps.Where(s => s.Kind == HousekeepingKind.ExpireRecording));
+            Assert.Equal(5_900_000, expire.Bytes);
+
+            // The inputs are already inside the pending record; separate steps would double-count.
+            Assert.DoesNotContain(steps, s => s.Kind == HousekeepingKind.DeleteCompositionInput);
+        }
+
+        [Fact]
+        public void Plan_APendingExpiry_AlsoExpiresTheFramesTheRecordNames()
+        {
+            var manifest = new Manifest
+            {
+                Mode = "video",
+                CreatedUtc = "2026-08-01T10:00:00Z",
+                Transcript = "transcript.json",
+                PendingExpiry = new List<string> { "shots/frame_002.jpg" },
+            };
+            var disk = DiskWith(("shots/frame_002.jpg", 90_000));
+
+            var steps = HousekeepingPlan.For(manifest, disk, ageDays: 40, Ladder(), out _);
+
+            var expire = Assert.Single(steps.Where(s => s.Kind == HousekeepingKind.ExpireRecording));
+            Assert.Equal(90_000, expire.Bytes);
+        }
+
+        [Fact]
+        public void Plan_TheReportOnlyPass_CountsWhatAnExpiryWouldReclaim()
+        {
+            // The report is the thing that earns the switch being turned off: a dry run must name
+            // the bytes, or a pass that planned nothing would look identical to one that planned
+            // an expiry. Run against a real (dummy-media) recording: report-only touches nothing.
+            string root = Path.Combine(Path.GetTempPath(), "agenteyes-decayplan-" + Guid.NewGuid().ToString("N"));
+            string dir = Path.Combine(root, "2026-08-01_120000_video");
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(dir, "shots"));
+                File.WriteAllText(Path.Combine(dir, "recording.mp4"), new string('v', 5_000));
+                File.WriteAllText(Path.Combine(dir, "camera.mp4"), new string('v', 700));
+                File.WriteAllText(Path.Combine(dir, "shots", "frame_001.png"), new string('v', 200));
+                File.WriteAllText(Path.Combine(dir, "transcript.json"), "{\"segments\":[]}");
+                ManifestStore.Replace(dir, new Manifest
+                {
+                    Mode = "video",
+                    Label = "2026-08-01_120000_video",
+                    CreatedUtc = "2026-08-01T12:00:00Z",
+                    Transcript = "transcript.json",
+                    VideoFile = "recording.mp4",
+                    DurationSeconds = 2,
+                    Files = new List<string> { "recording.mp4", "camera.mp4", "shots/frame_001.png" },
+                    Shots = new List<Manifest.ShotEntry> { new() { OffsetSeconds = 0, File = "shots/frame_001.png" } },
+                });
+
+                var report = Housekeeper.Run(root, new HousekeepingSettings
+                {
+                    ReportOnly = true,
+                    PreservedOriginalDays = 7,
+                    KeepVideoDays = 30,
+                }, "test", () => false, new DateTime(2026, 9, 19, 12, 0, 0, DateTimeKind.Utc));
+
+                Assert.Equal(5_900, report.BytesPlanned);
+                Assert.True(Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories).Count() == 5,
+                    "a report-only pass changed something on disk");
+            }
+            finally
+            {
+                try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+            }
+        }
+
+        // ---- the page's shot list -------------------------------------------------------------
+
+        [Fact]
+        public void ShotsForPage_SkipsEmptyFileEntries_SoThePageNeverRendersAnEmptySrc()
+        {
+            // Re-packaging an on-demand recording must not double its frames: the earlier pass's
+            // empty-File entries are replaced by the fresh set, never rendered as <img src="">.
+            var manifest = new Manifest();
+            manifest.Shots.Add(new Manifest.ShotEntry { OffsetSeconds = 0, File = "" });
+            manifest.Shots.Add(new Manifest.ShotEntry { OffsetSeconds = 5, File = "" });
+            manifest.Shots.Add(new Manifest.ShotEntry { OffsetSeconds = 9, File = @"shots\region_640x480.png" });
+
+            var shots = Package.ShotsForPage(manifest);
+
+            var shot = Assert.Single(shots);
+            Assert.Equal("shots/region_640x480.png", shot.RelativePath);
+            Assert.False(shot.ServedOnDemand);
+        }
+
+        [Fact]
+        public void WalkthroughImages_AreLazy_SoOnePageDoesNotAskForEveryFrameAtOnce()
+        {
+            string html = AgentEyes.Packaging.WalkthroughBuilder.Build(
+                "t",
+                new List<AgentEyes.Packaging.WalkthroughShot>
+                {
+                    new() { OffsetSeconds = 0, RelativePath = "shots/frame_001.png" },
+                },
+                Array.Empty<TranscriptSegment>());
+
+            Assert.Contains("<img loading=\"lazy\"", html);
+        }
+
         // ---- on-demand frames: the pure pieces ----------------------------------------------
 
         [Fact]
@@ -239,9 +360,20 @@ namespace AgentEyes.Tests
         [Fact]
         public void TheAppConfig_MapsKeepVideoDaysIntoHousekeeping()
         {
-            var cfg = new AgentEyes.App.Config { HousekeepingKeepVideoDays = 21 };
+            var cfg = new AgentEyes.App.Config { HousekeepingKeepVideoDays = 90, HousekeepingPreservedOriginalDays = 7 };
 
-            Assert.Equal(21, cfg.HousekeepingSettings().KeepVideoDays);
+            Assert.Equal(90, cfg.HousekeepingSettings().KeepVideoDays);
+        }
+
+        [Fact]
+        public void TheAppConfig_ClampsAnExpirySoonerThanTheRawCopyWindow()
+        {
+            // Structural, not by value: an expiry sooner than the preserved-original window would
+            // delete the composed video while the raw copies it was cleaned from are still
+            // protected - the recording would lose its regenerable form before its raw one.
+            var cfg = new AgentEyes.App.Config { HousekeepingKeepVideoDays = 21, HousekeepingPreservedOriginalDays = 30 };
+
+            Assert.Equal(30, cfg.HousekeepingSettings().KeepVideoDays);
         }
     }
 }

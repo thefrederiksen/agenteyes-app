@@ -151,6 +151,8 @@ namespace AgentEyes.Housekeeping
             {
                 HousekeepingKind.DeleteDerived => step.Bytes,
                 HousekeepingKind.DeletePreservedOriginal => step.Bytes,
+                HousekeepingKind.DeleteCompositionInput => step.Bytes,
+                HousekeepingKind.ExpireRecording => step.Bytes,
                 HousekeepingKind.TruncateLog => step.Bytes - step.KeepBytes,
                 _ => 0,
             },
@@ -331,30 +333,41 @@ namespace AgentEyes.Housekeeping
         /// </summary>
         private static void ApplyExpiry(string dir, HousekeepingStep step, HousekeepingStepReport result)
         {
-            // What goes, positively enumerated from the disk this instant: the keeper, the composition
-            // inputs, the extracted frames. Nothing else - a hand-taken shot is not on this list and
-            // cannot get onto it.
-            var doomed = new List<(string Path, long Bytes)>();
+            // What goes, positively enumerated. In the fresh case: the keeper, the composition
+            // inputs, the extracted frames - nothing else, and a hand-taken shot is not on any list
+            // that could reach it. In the RESUME case: exactly the names an earlier pass wrote into
+            // PendingExpiry, which is the written record of the same set. Each path is considered
+            // once (a keeper that is also a composition input must not be counted or deleted twice).
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var doomed = new List<(string Path, long Bytes, string Relative)>();
             void Consider(string relative)
             {
                 string p = Path.Combine(dir, relative);
+                if (!seen.Add(p)) return;
                 if (!File.Exists(p)) return;
-                try { doomed.Add((p, new FileInfo(p).Length)); }
+                try { doomed.Add((p, new FileInfo(p).Length, relative)); }
                 catch (IOException) { /* a file that vanishes mid-enumeration is not one to delete */ }
             }
 
-            Consider(step.File);
-            foreach (string input in HousekeepingPlan.CompositionInputFiles) Consider(input);
-
-            string shots = Path.Combine(dir, HousekeepingPlan.FramesDirectory);
-            if (Directory.Exists(shots))
+            var manifestNow = Manifest.Load(dir);
+            if (manifestNow.PendingExpiry is { Count: > 0 })
             {
-                foreach (string pattern in new[] { "frame_*.png", "frame_*.jpg" })
+                foreach (string name in manifestNow.PendingExpiry) Consider(name);
+            }
+            else
+            {
+                Consider(step.File);
+                foreach (string input in HousekeepingPlan.CompositionInputFiles) Consider(input);
+
+                string shots = Path.Combine(dir, HousekeepingPlan.FramesDirectory);
+                if (Directory.Exists(shots))
                 {
-                    foreach (string frame in Directory.EnumerateFiles(shots, pattern))
+                    foreach (string pattern in new[] { "frame_*.png", "frame_*.jpg" })
                     {
-                        try { doomed.Add((frame, new FileInfo(frame).Length)); }
-                        catch (IOException) { }
+                        foreach (string frame in Directory.EnumerateFiles(shots, pattern))
+                        {
+                            Consider(Path.GetRelativePath(dir, frame).Replace('\\', '/'));
+                        }
                     }
                 }
             }
@@ -377,6 +390,10 @@ namespace AgentEyes.Housekeeping
             // 2) The manifest stops naming every file the disk is about to lose.
             ManifestStore.Update(dir, m =>
             {
+                // The intent goes on the record first: if this process dies before the deletes
+                // finish, the next pass completes the expiry from these names rather than from a
+                // keeper it can no longer see.
+                m.PendingExpiry = doomed.Select(d => d.Relative).ToList();
                 m.VideoFile = null;
                 foreach (string input in HousekeepingPlan.CompositionInputFiles)
                 {
@@ -385,13 +402,14 @@ namespace AgentEyes.Housekeeping
                 m.Files.RemoveAll(f =>
                     string.Equals(f, step.File, StringComparison.OrdinalIgnoreCase)
                     || HousekeepingPlan.CompositionInputFiles.Contains(f, StringComparer.OrdinalIgnoreCase)
-                    || HousekeepingPlan.IsExtractedFrameFile(f));
+                    || HousekeepingPlan.IsExtractedFrameFile(f)
+                    || (m.PendingExpiry ?? new List<string>()).Contains(f, StringComparer.OrdinalIgnoreCase));
                 m.Shots.RemoveAll(s => HousekeepingPlan.IsExtractedFrameFile(s.File));
             });
 
             // 3) Now the files can leave.
             long reclaimed = 0;
-            foreach (var (path, bytes) in doomed)
+            foreach (var (path, bytes, _) in doomed)
             {
                 try
                 {
@@ -403,6 +421,11 @@ namespace AgentEyes.Housekeeping
                     Log.Warn($"[Housekeeper] could not delete {path} while expiring {dir}: {ex.Message}");
                 }
             }
+
+            // The deletes are done, so the written intent is spent: clear it in its own update. A
+            // crash between the deletes and this line leaves a PendingExpiry naming files that are
+            // already gone - the next pass filters those to what exists, finds nothing, and clears it.
+            ManifestStore.Update(dir, m => m.PendingExpiry = null);
 
             result.Outcome = "done";
             result.BytesReclaimed = reclaimed;

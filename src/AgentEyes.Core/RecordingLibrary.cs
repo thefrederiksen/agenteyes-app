@@ -259,7 +259,7 @@ namespace AgentEyes
                 Mode = m.Mode,
                 DurationSeconds = m.DurationSeconds,
                 CreatedUtc = m.CreatedUtc,
-                ShotCount = m.Shots.Count,
+                ShotCount = m.Shots.Count(s => !string.IsNullOrEmpty(s.File)),
                 HasVideo = HasVideo(dir, m),
                 HasAudio = HasAudio(dir, m),
                 HasTranscript = HasTranscript(dir, m),

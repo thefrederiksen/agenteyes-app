@@ -307,6 +307,16 @@ namespace AgentEyes
         public PendingMuxInfo? PendingMux { get; set; }
 
         /// <summary>
+        /// Issue #59: the relative names of the files an expiry started deleting, written in the same
+        /// manifest update that stops naming them - the INTENT, on the record, rather than something
+        /// the next pass has to infer from a keeper that no longer exists. A process dying between
+        /// that update and the deletes leaves the video on disk with no <see cref="VideoFile"/> naming
+        /// it, and WITHOUT this field no later pass could ever find it again. The expiry clears it
+        /// back to null once every named file is gone. Null = no expiry in flight.
+        /// </summary>
+        public List<string>? PendingExpiry { get; set; }
+
+        /// <summary>
         /// Issue #152: the durable outcome of each post-recording stage (mux / thumbnail / package /
         /// plugins) - stage name -> what happened last time it was attempted. Written by
         /// <see cref="PostRecordingState"/> as the sequence runs, so an interrupted or partly failed

@@ -329,7 +329,12 @@ namespace AgentEyes.Housekeeping
             // preserved originals - a re-frame someone wanted has had a week to happen - and only
             // while the composed keeper exists, because without it these files are not inputs, they
             // are the recording. A file that IS the keeper is never an input to itself.
-            if (windowPassed && keeperOnDisk && !muxPending)
+            // A recording being EXPIRED this pass does not also get input steps: the expire step
+            // names the inputs in its own cost and deletes them itself, so separate steps would
+            // double-count the same bytes in the report and the record.
+            bool pendingExpiry = manifest.PendingExpiry is { Count: > 0 };
+
+            if (windowPassed && keeperOnDisk && !muxPending && !expiring && !pendingExpiry)
             {
                 foreach (string input in CompositionInputFiles)
                 {
@@ -355,31 +360,48 @@ namespace AgentEyes.Housekeeping
             // owner's own hand-taken shots, which no video can regenerate. ONE-WAY by design: after
             // this the frames cannot be re-extracted either, because the video that held them is the
             // thing that was deleted.
-            if (expiring && !muxPending)
+            if ((expiring || pendingExpiry) && !muxPending)
             {
                 long doomed = 0;
-                if (filesOnDisk.TryGetValue(keeper!, out long keeperSize)) doomed += keeperSize;
-                foreach (string input in CompositionInputFiles)
+                string reason;
+
+                if (pendingExpiry)
                 {
-                    if (filesOnDisk.TryGetValue(input, out long size)
-                        && !string.Equals(input, keeper, StringComparison.OrdinalIgnoreCase)) doomed += size;
+                    // An earlier pass wrote the doomed names into the manifest and died before the
+                    // deletes finished. This pass completes it from the written record - without
+                    // that record the video would sit on disk forever, named by nothing.
+                    foreach (string name in manifest.PendingExpiry!)
+                    {
+                        if (filesOnDisk.TryGetValue(name, out long size)) doomed += size;
+                    }
+                    reason = "completing an expiry an earlier pass left half done (PendingExpiry)";
                 }
-                int frameCount = 0;
-                foreach (var entry in filesOnDisk)
+                else
                 {
-                    if (!IsExtractedFrameFile(entry.Key)) continue;
-                    doomed += entry.Value;
-                    frameCount++;
+                    if (filesOnDisk.TryGetValue(keeper!, out long keeperSize)) doomed += keeperSize;
+                    foreach (string input in CompositionInputFiles)
+                    {
+                        if (filesOnDisk.TryGetValue(input, out long size)
+                            && !string.Equals(input, keeper, StringComparison.OrdinalIgnoreCase)) doomed += size;
+                    }
+                    int frameCount = 0;
+                    foreach (var entry in filesOnDisk)
+                    {
+                        if (!IsExtractedFrameFile(entry.Key)) continue;
+                        doomed += entry.Value;
+                        frameCount++;
+                    }
+                    reason = $"{ageDays} days old; the recording expires to its source of truth "
+                           + $"(transcript, walkthrough, manifest) after {settings.KeepVideoDays} days"
+                           + (frameCount > 0 ? $"; {frameCount} extracted frame(s) go with it" : "");
                 }
 
                 steps.Add(new HousekeepingStep
                 {
                     Kind = HousekeepingKind.ExpireRecording,
-                    File = keeper!,
+                    File = keeper ?? "",
                     Bytes = doomed,
-                    Reason = $"{ageDays} days old; the recording expires to its source of truth "
-                           + $"(transcript, walkthrough, manifest) after {settings.KeepVideoDays} days"
-                           + (frameCount > 0 ? $"; {frameCount} extracted frame(s) go with it" : ""),
+                    Reason = reason,
                 });
             }
 

@@ -200,6 +200,74 @@ namespace AgentEyes.Tests
                 s => s.Kind == nameof(HousekeepingKind.ExpireRecording));
         }
 
+        [Fact]
+        public void APendingExpiry_IsCompletedFromTheWrittenRecord_AndTheRecordIsCleared()
+        {
+            // The state a crash between the manifest repoint and the deletes leaves: the manifest
+            // names NO video, so nothing can find the file on disk except the written intent.
+            string dir = Path.Combine(_root, "2026-08-01_120000_video");
+            Directory.CreateDirectory(Path.Combine(dir, "shots"));
+            File.WriteAllText(Path.Combine(dir, "recording.mp4"), new string('v', 5_000));
+            File.WriteAllText(Path.Combine(dir, "camera.mp4"), new string('v', 700));
+            File.WriteAllText(Path.Combine(dir, "shots", "frame_001.png"), new string('v', 200));
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "{\"segments\":[]}");
+
+            ManifestStore.Replace(dir, new Manifest
+            {
+                Mode = "video",
+                Label = "2026-08-01_120000_video",
+                CreatedUtc = "2026-08-01T12:00:00Z",
+                Transcript = "transcript.json",
+                PendingExpiry = new List<string>
+                {
+                    "recording.mp4", "camera.mp4", "shots/frame_001.png",
+                },
+            });
+
+            Housekeeper.Run(_root, Live(keepVideoDays: 30), "test", () => false, Now);
+
+            Assert.False(File.Exists(Path.Combine(dir, "recording.mp4")),
+                "a pending expiry did not delete the video the manifest no longer names");
+            Assert.False(File.Exists(Path.Combine(dir, "camera.mp4")));
+            Assert.False(File.Exists(Path.Combine(dir, "shots", "frame_001.png")));
+            Assert.True(File.Exists(Path.Combine(dir, "transcript.json")));
+            Assert.Null(Manifest.Load(dir).PendingExpiry);
+        }
+
+        [Fact]
+        public void ALivePass_WhenTheKeeperIsACompositionInput_CountsAndDeletesItOnce()
+        {
+            // The planner protects a camera-only recording whose keeper IS camera.mp4. The expiry
+            // that follows must not count that one file twice (once as keeper, once as input).
+            string dir = Path.Combine(_root, "2026-08-01_120000_video");
+            Directory.CreateDirectory(dir);
+            long cameraSize = 700;
+            long screenSize = 300;
+            File.WriteAllText(Path.Combine(dir, "camera.mp4"), new string('v', (int)cameraSize));
+            File.WriteAllText(Path.Combine(dir, "recording.screen.mp4"), new string('v', (int)screenSize));
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "{\"segments\":[]}");
+
+            ManifestStore.Replace(dir, new Manifest
+            {
+                Mode = "video",
+                Label = "2026-08-01_120000_video",
+                CreatedUtc = "2026-08-01T12:00:00Z",
+                Transcript = "transcript.json",
+                VideoFile = "camera.mp4",
+                DurationSeconds = 2,
+                Files = new List<string> { "camera.mp4", "recording.screen.mp4" },
+            });
+
+            Housekeeper.Run(_root, Live(keepVideoDays: 30), "test", () => false, Now);
+
+            Assert.False(File.Exists(Path.Combine(dir, "camera.mp4")));
+            Assert.False(File.Exists(Path.Combine(dir, "recording.screen.mp4")));
+
+            var record = Assert.Single(Manifest.Load(dir).Housekeeping
+                .Where(h => h.Kind == nameof(HousekeepingKind.ExpireRecording)));
+            Assert.Equal(cameraSize + screenSize, record.BytesReclaimed);
+        }
+
         // ---- on-demand frames ----------------------------------------------------------------
 
         [Fact]

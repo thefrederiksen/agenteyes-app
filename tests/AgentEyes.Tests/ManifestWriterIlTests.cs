@@ -252,7 +252,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Commands::Video -> AgentEyes.ManifestStore::Replace x1",                  // a CLI video session's own record
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateManifest -> AgentEyes.ManifestStore::Update x1", // converted frames are repointed in Shots and Files
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> AgentEyes.ManifestStore::Update x2",           // a deleted preserved original or composition input is struck from the manifest
-            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> AgentEyes.ManifestStore::Update x1",      // an expired recording stops naming what it lost (issue #59)
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> AgentEyes.ManifestStore::Update x2",      // an expired recording records its intent, then clears it once the deletes are done (issue #59)
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyTranscode -> AgentEyes.ManifestStore::Update x1",  // a transcoded original is renamed in place
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Record -> AgentEyes.ManifestStore::Update x1",           // the issue #56 housekeeping record
             "agenteyes.dll!AgentEyes.Package::FinalizeManifest -> AgentEyes.ManifestStore::Update x1",         // what packaging produced
