@@ -107,7 +107,7 @@ namespace AgentEyes
                 using (var a = new AudioCapture(micDevice)) { a.Start(wav); Thread.Sleep(2500); a.Stop(); }
                 double dur = MediaProbe.DurationSeconds(wav);
                 Assert(dur >= 1.8 && dur <= 4.0, $"duration {dur:F1}s");
-                return $"{dur:F1}s 16k mono";
+                return $"{dur:F1}s 48k mono";
             });
 
             // 5. loopback + injected tone
