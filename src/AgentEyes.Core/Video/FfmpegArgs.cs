@@ -35,35 +35,7 @@ namespace AgentEyes.Video
             Drawing.Rectangle capture, string? dshowMicName, int fps, int crf, string outPath,
             Drawing.Rectangle? desktop = null, bool previewStream = false)
         {
-            var target = RegionMath.Evenize(capture);
-
-            // Decide what gdigrab actually grabs, and whether we must pad it back to the exact size.
-            var grab = target;
-            string? padFilter = null;
-            if (desktop is Drawing.Rectangle d && !d.IsEmpty)
-            {
-                var raw = Drawing.Rectangle.Intersect(target, d);
-                if (raw.Width < 2 || raw.Height < 2)
-                    throw new UsageException(
-                        $"the capture region {target.Width}x{target.Height} at ({target.X},{target.Y}) " +
-                        $"does not overlap the desktop ({d.Width}x{d.Height} at ({d.X},{d.Y})) - nothing to capture.");
-
-                var fit = RegionMath.Evenize(raw);
-                if (fit != target)
-                {
-                    grab = fit;
-                    int ox = grab.X - target.X;
-                    int oy = grab.Y - target.Y;
-                    // yuv420p pad offsets must be even; round down (shifts content <=1px, chroma-aligned).
-                    ox -= ox % 2;
-                    oy -= oy % 2;
-                    if (ox < 0) ox = 0;
-                    if (oy < 0) oy = 0;
-                    if (ox + grab.Width > target.Width) ox = target.Width - grab.Width;
-                    if (oy + grab.Height > target.Height) oy = target.Height - grab.Height;
-                    padFilter = $"pad={target.Width}:{target.Height}:{ox}:{oy}:black";
-                }
-            }
+            var (grab, padFilter) = GrabAndPad(capture, desktop);
 
             var a = new List<string>
             {
@@ -117,6 +89,46 @@ namespace AgentEyes.Video
             a.Add(outPath);
             if (previewStream) a.AddRange(PreviewOutput());
             return a;
+        }
+
+        /// <summary>
+        /// Split a requested capture region into what gdigrab can actually grab (the part inside the
+        /// desktop) and the pad filter that composes it back to the exact requested size (issue #69),
+        /// or no filter when the region fits. Shared by the normal recorder and always-on (issue #66).
+        /// </summary>
+        internal static (Drawing.Rectangle Grab, string? PadFilter) GrabAndPad(
+            Drawing.Rectangle capture, Drawing.Rectangle? desktop)
+        {
+            var target = RegionMath.Evenize(capture);
+
+            // Decide what gdigrab actually grabs, and whether we must pad it back to the exact size.
+            var grab = target;
+            string? padFilter = null;
+            if (desktop is Drawing.Rectangle d && !d.IsEmpty)
+            {
+                var raw = Drawing.Rectangle.Intersect(target, d);
+                if (raw.Width < 2 || raw.Height < 2)
+                    throw new UsageException(
+                        $"the capture region {target.Width}x{target.Height} at ({target.X},{target.Y}) " +
+                        $"does not overlap the desktop ({d.Width}x{d.Height} at ({d.X},{d.Y})) - nothing to capture.");
+
+                var fit = RegionMath.Evenize(raw);
+                if (fit != target)
+                {
+                    grab = fit;
+                    int ox = grab.X - target.X;
+                    int oy = grab.Y - target.Y;
+                    // yuv420p pad offsets must be even; round down (shifts content <=1px, chroma-aligned).
+                    ox -= ox % 2;
+                    oy -= oy % 2;
+                    if (ox < 0) ox = 0;
+                    if (oy < 0) oy = 0;
+                    if (ox + grab.Width > target.Width) ox = target.Width - grab.Width;
+                    if (oy + grab.Height > target.Height) oy = target.Height - grab.Height;
+                    padFilter = $"pad={target.Width}:{target.Height}:{ox}:{oy}:black";
+                }
+            }
+            return (grab, padFilter);
         }
 
         // ---- the HUD preview tap (issue #33) --------------------------------

@@ -76,5 +76,33 @@ namespace AgentEyes.Housekeeping
 
             return advanced;
         }
+
+        /// <summary>
+        /// The ceiling's rule applied to files that can simply be DELETED rather than aged forward
+        /// (issue #66, always-on clips): while the total - including <paramref name="fixedBytes"/>, the
+        /// bytes that count but can never be taken - is over <paramref name="ceilingBytes"/>, take the
+        /// OLDEST unpinned candidate. Same order, same pin rule, as <see cref="Advance"/>. There is no
+        /// protected window here: an always-on clip is the product of a rule the owner set, and the
+        /// cap is the owner saying how much of it to hold.
+        ///
+        /// Candidates must come oldest first (the caller knows the exact times; AgeDays is too coarse
+        /// for clips minutes apart). Returns the ones to delete, in that order.
+        /// </summary>
+        public static IReadOnlyList<HousekeepingCandidate> EvictOldest(
+            IReadOnlyList<HousekeepingCandidate> oldestFirst, long ceilingBytes, long fixedBytes)
+        {
+            var evict = new List<HousekeepingCandidate>();
+            if (ceilingBytes <= 0) return evict;
+
+            long total = fixedBytes + oldestFirst.Sum(c => c.Bytes);
+            foreach (var c in oldestFirst)
+            {
+                if (total <= ceilingBytes) break;
+                if (c.Pinned) continue;
+                evict.Add(c);
+                total -= c.Bytes;
+            }
+            return evict;
+        }
     }
 }
