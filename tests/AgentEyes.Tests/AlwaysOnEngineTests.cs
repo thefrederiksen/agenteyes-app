@@ -179,7 +179,7 @@ namespace AgentEyes.Tests
             // Named exactly like a clip, older than all of them - but not one this engine wrote.
             string lookalike = Make("2026-09-19_10-00-00.mp4", 2000);
             Directory.CreateDirectory(o.WorkFolder);
-            File.WriteAllLines(o.ClipLedger, new[] { "2026-09-20_10-00-00.mp4", "2026-09-21_10-00-00.mp4", "2026-09-22_10-00-00.mp4" });
+            File.WriteAllLines(o.ClipLedger, new[] { oldest, older, newest }.Select(p => AlwaysOnEngine.LedgerLine(new FileInfo(p))));
 
             using var engine = Engine();
             engine.Start(o);
@@ -189,6 +189,95 @@ namespace AgentEyes.Tests
             Assert.True(File.Exists(newest));
             Assert.True(File.Exists(foreign));
             Assert.True(File.Exists(lookalike));
+            // The evicted clip is no longer deletion authority.
+            Assert.DoesNotContain(File.ReadAllLines(o.ClipLedger), l => l.StartsWith("2026-09-20_10-00-00.mp4"));
+            Assert.Equal(2, File.ReadAllLines(o.ClipLedger).Length);
+        }
+
+        [Fact]
+        public void EnforceCap_AnotherFileSavedUnderAnEvictedClipsName_IsNeverDeleted()
+        {
+            var o = Options(capBytes: 1500);
+            Directory.CreateDirectory(o.ClipsFolder);
+            Directory.CreateDirectory(o.WorkFolder);
+            string clip = Path.Combine(o.ClipsFolder, "2026-09-20_10-00-00.mp4");
+            File.WriteAllBytes(clip, new byte[1000]);
+            File.SetLastWriteTimeUtc(clip, DateTime.UtcNow.AddDays(-3));
+            File.WriteAllLines(o.ClipLedger, new[] { AlwaysOnEngine.LedgerLine(new FileInfo(clip)) });
+            // The owner's own video, saved later under the same name: same path, not the same file.
+            File.WriteAllBytes(clip, new byte[5000]);
+
+            using var engine = Engine();
+            engine.Start(o);
+
+            Assert.True(File.Exists(clip));
+            Assert.Equal(5000, new FileInfo(clip).Length);
+        }
+
+        [Fact]
+        public void EnforceCap_LedgerLost_DeletesNothing()
+        {
+            var o = Options(capBytes: 1000);
+            Directory.CreateDirectory(o.ClipsFolder);
+            string a = Path.Combine(o.ClipsFolder, "2026-09-20_10-00-00.mp4");
+            string b = Path.Combine(o.ClipsFolder, "2026-09-21_10-00-00.mp4");
+            File.WriteAllBytes(a, new byte[1000]);
+            File.WriteAllBytes(b, new byte[1000]);
+
+            using var engine = Engine();
+            engine.Start(o);
+
+            Assert.True(File.Exists(a));
+            Assert.True(File.Exists(b));
+        }
+
+        [Fact]
+        public void Tick_KeeperFailsDuringARestart_TheCaptureStillRestarts()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            WritePiece(o.PieceFolder, t0);
+            _now = t0.AddMinutes(10);
+            _recorders[0].Exited = true;
+
+            // A silent finished piece held open with no sharing: the final pass cannot delete it.
+            string held = Directory.GetFiles(o.PieceFolder)[0];
+            using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Assert.ThrowsAny<IOException>(() => engine.Tick());
+            }
+
+            Assert.Equal(2, _recorders.Count);
+            Assert.Equal(AlwaysOnState.Listening, engine.State);
+
+            // The new capture writes its first piece; the next pass decides the one the failed pass could not.
+            WritePiece(o.PieceFolder, _now);
+            _now = _now.AddMinutes(3);
+            WritePiece(o.PieceFolder, _now);
+            engine.Tick();
+            Assert.False(File.Exists(held));
+        }
+
+        [Fact]
+        public void Pause_KeeperFails_IsStillPaused()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            WritePiece(o.PieceFolder, t0);
+            _now = t0.AddMinutes(10);
+
+            string held = Directory.GetFiles(o.PieceFolder)[0];
+            using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Assert.ThrowsAny<IOException>(() => engine.Pause("test"));
+            }
+
+            Assert.Equal(AlwaysOnState.Paused, engine.State);
+            Assert.True(_recorders[0].Stopped);
         }
 
         [Fact]

@@ -222,6 +222,11 @@ namespace AgentEyes.AlwaysOn
             if (_stopped) return;
             _stopped = true;
             Log.Info("[ContinuousRecorder] Stop: finishing the current piece");
+            // Order matters (review round 2, finding 3): stop the sound at its source, let everything
+            // already queued reach ffmpeg, and only then end ffmpeg and close the pipe. Closing the
+            // pipe first threw away up to the queue's worth of the final piece's system sound.
+            StopAudioSources();
+            DrainFeeder();
             StopProcess();
             StopAudio();
             Log.Info("[ContinuousRecorder] Stop: stopped");
@@ -252,6 +257,22 @@ namespace AgentEyes.AlwaysOn
                 }
             }
             catch (InvalidOperationException) { /* never started */ }
+        }
+
+        private void StopAudioSources()
+        {
+            try { _loop?.Stop(); } catch (Exception ex) { Log.Error("[ContinuousRecorder] StopAudioSources: loopback stop failed", ex); }
+            try { _mic?.Stop(); } catch (Exception ex) { Log.Error("[ContinuousRecorder] StopAudioSources: mic stop failed", ex); }
+        }
+
+        private void DrainFeeder()
+        {
+            if (_feeder == null) return;
+            if (_feeder.Complete(TimeSpan.FromSeconds(12)))
+                Log.Info("[ContinuousRecorder] DrainFeeder: all queued system sound reached ffmpeg");
+            else
+                Log.Warn("[ContinuousRecorder] DrainFeeder: ffmpeg did not take the queued system sound within 12s; "
+                         + "the end of the last piece's system sound is lost");
         }
 
         private void StopAudio()

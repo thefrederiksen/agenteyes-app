@@ -185,6 +185,9 @@ namespace AgentEyes.AlwaysOn
                 Directory.CreateDirectory(options.ClipsFolder);
 
                 _options = options;
+                // One sound log for the whole run: a capture restart must not forget what was heard
+                // around the pieces the old capture wrote, or they would be decided as silence.
+                _sound = new SoundLog(options.Counts, options.ThresholdDb);
                 _day = AlwaysOnDay.Load(options.StatsFile);
                 _day.EnsureDay(_utcNow());
                 _lastError = null;
@@ -230,11 +233,19 @@ namespace AgentEyes.AlwaysOn
                 Log.Info("[AlwaysOnEngine] Stop: stopping always-on");
                 _timer?.Dispose();
                 _timer = null;
-                StopRecorderAndFinish("stop");
-                _state = AlwaysOnState.Off;
-                _pausedReason = null;
-                _sinceUtc = null;
-                Publish();
+                try
+                {
+                    StopRecorderAndFinish("stop");
+                }
+                finally
+                {
+                    // Off is off even when the last keeper pass failed; what it did not decide is
+                    // on disk and the next start recovers it.
+                    _state = AlwaysOnState.Off;
+                    _pausedReason = null;
+                    _sinceUtc = null;
+                    Publish();
+                }
             }
             Log.Info("[AlwaysOnEngine] Stop: always-on is off");
             RaiseChanged();
@@ -251,10 +262,16 @@ namespace AgentEyes.AlwaysOn
             {
                 if (_state is AlwaysOnState.Off or AlwaysOnState.Paused) return;
                 Log.Info($"[AlwaysOnEngine] Pause: {reason}");
-                StopRecorderAndFinish("pause");
-                _state = AlwaysOnState.Paused;
-                _pausedReason = reason;
-                Publish();
+                try
+                {
+                    StopRecorderAndFinish("pause");
+                }
+                finally
+                {
+                    _state = AlwaysOnState.Paused;
+                    _pausedReason = reason;
+                    Publish();
+                }
             }
             RaiseChanged();
         }
@@ -377,11 +394,10 @@ namespace AgentEyes.AlwaysOn
 
         private void StartRecorder(AlwaysOnOptions o)
         {
-            _sound = new SoundLog(o.Counts, o.ThresholdDb);
             var rec = _recorderFactory();
             try
             {
-                rec.Start(o, _sound);
+                rec.Start(o, _sound!);
             }
             catch
             {
@@ -426,9 +442,20 @@ namespace AgentEyes.AlwaysOn
             catch (Exception ex) { Log.Error("[AlwaysOnEngine] Supervise: stopping the failed capture threw", ex); }
             _recorder.Dispose();
             _recorder = null;
-            RunKeeper(_options!, now, final: true, recorderRunning: false);
-            ResetKeeper();
-            TryRestart(now);
+            try
+            {
+                RunKeeper(_options!, now, final: true, recorderRunning: false);
+            }
+            finally
+            {
+                // The restart never waits on the keeper (review round 2, finding 1): a keeper pass that
+                // throws - a piece held open by a virus scanner - would otherwise leave always-on
+                // saying it is on with no capture and nothing that ever starts one again. Pieces the
+                // pass did not decide stay in the folder and the next pass decides them with the same
+                // sound log; a clip it had open stays in its holding folder for the next start.
+                ResetKeeper();
+                TryRestart(now);
+            }
         }
 
         private void TryRestart(DateTime now)
@@ -466,8 +493,14 @@ namespace AgentEyes.AlwaysOn
                 _recorder.Dispose();
                 _recorder = null;
             }
-            if (_options != null) RunKeeper(_options, _utcNow(), final: true, recorderRunning: false);
-            ResetKeeper();
+            try
+            {
+                if (_options != null) RunKeeper(_options, _utcNow(), final: true, recorderRunning: false);
+            }
+            finally
+            {
+                ResetKeeper();
+            }
         }
 
         private void ResetKeeper()
@@ -601,10 +634,11 @@ namespace AgentEyes.AlwaysOn
                 return;
             }
 
-            long bytes = new FileInfo(outPath).Length;
+            var written = new FileInfo(outPath);
+            long bytes = written.Length;
             // The ledger is written BEFORE the pieces go: a clip the cap may delete is a clip this
             // engine is on record as having written (review finding 3).
-            File.AppendAllText(o.ClipLedger, Path.GetFileName(outPath) + Environment.NewLine);
+            File.AppendAllText(o.ClipLedger, LedgerLine(written) + Environment.NewLine);
             Directory.Delete(dir, recursive: true);
             _day.EnsureDay(now);
             _day.Clips++;
@@ -656,12 +690,33 @@ namespace AgentEyes.AlwaysOn
                 Pinned = false,
             }).ToList();
             long fixedBytes = FolderBytes(o.WorkFolder);
+            var evicted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var c in HousekeepingCeiling.EvictOldest(candidates, o.CapBytes, fixedBytes))
             {
                 File.Delete(c.Recording);
+                evicted.Add(c.Recording);
                 Log.Info($"[AlwaysOnEngine] EnforceCap: deleted {Path.GetFileName(c.Recording)} "
                          + $"({c.Bytes / 1024.0 / 1024:0.0} MB) - the clips were over the {o.CapBytes / 1024.0 / 1024 / 1024:0.##} GB cap");
             }
+            // Rewrite the ledger to the clips that are still there and still the file that was
+            // written: an evicted or replaced name stops being deletion authority at once (review
+            // round 2, finding 2).
+            WriteLedger(o, clips.Where(f => !evicted.Contains(f.FullName)));
+        }
+
+        /// <summary>
+        /// One ledger line: the clip's name, size and last-write time. The cap trusts a file only while
+        /// all three still match, so another file later saved under an evicted clip's name is not
+        /// mistaken for the clip.
+        /// </summary>
+        internal static string LedgerLine(FileInfo clip) =>
+            $"{clip.Name}\t{clip.Length}\t{clip.LastWriteTimeUtc.Ticks}";
+
+        private static void WriteLedger(AlwaysOnOptions o, IEnumerable<FileInfo> clips)
+        {
+            string tmp = o.ClipLedger + ".tmp";
+            File.WriteAllLines(tmp, clips.Select(LedgerLine));
+            File.Move(tmp, o.ClipLedger, overwrite: true);
         }
 
         // ---- files -----------------------------------------------------------
@@ -681,18 +736,36 @@ namespace AgentEyes.AlwaysOn
         }
 
         /// <summary>
-        /// The clips THIS ENGINE WROTE that are still on disk: the names in the ledger, nothing else. A
-        /// name that merely looks like a clip is not proof - someone else's video called
-        /// 2026-09-20_10-00-00.mp4 in the same folder is never counted and never deleted.
+        /// The clips THIS ENGINE WROTE that are still on disk, unchanged: a ledger entry whose name,
+        /// size and write time all match the file. A name that merely looks like a clip is not proof -
+        /// someone else's video called 2026-09-20_10-00-00.mp4 is never counted and never deleted, even
+        /// when an evicted clip once had that name.
+        ///
+        /// Leans to keep: with the ledger lost, nothing is provably the engine's, so the cap deletes
+        /// nothing and says so in the log - it never guesses from names.
         /// </summary>
         private static List<FileInfo> ClipFiles(AlwaysOnOptions o)
         {
-            if (!File.Exists(o.ClipLedger) || !Directory.Exists(o.ClipsFolder)) return new List<FileInfo>();
-            var names = File.ReadAllLines(o.ClipLedger)
-                .Select(l => l.Trim())
-                .Where(l => l.Length > 0 && l.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase);
-            return names.Select(n => new FileInfo(Path.Combine(o.ClipsFolder, n))).Where(f => f.Exists).ToList();
+            var list = new List<FileInfo>();
+            if (!Directory.Exists(o.ClipsFolder)) return list;
+            if (!File.Exists(o.ClipLedger))
+            {
+                if (Directory.EnumerateFiles(o.ClipsFolder, "*.mp4").Any())
+                    Log.Warn($"[AlwaysOnEngine] ClipFiles: no clip ledger at {o.ClipLedger}; the cap will not delete "
+                             + $"any video in {o.ClipsFolder} because none can be proven to be a clip this engine wrote");
+                return list;
+            }
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in File.ReadAllLines(o.ClipLedger))
+            {
+                var parts = line.Split('\t');
+                if (parts.Length != 3 || parts[0].IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) continue;
+                if (!long.TryParse(parts[1], out long bytes) || !long.TryParse(parts[2], out long ticks)) continue;
+                if (!seen.Add(parts[0])) continue;
+                var f = new FileInfo(Path.Combine(o.ClipsFolder, parts[0]));
+                if (f.Exists && f.Length == bytes && f.LastWriteTimeUtc.Ticks == ticks) list.Add(f);
+            }
+            return list;
         }
 
         private static long FolderBytes(string folder) =>

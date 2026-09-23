@@ -313,6 +313,62 @@ namespace AgentEyes.Tests
             Assert.Equal(99, got[^1]);
         }
 
+        [Fact]
+        public void PipeFeeder_Complete_SlowReader_EveryQueuedByteArrivesBeforeItReturns()
+        {
+            // The production stop order: Complete while the pipe is still open, then close it.
+            var sink = new SlowStream(delayMs: 5);
+            var feeder = new PipeFeeder(sink, maxQueuedBytes: 1 << 20);
+            for (int i = 0; i < 100; i++) feeder.Write(new byte[1000], 0, 1000);
+
+            bool drained = feeder.Complete(TimeSpan.FromSeconds(10));
+            long got = sink.Written;
+            sink.Dispose();
+            feeder.Dispose();
+
+            Assert.True(drained);
+            Assert.Equal(100_000, got);
+        }
+
+        [Fact]
+        public void PipeFeeder_Complete_StuckReader_ReturnsFalseWithinTheTimeout()
+        {
+            using var stuck = new StuckStream();
+            using var feeder = new PipeFeeder(stuck, maxQueuedBytes: 1 << 20);
+            feeder.Write(new byte[10], 0, 10);
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            Assert.False(feeder.Complete(TimeSpan.FromMilliseconds(300)));
+            Assert.True(sw.ElapsedMilliseconds < 3000);
+            stuck.Release();
+        }
+
+        /// <summary>A pipe whose reader takes a while over every write.</summary>
+        private sealed class SlowStream : System.IO.Stream
+        {
+            private readonly int _delayMs;
+            private long _written;
+            public SlowStream(int delayMs) => _delayMs = delayMs;
+            public long Written => System.Threading.Interlocked.Read(ref _written);
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                if (_disposed) throw new System.ObjectDisposedException(nameof(SlowStream));
+                System.Threading.Thread.Sleep(_delayMs);
+                System.Threading.Interlocked.Add(ref _written, count);
+            }
+            private volatile bool _disposed;
+            public override bool CanRead => false;
+            public override bool CanSeek => false;
+            public override bool CanWrite => true;
+            public override long Length => 0;
+            public override long Position { get => 0; set { } }
+            public override void Flush() { }
+            public override int Read(byte[] buffer, int offset, int count) => 0;
+            public override long Seek(long offset, System.IO.SeekOrigin origin) => 0;
+            public override void SetLength(long value) { }
+            protected override void Dispose(bool disposing) { _disposed = true; base.Dispose(disposing); }
+        }
+
         /// <summary>A pipe whose reader is alive and never reads: every write blocks.</summary>
         private sealed class StuckStream : System.IO.Stream
         {

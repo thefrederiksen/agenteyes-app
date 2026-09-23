@@ -81,11 +81,24 @@ namespace AgentEyes.AlwaysOn
             }
         }
 
+        /// <summary>
+        /// Take no more audio and wait until everything queued has been written into the pipe (or the
+        /// pipe failed). Call it BEFORE the pipe is closed, so the last seconds reach the reader.
+        /// </summary>
+        /// <returns>True when the queue drained within <paramref name="timeout"/>.</returns>
+        public bool Complete(TimeSpan timeout)
+        {
+            if (!_queue.IsAddingCompleted) _queue.CompleteAdding();
+            bool done = _thread.Join(timeout);
+            Log.Info($"[PipeFeeder] Complete: drained={done} broken={_broken} left={Interlocked.Read(ref _queuedBytes)} bytes");
+            return done && !_broken;
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                _queue.CompleteAdding();
+                if (!_queue.IsAddingCompleted) _queue.CompleteAdding();
                 // The drain may be blocked in a write to a reader that stopped; do not wait long for
                 // it. Disposing the pipe (the owner does that) ends that write.
                 _thread.Join(TimeSpan.FromSeconds(2));
