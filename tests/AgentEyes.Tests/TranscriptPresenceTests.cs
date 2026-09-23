@@ -1,0 +1,627 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using Xunit;
+using AgentEyes;
+using AgentEyes.App;
+
+namespace AgentEyes.Tests
+{
+    /// <summary>
+    /// Issue #4 - the desktop Library claimed a recording was transcribed when only a legacy flat
+    /// transcript.txt existed. The Library card keyed its "Transcript" chip off transcript.txt
+    /// EXISTING, and the detail window keyed its has-transcript flag off flat-text LENGTH, while
+    /// the transcription backlog (and the Control API) treat the manifest-named transcript.json as
+    /// completion - so the UI said "transcribed" about recordings that were in fact still queued.
+    ///
+    /// These tests pin every surface to the ONE canonical predicate (TranscriptStatus):
+    ///
+    /// * The predicate itself: transcript.json (manifest-named) = transcribed; transcript.txt
+    ///   alone = flat text only, never "transcribed".
+    /// * Criterion 1 - the Library card: a flat-text-only fixture must NOT show the Transcript
+    ///   chip (it shows the quieter "Text file" chip instead). Swap the card back to
+    ///   File.Exists(transcript.txt) and LibraryCard_FlatTextOnly_* fails.
+    /// * Criterion 2 - the detail window: its decisions live in the extracted, testable
+    ///   TranscriptPresentation (the window itself needs a WPF Application to construct, which is
+    ///   exactly why the decision was pulled out of it - the issue's flagged assumption). Swap
+    ///   HasTranscript back to text length and DetailPresentation_FlatTextOnly_* fails, because
+    ///   the flat fixture HAS text but must NOT claim a transcript.
+    /// * Criterion 5 - the flat text stays readable and copyable; the distinction never removes
+    ///   access to content that already exists.
+    /// * The Control API rows (RecordingLibrary): hasTranscript is canonical, the legacy file is
+    ///   exposed separately as hasFlatTranscript - so the API and the desktop can never disagree
+    ///   about the same recording again.
+    /// </summary>
+    public sealed class TranscriptPresenceTests : IDisposable
+    {
+        private readonly string _root;
+
+        public TranscriptPresenceTests()
+        {
+            _root = Path.Combine(Path.GetTempPath(), "agenteyes-tx-presence-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_root);
+        }
+
+        public void Dispose()
+        {
+            try { Directory.Delete(_root, recursive: true); } catch { }
+        }
+
+        // ---- fixtures ------------------------------------------------------
+
+        /// <summary>A recording folder with a manifest, no transcript artifacts.</summary>
+        private string Recording(string leaf)
+        {
+            string dir = Path.Combine(_root, leaf);
+            Directory.CreateDirectory(dir);
+            var m = new Manifest
+            {
+                Mode = "video",
+                Label = leaf,
+                CreatedUtc = "2026-08-01T10:00:00.0000000Z",
+                DurationSeconds = 30,
+            };
+            File.WriteAllText(Path.Combine(dir, "recording.mp4"), "x");
+            m.VideoFile = "recording.mp4";
+            ManifestStore.Replace(dir, m);
+            return dir;
+        }
+
+        /// <summary>The legacy shape: ONLY a flat transcript.txt, no transcript.json - the
+        /// recording was never transcribed by the current pipeline.</summary>
+        private string FlatTextOnlyRecording(string leaf, string text = "legacy flat words")
+        {
+            string dir = Recording(leaf);
+            File.WriteAllText(Path.Combine(dir, "transcript.txt"), text);
+            return dir;
+        }
+
+        /// <summary>The completed shape the pipeline writes: manifest-named transcript.json plus
+        /// the flat transcript.txt alongside it.</summary>
+        private string TranscribedRecording(string leaf)
+        {
+            string dir = Recording(leaf);
+            File.WriteAllText(Path.Combine(dir, "transcript.json"),
+                "[{\"StartSeconds\":0.0,\"EndSeconds\":1.5,\"Text\":\"hello\"}," +
+                "{\"StartSeconds\":1.5,\"EndSeconds\":3.0,\"Text\":\"world\"}]");
+            // The pipeline's human-readable rendering: one timestamped line per segment
+            // (Package.WriteTranscript) - what the detail view has always displayed.
+            File.WriteAllText(Path.Combine(dir, "transcript.txt"),
+                "[00:00:00] hello" + Environment.NewLine + "[00:00:01] world");
+            var m = Manifest.Load(dir);
+            m.Transcript = "transcript.json";
+            ManifestStore.Replace(dir, m);
+            return dir;
+        }
+
+        // ---- the canonical predicate itself --------------------------------
+
+        [Fact]
+        public void Classify_FlatTextOnly_IsFlatTextOnlyNotTranscribed()
+        {
+            string dir = FlatTextOnlyRecording("flat");
+            var m = Manifest.Load(dir);
+
+            Assert.Equal(TranscriptKind.FlatTextOnly, TranscriptStatus.Classify(dir, m));
+            Assert.False(TranscriptStatus.IsTranscribed(dir, m));
+            Assert.True(TranscriptStatus.HasFlatText(dir));
+        }
+
+        [Fact]
+        public void Classify_TranscriptJson_IsTranscribed()
+        {
+            string dir = TranscribedRecording("done");
+            var m = Manifest.Load(dir);
+
+            Assert.Equal(TranscriptKind.Transcribed, TranscriptStatus.Classify(dir, m));
+            Assert.True(TranscriptStatus.IsTranscribed(dir, m));
+        }
+
+        [Fact]
+        public void Classify_ManifestNamedArtifact_IsHonored()
+        {
+            // The manifest may name a non-default transcript artifact; the predicate must follow
+            // the manifest, exactly as RecordingLibrary and the packager do.
+            string dir = Recording("named");
+            File.WriteAllText(Path.Combine(dir, "words.json"), "[]");
+            var m = Manifest.Load(dir);
+            m.Transcript = "words.json";
+            ManifestStore.Replace(dir, m);
+
+            Assert.Equal(TranscriptKind.Transcribed, TranscriptStatus.Classify(dir, Manifest.Load(dir)));
+        }
+
+        [Fact]
+        public void Classify_NoArtifacts_IsNone()
+        {
+            string dir = Recording("bare");
+            Assert.Equal(TranscriptKind.None, TranscriptStatus.Classify(dir, Manifest.Load(dir)));
+        }
+
+        [Fact]
+        public void Classify_NullManifest_StillFindsDefaultNamesAndFlatText()
+        {
+            // An unreadable manifest must not hide artifacts that are plainly on disk.
+            string dir = FlatTextOnlyRecording("nomanifest");
+            Assert.Equal(TranscriptKind.FlatTextOnly, TranscriptStatus.Classify(dir, null));
+
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "[]");
+            Assert.Equal(TranscriptKind.Transcribed, TranscriptStatus.Classify(dir, null));
+        }
+
+        // ---- criterion 1: the Library card ---------------------------------
+
+        [Fact]
+        public void LibraryCard_FlatTextOnly_DoesNotShowTranscriptChip()
+        {
+            var card = RecentItem.From(FlatTextOnlyRecording("flat_card"));
+
+            // The defect: this chip used to be driven by File.Exists(transcript.txt), which is
+            // true for this fixture. The canonical predicate says NOT transcribed.
+            Assert.NotEqual(Visibility.Visible, card.TranscriptChipVisibility);
+
+            // The quieter affordance replaces it - the text is still one click away.
+            Assert.Equal(Visibility.Visible, card.FlatTextChipVisibility);
+        }
+
+        [Fact]
+        public void LibraryCard_TranscribedRecording_ShowsTranscriptChipOnly()
+        {
+            var card = RecentItem.From(TranscribedRecording("done_card"));
+
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.FlatTextChipVisibility);
+        }
+
+        [Fact]
+        public void LibraryCard_NoTranscript_ShowsNeitherChip()
+        {
+            var card = RecentItem.From(Recording("bare_card"));
+
+            Assert.Equal(Visibility.Collapsed, card.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.FlatTextChipVisibility);
+        }
+
+        [Fact]
+        public void LibraryCard_CorruptManifest_StillClassifiesFromDisk()
+        {
+            // An unreadable manifest must not hide artifacts that are plainly on disk (review
+            // finding): the chips are file facts, classified with a null manifest exactly like
+            // the detail window's fallback.
+            string dir = Path.Combine(_root, "corrupt_card");
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "manifest.json"), "{ not json");
+            File.WriteAllText(Path.Combine(dir, "transcript.txt"), "still here");
+
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.FlatTextChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.TranscriptChipVisibility);
+
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "[]");
+            card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.FlatTextChipVisibility);
+        }
+
+        // ---- criterion 2: the detail window's decision ---------------------
+
+        [Fact]
+        public void DetailPresentation_FlatTextOnly_MakesNoTranscriptClaim()
+        {
+            string dir = FlatTextOnlyRecording("flat_detail", "the old flat words");
+            var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
+
+            // The defect: the window's flag used to be transcript-text LENGTH, which is > 0 here.
+            Assert.False(p.HasTranscript);
+            Assert.Equal(TranscriptKind.FlatTextOnly, p.Kind);
+            Assert.NotNull(p.LegacyNotice);
+        }
+
+        [Fact]
+        public void DetailPresentation_FlatTextOnly_TextStaysReadableAndCopyable()
+        {
+            // Criterion 5: the distinction must not remove access to content that already exists.
+            string dir = FlatTextOnlyRecording("flat_access", "the old flat words");
+            var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
+
+            Assert.Equal("the old flat words", p.Text);
+            Assert.True(p.CanCopy);
+        }
+
+        [Fact]
+        public void DetailPresentation_TranscribedRecording_ClaimsTranscriptAndKeepsFlatRendering()
+        {
+            string dir = TranscribedRecording("done_detail");
+            var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
+
+            Assert.True(p.HasTranscript);
+            Assert.Equal(TranscriptKind.Transcribed, p.Kind);
+            // The displayed text is the pipeline's timestamped flat rendering, exactly what the
+            // window showed before issue #4 - the presence CLAIM changed, the text did not
+            // (review finding: joining the JSON segments would flatten the timecodes away).
+            Assert.Equal("[00:00:00] hello" + Environment.NewLine + "[00:00:01] world", p.Text);
+            Assert.True(p.CanCopy);
+            Assert.Null(p.LegacyNotice);
+        }
+
+        [Fact]
+        public void DetailPresentation_TranscribedWithoutFlatFile_FallsBackToJsonText()
+        {
+            // A transcribed recording whose flat rendering was deleted still shows its text,
+            // read from the JSON segments through the same reader the Control API serves.
+            string dir = TranscribedRecording("done_nofla");
+            File.Delete(Path.Combine(dir, "transcript.txt"));
+            var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
+
+            Assert.True(p.HasTranscript);
+            Assert.Equal("hello world", p.Text);
+            Assert.True(p.CanCopy);
+        }
+
+        [Fact]
+        public void DetailPresentation_EmptyFlatTextOnly_NoNoticeNoCopy()
+        {
+            // A 0-byte legacy file: the chip-level classification is FlatTextOnly (the file
+            // exists), but nothing is shown, so no "showing the text file" caption may stack
+            // over the empty-state placeholder and there is nothing to copy.
+            string dir = FlatTextOnlyRecording("flat_empty", "");
+            var p = TranscriptPresentation.For(dir, Manifest.Load(dir));
+
+            Assert.False(p.HasTranscript);
+            Assert.Equal(TranscriptKind.FlatTextOnly, p.Kind);
+            Assert.Equal("", p.Text);
+            Assert.False(p.CanCopy);
+            Assert.Null(p.LegacyNotice);
+        }
+
+        [Fact]
+        public void DetailPresentation_NoTranscript_NoClaimNoCopy()
+        {
+            var p = TranscriptPresentation.For(Recording("bare_detail"), null);
+
+            Assert.False(p.HasTranscript);
+            Assert.Equal(TranscriptKind.None, p.Kind);
+            Assert.Equal("", p.Text);
+            Assert.False(p.CanCopy);
+        }
+
+        // ---- the Control API rows say the same thing -----------------------
+
+        [Fact]
+        public void Library_FlatTextOnly_HasTranscriptFalse_HasFlatTranscriptTrue()
+        {
+            FlatTextOnlyRecording("flat_api");
+
+            var page = RecordingLibrary.List(limit: 10, offset: 0, root: _root);
+            var row = Assert.Single(page.Items);
+            Assert.False(row.HasTranscript);
+            Assert.True(row.HasFlatTranscript);
+
+            var detail = RecordingLibrary.GetDetail("flat_api", _root);
+            Assert.NotNull(detail);
+            Assert.False(detail!.HasTranscript);
+            Assert.True(detail.HasFlatTranscript);
+        }
+
+        [Fact]
+        public void Library_TranscribedRecording_HasTranscriptTrue()
+        {
+            TranscribedRecording("done_api");
+
+            var detail = RecordingLibrary.GetDetail("done_api", _root);
+            Assert.NotNull(detail);
+            Assert.True(detail!.HasTranscript);
+            Assert.True(detail.HasFlatTranscript);   // the pipeline writes both; both are reported
+        }
+
+        // ---- round 2, review gate defect 1: the card refreshes when reshown ----
+        //
+        // The chips are computed when the card is BUILT, and transcript.json can be deleted or
+        // created outside the app afterwards - the card's own Open-folder action invites exactly
+        // that. The Control API re-reads the disk on every request, so a cached chip let the
+        // visible card and REST disagree about the same recording until an unrelated reload. The
+        // fix: RecentItem.RefreshArtifactChips re-derives the chips from disk through the
+        // canonical predicate, and the Library re-runs it on every row each time it is shown
+        // (Rail_Checked -> LibraryCoherence.RefreshArtifactChips).
+        //
+        // Expected: after a refresh the chips agree with TranscriptStatus. The defect: the chips
+        // keep their build-time answer. An absent/empty answer here would mean the refresh route
+        // was renamed or never wired - which the IL pin below fails on rather than passing.
+
+        [Fact]
+        public void LibraryCard_TranscriptDeletedExternally_RefreshAgreesWithThePredicate()
+        {
+            string dir = TranscribedRecording("done_gone");
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+
+            // The external delete: transcript.json goes away while the card is alive.
+            File.Delete(Path.Combine(dir, "transcript.json"));
+            card.RefreshArtifactChips();
+
+            Assert.Equal(Visibility.Collapsed, card.TranscriptChipVisibility);
+            // transcript.txt is still there, so the quieter chip takes over - same as a fresh card.
+            Assert.Equal(Visibility.Visible, card.FlatTextChipVisibility);
+        }
+
+        [Fact]
+        public void LibraryCard_TranscriptAppearedExternally_RefreshAgreesWithThePredicate()
+        {
+            string dir = FlatTextOnlyRecording("flat_grew");
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.FlatTextChipVisibility);
+
+            // The inverse divergence: transcript.json appears outside the app.
+            File.WriteAllText(Path.Combine(dir, "transcript.json"), "[]");
+            card.RefreshArtifactChips();
+
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, card.FlatTextChipVisibility);
+        }
+
+        [Fact]
+        public void LibraryCard_ManifestNamedArtifact_RefreshStillHonorsTheManifestName()
+        {
+            // The refresh classifies with the manifest the card was built from, so a non-default
+            // artifact name keeps working without a manifest re-read per card per navigation.
+            string dir = Recording("named_card");
+            File.WriteAllText(Path.Combine(dir, "words.json"), "[]");
+            var m = Manifest.Load(dir);
+            m.Transcript = "words.json";
+            ManifestStore.Replace(dir, m);
+
+            var card = RecentItem.From(dir);
+            Assert.Equal(Visibility.Visible, card.TranscriptChipVisibility);
+
+            File.Delete(Path.Combine(dir, "words.json"));
+            card.RefreshArtifactChips();
+
+            Assert.Equal(Visibility.Collapsed, card.TranscriptChipVisibility);
+        }
+
+        [Fact]
+        public async Task Library_ShowingTheLibrary_RefreshesEveryRowsChips()
+        {
+            // The model route rail navigation drives: every visible row is re-derived at once.
+            // The rows the fixture captured stay the rows the sweep updates - rows are updated in
+            // place, never replaced - so asserting on Find's answers after the await is exact.
+            string done = TranscribedRecording("model_done");
+            string flat = FlatTextOnlyRecording("model_flat");
+
+            var library = new LibraryCoherence();
+            library.ApplySnapshot(library.BeginSnapshot(),
+                new List<RecentItem> { RecentItem.From(done), RecentItem.From(flat) });
+            var doneRow = library.Find(done);
+            var flatRow = library.Find(flat);
+            Assert.NotNull(doneRow);
+            Assert.NotNull(flatRow);
+
+            File.Delete(Path.Combine(done, "transcript.json"));
+            File.WriteAllText(Path.Combine(flat, "transcript.json"), "[]");
+            await library.RefreshArtifactChipsAsync();
+
+            Assert.Equal(Visibility.Collapsed, doneRow!.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Visible, doneRow.FlatTextChipVisibility);
+            Assert.Equal(Visibility.Visible, flatRow!.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Collapsed, flatRow.FlatTextChipVisibility);
+        }
+
+        /// <summary>
+        /// The wiring pin, read from IL: showing the Library (Rail_Checked) re-derives the chips.
+        /// Round 3 split the wiring in two so Rail_Checked stays synchronous - it fires
+        /// MainWindow.RefreshLibraryChips (the async void entry point), which awaits the model's
+        /// worker-side sweep - so the pin follows both hops. Without it, the behavioral tests
+        /// above could stay green while nothing in the app ever called the refresh. CallsIn is
+        /// fail-closed - a renamed Rail_Checked or RefreshLibraryChips throws here rather than
+        /// certifying nothing - and the CallSites leg fails closed by the Contains asserts.
+        /// </summary>
+        [Fact]
+        public void RailNavigation_RefreshesTheLibrarysArtifactChips()
+        {
+            var calls = CompiledCode.CallsIn(CompiledCode.AppAssembly,
+                "AgentEyes.App.MainWindow::Rail_Checked");
+            Assert.Contains("AgentEyes.App.MainWindow::RefreshLibraryChips", calls);
+
+            var sweepCalls = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                callee => callee == "AgentEyes.App.LibraryCoherence::RefreshArtifactChipsAsync");
+            Assert.Contains(sweepCalls,
+                site => site.Method == "AgentEyes.App.MainWindow::RefreshLibraryChips");
+        }
+
+        // ---- round 2, review gate defect 2: the detail window loads async ----
+        //
+        // TranscriptPresentation.For reads and deserializes the whole transcript. Round 1 called
+        // it synchronously from RecordingDetailWindow's constructor, so a large JSON-only
+        // transcript froze the UI thread before the window ever appeared - the exact shape
+        // CLAUDE.md section 1 forbids. The window itself needs a WPF Application to construct, so
+        // the pin is structural, read from the compiled IL (the CompiledCode folding puts a
+        // lambda's calls back onto the method a human wrote, so a call made from the constructor's
+        // own lambdas still counts as the constructor's).
+
+        [Fact]
+        public void DetailWindow_TranscriptLoad_IsNotInvokedOnConstruction()
+        {
+            var forCalls = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                callee => callee == "AgentEyes.App.TranscriptPresentation::For");
+
+            // Fail closed: the loader must still be reachable from the detail window at all - a
+            // deleted feature must not read as a fixed defect.
+            Assert.Contains(forCalls,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync");
+
+            // The defect: the constructor (or any of its lambdas) building the presentation.
+            Assert.DoesNotContain(forCalls,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::.ctor");
+        }
+
+        [Fact]
+        public void DetailWindow_TranscriptLoad_RunsOnABackgroundThread()
+        {
+            // LoadDetailsAsync must hand the read to a worker (Task.Run), not merely be async:
+            // an async method that called TranscriptPresentation.For inline would still do the
+            // whole read + deserialization on the UI thread.
+            var taskRuns = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                    callee => callee == "System.Threading.Tasks.Task::Run")
+                .Where(site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync")
+                .ToList();
+
+            Assert.NotEmpty(taskRuns);
+        }
+
+        // ---- round 3, review gate defect 1: the chip sweep leaves the UI thread free ----
+        //
+        // The round-2 fix re-derived every row's chips synchronously from Rail_Checked, which
+        // made showing the Library wait on an UNBOUNDED number of File.Exists probes (one set per
+        // row, no row cap) - a large library or slow storage stalled the paint. The fix: the
+        // owning thread only snapshots the probe inputs; the probes run inside Task.Run and the
+        // results are dispatched back. These tests prove both halves: the sweep still fires on
+        // rail navigation (the wiring pin above) and it can no longer stall the owning thread.
+
+        /// <summary>
+        /// Deterministic off-thread proof, via the model's ChipSweepProbing seam: the test HOLDS
+        /// the sweep's worker at the point the probes would run and observes that (a) the call
+        /// into RefreshArtifactChipsAsync has already returned to the owning thread, (b) the
+        /// chips still show their pre-sweep values (the Library painted with what it had), and
+        /// (c) the probing is on a DIFFERENT thread than the owner. Then it releases the worker
+        /// and sees the re-derived values land. A regression that moves the probes back onto the
+        /// calling thread deadlocks into the gate's timeout and fails on IsCompleted.
+        /// </summary>
+        [Fact]
+        public async Task LibraryChipSweep_ProbesOnAWorkerWhileTheOwningThreadIsFree()
+        {
+            string done = TranscribedRecording("sweep_held");
+            var library = new LibraryCoherence();
+            library.ApplySnapshot(library.BeginSnapshot(),
+                new List<RecentItem> { RecentItem.From(done) });
+            var row = library.Find(done);
+            Assert.NotNull(row);
+            Assert.Equal(Visibility.Visible, row!.TranscriptChipVisibility);
+
+            File.Delete(Path.Combine(done, "transcript.json"));
+
+            int owningThread = Environment.CurrentManagedThreadId;
+            int probeThread = 0;
+            using var probesHeld = new ManualResetEventSlim(false);
+            using var release = new ManualResetEventSlim(false);
+            library.ChipSweepProbing = () =>
+            {
+                probeThread = Environment.CurrentManagedThreadId;
+                probesHeld.Set();
+                release.Wait(TimeSpan.FromSeconds(30));
+            };
+
+            Task sweep = library.RefreshArtifactChipsAsync();
+
+            // The worker is holding, so the owning thread is HERE, free, with the sweep pending
+            // and the chips untouched - exactly what "the rail paints immediately" means.
+            Assert.True(probesHeld.Wait(TimeSpan.FromSeconds(30)), "the probe body never started");
+            Assert.False(sweep.IsCompleted);
+            Assert.Equal(Visibility.Visible, row.TranscriptChipVisibility);
+            Assert.NotEqual(owningThread, probeThread);
+
+            release.Set();
+            await sweep;
+
+            // The dispatched continuation applied the re-derived facts: the external delete is
+            // now visible, same coherence semantics QA verified in round 2.
+            Assert.Equal(Visibility.Collapsed, row.TranscriptChipVisibility);
+            Assert.Equal(Visibility.Visible, row.FlatTextChipVisibility);
+        }
+
+        /// <summary>The structural half, read from IL like the detail-window pin: the model's
+        /// sweep hands its probes to Task.Run rather than merely being async.</summary>
+        [Fact]
+        public void LibraryChipSweep_HandsTheProbesToAWorker()
+        {
+            var taskRuns = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                    callee => callee == "System.Threading.Tasks.Task::Run")
+                .Where(site => site.Method == "AgentEyes.App.LibraryCoherence::RefreshArtifactChipsAsync")
+                .ToList();
+
+            Assert.NotEmpty(taskRuns);
+        }
+
+        // ---- round 3, review gate defects 2 and 3: nothing pre-show touches the disk ----
+        //
+        // Defect 2: the detail constructor still read+deserialized manifest.json synchronously
+        // before the window could show (a read that PREDATES this issue's work, fixed because
+        // the immediate-show claim depends on its absence). Defect 3: the load continuations
+        // wrote Log lines (a process-wide lock + a disk append) on the WPF thread before content
+        // or error showed. Both are pinned structurally: the window needs a WPF Application to
+        // construct, and the CompiledCode folding attributes a lambda's (and an async state
+        // machine's) calls to the method a human wrote.
+
+        /// <summary>The manifest read lives in the background load, and only there.</summary>
+        [Fact]
+        public void DetailWindow_ManifestRead_IsNotInvokedOnConstruction()
+        {
+            var loads = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                callee => callee == "AgentEyes.Manifest::Load");
+
+            // Fail closed: the detail window must still read the manifest somewhere.
+            Assert.Contains(loads,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync");
+            Assert.DoesNotContain(loads,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::.ctor");
+        }
+
+        /// <summary>
+        /// The constructor - INCLUDING every lambda it wires, which fold back into it - performs
+        /// no file I/O, no credential read, and no log append. This is the round-3 sweep pin: the
+        /// window's immediate-show claim holds only while construction touches nothing slower
+        /// than memory, so any File/Directory probe, Manifest.Load, IsSignedIn (a credential file
+        /// read + decrypt) or Log write reintroduced there fails this test by name.
+        /// </summary>
+        [Fact]
+        public void DetailWindowConstructor_TouchesNoDiskAndWritesNoLog()
+        {
+            // Fail closed: the scan must actually see the constructor.
+            Assert.Contains("AgentEyes.App.RecordingDetailWindow::.ctor",
+                CompiledCode.MethodNames(CompiledCode.AppAssembly));
+
+            var offenders = CompiledCode.CallSites(CompiledCode.AppAssembly, callee =>
+                    callee.StartsWith("System.IO.File::", StringComparison.Ordinal)
+                    || callee.StartsWith("System.IO.Directory::", StringComparison.Ordinal)
+                    || callee == "AgentEyes.Manifest::Load"
+                    || callee == "AgentEyes.DevThrottle.DevThrottleAccount::get_IsSignedIn"
+                    || callee.StartsWith("AgentEyes.Log::", StringComparison.Ordinal))
+                .Where(site => site.Method == "AgentEyes.App.RecordingDetailWindow::.ctor")
+                .ToList();
+
+            Assert.Empty(offenders);
+        }
+
+        /// <summary>
+        /// Defect 3 support pin, with its limit stated plainly: the CompiledCode folding puts a
+        /// Task.Run lambda's calls back onto the method that declares it, so IL alone cannot tell
+        /// a Log call INSIDE LoadDetailsAsync's worker body from one on its dispatcher hop - that
+        /// placement is held by reading the method and by QA's runtime verification. What the
+        /// scan CAN hold, fail-closed: logging in this window stays confined to the two async
+        /// paths whose worker bodies own it (LoadDetailsAsync, CommitRename), and the load path
+        /// really does log (enterprise-logging coverage is presence, not silence). A Log call
+        /// added to the constructor, Play, OpenFolder, CopyTranscript or any new synchronous
+        /// member fails here by name.
+        /// </summary>
+        [Fact]
+        public void DetailWindow_Logging_IsConfinedToTheWorkerBackedPaths()
+        {
+            var logCalls = CompiledCode.CallSites(CompiledCode.AppAssembly,
+                    callee => callee.StartsWith("AgentEyes.Log::", StringComparison.Ordinal))
+                .Where(site => site.Method.StartsWith("AgentEyes.App.RecordingDetailWindow::", StringComparison.Ordinal))
+                .ToList();
+
+            // Coverage: the load path still logs (entry, result, and both failure shapes).
+            Assert.Contains(logCalls,
+                site => site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync");
+
+            Assert.All(logCalls, site => Assert.True(
+                site.Method == "AgentEyes.App.RecordingDetailWindow::LoadDetailsAsync"
+                || site.Method == "AgentEyes.App.RecordingDetailWindow::CommitRename",
+                $"unexpected Log call from {site.Method}"));
+        }
+    }
+}

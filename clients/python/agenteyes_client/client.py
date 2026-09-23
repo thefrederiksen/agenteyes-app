@@ -100,7 +100,13 @@ class AgentEyesClient:
     # ---- recordings (read) --------------------------------------------------
 
     def recordings(self, limit=50, offset=0):
-        """GET /recordings?limit&offset -> { total, items[] }, newest-first."""
+        """GET /recordings?limit&offset -> { total, items[] }, newest-first.
+
+        Each item's hasTranscript means TRANSCRIPTION COMPLETE (the recording's
+        transcript.json exists); a legacy flat-text-only recording reports
+        hasTranscript=False with hasFlatTranscript=True, and transcript() still
+        serves its text. Do not gate transcript() on hasTranscript alone.
+        """
         query = urllib.parse.urlencode({"limit": limit, "offset": offset})
         return self._get("/recordings?" + query)
 
@@ -118,7 +124,10 @@ class AgentEyesClient:
     def transcript(self, recording_id):
         """GET /recordings/{id}/transcript -> { text, segments[] }.
 
-        Raises AgentEyesApiError (404 not_found) when the recording has no transcript.
+        Raises AgentEyesApiError (404 not_found) when the recording has no
+        transcript artifact at all. A legacy flat-text-only recording (detail
+        hasTranscript=False, hasFlatTranscript=True) still returns 200 with its
+        flat text and empty segments - readable is not the same as transcribed.
         """
         return self._get("/recordings/" + urllib.parse.quote(recording_id, safe="") + "/transcript")
 
