@@ -1,0 +1,238 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Windows.Forms;
+using AgentEyes;
+using AgentEyes.Audio;
+
+namespace QaHarness
+{
+    /// <summary>A topmost, NON-ACTIVATING window that paints changing content on one monitor, so a
+    /// screen preview has something to differ about. It never takes focus (WS_EX_NOACTIVATE) and
+    /// synthesises no input.</summary>
+    internal sealed class Churn : Form
+    {
+        private readonly System.Windows.Forms.Timer _t = new System.Windows.Forms.Timer { Interval = 100 };
+        private int _n;
+        protected override bool ShowWithoutActivation { get { return true; } }
+        protected override CreateParams CreateParams
+        {
+            get { var cp = base.CreateParams; cp.ExStyle |= 0x08000000 | 0x00000080; return cp; }
+        }
+        public Churn(Rectangle where)
+        {
+            FormBorderStyle = FormBorderStyle.None;
+            StartPosition = FormStartPosition.Manual;
+            Bounds = where;
+            TopMost = true;
+            ShowInTaskbar = false;
+            BackColor = Color.Black;
+            DoubleBuffered = true;
+            _t.Tick += (s, e) => { _n++; Invalidate(); };
+            _t.Start();
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(_n % 2 == 0 ? Color.Black : Color.DarkSlateBlue);
+            using (var f = new Font("Consolas", 96, FontStyle.Bold))
+                e.Graphics.DrawString("QA33 " + _n.ToString("0000"), f, Brushes.White, 20, 20);
+            e.Graphics.FillRectangle(Brushes.Orange, 20 + (_n * 7) % 400, 220, 160, 120);
+        }
+    }
+
+    public static class Program
+    {
+        static void L(string s) { Console.WriteLine("[" + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + s); }
+
+        static string Sha(byte[] b)
+        {
+            if (b == null) return "(null)";
+            using (var h = System.Security.Cryptography.SHA256.Create())
+                return Convert.ToHexString(h.ComputeHash(b)).Substring(0, 16) + " len=" + b.Length;
+        }
+
+        static byte[] Read(string p) { try { return File.ReadAllBytes(p); } catch { return null; } }
+
+        static List<KeyValuePair<int, string>> FfmpegProcs()
+        {
+            var list = new List<KeyValuePair<int, string>>();
+            var psi = new ProcessStartInfo("powershell.exe",
+                "-NoProfile -Command \"Get-CimInstance Win32_Process -Filter \\\"Name='ffmpeg.exe'\\\" | ForEach-Object { $_.ProcessId.ToString() + '|' + $_.CommandLine }\"");
+            psi.RedirectStandardOutput = true; psi.UseShellExecute = false; psi.CreateNoWindow = true;
+            using (var p = Process.Start(psi))
+            {
+                string outp = p.StandardOutput.ReadToEnd();
+                p.WaitForExit();
+                foreach (var line in outp.Split('\n'))
+                {
+                    var t = line.Trim();
+                    if (t.Length == 0) continue;
+                    int i = t.IndexOf('|');
+                    if (i <= 0) continue;
+                    int pid;
+                    if (int.TryParse(t.Substring(0, i), out pid)) list.Add(new KeyValuePair<int, string>(pid, t.Substring(i + 1)));
+                }
+            }
+            return list;
+        }
+
+        static int Drops(string logPath)
+        {
+            try
+            {
+                int n = 0;
+                foreach (var line in File.ReadLines(logPath))
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(line, "drop=\\s*(\\d+)");
+                    if (m.Success) n = Math.Max(n, int.Parse(m.Groups[1].Value));
+                }
+                return n;
+            }
+            catch { return -1; }
+        }
+
+        [STAThread]
+        public static int Main(string[] args)
+        {
+            string mode = args.Length > 0 ? args[0] : "live";
+            int screen = args.Length > 1 ? int.Parse(args[1]) : 1;
+            int seconds = args.Length > 2 ? int.Parse(args[2]) : 20;
+            string camera = args.Length > 3 ? args[3] : "eMeet";
+            bool armed = !mode.StartsWith("control");
+
+            L("MODE=" + mode + " screen=" + screen + " seconds=" + seconds + " camera='" + camera + "' armed=" + armed);
+
+            Churn churn = null;
+            var bounds = Screen.AllScreens[Math.Min(screen - 1, Screen.AllScreens.Length - 1)].Bounds;
+            var box = new Rectangle(bounds.Left + 60, bounds.Top + 60, 640, 400);
+            var churnThread = new Thread(delegate () { churn = new Churn(box); Application.Run(churn); });
+            churnThread.IsBackground = true;
+            churnThread.SetApartmentState(ApartmentState.STA);
+            churnThread.Start();
+            Thread.Sleep(1200);
+            L("churn window painting on monitor " + screen + " at " + box);
+
+            string previewDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "preview");
+
+            var svc = new RecordingService();
+            svc.PreviewArmed = armed;
+            svc.StartVideo(screen, AudioSourceKind.System, null, null, new AudioMixOptions(), 30,
+                string.IsNullOrWhiteSpace(camera) ? null : camera, 30);
+            var st0 = svc.Status();
+            string dir = st0.Dir;
+            L("state=" + st0.State + " dir=" + dir + " PreviewAvailable=" + st0.PreviewAvailable + " PreviewArmed=" + st0.PreviewArmed);
+            L("screenFrame=" + (st0.PreviewScreenFrame ?? "(null)") + " cameraFrame=" + (st0.PreviewCameraFrame ?? "(null)"));
+
+            if (armed) { svc.SetPreviewPublishing(true); svc.SetPreviewOverlayCorner("bottom-left"); }
+
+            Thread.Sleep(4000);
+            var procs = FfmpegProcs();
+            int holders = 0;
+            L("--- ffmpeg processes: " + procs.Count + " ---");
+            foreach (var kv in procs)
+            {
+                int dshow = System.Text.RegularExpressions.Regex.Matches(kv.Value, "-f dshow").Count;
+                int vin = System.Text.RegularExpressions.Regex.Matches(kv.Value, "-i \"?video=").Count;
+                if (vin > 0) holders++;
+                L("  pid=" + kv.Key + " (-f dshow)=" + dshow + " (-i video=)=" + vin
+                  + " pipe:1=" + kv.Value.Contains("pipe:1") + " mjpeg=" + kv.Value.Contains("mjpeg"));
+            }
+            L("PROCESSES HOLDING THE CAMERA DEVICE = " + holders);
+
+            if (armed)
+            {
+                string sf = st0.PreviewScreenFrame, cf = st0.PreviewCameraFrame;
+                var a = svc.Status(); var s1 = Read(sf); var c1 = Read(cf);
+                Thread.Sleep(2500);
+                var b = svc.Status(); var s2 = Read(sf); var c2 = Read(cf);
+                bool sDiff = s1 != null && s2 != null && !s1.SequenceEqual(s2);
+                bool cDiff = c1 != null && c2 != null && !c1.SequenceEqual(c2);
+                L("AC2 screen t0=" + Sha(s1) + "  t+2.5=" + Sha(s2) + "  DIFFER=" + sDiff);
+                L("AC3 camera t0=" + Sha(c1) + "  t+2.5=" + Sha(c2) + "  DIFFER=" + cDiff);
+                L("framesRead screen " + a.PreviewScreenFramesRead + "->" + b.PreviewScreenFramesRead
+                  + "  camera " + a.PreviewCameraFramesRead + "->" + b.PreviewCameraFramesRead);
+                string outDir = Environment.GetEnvironmentVariable("QA33_OUT");
+                if (outDir != null)
+                {
+                    Directory.CreateDirectory(outDir);
+                    if (s1 != null) File.WriteAllBytes(Path.Combine(outDir, "ac2-screen-t0.jpg"), s1);
+                    if (s2 != null) File.WriteAllBytes(Path.Combine(outDir, "ac2-screen-t2.jpg"), s2);
+                    if (c1 != null) File.WriteAllBytes(Path.Combine(outDir, "ac3-camera-t0.jpg"), c1);
+                    if (c2 != null) File.WriteAllBytes(Path.Combine(outDir, "ac3-camera-t2.jpg"), c2);
+                    L("frames written to " + outDir);
+                }
+            }
+
+            if (mode == "toggle")
+            {
+                string[] corners = { "top-left", "top-right", "bottom-left", "bottom-right" };
+                foreach (var c in corners)
+                {
+                    svc.SetPreviewOverlayCorner(c);
+                    Thread.Sleep(600);
+                    L("  AC8 corner -> " + c + " (status corner=" + svc.Status().PreviewOverlayCorner + ")");
+                }
+                svc.SetPreviewPublishing(false);
+                Thread.Sleep(1200);
+                var off = svc.Status();
+                L("  AC8 publishing OFF: PreviewPublishing=" + off.PreviewPublishing
+                  + " framesRead=" + off.PreviewScreenFramesRead
+                  + " frameFileExists=" + File.Exists(off.PreviewScreenFrame ?? "x"));
+                Thread.Sleep(1500);
+                var off2 = svc.Status();
+                L("  AC8 STILL DRAINING while hidden: framesRead " + off.PreviewScreenFramesRead + " -> " + off2.PreviewScreenFramesRead);
+                svc.SetPreviewPublishing(true);
+                svc.SetPreviewOverlayCorner("top-right");
+                Thread.Sleep(1200);
+                var on = svc.Status();
+                L("  AC8 publishing ON again: PreviewPublishing=" + on.PreviewPublishing
+                  + " frameFileExists=" + File.Exists(on.PreviewScreenFrame ?? "x") + " corner=" + on.PreviewOverlayCorner);
+            }
+
+            if (mode == "killhard")
+            {
+                var pre = svc.Status();
+                L("KILL: deleting " + previewDir + " framesRead=" + pre.PreviewScreenFramesRead);
+                try { Directory.Delete(previewDir, true); L("KILL: deleted"); }
+                catch (Exception ex) { L("KILL delete failed: " + ex.Message); }
+                for (int i = 0; i < 5; i++)
+                {
+                    Thread.Sleep(1000);
+                    var s = svc.Status();
+                    L("  +" + (i + 1) + "s state=" + s.State + " framesRead=" + s.PreviewScreenFramesRead
+                      + "/" + s.PreviewCameraFramesRead + " PreviewFailed=" + s.PreviewFailed);
+                }
+            }
+
+            while (svc.Status().ElapsedSeconds < seconds) Thread.Sleep(500);
+            L("stopping at elapsed=" + svc.Status().ElapsedSeconds);
+            svc.Stop();
+            Thread.Sleep(1500);
+            try { if (churn != null) churn.Invoke((Action)(() => churn.Close())); }
+            catch { }
+
+            L("--- results in " + dir + " ---");
+            foreach (var f in Directory.GetFiles(dir)) L("  " + Path.GetFileName(f) + " " + new FileInfo(f).Length);
+            L("raw drops=" + Drops(Path.Combine(dir, "raw.mp4.ffmpeg.log"))
+              + " camera drops=" + Drops(Path.Combine(dir, "camera.mp4.ffmpeg.log")));
+            string mp = Path.Combine(dir, "manifest.json");
+            if (File.Exists(mp))
+            {
+                string j = File.ReadAllText(mp);
+                L("manifest PreviewOverlayCorner present=" + j.Contains("PreviewOverlayCorner")
+                  + " ; FfmpegCommand pipe:1=" + j.Contains("pipe:1") + " mjpeg=" + j.Contains("mjpeg"));
+                foreach (var line in j.Split('\n'))
+                    if (line.Contains("CameraComplete") || line.Contains("CameraStopKind") || line.Contains("DurationSeconds")
+                        || line.Contains("PreviewOverlayCorner") || line.Contains("CameraCapturedSeconds"))
+                        Console.WriteLine("   " + line.Trim());
+            }
+            L("DONE " + dir);
+            return 0;
+        }
+    }
+}

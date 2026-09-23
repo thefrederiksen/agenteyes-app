@@ -1,0 +1,337 @@
+ISSUE #28 - ROUND 4 MUTATION EVIDENCE
+Every check added or rewritten in this round, RUN AGAINST THE UNFIXED (round-3) CODE FIRST.
+
+The Review Gate's round-3 REJECT called out that one committed test could not fail
+(CameraFailurePathTests.Stop_AfterAFailedTermination_...): it set KillEndsIt = false and
+then asserted only that a second kill had been ATTEMPTED and that the wrapper had been
+disposed - both true whether or not ffmpeg died. So this round every new and every
+rewritten check was run against a mutation that restores the exact round-3 behaviour, and
+the failing output is reproduced verbatim below. A check that did not fire against its
+mutation would be treated as a defect, not as weak coverage.
+
+HOW TO REPRODUCE. Each mutation is a one- or two-line edit named in its section. Apply it,
+then run:
+
+    dotnet test AgentEyes.sln -c Release
+        -p:UseArtifactsOutput=true -p:ArtifactsPath=<a scratch dir>
+        --filter "FullyQualifiedName~CameraFailurePathTests"
+
+The isolated ArtifactsPath is not cosmetic: the running tray app (AgentEyesApp.exe) holds a
+write lock on src\AgentEyes.App\bin\x64\Release\...\agenteyes.dll, so a normal-path build
+fails MSB3027 and a stale bin\ can hand back a green that tested code nobody built. The
+Review Gate built from isolated artifacts for the same reason.
+
+WHICH MUTATION FIRES WHICH CHECK
+
+  M1  FailOpen treats a survived kill as a clean one   -> Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+                                                          Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry
+                                                          Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle
+  M2  Dispose releases the handle of a live ffmpeg     -> Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt  (THE REWRITTEN ONE)
+                                                          Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+  M3  the zero-frame rule and the stderr drain removed -> Stop_WhenALIVECameraOpenedAndNeverDeliveredAFrame_StillReportsTheLoss
+                                                          Stop_WhenTheCameraReportedOnlyAZeroOutputPosition_StillReportsTheLoss
+                                                          Stop_WhenTheStderrNeverReachesEndOfStream_StillReportsTheLossRatherThanAssumingATake
+                                                          Stop_ReadsTheZeroFrameVerdictFromCOMPLETEStderr
+  M4  the service opens the camera before it owns it   -> TheRecordingService_StoresTheCameraBeforeStartingIt
+                                                          EveryCallerThatOpensACamera_ConstructsTheRecorderInTheSameMethod
+  M5  no failure boundary in Commands::Video,          -> TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary
+      and no second-open guard                            Open_CalledTwice_RefusesToStartASecondFfmpeg
+  M6  Dispose NEVER releases the handle                -> Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle
+      (the way the M2 guarantee could be faked)           Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle
+
+Each mutation was reverted immediately after its run. With every mutation reverted the whole
+suite is green from a DELETED-AND-REBUILT artifacts directory: Failed: 0, Passed: 900,
+Total: 900 (the tail of that run is the last section of this file).
+
+--------------------------------------------------------------------------------
+MUTATION M1 (src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, FailOpen):
+    -            if (_proc.HasExited)
+    +            if (true)   // MUTATION M1: the round-3 code, which did not tell the two outcomes apart
+
+That single line IS round 3's defect 1: whatever the kill did, the recorder marked itself
+terminated, released the process handle, and returned an ordinary "could not be opened"
+UsageException - while ffmpeg was still on the webcam and no caller had ever received the
+recorder.
+
+Bad result each check fires on: an ordinary UsageException instead of a reported live
+process (all three), and a disposed wrapper.
+
+Test run for <scratch>\ae-artifacts\bin\AgentEyes.Tests\release\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.89]     AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry [228 ms]
+  Error Message:
+   Assert.Throws() Failure: Exception type was not an exact match
+Expected: typeof(AgentEyes.Video.CameraStopFailedException)
+Actual:   typeof(AgentEyes.UsageException)
+---- AgentEyes.UsageException : the camera "HD Webcam eMeet C960" could not be opened (it did not open within 0.2s - it never reported the camera open). Likely cause: see the application log for the ffmpeg error from "HD Webcam eMeet C960".
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 284
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+----- Inner Stack Trace -----
+   at AgentEyes.Video.FfmpegCameraRecorder.StartAndProbe() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 408
+   at AgentEyes.Video.FfmpegCameraRecorder.Open() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 331
+   at AgentEyes.Tests.CameraFailurePathTests.<>c__DisplayClass15_0.<Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry>b__0() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 284
+[xUnit.net 00:00:01.20]     AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle [FAIL]
+[xUnit.net 00:00:01.42]     AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle [228 ms]
+  Error Message:
+   Assert.Throws() Failure: Exception type was not an exact match
+Expected: typeof(AgentEyes.Video.CameraStopFailedException)
+Actual:   typeof(AgentEyes.UsageException)
+---- AgentEyes.UsageException : the camera "HD Webcam eMeet C960" could not be opened (it did not open within 0.2s - it never reported the camera open). Likely cause: see the application log for the ffmpeg error from "HD Webcam eMeet C960".
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 341
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+----- Inner Stack Trace -----
+   at AgentEyes.Video.FfmpegCameraRecorder.StartAndProbe() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 408
+   at AgentEyes.Video.FfmpegCameraRecorder.Open() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 331
+   at AgentEyes.Tests.CameraFailurePathTests.<>c__DisplayClass17_0.<Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle>b__0() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 341
+  Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry [219 ms]
+  Error Message:
+   Assert.Throws() Failure: Exception type was not an exact match
+Expected: typeof(AgentEyes.Video.CameraStopFailedException)
+Actual:   typeof(AgentEyes.UsageException)
+---- AgentEyes.UsageException : the camera "HD Webcam eMeet C960" could not be opened (it did not open within 0.2s - it never reported the camera open). Likely cause: see the application log for the ffmpeg error from "HD Webcam eMeet C960".
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 316
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+----- Inner Stack Trace -----
+   at AgentEyes.Video.FfmpegCameraRecorder.StartAndProbe() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 408
+   at AgentEyes.Video.FfmpegCameraRecorder.Open() in D:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 331
+   at AgentEyes.Tests.CameraFailurePathTests.<>c__DisplayClass16_0.<Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry>b__0() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 316
+
+Failed!  - Failed:     3, Passed:    30, Skipped:     0, Total:    33, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+--------------------------------------------------------------------------------
+MUTATION M2 (src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, Dispose):
+    -            if (!_terminated)
+    +            if (false)   // MUTATION M2: the round-3 code, which disposed the wrapper regardless
+                 {
+                     Log.Error(... "is STILL RUNNING after a second termination attempt" ...);
+                     return;
+                 }
+
+This restores round 3 exactly: the retry's failure is suppressed and the handle is released
+anyway. The OLD version of the rewritten check PASSED against this - it asserted
+Disposes == 1, which is what this mutation produces. The rewritten check asserts the
+guarantee instead, and fires:
+
+    Expected: 0
+    Actual:   1
+
+Note which check does NOT fire here: Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle
+stays green, because it is the positive control - it is fired by M6 instead.
+
+Test run for <scratch>\ae-artifacts\bin\AgentEyes.Tests\release\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.29]     AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry [226 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 296
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:01.35]     AgentEyes.Tests.CameraFailurePathTests.Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt [2 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 587
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     2, Passed:    31, Skipped:     0, Total:    33, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+--------------------------------------------------------------------------------
+MUTATION M3 (src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, Stop and OnStderrLine):
+    -                if (!_proc.DrainStderr(StderrDrainMs))
+    +                if (false && !_proc.DrainStderr(StderrDrainMs))   // MUTATION M3: round 3 never drained
+    -                if (!_wroteOutput && !_lostMidRun)
+    +                if (false && !_wroteOutput && !_lostMidRun)       // MUTATION M3: round 3 only logged _wroteOutput
+    -            if (ms > 0) _wroteOutput = true;
+    +            if (ms >= 0) _wroteOutput = true;                     // MUTATION M3: round 3 counted a zero position
+
+Together these are round 3's defect 3: loss was inferred ONLY from a process that had
+already exited, _wroteOutput was logged and never used, and a tick at position zero counted
+as output. A live camera that printed both headers and then never produced a frame stopped
+with LostMidRun == false and CapturedSeconds == 0 - an empty camera.mp4 recorded in the
+manifest as a complete take.
+
+Bad result each check fires on: LostMidRun == false (the first three), Drains == 0 (the
+fourth - a verdict reached without waiting for ffmpeg's stderr to end).
+
+Test run for <scratch>\ae-artifacts\bin\AgentEyes.Tests\release\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.62]     AgentEyes.Tests.CameraFailurePathTests.Stop_WhenALIVECameraOpenedAndNeverDeliveredAFrame_StillReportsTheLoss [FAIL]
+[xUnit.net 00:00:00.62]     AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraReportedOnlyAZeroOutputPosition_StillReportsTheLoss [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenALIVECameraOpenedAndNeverDeliveredAFrame_StillReportsTheLoss [1 ms]
+  Error Message:
+   a camera that opened and then never reported writing a frame leaves an EMPTY camera.mp4 - recording it as a complete take tells an editor the file is good
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Stop_WhenALIVECameraOpenedAndNeverDeliveredAFrame_StillReportsTheLoss() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 717
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraReportedOnlyAZeroOutputPosition_StillReportsTheLoss [1 ms]
+  Error Message:
+   a tick at position zero is not a frame
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraReportedOnlyAZeroOutputPosition_StillReportsTheLoss() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 739
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:01.32]     AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheStderrNeverReachesEndOfStream_StillReportsTheLossRatherThanAssumingATake [FAIL]
+[xUnit.net 00:00:01.38]     AgentEyes.Tests.CameraFailurePathTests.Stop_ReadsTheZeroFrameVerdictFromCOMPLETEStderr [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheStderrNeverReachesEndOfStream_StillReportsTheLossRatherThanAssumingATake [3 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheStderrNeverReachesEndOfStream_StillReportsTheLossRatherThanAssumingATake() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 778
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_ReadsTheZeroFrameVerdictFromCOMPLETEStderr [2 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Stop_ReadsTheZeroFrameVerdictFromCOMPLETEStderr() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 759
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     4, Passed:    29, Skipped:     0, Total:    33, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+--------------------------------------------------------------------------------
+MUTATION M4 (src/AgentEyes.Core/RecordingService.cs, the camera start step):
+    -                        _camera = FfmpegCameraRecorder.Create(
+    -                            dshowCamera, cameraFps, 23, Path.Combine(_dir!, "camera.mp4"));
+    -                        _camera.Open();
+    +                        var cam = NewCameraMutation(dshowCamera, cameraFps);
+    +                        cam.Open();
+    +                        _camera = cam;
+    (plus a private NewCameraMutation helper holding the Create call)
+
+This is round 3's ownership defect restated in the shape it would come back in: the camera
+ffmpeg is started BEFORE the _camera field holds the recorder, so an Open that fails with
+the process still alive leaves LiveWriters looking at a null field - exactly what the single
+static Start() used to guarantee.
+
+Bad result: the field store does not precede the open (source), and a method opens a camera
+it did not construct (IL).
+
+Test run for <scratch>\ae-artifacts\bin\AgentEyes.Tests\release\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.02]     AgentEyes.Tests.CameraFailurePathTests.TheRecordingService_StoresTheCameraBeforeStartingIt [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheRecordingService_StoresTheCameraBeforeStartingIt [1 ms]
+  Error Message:
+   StartVideo no longer stores the camera recorder in _camera as it constructs it - LiveWriters reads that field, and a start failure would have nothing to stop
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.TheRecordingService_StoresTheCameraBeforeStartingIt() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 912
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:01.30]     AgentEyes.Tests.CameraFailurePathTests.EveryCallerThatOpensACamera_ConstructsTheRecorderInTheSameMethod [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.EveryCallerThatOpensACamera_ConstructsTheRecorderInTheSameMethod [39 ms]
+  Error Message:
+   agenteyes.dll!AgentEyes.RecordingService::StartVideo starts a camera ffmpeg but never constructs the recorder - it cannot be the owner that stops one whose open failed
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.EveryCallerThatOpensACamera_ConstructsTheRecorderInTheSameMethod() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 882
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     2, Passed:    31, Skipped:     0, Total:    33, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+--------------------------------------------------------------------------------
+MUTATION M5 (two edits):
+  src/AgentEyes.Core/Commands.cs, the Video command's finally:
+    -                cameraRec?.Dispose();
+    +                Log.Info("MUTATION M5");
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, Open:
+    -            if (_openAttempted)
+    +            if (false && _openAttempted)   // MUTATION M5: no second-open guard
+
+The first restores round 1's defect 1 against the RETARGETED boundary check (it now names
+Create and Open rather than the deleted Start, so it had to be shown firing again). The
+second removes the guard that stops a recorder starting a second ffmpeg on the same camera -
+a hole the two-phase split opens for the first time, because the caller now holds the object
+between Create and Open.
+
+Test run for <scratch>\ae-artifacts\bin\AgentEyes.Tests\release\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.68]     AgentEyes.Tests.CameraFailurePathTests.Open_CalledTwice_RefusesToStartASecondFfmpeg [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Open_CalledTwice_RefusesToStartASecondFfmpeg [3 ms]
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(System.InvalidOperationException)
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Open_CalledTwice_RefusesToStartASecondFfmpeg() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 360
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:02.34]     AgentEyes.Tests.CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary [4 ms]
+  Error Message:
+   Assert.Contains() Failure: Item not found in collection
+Collection: ["AgentEyes.Log::Info"]
+Not found:  "AgentEyes.Video.FfmpegCameraRecorder::Dispose"
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 844
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     2, Passed:    31, Skipped:     0, Total:    33, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+--------------------------------------------------------------------------------
+MUTATION M6 (src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, Dispose):
+    -            _disposed = true;
+    -            _proc.Dispose();
+    +            Log.Info("MUTATION M6");
+
+The other way to satisfy M2's guarantee dishonestly: never release the handle at all, and
+leak a Process object on every clean recording. The positive controls fire on it, which is
+what makes "keep the handle while the process is alive" a rule rather than a licence.
+
+Bad result: Disposes == 0 after the process is CONFIRMED gone.
+
+Test run for <scratch>\ae-artifacts\bin\AgentEyes.Tests\release\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:01.09]     AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle [3 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 613
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:01.61]     AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle [FAIL]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle [227 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+  Stack Trace:
+     at AgentEyes.Tests.CameraFailurePathTests.Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle() in D:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 348
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     2, Passed:    31, Skipped:     0, Total:    33, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+--------------------------------------------------------------------------------
+ALL MUTATIONS REVERTED - the clean run.
+
+The artifacts directory was DELETED and rebuilt first, so this green cannot have come from a
+binary that predates the fix.
+
+Test run for <scratch>\ae-artifacts\bin\AgentEyes.Tests\release\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   900, Skipped:     0, Total:   900, Duration: 8 s - AgentEyes.Tests.dll (net8.0)

@@ -56,6 +56,9 @@ namespace AgentEyes
         /// <summary>Stage label: the deferred audio mux / system downmix is being completed.</summary>
         public const string StageMixing = "Mixing audio...";
 
+        /// <summary>Stage label: the camera is being rendered into the video (issue #47).</summary>
+        public const string StageComposing = "Adding the camera...";
+
         /// <summary>Stage label: the Library poster/waveform image is being generated.</summary>
         public const string StageThumbnail = "Making the thumbnail...";
 
@@ -112,6 +115,9 @@ namespace AgentEyes
 
         /// <summary>Stage 1 - complete the deferred audio mux (issue #77).</summary>
         internal static Action<string> MuxStep = RecordingService.FinalizePending;
+
+        /// <summary>Issue #47 - render the camera into the final video.</summary>
+        internal static Action<string> ComposeStep = dir => CameraCompose.Run(dir);
 
         /// <summary>Stage 2 - the Library poster / waveform tile. The attempt is counted BEFORE the
         /// work, so a file ffmpeg can never read drops out of the automatic passes.</summary>
@@ -355,6 +361,21 @@ namespace AgentEyes
                 else
                 {
                     Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - nothing to mux");
+                }
+
+                if (PostRecordingPlan.NeedsCompose(dir))
+                {
+                    // Counted before the work, like the mux: a compose the encoder can never finish
+                    // must consume a try rather than re-run on every recovery pass forever.
+                    PostRecordingState.NoteStarted(dir, PostStage.Compose);
+                    // The result is deliberately ignored. A failed compose leaves recording.mp4 as
+                    // the screen-only video, which is exactly what people got before this feature -
+                    // a worse video, not a lost one - so it must not cost the transcript.
+                    RunStage(dir, PostStage.Compose, StageComposing, progress, ComposeStep, outcome);
+                }
+                else
+                {
+                    Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - no camera to compose");
                 }
 
                 if (PostRecordingPlan.NeedsThumbnail(dir))

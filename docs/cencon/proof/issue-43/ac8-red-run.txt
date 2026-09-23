@@ -1,0 +1,49 @@
+AC8 - THE NEW TESTS, RUN AGAINST THE CODE THAT SHIPPED THE DEFECT
+=================================================================
+
+Both halves are run with the repo's PresetEditor.xaml / PresetEditor.xaml.cs and
+Preview/InsetSchematic.cs put back to main (v1.7.0 + the CI test fix, 0fdd6a0), and the
+issue-43 test files left in place. Captured 2026-08-29 15:29 UTC on branch issue-43-inset-schematic.
+
+STEP A - InsetSchematicTests cannot even compile against main: the geometry it asserts
+         (an inset rectangle that responds to the fraction and the corner) did not exist.
+---------------------------------------------------------------------------------------
+    12 Error(s)
+Build FAILED.
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(141,24): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(142,29): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(174,23): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(174,74): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(181,23): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(181,72): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(188,23): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(200,13): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(200,64): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(38,13): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(38,64): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\InsetSchematicTests.cs(96,40): error CS0103: The name 'InsetSchematic' does not exist in the current context [D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+
+STEP B - with the geometry restored but the EDITOR still at main, InsetSchematicUiTests
+         goes red: the schematic is not in the dialog, UpdateOverlayUi does not draw it,
+         and OverlayCorner_Changed still redraws nothing. The one green test is the
+         regression guard (the live preview and circle adorner are untouched) - it is
+         SUPPOSED to pass against main.
+--------------------------------------------------------------------------------------
+    0 Error(s)
+Build succeeded.
+  Failed AgentEyes.Tests.InsetSchematicUiTests.PresetEditor_CarriesTheRecordingSchematic [5 ms]
+  Failed AgentEyes.Tests.InsetSchematicUiTests.Corner_RedrawsTheSchematic_InsteadOfLoggingAndStopping [11 ms]
+  Failed AgentEyes.Tests.InsetSchematicUiTests.TheSchematic_IsRedrawnWhenItIsFirstLaidOut [1 ms]
+  Failed AgentEyes.Tests.InsetSchematicUiTests.TheSchematic_ChangesNothingThatIsSavedOrRecorded [< 1 ms]
+  Failed AgentEyes.Tests.InsetSchematicUiTests.SizeOnScreen_ReachesTheDrawing_NotOnlyItsLabel [< 1 ms]
+  Failed AgentEyes.Tests.InsetSchematicUiTests.TheTwoSliders_AreGroupedByWhatTheyChange [1 ms]
+Failed!  - Failed:     6, Passed:    19, Skipped:     0, Total:    25, Duration: 39 ms - AgentEyes.Tests.dll (net8.0)
+
+STEP C - the same suite with this branch's code, for comparison
+--------------------------------------------------------------
+    0 Error(s)
+Build succeeded.
+Passed!  - Failed:     0, Passed:  1310, Skipped:     0, Total:  1310, Duration: 17 s - AgentEyes.Tests.dll (net8.0)
+
+main (0fdd6a0) is 1283 tests; this branch is 1310 - the 27 new ones are
+InsetSchematicTests (21) and InsetSchematicUiTests (6).

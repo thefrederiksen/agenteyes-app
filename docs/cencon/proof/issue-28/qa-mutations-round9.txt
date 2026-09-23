@@ -1,0 +1,150 @@
+QA round 9 - MUTATION EVIDENCE (QA's own mutations, not the developer's)
+=======================================================================
+
+Commit 84221fd. Isolated worktree D:/ReposFred/agenteyes-qa28-r9, restored first,
+Release build, output read from bin\x64\Release only. Every mutation was BUILT and the
+FULL suite RUN; the numbers below are the observed run, not a prediction. The suite at
+head is 951 tests; with QA's own probe file present it is 952-953.
+
+The rule these obey: a check only ever run against the state you hope passes has
+demonstrated nothing. Each mutation states what it breaks and which checks caught it.
+An EMPTY "fired" list would mean the check is decorative - it is called out where it
+happens.
+
+-----------------------------------------------------------------------
+QA-M1  restore the EXACT rejected derivation
+       CameraTerminationRecord.cs:349
+       _exitFollowedADeliveredQuit  ->  _quitsDelivered > 0
+-----------------------------------------------------------------------
+Suite: Failed 2, Passed 950 of 952.
+  - CameraFailurePathTests.StopKind_WhenARefusedRoundsQuitIsFollowedByAnUndeliveredRetryExit_IsNotACleanQuit
+  - QaRound9Probe.QaRound9_TerminationHistoryProbe
+QA probe rows that fired (verbatim), reproducing the gate's round-7 verdict line for line:
+  FAIL PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 quits=2 kills=1 exited=True kind=clean-quit complete=yes abandoned=False  <-- EXPECTED kind=absent complete=unknown
+  FAIL PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_255 quits=2 kills=1 exited=True kind=clean-quit complete=yes abandoned=False  <-- EXPECTED kind=absent complete=unknown
+BOTH CONTROLS STAYED GREEN under this mutation:
+  PASS PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 ... kind=absent complete=unknown
+  PASS PRIOR_REFUSAL_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0 ... kind=clean-quit complete=yes
+That is what isolates the defect to the cross-round join rather than to the recorder at large.
+
+-----------------------------------------------------------------------
+QA-M2  THE OVER-CORRECTION the gate warned about
+       add "&& _refusedRounds == 0" to the clean-quit clause
+       (i.e. any refused round anywhere poisons the whole recorder)
+-----------------------------------------------------------------------
+Suite: Failed 2, Passed 950 of 952.
+  - CameraFailurePathTests.StopKind_WhenTheRetryRoundsOwnQuitIsDeliveredAndAnswered_IsStillACleanQuit
+  - QaRound9Probe.QaRound9_TerminationHistoryProbe
+QA probe rows that fired:
+  FAIL PRIOR_REFUSAL_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0 ... kind=absent complete=unknown  <-- EXPECTED kind=clean-quit complete=yes
+  FAIL PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0 ... kind=absent complete=unknown  <-- EXPECTED kind=clean-quit complete=yes
+The failing row and the two controls did NOT fire. The fix is pinned in BOTH directions:
+under-correction (QA-M1) and over-correction (QA-M2) each go red, on different rows.
+
+-----------------------------------------------------------------------
+QA-M3  delete the delivery clause entirely
+       "_exitObserved && _exitFollowedADeliveredQuit &&"  ->  "_exitObserved &&"
+-----------------------------------------------------------------------
+Suite: Failed 4, Passed 948 of 952.
+  - Stop_WhenTheQuitCouldNotBeDeliveredAndTheProcessExitedZero_IsStillNotACleanQuit
+  - StopKind_WhenNeitherRoundDeliveredItsQuitAndTheProcessExitedZero_IsNotACleanQuit
+  - StopKind_WhenARefusedRoundsQuitIsFollowedByAnUndeliveredRetryExit_IsNotACleanQuit
+  - QaRound9Probe
+QA probe: 3 rows fired, including the undelivered control.
+
+-----------------------------------------------------------------------
+QA-M4  pair the exit with an unconditional truth
+       _exitFollowedADeliveredQuit = _roundQuitDelivered  ->  = true
+-----------------------------------------------------------------------
+Suite: Failed 4, Passed 948 of 952. Same four checks as QA-M3; QA probe 3 rows.
+
+-----------------------------------------------------------------------
+QA-M5  never reset the per-round flag
+       delete "_roundQuitDelivered = false;" from BeginRound
+-----------------------------------------------------------------------
+Suite: Failed 2, Passed 950 of 952.
+  - StopKind_WhenARefusedRoundsQuitIsFollowedByAnUndeliveredRetryExit_IsNotACleanQuit
+  - QaRound9Probe (2 rows: the failing row and its 255 twin)
+The per-round RESET is load-bearing, not just the per-round write.
+
+-----------------------------------------------------------------------
+QA-M6  THE FAIL-OPEN CHEAT: Completeness always answers Unknown
+       first statement of FfmpegCameraRecorder.Completeness's getter
+-----------------------------------------------------------------------
+Suite: Failed 10, Passed 942 of 952. AC17's positive controls are among them:
+  - Stop_WhenTheOutputKeptAdvancingUntilTheStop_RecordsTheTakeAsComplete
+  - Stop_WhenTheOutputAdvancedTwiceAndWasStillFresh_IsRecordedAsComplete
+  - Stop_WhenADeliveredQuitEndedTheProcessNormally_IsStillRecordedAsACleanQuit
+  - Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete
+  - Stop_WhenTheCameraNeverReportedWritingAFrame_RecordsCompleteNo
+  - Stop_WhenNoTickArrivedOnACOMPLETEStderr_StillRecordsTheEmptyFileAsKnownBroken
+  - Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly
+  - Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned
+  - StopKind_WhenTheRetryRoundsOwnQuitIsDeliveredAndAnswered_IsStillACleanQuit
+  - QaRound9Probe (7 rows, including AC17_HEALTHY_EXIT_0 and AC17_HEALTHY_EXIT_255)
+"Always write unknown" - the cheat that satisfies AC13-AC16 while telling the user
+nothing - cannot survive this build.
+
+-----------------------------------------------------------------------
+QA-M7  RefusedRoundsForAbandoned 2 -> 1
+-----------------------------------------------------------------------
+Suite: Failed 7, Passed 945 of 952, including
+  Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned and
+  StopKind_WhenTheProcessDiesBeforeTheDisposeRetry_IsNeverRecordedAsAbandoned.
+QA probe: 7 rows fired, DIRECT_DISPOSE_ONE_KILL_THEN_RETRY_KILL_LANDS among them.
+
+-----------------------------------------------------------------------
+QA-M8  widen the ENUMERATED exit set to admit ffmpeg's own error exit 1
+       QuitExitCodes { 0, 255 }  ->  { 0, 1, 255 }
+-----------------------------------------------------------------------
+Suite: Failed 2, Passed 950 of 952.
+  - Stop_WhenADeliveredQuitEndedInAnFfmpegErrorCode_IsNeverRecordedAsACleanQuit
+  - QaRound9Probe: DELIVERED_QUIT_THEN_EXIT_1 fired (both occurrences).
+
+-----------------------------------------------------------------------
+QA-M9  demote the monotone test: "if (AbandonedEarned)" moved from FIRST to LAST
+-----------------------------------------------------------------------
+Suite: Failed 3, Passed 949 of 952.
+  - StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned
+  - StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned
+  - QaRound9Probe: RECOVERY_AFTER_ABANDONED and STOP_DISPOSE_RECOVER both fired,
+    each turning an earned "abandoned" back into clean-quit / yes.
+
+-----------------------------------------------------------------------
+QA-M10 remove QuitDelivered()'s precondition (the gate's round-7 follow-up)
+-----------------------------------------------------------------------
+Suite: Failed 1, Passed 951 of 952.
+  - CameraTerminationRecord_QuitDeliveredWithoutAQuitInThisRound_Throws
+The follow-up the gate asked for is committed and IS load-bearing. QA's probe does not
+reach it (0 rows), which is stated rather than hidden - it is a record-level promise, and
+the record-level test is now the thing that keeps it executable.
+
+-----------------------------------------------------------------------
+QA-M11 AC16's PID clause: StrandedCameraOwner Pid = s.Recorder.ProcessId -> null
+-----------------------------------------------------------------------
+Suite: Failed 2, Passed 951 of 953.
+  - StrandedCameraOwnerTests.Report_NamesTheStuckProcessAndItsPid
+  - StrandedCameraOwnerTests.Report_WhileTheStrandedProcessIsStillAlive_KeepsReportingItAndItsClaim
+
+-----------------------------------------------------------------------
+QA-M12 the DESIGN-PROPERTY instrument's own known-bad
+       plant "private CameraStopKind? _qaPlantedStopKind;" plus an
+       "internal void QaPlant(CameraStopKind k)" on FfmpegCameraRecorder
+-----------------------------------------------------------------------
+QaRound9_NoCallSiteCanStoreAStopKind FAILED, reporting from the compiled assembly:
+  fields storing a CameraStopKind: 1 [AgentEyes.Video.FfmpegCameraRecorder._qaPlantedStopKind]
+  methods accepting a CameraStopKind: 3 [...CameraObservation.Text(kind) x2, ...FfmpegCameraRecorder.QaPlant(k)]
+At head the same instrument reports 0 stored fields, 0 writable properties, and exactly
+the two permitted CameraObservation.Text overloads, over 248 inspected types.
+
+-----------------------------------------------------------------------
+WHAT THE MUTATION SET CANNOT SEE (stated, not glossed)
+-----------------------------------------------------------------------
+- Assign vs OR on _exitFollowedADeliveredQuit is unreachable in the current design (a
+  second ExitObservedAfterTermination cannot happen: the first one sets _terminated, which
+  ends the round loop). Changing "=" to "|=" therefore fires nothing. That is a documented
+  equivalence, not a hole in the guard: no public sequence distinguishes the two.
+- The probe drives the ICameraProcess seam, so it cannot see anything that only a real
+  ffmpeg would do differently. The real-hardware section of the report is what covers that.
+- The reflection inventory sees FIELDS, PROPERTIES and PARAMETERS of type CameraStopKind.
+  It would not see a stop kind smuggled through an int, a string or a boxed object.

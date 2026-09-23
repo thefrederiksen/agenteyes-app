@@ -1,0 +1,43 @@
+param([string]$Variant = 'x')
+# HOW LONG IS THE HUD'S DISPATCHER BUSY AFTER A PREVIEW CLICK?
+#
+# UI Automation's InvokePattern.Invoke on a WPF button is DISPATCHED ASYNCHRONOUSLY (WPF's
+# ButtonAutomationPeer posts the click with Dispatcher.BeginInvoke), so the Invoke call itself
+# returns at once whatever the handler does - it measures nothing, which is why it is not used here.
+#
+# What IS measured: a first preview click runs its handler, and a SECOND click cannot be served
+# until that handler returns. So the time from the second click to the observable effect of the
+# second click (/status PreviewPublishing flipping back, read over the REST API on its own thread)
+# is how long the dispatcher was occupied by the first one. The HUD's elapsed-time text is sampled
+# too, because a dispatcher stuck in a file write cannot repaint it either.
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+$hud = $null
+for ($i = 0; $i -lt 30; $i++) {
+    $hud = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'Recording HUD') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+    if ($hud) { break }
+    Start-Sleep -Milliseconds 400
+}
+if (-not $hud) { throw 'HUD not found' }
+$btn = $hud.FindFirst('Descendants', (BothOf (NameIs 'Show preview') (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+function Pub() { (Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 30).PreviewPublishing }
+
+Write-Output ("$Variant  publishing before = " + (Pub))
+($btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()   # click 1: hide
+$sw = [Diagnostics.Stopwatch]::StartNew()
+($btn.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()   # click 2: show
+$flips = @()
+$last = Pub
+while ($sw.ElapsedMilliseconds -lt 30000) {
+    $p = Pub
+    if ($p -ne $last) { $flips += ("" + $sw.ElapsedMilliseconds + "ms -> publishing=" + $p); $last = $p }
+    if ($flips.Count -ge 2) { break }
+    Start-Sleep -Milliseconds 50
+}
+$sw.Stop()
+foreach ($f in $flips) { Write-Output ("$Variant  " + $f) }
+Write-Output ("$Variant  publishing after = " + (Pub) + "  (both clicks served after " + $sw.ElapsedMilliseconds + "ms)")

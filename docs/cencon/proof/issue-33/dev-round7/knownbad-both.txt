@@ -1,0 +1,57 @@
+NOTE: xUnit prints a down-arrow and a middle-dot ellipsis in Assert.DoesNotContain output.
+This repo is ASCII-only, so those two characters were folded to "v" and "..." when this
+capture was committed. Nothing else was edited.
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AgentEyes.Core -> D:\ReposFred\agenteyes-dev33-r4\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-dev33-r4\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.App -> D:\ReposFred\agenteyes-dev33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+Test run for D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:02.18]     AgentEyes.Tests.HudPreviewSizingOrderTests.APillDraggedAfterThePanelCameDown_IsNotReportedAsAMissingPanelRoute [FAIL]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.APillDraggedAfterThePanelCameDown_IsNotReportedAsAMissingPanelRoute [292 ms]
+  Error Message:
+   Assert.DoesNotContain() Failure: Sub-string found
+                                v (pos 394)
+String: ..."person was 520x400. A resize route is una"...
+Found:  "A resize route is unaccounted for"
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.APillDraggedAfterThePanelCameDown_IsNotReportedAsAMissingPanelRoute() in D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 615
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:04.03]     AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeNoGestureClaimed_ReachesTheLogOnTheOrdinaryStop [FAIL]
+[xUnit.net 00:00:04.24]     AgentEyes.Tests.HudPreviewSizingOrderTests.AnOrdinaryStopWithNothingUnaccountedFor_SaysNothingAboutMissingRoutes [FAIL]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeNoGestureClaimed_ReachesTheLogOnTheOrdinaryStop [204 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   3
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeNoGestureClaimed_ReachesTheLogOnTheOrdinaryStop() in D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 504
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.AnOrdinaryStopWithNothingUnaccountedFor_SaysNothingAboutMissingRoutes [203 ms]
+  Error Message:
+   Assert.DoesNotContain() Failure: Sub-string found
+                                v (pos 532)
+String: ..."erson was 1560x400. A resize route is una"...
+Found:  "A resize route is unaccounted for"
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.AnOrdinaryStopWithNothingUnaccountedFor_SaysNothingAboutMissingRoutes() in D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 535
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:05.99]     AgentEyes.Tests.HudPreviewSizingOrderTests.AnUntouchedRecording_StoppedWithThePanelUp_SaysNothingAboutMissingRoutes [FAIL]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.AnUntouchedRecording_StoppedWithThePanelUp_SaysNothingAboutMissingRoutes [225 ms]
+  Error Message:
+   Assert.DoesNotContain() Failure: Sub-string found
+                                v (pos 393)
+String: ..."person was 520x400. A resize route is una"...
+Found:  "A resize route is unaccounted for"
+  Stack Trace:
+     at AgentEyes.Tests.HudPreviewSizingOrderTests.AnUntouchedRecording_StoppedWithThePanelUp_SaysNothingAboutMissingRoutes() in D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\HudPreviewSizingOrderTests.cs:line 574
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     4, Passed:    19, Skipped:     0, Total:    23, Duration: 6 s - AgentEyes.Tests.dll (net8.0)

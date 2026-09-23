@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using AgentEyes;
 using AgentEyes.Audio;
+using AgentEyes.Preview;
 
 namespace AgentEyes.App
 {
@@ -38,6 +39,33 @@ namespace AgentEyes.App
         public string Mode { get; set; } = "video";   // shot | audio | video
         public int Fps { get; set; } = 30;
 
+        /// <summary>
+        /// Issue #28: the exact DirectShow name of the webcam recorded to camera.mp4 alongside the
+        /// screen, or null for no camera. Stored as the EXACT device name (not a fragment) because it
+        /// is what the picker chose; record-time resolution still goes through DeviceResolver, so a
+        /// camera that has since been unplugged fails the start loudly rather than being ignored.
+        /// A preset saved before this field existed deserializes to null - i.e. camera off.
+        /// </summary>
+        public string? Camera { get; set; }
+
+        /// <summary>Issue #28: frame rate requested from the camera. The camera's own default
+        /// resolution is used (assumption A2).</summary>
+        public int CameraFps { get; set; } = 30;
+
+        /// <summary>
+        /// Issue #36: how the camera is FRAMED over the screen in the HUD preview - shape, the
+        /// circle's place in the camera frame, the corner, and the inset size.
+        ///
+        /// It lives on the preset so it is chosen BEFORE recording, against a live camera image in
+        /// the editor, rather than only from the HUD mid-recording. It is a PREVIEW AND METADATA
+        /// choice (assumption E1): camera.mp4 keeps recording the full rectangular frame whatever
+        /// this says, so the framing can still be moved later.
+        ///
+        /// A preset saved before this field existed deserializes to the property initializer - i.e.
+        /// the documented defaults, with the circle as the default shape (AC1).
+        /// </summary>
+        public CameraOverlaySettings Overlay { get; set; } = new();
+
         // List containers expose ToString as their UI Automation name - return the preset name so
         // the launcher combo is readable to accessibility tools and drivable by the GUI smoke test.
         public override string ToString() => Name;
@@ -59,6 +87,11 @@ namespace AgentEyes.App
             SysVol = SysVol,
             Mode = Mode,
             Fps = Fps,
+            Camera = Camera,
+            CameraFps = CameraFps,
+            // A DEEP copy: two presets sharing one overlay object would let editing either of them
+            // silently change the other.
+            Overlay = (Overlay ?? new CameraOverlaySettings()).Clone(),
         };
 
         /// <summary>One-glance summary shown under the launcher's preset picker.</summary>
@@ -69,6 +102,16 @@ namespace AgentEyes.App
                 : $"Monitor {MonitorIndex}";
             string mode = Mode switch { "shot" => "Screenshot", "audio" => "Audio + shots", _ => $"Video {Fps}fps" };
             if (Mode == "shot") return $"{screen}\n{mode}";
+
+            // Issue #28, assumption A1: the camera applies to video mode only, so it is only named
+            // for a video preset. "No camera" is stated rather than left blank - a recorder whose
+            // posture is "visible, controllable" says whether it is about to film you.
+            if (Mode == "video")
+            {
+                mode += string.IsNullOrWhiteSpace(Camera)
+                    ? " - no camera"
+                    : $" + camera \"{Camera}\" {CameraFps}fps ({PreviewNames.Text((Overlay ?? new CameraOverlaySettings()).ShapeValue)} overlay)";
+            }
 
             string src = Source switch { "mic" => "Mic only", "system" => "System only", _ => "Mic + System (mixed)" };
             string mic = Source == "system" ? "(system loopback)" : (string.IsNullOrWhiteSpace(Mic) ? DefaultMicDisplay() : Mic!);
@@ -150,8 +193,17 @@ namespace AgentEyes.App
     {
         /// <summary>Starts the recording (or takes the screenshot) described by the preset. Returns the
         /// screenshot path for "shot" mode, otherwise null (a recording is now in progress).</summary>
-        public static string? Start(RecordingService svc, CapturePreset p)
+        public static string? Start(RecordingService svc, CapturePreset p, Config cfg)
         {
+            if (svc == null) throw new ArgumentNullException(nameof(svc));
+            if (p == null) throw new ArgumentNullException(nameof(p));
+            if (cfg == null) throw new ArgumentNullException(nameof(cfg));
+
+            // Issue #36, AC3/AC7: the preset's overlay framing becomes the framing the HUD shows for
+            // this recording. Done HERE because this method is the single funnel every recording
+            // start goes through - the launcher, the tray and the REST API all land on it.
+            HudOverlayConfig.Seed(cfg, p);
+
             int screen = p.MonitorIndex;
             int[]? region = p.UseRegion ? p.Region : null;
             var src = RecordingService.ParseSource(p.Source);
@@ -181,7 +233,13 @@ namespace AgentEyes.App
             {
                 case "shot": return svc.Screenshot(screen, region);
                 case "audio": svc.StartAudio(screen, src, mic, opts); return null;
-                default: svc.StartVideo(screen, src, mic, region, opts, p.Fps); return null;
+                // Issue #28, assumption A1: the camera is a video-mode setting. A camera saved on a
+                // preset that is now "shot" or "audio" is ignored rather than silently changing what
+                // those modes do.
+                // Issue #47: the preset's own framing goes in with the start, so the composed
+                // video can be laid out even when no preview window ever opened.
+                default: svc.StartVideo(screen, src, mic, region, opts, p.Fps, p.Camera, p.CameraFps,
+                    string.IsNullOrWhiteSpace(p.Camera) ? null : p.Overlay); return null;
             }
         }
     }

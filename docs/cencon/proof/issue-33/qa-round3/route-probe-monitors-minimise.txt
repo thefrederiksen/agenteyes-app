@@ -1,0 +1,13 @@
+﻿==== (d) cross-monitor / scale route probe - the person toggles the preview and MOVES only ====
+  DISPLAY3 primary 0,0 1920x1080 | DISPLAY1 1920,-5 1920x1080 | DISPLAY2 1173,1080 1366x768
+  pill:                    HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  -> DISPLAY3 (primary):   HUD rect after move: X=300 Y=200 W=520 H=400
+  -> DISPLAY2 (1366x768):  HUD rect after move: X=1250 Y=1150 W=520 H=400
+  -> DISPLAY1:             HUD rect after move: X=2100 Y=100 W=520 H=400
+  -> back to DISPLAY3:     HUD rect after move: X=300 Y=200 W=520 H=400
+  minimise/restore:        HUD rect after minimise/restore: X=300 Y=200 W=520 H=400
+  toggle OFF:              clicked 'Show preview' -> HUD rect: X=300 Y=200 W=367 H=52
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=300 Y=200 W=520 H=400
+  config after the move-only recording  EXPECT null / null (nobody resized):   "HudWidth": null,   "HudHeight": null,
+==== end ====

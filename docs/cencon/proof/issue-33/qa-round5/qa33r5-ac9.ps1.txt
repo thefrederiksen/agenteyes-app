@@ -1,0 +1,53 @@
+$ErrorActionPreference = 'Continue'
+$SP  = "<QA-SCRATCH>"
+$EXE = "D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$CFG = "$env:LOCALAPPDATA\AgentEyes\config.json"
+$SEED = "$SP\backup\config.json"
+$VIDEOS = "$env:USERPROFILE\Videos\AgentEyes"
+$FFPROBE = (Get-Command ffprobe).Source
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a } }
+function Main($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a } }
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 20 }
+function Rec() { Main click 'REC' | Out-Null; Start-Sleep -Seconds 8 }
+function StopRec() { Hud click 'HUD stop' | Out-Null; Start-Sleep -Seconds 12 }
+function NewestDir() { (Get-ChildItem $VIDEOS -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
+function Drops($log) { if (-not (Test-Path $log)) { return -1 }; $n=-1; foreach ($l in Get-Content $log) { $m=[regex]::Match($l,'drop=\s*(\d+)'); if ($m.Success) { $n=[Math]::Max($n,[int]$m.Groups[1].Value) } }; return $n }
+function Frames($log) { if (-not (Test-Path $log)) { return -1 }; $n=-1; foreach ($l in Get-Content $log) { $m=[regex]::Match($l,'frame=\s*(\d+)'); if ($m.Success) { $n=[Math]::Max($n,[int]$m.Groups[1].Value) } }; return $n }
+function Dur($f) { if (-not (Test-Path $f)) { return -1 }; $o = & $FFPROBE -v error -show_entries format=duration -of default=nw=1:nk=1 $f 2>$null; if ($o) { return [double]$o } else { return -1 } }
+function StartApp($previewOn) {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+    $j = Get-Content $SEED -Raw | ConvertFrom-Json
+    $j.HudPreviewVisible = [bool]$previewOn
+    $j | ConvertTo-Json | Out-File -FilePath $CFG -Encoding utf8
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+    Start-Sleep -Seconds 3
+}
+function Run($label, $previewOn) {
+    StartApp $previewOn
+    Rec
+    $s = Status
+    if ($s.PreviewArmed -ne $previewOn) { Write-Output ("  *** BROKEN INSTRUMENT: armed=" + $s.PreviewArmed + " wanted " + $previewOn + " - this run proves nothing"); }
+    Start-Sleep -Seconds 60
+    $s2 = Status
+    StopRec
+    $d = NewestDir
+    $man = Join-Path $d 'manifest.json'
+    $pipe = Select-String -Path $man -Pattern 'pipe:1' -Quiet
+    Write-Output ("  " + $label + " armed=" + $s.PreviewArmed + " publishing=" + $s.PreviewPublishing + " framesRead=" + $s2.PreviewScreenFramesRead + "/" + $s2.PreviewCameraFramesRead)
+    Write-Output ("    drops=" + (Drops (Join-Path $d 'raw.mp4.ffmpeg.log')) + " deliveredFrames=" + (Frames (Join-Path $d 'raw.mp4.ffmpeg.log')) + " screenDur=" + (Dur (Join-Path $d 'recording.mp4')) + " cameraDur=" + (Dur (Join-Path $d 'camera.mp4')))
+    Write-Output ("    pipe:1 in the ffmpeg command = " + $pipe + "   dir=" + $d)
+    Get-Content $man | Where-Object { $_ -match 'CameraComplete|DurationSeconds' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+}
+
+Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',"$SP\qa33r5-churn.ps1",'-Seconds','420'
+Start-Sleep -Seconds 4
+Write-Output "AC9: four alternated 60-second runs on identical changing content"
+Run 'control-1 (preview OFF)' $false
+Run 'preview-1 (preview ON) ' $true
+Run 'control-2 (preview OFF)' $false
+Run 'preview-2 (preview ON) ' $true
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*qa33r5-churn*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+Write-Output "DONE AC9"

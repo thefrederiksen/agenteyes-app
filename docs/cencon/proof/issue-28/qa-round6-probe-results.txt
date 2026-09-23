@@ -1,0 +1,61 @@
+QA round 6, issue #28 - the seam probe, run against three trees with the SAME source
+(committed alongside as qa-round6-probe.cs.txt). Built as a console app whose assembly
+name is AgentEyes.Tests, so the InternalsVisibleTo in AgentEyes.Core.csproj lets it reach
+the internal ICameraProcess seam, FfmpegCameraRecorder, StrandedCameraOwner and the real
+RecordingService.Status / RecordingWorkset production paths. It is NOT part of the suite.
+
+The three runs are the instrument check: the SAME probe reports the gate's round-4 defects
+against the round-5 tree and reports them fixed against the round-6 tree. A probe only ever
+run against the tree that is supposed to pass would have demonstrated nothing.
+
+An early run of this probe emitted 'complete=unknown' on EVERY case because the fake never
+delivered ffmpeg's open headers and Open() threw. That is why every line carries threw=; a
+row without threw=(none) is a broken instrument, not a result.
+
+=== A) round-5 tree (0558585) - the code the Review Gate REJECTED. The probe must FIRE. ===
+HEALTHY                      captured=2.5 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_2_9S          captured=0.5 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_30S           captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_INCOMPLETE_STDERR  captured=0 stopKind=clean-quit stderrComplete=False complete=no lostMidRun=True quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_COMPLETE_STDERR    captured=0 stopKind=clean-quit stderrComplete=True complete=no lostMidRun=True quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_INCOMPLETE_STDERR   captured=1.5 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ERROR_EXIT  captured=1 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+QUIT_OK_THEN_ERROR_EXIT      captured=1 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ZERO_EXIT   captured=1 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FORCED_KILL_AFTER_OUTPUT     captured=1 stopKind=force-killed stderrComplete=True complete=no lostMidRun=False quits=1 kills=1 drains=1 threw=CameraForceKilledException
+EXITED_EARLY                 captured=1 stopKind=exited-early stderrComplete=True complete=no lostMidRun=True quits=0 kills=0 drains=1 threw=(none)
+RETAINED_PROCESS_ALIVE       retained=True hasExited=False isAbandoned=True stopKind=abandoned complete=unknown cameraStuck=True statusRows=1 pid=4242 claimHeld=True disposes=0
+RETAINED_PROCESS_DIED        hasExited=True isAbandoned=True cameraStuck=True holdsAny=True statusRows=1 claimHeld=True disposes=0
+PROBE_RESULT lines=13
+
+=== B) round-6 tree (8fad138) - PR #32 head. The same probe, the same cases. ===
+HEALTHY                      captured=2.5 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_2_9S          captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_30S           captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_INCOMPLETE_STDERR  captured=0 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_COMPLETE_STDERR    captured=0 stopKind=clean-quit stderrComplete=True complete=no lostMidRun=True quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_INCOMPLETE_STDERR   captured=1.5 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ERROR_EXIT  captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+QUIT_OK_THEN_ERROR_EXIT      captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ZERO_EXIT   captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FORCED_KILL_AFTER_OUTPUT     captured=1 stopKind=force-killed stderrComplete=True complete=no lostMidRun=False quits=1 kills=1 drains=1 threw=CameraForceKilledException
+EXITED_EARLY                 captured=1 stopKind=exited-early stderrComplete=True complete=no lostMidRun=True quits=0 kills=0 drains=1 threw=(none)
+RETAINED_PROCESS_ALIVE       retained=True hasExited=False isAbandoned=True stopKind=abandoned complete=unknown cameraStuck=True statusRows=1 pid=4242 claimHeld=True disposes=0
+RETAINED_PROCESS_DIED        hasExited=True isAbandoned=False cameraStuck=False holdsAny=False statusRows=0 claimHeld=False disposes=1
+PROBE_RESULT lines=13
+
+=== C) round-6 MERGED INTO THE STACK TIP (issue-36-circular-camera-overlay + this branch) ===
+HEALTHY                      captured=2.5 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_2_9S          captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_30S           captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_INCOMPLETE_STDERR  captured=0 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_COMPLETE_STDERR    captured=0 stopKind=clean-quit stderrComplete=True complete=no lostMidRun=True quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_INCOMPLETE_STDERR   captured=1.5 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ERROR_EXIT  captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+QUIT_OK_THEN_ERROR_EXIT      captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ZERO_EXIT   captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FORCED_KILL_AFTER_OUTPUT     captured=1 stopKind=force-killed stderrComplete=True complete=no lostMidRun=False quits=1 kills=1 drains=1 threw=CameraForceKilledException
+EXITED_EARLY                 captured=1 stopKind=exited-early stderrComplete=True complete=no lostMidRun=True quits=0 kills=0 drains=1 threw=(none)
+RETAINED_PROCESS_ALIVE       retained=True hasExited=False isAbandoned=True stopKind=abandoned complete=unknown cameraStuck=True statusRows=1 pid=4242 claimHeld=True disposes=0
+RETAINED_PROCESS_DIED        hasExited=True isAbandoned=False cameraStuck=False holdsAny=False statusRows=0 claimHeld=False disposes=1
+PROBE_RESULT lines=13

@@ -1,0 +1,187 @@
+QA ROUND 8 - INDEPENDENT PROBE RESULTS (issue #28, PR #32)
+==========================================================
+
+Probe source: docs/cencon/proof/issue-28/qa-round8-probe.cs.txt
+It is written by the QA seat and shares no fake, no helper and no assertion with the
+branch's own tests. To reproduce, drop it into tests/AgentEyes.Tests/ and run
+  dotnet test AgentEyes.sln -c Release --filter "FullyQualifiedName~QaRound8DesignProbe"
+from an isolated worktree with its own restore. Release output is bin\x64\Release\.
+
+Trees:
+  REJECTED  6d90ba0 (round-7 head; product fix 6aef3ac) - worktree D:\ReposFred\agenteyes-qa28-r8-old
+  HEAD      f11abdd (round-8; product fix aa92426)      - worktree D:\ReposFred\agenteyes-qa28-r8
+
+-----------------------------------------------------------------------------------
+1. THE PROBE WAS RUN AGAINST THE REJECTED TREE FIRST, AND IT FIRED
+-----------------------------------------------------------------------------------
+
+Only the 29 scenarios that compile against both trees were run there (the round-8
+CameraTerminationRecord does not exist on the rejected tree, so the four probes that
+name it directly - AC16, AC1, the new-call-site probe and the AC10/14/15 seam trio -
+were added afterwards and are head-only).
+
+  Total tests: 29     Passed: 20     Failed: 9
+
+Failed on the rejected tree (each is the DESIGN PROPERTY being violated):
+
+  DirectDispose_ProcessSurvivesEverything_AbandonedOnlyAfterTheRetry
+      abandoned was recorded after only 1 quit(s) - the Dispose retry never ran
+      DIRECT_DISPOSE_ONE_KILL quits=1 kills=1 exited=False kind=abandoned complete=unknown abandoned=True
+      -- this is the gate's round-6 blocker 1, reproduced exactly.
+
+  DirectDispose_WhenTheRetryKillLands_IsForceKilledNotAbandoned
+      DIRECT_DISPOSE_RETRY_KILL_LANDS quits=1 kills=1 exited=False kind=abandoned complete=unknown abandoned=True
+
+  DirectDispose_WhenTheProcessDiesBetweenRounds_RecordsNoKindAtAll
+      Expected: null   Actual: Abandoned
+      DIRECT_DISPOSE_DIES_BETWEEN_ROUNDS quits=1 kills=1 exited=True kind=abandoned complete=unknown abandoned=False
+
+  RecoveryQuitAfterAbandoned_KeepsTheEarnedAbandonedAndTheClosedDoor
+      Expected: Abandoned   Actual: CleanQuit
+      RECOVERY_AFTER_ABANDONED_QUIT quits=3 kills=2 exited=True kind=clean-quit complete=yes abandoned=False
+      -- this is the gate's round-6 blocker 2, reproduced exactly, INCLUDING the
+         reopened completeness one-way door (complete=yes after abandoned/unknown).
+
+  RecoveryQuitExit255AfterAbandoned_KeepsTheEarnedAbandoned
+      RECOVERY_AFTER_ABANDONED_QUIT_255 quits=3 kills=2 exited=True kind=clean-quit complete=yes abandoned=False
+
+  RecoveryKillAfterAbandoned_KeepsTheEarnedAbandoned
+      Expected: Abandoned   Actual: ForceKilled
+      RECOVERY_AFTER_ABANDONED_KILL quits=3 kills=3 exited=True kind=force-killed complete=no abandoned=False
+
+  RepeatedDisposeAfterAbandoned_NeverChangesTheDurableKind
+      REPEATED_DISPOSE_AFTER_ABANDONED quits=5 kills=4 exited=True kind=clean-quit complete=yes abandoned=False
+
+  StopThenDisposeThenRecover_NeverChangesTheDurableKind
+      STOP_DISPOSE_RECOVER_MIX quits=4 kills=4 exited=True kind=force-killed complete=no abandoned=False
+
+  ManyStopsOnALiveProcess_NeverEarnAKindBeyondTheHistory
+      MANY_STOPS quits=12 kills=12 exited=False kind=(absent) ... round1..round12 all (absent)
+      -- on the rejected tree TWELVE refused rounds never earned "abandoned" at all,
+         while ONE direct Dispose did. That inconsistency is the design error itself.
+
+-----------------------------------------------------------------------------------
+2. THE SAME PROBE AGAINST HEAD - 37 scenarios, all green
+-----------------------------------------------------------------------------------
+
+  Total tests: 37     Passed: 37     Failed: 0        (full suite with the probe: 982/982)
+
+AC10_SEAM stopKind=exited-early complete=no captured=1
+AC13_ONE_TICK_STALL quits=1 kills=0 exited=True kind=clean-quit complete=unknown abandoned=False
+AC14_FORCE_KILLED quits=1 kills=1 exited=True kind=force-killed complete=no abandoned=False threw=CameraForceKilledException device=QA PROBE CAM
+AC15_255_INCOMPLETE_STDERR quits=1 kills=0 exited=True kind=clean-quit complete=unknown abandoned=False
+AC15_INCOMPLETE_STDERR quits=1 kills=0 exited=True kind=clean-quit complete=unknown abandoned=False stderrComplete=False
+AC16_MANIFEST stopKind=abandoned complete=unknown
+AC17_HEALTHY_0 quits=1 kills=0 exited=True kind=clean-quit complete=yes abandoned=False
+AC17_HEALTHY_255 quits=1 kills=0 exited=True kind=clean-quit complete=yes abandoned=False
+AC1_NO_CAMERA cameras=0 mics=1
+CLEAN_STOP_THEN_DISPOSE quits=1 kills=0 exited=True kind=clean-quit complete=yes abandoned=False
+DELIVERED_QUIT_THEN_EXIT_1 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+DIED_BEFORE_DISPOSE_RETRY quits=1 kills=1 exited=True kind=(absent) complete=unknown abandoned=False
+DIRECT_DISPOSE_DIES_BETWEEN_ROUNDS quits=1 kills=1 exited=True kind=(absent) complete=unknown abandoned=False
+DIRECT_DISPOSE_ONE_KILL quits=2 kills=2 exited=False kind=abandoned complete=unknown abandoned=True
+DIRECT_DISPOSE_RETRY_KILL_LANDS quits=2 kills=2 exited=True kind=force-killed complete=no abandoned=False
+EXITED_EARLY_THEN_DISPOSE quits=0 kills=0 exited=True kind=exited-early complete=no abandoned=False
+EXIT_1 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+EXIT_2 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+EXIT_69 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+EXIT_137 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+EXIT_254 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+EXIT_256 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+EXIT_2147483647 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+EXIT_-5 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+FORCE_KILLED_THEN_RECOVER quits=1 kills=1 exited=True kind=force-killed complete=no abandoned=False
+MANY_STOPS quits=12 kills=12 exited=False kind=abandoned complete=unknown abandoned=True
+MANY_STOPS round1:kind=(absent) round2..round12:kind=abandoned
+ONE_REFUSED_ROUND quits=1 kills=1 exited=False kind=(absent) complete=unknown abandoned=True
+RECOVERY_AFTER_ABANDONED_KILL quits=3 kills=3 exited=True kind=abandoned complete=unknown abandoned=False
+RECOVERY_AFTER_ABANDONED_QUIT quits=3 kills=2 exited=True kind=abandoned complete=unknown abandoned=False
+RECOVERY_AFTER_ABANDONED_QUIT_255 quits=3 kills=2 exited=True kind=abandoned complete=unknown abandoned=False
+REPEATED_DISPOSE_AFTER_ABANDONED quits=5 kills=4 exited=True kind=abandoned complete=unknown abandoned=False
+STOP_DISPOSE_RECOVER_MIX quits=4 kills=4 exited=True kind=abandoned complete=unknown abandoned=False
+THREE_CLAUSE_CONTROL quits=2 kills=2 exited=False kind=abandoned complete=unknown abandoned=True
+UNDELIVERED_QUIT_EXIT_0 quits=1 kills=0 exited=True kind=(absent) complete=unknown abandoned=False
+
+AC16, through the REAL RecordStatus and the REAL RestServer serializer options
+(JsonSerializerOptions { WriteIndented = true }):
+
+AC16_STATUS_JSON {   "State": "idle",   ...   "CameraStuck": true,   "StuckCameras": [
+  {  "Device": "QA PROBE CAM",  "Pid": 40404,
+     "Output": "...\QaR8Probe_3d6bede5...\camera.mp4",
+     "Dir": "...\QaR8Probe_3d6bede5..." } ] }
+
+and the claim: a second RecordingWorkset.TryClaim on that directory was REFUSED while the
+process lived, and succeeded only after owner.Recover() saw it finally end - at which point
+StopKind was still Abandoned.
+
+-----------------------------------------------------------------------------------
+3. THE DESIGN PROPERTY, ATTACKED DIRECTLY BY A NEW CALL SITE
+-----------------------------------------------------------------------------------
+
+NEW_CALL_SITE members taking a CameraStopKind: (none)
+NEW_CALL_SITE settable stop-kind fields on the recorder: (none)
+NEW_CALL_SITE after two refused rounds: rounds=2 attemptedRounds=2 refusedRounds=2 quits=0(delivered=0) kills=2 exit=none goneUntouched=False killConfirmed=False kind=abandoned
+NEW_CALL_SITE after a later clean quit AND a later landed kill: rounds=4 attemptedRounds=4 refusedRounds=2 quits=1(delivered=1) kills=3 exit=0 goneUntouched=False killConfirmed=True kind=abandoned
+
+Each of these shortcuts THREW InvalidOperationException instead of being admitted:
+  QuitAttempted / KillAttempted outside any round; QuitDelivered with no quit attempted;
+  KillRefused and KillConfirmedProcessGone with no kill issued; a second outcome in one
+  round; ExitObservedAfterTermination before anything was attempted.
+After ONE refused round the kind is still ABSENT. ProcessGoneWithoutAnyAttempt records
+nothing once an attempt exists.
+
+Instrument proof for the two structural greps (an empty grep is a broken command):
+  grep -rn "_stopKind" src/   REJECTED tree: 13 hits    HEAD: 0 hits
+  grep -rn "CameraStopKind" src/  HEAD: 30 hits - enum, derivation, manifest spellings,
+    comparisons. No assignment of a kind to a field outside CameraTerminationRecord.
+
+-----------------------------------------------------------------------------------
+4. QA MUTATION MATRIX (mine, applied to the FIXED source, full 982-test suite each,
+   source restored byte-for-byte and `git diff src/` verified clean afterwards)
+-----------------------------------------------------------------------------------
+
+ #        mutation                                                        tests fired
+ QA-M1    the monotone `if (AbandonedEarned)` removed from the top          13
+          of the derivation (the round-6 overwrite, reintroduced)
+ QA-M2    RefusedRoundsForAbandoned 2 -> 1                                   9
+ QA-M3    Dispose runs ONE round again instead of retrying                   4
+ QA-M4    QuitExitCodes widened to { 0, 255, 1 }                             3
+ QA-M5    the "quit was DELIVERED" clause dropped from clean-quit            2
+ QA-M6    ProcessGoneWithoutAnyAttempt drops its precondition                3
+ QA-M7    exited-early never derived                                         2
+ QA-M8    THE FAIL-OPEN CHEAT: Completeness always answers "unknown"        14  (incl.
+          both AC17 positive controls - the fix has not degenerated)
+ QA-M9    force-killed never derived                                         5
+ QA-M10   QuitDelivered's Require precondition removed                       1  (see note)
+ QA-M11   StrandedCameraOwner never retains a stranded camera               12
+ QA-M12   THE LITERAL CHEAT: CameraTrackRecord writes complete="yes"        33
+ QA-M13   AC14's throw removed - a force-killed stop returns cleanly         3
+ QA-M14   AC13's two-advance/freshness clause removed                        5
+ QA-M15   AC15's complete-stderr clause removed                              4
+
+NOTE ON QA-M10, recorded honestly rather than smoothed over. On its FIRST run, with only
+the branch's own tests plus my behavioural scenarios, QA-M10 fired NOTHING: the suite was
+982/982 green with the precondition deleted. That is not a product defect - the guard
+exists for a call site that does not exist yet, so no currently reachable path violates it -
+but the branch's claim that "every observation is validated and a violation throws" was
+UNTESTED. It is tested now, by this round's new-call-site probe
+(ANewCallSite_CannotSayAnyStopKind_ItCanOnlyReportWhatItDid), and QA-M10 re-run with that
+probe present fires exactly that one test. The gap and its closure are both stated here.
+
+-----------------------------------------------------------------------------------
+5. WHAT THIS PROBE CANNOT SEE
+-----------------------------------------------------------------------------------
+
+* It drives the recorder through ICameraProcess, so it establishes what the recorder does
+  with what the OS tells it - not what a real ffmpeg on a real dshow device will tell it.
+  AC3, AC9, AC10 and AC17 were therefore ALSO run against the real eMeet C960 webcam; see
+  the QA report.
+* It cannot see a termination issued by something outside AgentEyes (Task Manager, the OS).
+  The design answers that case with an ABSENT kind, which is what an unwatched ending is
+  worth, and the probe asserts that absence rather than a claim.
+* AC1's "a machine with no camera reports []" and AC2's "(none found)" cannot be RUN on
+  this machine (it has two cameras). The enumerator half is run
+  (Ac1_AnAudioOnlyDshowListing_EnumeratesNoCameras: cameras=0 mics=1, so the parser is
+  proved to have matched something in that same listing); the surfaces that read it are
+  code-verified only (RestServer.Devices has no fallback; Commands.cs:71 prints
+  "(none found)" when Count is 0).

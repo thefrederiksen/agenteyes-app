@@ -1,0 +1,94 @@
+Test run for D:\ReposFred\agenteyes-head33\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.20]     AgentEyes.Tests.HudResponsivenessTests.EverySaveGoesThroughTheOneWriter_SoTheLastSaveMadeIsTheLastWritten [FAIL]
+[xUnit.net 00:00:00.21]     AgentEyes.Tests.HudSizeMemoryTests.HidePanel_ReportsTheUnaccountedSizeItself_BeforeTheAutoSizeDestroysIt [FAIL]
+[xUnit.net 00:00:00.21]     AgentEyes.Tests.HudResponsivenessTests.ThePreviewsOwnUiThreadCode_NeverCallsTheSharedLoggerDirectly [FAIL]
+[xUnit.net 00:00:00.22]     AgentEyes.Tests.PreviewTapTests.ThePreviewsFilesystemWork_StillHappens_OnTheChoresWorker [FAIL]
+[xUnit.net 00:00:00.24]     AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger [FAIL]
+  Failed AgentEyes.Tests.HudResponsivenessTests.EverySaveGoesThroughTheOneWriter_SoTheLastSaveMadeIsTheLastWritten [18 ms]
+  Error Message:
+   config.json is written by something other than the one background writer (AgentEyes.App.Config::.cctor, AgentEyes.App.Config::Save). Both kinds of save serialise the WHOLE document, so the file is only correct if the LAST save made is the last one written - and a lock cannot give that, because a lock decides who goes first, not who goes last. A newer direct write lands and is then overwritten by an older queued snapshot, silently reverting the person's newer choice (Review Gate round 2 on PR #39, defect 3). Queue it instead; wait for it if the caller must.
+  Stack Trace:
+     at AgentEyes.Tests.HudResponsivenessTests.EverySaveGoesThroughTheOneWriter_SoTheLastSaveMadeIsTheLastWritten() in D:\ReposFred\agenteyes-head33\tests\AgentEyes.Tests\HudResponsivenessTests.cs:line 394
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudSizeMemoryTests.HidePanel_ReportsTheUnaccountedSizeItself_BeforeTheAutoSizeDestroysIt [3 ms]
+  Error Message:
+   HudPreviewSizing.HidePanel computes the completeness canary and REPORTS IT NOWHERE. That is Review Gate round 2's defect 2: it was returned for the caller to log, and HudWindow.SetStatus - the ordinary stop - dropped the return value, so on the most common path the canary reported to nobody. Log it here, where it is computed.
+  Stack Trace:
+     at AgentEyes.Tests.HudSizeMemoryTests.HidePanel_ReportsTheUnaccountedSizeItself_BeforeTheAutoSizeDestroysIt() in D:\ReposFred\agenteyes-head33\tests\AgentEyes.Tests\HudSizeMemoryTests.cs:line 447
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.HudResponsivenessTests.ThePreviewsOwnUiThreadCode_NeverCallsTheSharedLoggerDirectly [12 ms]
+  Error Message:
+   The preview calls the shared logger on the WPF dispatcher. That logger is a synchronous file append under a process-wide lock, and that dispatcher is what serves the HUD's Stop button (issue #33; Review Gate round 2 on PR #39). Say it through PreviewLog, which appends on its own thread:
+AgentEyesApp.dll!AgentEyes.App.HudPreviewSizing::HidePanel -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudPreviewSizing::ShowPanel -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudUserResize::ByAutomation -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudUserResize::ByWindowState -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudUserResize::Record -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudUserResize::Watch -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudWindow::ChooseCorner -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudWindow::ChooseMode -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudWindow::ChooseMode -> AgentEyes.Log::Warn x1
+AgentEyesApp.dll!AgentEyes.App.HudWindow::TogglePreview -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.HudWindowAutomationPeer::Move -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.PreviewFrameFeed::Dispose -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.PreviewFrameFeed::Loop -> AgentEyes.Log::Error x1
+AgentEyesApp.dll!AgentEyes.App.PreviewFrameFeed::Loop -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.PreviewFrameFeed::Start -> AgentEyes.Log::Info x1
+AgentEyesApp.dll!AgentEyes.App.PreviewFrameFeed::TryLoad -> AgentEyes.Log::Warn x2
+AgentEyesApp.dll!AgentEyes.App.PreviewFrameFeed::Want -> AgentEyes.Log::Info x1
+  Stack Trace:
+     at AgentEyes.Tests.HudResponsivenessTests.ThePreviewsOwnUiThreadCode_NeverCallsTheSharedLoggerDirectly() in D:\ReposFred\agenteyes-head33\tests\AgentEyes.Tests\HudResponsivenessTests.cs:line 349
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.PreviewTapTests.ThePreviewsFilesystemWork_StillHappens_OnTheChoresWorker [50 ms]
+  Error Message:
+   Assert.Contains() Failure: Item not found in set
+Set:       ["AgentEyes.Log::Info", "AgentEyes.Log::Warn", "AgentEyes.Log::Write", "AgentEyes.Log::get_CurrentFile", "AgentEyes.Log::get_Dir", ...]
+Not found: "AgentEyes.Preview.PreviewChores::Prepare"
+  Stack Trace:
+     at AgentEyes.Tests.PreviewTapTests.ThePreviewsFilesystemWork_StillHappens_OnTheChoresWorker() in D:\ReposFred\agenteyes-head33\tests\AgentEyes.Tests\PreviewTapTests.cs:line 478
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger [20 ms]
+  Error Message:
+   The preview touches the filesystem or the shared logger on a thread a RECORDING is waiting on. None of these four threads may wait for a disk: the drain is the only reader of the pipe ffmpeg is filling, the WPF dispatcher serves the Stop button, and the other two ARE a recording's start and stop. A stall in any of them costs a recording rather than a picture (issue #33, AC10; Review Gate round 2 on PR #39). Filesystem work belongs in PreviewChores and log lines in PreviewLog, both of which perform it on their own threads:
+agenteyes.dll!AgentEyes.Log::Error -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Info -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Warn -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Write -> AgentEyes.Log::get_CurrentFile x1
+agenteyes.dll!AgentEyes.Log::Write -> AgentEyes.Log::get_Dir x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1
+agenteyes.dll!AgentEyes.Log::get_CurrentFile -> AgentEyes.Log::get_Dir x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::Dispose -> AgentEyes.Log::Info x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::Dispose -> AgentEyes.Log::Warn x2
+agenteyes.dll!AgentEyes.Preview.PreviewTap::FlushNotes -> AgentEyes.Log::Error x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::FlushNotes -> AgentEyes.Log::Info x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::FlushNotes -> AgentEyes.Log::Warn x2
+agenteyes.dll!AgentEyes.Preview.PreviewTap::RemoveFrameFile -> AgentEyes.Log::Warn x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::RemoveFrameFile -> System.IO.File::Delete x2
+agenteyes.dll!AgentEyes.Preview.PreviewTap::RemoveFrameFile -> System.IO.File::Exists x2
+agenteyes.dll!AgentEyes.Preview.PreviewTap::TryCreateAt -> AgentEyes.Log::Info x2
+agenteyes.dll!AgentEyes.Preview.PreviewTap::TryCreateAt -> AgentEyes.Log::Warn x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::TryCreateAt -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::TryCreateAt -> System.IO.File::Delete x2
+agenteyes.dll!AgentEyes.Preview.PreviewTap::TryCreateAt -> System.IO.File::Exists x2
+agenteyes.dll!AgentEyes.Preview.PreviewTap::WriteFrameToDisk -> System.IO.File::Move x1
+agenteyes.dll!AgentEyes.Preview.PreviewTap::WriteFrameToDisk -> System.IO.File::WriteAllBytes x1
+  Stack Trace:
+     at AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger() in D:\ReposFred\agenteyes-head33\tests\AgentEyes.Tests\PreviewTapTests.cs:line 455
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:03.29]     AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [FAIL]
+  Failed AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [3 s]
+  Error Message:
+   The stopping thread deleted the published frame itself. That is Review Gate round 2's defect 1: the publisher is wedged in a filesystem call on this exact path, and the stop path followed it in. On a preview directory that is a reparse point onto an unavailable share, that delete never returns and Stop never returns with it.
+  Stack Trace:
+     at AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn() in D:\ReposFred\agenteyes-head33\tests\AgentEyes.Tests\PreviewTapTests.cs:line 542
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     6, Passed:     2, Skipped:     0, Total:     8, Duration: 3 s - AgentEyes.Tests.dll (net8.0)

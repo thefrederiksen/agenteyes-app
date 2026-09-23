@@ -13,16 +13,19 @@ if (-not $Confirm -and $env:MQS_RUN_TESTS -ne '1') {
   exit 3
 }
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+. (Join-Path $PSScriptRoot 'lib\AgentEyesProcess.ps1')
 
 $root   = Split-Path $PSScriptRoot -Parent
-$exe    = Join-Path $root 'src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
-$cli    = Join-Path $root 'src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.exe'
+$exe    = Get-BuiltExePath -RepoRoot $root -Which app
+$cli    = Get-BuiltExePath -RepoRoot $root -Which cli
+
+# Issue #61: refuse rather than launch a second instance on top of a running one. As early as it
+# can be - before probing the microphone - and OUTSIDE the try below, so a refusal cannot run a
+# cleanup written for a run that had actually started.
+Assert-NoAgentEyesRunning -ExePath $exe -ScriptName 'gui-smoke.ps1'
 $appdir = Join-Path $env:LOCALAPPDATA 'AgentEyes'
 $crash  = Join-Path $env:TEMP 'AgentEyes-crash.log'
 $vid    = Join-Path $env:USERPROFILE 'Videos\AgentEyes'
-
-if (-not (Test-Path $exe)) { "GUI-SMOKE: FAIL (app not built: $exe)"; exit 1 }
-if (-not (Test-Path $cli)) { "GUI-SMOKE: FAIL (engine not built: $cli)"; exit 1 }
 
 # ---- discover a real microphone (NAudio name; also a fragment of the dshow name) ----
 $micLines = & $cli screens | Where-Object { $_ -match '^\s+\[\d+\]\s+\S' }
@@ -92,9 +95,8 @@ function Select-Preset($win, $name) {
 $bakPresets = Join-Path $appdir 'presets.json.smoke-bak'
 $bakConfig  = Join-Path $appdir 'config.json.smoke-bak'
 $failure = $null
+$app = $null
 try {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 600
     Remove-Item $crash -ErrorAction SilentlyContinue
 
     if (Test-Path (Join-Path $appdir 'presets.json')) { Copy-Item (Join-Path $appdir 'presets.json') $bakPresets -Force }
@@ -119,7 +121,7 @@ try {
     $beforeNames = @{}
     Get-ChildItem $vid -Directory -ErrorAction SilentlyContinue | ForEach-Object { $beforeNames[$_.Name] = $true }
 
-    Start-Process $exe
+    $app = Start-AgentEyesForScript -ExePath $exe -ScriptName 'gui-smoke.ps1'
     $win = Find-MainWindow
 
     # 1) video + mixed (the mux path that previously crashed)
@@ -159,7 +161,7 @@ try {
 }
 catch { $failure = $_.Exception.Message }
 finally {
-    Get-Process AgentEyes -ErrorAction SilentlyContinue | Stop-Process -Force
+    Stop-ScriptOwnedAgentEyes $app
     if (Test-Path $bakPresets) { Move-Item $bakPresets (Join-Path $appdir 'presets.json') -Force }
     if (Test-Path $bakConfig)  { Move-Item $bakConfig  (Join-Path $appdir 'config.json')  -Force }
 }

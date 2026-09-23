@@ -1,0 +1,42 @@
+param([string]$Exe)
+$ErrorActionPreference = 'Stop'
+$SP = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a } }
+function Rec()       { & powershell -NoProfile -File "$SP\qa-main-uia.ps1" -Action click -Arg REC }
+function Cfg($what)  { Write-Output "  config ${what}: $((Get-Content $cfg | Select-String 'HudWidth|HudHeight') -join ' ')" }
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+@'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@ | Out-File -FilePath $cfg -Encoding utf8
+
+Write-Output "==== (d) cross-monitor / scale route probe - the person toggles the preview and MOVES only ===="
+Write-Output "  DISPLAY3 primary 0,0 1920x1080 | DISPLAY1 1920,-5 1920x1080 | DISPLAY2 1173,1080 1366x768"
+Start-Process $Exe
+for ($i=0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest -Uri http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+
+Rec | Out-Null
+Start-Sleep -Seconds 7
+Write-Output "  pill:                    $(Hud rect)"
+Write-Output "  toggle ON:               $(Hud click 'Show preview')"
+Write-Output "  -> DISPLAY3 (primary):   $(Hud move '300,200')"
+Write-Output "  -> DISPLAY2 (1366x768):  $(Hud move '1250,1150')"
+Write-Output "  -> DISPLAY1:             $(Hud move '2100,100')"
+Write-Output "  -> back to DISPLAY3:     $(Hud move '300,200')"
+Write-Output "  minimise/restore:        $(Hud minrestore)"
+Write-Output "  toggle OFF:              $(Hud click 'Show preview')"
+Write-Output "  toggle ON:               $(Hud click 'Show preview')"
+Hud click 'HUD stop' | Out-Null
+Start-Sleep -Seconds 14
+Cfg "after the move-only recording  EXPECT null / null (nobody resized)"
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end ===="

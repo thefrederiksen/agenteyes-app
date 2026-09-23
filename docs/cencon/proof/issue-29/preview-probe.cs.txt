@@ -1,0 +1,91 @@
+// Headless probe for issue #29: exercises AgentEyes.Video.FfmpegCameraPreview against the REAL
+// camera through reflection (the class is internal), with no app, no window and no audio.
+//
+//   1. do frames arrive, and do consecutive frames DIFFER? (a blank or frozen pane must fail)
+//   2. does Stop() actually hand the exclusive device back? (a second open immediately after)
+//   3. is any ffmpeg process left behind?
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reflection;
+using System.Threading;
+
+internal static class Probe
+{
+    private const string Dll =
+        @"D:\ReposFred\agenteyes-app\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll";
+
+    private static Type _type;
+    private static MethodInfo _start;
+
+    private static int Main(string[] args)
+    {
+        string camera = args.Length > 0 ? args[0] : "HD Webcam eMeet C960";
+
+        var asm = Assembly.LoadFrom(Dll);
+        _type = asm.GetType("AgentEyes.Video.FfmpegCameraPreview", throwOnError: true);
+        _start = _type.GetMethod("Start", BindingFlags.Public | BindingFlags.Static)
+                 ?? throw new InvalidOperationException("FfmpegCameraPreview.Start not found");
+
+        int before = Process.GetProcessesByName("ffmpeg").Length;
+        Console.WriteLine("ffmpeg processes before: " + before);
+
+        int first = RunPreview("open 1", camera, 3000);
+        int second = RunPreview("open 2, immediately after open 1 was stopped", camera, 2000);
+
+        Thread.Sleep(2000);
+        int after = Process.GetProcessesByName("ffmpeg").Length;
+        Console.WriteLine("ffmpeg processes after: " + after);
+
+        bool ok = true;
+        if (first < 10) { Console.WriteLine($"FAIL: open 1 produced only {first} frames"); ok = false; }
+        if (second < 5) { Console.WriteLine($"FAIL: the device was NOT released - open 2 produced only {second} frames"); ok = false; }
+        if (after > before) { Console.WriteLine($"FAIL: {after - before} ffmpeg process(es) leaked"); ok = false; }
+
+        Console.WriteLine(ok
+            ? "RESULT: PASS - frames arrive, frames change, the device is released, nothing left behind"
+            : "RESULT: FAIL");
+        return ok ? 0 : 1;
+    }
+
+    private static int RunPreview(string label, string camera, int millis)
+    {
+        var frames = new List<byte[]>();
+        var failures = new List<string>();
+        Action<byte[]> onFrame = f => { lock (frames) frames.Add(f); };
+        Action<string> onFailed = m => { lock (failures) failures.Add(m); };
+
+        var clock = Stopwatch.StartNew();
+        long firstFrameMs = -1;
+        object session = _start.Invoke(null, new object[] { camera, onFrame, onFailed });
+
+        while (clock.ElapsedMilliseconds < millis)
+        {
+            lock (frames) { if (firstFrameMs < 0 && frames.Count > 0) firstFrameMs = clock.ElapsedMilliseconds; }
+            Thread.Sleep(20);
+        }
+
+        var stopClock = Stopwatch.StartNew();
+        _type.GetMethod("Stop").Invoke(session, null);
+        long stopMs = stopClock.ElapsedMilliseconds;
+        _type.GetMethod("Dispose").Invoke(session, null);
+
+        byte[][] shot;
+        lock (frames) shot = frames.ToArray();
+
+        string differ = "n/a (fewer than 11 frames)";
+        if (shot.Length >= 11)
+        {
+            byte[] a = shot[0], b = shot[shot.Length - 1];
+            int diff = 0, sampled = 0;
+            for (int i = 0; i < a.Length; i += 997) { sampled++; if (a[i] != b[i]) diff++; }
+            differ = $"{diff} of {sampled} sampled bytes differ between the first and last frame";
+        }
+
+        Console.WriteLine($"[{label}] frames={shot.Length} frameBytes={(shot.Length > 0 ? shot[0].Length : 0)} " +
+                          $"firstFrameMs={firstFrameMs} stopMs={stopMs} failures={failures.Count} " +
+                          $"{string.Join("; ", failures)}");
+        Console.WriteLine($"[{label}] {differ}");
+        return shot.Length;
+    }
+}

@@ -1,0 +1,779 @@
+// QA Agent independent probe for AgentEyes issue #35.
+// Written by QA, not reused from the developer's harness. It measures the REAL PresetEditor window
+// built from this branch and records, per acceptance criterion, an explicit PRESENCE fact.
+//
+// Fail-closed rule applied throughout: a missing measurement is written as MISSING and the probe
+// exits non-zero. An empty result is a broken instrument, never a clean run.
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+
+namespace AgentEyes.QaProbe
+{
+    internal static class Program
+    {
+        [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out RECT r);
+        [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
+
+        private const uint PW_RENDERFULLCONTENT = 2;
+
+        private static Assembly _app;
+        private static Assembly _core;
+        private static readonly StringBuilder Report = new StringBuilder();
+        private static string _outDir;
+        private static int _failures;
+        private static string _camera = "";
+
+        private static string _live;
+        private static void Say(string s)
+        {
+            Console.WriteLine(s); Console.Out.Flush(); Report.AppendLine(s);
+            try { if (_live != null) File.AppendAllText(_live, DateTime.Now.ToString("HH:mm:ss.fff") + " " + s + Environment.NewLine); } catch { }
+        }
+        private static void Trace(string s)
+        {
+            try { if (_live != null) File.AppendAllText(_live, DateTime.Now.ToString("HH:mm:ss.fff") + " ... " + s + Environment.NewLine); } catch { }
+        }
+        private static void Fail(string s) { _failures++; Say("FAIL   " + s); }
+        private static void Pass(string s) { Say("PASS   " + s); }
+        private static void Info(string s) { Say("       " + s); }
+        private static void Head(string s) { Say(""); Say("== " + s + " =="); }
+
+        private static string AeDir => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes");
+        private static string ConfigPath => Path.Combine(AeDir, "config.json");
+        private static string PresetsPath => Path.Combine(AeDir, "presets.json");
+
+        [STAThread]
+        private static int Main(string[] args)
+        {
+            _outDir = args.Length > 0 ? args[0] : Path.Combine(AppContext.BaseDirectory, "qa-out");
+            Directory.CreateDirectory(_outDir);
+            _live = Path.Combine(_outDir, "qa-probe-live.log");
+            File.WriteAllText(_live, "probe started " + DateTime.Now + Environment.NewLine);
+            string camera = args.Length > 1 ? args[1] : "HD Webcam eMeet C960";
+
+            string cfgBak = Path.Combine(_outDir, "_config.backup.json");
+            string preBak = Path.Combine(_outDir, "_presets.backup.json");
+            File.Copy(ConfigPath, cfgBak, true);
+            File.Copy(PresetsPath, preBak, true);
+            Say("QA probe for issue #35 - " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            Say("backed up config.json and presets.json into " + _outDir);
+
+            try
+            {
+                Trace("loading assemblies");
+                _app = Assembly.Load("AgentEyesApp");
+                _core = Assembly.Load("agenteyes");
+                Say("assembly AgentEyesApp: " + _app.Location);
+                Say("assembly agenteyes  : " + _core.Location);
+
+                // A PLAIN Application, never AgentEyes.App.App: constructing the real App runs its
+                // OnStartup, which takes the single-instance mutex and - because the human's tray app
+                // already holds it - pops a modal "AgentEyes is already running" MessageBox that hangs
+                // the probe. The window only needs App.xaml's styles, so load them into a bare
+                // Application instead.
+                Trace("creating Application and loading App.xaml resources");
+                var wpfApp = new Application();
+                wpfApp.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                wpfApp.Resources.MergedDictionaries.Add(LoadAppStyles());
+                if (wpfApp.Resources.MergedDictionaries[0].Count == 0)
+                    throw new Exception("App.xaml resources did not load");
+                wpfApp.Resources = wpfApp.Resources;
+                Say("App.xaml resources loaded: " + wpfApp.Resources.MergedDictionaries[0].Count + " keys");
+
+                Trace("App ready, running checks");
+                RunAll(camera);
+            }
+            catch (Exception ex)
+            {
+                Fail("the probe itself threw: " + ex);
+            }
+            finally
+            {
+                File.Copy(cfgBak, ConfigPath, true);
+                File.Copy(preBak, PresetsPath, true);
+                Say("");
+                Say("restored config.json and presets.json from backup");
+                Say(_failures == 0 ? "PROBE RESULT: all probe checks passed"
+                                   : "PROBE RESULT: " + _failures + " probe check(s) FAILED");
+                File.WriteAllText(Path.Combine(_outDir, "qa-probe-output.txt"), Report.ToString());
+            }
+            return _failures == 0 ? 0 : 1;
+        }
+
+
+        /// <summary>
+        /// App.xaml's styles as a standalone ResourceDictionary. The dialog resolves
+        /// {StaticResource Dk*} at parse time from Application.Current.Resources, so they must be
+        /// there before the PresetEditor constructor runs. Parsing the real App.xaml keeps the
+        /// styles identical to the app's; only the Application wrapper element is dropped.
+        /// </summary>
+        private static ResourceDictionary LoadAppStyles()
+        {
+            string xaml = File.ReadAllText(AppXamlPath);
+            int a = xaml.IndexOf("<Application.Resources>", StringComparison.Ordinal);
+            int b = xaml.LastIndexOf("</Application.Resources>", StringComparison.Ordinal);
+            if (a < 0 || b < 0) throw new Exception("App.xaml does not contain an <Application.Resources> block");
+            string body = xaml.Substring(a + "<Application.Resources>".Length, b - a - "<Application.Resources>".Length);
+            string doc = "<ResourceDictionary xmlns=\"http://schemas.microsoft.com/winfx/2006/xaml/presentation\" "
+                       + "xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\">" + body + "</ResourceDictionary>";
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes(doc));
+            var rd = (ResourceDictionary)System.Windows.Markup.XamlReader.Load(ms);
+            if (rd.Count == 0) throw new Exception("App.xaml parsed to an EMPTY dictionary - broken instrument");
+            return rd;
+        }
+
+        private static string AppXamlPath = "D:/ReposFred/agenteyes-qa35/src/AgentEyes.App/App.xaml";
+
+        // ------------------------------------------------------------------ helpers
+
+        private static Type Type(Assembly a, string n)
+        {
+            var t = a.GetType(n, false);
+            if (t == null) throw new Exception("type not found: " + n);
+            return t;
+        }
+
+        private static void DoEvents()
+        {
+            var frame = new DispatcherFrame();
+            var d = Dispatcher.CurrentDispatcher;
+            d.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false));
+            // Fail closed: a frame that never exits would hang the probe and look like a slow test.
+            var guard = new DispatcherTimer(TimeSpan.FromMilliseconds(750), DispatcherPriority.Send, (_, __) =>
+            { frame.Continue = false; }, d);
+            guard.Start();
+            try { Dispatcher.PushFrame(frame); } finally { guard.Stop(); }
+        }
+
+        private static void Pump(int ms)
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < ms) { DoEvents(); Thread.Sleep(5); }
+        }
+
+        private static bool PumpUntil(Func<bool> cond, int ms)
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < ms) { DoEvents(); if (cond()) return true; Thread.Sleep(20); }
+            DoEvents();
+            return cond();
+        }
+
+        private static object Field(object o, string name)
+        {
+            var t = o.GetType();
+            while (t != null)
+            {
+                var f = t.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                if (f != null) return f.GetValue(o);
+                t = t.BaseType;
+            }
+            throw new Exception("field not found: " + name);
+        }
+
+        private static object Prop(object o, string name)
+        {
+            var t = o.GetType();
+            while (t != null)
+            {
+                var p = t.GetProperty(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                if (p != null) return p.GetValue(o);
+                t = t.BaseType;
+            }
+            throw new Exception("property not found: " + name);
+        }
+
+        private static FrameworkElement El(Window w, string name)
+        {
+            var e = w.FindName(name) as FrameworkElement;
+            if (e == null) throw new Exception("x:Name not found in the live window: " + name);
+            return e;
+        }
+
+        private static TabItem OwningTab(FrameworkElement e)
+        {
+            DependencyObject d = e;
+            while (d != null)
+            {
+                if (d is TabItem ti) return ti;
+                var p = LogicalTreeHelper.GetParent(d);
+                if (p == null && d is Visual or System.Windows.Media.Media3D.Visual3D) p = VisualTreeHelper.GetParent(d);
+                d = p;
+            }
+            return null;
+        }
+
+        private static void Shot(Window w, string file)
+        {
+            var h = new WindowInteropHelper(w).Handle;
+            if (h == IntPtr.Zero) throw new Exception("window has no HWND - cannot capture " + file);
+            if (!GetWindowRect(h, out var r)) throw new Exception("GetWindowRect failed for " + file);
+            int cw = r.Right - r.Left, ch = r.Bottom - r.Top;
+            if (cw <= 0 || ch <= 0) throw new Exception("window rect is empty for " + file);
+            using var bmp = new Bitmap(cw, ch, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                IntPtr hdc = g.GetHdc();
+                bool ok = PrintWindow(h, hdc, PW_RENDERFULLCONTENT);
+                g.ReleaseHdc(hdc);
+                if (!ok) throw new Exception("PrintWindow failed for " + file);
+            }
+            // A blank render is a broken instrument, not a pass: assert the capture has real content.
+            long distinct = DistinctColorCount(bmp);
+            string path = Path.Combine(_outDir, file);
+            bmp.Save(path, ImageFormat.Png);
+            if (distinct < 8) throw new Exception($"the capture {file} is effectively blank ({distinct} distinct colours)");
+            Info($"screenshot {file}  {cw}x{ch}  {distinct} distinct colours");
+        }
+
+        private static long DistinctColorCount(Bitmap b)
+        {
+            var seen = new HashSet<int>();
+            for (int y = 0; y < b.Height; y += 4)
+                for (int x = 0; x < b.Width; x += 4)
+                {
+                    seen.Add(b.GetPixel(x, y).ToArgb());
+                    if (seen.Count > 64) return seen.Count;
+                }
+            return seen.Count;
+        }
+
+        // ------------------------------------------------------------------ the editor
+
+        private static Window NewEditor(object preset, object cfg)
+        {
+            var t = Type(_app, "AgentEyes.App.PresetEditor");
+            var ctor = t.GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public,
+                null, new[] { preset.GetType(), cfg.GetType() }, null);
+            if (ctor == null) throw new Exception("PresetEditor(CapturePreset, Config) constructor not found");
+            Trace("PresetEditor ctor");
+            var w = (Window)ctor.Invoke(new[] { preset, cfg });
+            Trace("PresetEditor constructed");
+            w.ShowActivated = false;              // never steal the human's focus
+            w.ShowInTaskbar = false;
+            w.Topmost = false;
+            w.Show();
+            Trace("PresetEditor shown");
+            Pump(400);
+            Trace("PresetEditor pumped");
+            return w;
+        }
+
+        private static object NewPreset() => Activator.CreateInstance(
+            Type(_app, "AgentEyes.App.CapturePreset"), nonPublic: true);
+
+        private static object LoadConfig() =>
+            Type(_app, "AgentEyes.App.Config").GetMethod("Load", BindingFlags.Public | BindingFlags.Static)
+                .Invoke(null, null);
+
+        private static readonly string[] Ac2Names =
+        {
+            "NameBox", "MonitorBox", "CameraBox", "MicBox", "MicVol", "SysVol", "FpsBox",
+            "ModeShot", "ModeAudio", "ModeVideo",
+        };
+
+        private static readonly string[] TabNames = { "CaptureTab", "AudioTab", "CameraTab" };
+        private static readonly string[] ScrollNames = { "CaptureScroll", "AudioScroll", "CameraScroll" };
+
+        private static void RunAll(string camera)
+        {
+            _camera = camera;
+            var cfg = LoadConfig();
+            // Start every measurement from the XAML default, not from whatever the human's config
+            // remembers - AC1/AC3 are written about "the default size".
+            SetCfg(cfg, "PresetEditorWidth", null); SetCfg(cfg, "PresetEditorHeight", null);
+            SetCfg(cfg, "PresetEditorLeft", null); SetCfg(cfg, "PresetEditorTop", null);
+            SetCfg(cfg, "PresetEditorTab", 0);
+
+            var preset = NewPreset();
+            SetProp(preset, "Name", "QA35 probe preset");
+            SetProp(preset, "Mode", "video");
+
+            Trace("opening editor");
+            var w = NewEditor(preset, cfg);
+            Say("editor opened: " + w.ActualWidth.ToString("F0") + "x" + w.ActualHeight.ToString("F0")
+                + " (XAML Width/Height " + w.Width.ToString("F0") + "x" + w.Height.ToString("F0") + ")");
+
+            var tabs = (TabControl)El(w, "EditorTabs");
+
+            Head("AC3 - tabbed layout");
+            if (tabs.Items.Count == 3) Pass("EditorTabs has 3 tabs");
+            else Fail("EditorTabs has " + tabs.Items.Count + " tabs, expected 3");
+            var headers = new List<string>();
+            for (int i = 0; i < tabs.Items.Count; i++) headers.Add(((TabItem)tabs.Items[i]).Header.ToString());
+            Info("tab headers: " + string.Join(" | ", headers));
+
+            Head("AC1 / AC3 - no vertical scrollbar on any tab at the default size");
+            for (int i = 0; i < 3; i++)
+            {
+                tabs.SelectedIndex = i;
+                Pump(300);
+                w.UpdateLayout();
+                Pump(150);
+                var sv = (ScrollViewer)El(w, ScrollNames[i]);
+                var vis = sv.ComputedVerticalScrollBarVisibility;
+                Info($"{headers[i],-8} {ScrollNames[i],-14} computed={vis} extent={sv.ExtentHeight:F1} " +
+                     $"viewport={sv.ViewportHeight:F1} scrollable={sv.ScrollableHeight:F1}");
+                if (sv.ViewportHeight <= 0) Fail(headers[i] + ": viewport height is 0 - the tab did not lay out (broken instrument)");
+                else if (vis == Visibility.Collapsed && sv.ScrollableHeight <= 0.5) Pass(headers[i] + " tab: no vertical scrollbar at default size");
+                else Fail(headers[i] + $" tab: scrollbar {vis}, scrollable {sv.ScrollableHeight:F1}");
+                Trace("shot default " + headers[i]);
+                Shot(w, $"qa-tab-{headers[i].ToLowerInvariant()}-default.png");
+            }
+
+            Head("AC2 (as ruled) - each named control present and fully visible within its tab");
+            foreach (var n in Ac2Names) CheckVisibleInItsTab(w, tabs, n, headers);
+
+            Head("AC8 - camera pane geometry");
+            var pane = El(w, "CameraPreviewPanel");
+            var img = (System.Windows.Controls.Image)El(w, "CameraPreviewImage");
+            tabs.SelectedIndex = 2; Pump(300); w.UpdateLayout();
+            Info($"CameraPreviewPanel actual size = {pane.ActualWidth:F0}x{pane.ActualHeight:F0}; Image.Stretch={img.Stretch}");
+            if (pane.ActualWidth >= 320 && pane.ActualHeight >= 240)
+                Pass($"preview pane is {pane.ActualWidth:F0}x{pane.ActualHeight:F0} (floor 320x240)");
+            else
+                Fail($"preview pane is {pane.ActualWidth:F0}x{pane.ActualHeight:F0}, below the 320x240 floor");
+
+            Head("AC6 - at 600px tall the safety net engages and everything stays reachable");
+            w.Height = 600; Pump(400); w.UpdateLayout(); Pump(200);
+            Info($"window is now {w.ActualWidth:F0}x{w.ActualHeight:F0}");
+            bool anyEngaged = false;
+            for (int i = 0; i < 3; i++)
+            {
+                tabs.SelectedIndex = i; Pump(250); w.UpdateLayout(); Pump(100);
+                var sv = (ScrollViewer)El(w, ScrollNames[i]);
+                Info($"{headers[i],-8} computed={sv.ComputedVerticalScrollBarVisibility} " +
+                     $"extent={sv.ExtentHeight:F1} viewport={sv.ViewportHeight:F1} scrollable={sv.ScrollableHeight:F1}");
+                if (sv.ScrollableHeight > 0.5 && sv.ComputedVerticalScrollBarVisibility == Visibility.Visible) anyEngaged = true;
+                Shot(w, $"qa-tab-{headers[i].ToLowerInvariant()}-h600.png");
+            }
+            if (anyEngaged) Pass("at 600px tall at least one tab's ScrollViewer engaged (the safety net works)");
+            else Fail("at 600px tall NO tab showed a scrollbar - the safety net did not engage");
+
+            int unreachable = 0;
+            foreach (var n in Ac2Names.Concat(new[] { "CameraPreviewPanel", "SquareButton", "SetExactButton" }))
+            {
+                var e = El(w, n);
+                var ti = OwningTab(e);
+                if (ti != null) { tabs.SelectedItem = ti; Pump(200); w.UpdateLayout(); }
+                e.BringIntoView();
+                Pump(250); w.UpdateLayout(); Pump(100);
+                var sv = ti == null ? null : FindScroll(ti);
+                string verdict = FullyVisible(e, sv, out string why);
+                if (verdict != "yes") { unreachable++; Info($"  UNREACHABLE after scrolling: {n} - {why}"); }
+            }
+            if (unreachable == 0) Pass("at 600px tall every checked control was reachable by scrolling to it");
+            else Fail(unreachable + " control(s) stayed unreachable at 600px tall after BringIntoView");
+            w.Height = 760; Pump(300); w.UpdateLayout();
+
+            // ---------------- AC8 / AC9 : the live camera preview
+            RunCameraChecks(w, tabs, camera);
+
+            // ---------------- AC10
+            RunAc10(w, tabs, cfg, preset);
+
+            // ---------------- AC5
+            RunAc5();
+        }
+
+        private static ScrollViewer FindScroll(TabItem ti)
+        {
+            var c = ti.Content as DependencyObject;
+            return c as ScrollViewer;
+        }
+
+        private static string FullyVisible(FrameworkElement e, ScrollViewer sv, out string why)
+        {
+            why = "";
+            if (!e.IsVisible) { why = "IsVisible=false"; return "no"; }
+            if (e.ActualWidth <= 0 || e.ActualHeight <= 0) { why = "zero size"; return "no"; }
+            if (sv == null) return "yes";
+            try
+            {
+                var t = e.TransformToAncestor(sv);
+                var r = t.TransformBounds(new Rect(0, 0, e.ActualWidth, e.ActualHeight));
+                var vp = new Rect(0, 0, sv.ViewportWidth, sv.ViewportHeight);
+                if (r.Top < -0.5 || r.Bottom > vp.Bottom + 0.5)
+                { why = $"bounds {r.Top:F0}..{r.Bottom:F0} outside viewport 0..{vp.Bottom:F0}"; return "no"; }
+                return "yes";
+            }
+            catch (Exception ex) { why = "transform failed: " + ex.Message; return "no"; }
+        }
+
+        private static void CheckVisibleInItsTab(Window w, TabControl tabs, string name, List<string> headers)
+        {
+            var e = El(w, name);
+            var ti = OwningTab(e);
+            string where = ti == null ? "header/footer (outside the tabs)" : ti.Header.ToString() + " tab";
+            if (ti != null) { tabs.SelectedItem = ti; Pump(250); w.UpdateLayout(); Pump(100); }
+            var sv = ti == null ? null : FindScroll(ti);
+            string v = FullyVisible(e, sv, out string why);
+            if (v == "yes") Pass($"{name,-14} {e.GetType().Name,-12} on {where}: present and fully visible");
+            else Fail($"{name,-14} {e.GetType().Name,-12} on {where}: NOT fully visible - {why}");
+        }
+
+        // ------------------------------------------------------------------ AC8 / AC9
+
+        private static void RunCameraChecks(Window w, TabControl tabs, string camera)
+        {
+            Head("AC8 / AC9 - live preview and device release, camera = \"" + camera + "\"");
+
+            var ctrl = Field(w, "_cameraPreview");
+            if (ctrl == null) { Fail("the editor holds no CameraPreviewController - AC8/AC9 cannot be observed"); return; }
+            var arbiter = Type(_core, "AgentEyes.Video.CameraDeviceArbiter");
+            Info("CameraDeviceArbiter.HolderCount with the editor open = " +
+                 arbiter.GetProperty("HolderCount", BindingFlags.Public | BindingFlags.Static).GetValue(null));
+
+            var box = (ComboBox)El(w, "CameraBox");
+            if (!PumpUntil(() => (bool)Field(w, "_camerasLoaded"), 30000))
+            { Fail("the camera list never loaded within 30s - AC8/AC9 cannot be observed"); return; }
+            var items = box.Items.Cast<object>().Select(o => o?.ToString()).ToList();
+            Info("camera picker items: " + string.Join(" | ", items));
+            int idx = items.FindIndex(s => string.Equals(s, camera, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) { Fail("camera \"" + camera + "\" is not in the picker - AC8/AC9 cannot be observed"); return; }
+
+            tabs.SelectedIndex = 2; Pump(200);
+            var before = FfmpegPids();
+            box.SelectedIndex = idx;
+            Pump(200);
+
+            var img = (System.Windows.Controls.Image)El(w, "CameraPreviewImage");
+            var status = (TextBlock)El(w, "CameraPreviewStatus");
+            bool running = PumpUntil(() => img.Source != null && StateName(ctrl) == "Running", 20000);
+            Info("preview state = " + StateName(ctrl) + ", status text = \"" + status.Text + "\"");
+            if (!running)
+            { Fail("no live frame arrived within 20s - AC8 is NOT observed (status: " + status.Text + ")"); return; }
+
+            var bs = (BitmapSource)img.Source;
+            Info($"rendered image source is {bs.PixelWidth}x{bs.PixelHeight}");
+            if (bs.PixelWidth >= 320 && bs.PixelHeight >= 240) Pass($"live image is {bs.PixelWidth}x{bs.PixelHeight} (>= 320x240)");
+            else Fail($"live image is only {bs.PixelWidth}x{bs.PixelHeight}");
+
+            byte[] f0 = Pixels(bs);
+            Shot(w, "qa-camera-live-t0.png");
+            Pump(2000);
+            byte[] f1 = Pixels((BitmapSource)img.Source);
+            Shot(w, "qa-camera-live-t2s.png");
+            long diff = 0; int n = Math.Min(f0.Length, f1.Length);
+            for (int i = 0; i < n; i++) if (f0[i] != f1[i]) diff++;
+            Info($"bytes differing between the frame at t=0 and t=+2s: {diff} of {n}");
+            if (diff > 0) Pass("the pane is LIVE - the frame changed over 2 seconds");
+            else Fail("the frame at t=+2s is byte-identical to t=0 - the pane is static, not live");
+
+            var newPids = FfmpegPids().Except(before).ToList();
+            Info("ffmpeg pids started by the preview: " + (newPids.Count == 0 ? "(none seen)" : string.Join(",", newPids)));
+            if (newPids.Count == 0) Fail("no new ffmpeg process was observed - the preview is not holding a real device (broken instrument)");
+
+            // --- AC9 path 1: a REAL recording opens the same camera while the preview is running.
+            //     This is the exact call RecordingService makes for POST /record/start.
+            Head("AC9 path 1 - a real camera recording starts WHILE the preview is running");
+            if ((bool)Prop(ctrl, "HoldsCamera")) Pass("precondition: the controller HOLDS the camera");
+            else Fail("precondition: the controller does not hold the camera - the release cannot be observed");
+            var r1 = TimeRealCameraRecording(camera, "qa-rec-while-previewing");
+            Info($"CameraDeviceArbiter released, ffmpeg opened: {r1.Item2} ms; opened={r1.Item1}");
+            if (!r1.Item1) Fail("the recording FAILED to open the camera while a preview was running: " + r1.Item3);
+            else if (r1.Item2 <= 2000) Pass($"recording opened the camera in {r1.Item2} ms (budget 2000 ms)");
+            else Fail($"recording opened the camera in {r1.Item2} ms - over the 2000 ms budget");
+            foreach (int pid in newPids)
+                if (PidAlive(pid)) Fail($"the preview ffmpeg pid {pid} is STILL ALIVE after the recording opened - the device was not released");
+                else Info($"preview ffmpeg pid {pid} had exited before the recording opened");
+            if ((bool)Prop(ctrl, "HoldsCamera")) Fail("the controller still reports HoldsCamera after the arbiter release");
+            else Pass("after the recording start, the controller holds nothing");
+
+            // --- AC9 path 2: leaving the Camera tab releases it.
+            Head("AC9 path 2 - leaving the Camera tab releases the device");
+            if (!RestartPreview(tabs, ctrl))
+            { Fail("could not restart the preview to test the leave-the-tab path"); }
+            else
+            {
+                var pids2 = FfmpegPids();
+                tabs.SelectedIndex = 0;               // leave the Camera tab
+                Pump(600);
+                Info("state after leaving the tab = " + StateName(ctrl) + ", HoldsCamera=" + Prop(ctrl, "HoldsCamera"));
+                if (!(bool)Prop(ctrl, "HoldsCamera")) Pass("leaving the Camera tab released the device");
+                else Fail("the controller STILL holds the camera after leaving the Camera tab");
+                var r2 = TimeRealCameraRecording(camera, "qa-rec-after-leaving-tab");
+                Info($"recording after leaving the tab: opened={r2.Item1} in {r2.Item2} ms");
+                if (r2.Item1 && r2.Item2 <= 2000) Pass($"a real recording opened the camera in {r2.Item2} ms after leaving the tab");
+                else Fail($"recording after leaving the tab: opened={r2.Item1}, {r2.Item2} ms, {r2.Item3}");
+            }
+
+            // --- AC9 path 3: leaving Video mode releases it.
+            Head("AC9 path 3 - leaving Video mode releases the device");
+            if (RestartPreview(tabs, ctrl))
+            {
+                var modeShot = (System.Windows.Controls.Primitives.ToggleButton)El(w, "ModeShot");
+                modeShot.IsChecked = true;
+                Pump(700);
+                if (!(bool)Prop(ctrl, "HoldsCamera")) Pass("switching out of Video mode released the device");
+                else Fail("the controller STILL holds the camera after leaving Video mode");
+                ((System.Windows.Controls.Primitives.ToggleButton)El(w, "ModeVideo")).IsChecked = true;
+                Pump(300);
+            }
+            else Fail("could not restart the preview to test the mode path");
+
+            // --- AC9 path 4: closing the editor by ANY route releases it (all routes end at Closed).
+            Head("AC9 path 4 - closing the editor releases the device");
+            bool up = RestartPreview(tabs, ctrl);
+            if (!up) Fail("the preview was not running when the editor was closed - the close path is NOT observed under load");
+            var pids3 = FfmpegPids();
+            int holdersBefore = (int)Type(_core, "AgentEyes.Video.CameraDeviceArbiter")
+                .GetProperty("HolderCount", BindingFlags.Public | BindingFlags.Static).GetValue(null);
+            Info("preview running before close = " + up + "; arbiter holders = " + holdersBefore);
+            w.Close();
+            Pump(800);
+            int holdersAfter = (int)Type(_core, "AgentEyes.Video.CameraDeviceArbiter")
+                .GetProperty("HolderCount", BindingFlags.Public | BindingFlags.Static).GetValue(null);
+            Info("arbiter holders after close = " + holdersAfter);
+            if (!(bool)Prop(ctrl, "HoldsCamera")) Pass("closing the editor released the device");
+            else Fail("the controller STILL holds the camera after the editor closed");
+            if (holdersAfter == holdersBefore - 1) Pass("the controller unregistered itself from the arbiter on close");
+            else Fail($"arbiter holder count went {holdersBefore} -> {holdersAfter}, expected one fewer");
+            var r3 = TimeRealCameraRecording(camera, "qa-rec-after-close");
+            Info($"recording after close: opened={r3.Item1} in {r3.Item2} ms");
+            if (r3.Item1 && r3.Item2 <= 2000) Pass($"a real recording opened the camera in {r3.Item2} ms after the editor closed");
+            else Fail($"recording after close: opened={r3.Item1}, {r3.Item2} ms, {r3.Item3}");
+        }
+
+        private static string StateName(object ctrl) => Prop(ctrl, "State").ToString();
+
+        /// <summary>
+        /// Bring the live preview back up after something stopped it. Setting the picker to the same
+        /// index raises no SelectionChanged, so the preview is restarted the way a user would: leave
+        /// the Camera tab and come back, which is the editor's own start trigger.
+        /// </summary>
+        private static bool RestartPreview(TabControl tabs, object ctrl)
+        {
+            tabs.SelectedIndex = 0; Pump(400);
+            tabs.SelectedIndex = 2; Pump(300);
+            return PumpUntil(() => StateName(ctrl) == "Running", 20000);
+        }
+
+        private static byte[] Pixels(BitmapSource bs)
+        {
+            int stride = bs.PixelWidth * ((bs.Format.BitsPerPixel + 7) / 8);
+            var buf = new byte[stride * bs.PixelHeight];
+            bs.CopyPixels(buf, stride, 0);
+            return buf;
+        }
+
+        private static List<int> FfmpegPids() =>
+            Process.GetProcessesByName("ffmpeg").Select(p => p.Id).OrderBy(i => i).ToList();
+
+        private static bool PidAlive(int pid)
+        {
+            try { var p = Process.GetProcessById(pid); return !p.HasExited; }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Open a REAL camera recording exactly the way RecordingService does for POST /record/start:
+        /// FfmpegCameraRecorder.Create (which is where CameraDeviceArbiter.ReleaseForRecording lives)
+        /// followed by Open (which does not return until ffmpeg has PROVED the device is open).
+        /// Returns (opened, elapsedMs, error).
+        /// </summary>
+        private static Tuple<bool, long, string> TimeRealCameraRecording(string camera, string label)
+        {
+            string dir = Path.Combine(_outDir, "rec", label + "-" + DateTime.Now.ToString("HHmmssfff"));
+            Directory.CreateDirectory(dir);
+            var t = Type(_core, "AgentEyes.Video.FfmpegCameraRecorder");
+            var create = t.GetMethod("Create", BindingFlags.Public | BindingFlags.Static);
+            var sw = Stopwatch.StartNew();
+            object rec = null;
+            try
+            {
+                var ps = create.GetParameters();
+                var argv = new object[ps.Length];
+                argv[0] = camera; argv[1] = 30; argv[2] = 23; argv[3] = Path.Combine(dir, "camera.mp4");
+                for (int i = 4; i < ps.Length; i++) argv[i] = ps[i].DefaultValue;
+                rec = create.Invoke(null, argv);
+                t.GetMethod("Open", BindingFlags.Public | BindingFlags.Instance).Invoke(rec, null);
+                sw.Stop();
+                return Tuple.Create(true, sw.ElapsedMilliseconds, "");
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                var e = ex is TargetInvocationException tie ? tie.InnerException : ex;
+                return Tuple.Create(false, sw.ElapsedMilliseconds, e.Message);
+            }
+            finally
+            {
+                if (rec != null)
+                {
+                    try { t.GetMethod("Stop", BindingFlags.Public | BindingFlags.Instance).Invoke(rec, null); } catch { }
+                    try { t.GetMethod("Dispose", BindingFlags.Public | BindingFlags.Instance).Invoke(rec, null); } catch { }
+                }
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        // ------------------------------------------------------------------ AC10
+
+        private static void SetCfg(object cfg, string name, object v) =>
+            cfg.GetType().GetProperty(name).SetValue(cfg, v);
+
+        private static void SetProp(object o, string name, object v) =>
+            o.GetType().GetProperty(name).SetValue(o, v);
+
+        private static void RunAc10(Window closedWindow, TabControl _, object cfg, object preset)
+        {
+            Head("AC10 - the editor reopens on its last tab, size and position");
+
+            var cfg2 = LoadConfig();
+            SetProp(preset, "Camera", _camera);   // so reopening onto the Camera tab has something to preview
+            var w = NewEditor(preset, cfg2);
+            var tabs = (TabControl)El(w, "EditorTabs");
+            // Tab 2 (Camera) on purpose: reopening onto the Camera tab is the one restore that also
+            // re-arms the live preview from the constructor, so it is the case worth observing.
+            tabs.SelectedIndex = 2;
+            w.Width = 1120; w.Height = 700; w.Left = 140; w.Top = 90;
+            Pump(500); w.UpdateLayout(); Pump(200);
+            Info($"set: tab={tabs.SelectedIndex} size={w.ActualWidth:F0}x{w.ActualHeight:F0} pos={w.Left:F0},{w.Top:F0}");
+            w.Close();
+            Pump(500);
+
+            string json = File.ReadAllText(ConfigPath);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            string Got(string k) => root.TryGetProperty(k, out var v) ? v.ToString() : "(absent)";
+            Info($"config.json now: PresetEditorTab={Got("PresetEditorTab")} Width={Got("PresetEditorWidth")} " +
+                 $"Height={Got("PresetEditorHeight")} Left={Got("PresetEditorLeft")} Top={Got("PresetEditorTop")}");
+            bool wrote = Got("PresetEditorTab") == "2" && Got("PresetEditorLeft") == "140" && Got("PresetEditorTop") == "90";
+            if (wrote) Pass("the tab, size and position were written to config.json on close");
+            else Fail("config.json does not hold the tab/size/position that was set");
+
+            var cfg3 = LoadConfig();
+            var w2 = NewEditor(preset, cfg3);
+            var tabs2 = (TabControl)El(w2, "EditorTabs");
+            Pump(300);
+            Info($"reopened: tab={tabs2.SelectedIndex} size={w2.ActualWidth:F0}x{w2.ActualHeight:F0} pos={w2.Left:F0},{w2.Top:F0}");
+            if (tabs2.SelectedIndex == 2) Pass("the editor reopened on the Camera tab it was closed on");
+            else Fail("the editor reopened on tab " + tabs2.SelectedIndex + ", expected 2");
+            var ctrl2 = Field(w2, "_cameraPreview");
+            bool live = PumpUntil(() => StateName(ctrl2) == "Running", 25000);
+            Info("reopened straight onto the Camera tab: preview state = " + StateName(ctrl2)
+                 + ", status = \"" + ((TextBlock)El(w2, "CameraPreviewStatus")).Text + "\"");
+            if (live) Pass("reopening onto the Camera tab re-armed the live preview with no error");
+            else Fail("reopening onto the Camera tab left the preview at " + StateName(ctrl2));
+            if (Math.Abs(w2.Left - 140) < 2 && Math.Abs(w2.Top - 90) < 2
+                && Math.Abs(w2.ActualWidth - 1120) < 2 && Math.Abs(w2.ActualHeight - 700) < 2)
+                Pass("the editor reopened at the same size and position");
+            else Fail($"the editor reopened at {w2.ActualWidth:F0}x{w2.ActualHeight:F0} @{w2.Left:F0},{w2.Top:F0}, expected 1120x700 @140,90");
+            w2.Close();
+            Pump(600);
+            if ((bool)Prop(Field(w2, "_cameraPreview"), "HoldsCamera"))
+                Fail("the reopened editor still holds the camera after closing");
+            else Pass("the reopened editor released the camera on close");
+        }
+
+        // ------------------------------------------------------------------ AC5
+
+        private static void RunAc5()
+        {
+            Head("AC5 - a preset round-trips through the editor and through presets.json");
+
+            var cfg = LoadConfig();
+            var p = NewPreset();
+            SetProp(p, "Name", "QA35 round trip");
+            SetProp(p, "Note", "note text");
+            SetProp(p, "MonitorIndex", 3);
+            SetProp(p, "UseRegion", true);
+            SetProp(p, "Region", new[] { 11, 22, 640, 480 });
+            SetProp(p, "Source", "mixed");
+            SetProp(p, "Mic", "Microphone (HD Webcam eMeet C960)");
+            SetProp(p, "Denoise", false);
+            SetProp(p, "Gate", (bool?)true);
+            SetProp(p, "Level", false);
+            SetProp(p, "MicVol", 123.0);
+            SetProp(p, "SysVol", 45.0);
+            SetProp(p, "Mode", "video");
+            SetProp(p, "Fps", 60);
+            SetProp(p, "Camera", "HD Webcam eMeet C960");
+            SetProp(p, "CameraFps", 30);
+            string original = JsonSerializer.Serialize(p, new JsonSerializerOptions { WriteIndented = true });
+
+            var w = NewEditor(p, cfg);
+            if (!PumpUntil(() => (bool)Field(w, "_camerasLoaded"), 30000))
+                Fail("camera list never loaded - the camera field of the round trip is not exercised");
+
+            // Region controls still behave: the three quick-size buttons and Set.
+            var region = Type(_app, "AgentEyes.App.PresetEditor")
+                .GetMethod("QuickSquare_Click", BindingFlags.Instance | BindingFlags.NonPublic);
+            region.Invoke(w, new object[] { null, null });
+            Pump(200);
+            var label = (TextBlock)El(w, "RegionLabel");
+            Info("after QuickSquare_Click: RegionLabel = \"" + label.Text + "\", NameBox = \"" + ((TextBox)El(w, "NameBox")).Text + "\"");
+            if (label.Text == "1080 x 1080") Pass("QuickSquare_Click still sets a 1080x1080 region");
+            else Fail("QuickSquare_Click produced RegionLabel \"" + label.Text + "\", expected \"1080 x 1080\"");
+
+            ((TextBox)El(w, "ExactWidthBox")).Text = "800";
+            ((TextBox)El(w, "ExactHeightBox")).Text = "600";
+            Type(_app, "AgentEyes.App.PresetEditor")
+                .GetMethod("SetExact_Click", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(w, new object[] { null, null });
+            Pump(200);
+            if (label.Text == "800 x 600") Pass("SetExact_Click still sets an exact 800x600 region");
+            else Fail("SetExact_Click produced RegionLabel \"" + label.Text + "\", expected \"800 x 600\"");
+
+            // Now reload a clean copy and read it straight back out - Save's exact path.
+            w.Close(); Pump(300);
+            var p2 = NewPreset();
+            var w3 = NewEditor(p, cfg);
+            if (!PumpUntil(() => (bool)Field(w3, "_camerasLoaded"), 30000))
+                Fail("camera list never loaded on the read-back editor");
+            Pump(300);
+            Type(_app, "AgentEyes.App.PresetEditor")
+                .GetMethod("ReadInto", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(w3, new[] { p2 });
+            SetProp(p2, "Id", p.GetType().GetProperty("Id").GetValue(p));
+            string readBack = JsonSerializer.Serialize(p2, new JsonSerializerOptions { WriteIndented = true });
+            if (readBack == original) Pass("LoadFrom -> ReadInto is byte-identical (the Save path preserves every field)");
+            else
+            {
+                Fail("the preset changed on its way through the editor");
+                File.WriteAllText(Path.Combine(_outDir, "ac5-original.json"), original);
+                File.WriteAllText(Path.Combine(_outDir, "ac5-readback.json"), readBack);
+                Info("wrote ac5-original.json / ac5-readback.json");
+            }
+            w3.Close(); Pump(300);
+
+            // ... and through the real presets.json.
+            var store = Type(_app, "AgentEyes.App.PresetStore");
+            var listType = typeof(List<>).MakeGenericType(Type(_app, "AgentEyes.App.CapturePreset"));
+            var list = (System.Collections.IList)Activator.CreateInstance(listType);
+            list.Add(p2);
+            store.GetMethod("Save", BindingFlags.Public | BindingFlags.Static).Invoke(null, new object[] { list });
+            var reloaded = (System.Collections.IList)store.GetMethod("Load", BindingFlags.Public | BindingFlags.Static)
+                .Invoke(null, null);
+            if (reloaded.Count != 1) { Fail("presets.json reloaded " + reloaded.Count + " presets, expected 1"); return; }
+            string afterFile = JsonSerializer.Serialize(reloaded[0], new JsonSerializerOptions { WriteIndented = true });
+            Info("presets.json round trip: " + (afterFile == original ? "identical" : "DIFFERENT"));
+            if (afterFile == original) Pass("the preset round-trips identically through %LOCALAPPDATA%\\AgentEyes\\presets.json");
+            else
+            {
+                Fail("the preset did NOT round-trip identically through presets.json");
+                File.WriteAllText(Path.Combine(_outDir, "ac5-fromfile.json"), afterFile);
+            }
+        }
+    }
+}

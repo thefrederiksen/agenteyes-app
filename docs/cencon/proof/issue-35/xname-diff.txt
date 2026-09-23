@@ -1,0 +1,109 @@
+x:NAME DIFF - issue #35 (AC4)
+
+BEFORE (origin/issue-33-hud-live-preview:src/AgentEyes.App/PresetEditor.xaml): 38 names
+AFTER  (this branch):                                                    48 names
+
+REMOVED OR RENAMED (must be empty):
+  (none)
+
+ADDED (new controls only - the tabs, their scrollers, and issue #29's preview parts):
+  AudioScroll
+  AudioTab
+  CameraPreviewImage
+  CameraPreviewPanel
+  CameraPreviewStatus
+  CameraScroll
+  CameraTab
+  CaptureScroll
+  CaptureTab
+  EditorTabs
+
+FULL BEFORE LIST:
+  AspectBox
+  CameraBox
+  CameraHint
+  CancelButton
+  DenoiseCheck
+  ErrorText
+  ExactHeightBox
+  ExactWidthBox
+  FpsBox
+  FullRadio
+  GateCheck
+  LandscapeButton
+  LevelCheck
+  MicBox
+  MicVol
+  MicVolText
+  ModeAudio
+  ModeShot
+  ModeVideo
+  MonitorBox
+  NameBox
+  NoteBox
+  RegionLabel
+  RegionOptions
+  RegionRadio
+  RegionWarn
+  SaveAsButton
+  SaveButton
+  SelectAreaButton
+  SetExactButton
+  ShowAreaButton
+  SquareButton
+  SrcMic
+  SrcMixed
+  SrcSystem
+  SysVol
+  SysVolText
+  VerticalButton
+
+FULL AFTER LIST:
+  AspectBox
+  AudioScroll
+  AudioTab
+  CameraBox
+  CameraHint
+  CameraPreviewImage
+  CameraPreviewPanel
+  CameraPreviewStatus
+  CameraScroll
+  CameraTab
+  CancelButton
+  CaptureScroll
+  CaptureTab
+  DenoiseCheck
+  EditorTabs
+  ErrorText
+  ExactHeightBox
+  ExactWidthBox
+  FpsBox
+  FullRadio
+  GateCheck
+  LandscapeButton
+  LevelCheck
+  MicBox
+  MicVol
+  MicVolText
+  ModeAudio
+  ModeShot
+  ModeVideo
+  MonitorBox
+  NameBox
+  NoteBox
+  RegionLabel
+  RegionOptions
+  RegionRadio
+  RegionWarn
+  SaveAsButton
+  SaveButton
+  SelectAreaButton
+  SetExactButton
+  ShowAreaButton
+  SquareButton
+  SrcMic
+  SrcMixed
+  SrcSystem
+  SysVol
+  SysVolText
+  VerticalButton

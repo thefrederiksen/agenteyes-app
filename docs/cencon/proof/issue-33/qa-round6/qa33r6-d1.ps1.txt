@@ -1,0 +1,85 @@
+param(
+    [ValidateSet('shipped','knownbad')][string]$Build = 'shipped',
+    [ValidateSet('healthy','startstall','stopstall')][string]$Scenario = 'healthy',
+    [string]$Ip1 = '8.8.8.8',
+    [string]$Ip2 = '8.8.4.4',
+    [int]$RunSeconds = 15
+)
+. "<QA-SCRATCH>\qa33r6-lib.ps1"
+
+$START_BODY = '{"mode":"video","screen":1,"source":"mic","mic":"Microphone (HD Webcam eMeet C960)","fps":30,"camera":"HD Webcam eMeet C960","cameraFps":30}'
+
+function Post($url, $body) {
+    # The JSON goes through a FILE. PowerShell 5.1 strips double quotes when splatting native
+    # arguments, which silently turned the body into invalid JSON and produced a 500 that looked
+    # like a fast start.
+    $sink = Join-Path $Global:SP 'curl-sink.bin'
+    $bodyFile = Join-Path $Global:SP 'curl-body.json'
+    Set-Content -Path $bodyFile -Value $body -Encoding ascii -NoNewline
+    $out = & curl.exe -s -o $sink -w '%{http_code} %{time_total}' -X POST $url -H 'Content-Type: application/json' --max-time 300 --data-binary "@$bodyFile"
+    $p = $out -split ' '
+    return @{ Code = $p[0]; Sec = [double]$p[1]; Body = (Get-Content $sink -Raw -ErrorAction SilentlyContinue) }
+}
+
+$exe = if ($Build -eq 'shipped') { $Global:SHIPPED } else { $Global:KNOWNBAD }
+Say "==================================================================="
+Say ("DEFECT 1 RUNTIME PROBE   build=$Build  scenario=$Scenario  run=${RunSeconds}s")
+Say ("exe = " + $exe)
+Say ("AgentEyesApp.dll sha256 = " + (Get-FileHash (Join-Path (Split-Path $exe) 'AgentEyesApp.dll')).Hash)
+Say ("agenteyes.dll    sha256 = " + (Get-FileHash (Join-Path (Split-Path $exe) 'agenteyes.dll')).Hash)
+Say "==================================================================="
+
+Stop-App
+Clear-Preview
+
+if ($Scenario -eq 'startstall') {
+    $link = Set-StalledPreview $Ip1
+    Say ("PREVIEW PATH BEFORE START: $Global:PREVIEW is a $link")
+    Say ("  (no pre-probe: touching the path first would warm the SMB negative cache and REMOVE the stall.")
+    Say ("   The instrument check is the known-bad control run on an equally fresh blackhole IP.)")
+} else {
+    New-Item -ItemType Directory -Force -Path $Global:PREVIEW | Out-Null
+    Say ("PREVIEW PATH BEFORE START: real local directory")
+}
+
+if (-not (Start-App $exe)) { Say "FATAL: app did not answer /health"; exit 1 }
+Start-Sleep -Seconds 2
+$pre = Status
+Say ("armed=" + $pre.PreviewArmed + " state=" + $pre.State)
+
+$tag = Mark-Log ("QA33R6-D1-$Build-$Scenario-" + (Get-Date -Format 'HHmmss'))
+
+$r1 = Post 'http://127.0.0.1:7882/record/start' $START_BODY
+Say ("START  POST /record/start -> HTTP " + $r1.Code + " in " + [math]::Round($r1.Sec,2) + " s")
+if ($r1.Code -ne '200') { Say ("START  BODY: " + $r1.Body) }
+$w = Wait-State 'recording' 120
+Say ("START  /status reached 'recording' = " + $w.Ok + " after " + $w.Ms + " ms (state=" + $w.State + ")")
+
+Start-Sleep -Seconds $RunSeconds
+
+if ($Scenario -eq 'stopstall') {
+    $s = Status
+    Say ("MID    framesRead=" + $s.PreviewScreenFramesRead + "/" + $s.PreviewCameraFramesRead + " publishing=" + $s.PreviewPublishing + " previewFailed=" + $s.PreviewFailed)
+    Say ("MID    files in the preview dir before the stall: " + ((Get-ChildItem $Global:PREVIEW -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ','))
+    $link = Set-StalledPreview $Ip2
+    Say ("MID    PREVIEW PATH SWAPPED MID-RECORDING: $Global:PREVIEW is a $link")
+    Start-Sleep -Seconds 4
+    $s2 = Status
+    Say ("MID    +4s state=" + $s2.State + " framesRead=" + $s2.PreviewScreenFramesRead + "/" + $s2.PreviewCameraFramesRead + " previewFailed=" + $s2.PreviewFailed)
+}
+
+$r2 = Post 'http://127.0.0.1:7882/record/stop' '{}'
+Say ("STOP   POST /record/stop -> HTTP " + $r2.Code + " in " + [math]::Round($r2.Sec,2) + " s")
+if ($r2.Code -ne '200') { Say ("STOP   BODY: " + $r2.Body) }
+$w2 = Wait-State 'idle' 180
+Say ("STOP   /status returned to 'idle' = " + $w2.Ok + " after " + $w2.Ms + " ms (state=" + $w2.State + ")")
+
+Start-Sleep -Seconds 5
+Report-Recording (Latest-Recording)
+
+Say "--- preview / chores lines in the shared log after the marker ---"
+Log-Since $tag 'PreviewTap|PreviewChores|PreviewLog|hud: preview|resize route|BackgroundFileWriter|StartVideo: preview' 30 | ForEach-Object { Say ("    " + $_) }
+
+Stop-App
+Clear-Preview
+Say "DONE"

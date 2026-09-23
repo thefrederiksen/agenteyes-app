@@ -63,5 +63,68 @@ namespace AgentEyes.Tests
             var names = new List<string> { "Mic A", "Mic B" };
             Assert.Throws<UsageException>(() => DeviceResolver.ResolveName(names, "Mic"));
         }
+
+        // ---- camera resolution (issue #28) -----------------------------------
+
+        private static List<string> Cameras() => new()
+        {
+            "HD Webcam",
+            "Logitech BRIO 4K",
+            "Logitech StreamCam",
+        };
+
+        [Fact]
+        public void ResolveCameraName_UniqueFragment_ReturnsTheExactDeviceName()
+        {
+            Assert.Equal("HD Webcam", DeviceResolver.ResolveCameraName(Cameras(), "Webcam"));
+        }
+
+        [Fact]
+        public void ResolveCameraName_FragmentIsCaseInsensitive()
+        {
+            Assert.Equal("Logitech BRIO 4K", DeviceResolver.ResolveCameraName(Cameras(), "brio"));
+        }
+
+        [Fact]
+        public void ResolveCameraName_NoMatch_ThrowsNamingTheFragment()
+        {
+            // AC8: the error has to name what the user asked for - that is the thing they change.
+            var ex = Assert.Throws<UsageException>(
+                () => DeviceResolver.ResolveCameraName(Cameras(), "no-such-device"));
+            Assert.Contains("no-such-device", ex.Message);
+        }
+
+        [Fact]
+        public void ResolveCameraName_AmbiguousFragment_ThrowsRatherThanPickingOne()
+        {
+            // "Logitech" matches two cameras. There is deliberately no "take the first" path: a
+            // recording that quietly filmed the wrong lens is worse than one that refused to start.
+            var ex = Assert.Throws<UsageException>(
+                () => DeviceResolver.ResolveCameraName(Cameras(), "Logitech"));
+            Assert.Contains("Logitech", ex.Message);
+            Assert.Contains("2", ex.Message);
+        }
+
+        [Fact]
+        public void ResolveCameraName_NoCamerasOnTheMachine_ThrowsNamingTheFragment()
+        {
+            var ex = Assert.Throws<UsageException>(
+                () => DeviceResolver.ResolveCameraName(new List<string>(), "Webcam"));
+            Assert.Contains("Webcam", ex.Message);
+        }
+
+        [Fact]
+        public void ResolveCameraName_EmptyFragment_Throws()
+        {
+            Assert.Throws<UsageException>(() => DeviceResolver.ResolveCameraName(Cameras(), "  "));
+        }
+
+        [Fact]
+        public void ResolveCameraName_ExactFullName_ResolvesToItself()
+        {
+            // What the preset stores is the EXACT device name, so the round trip through the resolver
+            // must survive a name that is also a prefix of nothing else.
+            Assert.Equal("Logitech StreamCam", DeviceResolver.ResolveCameraName(Cameras(), "Logitech StreamCam"));
+        }
     }
 }

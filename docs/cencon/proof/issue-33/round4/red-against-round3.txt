@@ -1,0 +1,25 @@
+ROUND 3'S MECHANISM, PUT BACK UNDER ROUND 4'S TESTS
+==============================================================================================================
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.AHandsOffRecording_WithARememberedSizeTheWindowCannotTake_ChangesNothing [508 ms]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeWithNoGestureBehindIt_IsNeverRemembered [557 ms]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.DraggingThePillsBorderWhileThePanelIsDown_IsNotAPanelSize [474 ms]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.MovingTheWindowWithoutResizingIt_IsNeverRemembered [495 ms]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.ShowPanel_FromTheConstructorBeforeTheWindowIsShown_RemembersNothing [429 ms]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.ShowPanel_OnAnAlreadyShownPillHud_OpensAtTheDefaultAndRemembersNothing [509 ms]
+  Failed AgentEyes.Tests.HudPreviewSizingOrderTests.ShowThenHideWithoutResizing_LeavesNoSizeToPersist [449 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.ADragWhileTheWindowIsAutoSized_RecordsNothing [288 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.AHandsOffRecording_RecordsNothing [224 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.AMoveAfterAResize_DoesNotRecordAgain [237 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.AMoveOfTheWindow_RecordsNothing [486 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.Record_IsOnlyEverReachedFromAPositivelyIdentifiedGesture [38 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.TheMessagesALayoutDrivenResizeArrivesOn_RecordNothing(message: 5) [309 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.TheMessagesALayoutDrivenResizeArrivesOn_RecordNothing(message: 532) [61 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.TheMessagesALayoutDrivenResizeArrivesOn_RecordNothing(message: 71) [262 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.TheMessagesALayoutDrivenResizeArrivesOn_RecordNothing(message: 736) [269 ms]
+  Failed AgentEyes.Tests.HudUserResizeTests.TheSizingCodeDoesNotSubscribeToLayoutOrSizeChanges [14 ms]
+
+Result: Failed: 17, Passed: 40, Total: 57
+
+The two that are QA's round-3 report, verbatim:
+  RED      ShowPanel_FromTheConstructorBeforeTheWindowIsShown_RemembersNothing
+  RED      AHandsOffRecording_WithARememberedSizeTheWindowCannotTake_ChangesNothing

@@ -1,0 +1,125 @@
+QA round 4 - issue #28 - INDEPENDENT MUTATION EVIDENCE
+======================================================
+
+Every mutation below was applied BY QA (not by the developer), to an ISOLATED
+git worktree at PR head 8b9f096, then built and run. The developer's own
+mutation-evidence-round4.txt was NOT trusted: each check here was re-proved to
+FIRE against a deliberately broken build, and reverted afterwards.
+
+Isolation (the build trap the Review Gate hit):
+  worktree: <scratch>/qa28r4  (git worktree add --detach 8b9f096)
+  The tray app running from D:\ReposFred\agenteyes-app\...\bin\x64\Release\
+  holds locks on that output AND its AgentEyesApp.exe was stamped 11:17,
+  i.e. BEFORE the round-4 commit (12:16) - a stale false green if used.
+  Everything below was built and run from the worktree instead.
+
+BASELINE (unmutated PR head 8b9f096, worktree build)
+  dotnet build AgentEyes.sln -c Release   -> Build succeeded.  0 Error(s)
+  dotnet test  AgentEyes.sln -c Release   -> Passed!  Failed: 0, Passed: 900, Total: 900
+  filter CameraFailurePathTests           -> Passed!  Failed: 0, Passed:  33, Total:  33
+  (33 camera failure-path tests DISCOVERED and EXECUTED - each named in the run log.)
+
+Every mutation run reported "Build succeeded. / 0 Error(s)" before the test run.
+(A mutation that failed to compile was re-done: with --no-build a broken build
+silently re-runs the PREVIOUS assembly and reports 33/33 green. That is itself a
+check that fails open, and the build line is what closes it.)
+
+------------------------------------------------------------------------------
+GATE ROUND 2 (PR #32) DEFECT 1 - a failed START must not strand ffmpeg
+------------------------------------------------------------------------------
+M1  FfmpegCameraRecorder.FailOpen: restore the round-2 behaviour - mark
+    _terminated/_disposed and release the process handle WHETHER OR NOT the
+    process actually died.
+    -> Failed: 3
+       Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+       Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle
+       Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry
+    CONFIRMS: startup with KillEndsIt=false AND startup with KillThrows=true are
+    now really covered - the two arms the gate said had no startup test at all.
+
+M11 RecordingService.StartVideo: open the camera BEFORE the _camera field holds
+    the recorder (var local -> Open() -> assign), so the rollback has nothing to
+    stop.
+    -> Failed: 1   TheRecordingService_StoresTheCameraBeforeStartingIt
+
+M12 Commands.Video: call Open() from a private helper instead of in the method
+    that constructed the recorder (an opener that is not the owner).
+    -> Failed: 2
+       EveryCallerThatOpensACamera_ConstructsTheRecorderInTheSameMethod
+       TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary
+
+------------------------------------------------------------------------------
+GATE ROUND 2 DEFECT 2 - Dispose must not abandon a live ffmpeg
+------------------------------------------------------------------------------
+M2  FfmpegCameraRecorder.Dispose: delete the "_terminated is still false -> keep
+    the handle and return" guard, i.e. release the handle even when the retry
+    could not confirm the process gone.
+    -> Failed: 2
+       Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+       Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt
+    CONFIRMS: the test the gate named as UNFALSIFIABLE
+    (CameraFailurePathTests.cs:406-420 in round 3, which passed with
+    proc.HasExited == false) now goes RED against exactly the behaviour it used
+    to certify. It is a real check, not a rewritten comment.
+
+------------------------------------------------------------------------------
+GATE ROUND 2 DEFECT 3 - a camera that never delivered a frame is a LOST track
+------------------------------------------------------------------------------
+M3  FfmpegCameraRecorder.Stop: disable the zero-output verdict (the round-3
+    behaviour - _wroteOutput logged, never affecting LostMidRun).
+    -> Failed: 3
+       Stop_WhenALIVECameraOpenedAndNeverDeliveredAFrame_StillReportsTheLoss
+       Stop_WhenTheCameraReportedOnlyAZeroOutputPosition_StillReportsTheLoss
+       Stop_WhenTheStderrNeverReachesEndOfStream_StillReportsTheLossRatherThanAssumingATake
+    CONFIRMS: the LIVE zero-frame camera (process still alive, no time= progress,
+    answers "q") is now covered. The round-3 test called End(1) first and only
+    ever walked the already-exited path.
+
+M4  OnStderrLine: count ANY progress tick as output (ms >= 0 instead of ms > 0).
+    -> Failed: 1   Stop_WhenTheCameraReportedOnlyAZeroOutputPosition_StillReportsTheLoss
+
+M5  Stop: reach the zero-output verdict WITHOUT draining ffmpeg's stderr to EOF.
+    -> Failed: 2
+       Stop_WhenTheStderrNeverReachesEndOfStream_StillReportsTheLossRatherThanAssumingATake
+       Stop_ReadsTheZeroFrameVerdictFromCOMPLETEStderr
+
+------------------------------------------------------------------------------
+GATE ROUND 1 (PR #30) DEFECTS - RE-PROVED, not assumed to still hold
+------------------------------------------------------------------------------
+R1-D1  M10 Commands.Video: replace the finally that disposes the camera with a
+       catch-and-rethrow (the merged code's shape - a Catch region, no Finally).
+       -> Failed: 1   TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary
+
+R1-D2  M6  KillOrThrow: ignore the second WaitForExit result and return anyway.
+       -> Failed: 5
+          Stop_WhenFfmpegSurvivesTheQuitAndTheKill_ThrowsInsteadOfReportingSuccess
+          Stop_WhenTheKillItselfThrows_StillReportsTheStopAsFailed
+          Stop_WhenTheRetryFinallyTerminatesFfmpeg_DisposeReleasesTheHandle
+          Stop_AfterAFailedTermination_DisposeKeepsTheProcessReachableInsteadOfAbandoningIt
+          Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+
+R1-D3  M7  StartAndProbe: accept a still-running process as "opened" (break out of
+       the probe loop unconditionally).
+       -> Failed: 7
+          Start_WhenTheCameraNeverProducesVideo_FailsTheStartInsteadOfCallingItOpen
+          Start_WhenTheCameraNeverProducesVideo_KillsTheStalledFfmpegAndReleasesIt
+          Start_WhenOnlyAProgressTickArrives_DoesNotCountThatAsAnOpenCamera
+          Start_WhenFfmpegOpensTheCameraButNeverOpensTheOutputFile_FailsTheStart
+          Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+          Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle
+          Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry
+
+R1-D4  M8  Stop: observe the already-exited process but never assign _lostMidRun
+       (the round-1 "local `lost` used only in a log line").
+       -> Failed: 1   Stop_WhenTheCameraDiedWithoutItsExitCallbackDelivered_RecordsTheTrackAsLost
+
+R1-D5  M9  RestServer.Devices: restore the try/catch that answers cameras = []
+       with HTTP 200 when enumeration throws.
+       -> Failed: 1   TheDevicesEndpoint_DoesNotSwallowACameraEnumerationFailure
+
+------------------------------------------------------------------------------
+AFTER ALL 12 MUTATIONS WERE REVERTED
+------------------------------------------------------------------------------
+  git status --short   -> (empty)
+  dotnet build         -> Build succeeded.  0 Error(s)
+  dotnet test          -> Passed!  Failed: 0, Passed: 900, Total: 900

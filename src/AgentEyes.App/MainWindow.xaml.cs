@@ -45,13 +45,15 @@ namespace AgentEyes.App
 
         private const long LowCreditWarningThresholdMicros = 1_000_000;
 
-        internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair)
+        internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair,
+            AlwaysOnController? alwaysOn = null)
         {
             _svc = svc;
             _cfg = cfg;
             _showTests = showTests;
             _repair = repair;
             InitializeComponent();
+            InitAlwaysOn(alwaysOn);
             SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
             RecentList.ItemsSource = _library.Rows;
             _library.SortKeyChanged = ResortLibrary;
@@ -200,19 +202,21 @@ namespace AgentEyes.App
         {
             // Fires during InitializeComponent (RailRecord starts checked) - panels not built yet.
             if (RecordPanel == null || LibraryPanel == null
-                || DictionaryPanel == null || CaptureViewPanel == null) return;
+                || DictionaryPanel == null || CaptureViewPanel == null || AlwaysOnPanel == null) return;
 
             bool record = ReferenceEquals(sender, RailRecord);
             bool library = ReferenceEquals(sender, RailLibrary);
             bool dictionary = ReferenceEquals(sender, RailDictionary);
             bool capture = ReferenceEquals(sender, RailCapture);
+            bool alwaysOn = ReferenceEquals(sender, RailAlwaysOn);
             RecordPanel.Visibility = record ? Visibility.Visible : Visibility.Collapsed;
             LibraryPanel.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
             DictionaryPanel.Visibility = dictionary ? Visibility.Visible : Visibility.Collapsed;
             CaptureViewPanel.Visibility = capture ? Visibility.Visible : Visibility.Collapsed;
+            AlwaysOnPanel.Visibility = alwaysOn ? Visibility.Visible : Visibility.Collapsed;
             LibraryControls.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
             ViewTitle.Text = record ? "Record" : library ? "Library"
-                : dictionary ? "Dictionary" : "Capture";
+                : dictionary ? "Dictionary" : alwaysOn ? "Always On" : "Capture";
             // Issue #4 round 2: re-derive every card's artifact chips from disk each time the
             // Library is shown. transcript.json can be deleted or created outside the app while
             // the user is on another view (the card's own Open-folder action invites it), and the
@@ -225,6 +229,7 @@ namespace AgentEyes.App
             // probes to a worker; the Library paints immediately with the chips it already has
             // and the re-derived values are dispatched back when the probes complete.
             if (library) RefreshLibraryChips();
+            if (alwaysOn) LoadAlwaysOnPage();
             if (dictionary) LoadDictionary();
             if (capture)
             {
@@ -1028,7 +1033,7 @@ namespace AgentEyes.App
             var p = Selected;
             if (p == null) { OpenManagePresets(createNew: true); return; }
 
-            var dlg = new PresetEditor(p) { Owner = this };
+            var dlg = new PresetEditor(p, _cfg) { Owner = this };
             if (dlg.ShowDialog() != true || dlg.SavedPreset == null) return;
 
             var saved = dlg.SavedPreset;
@@ -1117,7 +1122,7 @@ namespace AgentEyes.App
                 if (p.Mode == "shot")
                 {
                     minimizedForCapture = await MinimizeBeforeCaptureAsync();
-                    string? file = PresetCapture.Start(_svc, p);
+                    string? file = PresetCapture.Start(_svc, p, _cfg);
                     RememberUsed(p);
                     StatusText.Text = "Screenshot saved + copied to clipboard.";
                     if (file != null)
@@ -1133,7 +1138,7 @@ namespace AgentEyes.App
                 RecordButton.IsEnabled = false;
                 StatusText.Text = "Starting...";
                 minimizedForCapture = p.Mode == "video" && await MinimizeBeforeCaptureAsync();
-                await Task.Run(() => PresetCapture.Start(_svc, p));
+                await Task.Run(() => PresetCapture.Start(_svc, p, _cfg));
                 RememberUsed(p);
 
                 RecordButton.IsEnabled = true;
@@ -1413,6 +1418,20 @@ namespace AgentEyes.App
             // reached exactly that (finding N9). Merging cannot throw on a diverged model any more -
             // it repairs and logs - but the catch is here so that no future throw on this path can
             // ever be fatal.
+            //
+            // The total really is computed ONCE per apply (issue #2, item 3). An apply that
+            // changes the rows settles as ONE coalesced collection event (RecentItemCollection
+            // holds the scope's notifications and re-raises them as a single Reset), and the
+            // constructor's CollectionChanged handler re-totals on it - so an unconditional
+            // UpdateEmptyState here was a SECOND full walk of the library per reload, despite the
+            // coalescing existing precisely to make it one. The probe watches for that event; only
+            // an apply that raised NOTHING still needs the explicit pass, because a reload can
+            // adopt fresh values into EXISTING rows - a repaired recording's AI cost, say - which
+            // changes the total without any collection event at all.
+            bool notified = false;
+            System.Collections.Specialized.NotifyCollectionChangedEventHandler probe =
+                (_, _) => notified = true;
+            _library.Rows.CollectionChanged += probe;
             try
             {
                 _library.ApplySnapshot(epoch, items);
@@ -1422,7 +1441,11 @@ namespace AgentEyes.App
                 Log.Error($"[MainWindow] LoadRecent FAILED to merge snapshot epoch={epoch}", ex);
                 StatusText.Text = "Library refresh error (logged): " + ex.Message;
             }
-            UpdateEmptyState();
+            finally
+            {
+                _library.Rows.CollectionChanged -= probe;
+            }
+            if (!notified) UpdateEmptyState();
 
             // Issue #142: loading the list no longer generates thumbnails. The old backfill here
             // (issue #19) called Thumbnails.Ensure without counting the attempt, so a recording

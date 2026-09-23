@@ -28,39 +28,14 @@ namespace AgentEyes.Video
         /// <param name="desktop">The capturable virtual-desktop bounds (device px) used to clamp+pad an
         /// oversized region. Null (or empty) means "no bounds constraint" - grab the region as-is (used by
         /// callers/tests that guarantee the region fits). Production callers pass Monitors.VirtualBounds().</param>
+        /// <param name="previewStream">Issue #33: also emit the small MJPEG monitoring stream on stdout
+        /// (see <see cref="PreviewOutput"/>). False - the default - produces byte-for-byte the command
+        /// line this built before the HUD preview existed (AC11).</param>
         public static List<string> VideoCapture(
             Drawing.Rectangle capture, string? dshowMicName, int fps, int crf, string outPath,
-            Drawing.Rectangle? desktop = null)
+            Drawing.Rectangle? desktop = null, bool previewStream = false)
         {
-            var target = RegionMath.Evenize(capture);
-
-            // Decide what gdigrab actually grabs, and whether we must pad it back to the exact size.
-            var grab = target;
-            string? padFilter = null;
-            if (desktop is Drawing.Rectangle d && !d.IsEmpty)
-            {
-                var raw = Drawing.Rectangle.Intersect(target, d);
-                if (raw.Width < 2 || raw.Height < 2)
-                    throw new UsageException(
-                        $"the capture region {target.Width}x{target.Height} at ({target.X},{target.Y}) " +
-                        $"does not overlap the desktop ({d.Width}x{d.Height} at ({d.X},{d.Y})) - nothing to capture.");
-
-                var fit = RegionMath.Evenize(raw);
-                if (fit != target)
-                {
-                    grab = fit;
-                    int ox = grab.X - target.X;
-                    int oy = grab.Y - target.Y;
-                    // yuv420p pad offsets must be even; round down (shifts content <=1px, chroma-aligned).
-                    ox -= ox % 2;
-                    oy -= oy % 2;
-                    if (ox < 0) ox = 0;
-                    if (oy < 0) oy = 0;
-                    if (ox + grab.Width > target.Width) ox = target.Width - grab.Width;
-                    if (oy + grab.Height > target.Height) oy = target.Height - grab.Height;
-                    padFilter = $"pad={target.Width}:{target.Height}:{ox}:{oy}:black";
-                }
-            }
+            var (grab, padFilter) = GrabAndPad(capture, desktop);
 
             var a = new List<string>
             {
@@ -112,7 +87,219 @@ namespace AgentEyes.Video
             }
 
             a.Add(outPath);
+            if (previewStream) a.AddRange(PreviewOutput());
             return a;
+        }
+
+        /// <summary>
+        /// Split a requested capture region into what gdigrab can actually grab (the part inside the
+        /// desktop) and the pad filter that composes it back to the exact requested size (issue #69),
+        /// or no filter when the region fits. Shared by the normal recorder and always-on (issue #66).
+        /// </summary>
+        internal static (Drawing.Rectangle Grab, string? PadFilter) GrabAndPad(
+            Drawing.Rectangle capture, Drawing.Rectangle? desktop)
+        {
+            var target = RegionMath.Evenize(capture);
+
+            // Decide what gdigrab actually grabs, and whether we must pad it back to the exact size.
+            var grab = target;
+            string? padFilter = null;
+            if (desktop is Drawing.Rectangle d && !d.IsEmpty)
+            {
+                var raw = Drawing.Rectangle.Intersect(target, d);
+                if (raw.Width < 2 || raw.Height < 2)
+                    throw new UsageException(
+                        $"the capture region {target.Width}x{target.Height} at ({target.X},{target.Y}) " +
+                        $"does not overlap the desktop ({d.Width}x{d.Height} at ({d.X},{d.Y})) - nothing to capture.");
+
+                var fit = RegionMath.Evenize(raw);
+                if (fit != target)
+                {
+                    grab = fit;
+                    int ox = grab.X - target.X;
+                    int oy = grab.Y - target.Y;
+                    // yuv420p pad offsets must be even; round down (shifts content <=1px, chroma-aligned).
+                    ox -= ox % 2;
+                    oy -= oy % 2;
+                    if (ox < 0) ox = 0;
+                    if (oy < 0) oy = 0;
+                    if (ox + grab.Width > target.Width) ox = target.Width - grab.Width;
+                    if (oy + grab.Height > target.Height) oy = target.Height - grab.Height;
+                    padFilter = $"pad={target.Width}:{target.Height}:{ox}:{oy}:black";
+                }
+            }
+            return (grab, padFilter);
+        }
+
+        // ---- the HUD preview tap (issue #33) --------------------------------
+
+        /// <summary>Preview frame height in pixels. The width follows the source aspect ratio
+        /// (scale=-2 rounds it to an even number), so a 16:9 screen previews at 480x270 - the size
+        /// assumption C2 names - and a 4:3 camera at 360x270.</summary>
+        public const int PreviewHeight = 270;
+
+        /// <summary>Preview frame rate. A monitor, not a viewfinder (assumption C2): enough to see
+        /// motion, low enough that AC9's cost bound is not in question.</summary>
+        public const int PreviewFps = 10;
+
+        /// <summary>MJPEG quality for the preview (2 = best, 31 = worst). Tens of kilobytes a frame.</summary>
+        public const int PreviewQuality = 8;
+
+        /// <summary>
+        /// The preview's filter chain, and every part of it was MEASURED rather than chosen
+        /// (issue #33, AC9 - a preview must cost the recording no dropped frames).
+        ///
+        /// On a 1920x1080 30fps capture, 30-second runs on 2026-08-28:
+        ///   control (no preview)                             drops 4, 1, 5
+        ///   scale then -r 10, 4:4:4                           drops 19, 27, 37   <- REJECTED
+        ///   fps=10 then scale, 4:2:0, neighbor sampling       drops 1, 0, 0      <- this
+        ///
+        /// The two-thirds difference is the ORDER: <c>fps=10</c> comes FIRST, so ten frames a second
+        /// are scaled instead of thirty being scaled and twenty thrown away at the encoder.
+        /// <c>flags=neighbor</c> is point sampling rather than a filtered resample - the right trade
+        /// for a monitor at a quarter size, and the rest of the difference. <c>yuvj420p</c> halves
+        /// the chroma the JPEG encoder has to touch.
+        /// </summary>
+        public static string PreviewFilter => $"fps={PreviewFps},scale=-2:{PreviewHeight}:flags=neighbor";
+
+        /// <summary>
+        /// The SECOND OUTPUT that feeds the recording HUD's live preview (issue #33): the captured
+        /// video, scaled down and sent as an MJPEG stream on ffmpeg's STDOUT.
+        ///
+        /// STDOUT AND NOT A FILE, and that is the whole design decision. Handing ffmpeg a file for
+        /// this output was measured on 2026-08-28: when the preview path failed mid-run, ffmpeg's
+        /// muxer error terminated the WHOLE process and truncated a 15-second recording to 5.1
+        /// seconds. A pipe moves that failure out of ffmpeg entirely - AgentEyes drains the pipe
+        /// unconditionally (<see cref="Preview.PreviewTap"/>) and any failure downstream of the drain
+        /// costs a picture, never the recording (AC10).
+        ///
+        /// It maps input 0's video explicitly because a recording with a microphone has a second
+        /// input, and it never carries audio: the preview is a picture.
+        ///
+        /// <c>-flush_packets 1</c> is required rather than tidy. Without it the raw MJPEG muxer fills
+        /// its 32KB AVIO buffer before anything reaches the pipe, which at these frame sizes delays
+        /// every frame by two or three of them - a monitor that lags is a monitor that lies about
+        /// what is being recorded right now.
+        /// </summary>
+        public static List<string> PreviewOutput() => new()
+        {
+            "-map", "0:v",
+            "-vf", PreviewFilter,
+            "-q:v", PreviewQuality.ToString(),
+            "-pix_fmt", "yuvj420p",
+            "-an",
+            "-f", "mjpeg",
+            "-flush_packets", "1",
+            "pipe:1",
+        };
+
+        /// <summary>
+        /// Capture a DirectShow camera to its OWN MP4 (issue #28) - a second, independent ffmpeg
+        /// process running alongside <see cref="VideoCapture"/>, so the screen and the presenter stay
+        /// two files an editor can compose later instead of one baked-in layout chosen at record time.
+        ///
+        /// VIDEO ONLY, by decision: no dshow audio input is opened and <c>-an</c> is passed, so
+        /// camera.mp4 carries exactly one stream. All audio stays on recording.mp4.
+        ///
+        /// The camera is captured at the DEVICE'S OWN default resolution (issue #28, assumption A2):
+        /// only the framerate is requested. Pinning an explicit <c>-video_size</c> makes ffmpeg's
+        /// dshow input fail outright on a camera that does not offer that exact mode, which would turn
+        /// a working camera into a failed start - and a failed start is loud here (decision 3).
+        ///
+        /// Encoding matches the screen video (assumption A3): libx264 / veryfast / yuv420p / CRF.
+        /// </summary>
+        /// <param name="dshowCameraName">Exact DirectShow device name (from FfmpegDevices.ListVideo).</param>
+        /// <param name="fps">Requested camera frame rate.</param>
+        /// <param name="crf">x264 quality (lower = better; 23 is the screen recorder's default).</param>
+        /// <param name="outPath">Where camera.mp4 is written (its FINAL path - no deferred mux, A4).</param>
+        /// <param name="previewStream">Issue #33: also emit the small MJPEG monitoring stream on stdout
+        /// (see <see cref="PreviewOutput"/>). This is the ONLY way a camera preview can exist while a
+        /// recording runs - ffmpeg holds the DirectShow device exclusively, so the preview cannot open
+        /// it a second time (assumption C1). False - the default - produces byte-for-byte the command
+        /// line this built before the HUD preview existed (AC11).</param>
+        public static List<string> CameraCapture(
+            string dshowCameraName, int fps, int crf, string outPath, bool previewStream = false)
+        {
+            if (string.IsNullOrWhiteSpace(dshowCameraName))
+                throw new UsageException("a camera capture needs an exact DirectShow device name.");
+
+            var a = new List<string>
+            {
+                "-y",
+                "-f", "dshow",
+                // Buffer input packets so a busy CPU during warmup does not drop camera frames -
+                // the same guard the gdigrab input carries.
+                "-thread_queue_size", "1024",
+                "-framerate", fps.ToString(),
+                "-i", $"video={dshowCameraName}",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-pix_fmt", "yuv420p",
+                "-crf", crf.ToString(),
+                // Explicitly no audio track: the input has none, and this says so in the output too
+                // so camera.mp4 cannot acquire one by accident.
+                "-an",
+                outPath,
+            };
+
+            if (previewStream) a.AddRange(PreviewOutput());
+            return a;
+        }
+
+        /// <summary>
+        /// Stream a DirectShow camera as RAW BGR24 frames of a FIXED size on stdout (issue #29) -
+        /// the preset editor's live preview.
+        ///
+        /// Raw frames rather than an encoded stream, because the preview's whole job is to prove the
+        /// camera is pointed at the right thing: every frame is exactly
+        /// <c>width * height * 3</c> bytes, so the reader knows a frame is complete by COUNTING
+        /// rather than by parsing a container, and a WPF WriteableBitmap takes the buffer as-is.
+        ///
+        /// The frame rate is limited on the OUTPUT (<c>-r</c>), not requested from the device
+        /// (<c>-framerate</c>). A dshow input REFUSES to open when the camera does not offer the
+        /// requested mode - which would turn a perfectly good camera into a preview that will not
+        /// start - so the device is opened at whatever it does natively and the surplus frames are
+        /// dropped on the way out (issue #29, assumption B2: this is a framing check, not a monitor).
+        ///
+        /// The scale is aspect-preserving and padded to the exact requested box, so a 16:9 camera
+        /// shows letterboxed rather than stretched, and the frame size stays constant whatever the
+        /// camera's native resolution is.
+        /// </summary>
+        /// <param name="dshowCameraName">Exact DirectShow device name (from FfmpegDevices.ListVideo).</param>
+        /// <param name="width">Frame width in pixels (even).</param>
+        /// <param name="height">Frame height in pixels (even).</param>
+        /// <param name="fps">Frames per second delivered on stdout.</param>
+        public static List<string> CameraPreview(string dshowCameraName, int width, int height, int fps)
+        {
+            if (string.IsNullOrWhiteSpace(dshowCameraName))
+                throw new UsageException("a camera preview needs an exact DirectShow device name.");
+            if (width < 2 || height < 2 || width % 2 != 0 || height % 2 != 0)
+                throw new UsageException(
+                    $"a camera preview frame must be at least 2x2 and even-sized; got {width}x{height}.");
+            if (fps < 1)
+                throw new UsageException($"a camera preview needs a positive frame rate; got {fps}.");
+
+            string fit = $"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                       + $"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:black";
+
+            return new List<string>
+            {
+                "-f", "dshow",
+                // The same packet-drop guard the recording inputs carry.
+                "-thread_queue_size", "512",
+                "-i", $"video={dshowCameraName}",
+                // The preview never carries audio: it must not open, and must not be able to open,
+                // the camera's microphone.
+                "-an",
+                "-vf", fit,
+                "-r", fps.ToString(),
+                "-pix_fmt", "bgr24",
+                "-f", "rawvideo",
+                // Push each frame out as it is produced instead of leaving the tail of it in the
+                // 32 KB IO buffer until the next one arrives.
+                "-flush_packets", "1",
+                "pipe:1",
+            };
         }
 
         /// <summary>Extract a 16 kHz mono WAV (what Whisper wants) from any media file.</summary>
@@ -182,9 +369,22 @@ namespace AgentEyes.Video
                         "call RnnoiseModel.Ensure() before building mix args");
                 denoise = $"arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
             }
-            string gate = o.NoiseGate
-                ? $"agate=threshold={Inv(o.GateThreshold)}:ratio=2:attack=20:release=250,"
-                : "";
+            // The threshold is MEASURED from the capture, never assumed. Building the chain with
+            // the gate on but nothing measured is a programming error and says so, exactly like the
+            // missing RNNoise model above - it must not quietly become some default number, because
+            // an assumed threshold is the defect this replaced.
+            string gate = "";
+            if (o.NoiseGate)
+            {
+                if (!o.GateCalibrated)
+                    throw new UsageException(
+                        "the noise gate is on but the capture has not been measured - " +
+                        "call AudioMix calibration before building mix args");
+
+                // A measurement that found no room for a gate leaves the stage out entirely.
+                if (o.GateThresholdLinear != null)
+                    gate = $"agate=threshold={Inv(o.GateThresholdLinear.Value)}:ratio=2:attack=20:release=250,";
+            }
             // e=4: boost quiet speech up to 4x (+12 dB); p=0.95: normalize peaks to 95%.
             string level = o.VoiceLeveling ? "speechnorm=e=4:p=0.95," : "";
             return $"[0:a]{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";

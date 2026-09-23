@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -21,7 +21,8 @@ namespace AgentEyes
     /// </summary>
     internal static class Package
     {
-        public static int Run(string path, double intervalSeconds = 5.0, double? sceneThreshold = null)
+        public static int Run(string path, double intervalSeconds = 5.0, double? sceneThreshold = null,
+            bool? extractFrames = null)
         {
             string dir;
             if (File.Exists(path))
@@ -42,7 +43,7 @@ namespace AgentEyes
                 throw new UsageException($"recording directory or video file not found: {path}");
             }
 
-            return RunAsync(dir, intervalSeconds, sceneThreshold).GetAwaiter().GetResult();
+            return RunAsync(dir, intervalSeconds, sceneThreshold, extractFrames).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -79,7 +80,8 @@ namespace AgentEyes
             VideoFile = "../" + videoFileName,
         };
 
-        private static async Task<int> RunAsync(string dir, double intervalSeconds, double? sceneThreshold)
+        private static async Task<int> RunAsync(string dir, double intervalSeconds, double? sceneThreshold,
+            bool? extractFrames)
         {
             // Issue #77: the recording stop now defers the audio mux to the background. Complete
             // any pending mux first so the final mixed file exists before we transcribe/extract
@@ -93,16 +95,34 @@ namespace AgentEyes
             // 1) Resolve an audio source -> 16 kHz mono WAV that Whisper can read.
             string wav = ResolveAudioWav(dir, manifest);
 
-            // 2) For video recordings, pull content-change frames into shots/.
+            // 2) For video recordings, the walkthrough frames. Two modes (issue #59):
+            //  - files on disk: extract content-change frames into shots/ (the behaviour before
+            //    this change, still what an explicit ask produces);
+            //  - served on demand (the owner's default): no files. The page asks the always-running
+            //    app for each frame at its offset and the endpoint extracts it from the video, so
+            //    the frame category stops existing on disk. Scene-cut selection cannot run without
+            //    writing frames, so on-demand places a frame every interval seconds instead.
             var contentShots = new List<WalkthroughShot>();
             string? videoPath = FindFirst(dir, manifest.VideoFile, "recording.mp4");
+            bool framesOnDisk = extractFrames ?? LocalAppConfig.WalkthroughExtractFrames;
             if (videoPath != null)
             {
-                Console.WriteLine(sceneThreshold.HasValue
-                    ? $"  extracting scene-cut frames (threshold {sceneThreshold}) ..."
-                    : $"  extracting key frames (1 every {intervalSeconds:F0}s) ...");
-                contentShots.AddRange(ExtractContentFrames(videoPath, shotsDir, intervalSeconds, sceneThreshold));
-                Console.WriteLine($"  {contentShots.Count} frame(s)");
+                if (framesOnDisk)
+                {
+                    Console.WriteLine(sceneThreshold.HasValue
+                        ? $"  extracting scene-cut frames (threshold {sceneThreshold}) ..."
+                        : $"  extracting key frames (1 every {intervalSeconds:F0}s) ...");
+                    contentShots.AddRange(ExtractContentFrames(videoPath, shotsDir, intervalSeconds, sceneThreshold));
+                    Console.WriteLine($"  {contentShots.Count} frame(s)");
+                }
+                else
+                {
+                    double duration = manifest.DurationSeconds > 0
+                        ? manifest.DurationSeconds
+                        : MediaProbe.DurationSeconds(videoPath);
+                    contentShots.AddRange(OnDemandShots(duration, intervalSeconds, new DirectoryInfo(dir).Name));
+                    Console.WriteLine($"  {contentShots.Count} frame(s) served on demand (none written to disk)");
+                }
             }
 
             // 3) Transcribe the recording through the signed-in DevThrottle account (issue #87).
@@ -159,11 +179,7 @@ namespace AgentEyes
             }
 
             // 4) Assemble the on-demand session shots (from the manifest) + content frames.
-            var shots = new List<WalkthroughShot>();
-            foreach (var s in manifest.Shots)
-            {
-                shots.Add(new WalkthroughShot { OffsetSeconds = s.OffsetSeconds, RelativePath = s.File.Replace('\\', '/') });
-            }
+            var shots = ShotsForPage(manifest);
             shots.AddRange(contentShots);
 
             // 5) Record what this pass produced, into whatever the manifest says NOW. This runs
@@ -233,7 +249,7 @@ namespace AgentEyes
 
         private static string ResolveAudioWav(string dir, Manifest manifest)
         {
-            // Whisper needs 16 kHz mono. Always normalize the source (mic wav is already 16k mono;
+            // Whisper needs 16 kHz mono. Always normalize the source (mic wav is 48k mono since issue #64;
             // mixed/system wav is 48k stereo; video has its audio in the mp4) so transcription is
             // correct regardless of how it was recorded.
             string? media = FindFirst(dir, manifest.AudioFile, "audio.wav")
@@ -256,10 +272,65 @@ namespace AgentEyes
         /// </summary>
         internal static void PersistFrames(Manifest manifest, IReadOnlyList<WalkthroughShot> contentShots)
         {
-            manifest.Shots.RemoveAll(s => s.File.Replace('\\', '/').Contains("shots/frame_"));
+            // Remove this pass's own product from a previous run, in BOTH forms: extracted frame
+            // files, and on-demand entries (empty File - there is no file, the frame is served from
+            // the video). Marker shots the owner took during the recording have real files and are
+            // never removed here.
+            manifest.Shots.RemoveAll(s =>
+                string.IsNullOrEmpty(s.File)
+                || s.File.Replace('\\', '/').Contains("shots/frame_"));
             foreach (var cs in contentShots)
-                manifest.Shots.Add(new Manifest.ShotEntry { OffsetSeconds = cs.OffsetSeconds, File = cs.RelativePath });
+            {
+                manifest.Shots.Add(new Manifest.ShotEntry
+                {
+                    OffsetSeconds = cs.OffsetSeconds,
+                    // Empty File means "no file; the frame is served on demand from the video".
+                    File = cs.ServedOnDemand ? "" : cs.RelativePath,
+                });
+            }
             manifest.Shots.Sort((a, b) => a.OffsetSeconds.CompareTo(b.OffsetSeconds));
+        }
+
+        /// <summary>
+        /// The page's shot list from the manifest as it stands: the owner's own marker shots, each as
+        /// a relative path. An entry with an EMPTY File is an earlier pass's on-demand frame
+        /// (issue #59) - the fresh set the caller is about to build replaces it, and rendering it
+        /// would emit an img with an empty src, which the browser resolves to the page itself.
+        /// </summary>
+        internal static List<WalkthroughShot> ShotsForPage(Manifest manifest)
+        {
+            var shots = new List<WalkthroughShot>();
+            foreach (var s in manifest.Shots)
+            {
+                if (string.IsNullOrEmpty(s.File)) continue;
+                shots.Add(new WalkthroughShot { OffsetSeconds = s.OffsetSeconds, RelativePath = s.File.Replace('\\', '/') });
+            }
+            return shots;
+        }
+
+        /// <summary>
+        /// The shot list for a recording whose frames are served on demand (issue #59): one frame
+        /// reference every <paramref name="intervalSeconds"/>, from zero to the recording's end,
+        /// each pointing at the local control endpoint that extracts that frame from the video when
+        /// the page asks for it. Pure - testable without a disk or a server.
+        /// </summary>
+        internal static List<WalkthroughShot> OnDemandShots(double durationSeconds, double intervalSeconds, string recordingId)
+        {
+            var result = new List<WalkthroughShot>();
+            if (durationSeconds <= 0) return result;
+
+            double step = intervalSeconds <= 0 ? 5.0 : intervalSeconds;
+            for (double t = 0; t < durationSeconds; t += step)
+            {
+                double at = Math.Round(t, 3);
+                result.Add(new WalkthroughShot
+                {
+                    OffsetSeconds = at,
+                    RelativePath = LocalAppConfig.FrameUrl(recordingId, at),
+                    ServedOnDemand = true,
+                });
+            }
+            return result;
         }
 
         private static IEnumerable<WalkthroughShot> ExtractContentFrames(

@@ -1,0 +1,62 @@
+dll sha256: A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8
+==== AC6 run 'excluded' (MQS_HUD_CAPTURABLE=False) ====
+  [app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe  MQS_HUD_CAPTURABLE=(unset)]
+  HUD parked: HUD rect after move: X=2300 Y=300 W=520 H=400
+  HUD rect: X=2300 Y=300 W=520 H=400
+  --- AC6 excluded : C:\Users\soren\Videos\AgentEyes\2026-08-29_011510_video ---
+    audio_16k.wav 1669880
+    camera.mp4 175953592
+    camera.mp4.ffmpeg.log 17249
+    manifest.json 3281
+    raw.mp4.ffmpeg.log 18590
+    recording.mp4 3940605
+    recording.original.mp4 3730735
+    thumb.jpg 15655
+    transcript.en.vtt 69
+    transcript.json 110
+    transcript.txt 39
+    walkthrough.html 2456
+    duration screen=54.6 camera=55.166612 delta=0.566611999999999
+    drops raw=9 camera=-1
+    "DurationSeconds": 54.6,
+    "CameraCapturedSeconds": 55.06,
+    "CameraStopKind": "clean-quit",
+    "CameraComplete": "yes",
+    "PreviewOverlayCorner": "bottom-right",
+    frame at t=7.86 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-excluded-01.png  x distinctColors=212
+    frame at t=15.71 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-excluded-02.png  x distinctColors=206
+    frame at t=23.57 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-excluded-03.png  x distinctColors=211
+    frame at t=31.43 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-excluded-04.png  x distinctColors=218
+    frame at t=39.29 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-excluded-05.png  x distinctColors=214
+    frame at t=47.14 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-excluded-06.png  x distinctColors=207
+==== AC6 run 'knownbad' (MQS_HUD_CAPTURABLE=True) ====
+  [app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe  MQS_HUD_CAPTURABLE=1]
+  HUD parked: HUD rect after move: X=2300 Y=300 W=520 H=400
+  HUD rect: X=2300 Y=300 W=520 H=400
+  --- AC6 knownbad : C:\Users\soren\Videos\AgentEyes\2026-08-29_011642_video ---
+    audio_16k.wav 996772
+    camera.mp4 112877964
+    camera.mp4.ffmpeg.log 12425
+    manifest.json 2955
+    raw.mp4.ffmpeg.log 13299
+    recording.mp4 2852457
+    recording.original.mp4 2725950
+    thumb.jpg 15637
+    transcript.en.vtt 59
+    transcript.json 110
+    transcript.txt 29
+    walkthrough.html 1962
+    duration screen=34.933333 camera=35.566631 delta=0.633298000000003
+    drops raw=2 camera=-1
+    "DurationSeconds": 34.93,
+    "CameraCapturedSeconds": 35.46,
+    "CameraStopKind": "clean-quit",
+    "CameraComplete": "yes",
+    "PreviewOverlayCorner": "bottom-right",
+    frame at t=5 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-knownbad-01.png  x distinctColors=219
+    frame at t=10 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-knownbad-02.png  x distinctColors=1214
+    frame at t=15 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-knownbad-03.png  x distinctColors=1157
+    frame at t=20 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-knownbad-04.png  x distinctColors=1170
+    frame at t=25 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-knownbad-05.png  x distinctColors=1190
+    frame at t=30 -> C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac6-knownbad-06.png  x distinctColors=1247
+==== end part 2 ====

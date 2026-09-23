@@ -1,0 +1,40 @@
+Issue #29 - mutation evidence: every new check run against KNOWN-BAD product code.
+Each mutation was applied to the product, the 24 CameraPreviewTests were run, and the
+mutation was then reverted. An EMPTY or all-passing run here would mean the check is
+decorative, not that the code is good.
+
+  1 recorder - FfmpegCameraRecorder.Start no longer calls CameraDeviceArbiter.ReleaseForRecording
+  2 close    - the closing PresetEditor no longer disposes the preview controller
+  3 select   - CameraPreviewController.Select no longer stops the previous session
+  4 arbiter  - CameraPreviewController.ReleaseForRecording no longer stops the preview
+
+================ MUTATION: recorder ================
+applied mutation: recorder
+  Failed AgentEyes.Tests.CameraPreviewTests.OpeningACameraForRecording_AsksEveryHolderToReleaseIt [5 ms]
+   Assert.NotEmpty() Failure: Collection was empty
+Failed!  - Failed:     1, Passed:    23, Skipped:     0, Total:    24, Duration: 243 ms - AgentEyes.Tests.dll (net8.0)
+
+================ MUTATION: close ================
+applied mutation: close
+  Failed AgentEyes.Tests.CameraPreviewTests.TheClosingPresetEditor_ReleasesTheCamera [24 ms]
+   Assert.NotEmpty() Failure: Collection was empty
+Failed!  - Failed:     1, Passed:    23, Skipped:     0, Total:    24, Duration: 240 ms - AgentEyes.Tests.dll (net8.0)
+
+================ MUTATION: select ================
+applied mutation: select
+  Failed AgentEyes.Tests.CameraPreviewTests.Select_ADifferentCamera_ReleasesThePreviousOne [29 ms]
+   Assert.Equal() Failure: Values differ
+  Failed AgentEyes.Tests.CameraPreviewTests.Select_None_ReleasesTheCameraBeforeItReturns [10 ms]
+   Assert.Equal() Failure: Values differ
+  Failed AgentEyes.Tests.CameraPreviewTests.FramesAndFailuresFromAReleasedSession_AreIgnored [10 ms]
+   Assert.Empty() Failure: Collection was not empty
+Failed!  - Failed:     3, Passed:    21, Skipped:     0, Total:    24, Duration: 226 ms - AgentEyes.Tests.dll (net8.0)
+
+================ MUTATION: arbiter ================
+applied mutation: arbiter
+  Failed AgentEyes.Tests.CameraPreviewTests.ARecordingOpeningTheCamera_ReleasesTheRunningPreviewFirst [17 ms]
+   Assert.Equal() Failure: Values differ
+  Failed AgentEyes.Tests.CameraPreviewTests.ARecordingOnADifferentCamera_StillReleasesThePreview [15 ms]
+   Assert.Equal() Failure: Values differ
+Failed!  - Failed:     2, Passed:    22, Skipped:     0, Total:    24, Duration: 236 ms - AgentEyes.Tests.dll (net8.0)
+

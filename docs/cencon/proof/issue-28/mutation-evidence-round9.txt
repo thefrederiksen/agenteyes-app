@@ -1,0 +1,40 @@
+MUTATION EVIDENCE - issue #28 / PR #32 / gate round 9
+Worktree: D:\ReposFred\agenteyes-dev28-r7
+
+Baseline (the fix in place):
+  Passed!  - Failed:     0, Passed:   951, Skipped:     0, Total:   951, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+  watched tests failing: NONE
+
+R9-M1  the exact HEAD derivation restored: the LIFETIME delivery count
+  mutation: if (_exitObserved && _exitFollowedADeliveredQuit && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
+        ->  if (_exitObserved && _quitsDelivered > 0 && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
+  Failed!  - Failed:     1, Passed:   950, Skipped:     0, Total:   951, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+  watched tests FAILING: StopKind_WhenARefusedRoundsQuitIsFollowedByAnUndeliveredRetryExit_IsNotACleanQuit
+
+R9-M2  the delivery clause deleted altogether (an over-simplified 'fix')
+  mutation: if (_exitObserved && _exitFollowedADeliveredQuit && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
+        ->  if (_exitObserved && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
+  Failed!  - Failed:     3, Passed:   948, Skipped:     0, Total:   951, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+  watched tests FAILING: StopKind_WhenARefusedRoundsQuitIsFollowedByAnUndeliveredRetryExit_IsNotACleanQuit, StopKind_WhenNeitherRoundDeliveredItsQuitAndTheProcessExitedZero_IsNotACleanQuit
+
+R9-M3  OVER-CORRECTION: any refused round anywhere poisons the whole recorder
+  mutation: if (_exitObserved && _exitFollowedADeliveredQuit && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
+        ->  if (_exitObserved && _exitFollowedADeliveredQuit && _refusedRounds == 0 && Array.IndexOf(QuitExitCodes, _exitCode) >= 0)
+  Failed!  - Failed:     1, Passed:   950, Skipped:     0, Total:   951, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+  watched tests FAILING: StopKind_WhenTheRetryRoundsOwnQuitIsDeliveredAndAnswered_IsStillACleanQuit
+
+R9-M4  the round association dropped at the JOIN (latched from the lifetime count)
+  mutation: _exitFollowedADeliveredQuit = _roundQuitDelivered;
+        ->  _exitFollowedADeliveredQuit = _quitsDelivered > 0;
+  Failed!  - Failed:     1, Passed:   950, Skipped:     0, Total:   951, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+  watched tests FAILING: StopKind_WhenARefusedRoundsQuitIsFollowedByAnUndeliveredRetryExit_IsNotACleanQuit
+
+R9-M5  QuitDelivered's precondition removed (the structural promise)
+  mutation: Require(_roundQuitAttempted, "a quit was reported delivered without having been attempted");
+        ->  // Require(...) removed by the mutation
+  Failed!  - Failed:     1, Passed:   950, Skipped:     0, Total:   951, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+  watched tests FAILING: CameraTerminationRecord_QuitDeliveredWithoutAQuitInThisRound_Throws
+
+Restored (the fix back in place):
+  Passed!  - Failed:     0, Passed:   951, Skipped:     0, Total:   951, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+  watched tests failing: NONE

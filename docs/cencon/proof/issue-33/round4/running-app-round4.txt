@@ -1,0 +1,45 @@
+==== ISSUE #33 ROUND 4 - THE RUNNING APP ====
+exe:           D:\ReposFred\agenteyes-dev33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+exe lastwrite: 08/28/2026 23:43:15
+
+==== (A) NO UNCHOSEN SIZE REACHES CONFIG - the defect QA found in round 3 ====
+-- RECORDING 1: the person TOGGLES the preview on and resizes NOTHING --
+  pill:                    HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+                           IMAGE: not found
+  config after recording 1  EXPECT no HudWidth / HudHeight:  "HudLeft": 1537, "HudTop": 16, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- RECORDING 2: the HUD is CONSTRUCTED with the preview already on. Nobody resizes. --
+  HUD as opened (EXPECT 520x400):  HUD rect: X=1537 Y=16 W=520 H=400
+                                   IMAGE rect=1553,113,490,276
+  config after recording 2  EXPECT no HudWidth / HudHeight:  "HudLeft": 1537, "HudTop": 16, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- RECORDING 3: same again, to show nothing accumulates --
+  HUD as opened:                   HUD rect: X=1537 Y=16 W=520 H=400
+  config after recording 3  EXPECT no HudWidth / HudHeight:  "HudLeft": 1537, "HudTop": 16, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+
+==== (B) THE CLAMP DRIFT: a hands-off recording must leave config BYTE-IDENTICAL ====
+  config before  (the person's remembered size):  "HudWidth": 200, "HudHeight": 100, "HudPreviewVisible": true
+  HUD as opened (MinWidth is 260): HUD rect: X=1644 Y=16 W=260 H=100
+  config after   EXPECT 200 / 100 unchanged - nobody touched the HUD:  "HudLeft": 1644, "HudTop": 16, "HudWidth": 200, "HudHeight": 100, "HudPreviewVisible": true,
+  RESULT: HudWidth=200 HudHeight=100  -> PASS
+
+==== (C) AC7 END TO END: resize to 3x, stop, start again ====
+  pill:                    HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  move to 940,340:         HUD rect after move: X=940 Y=340 W=520 H=400
+  resize to 1560x400:
+CanResize=True
+HUD rect after resize: X=940 Y=340 W=1560 H=400
+                           IMAGE: not found
+  config after the resize  EXPECT 1560 / 400 and left 940 top 340:  "HudLeft": 940, "HudTop": 340, "HudWidth": 1560, "HudHeight": 400, "HudPreviewVisible": true,
+-- a NEW recording: the HUD must come back where it was left --
+  HUD as opened:           HUD rect: X=940 Y=340 W=1560 H=400
+                           IMAGE rect=1449,422,544,306
+  config after recording 2  EXPECT 1560 / 400 unchanged:  "HudLeft": 940, "HudTop": 340, "HudWidth": 1560, "HudHeight": 400, "HudPreviewVisible": true,
+
+==== (D) A MOVE IS NOT A RESIZE: drag the HUD with the panel up, change nothing else ====
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  move to 300,200:         HUD rect after move: X=300 Y=200 W=520 H=400
+  move to 700,500:         HUD rect after move: X=700 Y=500 W=520 H=400
+  config after  EXPECT a position but NO HudWidth / HudHeight:  "HudLeft": 700, "HudTop": 500, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+
+==== end ====

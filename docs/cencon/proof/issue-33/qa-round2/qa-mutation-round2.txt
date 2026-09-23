@@ -1,0 +1,14 @@
+Q1 the HUD stops seeding its memory from the config (nothing survives a stop)                   Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 36 ms - AgentEyes.Tests.dll (net8.0)
+Q2 the panel re-opens from the config, not the memory (the pre-fix read)                        Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 38 ms - AgentEyes.Tests.dll (net8.0)
+Q3 the call site always claims manually-sized (the pill becomes the remembered size)            Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 37 ms - AgentEyes.Tests.dll (net8.0)
+Q4 the call site always claims auto-sized (nothing is ever remembered)                          Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 38 ms - AgentEyes.Tests.dll (net8.0)
+
+==============================================================================================================
+SILENT Q1 the HUD stops seeding its memory from the config (nothing survives a stop)
+       Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 36 ms - AgentEyes.Tests.dll (net8.0)
+SILENT Q2 the panel re-opens from the config, not the memory (the pre-fix read)
+       Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 38 ms - AgentEyes.Tests.dll (net8.0)
+SILENT Q3 the call site always claims manually-sized (the pill becomes the remembered size)
+       Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 37 ms - AgentEyes.Tests.dll (net8.0)
+SILENT Q4 the call site always claims auto-sized (nothing is ever remembered)
+       Passed!  - Failed:     0, Passed:    58, Skipped:     0, Total:    58, Duration: 38 ms - AgentEyes.Tests.dll (net8.0)

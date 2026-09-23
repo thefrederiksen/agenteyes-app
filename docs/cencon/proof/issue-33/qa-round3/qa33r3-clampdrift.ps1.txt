@@ -1,0 +1,41 @@
+param([string]$Exe)
+$ErrorActionPreference = 'Stop'
+$SP = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa-hud-uia.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa-hud-uia.ps1" -Action $a } }
+function Rec()        { & powershell -NoProfile -File "$SP\qa-main-uia.ps1" -Action click -Arg REC }
+function Cfg($what)   { Write-Output "  config ${what}: $((Get-Content $cfg | Select-String 'HudWidth|HudHeight|HudPreviewVisible') -join ' ')" }
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+
+# A config that already carries a remembered size BELOW the HUD's MinWidth (260) - the case where
+# the size the window actually takes is NOT the size it was commanded to take.
+@'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudWidth": 200,
+  "HudHeight": 100,
+  "HudPreviewVisible": true
+}
+'@ | Out-File -FilePath $cfg -Encoding utf8
+
+Write-Output "==== clamp drift: config says the person left the HUD at 200x100 ===="
+Cfg "before"
+Start-Process $Exe
+for ($i=0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest -Uri http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+
+Rec | Out-Null
+Start-Sleep -Seconds 8
+Write-Output "  HUD as opened (commanded 200x100, MinWidth is 260):"
+Write-Output "    $(Hud rect $null)"
+Hud click 'HUD stop' | Out-Null
+Start-Sleep -Seconds 12
+Cfg "after one recording, NOBODY resized anything"
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end clamp drift ===="

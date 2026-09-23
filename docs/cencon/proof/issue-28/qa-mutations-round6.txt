@@ -1,0 +1,134 @@
+QA round 6, issue #28 - the mutation battery.
+
+Every mutation below was applied to the round-6 tree (PR #32 head 8fad138) in an ISOLATED
+worktree (D:\ReposFred\agenteyes-wt-qa28), the FULL suite was run, and the tree was reverted
+with `git checkout -- src` before the next one. The unmutated tree is:
+
+    dotnet build AgentEyes.sln -c Release  ->  Build succeeded.  0 Error(s)
+    dotnet test  AgentEyes.sln -c Release  ->  Failed: 0, Passed: 940, Skipped: 0, Total: 940
+
+A mutation that leaves the suite GREEN is recorded as such - it is a hole in the instrument,
+not a pass. One did: M6 / M6b, and it is written up in the report.
+
+------------------------------------------------------------------------------------------
+M1  Completeness always answers Unknown  (THE ANTI-CHEAT for AC17)
+    FfmpegCameraRecorder.Completeness -> `return CameraCompleteness.Unknown;` first statement.
+    This is the fail-open cheat that would satisfy every negative criterion (AC10, AC13-AC16)
+    while telling the user nothing. AC17 exists to stop it, so it MUST go red.
+    RESULT: Failed! - Failed: 6, Passed: 934, Total: 940
+      Stop_WhenTheOutputKeptAdvancingUntilTheStop_RecordsTheTakeAsComplete      <- AC17 control
+      Stop_WhenTheOutputAdvancedTwiceAndWasStillFresh_IsRecordedAsComplete      <- AC17 control
+      Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete
+      Stop_WhenTheCameraNeverReportedWritingAFrame_RecordsCompleteNo
+      Stop_WhenNoTickArrivedOnACOMPLETEStderr_StillRecordsTheEmptyFileAsKnownBroken
+      Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly
+
+M2  A failed / abnormal quit is recorded as clean-quit again  (gate round-4 defect 1)
+    `if (_quitDelivered && exitCode >= 0)` -> `if (true || (...))`
+    RESULT: Failed! - 2 red
+      Stop_WhenFfmpegWasTerminatedAbnormallyUnderTheQuit_IsNeverRecordedAsACleanQuit
+      Stop_WhenTheQuitCouldNotEvenBeDelivered_IsNeverRecordedAsACleanQuit
+
+M3  One advance is enough again - arrival-only freshness  (gate round-4 defect 2)
+    OutputWasAdvancingAtTheStop: `if (advances < 2)` -> `if (advances < 1)`
+    RESULT: Failed! - 1 red
+      Stop_WhenTheCameraTickedOnceAndStalledInsideTheFreshnessWindow_IsNeverRecordedAsComplete
+
+M4  The absence clauses are judged BEFORE the stderr-completeness check  (gate round-4 defect 3)
+    Completeness: `!_stderrComplete` moved back below `!_opened || !_wroteOutput`.
+    RESULT: Failed! - 2 red
+      Stop_WhenTheStderrNeverReachesEndOfStream_DrawsNoConclusionFromTheUnfinishedRead
+      Stop_WhenNoTickArrivedOnAnINCOMPLETEStderr_DoesNotClaimTheFileIsEmpty
+
+M4b The "camera.mp4 is EMPTY" claim is drawn off an unfinished read  (gate round-4 defect 3)
+    Stop: `if (!_wroteOutput && !_lostMidRun && _stderrComplete)` -> drops `&& _stderrComplete`.
+    RESULT: Failed! - 2 red (same two)
+
+M5  IsAbandoned answers from stored state and never asks the process  (gate round-4 defect 4)
+    `_stopKind == Abandoned && !_terminated && !_proc.HasExited` -> drops `&& !_proc.HasExited`.
+    RESULT: Failed! - 4 red
+      IsAbandoned_WhenTheStrandedProcessLaterDiesOnItsOwn_StopsClaimingItIsAlive
+      Report_WhenTheStrandedProcessDiedOnItsOwn_StopsReportingItAndReleasesTheClaim
+      Report_WhenOneStrandedProcessDiedAndAnotherDidNot_KeepsOnlyTheLiveOne
+      HoldsAny_WhenTheStrandedProcessDiedOnItsOwn_IsFalse
+
+M5b A mere LOOK at /status no longer reaps  (gate round-4 defect 4, the other half)
+    StrandedCameraOwner.Report: the `Reap()` call removed.
+    RESULT: Failed! - 2 red
+      Report_WhenTheStrandedProcessDiedOnItsOwn_StopsReportingItAndReleasesTheClaim
+      Report_WhenOneStrandedProcessDiedAndAnotherDidNot_KeepsOnlyTheLiveOne
+
+M6  The CLI's FAILED-OPEN boundary drops its abandoned recorder  (gate round-4 defect 5)
+    Commands.Video, the FIRST RetainIfStranded (the catch around cameraRec.Open()) disabled.
+    RESULT: Passed! - Failed: 0, Passed: 940.   *** THE SUITE DID NOT FIRE ***
+
+M6b The CLI's STOP boundary drops its abandoned recorder  (gate round-4 defect 5, the exact site)
+    Commands.Video, the SECOND RetainIfStranded (in the finally, Commands.cs:511) disabled.
+    RESULT: Passed! - Failed: 0, Passed: 940.   *** THE SUITE DID NOT FIRE ***
+
+M6c BOTH CLI boundaries disabled
+    RESULT: Failed! - 1 red
+      Video_HandsAnAbandonedCameraToAStrandedOwnerInsteadOfDroppingTheOnlyReference
+
+    M6/M6b/M6c together say exactly what that guard is: an IL scan asserting that Commands::Video
+    contains AT LEAST ONE StrandedCameraOwner call. Either boundary can be deleted and it stays
+    green. The test states a limit ("it proves the transfer is COMPILED INTO Commands::Video, not
+    that it runs on every path"), and this is a wider hole than that sentence covers. Both
+    boundaries ARE present in the round-6 code and were read line by line
+    (Commands.cs:351 failed-open, Commands.cs:511 stop). Recorded as a residual-coverage finding
+    for the Review Gate, not as a product defect: no failure scenario follows from the code as it
+    stands.
+
+M7  The open probe accepts ONE of ffmpeg's two headers  (gate round-3, open-header probe)
+    StartAndProbe: `_inputOpenReported && _outputOpenReported` -> `||`.
+    RESULT: Failed! - 1 red
+      Start_WhenFfmpegOpensTheCameraButNeverOpensTheOutputFile_FailsTheStart
+
+M8  A failed open releases the process handle regardless  (gate round-3 defect 1)
+    FailOpen: `if (_proc.HasExited)` -> `if (true)`.
+    RESULT: Failed! - 3 red
+      Open_WhenTheStalledFfmpegSurvivesTheKill_KeepsTheProcessHandleForARetry
+      Open_WhenTheStalledFfmpegDiesOnTheRetry_ReleasesTheCameraAndTheHandle
+      Open_WhenTheKillItselfThrows_KeepsTheProcessHandleForARetry
+
+M9  Dispose releases the handle while ffmpeg is still alive  (gate round-3 defect 2)
+    Dispose: the second `if (!_terminated)` guard -> `if (false)`.
+    RESULT: Failed! - 6 red (recorder + owner)
+
+M10 The pre-stop process-loss check is removed  (gate round-1)
+    Stop: `if (_opened && _proc.HasExited && !_lostMidRun && _stopKind == null)` -> `if (false && ...)`.
+    RESULT: Failed! - 1 red
+      Stop_WhenTheCameraDiedWithoutItsExitCallbackDelivered_RecordsTheTrackAsLost
+
+M11 A kill is reported as success without confirming the process is gone  (gate round-1 defect 2)
+    KillOrThrow: `if (_proc.WaitForExit(KillTimeoutMs))` -> `if (true)`.
+    RESULT: Failed! - 8 red
+
+M12 The force-kill no longer reaches the caller  (AC14)
+    Stop: the `throw new CameraForceKilledException` guarded to `if (false && ...)`.
+    RESULT: Failed! - 2 red
+      Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly
+      ReleaseClaimUnlessStranded_WhenTheCameraStopped_ReleasesTheClaimAsBefore
+
+M13 The claim is released even when the camera is stranded  (AC16)
+    ReleaseClaimUnlessStranded: the early `return true` removed, Release always runs.
+    RESULT: Failed! - 5 red
+
+M14 The manifest states the verdict instead of reporting it  (AC4 / A7)
+    CameraTrackRecord.Write: `CameraObservation.Text(camera.Completeness)` -> `CameraObservation.Yes`.
+    RESULT: Failed! - 1 red
+      TheCameraTrackRecord_IsTheOnlyPlaceTheManifestVerdictIsAssigned
+
+M15 GET /devices swallows a camera enumeration failure  (gate round-1 defect 5)
+    RestServer.Devices: `FfmpegDevices.ListVideo()` wrapped in try/catch -> empty array.
+    RESULT: Failed! - 1 red
+      TheDevicesEndpoint_DoesNotSwallowACameraEnumerationFailure
+
+M16 The service opens the camera BEFORE storing the recorder  (gate round-3, Create/Open split)
+    StartVideo: `_camera = Create(...); _camera.Open();` -> a local opened first, assigned after.
+    RESULT: Failed! - 1 red
+      TheRecordingService_StoresTheCameraBeforeStartingIt
+
+------------------------------------------------------------------------------------------
+20 mutations applied. 18 fired. 2 (M6, M6b) did not, and M6c shows why - written up above and
+in the report.

@@ -1,0 +1,69 @@
+param([string]$Variant = 'shipped')
+$ErrorActionPreference = 'Continue'
+$SP  = "<QA-SCRATCH>"
+$EXE = "D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$CFG = "$env:LOCALAPPDATA\AgentEyes\config.json"
+$SEED = "$SP\backup\config.json"
+$LOG = "$env:LOCALAPPDATA\AgentEyes\logs\AgentEyes-" + (Get-Date -Format 'yyyyMMdd') + ".log"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a } }
+function Main($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a } }
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 30 }
+
+Write-Output ("VARIANT = " + $Variant)
+Write-Output ("AgentEyesApp.dll sha256 = " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 3
+Copy-Item $SEED $CFG -Force
+
+if ($Variant -eq 'shipped' -or $Variant -eq 'qm9') {
+    # THE INSTRUMENT: config.json is made READ-ONLY, so every attempted write FAILS and says which
+    # code path made it. "[Config] Save FAILED" is the SYNCHRONOUS path (the launcher's own saves);
+    # "[BackgroundFileWriter] WriteOnce FAILED" is the HUD's non-blocking path. A constructor that
+    # persists a choice shows up as an EXTRA BackgroundFileWriter failure at HUD construction time.
+    Set-ItemProperty -Path $CFG -Name IsReadOnly -Value $true
+    Write-Output ("config.json IsReadOnly = " + (Get-Item $CFG).IsReadOnly)
+    $mark = "QA33R5-MARK-$Variant-" + (Get-Date -Format 'HHmmss')
+    Add-Content -Path $LOG -Value ("00:00:00.000 [INFO] " + $mark)
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+    Start-Sleep -Seconds 3
+    Add-Content -Path $LOG -Value ("00:00:00.000 [INFO] " + $mark + "-REC")
+    Main click 'REC' | Out-Null
+    Start-Sleep -Seconds 10
+    Hud rect
+    Add-Content -Path $LOG -Value ("00:00:00.000 [INFO] " + $mark + "-STOP")
+    Hud click 'HUD stop' | Out-Null
+    Start-Sleep -Seconds 10
+    Write-Output "--- write attempts, in order, from the REC click onwards ---"
+    $lines = Get-Content $LOG
+    $start = ($lines | Select-String -SimpleMatch ($mark + "-REC") | Select-Object -Last 1).LineNumber
+    $lines | Select-Object -Skip ($start - 1) | Where-Object { $_ -match 'Save FAILED|WriteOnce FAILED|QA33R5-MARK|hud: saving position|hud: preview panel' } | ForEach-Object { Write-Output ("    " + $_) }
+    Set-ItemProperty -Path $CFG -Name IsReadOnly -Value $false
+    Write-Output ("config.json IsReadOnly reset to " + (Get-Item $CFG).IsReadOnly)
+}
+
+if ($Variant -eq 'stall' -or $Variant -eq 'stallbad') {
+    # THE STOP BUTTON UNDER A STALLED CONFIG WRITE. Every config.json write takes 8 seconds in this
+    # build. One process clicks "Show preview" (which persists the choice); 400ms later a SECOND
+    # process invokes the STOP button and times how long the WPF dispatcher takes to serve it.
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+    Start-Sleep -Seconds 3
+    Main click 'REC' | Out-Null
+    Start-Sleep -Seconds 12
+    Hud rect
+    Write-Output ("recording state = " + (Status).State)
+    Write-Output "  clicking 'Show preview' (persists the choice), then STOP 400ms later from another process"
+    Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$SP\qa33r5-hud.ps1`"",'-Action','clicktimed','-Arg','"Show preview"' -RedirectStandardOutput "$SP\d-$Variant-preview.txt"
+    Start-Sleep -Milliseconds 400
+    Hud clicktimed 'HUD stop'
+    Start-Sleep -Seconds 25
+    Write-Output ("  the 'Show preview' click itself: " + (Get-Content "$SP\d-$Variant-preview.txt" -ErrorAction SilentlyContinue))
+    Write-Output ("  state after the stop = " + (Status).State)
+}
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+Write-Output ("DONE " + $Variant)

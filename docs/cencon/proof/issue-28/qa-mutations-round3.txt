@@ -1,0 +1,116 @@
+QA round 3 - issue #28 - mutation evidence RUN BY QA (not the developer's)
+=========================================================================
+
+Branch issue-28-camera-failure-boundaries at 06c8596. Sources were backed up byte-for-byte,
+mutated, tested, and restored; `git status` was empty afterwards and the restored tree ran
+889/889.
+
+Filter used for every mutation run:
+  dotnet test AgentEyes.sln -c Release --filter "FullyQualifiedName~CameraFailurePathTests"
+
+Baseline (unmutated): Passed! - Failed: 0, Passed: 889, Skipped: 0, Total: 889
+
+
+M1 - gate defect 3 / the AC3 regression
+---------------------------------------
+src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs:305
+  -   if (_inputOpenReported && _outputOpenReported) break;
+  +   if (_wroteOutput) break;                      <- the ROUND-2 code
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_DoesNotHoldTheRecordingStartWaitingForTheFirstEncodedFrame [10 s]
+   AgentEyes.UsageException : the camera "HD Webcam eMeet C960" could not be opened (it did not
+   open within 10s - it opened the camera but never opened camera.mp4). ...
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenOnlyAProgressTickArrives_DoesNotCountThatAsAnOpenCamera [2 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraOpenedAndThenNeverDeliveredAFrame_StillReportsTheLoss [5 s]
+  Failed!  - Failed: 3, Passed: 19, Skipped: 0, Total: 22
+
+  Note the 10 s: the AC3 regression test does not merely assert, it BLOCKS under the round-2
+  code - which is exactly the head footage the criterion is about.
+
+
+M2 - both headers are required, not either
+------------------------------------------
+src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs:305
+  -   if (_inputOpenReported && _outputOpenReported) break;
+  +   if (_inputOpenReported || _outputOpenReported) break;
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenFfmpegOpensTheCameraButNeverOpensTheOutputFile_FailsTheStart [2 ms]
+  Failed!  - Failed: 1, Passed: 21, Skipped: 0, Total: 22
+
+
+M3 - gate defect 5 (forbidden fallback in the Devices API)
+----------------------------------------------------------
+src/AgentEyes.App/RestServer.cs
+  -   string[] cameras = FfmpegDevices.ListVideo().ToArray();
+  +   string[] cameras;
+  +   try { cameras = FfmpegDevices.ListVideo().ToArray(); }
+  +   catch (Exception ex) { Log.Error(...); cameras = Array.Empty<string>(); }
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheDevicesEndpoint_DoesNotSwallowACameraEnumerationFailure [3 ms]
+
+
+M4 - gate defect 1 (the CLI's failure boundary)
+-----------------------------------------------
+src/AgentEyes.Core/Commands.cs, the outer boundary around Video()
+  -   finally { cameraRec?.Dispose(); }
+  +   catch   { throw; }                            <- the merged-code shape the gate rejected
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary [3 ms]
+
+  (M3 and M4 were applied together; they fire disjoint tests, so attribution is unambiguous.)
+  Failed!  - Failed: 2, Passed: 20, Skipped: 0, Total: 22
+
+
+M5 - gate defect 2 (a stop that could not terminate ffmpeg must not report success)
+-----------------------------------------------------------------------------------
+src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, inside Stop()
+  -   throw new CameraStopFailedException(DeviceName, OutputPath, _logPath);
+  +   // swallowed
+
+M6 - gate defect 4 (a real mid-run loss recorded as a clean track)
+-------------------------------------------------------------------
+src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs, inside Stop()
+  -   if (_opened && _proc.HasExited && !_lostMidRun) { _lostMidRun = true; Log.Warn(...); }
+  +   // removed
+
+  M5 + M6 applied together (disjoint tests):
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegSurvivesTheQuitAndTheKill_ThrowsInsteadOfReportingSuccess [14 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_AfterAFailedTermination_DisposeTriesToTerminateTheProcessAgain [1 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheKillItselfThrows_StillReportsTheStopAsFailed [7 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedWithoutItsExitCallbackDelivered_RecordsTheTrackAsLost [3 ms]
+  Failed!  - Failed: 4, Passed: 18, Skipped: 0, Total: 22
+
+
+Restore
+-------
+All three files restored from the pre-mutation byte copies.
+  git status --short   -> (empty)
+  dotnet build AgentEyes.sln -c Release  -> Build succeeded. 0 Error(s)
+  dotnet test  AgentEyes.sln -c Release  -> Passed! Failed: 0, Passed: 889, Total: 889
+
+
+Runtime instruments that were demonstrated FIRING before they were believed
+===========================================================================
+
+AC9 camera holder, first attempt (PowerShell -ArgumentList array split the device name):
+  ARGS: ... -i | video=HD Webcam eMeet C960 | ...
+  HOLDER_ALIVE: False
+  STDERR_HAS_INPUT0_DSHOW: False
+  [in#0] Could not find video device with name [HD] among source devices of type video.
+  -> the guard refused to proceed. This is the round-2 fail-open, caught by the guard.
+
+AC9 camera holder, corrected (single quoted command-line string):
+  HOLDER_ALIVE_BEFORE: True
+  HOLDER_OPENED_CAMERA: True        (stderr contains "Input #0, dshow")
+  HOLDER_BYTES_BEFORE: 4194352 / 8912944
+
+AC9 over the CLI, first attempt (holder had exited between tool calls - camera was FREE):
+  [ok] camera.mp4 (8.5s, 6.1 MB), video only
+  EXITCODE=0
+  NEW_CLI_DIRS: 2026-08-28_112307_video
+  -> REJECTED as an AC9 result and re-run inside one process lifetime. It also proves the
+     new-directory check detects a new directory rather than passing on absence.
+
+AC10 camera-process match:
+  the script THROWS unless exactly one ffmpeg command line contains "camera.mp4"
+  CAMERA_FFMPEG_MATCHES: 1

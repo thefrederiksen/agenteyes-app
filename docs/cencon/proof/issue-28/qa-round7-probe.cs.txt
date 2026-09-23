@@ -1,0 +1,374 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using AgentEyes;
+using AgentEyes.Video;
+
+namespace QaProbeR7
+{
+    // A fully scripted ICameraProcess. Every decision under test lives in FfmpegCameraRecorder;
+    // this only replays what an ffmpeg would have done. Nothing here decides anything.
+    internal sealed class Cam : ICameraProcess
+    {
+        private Action<string> _line;
+        private Action _exited;
+
+        public readonly List<string> StartLines = new List<string>();
+        public readonly Queue<bool> WaitScript = new Queue<bool>();
+
+        public bool Exited;
+        public int Code;
+        public int? Pid { get; set; } = 7777;
+        public bool QuitThrows;
+        public bool KillEndsIt = true;
+        public bool DrainSucceeds = true;
+        public bool DefaultWait = true;
+        public int Quits, Kills, Drains, Disposes, Waits;
+
+        public void Headers(string dev, string outp)
+        {
+            StartLines.Add("Input #0, dshow, from " + (char)39 + "video=" + dev + (char)39 + ":");
+            StartLines.Add("Output #0, mp4, to " + (char)39 + outp + (char)39 + ":");
+        }
+
+        public void Start(Action<string> onStderrLine, Action onExited)
+        {
+            _line = onStderrLine; _exited = onExited;
+            foreach (var l in StartLines) _line(l);
+        }
+
+        public void Tick(double seconds)
+        {
+            var t = TimeSpan.FromSeconds(seconds);
+            _line(string.Format(
+                "frame=  10 fps=30 q=28.0 size=256KiB time={0:00}:{1:00}:{2:00}.{3:00} bitrate=N/A speed=1x",
+                t.Hours, t.Minutes, t.Seconds, t.Milliseconds / 10));
+        }
+
+        // The process ends on its own, with nothing of ours running.
+        public void DiesOnItsOwn(int code) { Exited = true; Code = code; if (_exited != null) _exited(); }
+
+        public bool HasExited { get { return Exited; } }
+        public int ExitCode { get { return Code; } }
+        public int? ProcessId { get { return Pid; } }
+
+        public void SendQuit()
+        {
+            Quits++;
+            if (QuitThrows) throw new IOException("the pipe has been ended.");
+        }
+
+        public bool WaitForExit(int ms)
+        {
+            Waits++;
+            if (Exited) return true;
+            bool r = WaitScript.Count > 0 ? WaitScript.Dequeue() : DefaultWait;
+            if (r) Exited = true;
+            return r;
+        }
+
+        public bool DrainStderr(int ms) { Drains++; return DrainSucceeds; }
+        public void Kill() { Kills++; if (KillEndsIt) Exited = true; }
+        public void Dispose() { Disposes++; }
+    }
+
+    internal static class Probe
+    {
+        private static string _dir;
+        private static readonly List<string> Out = new List<string>();
+        private static int _fail;
+
+        private static void Say(string s) { Console.WriteLine(s); Out.Add(s); }
+
+        private static DateTime _clock = new DateTime(2026, 8, 29, 3, 0, 0, DateTimeKind.Utc);
+        private static DateTime Now() { return _clock; }
+        private static void Advance(double seconds) { _clock = _clock.AddSeconds(seconds); }
+
+        private static FfmpegCameraRecorder Open(Cam cam, string dev)
+        {
+            string outp = Path.Combine(_dir, "camera.mp4");
+            cam.Headers(dev, outp);
+            var r = FfmpegCameraRecorder.CreateOver(cam, dev, outp,
+                Path.Combine(_dir, "camera-ffmpeg.log"), TimeSpan.FromSeconds(5), Now);
+            r.Open();
+            return r;
+        }
+
+        private static string K(FfmpegCameraRecorder r)
+        {
+            string t = CameraObservation.Text(r.StopKind);
+            return t == null ? "(not observed)" : t;
+        }
+
+        private static string C(FfmpegCameraRecorder r) { return CameraObservation.Text(r.Completeness); }
+
+        private static void Row(string name, FfmpegCameraRecorder r, Cam cam, string extra, string expect)
+        {
+            string actual = "stopKind=" + K(r) + " complete=" + C(r);
+            bool ok = actual.Contains(expect);
+            if (!ok) _fail++;
+            Say(string.Format("{0,-32} {1,-46} lost={2,-5} stderrComplete={3,-5} captured={4:F1} isAbandoned={5,-5} " +
+                              "quits={6} kills={7} drains={8} disposes={9}{10}  [{11}] expected<{12}>",
+                name, actual, r.LostMidRun, r.StderrComplete, r.CapturedSeconds, r.IsAbandoned,
+                cam.Quits, cam.Kills, cam.Drains, cam.Disposes, extra, ok ? "MATCH" : "MISMATCH", expect));
+        }
+
+        private static void StopQuiet(FfmpegCameraRecorder r, out string thrown)
+        {
+            thrown = "";
+            try { r.Stop(); } catch (Exception ex) { thrown = " threw=" + ex.GetType().Name; }
+        }
+
+        // ---------- the cases ----------
+
+        // A healthy take: headers, two advances, the last one fresh, a delivered quit, and an exit
+        // code the build actually returns for "q". This is AC17's positive control.
+        private static void Healthy(string name, int exitCode, string expect)
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(1.0); cam.Tick(2.0);
+            Advance(0.5);              // stop asked 0.5s after the last advance: inside the 3s window
+            cam.Code = exitCode;       // what the wait will report when it finds the process gone
+            cam.DefaultWait = true;
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row(name, r, cam, thrown, expect);
+        }
+
+        // Gate round 5 defect 1: the quit IS delivered, ffmpeg then fails on the way out.
+        private static void DeliveredQuitThenExit(int code, string expect)
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(1.0); cam.Tick(2.0);
+            Advance(0.5);
+            cam.Code = code;
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row("DELIVERED_QUIT_THEN_EXIT_" + code, r, cam, thrown, expect);
+        }
+
+        // Gate round 5 defect 2: quit ignored, first kill refused, then the process dies on its own
+        // BEFORE the Dispose retry. It never faced the third clause of "abandoned".
+        private static void DiedBeforeDisposeRetry()
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(1.0); cam.Tick(2.0);
+            Advance(0.5);
+            cam.KillEndsIt = false;
+            cam.WaitScript.Enqueue(false);   // the quit wait times out
+            cam.WaitScript.Enqueue(false);   // the kill wait times out -> refused kill
+            string thrown; StopQuiet(r, out thrown);
+            string mid = " afterStop(stopKind=" + K(r) + ",isAbandoned=" + r.IsAbandoned + ")";
+            cam.DiesOnItsOwn(0);             // it exits by itself, nothing of ours running
+            r.Dispose();
+            Row("DIED_BEFORE_DISPOSE_RETRY", r, cam, mid + thrown + " hasExitedNow=" + cam.HasExited,
+                "stopKind=(not observed) complete=unknown");
+        }
+
+        // AC16: it survives quit, kill AND the Dispose retry. THIS one is abandoned.
+        private static void RetainedProcessAlive()
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(0.5);
+            cam.KillEndsIt = false;
+            cam.DefaultWait = false;         // nothing ever ends it
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row("RETAINED_PROCESS_ALIVE", r, cam, thrown, "stopKind=abandoned complete=unknown");
+        }
+
+        // AC13, the gate's own case: one advance at 0.5s, then a 2.9s stall, then a clean quit.
+        private static void OneTickStall()
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(0.5); cam.Tick(0.5);
+            Advance(2.9);
+            cam.Code = 0;
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row("ONE_TICK_STALL_2_9S", r, cam, thrown, "stopKind=clean-quit complete=unknown");
+        }
+
+        // AC15: no tick at all AND stderr never reaches EOF. Nothing may be concluded.
+        private static void ZeroTickIncompleteStderr()
+        {
+            var cam = new Cam();
+            cam.DrainSucceeds = false;
+            var r = Open(cam, "QA Cam");
+            Advance(1.0);
+            cam.Code = 0;
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row("ZERO_TICK_INCOMPLETE_STDERR", r, cam, thrown, "complete=unknown");
+        }
+
+        // Gate round 4 defect 1: the write of "q" FAILS, then the process is found gone.
+        private static void FailedQuitThenErrorExit()
+        {
+            var cam = new Cam();
+            cam.QuitThrows = true;
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(1.0); cam.Tick(2.0);
+            Advance(0.5);
+            cam.Code = 0;
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row("FAILED_QUIT_THEN_ERROR_EXIT", r, cam, thrown, "stopKind=(not observed) complete=unknown");
+        }
+
+        // AC10 at the seam: it died before the stop was asked for.
+        private static void ExitedEarly()
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(1.0); cam.Tick(2.0);
+            cam.DiesOnItsOwn(0);
+            Advance(0.5);
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row("EXITED_EARLY", r, cam, thrown, "stopKind=exited-early complete=no");
+        }
+
+        // AC14: it ignores "q" and the kill lands.
+        private static void ForcedKillAfterOutput()
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(1.0); cam.Tick(2.0);
+            Advance(0.5);
+            cam.WaitScript.Enqueue(false);   // the quit wait times out
+            cam.KillEndsIt = true;           // the kill lands
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();
+            Row("FORCED_KILL_AFTER_OUTPUT", r, cam, thrown, "stopKind=force-killed complete=no");
+        }
+
+        // Gate round 4 defect 4: a RETAINED stranded ffmpeg that ends on its own, with nothing of
+        // ours running. The next mere LOOK must drop the /status row, dispose the recorder and
+        // release that directory's recording claim.
+        private static void RetainedProcessDied()
+        {
+            var cam = new Cam();
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(0.5);
+            cam.KillEndsIt = false;
+            cam.DefaultWait = false;
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();                                  // survives all three -> abandoned
+
+            string claimDir = Path.Combine(_dir, "stranded-session");
+            Directory.CreateDirectory(claimDir);
+            RecordingClaimTicket claim;
+            bool claimed = RecordingWorkset.TryClaim(claimDir, RecordingWorkKind.Capture, "qa probe", out claim);
+
+            var owner = new StrandedCameraOwner();
+            bool retained = owner.ReleaseClaimUnlessStranded(r, claim, claimDir);
+            int rowsWhileAlive = owner.Report().Count;
+            bool claimHeldWhileAlive = RecordingWorkset.IsClaimed(claimDir);
+
+            cam.DiesOnItsOwn(0);                          // it ends by itself; nothing of ours runs
+
+            int rowsAfterDeath = owner.Report().Count;    // a plain LOOK, no Recover()
+            bool claimHeldAfterDeath = RecordingWorkset.IsClaimed(claimDir);
+            bool holdsAny = owner.HoldsAny;
+
+            string actual = "rowsAfterDeath=" + rowsAfterDeath + " claimHeldAfterDeath=" + claimHeldAfterDeath
+                            + " holdsAny=" + holdsAny;
+            string expect = "rowsAfterDeath=0 claimHeldAfterDeath=False holdsAny=False";
+            bool ok = actual == expect;
+            if (!ok) _fail++;
+            Say(string.Format("{0,-32} {1,-62} claimed={2} retained={3} rowsWhileAlive={4} claimHeldWhileAlive={5} " +
+                              "disposes={6}  [{7}] expected<{8}>",
+                "RETAINED_PROCESS_DIED", actual, claimed, retained, rowsWhileAlive, claimHeldWhileAlive,
+                cam.Disposes, ok ? "MATCH" : "MISMATCH", expect));
+
+            if (RecordingWorkset.IsClaimed(claimDir)) RecordingWorkset.Release(claim);
+        }
+
+        // AC16, the /status half: the SERVICE's own status must name the stuck camera and its PID
+        // while the process lives, and stop naming it once it is gone.
+        private static void Ac16Status()
+        {
+            var cam = new Cam();
+            cam.Pid = 31337;
+            var r = Open(cam, "QA Cam");
+            Advance(1.0); cam.Tick(1.0);
+            Advance(0.5);
+            cam.KillEndsIt = false;
+            cam.DefaultWait = false;
+            string thrown; StopQuiet(r, out thrown);
+            r.Dispose();                                   // abandoned
+
+            var svc = new RecordingService();
+            bool retained = svc.StrandedCameras.RetainIfStranded(r, Path.Combine(_dir, "ac16-session"));
+            var alive = svc.Status();
+            string pids = "";
+            foreach (var row in alive.StuckCameras) pids += row.Device + "#" + row.Pid + " ";
+
+            cam.DiesOnItsOwn(0);                           // it ends by itself
+            var dead = svc.Status();                       // a plain LOOK
+
+            string actual = "stuckWhileAlive=" + alive.CameraStuck + " rowsWhileAlive=" + alive.StuckCameras.Count
+                            + " stuckAfterDeath=" + dead.CameraStuck + " rowsAfterDeath=" + dead.StuckCameras.Count;
+            string expect = "stuckWhileAlive=True rowsWhileAlive=1 stuckAfterDeath=False rowsAfterDeath=0";
+            bool ok = actual == expect && pids.Contains("31337");
+            if (!ok) _fail++;
+            Say(string.Format("{0,-32} {1,-70} pid rows: {2} retained={3}  [{4}] expected<{5} + the pid>",
+                "AC16_STATUS", actual, pids.Trim(), retained, ok ? "MATCH" : "MISMATCH", expect));
+        }
+
+        private static int Main()
+        {
+            _dir = Path.Combine(Path.GetTempPath(), "qa28r7-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_dir);
+
+            Say("=== QA round 7 independent seam probe (written by QA from the criteria) ===");
+            Say("tree: " + (Environment.GetEnvironmentVariable("QA_TREE") ?? "(unset)"));
+            Say("");
+
+            Healthy("HEALTHY_AC17_EXIT_0", 0, "stopKind=clean-quit complete=yes");
+            Healthy("HEALTHY_AC17_EXIT_255", 255, "stopKind=clean-quit complete=yes");
+            Say("");
+            DeliveredQuitThenExit(1, "stopKind=(not observed) complete=unknown");
+            DeliveredQuitThenExit(2, "stopKind=(not observed) complete=unknown");
+            DeliveredQuitThenExit(69, "stopKind=(not observed) complete=unknown");
+            DeliveredQuitThenExit(137, "stopKind=(not observed) complete=unknown");
+            DeliveredQuitThenExit(254, "stopKind=(not observed) complete=unknown");
+            DeliveredQuitThenExit(256, "stopKind=(not observed) complete=unknown");
+            DeliveredQuitThenExit(int.MaxValue, "stopKind=(not observed) complete=unknown");
+            DeliveredQuitThenExit(-5, "stopKind=(not observed) complete=unknown");
+            Say("");
+            DiedBeforeDisposeRetry();
+            RetainedProcessAlive();
+            RetainedProcessDied();
+            Ac16Status();
+            Say("");
+            OneTickStall();
+            ZeroTickIncompleteStderr();
+            FailedQuitThenErrorExit();
+            ExitedEarly();
+            ForcedKillAfterOutput();
+
+            Say("");
+            Say(_fail == 0 ? "ALL ROWS MATCH THE EXPECTATION" : (_fail + " ROW(S) DID NOT MATCH"));
+
+            string outFile = Environment.GetEnvironmentVariable("QA_PROBE_OUT");
+            if (!string.IsNullOrEmpty(outFile)) File.WriteAllLines(outFile, Out);
+            try { Directory.Delete(_dir, true); } catch { }
+            return _fail == 0 ? 0 : 1;
+        }
+    }
+}

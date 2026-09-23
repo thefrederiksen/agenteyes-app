@@ -1,0 +1,12 @@
+Input #0, dshow, from 'video=HD Webcam eMeet C960':
+  Duration: N/A, start: 61883.979894, bitrate: N/A
+  Stream #0:0: Video: mjpeg (Baseline) (MJPG / 0x47504A4D), yuvj422p(pc, bt470bg/bt709/unknown), 1920x1080, 30 fps, 30 tbr, 10000k tbn, start 61883.979894
+Stream mapping:
+  Stream #0:0 -> #0:0 (mjpeg (native) -> rawvideo (native))
+Press [q] to stop, [?] for help
+[swscaler @ 0000026aff245000] deprecated pixel format used, make sure you did set range correctly
+Output #0, rawvideo, to 'pipe:1':
+  Metadata:
+    encoder         : Lavf62.3.100
+  Stream #0:0: Video: rawvideo (BGR[24] / 0x18524742), bgr24(pc, gbr/bt709/unknown, progressive), 320x240, q=2-31, 18432 kb/s, 10 fps, 10 tbn
+    Metadata:

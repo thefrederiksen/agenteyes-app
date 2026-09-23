@@ -39,6 +39,26 @@ namespace AgentEyes.App
             _listener.Prefixes.Add(Url);
         }
 
+        /// <summary>
+        /// How this server reaches housekeeping (issues #55, #56). Set by the app AFTER the
+        /// RepairService is constructed, because the server starts first - the alternative was to
+        /// reorder start-up around a reporting endpoint, which is the wrong thing to move.
+        ///
+        /// Null until then, and a request that arrives in that window is answered honestly with 503
+        /// rather than with an empty report that would read as "nothing to clean".
+        /// </summary>
+        public Func<AgentEyes.Housekeeping.HousekeepingReport?>? HousekeepingLastReport { get; set; }
+
+        /// <summary>Runs one pass now and returns its report, guards included.</summary>
+        public Func<System.Threading.Tasks.Task<AgentEyes.Housekeeping.HousekeepingReport>>? HousekeepingRunNow { get; set; }
+
+        /// <summary>The settings the pass would use, for the GET.</summary>
+        public Func<AgentEyes.Housekeeping.HousekeepingSettings>? HousekeepingSettings { get; set; }
+
+        /// <summary>Always-on recording (issue #66). Set by the app after construction, like the
+        /// housekeeping hooks; null until then, and a request in that window gets an honest 503.</summary>
+        public AlwaysOnController? AlwaysOn { get; set; }
+
         /// <summary>The configured save-folder override (Capture-tab Settings, null = default).</summary>
         private string? CaptureOverride => _captureSaveFolder?.Invoke();
 
@@ -82,6 +102,24 @@ namespace AgentEyes.App
                     case ("GET", "/recordings"): Json(ctx, Recordings(ctx)); return;
                     case ("GET", "/captures"): Json(ctx, Captures()); return;
                     case ("GET", "/presets"): Json(ctx, Presets()); return;
+
+                    // Issues #55, #56. GET says what housekeeping is set to do and what it last did;
+                    // POST runs one pass now. Both are how the first release is verified, because the
+                    // default is report-only and the report is the whole deliverable.
+                    case ("GET", "/housekeeping"): Json(ctx, Housekeeping()); return;
+                    case ("POST", "/housekeeping/run"): Json(ctx, HousekeepingRun()); return;
+
+                    // Issue #66: always-on recording. Start and stop wait for the change to finish
+                    // (a stop writes the clip that was being kept), so the answer is the new state.
+                    case ("GET", "/always-on"): AlwaysOnStatus(ctx); return;
+                    case ("POST", "/always-on/start"):
+                        RequireAlwaysOn(ctx)?.StartAsync("control api").GetAwaiter().GetResult();
+                        if (AlwaysOn != null) AlwaysOnStatus(ctx);
+                        return;
+                    case ("POST", "/always-on/stop"):
+                        RequireAlwaysOn(ctx)?.StopAsync("control api").GetAwaiter().GetResult();
+                        if (AlwaysOn != null) AlwaysOnStatus(ctx);
+                        return;
 
                     case ("POST", "/screenshot"):
                     {
@@ -248,7 +286,98 @@ namespace AgentEyes.App
                 return true;
             }
 
+            // GET /recordings/{id}/frame/{offset}: one walkthrough frame extracted from the
+            // recording's video ON DEMAND (issue #59). The walkthrough page of a recording whose
+            // frames are not stored on disk asks for each frame here, so the frame category needs
+            // no disk at all. The video that does not exist (expired, or an audio-only recording)
+            // answers 404 with the reason - never a broken image with no explanation.
+            //
+            // HANDLED OFF THE LISTENER THREAD: a page can ask for hundreds of frames at once and each
+            // is a full ffmpeg process; running them on the loop thread would queue /record/stop and
+            // /health behind image requests for minutes. The extraction is stateless and writes a
+            // GUID-named temp file, so it is safe to run concurrently.
+            if (seg.Length == 3 && seg[1] == "frame")
+            {
+                string offset = seg[2];
+                System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    // A queued work item is a NEW entry point, outside Loop()'s catch: an unhandled
+                    // exception on a pool thread ends the always-on recorder. Everything gets an
+                    // answer, and nothing gets past this net.
+                    try { FrameSubroute(ctx, id, offset); }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[RestServer] frame route for {id} at {offset}s FAILED", ex);
+                        Error(ctx, 500, "the frame could not be served: " + ex.Message, "internal");
+                    }
+                });
+                return true;
+            }
+
             return false;
+        }
+
+        /// <summary>
+        /// Serve one frame extracted from a recording's video at a given offset in seconds.
+        /// Extraction is one ffmpeg invocation per request and the JPEG is never kept - the video is
+        /// the storage, this is the read. The response is cacheable by content (the same recording,
+        /// offset and video length always produce the same frame), so a page view costs one
+        /// extraction per frame per browser session rather than per scroll.
+        /// </summary>
+        private void FrameSubroute(HttpListenerContext ctx, string id, string offsetText)
+        {
+            var d = RecordingLibrary.GetDetail(id);
+            if (d == null) { Error(ctx, 404, "no recording with id: " + id, "not_found"); return; }
+
+            string? video = null;
+            if (!string.IsNullOrEmpty(d.Manifest.VideoFile)
+                && File.Exists(Path.Combine(d.Dir, d.Manifest.VideoFile)))
+            {
+                video = Path.Combine(d.Dir, d.Manifest.VideoFile);
+            }
+            else if (File.Exists(Path.Combine(d.Dir, "recording.mp4")))
+            {
+                video = Path.Combine(d.Dir, "recording.mp4");
+            }
+
+            if (video == null)
+            {
+                Error(ctx, 404, "no video for recording " + id
+                    + " (audio-only, or expired to its transcript)", "not_found");
+                return;
+            }
+
+            if (!double.TryParse(offsetText, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double offset)
+                || offset < 0)
+            {
+                Error(ctx, 400, "offset must be a non-negative number of seconds, got: " + offsetText, "bad_request");
+                return;
+            }
+
+            try
+            {
+                byte[] bytes = AgentEyes.Video.VideoFrame.ExtractJpeg(video, offset);
+
+                ctx.Response.StatusCode = 200;
+                ctx.Response.ContentType = "image/jpeg";
+                ctx.Response.Headers[HttpResponseHeader.CacheControl] = "private, max-age=86400";
+                ctx.Response.Headers[HttpResponseHeader.ETag] =
+                    "\"frame-" + id + "-" + offset.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)
+                    + "-" + new FileInfo(video).Length + "\"";
+                ctx.Response.ContentLength64 = bytes.Length;
+                ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                ctx.Response.OutputStream.Close();
+            }
+            catch (UsageException ux)
+            {
+                Error(ctx, 400, ux.Message, "bad_request");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RestServer] frame on demand for {id} at {offsetText}s FAILED", ex);
+                Error(ctx, 500, "the frame could not be extracted: " + ex.Message, "extract_failed");
+            }
         }
 
         /// <summary>
@@ -343,6 +472,10 @@ namespace AgentEyes.App
             string? mic = GetStrOrNull(b, "mic") ?? preset?.Mic;
             int[]? region = GetIntArray(b, "region") ?? (preset?.UseRegion == true ? preset.Region : null);
             int fps = GetInt(b, "fps", preset?.Fps ?? 30);
+            // Issue #28: same precedence as "mic" - an explicit body field overrides the preset, and
+            // an absent one falls back to the preset's saved camera (null = no camera track).
+            string? camera = GetStrOrNull(b, "camera") ?? preset?.Camera;
+            int cameraFps = GetInt(b, "cameraFps", preset?.CameraFps ?? 30);
             var opts = new AudioMixOptions
             {
                 NoiseSuppression = GetBool(b, "denoise", preset?.Denoise ?? true),
@@ -355,15 +488,69 @@ namespace AgentEyes.App
             };
 
             if (mode == "shot") throw new UsageException("preset is screenshot mode - use POST /screenshot instead");
-            if (mode == "audio") _svc.StartAudio(screen, src, mic, opts);
-            else _svc.StartVideo(screen, src, mic, region, opts, fps);
+            if (mode == "audio")
+            {
+                _svc.StartAudio(screen, src, mic, opts);
+                return;
+            }
+
+            // Issue #47: the framing follows the same precedence as everything else here - the named
+            // preset's own choice first, then the persisted overlay config - so a recording started
+            // over the API records the framing it was actually laid out with, and the composed video
+            // has a layout to render.
+            AgentEyes.Preview.CameraOverlaySettings? overlay = string.IsNullOrWhiteSpace(camera)
+                ? null
+                : (preset?.Overlay ?? HudOverlayConfig.Read(Config.Load()));
+            _svc.StartVideo(screen, src, mic, region, opts, fps, camera, cameraFps, overlay);
         }
 
         private static object Presets() => PresetStore.Load().Select(p => new
         {
             p.Id, p.Name, p.Note, p.MonitorIndex, p.UseRegion, p.Region,
             p.Source, p.Mic, p.Denoise, p.Gate, p.Level, p.MicVol, p.SysVol, p.Mode, p.Fps,
+            p.Camera, p.CameraFps,
         });
+
+        /// <summary>
+        /// What housekeeping is configured to do, and what it last did. Returns the settings even
+        /// before a pass has run, because "what would this do to my recordings" is answerable without
+        /// running it - and answering it is how the owner decides to turn report-only off.
+        /// </summary>
+        private object Housekeeping()
+        {
+            var settings = HousekeepingSettings?.Invoke();
+            if (settings is null) return new { available = false, reason = "housekeeping is not wired up yet" };
+
+            return new
+            {
+                available = true,
+                settings = new
+                {
+                    enabled = settings.Enabled,
+                    reportOnly = settings.ReportOnly,
+                    preservedOriginalDays = settings.PreservedOriginalDays,
+                    bitExactAudio = settings.PreservedAudioMustBeBitExact,
+                    preservedAudioCodec = settings.PreservedAudioCodec,
+                    preservedAudioExtension = settings.PreservedAudioExtension,
+                    ceilingBytes = settings.CeilingBytes,
+                    logTailBytes = settings.LogTailBytes,
+                },
+                lastReport = HousekeepingLastReport?.Invoke(),
+            };
+        }
+
+        /// <summary>
+        /// Run one pass now. Synchronous to the caller on purpose: the answer IS the report, and a
+        /// 202 with nothing in it would make the endpoint useless for verifying the behaviour.
+        /// </summary>
+        private object HousekeepingRun()
+        {
+            if (HousekeepingRunNow is null)
+            {
+                return new { available = false, reason = "housekeeping is not wired up yet" };
+            }
+            return HousekeepingRunNow.Invoke().GetAwaiter().GetResult();
+        }
 
         private static object Discovery() => new
         {
@@ -373,11 +560,14 @@ namespace AgentEyes.App
                 "GET /version", "GET /health", "GET /status", "GET /devices",
                 "GET /recordings {limit?, offset?}", "GET /recordings/{id}",
                 "GET /recordings/{id}/shots", "GET /recordings/{id}/transcript",
+                "GET /recordings/{id}/frame/{offset}",
                 "GET /captures", "GET /presets",
+                "GET /housekeeping", "POST /housekeeping/run",
+                "GET /always-on", "POST /always-on/start", "POST /always-on/stop",
                 "POST /screenshot {screen, region?}",
                 "GET /capture-info",
                 "POST /capture {mode:full|monitor|region, screen?, region?}",
-                "POST /record/start {preset?, mode, screen, source, mic?, region?, denoise?, gate?, level?, micVol?, sysVol?, fps?}",
+                "POST /record/start {preset?, mode, screen, source, mic?, camera?, cameraFps?, region?, denoise?, gate?, level?, micVol?, sysVol?, fps?}",
                 "POST /record/shot", "POST /record/stop",
                 "POST /import {path}",
                 "POST /transcripts/{id}/translate {to}",
@@ -390,7 +580,18 @@ namespace AgentEyes.App
             var mons = Monitors.All().Select(m => new { m.Index, m.Width, m.Height, m.Primary, m.Name });
             var mics = AudioCapture.Devices().Select(d => new { d.Number, d.Name });
             string[] dshow; try { dshow = FfmpegDevices.ListAudio().ToArray(); } catch { dshow = Array.Empty<string>(); }
-            return new { monitors = mons, mics, dshow };
+            // Issue #28: the DirectShow cameras a recording can film to camera.mp4, by their exact
+            // ffmpeg names. A machine with no camera reports an EMPTY array - "no cameras" is a fact
+            // about the machine, not a failure of the call.
+            //
+            // Which is exactly why enumeration is NOT wrapped (gate defect 5). Catching the failure
+            // and returning [] with HTTP 200 made a broken enumerator - ffmpeg missing, unable to
+            // start, or throwing - indistinguishable from a laptop with no webcam, and it made AC1's
+            // "an empty array means no camera" false. The throw reaches the request handler, which
+            // answers 500 with the real message, so the caller is told what to fix instead of being
+            // told a comfortable lie.
+            string[] cameras = FfmpegDevices.ListVideo().ToArray();
+            return new { monitors = mons, mics, dshow, cameras };
         }
 
         /// <summary>App product version string (e.g. "0.8.2") for GET /version.</summary>
@@ -420,6 +621,27 @@ namespace AgentEyes.App
         private object Captures() =>
             RecordingLibrary.Captures(CaptureOverride)
                 .Select(c => new { file = c.File, path = c.Path, sizeBytes = c.SizeBytes, createdUtc = c.CreatedUtc });
+
+        /// <summary>The always-on controller, or null after answering 503 when it is not wired yet.</summary>
+        private AlwaysOnController? RequireAlwaysOn(HttpListenerContext ctx)
+        {
+            if (AlwaysOn == null) Error(ctx, 503, "always-on is not available yet - the app is still starting", "unavailable");
+            return AlwaysOn;
+        }
+
+        private void AlwaysOnStatus(HttpListenerContext ctx)
+        {
+            var ao = RequireAlwaysOn(ctx);
+            if (ao == null) return;
+            Json(ctx, new
+            {
+                status = ao.Status(),
+                today = ao.TodaySummary(),
+                busy = ao.BusyText,
+                lastStartError = ao.LastStartError,
+                clipsFolder = ao.ClipsFolder,
+            });
+        }
 
         /// <summary>Read an integer query-string parameter, falling back to a default.</summary>
         private static int QInt(HttpListenerContext ctx, string key, int def) =>

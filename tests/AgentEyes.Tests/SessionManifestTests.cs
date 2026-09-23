@@ -365,7 +365,17 @@ namespace AgentEyes.Tests
             Assert.DoesNotContain("ManifestStore.Replace(", body, StringComparison.Ordinal);
             // The claim taken at start is handed back, or the post-recording sequence can never
             // claim the recording it is meant to finish.
-            Assert.Contains("RecordingWorkset.Release(", body, StringComparison.Ordinal);
+            //
+            // STRENGTHENED, NOT WEAKENED (issue #28, AC16). The release now goes through
+            // StrandedCameraOwner, which releases the claim UNLESS a camera ffmpeg nobody could kill
+            // is still writing into that directory - releasing then would publish a live writer's
+            // directory to the post-recording pipeline, which is a worse outcome than holding it.
+            // Pinning the old spelling would have pinned a call site; what this pins is that the
+            // stop still hands its ticket to a route that releases it.
+            Assert.Contains("ReleaseClaimUnlessStranded(camera, claim, dir)", body, StringComparison.Ordinal);
+            Assert.Contains("RecordingWorkset.Release(claim)", RepoSource.MethodBody(
+                RepoSource.Read("src/AgentEyes.Core/StrandedCameraOwner.cs"),
+                "public bool ReleaseClaimUnlessStranded("), StringComparison.Ordinal);
         }
 
         [Fact]

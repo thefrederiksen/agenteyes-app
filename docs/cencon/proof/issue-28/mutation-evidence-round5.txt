@@ -1,0 +1,168 @@
+Issue #28, round 5 - MUTATION EVIDENCE for the spec amendment (AC10, AC13-AC17).
+
+Every check added or changed this round was run against code with the fix REMOVED, and
+its verbatim failing output is below. A test that cannot fail is a defect here, not weak
+coverage - one already was (gate round 3). Each mutation is applied on its own, built,
+run, and reverted; the green baseline is re-proved at the end.
+
+Filter used for every run below:
+  FullyQualifiedName~CameraFailurePathTests|FullyQualifiedName~StrandedCameraOwnerTests|FullyQualifiedName~CameraTrackTests|FullyQualifiedName~CaptureClaimOwnershipTests|FullyQualifiedName~SessionManifestTests
+
+====================================================================================================
+BASELINE (the fix in place)
+====================================================================================================
+Passed!  - Failed:     0, Passed:    93, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M1  AC13: delete the stall clause - one tick then silence is 'complete' again
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -                 if (!OutputWasAdvancingAtTheStop) return CameraCompleteness.Unknown;
+    +                 // MUTATION M1: the stall clause is gone
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenAStalledCameraRepeatsItsPositionOnTheWayOut_IsStillNeverRecordedAsComplete [4 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenAStalledCameraFlushesOutputOnlyAfterTheStop_IsStillNeverRecordedAsComplete [2 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraTickedOnceAndThenStalledForTheSession_IsNeverRecordedAsComplete [1 ms]
+Failed!  - Failed:     3, Passed:    90, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M2  AC13: judge freshness from the LIVE advance instead of the stop-time snapshot
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -                 long advanced = Interlocked.Read(ref _advanceAtStopTicks);
+    +                 long advanced = Interlocked.Read(ref _lastOutputAdvanceTicks);
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenAStalledCameraFlushesOutputOnlyAfterTheStop_IsStillNeverRecordedAsComplete [3 ms]
+Failed!  - Failed:     1, Passed:    92, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M3  AC13: record a tick's ARRIVAL instead of an ADVANCE
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -             if (ms > 0 && ms > previous)
+    +             if (ms > 0)
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenAStalledCameraRepeatsItsPositionOnTheWayOut_IsStillNeverRecordedAsComplete [4 ms]
+Failed!  - Failed:     1, Passed:    92, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M4  AC15: throw the drain result away and assume the stderr was complete
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -                 _stderrComplete = _proc.DrainStderr(StderrDrainMs);
+    +                 _proc.DrainStderr(StderrDrainMs); _stderrComplete = true;
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheStderrNeverReachedEndOfStreamAfterAPositiveTick_IsNeverRecordedAsComplete [2 ms]
+Failed!  - Failed:     1, Passed:    92, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M5  AC14: stop returning the force-kill to the caller
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -             if (_stopKind == CameraStopKind.ForceKilled && _opened)
+                      throw new CameraForceKilledException(DeviceName, OutputPath, CapturedSeconds, $"See {_logPath}.");
+    +             // MUTATION M5: the force-kill is no longer reported
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly [2 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.ReleaseClaimUnlessStranded_WhenTheCameraStopped_ReleasesTheClaimAsBefore [2 ms]
+Failed!  - Failed:     2, Passed:    91, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M6  AC14: record a successful kill as a clean quit
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -                 _stopKind = CameraStopKind.ForceKilled;
+                      return;
+    +                 _stopKind = CameraStopKind.CleanQuit;
+                      return;
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly [3 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.ReleaseClaimUnlessStranded_WhenTheCameraStopped_ReleasesTheClaimAsBefore [1 ms]
+Failed!  - Failed:     2, Passed:    91, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M7  AC17: the fail-open 'fix' - always answer unknown
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -                 // No stop has watched this process end. Nothing is established either way.
+    +                 return CameraCompleteness.Unknown;   // MUTATION M7
+                      // No stop has watched this process end. Nothing is established either way.
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete [7 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraNeverReportedWritingAFrame_RecordsCompleteNo [8 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheOutputKeptAdvancingUntilTheStop_RecordsTheTakeAsComplete [32 ms]
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegIgnoredTheQuitAndWasForceKilled_ReportsItInsteadOfReturningCleanly [2 ms]
+Failed!  - Failed:     4, Passed:    89, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M8  AC16: never retain a stranded camera
+====================================================================================================
+  src/AgentEyes.Core/StrandedCameraOwner.cs
+    -             if (camera == null || !camera.IsAbandoned) return false;
+    +             if (camera == null || !camera.IsAbandoned || camera != null) return false;
+
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.DiscardDirectoryUnlessStranded_WhenTheCameraIsStillRunning_LeavesTheDirectoryAlone [5 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.Recover_WhenTheProcessFinallyDies_ReleasesTheClaimAndForgetsIt [3 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.Recover_DoesNotForgetOneStrandedCameraWhileAnotherIsStillAlive [6 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.ReleaseClaimUnlessStranded_WhenTheCameraIsStillRunning_KeepsTheClaimAndTheRecorder [3 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.Recover_WhileTheProcessIsStillAlive_KeepsHoldingItAndItsClaim [3 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.Report_NamesTheStuckProcessAndItsPid [4 ms]
+Failed!  - Failed:     6, Passed:    87, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M9  AC16: the stop releases its claim directly again, around the owner
+====================================================================================================
+  src/AgentEyes.Core/RecordingService.cs
+    -                 _stranded.ReleaseClaimUnlessStranded(camera, claim, dir);
+    +                 RecordingWorkset.Release(claim);
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheRecordingService_ReleasesItsClaimOnlyThroughTheStrandedCameraOwner [15 ms]
+  Failed AgentEyes.Tests.CaptureClaimOwnershipTests.TheStopReleasesThisSessionsOwnClaim_NotWhateverHoldsTheDirectory [2 ms]
+  Failed AgentEyes.Tests.SessionManifestTests.Stop_UpdatesTheExistingRecordInsteadOfReplacingIt [1 ms]
+Failed!  - Failed:     3, Passed:    90, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M10 AC16: the stuck process is reported without its PID
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -         public int? ProcessId => _proc.ProcessId;
+    +         public int? ProcessId => null;
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegSurvivesEverything_MarksItselfAbandonedAndKeepsItsProcessId [5 ms]
+  Failed AgentEyes.Tests.StrandedCameraOwnerTests.Report_NamesTheStuckProcessAndItsPid [3 ms]
+Failed!  - Failed:     2, Passed:    91, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M11 AC10: a camera that died mid-run is recorded as a clean quit
+====================================================================================================
+  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    -             if (_lostMidRun) _stopKind = CameraStopKind.ExitedEarly;
+    +             if (_lostMidRun) _stopKind = CameraStopKind.CleanQuit;
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedDuringTheRecording_RecordsExitedEarlyAndNotComplete [5 ms]
+Failed!  - Failed:     1, Passed:    92, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M12 the manifest STATES the verdict at the call site instead of reading it from the recorder
+====================================================================================================
+  src/AgentEyes.Core/RecordingService.cs
+    -                     CameraTrackRecord.Write(manifest, camera);
+    +                     manifest.CameraComplete = "yes";
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheCameraTrackRecord_IsTheOnlyPlaceTheManifestVerdictIsAssigned [34 ms]
+Failed!  - Failed:     1, Passed:    92, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+MUTATION M13 the CLI stops recording the camera's account of itself at all
+====================================================================================================
+  src/AgentEyes.Core/Commands.cs
+    -                     CameraTrackRecord.Write(manifest, cameraRec);
+    +                     // MUTATION M13: the CLI writes no camera record
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheCameraTrackRecord_IsTheOnlyPlaceTheManifestVerdictIsAssigned [89 ms]
+Failed!  - Failed:     1, Passed:    92, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+====================================================================================================
+BASELINE RE-PROVED (every mutation reverted)
+====================================================================================================
+Passed!  - Failed:     0, Passed:    93, Skipped:     0, Total:    93, Duration: 2 s - AgentEyes.Tests.dll (net8.0)

@@ -16,8 +16,14 @@ namespace AgentEyes.Audio
     /// </summary>
     internal sealed class AudioCapture : IDisposable
     {
-        // 16 kHz, 16-bit mono PCM - the format Whisper expects (kept from the original).
-        public static readonly WaveFormat CaptureFormat = new(16000, 16, 1);
+        // 48 kHz, 16-bit mono PCM (issue #64). The vendored original captured 16 kHz because that
+        // is what Whisper wants, but 16 kHz keeps nothing above 8 kHz: a narration recorded that way
+        // sounds like a phone call and cannot be the voice track of a video. 48 kHz is the native
+        // rate of practically every USB microphone (so Windows does no resampling) and the rate the
+        // mixer and video tracks already use. Mono because one microphone is one channel.
+        // The transcriber is NOT fed this file: every transcription path makes its own 16 kHz copy
+        // first (FfmpegArgs.ExtractWav -> audio_16k.wav), so the kept recording is never downgraded.
+        public static readonly WaveFormat CaptureFormat = new(48000, 16, 1);
 
         private readonly WaveInEvent _waveIn;
         private WaveFileWriter? _writer;

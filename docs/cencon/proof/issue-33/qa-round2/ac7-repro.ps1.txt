@@ -1,0 +1,55 @@
+param([string]$Exe, [string]$Label)
+$ErrorActionPreference = 'Stop'
+$SP = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa-hud-uia.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa-hud-uia.ps1" -Action $a } }
+function Rec()        { & powershell -NoProfile -File "$SP\qa-main-uia.ps1" -Action click -Arg REC }
+function Cfg($what)   { Write-Output "  config ${what}: $((Get-Content $cfg | Select-String 'HudWidth|HudHeight|HudPreviewVisible') -join ' ')" }
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+@'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@ | Out-File -FilePath $cfg -Encoding utf8
+
+Write-Output "==== $Label ===="
+Write-Output "exe: $Exe"
+Write-Output "fresh config (no Hud* keys)"
+Start-Process $Exe
+for ($i=0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest -Uri http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+
+Write-Output "-- RECORDING 1 --"
+Rec | Out-Null
+Start-Sleep -Seconds 7
+Write-Output "  HUD as opened (expect the 367x52 pill, preview hidden):"
+Write-Output "    $(Hud rect $null)"
+Write-Output "  clicking 'Show preview' ..."
+Hud click 'Show preview' | Out-Null
+Start-Sleep -Seconds 3
+Write-Output "  HUD after the toggle (EXPECT a 520x400 preview panel):"
+Write-Output "    $(Hud rect $null)"
+$img = (Hud inspect $null) | Select-String 'ControlType.Image'
+Write-Output "  preview Image element: $img"
+Hud click 'HUD stop' | Out-Null
+Start-Sleep -Seconds 10
+Cfg "after recording 1"
+
+Write-Output "-- RECORDING 2 (preview visible from config) --"
+Rec | Out-Null
+Start-Sleep -Seconds 8
+Write-Output "  HUD as opened (EXPECT a 520x400 preview panel):"
+Write-Output "    $(Hud rect $null)"
+$img2 = (Hud inspect $null) | Select-String 'ControlType.Image'
+Write-Output "  preview Image element: $img2"
+Hud click 'HUD stop' | Out-Null
+Start-Sleep -Seconds 10
+Cfg "after recording 2"
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end $Label ===="

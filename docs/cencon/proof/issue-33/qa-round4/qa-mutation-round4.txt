@@ -1,0 +1,32 @@
+[FIRED] QM1  a MOVE is treated as a resize (drop the WM_SIZING requirement)  (Failed:     3, Passed:    54)
+[FIRED] QM2  read the panel state at the END of the gesture, not the start  (Failed:     1, Passed:    56)
+[FIRED] QM3  round 3's mechanism restored: observe SizeChanged and record it  (Failed:    17, Passed:    40)
+[FIRED] QM4  drop the automation peer override (UIA falls back to the HWND provider)  (Failed:     1, Passed:    56)
+[FIRED] QM5  a SECOND writer to the memory, from SavePosition  (Failed:     2, Passed:    55)
+[FIRED] QM6  the grip no longer records  (Failed:     2, Passed:    55)
+[FIRED] QM7  HudWindow constructs a SECOND HudSizeMemory  (Failed:     1, Passed:    56)
+[FIRED] QM8  drop the panel-was-up narrowing in Record  (Failed:     2, Passed:    55)
+[FIRED] QM9  drop the non-positive-size refusal in RecordUserResize  (Failed:     1, Passed:    56)
+[FIRED] QM10 opening the panel records the size it opened at (round 2's defect)  (Failed:     6, Passed:    51)
+[FIRED] QM11 ShowPanel sets the size BEFORE switching to manual sizing (order swap)  (Failed:     4, Passed:    53)
+[FIRED] QM12 PreferredSize ignores the remembered size  (Failed:     6, Passed:    51)
+[FIRED] QM13 the grip is no longer wired to the resize gesture  (Failed:     1, Passed:    56)
+
+==== restoring and re-verifying the pristine tree ====
+pristine tree: GREEN  Failed:     0, Passed:    57
+
+==== SUMMARY ====
+13 of 13 mutations FIRED
+  FIRED                                  QM1  a MOVE is treated as a resize (drop the WM_SIZING requirement)
+  FIRED                                  QM2  read the panel state at the END of the gesture, not the start
+  FIRED                                  QM3  round 3's mechanism restored: observe SizeChanged and record it
+  FIRED                                  QM4  drop the automation peer override (UIA falls back to the HWND provider)
+  FIRED                                  QM5  a SECOND writer to the memory, from SavePosition
+  FIRED                                  QM6  the grip no longer records
+  FIRED                                  QM7  HudWindow constructs a SECOND HudSizeMemory
+  FIRED                                  QM8  drop the panel-was-up narrowing in Record
+  FIRED                                  QM9  drop the non-positive-size refusal in RecordUserResize
+  FIRED                                  QM10 opening the panel records the size it opened at (round 2's defect)
+  FIRED                                  QM11 ShowPanel sets the size BEFORE switching to manual sizing (order swap)
+  FIRED                                  QM12 PreferredSize ignores the remembered size
+  FIRED                                  QM13 the grip is no longer wired to the resize gesture

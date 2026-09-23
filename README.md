@@ -33,16 +33,38 @@ and tested:
 
 ## Install
 
-Build the installer and run it - no prerequisites on the target machine (the .NET runtime
-and ffmpeg are bundled):
+No repository, no build, no prerequisites - the .NET runtime and ffmpeg are bundled.
 
+**Download and double-click** [the latest installer](https://github.com/thefrederiksen/agenteyes-app/releases/latest/download/AgentEyes-Setup-win-x64.exe),
+or pick any version from the [releases page](https://github.com/thefrederiksen/agenteyes-app/releases).
+
+**Or install from a terminal** - one line, no admin:
+
+```powershell
+$e="$env:TEMP\agenteyes-setup.exe"; iwr -UseBasicParsing https://github.com/thefrederiksen/agenteyes-app/releases/latest/download/agenteyes-setup-cli-win-x64.exe -OutFile $e; & $e install
 ```
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-installer.ps1
-dist\AgentEyes-Setup-<version>.exe
-```
+
+The same command **updates** an existing install - run it again and it fetches only what
+changed, or reports `Nothing to do - all components up to date`. If `agenteyes-setup` is
+already on PATH, `agenteyes-setup update` is enough.
 
 Installs per-user (no admin) to `%LOCALAPPDATA%\AgentEyes\app` with a Start Menu
 shortcut, optional run-at-login, optional `agenteyes` on PATH, and an uninstaller.
+Recordings go to `%USERPROFILE%\Videos\AgentEyes\`.
+
+AgentEyes records **without an account**. Signing in to DevThrottle is optional and only
+unlocks the AI stages (transcription, titles, walkthroughs) - capture, camera, preview and
+overlay all work signed out.
+
+### Building the installer yourself
+
+Only needed if you are changing AgentEyes; the released installer is built by CI from the
+same script.
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-release.ps1
+agenteyes-setup install --release-dir dist\release
+```
 
 ## Quickstart (from source)
 
@@ -52,11 +74,16 @@ Requires the .NET 8 SDK (Windows) and `ffmpeg` on PATH.
 dotnet build AgentEyes.sln -c Release
 
 # the app (tray + launcher)
-src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
 
 # the CLI
-src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.exe screens
+src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe screens
 ```
+
+The `x64` segment is not optional: both projects set `<Platforms>x64</Platforms>`, so a
+`-c Release` build lands in `bin\x64\Release\`. An older checkout may also have a
+`bin\Release\` directory holding a months-stale binary - running that one silently tests
+code you did not build.
 
 Verify everything (build + unit tests + headless selftest + API and GUI smoke tests). This is the
 HEAVY, USER-INVOKED full sweep - it launches the app and records, so it refuses without `-Confirm`:

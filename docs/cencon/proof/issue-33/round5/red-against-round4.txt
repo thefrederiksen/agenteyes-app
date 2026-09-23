@@ -1,0 +1,68 @@
+====================================================================================================
+M1: the drain publishes INLINE again (gate defect 1)
+   file: src\AgentEyes.Core\Preview\PreviewTap.cs
+   tests that FAILED under the mutation (2):
+     - AgentEyes.Tests.PreviewTapTests.Drain_WhilePublishingIsStalledForever_StillReadsThePipeToTheEnd
+     - AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem
+   OK: every expected check fired.
+====================================================================================================
+M2: hiding the preview deletes the frame on the CALLER's thread (gate defect 1)
+   file: src\AgentEyes.Core\Preview\PreviewTap.cs
+   tests that FAILED under the mutation (1):
+     - AgentEyes.Tests.PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem
+   OK: every expected check fired.
+====================================================================================================
+M3: the drain logs through the shared (file-appending, globally locked) logger
+   file: src\AgentEyes.Core\Preview\PreviewTap.cs
+   tests that FAILED under the mutation (1):
+     - AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem
+   OK: every expected check fired.
+====================================================================================================
+M4: a Windows snap is not treated as a resize (gate defect 2)
+   file: src\AgentEyes.App\HudUserResize.cs
+   tests that FAILED under the mutation (2):
+     - AgentEyes.Tests.HudPreviewSizingOrderTests.SnappingTheWindowToAScreenEdge_IsRemembered
+     - AgentEyes.Tests.HudUserResizeTests.ALoopThatEndedAtADifferentSize_RecordsTheSizeItEndedAt
+   OK: every expected check fired.
+====================================================================================================
+M5: a maximise is invisible again (gate defect 2)
+   file: src\AgentEyes.App\HudUserResize.cs
+   tests that FAILED under the mutation (3):
+     - AgentEyes.Tests.HudPreviewSizingOrderTests.MaximisingTheWindow_IsRemembered
+     - AgentEyes.Tests.HudUserResizeTests.AWindowStateCommand_RecordsTheSizeTheWindowSettlesAt
+     - AgentEyes.Tests.HudUserResizeTests.HudWindow_WiresUpEveryGestureRoute
+   OK: every expected check fired.
+====================================================================================================
+M6: the app sets the HUD's own WindowState, so a state change stops proving anything
+   file: src\AgentEyes.App\HudWindow.cs
+   tests that FAILED under the mutation (1):
+     - AgentEyes.Tests.HudUserResizeTests.NothingInTheHudEverSetsItsOwnWindowState
+   OK: every expected check fired.
+====================================================================================================
+M7: the completeness canary never fires
+   file: src\AgentEyes.App\HudSizeMemory.cs
+   tests that FAILED under the mutation (1):
+     - AgentEyes.Tests.HudPreviewSizingOrderTests.AResizeNoGestureClaimed_IsReportedByTheCompletenessCanary
+   OK: every expected check fired.
+====================================================================================================
+M8: the HUD writes config.json on the WPF UI thread again (gate defect 3)
+   file: src\AgentEyes.App\HudWindow.cs
+   tests that FAILED under the mutation (3):
+     - AgentEyes.Tests.HudResponsivenessTests.EveryPreviewButton_RemembersTheChoice
+     - AgentEyes.Tests.HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile
+     - AgentEyes.Tests.HudResponsivenessTests.TheHudSavesItsChoices_ThroughTheNonBlockingPathAndOnlyThat
+   OK: every expected check fired.
+====================================================================================================
+M9: the background writer writes on the caller's thread (gate defect 3)
+   file: src\AgentEyes.App\BackgroundFileWriter.cs
+   tests that FAILED under the mutation (2):
+     - AgentEyes.Tests.HudResponsivenessTests.Queue_TwiceInARow_WritesTheNewestStateAndCountsTheOneItSuperseded
+     - AgentEyes.Tests.HudResponsivenessTests.Queue_WhileTheWriteIsStalled_ReturnsAtOnce
+   OK: every expected check fired.
+====================================================================================================
+M10: the constructor remembers a preview choice again - THE DOCUMENTED LIMIT, no test fires
+   file: src\AgentEyes.App\HudWindow.cs
+   tests that FAILED under the mutation (0):
+   EXPECTED: none. This mutation is the limit this round did not close - every HUD button's Click handler is a lambda declared in the constructor, so the IL folds it into .ctor and no call-graph guard can tell what the constructor itself calls. What IS guarded is that ApplyPreviewState has no path to a save at all (ApplyingThePreviewState_NeverRemembersAChoiceByItself) and that every button does (EveryPreviewButton_RemembersTheChoice).
+====================================================================================================
+RESULT: every mutation was seen

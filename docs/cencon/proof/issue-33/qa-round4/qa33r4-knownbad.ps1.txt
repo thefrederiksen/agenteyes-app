@@ -1,0 +1,71 @@
+$ErrorActionPreference = 'Stop'
+$SP  = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$EXE = "D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a } }
+function Cfg($what) { Write-Output ("  config {0}: {1}" -f $what, (((Get-Content $cfg | Select-String 'HudWidth|HudHeight|HudLeft|HudTop|HudPreviewVisible') -join ' ') -replace '\s+', ' ')) }
+function Rec()  { & powershell -NoProfile -File "$SP\qa33r4-main.ps1" -Action click -Arg REC | Out-Null }
+function StopRec() { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action click -Arg 'HUD stop' | Out-Null }
+
+function Fresh($json) {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+    $json | Out-File -FilePath $cfg -Encoding utf8
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Milliseconds 500
+        try { Invoke-WebRequest -Uri http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {}
+    }
+    Start-Sleep -Seconds 2
+}
+
+$BASE = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@
+
+Write-Output "==== KNOWN-BAD CONTROL: the running-app check must FIRE against round 3's mechanism ===="
+Write-Output ("dll sha256:    " + (Get-FileHash (Join-Path (Split-Path $EXE) "AgentEyesApp.dll")).Hash)
+Fresh $BASE
+Write-Output "-- S1 toggle the preview on, resize nothing --"
+Rec; Start-Sleep -Seconds 8
+Write-Output "  pill:        $(Hud rect)"
+Write-Output "  toggle ON:   $(Hud click 'Show preview')"
+Write-Output "               $(Hud image)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after S1  (pristine gave null/null; known-bad is expected to give 520/400)"
+
+Write-Output "-- S3 the bare SetWindowPos with no gesture behind it --"
+Rec; Start-Sleep -Seconds 9
+Write-Output "  as opened:                       $(Hud rect)"
+Write-Output "  BARE SetWindowPos 1100x600:      $(Hud hwndresize '1100,600')"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after S3  (pristine gave null/null; known-bad is expected to give 1100/600)"
+
+Write-Output "-- the clamp drift --"
+Fresh @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudWidth": 200,
+  "HudHeight": 100,
+  "HudPreviewVisible": true
+}
+'@
+Cfg "before"
+Rec; Start-Sleep -Seconds 9
+Write-Output "  HUD as opened (MinWidth is 260): $(Hud rect)"
+StopRec; Start-Sleep -Seconds 12
+Cfg "after  (pristine gave 200/100; known-bad is expected to give 260/100)"
+
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end ===="

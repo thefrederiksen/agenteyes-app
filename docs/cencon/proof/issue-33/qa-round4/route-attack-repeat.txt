@@ -1,0 +1,21 @@
+exe lastwrite: 08/29/2026 00:25:45
+-- S1 toggle on, resize nothing --
+  pill:        HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:   clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+               IMAGE: not found
+  config after S1  EXPECT no HudWidth / HudHeight:  "HudLeft": 1537, "HudTop": 16, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- S2 constructor path --
+  as opened:   HUD rect: X=1537 Y=16 W=520 H=400
+               IMAGE rect=1553,113,490,276
+  config after S2  EXPECT no HudWidth / HudHeight:  "HudLeft": 1537, "HudTop": 16, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- S3 hostile routes --
+  as opened:                       HUD rect: X=1537 Y=16 W=520 H=400
+  toggle OFF:                      clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:                       clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  move to DISPLAY1 (2100,100):     HUD rect after move: X=2100 Y=100 W=520 H=400
+  minimise + restore:
+minimised: IsIconic=True
+restored -> HUD rect: X=2100 Y=100 W=520 H=400
+  BARE SetWindowPos 1100x600:      after a bare SetWindowPos to 1100,600 (no gesture): HUD rect: X=2100 Y=100 W=1100 H=600
+  config after S3  EXPECT no HudWidth / HudHeight:  "HudLeft": 2100, "HudTop": 100, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+==== QAPROBE lines ====

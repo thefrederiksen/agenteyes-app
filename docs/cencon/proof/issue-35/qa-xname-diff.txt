@@ -1,0 +1,53 @@
+QA independent AC4 check - every x:Name in PresetEditor.xaml, before vs after issue #35
+
+BEFORE = git show origin/issue-33-hud-live-preview:src/AgentEyes.App/PresetEditor.xaml
+AFTER  = src/AgentEyes.App/PresetEditor.xaml at ffd3970
+
+before: 38 names    after: 48 names
+removed or renamed: NONE
+control type changed: NONE
+added: ['AudioScroll', 'AudioTab', 'CameraPreviewImage', 'CameraPreviewPanel', 'CameraPreviewStatus', 'CameraScroll', 'CameraTab', 'CaptureScroll', 'CaptureTab', 'EditorTabs']
+
+The 38 names that had to survive, with the control type each must still have:
+  AspectBox            ComboBox       -> PRESENT, same type
+  CameraBox            ComboBox       -> PRESENT, same type
+  CameraHint           TextBlock      -> PRESENT, same type
+  CancelButton         Button         -> PRESENT, same type
+  DenoiseCheck         CheckBox       -> PRESENT, same type
+  ErrorText            TextBlock      -> PRESENT, same type
+  ExactHeightBox       TextBox        -> PRESENT, same type
+  ExactWidthBox        TextBox        -> PRESENT, same type
+  FpsBox               ComboBox       -> PRESENT, same type
+  FullRadio            RadioButton    -> PRESENT, same type
+  GateCheck            CheckBox       -> PRESENT, same type
+  LandscapeButton      Button         -> PRESENT, same type
+  LevelCheck           CheckBox       -> PRESENT, same type
+  MicBox               ComboBox       -> PRESENT, same type
+  MicVol               Slider         -> PRESENT, same type
+  MicVolText           TextBlock      -> PRESENT, same type
+  ModeAudio            RadioButton    -> PRESENT, same type
+  ModeShot             RadioButton    -> PRESENT, same type
+  ModeVideo            RadioButton    -> PRESENT, same type
+  MonitorBox           ComboBox       -> PRESENT, same type
+  NameBox              TextBox        -> PRESENT, same type
+  NoteBox              TextBox        -> PRESENT, same type
+  RegionLabel          TextBlock      -> PRESENT, same type
+  RegionOptions        StackPanel     -> PRESENT, same type
+  RegionRadio          RadioButton    -> PRESENT, same type
+  RegionWarn           TextBlock      -> PRESENT, same type
+  SaveAsButton         Button         -> PRESENT, same type
+  SaveButton           Button         -> PRESENT, same type
+  SelectAreaButton     Button         -> PRESENT, same type
+  SetExactButton       Button         -> PRESENT, same type
+  ShowAreaButton       Button         -> PRESENT, same type
+  SquareButton         Button         -> PRESENT, same type
+  SrcMic               RadioButton    -> PRESENT, same type
+  SrcMixed             RadioButton    -> PRESENT, same type
+  SrcSystem            RadioButton    -> PRESENT, same type
+  SysVol               Slider         -> PRESENT, same type
+  SysVolText           TextBlock      -> PRESENT, same type
+  VerticalButton       Button         -> PRESENT, same type
+
+Mutation (proof the check fires): renaming x:Name="MicVol" to "MicVolume" in
+PresetEditor.xaml made this same script report  REMOVED/RENAMED: ['MicVol'].
+An empty BEFORE list would fail the count line above rather than read as a clean run.

@@ -212,7 +212,10 @@ namespace AgentEyes.Tests
             MicGain = 1.0,
             SystemGain = 0.7,
             NoiseGate = true,
-            GateThreshold = 0.02,
+            // The threshold is measured from the capture, so a chain can only be built for options
+            // that have been calibrated. 0.02 stands in for whatever a measurement returned.
+            GateThresholdLinear = 0.02,
+            GateCalibrated = true,
             RnnoiseModelPath = @"C:\Users\u\AppData\Local\AgentEyes\models\bd.rnnn",
         };
 
@@ -338,6 +341,217 @@ namespace AgentEyes.Tests
         {
             var cmd = FfmpegArgs.ToCommandLine("ffmpeg.exe", new[] { "-i", "audio=My Mic" });
             Assert.Contains("\"audio=My Mic\"", cmd);
+        }
+
+        // ---- camera capture (issue #28) --------------------------------------
+
+        [Fact]
+        public void CameraCapture_OpensTheNamedDshowVideoDevice()
+        {
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4");
+            string s = Join(args);
+            Assert.Contains("-f dshow", s);
+            Assert.Contains("video=HD Webcam", args);
+            Assert.Contains("-framerate 30", s);
+            Assert.EndsWith("camera.mp4", s);
+        }
+
+        [Fact]
+        public void CameraCapture_HasNoAudioInputAndNoAudioCodec()
+        {
+            // Decision 1: camera.mp4 is video-only - all audio stays on recording.mp4. Three
+            // independent ways an audio track could get in, and all three are asserted absent, plus
+            // the explicit -an that keeps it that way.
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4");
+            string s = Join(args);
+            Assert.DoesNotContain("audio=", s);
+            Assert.DoesNotContain("-c:a", s);
+            Assert.DoesNotContain("-b:a", s);
+            Assert.Contains("-an", args);
+        }
+
+        [Fact]
+        public void CameraCapture_DoesNotPinAResolution()
+        {
+            // Assumption A2: the camera's OWN default resolution is used. Pinning -video_size makes
+            // the dshow input fail outright on a camera that does not offer that exact mode, which
+            // would turn a working camera into a failed start.
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4");
+            Assert.DoesNotContain("-video_size", Join(args));
+        }
+
+        [Fact]
+        public void CameraCapture_EncodesLikeTheScreenVideo()
+        {
+            // Assumption A3: same encoder settings as VideoCapture, so the two files cut together.
+            var camera = Join(FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4"));
+            var screen = Join(FfmpegArgs.VideoCapture(new Rectangle(0, 0, 1280, 720), null, 30, 23, "recording.mp4"));
+            foreach (string setting in new[] { "-c:v libx264", "-preset veryfast", "-pix_fmt yuv420p", "-crf 23" })
+            {
+                Assert.Contains(setting, camera);
+                Assert.Contains(setting, screen);
+            }
+        }
+
+        [Fact]
+        public void CameraCapture_HonorsTheRequestedFrameRateAndQuality()
+        {
+            var args = Join(FfmpegArgs.CameraCapture("HD Webcam", 15, 28, "camera.mp4"));
+            Assert.Contains("-framerate 15", args);
+            Assert.Contains("-crf 28", args);
+        }
+
+        [Fact]
+        public void CameraCapture_BuffersTheInputAgainstFrameDrops()
+        {
+            Assert.Contains("-thread_queue_size 1024", Join(FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4")));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void CameraCapture_WithoutADeviceName_Throws(string? name)
+        {
+            // No silent fallback to "the first camera": a capture with no device named is a bug in
+            // the caller, and it says so instead of filming something nobody asked for.
+            Assert.Throws<UsageException>(() => FfmpegArgs.CameraCapture(name!, 30, 23, "camera.mp4"));
+        }
+
+        [Fact]
+        public void CameraCapture_QuotesTheDeviceNameOnTheCommandLine()
+        {
+            string cmd = FfmpegArgs.ToCommandLine(
+                "ffmpeg.exe", FfmpegArgs.CameraCapture("Logitech BRIO 4K", 30, 23, "camera.mp4"));
+            Assert.Contains("\"video=Logitech BRIO 4K\"", cmd);
+        }
+
+        // ---- the HUD live preview tap (issue #33) ----------------------------
+
+        [Fact]
+        public void PreviewOutput_GoesToStdoutAndNeverToAFile()
+        {
+            // THE MEASURED HAZARD THIS ENCODES. On 2026-08-28 the obvious implementation - giving
+            // ffmpeg the preview as an image2 FILE output - was run and timed: removing the preview
+            // directory mid-run made the muxer fail and ffmpeg terminated the WHOLE process, cutting
+            // a 15-second recording to 5.1 seconds. A pipe cannot do that, because AgentEyes drains
+            // it and any failure downstream of the drain costs a picture rather than the recording.
+            //
+            // So this is not a style assertion. "pipe:1, and no file muxer" is the property that
+            // keeps the preview subordinate to the recording (AC10), and it is pinned here.
+            var preview = FfmpegArgs.PreviewOutput();
+            string s = Join(preview);
+
+            Assert.Equal("pipe:1", preview[preview.Count - 1]);
+            Assert.Contains("-f mjpeg", s);
+            Assert.DoesNotContain("image2", s);
+            Assert.DoesNotContain(".jpg", s);
+            // Without this the raw MJPEG muxer buffers whole frames before anything reaches the
+            // pipe, and a monitor that lags is a monitor that lies about what is being recorded.
+            Assert.Contains("-flush_packets 1", s);
+            // Input 0's video explicitly (a recording with a microphone has a second input), and no
+            // audio: the preview is a picture.
+            Assert.Contains("-map 0:v", s);
+            Assert.Contains("-an", preview);
+
+            // The filter chain is the AC9 measurement, not a formatting preference: fps decimation
+            // FIRST so ten frames a second are scaled rather than thirty, point sampling for the
+            // quarter-size downscale, and 4:2:0 into the JPEG encoder. Measured on 2026-08-28 at
+            // 1920x1080/30fps over 30 seconds - control drops 4/1/5, this shape 1/0/0, and the
+            // scale-then-decimate shape it replaced 19/27/37.
+            Assert.Contains($"fps={FfmpegArgs.PreviewFps}", s);
+            Assert.Contains($"scale=-2:{FfmpegArgs.PreviewHeight}", s);
+            Assert.Contains("flags=neighbor", s);
+            Assert.Contains("-pix_fmt yuvj420p", s);
+            // The decimation must come BEFORE the scale, or two thirds of the scaling work is done
+            // and thrown away.
+            Assert.True(FfmpegArgs.PreviewFilter.IndexOf("fps=", System.StringComparison.Ordinal)
+                        < FfmpegArgs.PreviewFilter.IndexOf("scale=", System.StringComparison.Ordinal),
+                "the fps filter must precede the scale filter: " + FfmpegArgs.PreviewFilter);
+        }
+
+        [Fact]
+        public void PreviewDefaults_AreAMonitorAndNotAViewfinder()
+        {
+            // Assumption C2, and the bound behind AC9: roughly 480x270 at 10-15 fps.
+            Assert.Equal(270, FfmpegArgs.PreviewHeight);
+            Assert.InRange(FfmpegArgs.PreviewFps, 10, 15);
+        }
+
+        [Fact]
+        public void VideoCapture_WithoutAPreview_IsExactlyWhatItWasBefore()
+        {
+            // AC11: with the preview never enabled the recording is identical in shape to what it
+            // was. The command line is where that starts, so the two forms are compared directly
+            // rather than each being described separately.
+            var withoutFlag = FfmpegArgs.VideoCapture(new Rectangle(0, 0, 1920, 1080), "My Mic", 30, 23, "out.mp4");
+            var explicitlyOff = FfmpegArgs.VideoCapture(
+                new Rectangle(0, 0, 1920, 1080), "My Mic", 30, 23, "out.mp4", null, previewStream: false);
+
+            Assert.Equal(withoutFlag, explicitlyOff);
+            Assert.DoesNotContain("pipe:1", Join(withoutFlag));
+            Assert.Equal("out.mp4", withoutFlag[withoutFlag.Count - 1]);
+        }
+
+        [Fact]
+        public void VideoCapture_WithAPreview_KeepsTheRecordingAsOutputZero()
+        {
+            // The preview is a SECOND output appended after the recording's, so recording.mp4 stays
+            // output #0 - which is what the camera recorder's open probe watches for, and what every
+            // existing ffmpeg-log expectation is written against.
+            var args = FfmpegArgs.VideoCapture(
+                new Rectangle(0, 0, 1920, 1080), "My Mic", 30, 23, "out.mp4", null, previewStream: true);
+
+            int recording = args.IndexOf("out.mp4");
+            int preview = args.IndexOf("pipe:1");
+            Assert.True(recording >= 0, "the recording output is missing");
+            Assert.True(preview > recording, "the preview output must come after the recording's");
+            Assert.EndsWith(Join(FfmpegArgs.PreviewOutput()), Join(args));
+        }
+
+        [Fact]
+        public void CameraCapture_WithoutAPreview_IsExactlyWhatItWasBefore()
+        {
+            var withoutFlag = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4");
+            var explicitlyOff = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4", previewStream: false);
+
+            Assert.Equal(withoutFlag, explicitlyOff);
+            Assert.DoesNotContain("pipe:1", Join(withoutFlag));
+            Assert.Equal("camera.mp4", withoutFlag[withoutFlag.Count - 1]);
+        }
+
+        [Fact]
+        public void CameraCapture_WithAPreview_StillOpensTheDeviceExactlyOnce()
+        {
+            // Assumption C1, in the only place it can be checked without a webcam: the preview adds
+            // an OUTPUT, never a second input. One "-i", one "-f dshow", one device open - which is
+            // why the preview cannot take the camera away from the recording.
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4", previewStream: true);
+
+            Assert.Single(args.FindAll(a => a == "-i"));
+            Assert.Single(args.FindAll(a => a == "dshow"));
+            Assert.Single(args.FindAll(a => a == "video=HD Webcam"));
+
+            int cameraFile = args.IndexOf("camera.mp4");
+            int preview = args.IndexOf("pipe:1");
+            Assert.True(cameraFile >= 0, "camera.mp4 is missing");
+            Assert.True(preview > cameraFile, "the preview output must come after camera.mp4");
+        }
+
+        [Fact]
+        public void CameraCapture_WithAPreview_LeavesCameraMp4sOwnEncodingAlone()
+        {
+            // The preview must not change what camera.mp4 IS. Everything issue #28 pinned about the
+            // recorded file is still true with the tap attached.
+            var args = FfmpegArgs.CameraCapture("HD Webcam", 30, 23, "camera.mp4", previewStream: true);
+            string upToTheRecording = Join(args.GetRange(0, args.IndexOf("camera.mp4") + 1));
+
+            Assert.Contains("-c:v libx264", upToTheRecording);
+            Assert.Contains("-preset veryfast", upToTheRecording);
+            Assert.Contains("-pix_fmt yuv420p", upToTheRecording);
+            Assert.Contains("-crf 23", upToTheRecording);
+            Assert.Contains("-framerate 30", upToTheRecording);
+            Assert.DoesNotContain("-video_size", upToTheRecording);
         }
     }
 }

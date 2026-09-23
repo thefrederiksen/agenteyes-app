@@ -1,0 +1,50 @@
+QA round 5 - the app log lines that carry the AC10 stall evidence (issue #33).
+
+-- 04:59 healthy control (no stall): the publisher keeps up --
+04:59:22.033 [INFO] [PreviewTap] TryCreate: track=screen frame=C:\Users\soren\AppData\Local\AgentEyes\preview\screen.jpg
+04:59:22.033 [INFO] [PreviewTap] TryCreate: track=screen ready
+04:59:22.034 [INFO] [PreviewTap] TryCreate: track=camera frame=C:\Users\soren\AppData\Local\AgentEyes\preview\camera.jpg
+04:59:22.034 [INFO] [PreviewTap] TryCreate: track=camera ready
+04:59:22.102 [INFO] [PreviewTap] Pump: track=camera starting
+04:59:22.655 [INFO] [PreviewTap] Pump: track=screen starting
+04:59:22.832 [INFO] [PreviewTap] Drain: track=camera first frame, 1055 bytes
+04:59:22.918 [INFO] [PreviewTap] Drain: track=screen first frame, 13809 bytes
+04:59:23.319 [INFO] [PreviewTap] Publishing(screen) -> True
+04:59:23.319 [INFO] [PreviewTap] Publishing(camera) -> True
+04:59:56.921 [INFO] [PreviewTap] Drain: track=screen ended at end of stream (framesRead=341 framesPublished=329 framesDropped=7 oversizeDrops=0)
+04:59:57.797 [INFO] [PreviewTap] Drain: track=camera ended at end of stream (framesRead=345 framesPublished=339 framesDropped=0 oversizeDrops=0)
+04:59:57.809 [INFO] [PreviewTap] Dispose: track=screen framesRead=341 framesPublished=329 framesDropped=7
+04:59:57.809 [INFO] [PreviewTap] PublishLoop: track=screen ended (framesPublished=329 framesDropped=7)
+04:59:57.810 [INFO] [PreviewTap] Dispose: track=camera framesRead=345 framesPublished=339 framesDropped=0
+04:59:57.810 [INFO] [PreviewTap] PublishLoop: track=camera ended (framesPublished=339 framesDropped=0)
+
+-- 05:02-05:03 the SAME code with an 8-SECOND stall injected into every frame write --
+   framesRead climbs to 491/495 while only 6 frames are published: the drain never waited.
+05:02:06.117 [INFO] [PreviewTap] TryCreate: track=screen frame=C:\Users\soren\AppData\Local\AgentEyes\preview\screen.jpg
+05:02:06.117 [INFO] [PreviewTap] TryCreate: track=screen ready
+05:02:06.118 [INFO] [PreviewTap] TryCreate: track=camera frame=C:\Users\soren\AppData\Local\AgentEyes\preview\camera.jpg
+05:02:06.119 [INFO] [PreviewTap] TryCreate: track=camera ready
+05:02:06.199 [INFO] [PreviewTap] Pump: track=camera starting
+05:02:06.777 [INFO] [PreviewTap] Pump: track=screen starting
+05:02:06.961 [INFO] [PreviewTap] Drain: track=camera first frame, 995 bytes
+05:02:07.034 [INFO] [PreviewTap] Drain: track=screen first frame, 13906 bytes
+05:02:07.445 [INFO] [PreviewTap] Publishing(screen) -> True
+05:02:07.445 [INFO] [PreviewTap] Publishing(camera) -> True
+05:02:57.113 [INFO] [PreviewTap] Dispose: track=screen framesRead=491 framesPublished=6 framesDropped=478
+05:03:00.125 [WARN] [PreviewTap] Dispose: the screen preview publisher did not finish within 3000ms - it is a background thread and ends with the process. The recording is unaffected: the drain never waited for it.
+05:03:00.125 [INFO] [PreviewTap] Drain: track=screen ended at end of stream (framesRead=491 framesPublished=6 framesDropped=478 oversizeDrops=0)
+05:03:00.126 [INFO] [PreviewTap] Dispose: track=camera framesRead=495 framesPublished=6 framesDropped=481
+05:03:03.138 [WARN] [PreviewTap] Dispose: the camera preview publisher did not finish within 3000ms - it is a background thread and ends with the process. The recording is unaffected: the drain never waited for it.
+05:03:03.139 [INFO] [PreviewTap] Drain: track=camera ended at end of stream (framesRead=495 framesPublished=6 framesDropped=481 oversizeDrops=0)
+05:03:03.622 [INFO] [PreviewTap] PublishLoop: track=camera ended (framesPublished=7 framesDropped=481)
+05:03:03.622 [INFO] [PreviewTap] PublishLoop: track=screen ended (framesPublished=7 framesDropped=478)
+05:03:34.441 [INFO] [PreviewTap] TryCreate: track=screen frame=C:\Users\soren\AppData\Local\AgentEyes\preview\screen.jpg
+05:03:34.441 [INFO] [PreviewTap] TryCreate: track=screen ready
+05:03:34.442 [INFO] [PreviewTap] TryCreate: track=camera frame=C:\Users\soren\AppData\Local\AgentEyes\preview\camera.jpg
+05:03:34.443 [INFO] [PreviewTap] TryCreate: track=camera ready
+05:03:34.530 [INFO] [PreviewTap] Pump: track=camera starting
+05:03:35.150 [INFO] [PreviewTap] Pump: track=screen starting
+05:03:35.301 [INFO] [PreviewTap] Drain: track=camera first frame, 997 bytes
+05:03:35.420 [INFO] [PreviewTap] Drain: track=screen first frame, 13906 bytes
+05:03:35.830 [INFO] [PreviewTap] Publishing(screen) -> True
+05:03:35.830 [INFO] [PreviewTap] Publishing(camera) -> True

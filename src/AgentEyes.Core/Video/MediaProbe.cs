@@ -56,6 +56,51 @@ namespace AgentEyes.Video
             return (output.Contains("video"), output.Contains("audio"));
         }
 
+        /// <summary>
+        /// The first video stream's pixel dimensions. Issue #47 needs both the screen recording's and
+        /// the camera's real size to place the inset, and neither can be assumed: the camera may be
+        /// 4:3 while the screen is 16:9, and a region capture is neither.
+        /// Throws when the file has no readable video stream - there is nothing to compose onto or from.
+        /// </summary>
+        public static (int Width, int Height) VideoSize(string mediaPath)
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = FfmpegLocator.Ffprobe(),
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            foreach (var a in new[]
+            {
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "csv=p=0",
+                mediaPath,
+            })
+            {
+                psi.ArgumentList.Add(a);
+            }
+
+            using var p = Process.Start(psi)!;
+            string output = p.StandardOutput.ReadToEnd().Trim();
+            p.WaitForExit(10000);
+
+            var parts = output.Split(',');
+            if (parts.Length < 2
+                || !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out int w)
+                || !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int h)
+                || w <= 0 || h <= 0)
+            {
+                throw new UsageException(
+                    $"could not read the video size of {mediaPath} (ffprobe said: '{output}'). "
+                    + "A composed video cannot be laid out without it.");
+            }
+            return (w, h);
+        }
+
         /// <summary>Mean loudness in dB via ffmpeg volumedetect; ~-91 dB means digital silence.</summary>
         public static double MeanVolumeDb(string mediaPath)
         {

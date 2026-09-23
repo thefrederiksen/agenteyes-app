@@ -1,0 +1,196 @@
+using System;
+using System.IO;
+using AgentEyes.Preview;
+using AgentEyes.Video;
+
+namespace AgentEyes
+{
+    /// <summary>
+    /// Issue #47: renders the webcam into the screen recording, so the framing a person chose before
+    /// recording actually reaches the video they end up with.
+    ///
+    /// Before this, the shape/corner/inset chosen in the preset editor drove the LIVE PREVIEW and
+    /// was written to manifest.json as edit metadata for "a later edit" (issues #33 and #36). The
+    /// later edit did not exist, so camera.mp4 sat beside recording.mp4 forever and the corner
+    /// setting silently did nothing to the output.
+    ///
+    /// What this does NOT do, and both are load-bearing:
+    ///  - it never rewrites camera.mp4, which stays the full rectangular frame (issue #36, E1), so
+    ///    the framing can be changed and the compose re-run;
+    ///  - it never touches the audio, which is copied through from the screen recording.
+    /// </summary>
+    internal static class CameraCompose
+    {
+        /// <summary>The screen-only video, kept beside the composed one rather than overwritten.</summary>
+        public const string ScreenOnlyFile = "recording.screen.mp4";
+
+        /// <summary>Quality of the composed output.</summary>
+        public const int Crf = 23;
+
+        /// <summary>What a compose attempt did.</summary>
+        public enum Outcome
+        {
+            /// <summary>Composed - recording.mp4 now has the camera in it.</summary>
+            Composed,
+
+            /// <summary>Nothing to do: this recording has no camera track.</summary>
+            NoCamera,
+
+            /// <summary>A camera was recorded but no framing was chosen, so there is no layout to render.</summary>
+            NoFraming,
+        }
+
+        /// <summary>
+        /// Compose the recording in <paramref name="dir"/>.
+        ///
+        /// Returns what it did rather than throwing for the ordinary "this recording has no camera"
+        /// case, so the post-recording sequence can skip quietly while a person typing
+        /// <c>agenteyes compose</c> gets told plainly.
+        /// </summary>
+        public static Outcome Run(string dir)
+        {
+            if (string.IsNullOrWhiteSpace(dir)) throw new ArgumentException("required", nameof(dir));
+            if (!Directory.Exists(dir)) throw new UsageException($"no such recording directory: {dir}");
+
+            Log.Info($"[CameraCompose] Run: dir={dir}");
+
+            var manifest = Manifest.Load(dir);
+
+            if (string.IsNullOrWhiteSpace(manifest.CameraFile))
+            {
+                Log.Info("[CameraCompose] Run: no camera track - nothing to compose");
+                return Outcome.NoCamera;
+            }
+
+            var overlay = FramingOf(manifest);
+            if (overlay == null)
+            {
+                Log.Info("[CameraCompose] Run: no framing recorded - nothing to lay out");
+                return Outcome.NoFraming;
+            }
+
+            // COMPOSE FROM THE SCREEN-ONLY CUT WHENEVER ONE EXISTS (Review Gate round 1, defect 1).
+            // manifest.VideoFile is recording.mp4, which after a first compose is ALREADY composed.
+            // Reading it back in drew the new inset on top of the old one, so changing the framing
+            // and re-running produced a video with two camera circles - the exact operation the
+            // command's own success message invites.
+            string final = Path.Combine(dir, manifest.VideoFile ?? "recording.mp4");
+            string screenOnly = Path.Combine(dir, ScreenOnlyFile);
+            bool recomposing = File.Exists(screenOnly);
+            string screen = recomposing ? screenOnly : final;
+
+            string camera = Path.Combine(dir, manifest.CameraFile!);
+            RequireFile(screen, recomposing ? "the screen-only cut" : "the screen recording");
+            RequireFile(camera, "the camera track");
+
+            var (screenW, screenH) = MediaProbe.VideoSize(screen);
+            var (cameraW, cameraH) = MediaProbe.VideoSize(camera);
+            var composition = CameraComposition.For(screenW, screenH, cameraW, cameraH, overlay);
+
+            Log.Info($"[CameraCompose] Run: screen={screenW}x{screenH} camera={cameraW}x{cameraH} -> {composition}");
+
+            string? mask = null;
+            string composed = Path.Combine(dir, "recording.composed.tmp.mp4");
+            try
+            {
+                if (composition.Circular)
+                {
+                    mask = Path.Combine(dir, "camera.mask.tmp.png");
+                    CircleMask.Write(mask, composition.InsetWidth);
+                }
+
+                Ffmpeg.Run(
+                    ComposeArgs.CameraInset(
+                        screen, camera, mask, composed, composition,
+                        manifest.CameraStartOffsetSeconds ?? 0.0, Crf),
+                    "compose camera inset");
+
+                Swap(final, screenOnly, composed);
+            }
+            finally
+            {
+                // The mask is scaffolding, not an artifact of the recording.
+                if (mask != null && File.Exists(mask)) File.Delete(mask);
+                if (File.Exists(composed)) File.Delete(composed);
+            }
+
+            ManifestStore.Update(dir, m =>
+            {
+                if (!m.Files.Contains(ScreenOnlyFile)) m.Files.Add(ScreenOnlyFile);
+                if (!m.OriginalFiles.Contains(ScreenOnlyFile)) m.OriginalFiles.Add(ScreenOnlyFile);
+                m.ComposedCamera = true;
+            });
+
+            // The stage journal is recorded HERE, not only by the automatic sequence (Review Gate
+            // round 2, defect 1). `agenteyes compose` calls this method directly and bypasses
+            // PostRecording, so a successful CLI compose used to leave the journal saying the
+            // compose had FAILED - or saying nothing at all on an older recording - while the video
+            // was in fact composed. Marking it done from the one place that actually does the work
+            // makes the record true whichever path ran it. Only the outcome is recorded: the attempt
+            // is counted by the automatic sequence before it starts, and counting it again here
+            // would burn the ceiling twice for one attempt.
+            PostRecordingState.NoteDone(dir, PostStage.Compose);
+
+            Log.Info($"[CameraCompose] Run: composed; the screen-only cut is {ScreenOnlyFile}");
+            return Outcome.Composed;
+        }
+
+        /// <summary>
+        /// Put the composed video in place as recording.mp4 and keep the screen-only one beside it.
+        ///
+        /// The screen-only cut is <see cref="ScreenOnlyFile"/> and NOT "recording.original.mp4",
+        /// because that name is already taken: issue #83 uses it for the capture as it was BEFORE
+        /// audio processing. Two different "originals" under one name would make it impossible to say
+        /// which one a directory held.
+        /// </summary>
+        private static void Swap(string final, string screenOnly, string composed)
+        {
+            if (!File.Exists(composed) || new FileInfo(composed).Length == 0)
+                throw new UsageException(
+                    "the compose step produced no output; recording.mp4 has been left untouched");
+
+            // FIRST make sure a screen-only cut exists, and only THEN put the composed file in place.
+            // In this order the screen-only video is on disk before anything is replaced, so an
+            // interruption leaves both the screen-only cut and the old final - never neither.
+            if (!File.Exists(screenOnly)) File.Move(final, screenOnly);
+
+            // ONE operation, not delete-then-move (Review Gate round 2, defect 2). Deleting the final
+            // file and then moving the new one into its place is two filesystem operations with a
+            // window between them, and dying in that window left the recording with NO recording.mp4
+            // at all - which automatic recovery would never rebuild, because ComposedCamera is
+            // already true and NeedsCompose returns false on that flag before it looks at any file.
+            // An overwriting move is a single replace: the name always resolves to one of the two
+            // videos, never to nothing.
+            File.Move(composed, final, overwrite: true);
+        }
+
+        /// <summary>
+        /// The framing this recording was made with, or null when none was recorded.
+        ///
+        /// A rectangle needs no circle, so a missing circle block is only fatal for a circle.
+        /// </summary>
+        private static CameraOverlaySettings? FramingOf(Manifest m)
+        {
+            if (string.IsNullOrWhiteSpace(m.PreviewOverlayCorner)
+                || string.IsNullOrWhiteSpace(m.PreviewOverlayShape))
+            {
+                return null;
+            }
+
+            var overlay = new CameraOverlaySettings
+            {
+                Corner = m.PreviewOverlayCorner!,
+                Shape = m.PreviewOverlayShape!,
+                InsetFraction = m.PreviewOverlayInset ?? CameraOverlaySettings.DefaultInsetFraction,
+                Circle = m.PreviewOverlayCircle?.Clone() ?? new CameraOverlayCircle(),
+            };
+            return overlay.Canonical();
+        }
+
+        private static void RequireFile(string path, string what)
+        {
+            if (!File.Exists(path))
+                throw new UsageException($"{what} is missing: {path}");
+        }
+    }
+}

@@ -1,0 +1,66 @@
+$ErrorActionPreference = 'Stop'
+. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+
+$ARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudPreviewVisible": true,
+  "HudPreviewMode": "both",
+  "HudPreviewCorner": "bottom-right"
+}
+'@
+$UNARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@
+
+function Frames($log) {
+    if (-not (Test-Path $log)) { return -1 }
+    $n = -1
+    foreach ($line in Get-Content $log) { $m = [regex]::Match($line, 'frame=\s*(\d+)'); if ($m.Success) { $n = [Math]::Max($n, [int]$m.Groups[1].Value) } }
+    return $n
+}
+
+function Run60($wantPreview, $label) {
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        StartApp $(if ($wantPreview) { $ARMED } else { $UNARMED }) $false
+        $s0 = Status
+        if ($s0.PreviewArmed -ne $wantPreview) {
+            Write-Output ("  [attempt $attempt] BROKEN INSTRUMENT: PreviewArmed=" + $s0.PreviewArmed + " but the config asked for " + $wantPreview + " - the app did not read the config. Retrying.")
+            continue
+        }
+        StartChurn 1 110
+        Rec
+        Start-Sleep -Seconds 6
+        if ((Status).State -ne 'recording') {
+            Write-Output ("  [attempt $attempt] BROKEN INSTRUMENT: the recording did not start (state=" + (Status).State + "). Retrying.")
+            continue
+        }
+        while ((Status).ElapsedSeconds -lt 62) { Start-Sleep -Seconds 2 }
+        StopRec
+        Start-Sleep -Seconds 30
+        $dir = NewestDir
+        $rawlog = Join-Path $dir 'raw.mp4.ffmpeg.log'
+        $ds = Dur (Join-Path $dir 'recording.mp4'); $dc = Dur (Join-Path $dir 'camera.mp4')
+        Write-Output ("  {0,-14} screenDrops={1,-4} cameraDrops={2,-4} deliveredFrames={3,-6} screenDur={4,-8} cameraDur={5,-8} delta={6:N3}  {7}" -f `
+            $label, (Drops $rawlog), (Drops (Join-Path $dir 'camera.mp4.ffmpeg.log')), (Frames $rawlog), [Math]::Round($ds,3), [Math]::Round($dc,3), [Math]::Abs($ds - $dc), (Split-Path $dir -Leaf))
+        Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+        Start-Sleep -Seconds 2
+        return
+    }
+    Write-Output "  $label : GAVE UP after 3 attempts - a broken instrument, NOT a clean run"
+}
+
+Write-Output "==== AC9 bounded cost - the preview arm (control-1 is in ac-p5a.txt) ===="
+Write-Output ("dll sha256: " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+Run60 $true  'preview-1'
+Write-Output "==== end ===="

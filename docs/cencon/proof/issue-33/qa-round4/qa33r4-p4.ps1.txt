@@ -1,0 +1,76 @@
+$ErrorActionPreference = 'Stop'
+. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+$LOG = "C:\Users\soren\AppData\Local\AgentEyes\logs\AgentEyes-" + (Get-Date -Format 'yyyyMMdd') + ".log"
+
+$ARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudPreviewVisible": true,
+  "HudPreviewMode": "both",
+  "HudPreviewCorner": "bottom-right"
+}
+'@
+$UNARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@
+
+Write-Output "==== PART 4: AC10 (a preview failure must never harm the recording) ===="
+Write-Output ("dll sha256: " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+StartApp $ARMED $false
+StartChurn 1 120
+Rec
+Start-Sleep -Seconds 12
+$mark = (Get-Content $LOG | Measure-Object -Line).Lines
+$pre = Status
+Write-Output ("  before the kill: state=" + $pre.State + " elapsed=" + $pre.ElapsedSeconds + " framesRead=" + $pre.PreviewScreenFramesRead + "/" + $pre.PreviewCameraFramesRead + " PreviewFailed=" + $pre.PreviewFailed)
+Write-Output ("  KILL: deleting " + $PREVIEW)
+try { Remove-Item $PREVIEW -Recurse -Force; Write-Output "  KILL: deleted" } catch { Write-Output ("  KILL delete failed: " + $_.Exception.Message) }
+for ($i = 1; $i -le 6; $i++) {
+    Start-Sleep -Seconds 2
+    $s = Status
+    Write-Output ("    +" + ($i * 2) + "s state=" + $s.State + " elapsed=" + $s.ElapsedSeconds + " framesRead=" + $s.PreviewScreenFramesRead + "/" + $s.PreviewCameraFramesRead + " PreviewFailed=" + $s.PreviewFailed)
+}
+Write-Output "  the panel's own message, read from the HUD by UI Automation:"
+& powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action tree | Where-Object { $_ -match 'preview message|preview status|Image' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+Write-Output "  new WARNING lines in the app log since the kill:"
+Get-Content $LOG | Select-Object -Skip $mark | Where-Object { $_ -match 'WARN|preview' } | Select-Object -First 25 | ForEach-Object { Write-Output ("    " + $_.Substring(0, [Math]::Min(190, $_.Length))) }
+# let it run to a full minute so "the recording continues to FULL LENGTH" is measurable
+while ((Status).ElapsedSeconds -lt 62) { Start-Sleep -Seconds 2 }
+$final = Status
+Write-Output ("  stopping at elapsed=" + $final.ElapsedSeconds + " (target 62s - the recording ran on past the preview's death)")
+StopRec
+Start-Sleep -Seconds 30
+$dir = NewestDir
+ReportRecording $dir "AC10 preview killed mid-recording"
+
+Write-Output ""
+Write-Output "==== AC11: with the preview NEVER enabled the recording is unchanged in shape ===="
+StartApp $UNARMED $false
+StartChurn 1 45
+$s0 = Status
+Write-Output ("  status before: PreviewArmed=" + $s0.PreviewArmed + " PreviewAvailable=" + $s0.PreviewAvailable)
+Rec
+Start-Sleep -Seconds 6
+Write-Output ("  HUD: " + (Hud rect) + "   (EXPECT the pill - no preview panel)")
+FfmpegInventory | Out-Null
+Start-Sleep -Seconds 20
+StopRec
+Start-Sleep -Seconds 30
+$dir2 = NewestDir
+ReportRecording $dir2 "AC11 control (preview never enabled)"
+Write-Output "  manifest key-set difference, armed vs unarmed:"
+$k1 = (Get-Content (Join-Path $dir 'manifest.json')) | ForEach-Object { ($_ -replace '^\s*"([^"]+)".*', '$1') } | Where-Object { $_ -notmatch '[{}\[\]]' }
+$k2 = (Get-Content (Join-Path $dir2 'manifest.json')) | ForEach-Object { ($_ -replace '^\s*"([^"]+)".*', '$1') } | Where-Object { $_ -notmatch '[{}\[\]]' }
+Compare-Object $k1 $k2 | ForEach-Object { Write-Output ("    " + $_.SideIndicator + " " + $_.InputObject) }
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end part 4 ===="

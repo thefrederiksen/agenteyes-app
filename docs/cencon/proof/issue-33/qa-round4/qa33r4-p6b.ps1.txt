@@ -1,0 +1,112 @@
+$ErrorActionPreference = 'Stop'
+. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+$OUT = "$SP\ac-proof"
+New-Item -ItemType Directory -Force $OUT | Out-Null
+
+Add-Type -AssemblyName System.Drawing
+Add-Type @'
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+public static class Shot {
+  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
+  // PrintWindow captures a window WITHOUT bringing it to the foreground.
+  public static string Grab(IntPtr h, string path) {
+    RECT r; GetWindowRect(h, out r);
+    int w = r.R - r.L, ht = r.B - r.T;
+    using (var bmp = new Bitmap(w, ht, PixelFormat.Format32bppArgb))
+    using (var g = Graphics.FromImage(bmp)) {
+      IntPtr dc = g.GetHdc();
+      PrintWindow(h, dc, 2);
+      g.ReleaseHdc(dc);
+      bmp.Save(path, ImageFormat.Png);
+    }
+    return path + " " + w + "x" + ht;
+  }
+}
+'@ -ReferencedAssemblies System.Drawing
+
+$ARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudPreviewVisible": true,
+  "HudPreviewMode": "both",
+  "HudPreviewCorner": "bottom-right"
+}
+'@
+$UNARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801"
+}
+'@
+
+function HudHandle() {
+    Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+    $A = [System.Windows.Automation.AutomationElement]
+    $c1 = New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, 'Recording HUD')
+    $c2 = New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
+    $cond = New-Object System.Windows.Automation.AndCondition($c1, $c2)
+    for ($i = 0; $i -lt 30; $i++) {
+        $w = $A::RootElement.FindFirst('Children', $cond)
+        if ($w) { return [IntPtr]$w.Current.NativeWindowHandle }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'HUD not found'
+}
+
+function Frames($log) {
+    if (-not (Test-Path $log)) { return -1 }
+    $n = -1
+    foreach ($line in Get-Content $log) { $m = [regex]::Match($line, 'frame=\s*(\d+)'); if ($m.Success) { $n = [Math]::Max($n, [int]$m.Groups[1].Value) } }
+    return $n
+}
+
+function Run60($armed, $label) {
+    StartApp $(if ($armed) { $ARMED } else { $UNARMED }) $false
+    StartChurn 1 110
+    Rec
+    while ((Status).ElapsedSeconds -lt 62) { Start-Sleep -Seconds 2 }
+    StopRec
+    Start-Sleep -Seconds 30
+    $dir = NewestDir
+    $rawlog = Join-Path $dir 'raw.mp4.ffmpeg.log'
+    $ds = Dur (Join-Path $dir 'recording.mp4'); $dc = Dur (Join-Path $dir 'camera.mp4')
+    Write-Output ("  {0,-14} screenDrops={1,-4} cameraDrops={2,-4} deliveredFrames={3,-6} screenDur={4,-8} cameraDur={5,-8} delta={6:N3}  {7}" -f `
+        $label, (Drops $rawlog), (Drops (Join-Path $dir 'camera.mp4.ffmpeg.log')), (Frames $rawlog), [Math]::Round($ds,3), [Math]::Round($dc,3), [Math]::Abs($ds - $dc), (Split-Path $dir -Leaf))
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 2
+}
+
+Write-Output ("dll sha256: " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+Write-Output "==== PART 6b: AC10 - the panel must show a READABLE ERROR, not a frozen last frame ===="
+Write-Output "  (MQS_HUD_CAPTURABLE=1 only so the HUD can be photographed; the capture-exclusion"
+Write-Output "   itself is proved separately in the AC6 run, which has it ON)"
+StartApp $ARMED $true
+StartChurn 1 60
+Rec
+Start-Sleep -Seconds 12
+$h = HudHandle
+Write-Output ("  before the kill: " + (Hud rect))
+Write-Output ("  " + [Shot]::Grab($h, "$OUT\ac10-before-kill.png"))
+Remove-Item $PREVIEW -Recurse -Force
+Write-Output "  preview directory deleted"
+Start-Sleep -Seconds 6
+$s = Status
+Write-Output ("  after the kill: state=" + $s.State + " elapsed=" + $s.ElapsedSeconds + " PreviewFailed=" + $s.PreviewFailed + " framesRead=" + $s.PreviewScreenFramesRead + "/" + $s.PreviewCameraFramesRead)
+Write-Output ("  " + [Shot]::Grab($h, "$OUT\ac10-after-kill.png"))
+StopRec
+Start-Sleep -Seconds 25
+ReportRecording (NewestDir) "AC10 message run"
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end part 6 ===="

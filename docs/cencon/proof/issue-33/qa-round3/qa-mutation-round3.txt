@@ -1,0 +1,25 @@
+Q1 the HUD stops seeding its memory from the config (nothing survives a stop)  Failed!  - Failed:     1, Passed:  1050, Skipped:     0, Total:  1051, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+Q2 the panel re-opens from the config, not the memory (the pre-fix read)       Passed!  - Failed:     0, Passed:  1051, Skipped:     0, Total:  1051, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+Q3 the call site always claims manually-sized (THE ROUND-2 SHIPPED DEFECT)     Failed!  - Failed:     2, Passed:  1049, Skipped:     0, Total:  1051, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+Q4 the call site always claims auto-sized (nothing is ever remembered)         Failed!  - Failed:     3, Passed:  1048, Skipped:     0, Total:  1051, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+Q5 the panel-visible gate always says visible (the pill can become the panel s Passed!  - Failed:     0, Passed:  1051, Skipped:     0, Total:  1051, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+Q6 the transition is never entered (OpenPanel does not arm the settling state) Failed!  - Failed:     6, Passed:  1045, Skipped:     0, Total:  1051, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+Q7 Observe ignores the transition (round 2's defect rebuilt inside the new des Failed!  - Failed:     5, Passed:  1046, Skipped:     0, Total:  1051, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+
+======================================================================================================================
+FIRED  Q1 the HUD stops seeding its memory from the config (nothing survives a stop)
+       Failed!  - Failed:     1, Passed:  1050, Skipped:     0, Total:  1051, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+SILENT Q2 the panel re-opens from the config, not the memory (the pre-fix read)
+       Passed!  - Failed:     0, Passed:  1051, Skipped:     0, Total:  1051, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+FIRED  Q3 the call site always claims manually-sized (THE ROUND-2 SHIPPED DEFECT)
+       Failed!  - Failed:     2, Passed:  1049, Skipped:     0, Total:  1051, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+FIRED  Q4 the call site always claims auto-sized (nothing is ever remembered)
+       Failed!  - Failed:     3, Passed:  1048, Skipped:     0, Total:  1051, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+SILENT Q5 the panel-visible gate always says visible (the pill can become the panel size)
+       Passed!  - Failed:     0, Passed:  1051, Skipped:     0, Total:  1051, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+FIRED  Q6 the transition is never entered (OpenPanel does not arm the settling state)
+       Failed!  - Failed:     6, Passed:  1045, Skipped:     0, Total:  1051, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+FIRED  Q7 Observe ignores the transition (round 2's defect rebuilt inside the new design)
+       Failed!  - Failed:     5, Passed:  1046, Skipped:     0, Total:  1051, Duration: 5 s - AgentEyes.Tests.dll (net8.0)
+
+5 of 7 FIRED

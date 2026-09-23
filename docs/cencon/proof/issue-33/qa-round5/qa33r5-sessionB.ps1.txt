@@ -1,0 +1,126 @@
+$ErrorActionPreference = 'Continue'
+$SP  = "<QA-SCRATCH>"
+$EXE = "D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$CFG = "$env:LOCALAPPDATA\AgentEyes\config.json"
+$SEED = "$SP\backup\config.json"
+$VIDEOS = "$env:USERPROFILE\Videos\AgentEyes"
+$CHURN = "$SP\churn5\bin\Release\net8.0-windows\qachurn5.exe"
+$OUT = "$SP\img"
+New-Item -ItemType Directory -Force $OUT | Out-Null
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a } }
+function Main($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a } }
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 20 }
+function Rec() { Main click 'REC' | Out-Null; Start-Sleep -Seconds 8 }
+function StopRec() { Hud click 'HUD stop' | Out-Null; Start-Sleep -Seconds 6 }
+function Cfg() { $j = Get-Content $CFG -Raw | ConvertFrom-Json; "Left=$($j.HudLeft) Top=$($j.HudTop) Width=$($j.HudWidth) Height=$($j.HudHeight) Visible=$($j.HudPreviewVisible) Mode=$($j.HudPreviewMode) Corner=$($j.HudPreviewCorner)" }
+function Line($s) { Write-Output ("`n===== " + $s + " =====") }
+function Restart($reseed) {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+    if ($reseed) { Copy-Item $SEED $CFG -Force }
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+    Start-Sleep -Seconds 3
+}
+function Sha($p) { if (-not (Test-Path $p)) { return '(missing)' }; try { $b=[IO.File]::ReadAllBytes($p) } catch { return '(locked)' }; ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($b)) -replace '-','').Substring(0,16) + " len=" + $b.Length }
+function NewestDir() { (Get-ChildItem $VIDEOS -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
+function Drops($log) { if (-not (Test-Path $log)) { return -1 }; $n=-1; foreach ($l in Get-Content $log) { $m=[regex]::Match($l,'drop=\s*(\d+)'); if ($m.Success) { $n=[Math]::Max($n,[int]$m.Groups[1].Value) } }; return $n }
+
+Line "C0. restart clean on the seed config"
+Restart $true
+Write-Output ("seed: " + (Cfg))
+
+Line "C1. MAXIMISE via WM_SYSCOMMAND SC_MAXIMIZE - the Review Gate's own measurement, against the real HUD"
+Rec
+Hud rect
+Hud maximise2
+Hud image
+StopRec
+Write-Output ("config after the maximise: " + (Cfg))
+Write-Output "  -- a NEW recording must open at the maximised size --"
+Rec
+Hud rect
+Hud image
+StopRec
+Write-Output ("config after that recording: " + (Cfg))
+
+Line "C2. reseed, then AERO SNAP's message shape against the real HUD"
+Restart $true
+Rec
+Hud rect
+Hud snapmsg '960,700'
+StopRec
+Write-Output ("config after the snap-shaped loop: " + (Cfg))
+Write-Output "  -- a NEW recording must open at that size --"
+Rec
+Hud rect
+StopRec
+
+Line "C3. reseed, then the SAME message shape with NO size change - a plain drag records nothing"
+Restart $true
+Rec
+Hud rect
+Hud movemsg
+StopRec
+Write-Output ("config after a move-shaped loop: " + (Cfg) + "   (Width/Height must be empty)")
+
+Line "C4. reseed, then a REAL sizing-border drag (SC_SIZE modal loop, real WM_SIZING)"
+Restart $true
+Rec
+Hud rect
+Hud borderdrag '40'
+StopRec
+Write-Output ("config after a real border drag: " + (Cfg))
+
+Line "C5. reseed. AC2 liveness with a churn window, AC4 corners, AC5 manifest, AC8 mid-recording toggling"
+Restart $true
+Start-Process -FilePath $CHURN -ArgumentList "1 200" -WindowStyle Hidden
+Start-Sleep -Seconds 3
+Rec
+$st = Status
+$sf = $st.PreviewScreenFrame; $cf = $st.PreviewCameraFrame
+$a = Status; $s1 = Sha $sf; $c1 = Sha $cf
+Copy-Item $sf "$OUT\ac2-screen-t0.jpg" -ErrorAction SilentlyContinue
+Copy-Item $cf "$OUT\ac3-camera-t0.jpg" -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 3
+$b = Status; $s2 = Sha $sf; $c2 = Sha $cf
+Copy-Item $sf "$OUT\ac2-screen-t3.jpg" -ErrorAction SilentlyContinue
+Copy-Item $cf "$OUT\ac3-camera-t3.jpg" -ErrorAction SilentlyContinue
+Write-Output ("  AC2 screen t0=" + $s1 + "  t+3=" + $s2 + "  DIFFER=" + ($s1 -ne $s2))
+Write-Output ("  AC3 camera t0=" + $c1 + "  t+3=" + $c2 + "  DIFFER=" + ($c1 -ne $c2))
+Write-Output ("  framesRead screen " + $a.PreviewScreenFramesRead + "->" + $b.PreviewScreenFramesRead + " camera " + $a.PreviewCameraFramesRead + "->" + $b.PreviewCameraFramesRead)
+Write-Output "  -- AC4: the four corners, each a distinct inset rect --"
+foreach ($c in @('top-left','top-right','bottom-left','bottom-right')) {
+    Hud click "Preview corner $c" | Out-Null
+    Start-Sleep -Milliseconds 800
+    $imgs = & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action tree | Where-Object { $_ -match '\[Image\]' }
+    Write-Output ("    corner '$c' -> /status=" + (Status).PreviewOverlayCorner)
+    $imgs | ForEach-Object { Write-Output ("      " + $_.Trim()) }
+}
+Write-Output "  -- AC8: modes and the toggle, all mid-recording --"
+foreach ($m in @('screen','camera','both')) { Hud click "Preview mode $m" | Out-Null; Start-Sleep -Milliseconds 700; Write-Output ("    mode '$m' -> publishing=" + (Status).PreviewPublishing) }
+$before = Status
+Hud click 'Show preview' | Out-Null      # hides it
+Start-Sleep -Seconds 3
+$hidden = Status
+Write-Output ("    preview HIDDEN: publishing=" + $hidden.PreviewPublishing + " framesRead " + $before.PreviewScreenFramesRead + "->" + $hidden.PreviewScreenFramesRead + " (the drain must keep climbing)")
+Write-Output ("    the published frame file is gone? " + (-not (Test-Path $sf)))
+Start-Sleep -Seconds 3
+$hidden2 = Status
+Write-Output ("    STILL DRAINING while hidden: framesRead " + $hidden.PreviewScreenFramesRead + " -> " + $hidden2.PreviewScreenFramesRead)
+Hud click 'Show preview' | Out-Null      # shows it again
+Start-Sleep -Seconds 2
+Write-Output ("    preview SHOWN again: publishing=" + (Status).PreviewPublishing + " frame file back? " + (Test-Path $sf))
+Hud click 'Preview corner bottom-left' | Out-Null
+Start-Sleep -Seconds 8
+Hud rect
+StopRec
+$d = NewestDir
+Write-Output ("  recording: " + $d)
+Get-ChildItem $d -File | ForEach-Object { Write-Output ("    " + $_.Name + " " + $_.Length) }
+Get-Content (Join-Path $d 'manifest.json') | Where-Object { $_ -match 'CameraComplete|CameraStopKind|DurationSeconds|PreviewOverlayCorner|CameraCaptured' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+Write-Output ("    ffmpeg drops raw=" + (Drops (Join-Path $d 'raw.mp4.ffmpeg.log')) + " camera=" + (Drops (Join-Path $d 'camera.mp4.ffmpeg.log')))
+Write-Output ("  config after: " + (Cfg))
+
+Line "DONE session B"

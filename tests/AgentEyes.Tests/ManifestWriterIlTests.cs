@@ -140,22 +140,76 @@ namespace AgentEyes.Tests
         private static readonly string[] PinnedFileWrites =
         {
             "AgentEyesApp.dll!AgentEyes.App.App::Log -> System.IO.File::WriteAllText x1",                    // AgentEyes-crash.log
-            "AgentEyesApp.dll!AgentEyes.App.Config::Save -> System.IO.File::WriteAllText x1",                // the app's config.json
+            "AgentEyesApp.dll!AgentEyes.App.BackgroundFileWriter::WriteToDisk -> System.IO.File::WriteAllText x1", // whatever file a background writer owns; today only config.json (issue #33)
+            "AgentEyesApp.dll!AgentEyes.App.Config::WriteJson -> System.IO.File::WriteAllText x1",           // the app's config.json - the ONE writer, shared by the blocking save and the background one
             "AgentEyesApp.dll!AgentEyes.App.Plugins::RunOne -> System.IO.File::WriteAllText x1",             // one plugin run's log
             "AgentEyesApp.dll!AgentEyes.App.Plugins::SaveSettings -> System.IO.File::WriteAllText x1",       // one plugin's settings file
             "AgentEyesApp.dll!AgentEyes.App.PresetStore::Save -> System.IO.File::WriteAllText x1",           // presets.json
             "AgentEyesApp.dll!AgentEyes.App.TestPanel::Transcribe -> System.IO.File::Delete x1",             // its own temporary wav
             "AgentEyesApp.dll!AgentEyes.App.TestReport::Save -> System.IO.File::WriteAllText x1",            // the test panel's report
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnDay::Save -> System.IO.File::WriteAllText x1",          // always-on today.json (issue #66)
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Delete x1", // an always-on clip over the cap - only the renamed file that still matches the ledger
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Move x2",   // the clip renamed aside for the check, and back when it does not match
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RestoreEvictHolds -> System.IO.File::Move x1", // a clip left mid-eviction by a crash, back under its name
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::AppendAllText x1",  // the clip ledger, work\clips.txt
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Delete x1",         // a half-written clip after a failed join
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Move x1",           // an unreadable kept piece, set aside in work\unreadable
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::WriteAllText x1",   // the concat list for the join
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::Recover -> System.IO.File::Delete x1",          // a loose piece left by an earlier run
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Delete x1",        // a silent piece
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Move x1",          // a kept piece into its clip's holding folder
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::Move x1",        // the pruned clip ledger, renamed into place
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::WriteAllLines x1", // ...written to a temp first
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Create x1",               // bd.rnnn extracted to a temp
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Move x1",                 // ...then renamed into place
             "agenteyes.dll!AgentEyes.CaptureService::Delete -> System.IO.File::Delete x1",                   // a capture the user deleted
             "agenteyes.dll!AgentEyes.Commands::Audio -> System.IO.File::Move x1",                            // audio.original.wav backup
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Clear -> System.IO.File::Delete x1",    // the stored dt_ key
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Save -> System.IO.File::WriteAllBytes x1", // the DPAPI-protected dt_ key
+            // Issues #55, #56, the Housekeeper. Every delete here is of a file the pure planner named -
+            // a derived intermediate, or a preserved original past its window, or a source whose
+            // transcode has just been verified against it. The FileStream pair is one log rewritten to
+            // its tail. None of them can reach a file the planner did not put in the plan.
+            // Tier 2 (issues #55, #56). Image::Save is the in-process JPEG encode - a separate ffmpeg
+            // per frame managed two frames a second, almost all of it process start-up. The encode is
+            // ATOMIC: Image::Save streams to a temporary name and only a complete file is renamed onto
+            // the final one (EncodeJpeg's File::Move), so a pass killed mid-encode leaves no truncated
+            // JPEG for a later pass to trust on size alone - the hole the review proved live. Run's
+            // single Delete is a JPEG that came out no smaller than its PNG; TryDelete removes a PNG
+            // once its reference has been repointed, a failed conversion's partial output, and encode
+            // debris at the temporary name. UpdateWalkthrough writes walkthrough.html - a path-for-path
+            // substitution through a temporary file and a rename, never an HTML edit. The PNG deletes
+            // come LAST, after the manifest and the page already point at the JPEGs, because the other
+            // order left 268 dangling references in a real recording when a run was stopped part way
+            // through.
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::EncodeJpeg -> System.Drawing.Image::Save x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::EncodeJpeg -> System.IO.File::Move x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::Run -> System.IO.File::Delete x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::TryDelete -> System.IO.File::Delete x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateWalkthrough -> System.IO.File::Move x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateWalkthrough -> System.IO.File::WriteAllText x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> System.IO.File::Delete x3",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> System.IO.File::Delete x1",             // the expired recording's files, after page and manifest
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> System.IO.File::Move x1",                 // the retired page, moved atomically onto the old one
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> System.IO.File::WriteAllText x1",         // the retired page, written to a temp first (issue #59)
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyTranscode -> System.IO.File::Delete x1",
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::TruncateToTail -> System.IO.FileStream::.ctor x2",
+            "agenteyes.dll!AgentEyes.Video.VideoFrame::ExtractJpeg -> System.IO.File::Delete x1",                      // the on-demand frame's temp file (issue #59), deleted in a finally
+            "agenteyes.dll!AgentEyes.Housekeeping.PreservedAudioTranscode::TryDeletePartial -> System.IO.File::Delete x1",
             "agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1",                        // the app log
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Delete x1",               // THE manifest path: temp cleanup after a failed rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Move x1",                 // THE manifest path: the atomic rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.FileStream::.ctor x1",          // THE manifest path: the flushed temp
+            // Issue #47, composing the camera into the final video. None of these touches camera.mp4,
+            // which stays the untouched full frame; they move the composed result into place and
+            // clear the scaffolding (the temp output and the circle mask).
+            "agenteyes.dll!AgentEyes.CameraCompose::Run -> System.IO.File::Delete x2",                       // the circle mask and the temp compose output
+            // Swap has NO File::Delete on purpose (Review Gate round 2, defect 2): deleting the final
+            // file and then moving the new one in was two operations, and dying between them left the
+            // recording with no recording.mp4 that recovery would ever rebuild. Two Moves: the
+            // screen-only cut preserved, then ONE overwriting move that replaces the final file.
+            "agenteyes.dll!AgentEyes.CameraCompose::Swap -> System.IO.File::Move x2",                        // screen-only preserved, then an atomic replace
+            "agenteyes.dll!AgentEyes.Video.CircleMask::Write -> System.Drawing.Image::Save x1",              // the circular alpha mask (temp, deleted after the compose)
             "agenteyes.dll!AgentEyes.OriginalBackup::Preserve -> System.IO.File::Move x1",                   // the .original audio backup
             "agenteyes.dll!AgentEyes.Package::RunAsync -> System.IO.File::WriteAllText x1",                  // walkthrough.html
             "agenteyes.dll!AgentEyes.Package::WriteTranscript -> System.IO.File::WriteAllText x2",           // transcript.json, transcript.<lang>.vtt
@@ -165,11 +219,26 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::CopyDir -> System.IO.File::Copy x1",             // installing a plugin's files
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::InstallZip -> System.IO.Compression.ZipFileExtensions::ExtractToDirectory x1", // a plugin zip unpacked into its folder
             "agenteyes.dll!AgentEyes.Plugins.PluginPackage::Remove -> System.IO.File::Delete x1",            // a removed plugin's settings
+            // The HUD live preview (issue #33). Every one of these four is in %LOCALAPPDATA%\AgentEyes\
+            // preview and NONE of them is inside a recording directory - which is the property that
+            // matters to this inventory: a preview frame is a monitor overwritten ten times a second,
+            // and it must never become a file the Library, the repair passes or packaging can find.
+            //
+            // WHICH THREAD, which is the property Review Gate round 2 on PR #39 was about: all four
+            // are on a thread a recording is NOT waiting on. The two writes are the publisher's; the
+            // deletes are the chores worker's, and they moved there FROM PreviewTap::TryCreateAt (the
+            // thread that starts a recording) and PreviewTap::RemoveFrameFile (the thread that stops
+            // one), where a path that never answers could hold the recording's start or stop open.
+            "agenteyes.dll!AgentEyes.Preview.PreviewFrameFile::TryRead -> System.IO.FileStream::.ctor x1",   // READS a published preview frame (FileAccess.Read; the ctor is on the write list, this use is not a write)
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::WriteFrameToDisk -> System.IO.File::Move x1",       // preview\<track>.jpg: the rename that publishes a whole frame (publisher thread only)
+            "agenteyes.dll!AgentEyes.Preview.PreviewTap::WriteFrameToDisk -> System.IO.File::WriteAllBytes x1", // preview\<track>.jpg.tmp: the frame, before that rename (publisher thread only)
+            "agenteyes.dll!AgentEyes.Preview.PreviewChores::DoRemove -> System.IO.File::Delete x2",         // the published frame and its temp, when the preview is hidden, the recording ends, or the next one starts
             "agenteyes.dll!AgentEyes.Screenshot::CaptureRect -> System.Drawing.Image::Save x1",              // a screenshot / marker-shot PNG
             "agenteyes.dll!AgentEyes.SelfTest::RunChecks -> System.IO.File::Copy x1",                      // audio.wav of the throwaway self-test recording
             "agenteyes.dll!AgentEyes.SelfTest::WriteReport -> System.IO.File::WriteAllText x1",              // selftest-report.html
             "agenteyes.dll!AgentEyes.Transcription.DictionaryStore::Save -> System.IO.File::WriteAllText x1",// the transcription dictionary
             "agenteyes.dll!AgentEyes.Translator::WriteTranslatedVtt -> System.IO.File::WriteAllText x1",     // transcript.<lang>.vtt
+            "agenteyes.dll!AgentEyes.Video.FfmpegCameraRecorder::WriteFfmpegLog -> System.IO.File::WriteAllText x1",   // the camera ffmpeg stderr log (issue #28; the FAILED-open path deliberately writes nothing into the recording directory)
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Start -> System.IO.File::WriteAllText x1",        // the ffmpeg stderr log of a failed start
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Stop -> System.IO.File::WriteAllText x1",         // the ffmpeg stderr log
             "agenteyes.dll!AgentEyes.VideoImport::RunAsync -> System.IO.File::Copy x1",                      // the imported video file
@@ -190,9 +259,15 @@ namespace AgentEyes.Tests
         {
             "AgentEyesApp.dll!AgentEyes.App.MainWindow::RenameRecording_Click -> AgentEyes.ManifestStore::Update x1",   // the Library rename sets DisplayName
             "AgentEyesApp.dll!AgentEyes.App.RecordingDetailWindow::CommitRename -> AgentEyes.ManifestStore::Update x1", // the detail-window rename
+            "agenteyes.dll!AgentEyes.CameraCompose::Run -> AgentEyes.ManifestStore::Update x1",            // issue #47: the composed-camera flag and the screen-only cut
             "agenteyes.dll!AgentEyes.Commands::Audio -> AgentEyes.ManifestStore::Replace x1",                  // a CLI audio session's own record
             "agenteyes.dll!AgentEyes.Commands::Shot -> AgentEyes.ManifestStore::Replace x1",                   // a CLI screenshot's own record
             "agenteyes.dll!AgentEyes.Commands::Video -> AgentEyes.ManifestStore::Replace x1",                  // a CLI video session's own record
+            "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateManifest -> AgentEyes.ManifestStore::Update x1", // converted frames are repointed in Shots and Files
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> AgentEyes.ManifestStore::Update x2",           // a deleted preserved original or composition input is struck from the manifest
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> AgentEyes.ManifestStore::Update x2",      // an expired recording records its intent, then clears it once the deletes are done (issue #59)
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyTranscode -> AgentEyes.ManifestStore::Update x1",  // a transcoded original is renamed in place
+            "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Record -> AgentEyes.ManifestStore::Update x1",           // the issue #56 housekeeping record
             "agenteyes.dll!AgentEyes.Package::FinalizeManifest -> AgentEyes.ManifestStore::Update x1",         // what packaging produced
             "agenteyes.dll!AgentEyes.Package::PrepareBareVideo -> AgentEyes.ManifestStore::Replace x1",        // a synthesized bare-video manifest
             "agenteyes.dll!AgentEyes.Packaging.TitleBackfill::Apply -> AgentEyes.ManifestStore::Update x1",    // the generated title, and the AI cost ADDED to the total
@@ -219,9 +294,13 @@ namespace AgentEyes.Tests
         private static readonly string[] PinnedNativeImports =
         {
             "dwmapi.dll!DwmSetWindowAttribute",     // dark title bar on the main window
+            "kernel32.dll!AssignProcessToJobObject", // always-on ffmpeg into its kill-on-close job (no file access)
+            "kernel32.dll!CreateJobObject",          // the kill-on-close job object (no file access)
             "kernel32.dll!GetModuleHandle",         // module handle for the keyboard hook
+            "kernel32.dll!SetInformationJobObject", // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (no file access)
             "shell32.dll!SHGetKnownFolderPath",     // the user's Videos folder
             "user32.dll!CallNextHookEx",            // the low-level keyboard hook chain
+            "user32.dll!DestroyIcon",               // frees the composed always-on tray icon's handle (no file access)
             "user32.dll!GetAsyncKeyState",
             "user32.dll!GetWindowLong",             // monitor-highlight overlay style
             "user32.dll!GetWindowLongPtr",          // HUD window style

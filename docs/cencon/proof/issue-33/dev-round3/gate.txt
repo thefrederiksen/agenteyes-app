@@ -1,0 +1,7 @@
+Build succeeded.
+    4 Warning(s)
+    0 Error(s)
+Test run for D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:  1135, Skipped:     0, Total:  1135, Duration: 10 s - AgentEyes.Tests.dll (net8.0)

@@ -1,0 +1,39 @@
+QA round 5 gate - issue #33, PR #39, branch issue-33-hud-live-preview at e2bdd60 (rebased onto main e57d828)
+Isolated worktree D:\ReposFred\agenteyes-qa33-r5, detached at e2bdd60, bin\x64\Release (never bin\Release).
+
+git status --short:
+?? docs/cencon/proof/issue-33/qa-round5/
+(empty above = the tree is byte-clean)
+
+$ dotnet build AgentEyes.sln -c Release --no-restore --no-incremental
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+
+Build succeeded.
+
+D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(482,30): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(493,29): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+    4 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.94
+
+$ dotnet test AgentEyes.sln -c Release --no-build --no-restore
+Test run for D:\ReposFred\agenteyes-qa33-r5\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:  1117, Skipped:     0, Total:  1117, Duration: 12 s - AgentEyes.Tests.dll (net8.0)
+
+binaries under test:
+
+
+Hash : 24E786E1C0DFA2AB149860F71EB721B36CA4FA62BAE229A4ED051A8BD20B4449
+Path : D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+
+Hash : 0FA55157A19DE5FAFCB5E62D3C5DF0A6478D4F964AB0E9535B636D6C7346CDFB
+Path : D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+
+
+
+

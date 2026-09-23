@@ -1,0 +1,44 @@
+# The known-bad mutations for issue #33 round 7, exactly as they were run.
+#
+# It edits ONLY src/AgentEyes.App/HudPreviewSizing.cs, never a test, so what changes between the
+# arms is the production behaviour and not the instrument. Run from the repo root with the fixed
+# file kept aside first:
+#
+#   cp src/AgentEyes.App/HudPreviewSizing.cs ../HudPreviewSizing.cs.keep
+#   python mutate.py both      # the code QA round 6 failed: 4 FAIL / 19 pass
+#   python mutate.py noguard   # yardstick retired, teardown not idempotent: 2 FAIL / 21 pass
+#   python mutate.py noclear   # idempotent teardown, stale yardstick:       1 FAIL / 22 pass
+#   cp ../HudPreviewSizing.cs.keep src/AgentEyes.App/HudPreviewSizing.cs    # the fix: 0 FAIL / 23
+#
+# and after each one:
+#   dotnet build AgentEyes.sln -c Release
+#   dotnet test  AgentEyes.sln -c Release --filter "FullyQualifiedName~HudPreviewSizingOrderTests"
+
+import io, sys
+
+PRISTINE = '../HudPreviewSizing.cs.keep'   # the fixed file, kept outside the tree
+TARGET   = 'src/AgentEyes.App/HudPreviewSizing.cs'
+
+GUARD = """            // Nothing to take down: the window is already auto-sizing to the pill. Returning here is
+            // what stops the second and third call of one stop re-reporting, re-logging and
+            // re-assigning what the first one already did.
+            if (window.SizeToContent != SizeToContent.Manual) return null;
+"""
+
+CLEAR = """            // The panel is down, so the size the window is "supposed" to have no longer exists. The
+            // remembered (persisted) size is deliberately untouched - see HudSizeMemory.
+            memory.NotePanelClosed();
+"""
+
+mode = sys.argv[1]
+s = io.open(PRISTINE, encoding='utf-8').read()
+
+if mode in ('noguard', 'both'):
+    assert GUARD in s
+    s = s.replace(GUARD, '')
+if mode in ('noclear', 'both'):
+    assert CLEAR in s
+    s = s.replace(CLEAR, '')
+
+io.open(TARGET, 'w', encoding='utf-8', newline='').write(s)
+print('mutated:', mode)

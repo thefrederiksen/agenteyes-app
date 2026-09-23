@@ -1,0 +1,56 @@
+param([string]$Action = 'rect', [string]$Arg = '')
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+
+function Find-Hud {
+    for ($i = 0; $i -lt 30; $i++) {
+        $w = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'Recording HUD') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+        if ($w) { return $w }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'HUD window "Recording HUD" not found within 12s'
+}
+
+$hud = Find-Hud
+
+switch ($Action) {
+    'rect' {
+        $br = $hud.Current.BoundingRectangle
+        Write-Output ("HUD rect: X={0} Y={1} W={2} H={3}" -f $br.X, $br.Y, $br.Width, $br.Height)
+    }
+    'image' {
+        $img = $hud.FindFirst('Descendants', (TypeIs ([System.Windows.Automation.ControlType]::Image)))
+        if (-not $img) { Write-Output "IMAGE: not found"; break }
+        Write-Output ("IMAGE rect={0}" -f $img.Current.BoundingRectangle)
+    }
+    'click' {
+        $b = $hud.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found" }
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Start-Sleep -Milliseconds 700
+        $br = $hud.Current.BoundingRectangle
+        Write-Output ("clicked '{0}' -> HUD rect: X={1} Y={2} W={3} H={4}" -f $Arg, $br.X, $br.Y, $br.Width, $br.Height)
+    }
+    'resize' {
+        $parts = $Arg.Split(',')
+        $tp = $hud.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        Write-Output ("CanResize={0}" -f $tp.Current.CanResize)
+        $tp.Resize([double]$parts[0], [double]$parts[1])
+        Start-Sleep -Milliseconds 900
+        $br = $hud.Current.BoundingRectangle
+        Write-Output ("HUD rect after resize: X={0} Y={1} W={2} H={3}" -f $br.X, $br.Y, $br.Width, $br.Height)
+    }
+    'move' {
+        $parts = $Arg.Split(',')
+        $tp = $hud.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        $tp.Move([double]$parts[0], [double]$parts[1])
+        Start-Sleep -Milliseconds 800
+        $br = $hud.Current.BoundingRectangle
+        Write-Output ("HUD rect after move: X={0} Y={1} W={2} H={3}" -f $br.X, $br.Y, $br.Width, $br.Height)
+    }
+}

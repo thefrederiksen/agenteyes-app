@@ -1,0 +1,103 @@
+Issue #28, Review Gate round 2 - mutation evidence.
+
+Every new check in tests/AgentEyes.Tests/CameraFailurePathTests.cs was run against KNOWN-BAD
+product code before being trusted. Each mutation below was applied, the 17 CameraFailurePathTests
+were run, and the mutation was then reverted. A check that passes both before and after a fix
+proves nothing; an all-passing run here would mean these checks are decorative.
+
+The first two mutations are not paraphrases of the defect - they are the LITERAL merged code,
+restored file-for-file from commit eee17b4 (`git show eee17b4:<file>`), which is the code the gate
+rejected. The other four reinstate one merged decision each inside the rewritten recorder, because
+that class was restructured behind ICameraProcess and cannot be restored wholesale.
+
+  1 cli-boundary     Commands.cs restored from eee17b4 - the camera opened into a bare local with
+                     no finally and no using anywhere on the path
+  2 devices-fallback RestServer.cs restored from eee17b4 - a camera-enumeration failure caught and
+                     answered as cameras=[] with HTTP 200
+  3 probe-timeout    the open probe treats "has not failed yet" as opened
+  4 probe-exitcode   the open probe rejects only a NON-ZERO exit, as the merged code did
+  5 terminate        Stop ignores whether the process survived the kill, as the merged code did
+  6 lost             Stop computes the mid-run loss into a local, logs it, and never assigns
+                     _lostMidRun - the merged code exactly
+
+Baseline, unmutated: Passed! - Failed: 0, Passed: 884, Skipped: 0, Total: 884 (whole solution).
+
+
+================ MUTATION 1: cli-boundary (gate defect 1) ================
+Commands.cs = eee17b4 verbatim.
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheVideoCommand_OwnsTheCameraThroughAFinallyBoundary [9 ms]
+  Error Message:
+   the camera is opened at IL offset 1039 of AgentEyes.Commands::Video with only [Catch] protecting
+   it - a throw after the camera opened leaves ffmpeg writing camera.mp4 and the webcam held
+Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17
+
+Note what the guard reports: [Catch], not [Finally]. That is the merged defect stated exactly - the
+only protection around the camera open was the catch that deletes the directory when the OPEN
+fails, and nothing at all for a throw AFTER it succeeded.
+
+
+================ MUTATION 2: devices-fallback (gate defect 5) ================
+RestServer.cs = eee17b4 verbatim.
+
+  Failed AgentEyes.Tests.CameraFailurePathTests.TheDevicesEndpoint_DoesNotSwallowACameraEnumerationFailure [8 ms]
+  Error Message:
+   the camera enumeration at IL offset 107 of RestServer::Devices is wrapped in [Catch] - a broken
+   enumerator must not be reported as 'this machine has no camera'
+Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17
+
+
+================ MUTATION 3: probe-timeout (gate defect 3) ================
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenTheCameraNeverProducesVideo_FailsTheStartInsteadOfCallingItOpen [222 ms]
+   Assert.Throws() Failure: No exception was thrown
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenTheCameraNeverProducesVideo_KillsTheStalledFfmpegAndReleasesIt [226 ms]
+   Assert.Throws() Failure: No exception was thrown
+Failed!  - Failed:     2, Passed:    15, Skipped:     0, Total:    17
+
+"No exception was thrown" IS the defect: a camera that never produced a frame was accepted as open,
+and the recording went on to become screen-only without saying so.
+
+
+================ MUTATION 4: probe-exitcode (gate defect 3) ================
+  Failed AgentEyes.Tests.CameraFailurePathTests.Start_WhenFfmpegExitsWithCodeZeroDuringTheProbe_FailsTheStart [5 s]
+   Assert.Contains() Failure: Sub-string not found
+Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17
+
+The 5-second duration is itself part of the evidence: with the merged exit-code rule the probe no
+longer recognises the exit at all and has to run to its deadline.
+
+
+================ MUTATION 5: terminate (gate defect 2) ================
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenFfmpegSurvivesTheQuitAndTheKill_ThrowsInsteadOfReportingSuccess [15 ms]
+   Assert.Throws() Failure: No exception was thrown
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_AfterAFailedTermination_DisposeTriesToTerminateTheProcessAgain [2 ms]
+   Assert.Throws() Failure: No exception was thrown
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheKillItselfThrows_StillReportsTheStopAsFailed [9 ms]
+   Assert.Throws() Failure: No exception was thrown
+Failed!  - Failed:     3, Passed:    14, Skipped:     0, Total:    17
+
+All three arms of the defect in one mutation: the ignored second wait, the swallowed kill failure,
+and the retry Dispose never got because the stop had already declared itself finished.
+
+
+================ MUTATION 6: lost (gate defect 4) ================
+  Failed AgentEyes.Tests.CameraFailurePathTests.Stop_WhenTheCameraDiedWithoutItsExitCallbackDelivered_RecordsTheTrackAsLost [2 ms]
+  Error Message:
+   a camera that ended before the stop is a TRUNCATED track
+Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17
+
+Stop_WhenTheExitCallbackWasDelivered_StillRecordsTheTrackAsLost deliberately KEEPS PASSING under
+this mutation, and that is correct rather than a gap: it guards the other route to the same fact
+(the delivered callback), which the merged code did handle. The two together say the manifest is
+right whether or not the callback arrived in time.
+
+
+What this evidence does NOT cover, stated rather than implied:
+
+  - It proves each check fires on the defect it was written for. It does not prove the checks would
+    catch a DIFFERENT defect in the same code.
+  - The behavioural checks (3-6) drive the real FfmpegCameraRecorder over a controlled process. They
+    say nothing about ffmpeg itself: that a real webcam opens, records and is handed back is the
+    running-app evidence in handoff.md, not this file.
+  - The structural checks (1-2) see the failure BOUNDARY and the calls a finally handler makes. They
+    cannot prove that handler is correct - only that the boundary exists and disposes the camera.

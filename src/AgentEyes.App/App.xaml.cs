@@ -5,6 +5,7 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using AgentEyes;
+using AgentEyes.Setup.Engine;
 
 namespace AgentEyes.App
 {
@@ -19,6 +20,7 @@ namespace AgentEyes.App
         private RestServer? _rest;
         private RepairService? _repair;
         private TrayHost? _tray;
+        private AlwaysOnController? _alwaysOn;
         private MainWindow? _window;
         private TestPanel? _tests;
         private KeyboardHook? _captureRegionHook;
@@ -30,11 +32,50 @@ namespace AgentEyes.App
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            // Issue #61: this type is ALSO constructed by the test suite, purely to reach the
+            // brushes and styles in App.xaml - the preset editor's markup cannot be parsed without
+            // them. WPF runs OnStartup when it does, and everything below then started up inside
+            // the test runner: the single-instance lock, the tray icon, the control interface on
+            // the live port, the repair and housekeeping timers, the update checker - against the
+            // person's real configuration and real recordings. When their own copy was already
+            // running it also put a modal "AgentEyes is already running" box on their screen, every
+            // time the suite ran. None of what follows belongs to anybody but the application, so
+            // when this is not the application, it does none of it.
+            // Which assembly's entry point started this process - NOT what the file on disk is
+            // called. The release is published as AgentEyesApp-win-x64.exe, so a file-name test
+            // would make the downloaded release start and do nothing; the same for a renamed exe.
+            var hostName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+            var appName = typeof(App).Assembly.GetName().Name;
+            if (!ApplicationHost.IsTheApplication(hostName, appName))
+            {
+                AgentEyes.Log.Info($"startup skipped: the AgentEyes application object was built inside "
+                    + $"'{hostName}', which is not the application ('{appName}'). Nothing was started.");
+                base.OnStartup(e);
+                return;
+            }
+
             // Single instance: only one process owns the tray + API port.
             _mutex = new Mutex(initiallyOwned: true, "AgentEyes-singleinstance", out bool created);
             if (!created)
             {
-                MessageBox.Show("AgentEyes is already running (see the system tray).", "AgentEyes");
+                // Issue #61: a refused second instance used to leave NOTHING in the log but the
+                // "app exit" line from OnExit - indistinguishable from a normal shutdown - so weeks
+                // of these popups could not be traced back to whatever kept launching them. Say so
+                // explicitly, with the command line, BEFORE anything else happens.
+                // The policy is asked for the host as well, not just the arguments: it is the
+                // second line of defence for any OTHER program that builds this object. Reaching
+                // here at all means the check above already said this process IS the application.
+                var response = SecondInstancePolicy.Decide(e.Args, hostName, appName);
+                AgentEyes.Log.Warn("second instance refused: another AgentEyes already holds the "
+                    + $"single-instance lock. response={response}, host={hostName}, app={appName}, "
+                    + $"commandLine={Environment.CommandLine}");
+
+                // A modal box is only right when a person is sitting there waiting for a window. A
+                // launch that asked to start hidden has nobody to tell, and a dialog it throws lands
+                // on top of whatever the person is actually doing - and blocks until it is clicked.
+                if (response == SecondInstanceResponse.TellThePerson)
+                    MessageBox.Show("AgentEyes is already running (see the system tray).", "AgentEyes");
+
                 Shutdown();
                 return;
             }
@@ -51,6 +92,12 @@ namespace AgentEyes.App
                 StorageMigration.Run();   // qa-record -> AgentEyes folders, one time
                 _cfg = Config.Load();
                 _service = new RecordingService();
+                // Issue #33: a live preview feed is a second output on the recording's own ffmpeg, so
+                // it has to be asked for BEFORE the recording starts. This carries the person's
+                // persisted "show preview" choice into the first recording of the session; the HUD
+                // updates it whenever they change their mind. Left false - the default - a recording
+                // is byte-for-byte the recording it was before the feature existed (AC11).
+                _service.PreviewArmed = _cfg.HudPreviewVisible;
 
                 // Issue #151: the post-recording sequence is wired ONCE, here, so it is identical on
                 // every stop path - including this process's normal shape, which is --tray with no
@@ -71,9 +118,27 @@ namespace AgentEyes.App
                 // MainWindow, and recordings are driven through the REST API above just as often as
                 // through the UI - a repair timer owned by the window did not exist in either case.
                 _repair = new RepairService(() => _service!.IsRecording);
+
+                // Issues #55, #56: housekeeping reads its settings FRESH on every pass, so changing
+                // them in Settings takes effect at the next 15-minute tick rather than at the next
+                // restart. This is an always-on app; a restart may be days away.
+                _repair.HousekeepingSettings = () => _cfg!.HousekeepingSettings();
                 _repair.Start();
 
-                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests);
+                // The Control API is started above, before the RepairService exists, so it is handed
+                // its housekeeping hooks here rather than in its constructor.
+                if (_rest != null)
+                {
+                    _rest.HousekeepingSettings = () => _cfg!.HousekeepingSettings();
+                    _rest.HousekeepingLastReport = () => _repair!.LastHousekeepingReport;
+                    _rest.HousekeepingRunNow = () => _repair!.RunHousekeepingNowAsync("api");
+                }
+
+                // Issue #66: always-on recording. One controller for the page, the tray and the API.
+                _alwaysOn = new AlwaysOnController(_service, _cfg);
+                if (_rest != null) _rest.AlwaysOn = _alwaysOn;
+
+                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests, _alwaysOn, ShowAlwaysOn);
                 InstallCaptureHooks();
 
                 // Auto-update (opt-out in Settings): on startup, quietly ask the public releases repo
@@ -93,7 +158,12 @@ namespace AgentEyes.App
                 PostRecording.WorkIdle += UpdateChecker.OnSessionEnded;
                 if (_cfg.AutoUpdate) UpdateChecker.AutoCheckOnStartup();
 
-                bool startHidden = e.Args.Any(a => a is "--tray" or "--minimized");
+                // Issue #61: the spelling of the hidden-start flags lives in LaunchArguments, so the
+                // app and the auto-update restart cannot drift apart on what "start hidden" means.
+                // It survives restarts: if it was on, it comes back on (in the background).
+                _alwaysOn.RestoreOnStartup();
+
+                bool startHidden = LaunchArguments.AsksForHiddenStart(e.Args);
                 AgentEyes.Log.Info($"app started (hidden={startHidden}, api={(_rest != null ? _rest.Url : "off")})");
 
                 // First-run / signed-out gate (issue #87): AgentEyes runs only on DevThrottle. With no
@@ -218,12 +288,19 @@ namespace AgentEyes.App
         {
             if (_window == null)
             {
-                _window = new MainWindow(_service!, _cfg!, ShowTests, _repair!);
+                _window = new MainWindow(_service!, _cfg!, ShowTests, _repair!, _alwaysOn);
                 _window.Closing += (_, ev) => { ev.Cancel = true; _window!.Hide(); };  // close = hide to tray
             }
             _window.Show();
             _window.WindowState = WindowState.Normal;
             _window.Activate();
+        }
+
+        /// <summary>The tray's "Always-on settings...": the main window, on the Always On page.</summary>
+        private void ShowAlwaysOn()
+        {
+            ShowWindow();
+            _window?.ShowAlwaysOnPage();
         }
 
         private void ShowTests()
@@ -253,11 +330,33 @@ namespace AgentEyes.App
 
             try { _captureRegionHook?.Dispose(); } catch { }
             try { _captureFullHook?.Dispose(); } catch { }
+            // Issue #66: finish the piece being written and write the clip being kept. Always-on stays
+            // enabled in config.json, so the next start brings it back.
+            try { _tray?.ShowAlwaysOnExitWait(); }
+            catch (Exception ex) { AgentEyes.Log.Error("app exit: showing the always-on exit wait failed", ex); }
+            try { _alwaysOn?.ShutdownForExit(); }
+            catch (Exception ex) { AgentEyes.Log.Error("app exit: stopping always-on failed", ex); }
+            try { _alwaysOn?.Dispose(); } catch { }
             try { _repair?.Dispose(); } catch { }
             try { _rest?.Dispose(); } catch { }
             try { _tray?.Dispose(); } catch { }
             try { _mutex?.ReleaseMutex(); } catch { }
             try { _mutex?.Dispose(); } catch { }
+            // The recording HUD saves its preview choices and its position WITHOUT blocking the UI
+            // thread (issue #33), so a save made moments before exit may still be in flight. Bounded
+            // on purpose: the writer is allowed to be stuck in a filesystem call, and exit is not.
+            try { Config.FlushPendingSave(2000); }
+            catch (Exception ex)
+            {
+                AgentEyes.Log.Warn($"app exit: flushing the config failed - {ex.Message}");
+            }
+            // The preview never waits for the log (issue #33; Review Gate round 2 on PR #39), so a
+            // line said moments before exit may still be in the appender's hands. Bounded for the
+            // same reason the config flush is: the appender is allowed to be stuck in a filesystem
+            // call, and exit is not.
+            if (!AgentEyes.Preview.PreviewLog.Settle(1000))
+                AgentEyes.Log.Warn("app exit: the preview log appender still had lines in hand; "
+                                   + "they were not waited out.");
             UpdateChecker.StartPendingRestart();   // after the mutex is gone, so the new exe can take it
             AgentEyes.Log.Info("app exit");
             base.OnExit(e);

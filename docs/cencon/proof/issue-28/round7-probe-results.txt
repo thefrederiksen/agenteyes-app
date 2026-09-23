@@ -1,0 +1,115 @@
+Round 7, issue #28 - the seam probe, run against three trees from the SAME source
+(committed alongside as round7-probe.cs.txt). Built as a console app whose assembly name is
+AgentEyes.Tests, so the InternalsVisibleTo in AgentEyes.Core.csproj lets it reach the
+internal ICameraProcess seam, FfmpegCameraRecorder, StrandedCameraOwner and the real
+RecordingService.Status / RecordingWorkset production paths. It is NOT part of the suite.
+
+It is the round-6 QA probe with three cases added for the two defects Review Gate round 5
+rejected, plus the control that stops the first fix from being over-applied:
+
+    DELIVERED_QUIT_THEN_EXIT_1    "q" delivered, ffmpeg answers with its own error code 1
+    DELIVERED_QUIT_THEN_EXIT_255  the same shape with ffmpeg's interactive-quit code
+    DIED_BEFORE_DISPOSE_RETRY     it ignores "q", survives the first kill wait, then exits
+                                  on its own BEFORE the Dispose retry reaches it
+
+THE THREE RUNS ARE THE INSTRUMENT CHECK. The same probe FIRES on the round-6 tree - the
+tree the gate rejected - and reports the same cases fixed on round-7 head. A probe only ever
+run against the tree that is supposed to pass would demonstrate nothing.
+
+Every line carries threw=. A row without threw=(none) on a case that is not supposed to
+throw is a broken instrument, not a result.
+
+=== A) round-6 tree (b61553c) - the code the Review Gate REJECTED. The probe must FIRE. ===
+HEALTHY                      captured=2.5 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_2_9S          captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_30S           captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_INCOMPLETE_STDERR  captured=0 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_COMPLETE_STDERR    captured=0 stopKind=clean-quit stderrComplete=True complete=no lostMidRun=True quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_INCOMPLETE_STDERR   captured=1.5 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ERROR_EXIT  captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+QUIT_OK_THEN_ERROR_EXIT      captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ZERO_EXIT   captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+DELIVERED_QUIT_THEN_EXIT_1   captured=1 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+DELIVERED_QUIT_THEN_EXIT_255 captured=1 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FORCED_KILL_AFTER_OUTPUT     captured=1 stopKind=force-killed stderrComplete=True complete=no lostMidRun=False quits=1 kills=1 drains=1 threw=CameraForceKilledException
+EXITED_EARLY                 captured=1 stopKind=exited-early stderrComplete=True complete=no lostMidRun=True quits=0 kills=0 drains=1 threw=(none)
+RETAINED_PROCESS_ALIVE       retained=True hasExited=False isAbandoned=True stopKind=abandoned complete=unknown cameraStuck=True statusRows=1 pid=4242 claimHeld=True disposes=0
+RETAINED_PROCESS_DIED        hasExited=True isAbandoned=False cameraStuck=False holdsAny=False statusRows=0 claimHeld=False disposes=1
+DIED_BEFORE_DISPOSE_RETRY    threwOnStop=CameraStopFailedException kindAfterStop=abandoned abandonedAfterStop=True hasExited=True isAbandoned=False stopKind=abandoned complete=unknown lostMidRun=False disposes=1
+PROBE_RESULT lines=16
+
+=== B) round-7 head - this branch. The same probe, the same cases. ===
+HEALTHY                      captured=2.5 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_2_9S          captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_30S           captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_INCOMPLETE_STDERR  captured=0 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_COMPLETE_STDERR    captured=0 stopKind=clean-quit stderrComplete=True complete=no lostMidRun=True quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_INCOMPLETE_STDERR   captured=1.5 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ERROR_EXIT  captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+QUIT_OK_THEN_ERROR_EXIT      captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ZERO_EXIT   captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+DELIVERED_QUIT_THEN_EXIT_1   captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+DELIVERED_QUIT_THEN_EXIT_255 captured=1 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FORCED_KILL_AFTER_OUTPUT     captured=1 stopKind=force-killed stderrComplete=True complete=no lostMidRun=False quits=1 kills=1 drains=1 threw=CameraForceKilledException
+EXITED_EARLY                 captured=1 stopKind=exited-early stderrComplete=True complete=no lostMidRun=True quits=0 kills=0 drains=1 threw=(none)
+RETAINED_PROCESS_ALIVE       retained=True hasExited=False isAbandoned=True stopKind=abandoned complete=unknown cameraStuck=True statusRows=1 pid=4242 claimHeld=True disposes=0
+RETAINED_PROCESS_DIED        hasExited=True isAbandoned=False cameraStuck=False holdsAny=False statusRows=0 claimHeld=False disposes=1
+DIED_BEFORE_DISPOSE_RETRY    threwOnStop=CameraStopFailedException kindAfterStop=(not observed) abandonedAfterStop=True hasExited=True isAbandoned=False stopKind=(not observed) complete=unknown lostMidRun=False disposes=1
+PROBE_RESULT lines=16
+
+=== C) round-7 head MERGED (no commit) into the stack tip origin/issue-36-circular-camera-overlay,
+    which carries #33 and #35 ===
+HEALTHY                      captured=2.5 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_2_9S          captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_STALL_30S           captured=0.5 stopKind=clean-quit stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_INCOMPLETE_STDERR  captured=0 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+ZERO_TICK_COMPLETE_STDERR    captured=0 stopKind=clean-quit stderrComplete=True complete=no lostMidRun=True quits=1 kills=0 drains=1 threw=(none)
+ONE_TICK_INCOMPLETE_STDERR   captured=1.5 stopKind=clean-quit stderrComplete=False complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ERROR_EXIT  captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+QUIT_OK_THEN_ERROR_EXIT      captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FAILED_QUIT_THEN_ZERO_EXIT   captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+DELIVERED_QUIT_THEN_EXIT_1   captured=1 stopKind=(not observed) stderrComplete=True complete=unknown lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+DELIVERED_QUIT_THEN_EXIT_255 captured=1 stopKind=clean-quit stderrComplete=True complete=yes lostMidRun=False quits=1 kills=0 drains=1 threw=(none)
+FORCED_KILL_AFTER_OUTPUT     captured=1 stopKind=force-killed stderrComplete=True complete=no lostMidRun=False quits=1 kills=1 drains=1 threw=CameraForceKilledException
+EXITED_EARLY                 captured=1 stopKind=exited-early stderrComplete=True complete=no lostMidRun=True quits=0 kills=0 drains=1 threw=(none)
+RETAINED_PROCESS_ALIVE       retained=True hasExited=False isAbandoned=True stopKind=abandoned complete=unknown cameraStuck=True statusRows=1 pid=4242 claimHeld=True disposes=0
+RETAINED_PROCESS_DIED        hasExited=True isAbandoned=False cameraStuck=False holdsAny=False statusRows=0 claimHeld=False disposes=1
+DIED_BEFORE_DISPOSE_RETRY    threwOnStop=CameraStopFailedException kindAfterStop=(not observed) abandonedAfterStop=True hasExited=True isAbandoned=False stopKind=(not observed) complete=unknown lostMidRun=False disposes=1
+PROBE_RESULT lines=16
+
+WHAT CHANGED BETWEEN A AND B - and nothing else did:
+
+    DELIVERED_QUIT_THEN_EXIT_1    clean-quit / yes        ->  (not observed) / unknown
+    DIED_BEFORE_DISPOSE_RETRY     stopKind=abandoned      ->  stopKind=(not observed), complete=unknown
+
+WHAT DID NOT CHANGE - every one of these is identical in A, B and C:
+
+    HEALTHY                       clean-quit / yes        AC17's positive control, still earned
+    DELIVERED_QUIT_THEN_EXIT_255  clean-quit / yes        255 is still an accepted observation
+    ONE_TICK_STALL_2_9S           unknown                 gate round 4, defect 2
+    ZERO_TICK_INCOMPLETE_STDERR   unknown, no loss claim  gate round 4, defect 3
+    FAILED_QUIT_THEN_ERROR_EXIT   (not observed)/unknown  gate round 4, defect 1
+    QUIT_OK_THEN_ERROR_EXIT       (not observed)/unknown
+    FAILED_QUIT_THEN_ZERO_EXIT    (not observed)/unknown
+    FORCED_KILL_AFTER_OUTPUT      force-killed / no       AC14
+    EXITED_EARLY                  exited-early / no       AC10
+    RETAINED_PROCESS_ALIVE        abandoned, claim held   AC16 - it DID survive all three
+    RETAINED_PROCESS_DIED         claim released, no row  gate round 4, defect 4
+
+DIED_BEFORE_DISPOSE_RETRY also reports abandonedAfterStop=True on B and C. That is the
+separation the fix rests on: IsAbandoned - "is there a live ffmpeg on the webcam right now" -
+still answers YES from the first refused kill, because that is when the owner has to decide
+whether to keep the recorder. What is withheld is the DURABLE claim about how the process
+ended, which nothing can answer until it has ended.
+
+Build and suite, run in an isolated worktree because the running tray app locks the normal
+Release output:
+
+    round-7 head   (D:\ReposFredgenteyes-dev28-r7)
+        dotnet build AgentEyes.sln -c Release  ->  Build succeeded.  0 Error(s)
+        dotnet test  AgentEyes.sln -c Release  ->  Failed: 0, Passed: 942, Total: 942
+
+    merged stack   (throwaway worktree at origin/issue-36-circular-camera-overlay)
+        git merge --no-commit --no-ff <round-7 head>  ->  Automatic merge went well
+        dotnet build AgentEyes.sln -c Release  ->  Build succeeded.  0 Error(s), 4 Warning(s)
+        dotnet test  AgentEyes.sln -c Release  ->  Failed: 0, Passed: 1154, Total: 1154

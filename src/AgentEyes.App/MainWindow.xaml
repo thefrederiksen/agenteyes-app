@@ -300,6 +300,19 @@
                                      StrokeThickness="1.6"/>
                         </Grid>
                     </RadioButton>
+                    <!-- Always On (issue #66): record all day, keep only the stretches with sound -->
+                    <RadioButton x:Name="RailAlwaysOn" Style="{StaticResource RailItem}" Tag="Always On"
+                                 GroupName="Rail" Checked="Rail_Checked"
+                                 ToolTip="Always On - record all day, keep only the stretches with sound"
+                                 AutomationProperties.Name="Always On view">
+                        <Grid Width="20" Height="20">
+                            <Ellipse Width="5" Height="5"
+                                     Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                            <Path Data="M5.5,4.5 A7.5,7.5 0 0,0 5.5,15.5 M14.5,4.5 A7.5,7.5 0 0,1 14.5,15.5 M2.5,2 A11,11 0 0,0 2.5,18 M17.5,2 A11,11 0 0,1 17.5,18"
+                                  StrokeThickness="1.6"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"/>
+                        </Grid>
+                    </RadioButton>
                     <RadioButton x:Name="RailLibrary" Style="{StaticResource RailItem}" Tag="Library"
                                  GroupName="Rail" Checked="Rail_Checked"
                                  ToolTip="Library" AutomationProperties.Name="Library view">
@@ -584,6 +597,146 @@
                                 HorizontalAlignment="Center" Margin="0,18,0,0" Padding="20,8" Click="GoRecord_Click"/>
                     </StackPanel>
                 </Grid>
+
+                <!-- ===== ALWAYS ON VIEW (issue #66): records all the time, keeps only the
+                     stretches with sound. Code-behind: MainWindow.AlwaysOn.cs ===== -->
+                <ScrollViewer x:Name="AlwaysOnPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel HorizontalAlignment="Center" Width="700" Margin="0,18,0,20">
+                        <TextBlock x:Name="AOStatusText" FontSize="12" Foreground="{StaticResource RdDim}"
+                                   TextWrapping="Wrap" AutomationProperties.Name="Always-on status"
+                                   Text="Records all the time and keeps only the stretches with sound."/>
+
+                        <Border Background="{StaticResource RdSurface}" BorderBrush="{StaticResource RdStroke}"
+                                BorderThickness="1" CornerRadius="8" Padding="18,8" Margin="0,12,0,0">
+                            <Grid x:Name="AOSettingsGrid">
+                                <Grid.Resources>
+                                    <Style x:Key="AOLabel" TargetType="TextBlock">
+                                        <Setter Property="FontSize" Value="13"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+                                    </Style>
+                                    <Style x:Key="AOHint" TargetType="TextBlock">
+                                        <Setter Property="FontSize" Value="11"/>
+                                        <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+                                        <Setter Property="Margin" Value="0,2,0,0"/>
+                                    </Style>
+                                </Grid.Resources>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="300"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Margin="0,8">
+                                    <TextBlock Text="Recording setup" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="One of your existing setups that records the screen" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <ComboBox Grid.Row="0" Grid.Column="1" x:Name="AOPresetCombo" Style="{StaticResource DkCombo}"
+                                          Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
+                                          AutomationProperties.Name="Always-on recording setup"/>
+
+                                <StackPanel Grid.Row="1" Margin="0,8">
+                                    <TextBlock Text="Sound that counts" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="Only this sound decides what is kept" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <RadioButton x:Name="AOCountMic" Content="Microphone" GroupName="AOCounts" Style="{StaticResource DkRadio}"
+                                                 Checked="AOSetting_Changed" Margin="0,0,14,0" AutomationProperties.Name="Microphone counts"/>
+                                    <RadioButton x:Name="AOCountSystem" Content="System sound" GroupName="AOCounts" Style="{StaticResource DkRadio}"
+                                                 Checked="AOSetting_Changed" Margin="0,0,14,0" AutomationProperties.Name="System sound counts"/>
+                                    <RadioButton x:Name="AOCountBoth" Content="Both" GroupName="AOCounts" Style="{StaticResource DkRadio}"
+                                                 Checked="AOSetting_Changed" AutomationProperties.Name="Both count"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Margin="0,8">
+                                    <TextBlock Text="Sound level that counts" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock x:Name="AOThresholdHint" Text="Auto: 10 dB above the measured noise floor" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <ComboBox Grid.Row="2" Grid.Column="1" x:Name="AOThresholdCombo" Style="{StaticResource DkCombo}"
+                                          Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
+                                          AutomationProperties.Name="Always-on sound level"/>
+
+                                <StackPanel Grid.Row="3" Margin="0,8">
+                                    <TextBlock Text="Keep before sound" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="Context before you start talking" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <ComboBox Grid.Row="3" Grid.Column="1" x:Name="AOBeforeCombo" Style="{StaticResource DkCombo}"
+                                          Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
+                                          AutomationProperties.Name="Keep before sound"/>
+
+                                <StackPanel Grid.Row="4" Margin="0,8">
+                                    <TextBlock Text="Keep after sound" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="A clip ends after this long with no sound" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <ComboBox Grid.Row="4" Grid.Column="1" x:Name="AOAfterCombo" Style="{StaticResource DkCombo}"
+                                          Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
+                                          AutomationProperties.Name="Keep after sound"/>
+
+                                <StackPanel Grid.Row="5" Margin="0,8">
+                                    <TextBlock Text="Disk cap" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="When full, the oldest clips are deleted first" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <ComboBox Grid.Row="5" Grid.Column="1" x:Name="AOCapCombo" Style="{StaticResource DkCombo}"
+                                          Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
+                                          AutomationProperties.Name="Always-on disk cap"/>
+
+                                <StackPanel Grid.Row="6" Margin="0,8">
+                                    <TextBlock Text="Save clips to" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="One file per clip, named by date and time" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <Grid Grid.Row="6" Grid.Column="1" VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="AOFolderText" FontSize="12" Foreground="{StaticResource RdText}"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               AutomationProperties.Name="Always-on clips folder"/>
+                                    <Button Grid.Column="1" x:Name="AOFolderButton" Content="Change..." Style="{StaticResource DkMini}"
+                                            Height="28" MinWidth="74" Margin="8,0,0,0" Click="AOFolder_Click"
+                                            AutomationProperties.Name="Change clips folder"/>
+                                </Grid>
+
+                                <StackPanel Grid.Row="7" Margin="0,8">
+                                    <TextBlock Text="Start when Windows starts" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="So it is on without you remembering" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <CheckBox Grid.Row="7" Grid.Column="1" x:Name="AOStartWithWindows" Content="On"
+                                          Style="{StaticResource DkCheck}" VerticalAlignment="Center"
+                                          Click="AOStartWithWindows_Click" AutomationProperties.Name="Start when Windows starts"/>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock x:Name="AORuleText" FontSize="12" Foreground="{StaticResource RdDim}" TextWrapping="Wrap"
+                                   LineHeight="18" Margin="0,12,0,0" AutomationProperties.Name="Always-on rule"/>
+                        <TextBlock x:Name="AOLockedNote" Text="Stop always-on to change its settings." FontSize="11"
+                                   Foreground="{StaticResource RdMuted}" Margin="0,4,0,0" Visibility="Collapsed"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                            <Button x:Name="AOStartButton" Content="Start always-on" Style="{StaticResource DkPrimary}"
+                                    Padding="18,8" MinWidth="160" Click="AOStart_Click"
+                                    AutomationProperties.Name="Start always-on"/>
+                            <Button x:Name="AOOpenFolderButton" Content="Open clips folder" Style="{StaticResource DkMini}"
+                                    Height="34" MinWidth="130" Margin="10,0,0,0" Click="AOOpenFolder_Click"
+                                    AutomationProperties.Name="Open clips folder"/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="AOTodayText" FontSize="12" Foreground="{StaticResource RdText}" Margin="0,14,0,0"
+                                   TextWrapping="Wrap" AutomationProperties.Name="Always-on today"/>
+                        <TextBlock x:Name="AOErrorText" FontSize="12" Foreground="{StaticResource DkRed}" Margin="0,6,0,0"
+                                   TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.Name="Always-on error"/>
+                    </StackPanel>
+                </ScrollViewer>
 
                 <!-- ===== DICTIONARY VIEW (issue #37 follow-up): first-class rail destination.
                      Corrects the terms recording transcription must get right. ===== -->

@@ -1,0 +1,207 @@
+ISSUE #28 / PR #32 - ROUND 8 MUTATION AND FAILING-FIRST EVIDENCE
+================================================================
+
+Every check below was RUN AGAINST A KNOWN-BAD INPUT AND SHOWN TO FIRE. Three arms are stated for
+each: the expected result is a pass, the bad result is a defect, and an EMPTY result is a broken
+instrument and NEVER a clean run.
+
+Working tree:  D:\ReposFred\agenteyes-dev28-r7 (isolated worktree, own restore, own build)
+Branch:        issue-28-camera-failure-boundaries
+Baseline head: 6d90ba0 "QA round 7 on the camera track: PASS 17/17 (#28)"
+Build output:  bin\x64\Release\net8.0-windows10.0.19041.0 (the x64 path - a command that omits the
+               solution's x64 platform finds no assembly, and that empty result is not a pass)
+
+Clean state of this change:
+  dotnet build AgentEyes.sln -c Release  ->  Build succeeded. 0 Error(s), 4 pre-existing warnings
+  dotnet test  AgentEyes.sln -c Release  ->  Passed! Failed: 0, Passed: 947, Skipped: 0, Total: 947
+
+
+PART 1 - THE FOUR ROUND-6 BLOCKER CHECKS, RUN AGAINST THE ROUND-7 HEAD FIRST
+===========================================================================
+
+Method: the round-7 head source was restored verbatim
+(`git checkout HEAD -- src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs`, and the new
+`CameraTerminationRecord.cs` deleted) while the NEW TESTS were kept in place. The suite was then
+built and run against that head, with the line numbers below matching the COMMITTED test file.
+
+Four of this round's five new tests are the gate's round-6 blockers and all four FAIL here. The
+fifth - Stop_WhenTheQuitCouldNotBeDeliveredAndTheProcessExitedZero_IsStillNotACleanQuit - is NOT a
+round-6 blocker: it PASSES on the head (Passed! Failed: 0, Passed: 1, Total: 1), because it exists
+to close a gap that this round's OWN mutation matrix exposed in the head's delivery clause. Its
+known-bad input is mutation M6 in part 2, not the head. Saying so is the point: a check whose
+known-bad input is a mutation rather than the head has still been fired, but it has not been shown
+to catch the head, and claiming otherwise would be the overclaim this file exists to avoid.
+
+RUN 1 - the four round-6 blocker tests against the round-7 head
+---------------------------------------------------------------
+      Determining projects to restore...
+      All projects are up-to-date for restore.
+      AgentEyes.Core -> D:\ReposFred\agenteyes-dev28-r7\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+      AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-dev28-r7\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+      AgentEyes.App -> D:\ReposFred\agenteyes-dev28-r7\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+      AgentEyes.Tests -> D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+    Test run for D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+    A total of 1 test files matched the specified pattern.
+    [xUnit.net 00:00:00.58]     AgentEyes.Tests.CameraFailurePathTests.Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned [FAIL]
+    [xUnit.net 00:00:00.59]     AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned [FAIL]
+    [xUnit.net 00:00:00.59]     AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned [FAIL]
+    [xUnit.net 00:00:00.59]     AgentEyes.Tests.CameraFailurePathTests.Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned [FAIL]
+      Failed AgentEyes.Tests.CameraFailurePathTests.Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned [132 ms]
+      Error Message:
+       Assert.Equal() Failure: Values differ
+    Expected: 2
+    Actual:   1
+      Stack Trace:
+         at AgentEyes.Tests.CameraFailurePathTests.Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned() in D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 1463
+       at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+       at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+      Failed AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned [11 ms]
+      Error Message:
+       Assert.Equal() Failure: Values differ
+    Expected: Abandoned
+    Actual:   CleanQuit
+      Stack Trace:
+         at AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned() in D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 1537
+       at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+       at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+      Failed AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned [3 ms]
+      Error Message:
+       Assert.Equal() Failure: Values differ
+    Expected: Abandoned
+    Actual:   ForceKilled
+      Stack Trace:
+         at AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned() in D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 1567
+       at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+       at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+      Failed AgentEyes.Tests.CameraFailurePathTests.Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned [2 ms]
+      Error Message:
+       the retry must actually terminate the process
+      Stack Trace:
+         at AgentEyes.Tests.CameraFailurePathTests.Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned() in D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 1490
+       at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+       at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+    Failed!  - Failed:     4, Passed:     0, Skipped:     0, Total:     4, Duration: 147 ms - AgentEyes.Tests.dll (net8.0)
+
+
+RUN 2 - the same recovery-quit test with its two assertions swapped, so the COMPOUNDING HARM the
+gate named (the completeness one-way door reopening) is visible rather than hidden behind the
+stop-kind assertion that fires first
+---------------------------------------------------------------
+      Determining projects to restore...
+      All projects are up-to-date for restore.
+      AgentEyes.Core -> D:\ReposFred\agenteyes-dev28-r7\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+      AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-dev28-r7\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+      AgentEyes.App -> D:\ReposFred\agenteyes-dev28-r7\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+      AgentEyes.Tests -> D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+    Test run for D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+    A total of 1 test files matched the specified pattern.
+    [xUnit.net 00:00:00.32]     AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned [FAIL]
+      Failed AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned [21 ms]
+      Error Message:
+       Assert.Equal() Failure: Values differ
+    Expected: Unknown
+    Actual:   Yes
+      Stack Trace:
+         at AgentEyes.Tests.CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned() in D:\ReposFred\agenteyes-dev28-r7\tests\AgentEyes.Tests\CameraFailurePathTests.cs:line 1537
+       at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+       at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+    Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 21 ms - AgentEyes.Tests.dll (net8.0)
+
+
+Reading of run 1 and run 2, against the gate's own round-6 probes:
+
+  gate DIRECT_DISPOSE_ONE_KILL     quits=1 kills=1 exited=False kind=abandoned
+    -> Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned
+       head: Expected 2 quits, Actual 1. The retry the three-clause observation names never ran.
+    -> Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned
+       head: "the retry must actually terminate the process" - the head never reached the second
+       round at all, so the process was still alive.
+
+  gate RECOVERY_AFTER_ABANDONED    earned=abandoned ... kind=clean-quit complete=yes
+    -> StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned
+       head: Expected Abandoned, Actual CleanQuit  (run 1)
+       head: Expected Unknown,   Actual Yes        (run 2 - the completeness door reopened)
+    -> StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned
+       head: Expected Abandoned, Actual ForceKilled
+
+  All four then PASS against this change, and the full suite is 947/947.
+
+
+PART 2 - MUTATIONS OF THIS CHANGE'S OWN DESIGN
+==============================================
+
+Each mutation was applied to the fixed source, the FULL suite was run, and the source was restored
+byte-for-byte afterwards (verified with `diff -q` against a pre-mutation copy: MUTATIONS FULLY
+REVERTED). A mutation that fires NO test would be a broken check, not a clean run - M6 below was
+exactly that on the first pass, and the gap it exposed is closed by a new test rather than waved
+through.
+
+M1  RefusedRoundsForAbandoned 2 -> 1 (one refused round is enough for 'abandoned')
+     Failed!  - Failed:     3, Passed:   944, Skipped:     0, Total:   947, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+     tests that FIRED (3):
+       - CameraFailurePathTests.Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned
+       - CameraFailurePathTests.Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned
+       - CameraFailurePathTests.StopKind_WhenTheProcessDiesBeforeTheDisposeRetry_IsNeverRecordedAsAbandoned
+
+M2  the monotone abandoned test moved from FIRST to LAST in the derivation
+     Failed!  - Failed:     5, Passed:   942, Skipped:     0, Total:   947, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+     tests that FIRED (5):
+       - CameraFailurePathTests.Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned
+       - CameraFailurePathTests.StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned
+       - CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned
+       - CameraFailurePathTests.StopKind_WhenTheSurvivingProcessFinallyDiesAfterTheDisposeRetry_StaysAbandoned
+       - CameraFailurePathTests.Stop_WhenFfmpegSurvivesEverything_MarksItselfAbandonedAndKeepsItsProcessId
+
+M2b  the monotone abandoned test demoted BELOW the clean-quit test (the round-6 overwrite)
+     Failed!  - Failed:     2, Passed:   945, Skipped:     0, Total:   947, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+     tests that FIRED (2):
+       - CameraFailurePathTests.StopKind_WhenALaterRecoveryKillFinallyLands_KeepsTheEarnedAbandoned
+       - CameraFailurePathTests.StopKind_WhenALaterRecoveryQuitFinallyLands_KeepsTheEarnedAbandoned
+
+M3  Dispose runs ONE round again instead of retrying until the definition is met
+     Failed!  - Failed:     2, Passed:   945, Skipped:     0, Total:   947, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+     tests that FIRED (2):
+       - CameraFailurePathTests.Dispose_WithNoEarlierStop_PerformsTheRetryBeforeAbandonedCanBeEarned
+       - CameraFailurePathTests.Dispose_WithNoEarlierStop_WhenTheRetryKillLands_RecordsForceKilledNotAbandoned
+
+M4  ProcessGoneWithoutAnyAttempt drops its precondition (a retry may relabel a fight)
+     Failed!  - Failed:     1, Passed:   946, Skipped:     0, Total:   947, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+     tests that FIRED (1):
+       - CameraFailurePathTests.StopKind_WhenTheProcessDiesBeforeTheDisposeRetry_IsNeverRecordedAsAbandoned
+
+M5  the enumerated quit exit codes replaced by the round-5 'exitCode >= 0' range
+     Failed!  - Failed:     1, Passed:   946, Skipped:     0, Total:   947, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+     tests that FIRED (1):
+       - CameraFailurePathTests.Stop_WhenADeliveredQuitEndedInAnFfmpegErrorCode_IsNeverRecordedAsACleanQuit
+
+M6  QuitDelivered is recorded even when the write to stdin threw
+     Failed!  - Failed:     1, Passed:   946, Skipped:     0, Total:   947, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+     tests that FIRED (1):
+       - CameraFailurePathTests.Stop_WhenTheQuitCouldNotBeDeliveredAndTheProcessExitedZero_IsStillNotACleanQuit
+
+
+NOTE ON M6 - A CHECK THAT COULD NOT FAIL, FOUND AND CLOSED IN THIS ROUND
+=======================================================================
+
+On its first pass M6 (recording the quit as DELIVERED even when the write to ffmpeg's stdin threw)
+fired NO test: 947 passed with the delivery clause defeated. The reason is that the existing
+round-4 test for an undelivered quit pairs it with exit code -5, so the ENUMERATED EXIT-CODE SET
+alone is enough to refuse the clean quit and the delivery half of the rule is never the thing under
+test.
+
+That is an absence-shaped check, and it was closed with a presence-shaped one:
+Stop_WhenTheQuitCouldNotBeDeliveredAndTheProcessExitedZero_IsStillNotACleanQuit drives an
+undelivered quit whose process then exits with 0 - a code that WOULD be accepted - so the only thing
+standing between that take and a false "clean-quit / yes" is the fact that the "q" never arrived.
+M6 now fires on it.
+
+
+WHAT THIS EVIDENCE CANNOT SEE
+=============================
+
+Everything here drives the real FfmpegCameraRecorder over a FakeCameraProcess whose exits, quit
+answers, kill outcomes and callbacks the test controls. It proves the recorder's OBSERVATION AND
+DERIVATION logic. It proves nothing about ffmpeg itself - that a real webcam records, and that a
+real stuck dshow device behaves as the fake does, is the running-app proof's job, not this file's.

@@ -1,0 +1,17 @@
+VARIANT = qm9
+AgentEyesApp.dll sha256 = 8E4E05641D0F3E80FC1997A49035FE81E9FD3B5D26736991B71245C8EE121D0B
+config.json IsReadOnly = True
+HUD rect: X=893 Y=150 W=520 H=400
+--- write attempts, in order, from the REC click onwards ---
+    00:00:00.000 [INFO] QA33R5-MARK-qm9-054557-REC
+    05:46:04.076 [WARN] [Config] Save FAILED: C:\Users\soren\AppData\Local\AgentEyes\config.json - Access to the path 'C:\Users\soren\AppData\Local\AgentEyes\config.json' is denied.. The change is held in memory for this session but is not on disk.
+    05:46:04.095 [INFO] hud: preview panel opening at 520x400 (the default)
+    05:46:04.098 [WARN] [BackgroundFileWriter] WriteOnce FAILED: C:\Users\soren\AppData\Local\AgentEyes\config.json - Access to the path 'C:\Users\soren\AppData\Local\AgentEyes\config.json' is denied.. The change is held in memory for this session but is not on disk.
+    00:00:00.000 [INFO] QA33R5-MARK-qm9-054557-STOP
+    05:46:13.104 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+    05:46:13.125 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+    05:46:19.292 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+    05:46:19.319 [INFO] hud: saving position left=893 top=150 width=none height=none
+    05:46:19.320 [WARN] [BackgroundFileWriter] WriteOnce FAILED: C:\Users\soren\AppData\Local\AgentEyes\config.json - Access to the path 'C:\Users\soren\AppData\Local\AgentEyes\config.json' is denied.. The change is held in memory for this session but is not on disk.
+config.json IsReadOnly reset to False
+DONE qm9

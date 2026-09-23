@@ -1,0 +1,100 @@
+QA mutation evidence - issue #35
+================================
+
+Rule (DEVELOPMENT_METHOD.md 6c): a check that has only ever been run against the state you
+hope passes has demonstrated nothing. Each check below was run against a KNOWN-BAD build and
+is quoted FIRING. All mutations were reverted; the branch was rebuilt and re-tested clean
+afterwards (Build succeeded, 0 Error(s); Failed: 0, Passed: 1043).
+
+Instrument: docs/cencon/proof/issue-35/qa-probe.cs.txt (QA's own, not the developer's harness).
+It hosts the REAL PresetEditor built from this branch, opens the REAL webcam, and calls the
+REAL FfmpegCameraRecorder.Create + Open - the exact pair RecordingService uses for
+POST /record/start.
+
+
+BATCH A
+-------
+M1  src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs
+    removed   CameraDeviceArbiter.ReleaseForRecording(dshowCameraName);
+M4  src/AgentEyes.App/PresetEditor.xaml
+    Height="760" -> Height="620"   (so the Camera tab must scroll at the default size)
+M5  src/AgentEyes.App/PresetEditor.xaml.cs  DrawPreviewFrame
+    added     if (_previewBitmap != null) return;   (draw only the first frame - a static pane)
+M6  src/AgentEyes.App/PresetEditor.xaml.cs  Window.Closed
+    removed   RememberWindowState();
+
+Probe output (only the lines that fired):
+
+  FAIL   Camera tab: scrollbar Visible, scrollable 127.8
+  FAIL   the frame at t=+2s is byte-identical to t=0 - the pane is static, not live
+  FAIL   the recording FAILED to open the camera while a preview was running: the camera "HD Webcam eMeet C960" could not be opened (ffmpeg exited with code -5). Likely cause: the camera "HD Webcam eMeet C960" is already in use by another application.
+  FAIL   the preview ffmpeg pid 54140 is STILL ALIVE after the recording opened - the device was not released
+  FAIL   the controller still reports HoldsCamera after the arbiter release
+  FAIL   config.json does not hold the tab/size/position that was set
+  FAIL   the editor reopened on tab 0, expected 1
+  FAIL   the editor reopened at 1000x620 @272,119, expected 1120x700 @140,90
+  PROBE RESULT: 8 probe check(s) FAILED
+
+  -> M4 fired the AC1/AC3 check, M5 fired the AC8 liveness check, M1 fired all four AC9
+     path-1 checks (including "the preview ffmpeg pid ... is STILL ALIVE"), M6 fired both
+     AC10 checks. Every mutation was caught by the check aimed at it.
+
+
+BATCH B
+-------
+M2  src/AgentEyes.App/PresetEditor.xaml.cs  UpdateCameraPreview
+    removed the whole   if (!ReferenceEquals(EditorTabs.SelectedItem, CameraTab)) { Stop(); return; }
+M3  src/AgentEyes.App/PresetEditor.xaml.cs  Window.Closed
+    removed   _cameraPreview.Dispose();
+
+Probe output (only the lines that fired):
+
+  FAIL   the controller STILL holds the camera after leaving the Camera tab
+  FAIL   the controller STILL holds the camera after the editor closed
+  FAIL   arbiter holder count went 1 -> 1, expected one fewer
+  PROBE RESULT: 3 probe check(s) FAILED
+
+  -> M2 fired "the controller STILL holds the camera after leaving the Camera tab";
+     M3 fired "STILL holds the camera after the editor closed" AND "arbiter holder count
+     went 1 -> 1".
+
+  WHAT BATCH B ALSO PROVED ABOUT THE CHECKS THEMSELVES, stated rather than hidden:
+  under M2 and M3 the timing arm still PASSED - "a real recording opened the camera in
+  1062 ms / 1168 ms" - because CameraDeviceArbiter.ReleaseForRecording in Create rescues
+  the recording even when the editor never let go. A QA pass built ONLY on the 2-second
+  budget would therefore have missed M2 and M3 entirely. The HoldsCamera / HolderCount
+  presence checks are what catch them, and both arms are kept for that reason.
+
+
+M7  AC4, the x:Name survival check (docs/cencon/proof/issue-35/qa-xname-diff.txt)
+    mutation: x:Name="MicVol" renamed to "MicVolume" in PresetEditor.xaml
+    result:   REMOVED/RENAMED: ['MicVol']        - the check FIRED
+    (revert confirmed: removed or renamed: NONE)
+
+
+DOES THE COMMITTED UNIT SUITE CARRY ITS OWN WEIGHT?
+---------------------------------------------------
+M1 + M2 applied together, then `dotnet test AgentEyes.sln -c Release`:
+
+  Failed AgentEyes.Tests.PresetEditorLayoutTests.PresetEditorCode_CameraPreview_StopsWhenTheCameraTabIsNotShowing
+  Failed AgentEyes.Tests.CameraPreviewTests.OpeningACameraForRecording_AsksEveryHolderToReleaseIt
+  Failed!  - Failed: 2, Passed: 1041, Skipped: 0, Total: 1043
+
+  Both guards are load-bearing rather than decorative. They are still SOURCE/IL-level
+  guards: they see that the call site and the tab clause exist, not that the device is
+  actually free. That gap is what the runtime probe above covers.
+
+
+WHAT NONE OF THIS CAN SEE
+-------------------------
+* CameraDeviceArbiter coordinates holders INSIDE one process. A recording started from the
+  CLI (agenteyes.exe, its own process) while the tray app previews cannot be rescued by it;
+  that path fails loudly with "already in use by another application". This is documented in
+  CameraDeviceArbiter's own summary and is unchanged by this issue - not a #35 defect.
+* The probe drives Save/Save as/Cancel through ReadInto/Validate and the region handlers, not
+  by clicking the buttons: DialogResult can only be set on a window opened with ShowDialog,
+  and opening one would steal the human's focus. What is verified instead is that ALL FIVE
+  close routes (Save, Save as, Cancel, the X, Esc) funnel through Window.Closed -
+  Save_Click / SaveAs_Click / Cancel_Click each end at `DialogResult = ...`, Esc reaches
+  Cancel_Click via IsCancel="True" - and that Window.Closed releases the camera, observed at
+  runtime (AC9 path 4) and mutated (M3).

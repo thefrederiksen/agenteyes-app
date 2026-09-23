@@ -1,0 +1,15 @@
+ROUND-9 PROBE - the gate round-7 three rows, driven through Stop() then the Dispose() retry
+Worktree: D:\ReposFred\agenteyes-dev28-r7
+
+A. AGAINST THE EXACT HEAD DERIVATION (_quitsDelivered > 0 - the lifetime counter):
+   PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 quits=2 kills=1 exited=True exitCode=0 kind=clean-quit complete=yes abandoned=False
+   PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 quits=2 kills=1 exited=True exitCode=0 kind=absent complete=unknown abandoned=False
+   PRIOR_REFUSAL_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0 quits=2 kills=1 exited=True exitCode=0 kind=clean-quit complete=yes abandoned=False
+
+B. AGAINST THE ROUND-9 FIX (_exitFollowedADeliveredQuit - the exit round's own delivery):
+   PRIOR_DELIVERY_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 quits=2 kills=1 exited=True exitCode=0 kind=absent complete=unknown abandoned=False
+   PRIOR_UNDELIVERED_THEN_DISPOSE_RETRY_QUIT_FAILS_EXIT_0 quits=2 kills=1 exited=True exitCode=0 kind=absent complete=unknown abandoned=False
+   PRIOR_REFUSAL_THEN_DISPOSE_RETRY_QUIT_DELIVERED_EXIT_0 quits=2 kills=1 exited=True exitCode=0 kind=clean-quit complete=yes abandoned=False
+
+The ONLY row that changed is the first one, which is the blocking defect.
+The two controls are unmoved, so the fix is not a blanket refusal of recovery success.

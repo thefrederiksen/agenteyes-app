@@ -1,0 +1,24 @@
+Issue #43 round 2 - the new no-scrollbar test, RED against this branch head (2168550).
+Command: dotnet test AgentEyes.sln -c Release --no-build --filter "FullyQualifiedName~PresetEditorFitsWithoutScrolling"
+
+Test run for D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.88]     AgentEyes.Tests.PresetEditorFitsWithoutScrollingTests.ATab_AtTheDefaultWindowSize_ShowsNoVerticalScrollBar(tabName: "CameraTab", scrollName: "CameraScroll") [FAIL]
+  Failed AgentEyes.Tests.PresetEditorFitsWithoutScrollingTests.ATab_AtTheDefaultWindowSize_ShowsNoVerticalScrollBar(tabName: "CameraTab", scrollName: "CameraScroll") [88 ms]
+  Error Message:
+   The CameraTab scrolls at the editor's default 1000x760 window (client 984x721): the content is 681 px tall in a 528 px viewport, 154 px too much. Issue #35 AC1/AC3 say there is no vertical scrollbar on any tab at the default size - find the room or enlarge the window, but do not give the scrollbar back.
+  Stack Trace:
+     at AgentEyes.Tests.PresetEditorFitsWithoutScrollingTests.ATab_AtTheDefaultWindowSize_ShowsNoVerticalScrollBar(String tabName, String scrollName) in D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\PresetEditorFitsWithoutScrollingTests.cs:line 66
+   at InvokeStub_PresetEditorFitsWithoutScrollingTests.ATab_AtTheDefaultWindowSize_ShowsNoVerticalScrollBar(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithFewArgs(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+
+Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+================================================================================
+GREEN, after the three-column Camera tab and the 1280-wide default (same tests):
+================================================================================
+
+Test run for D:\ReposFred\agenteyes-dev43\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7, Duration: 1 s - AgentEyes.Tests.dll (net8.0)

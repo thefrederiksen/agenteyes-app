@@ -1,0 +1,63 @@
+param([string]$Action = 'inspect', [string]$Arg = '')
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+function Find-Main {
+    for ($i = 0; $i -lt 30; $i++) {
+        $w = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'AgentEyes') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+        if ($w) { return $w }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'main window not found'
+}
+$win = Find-Main
+switch ($Action) {
+    'inspect' {
+        $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+        function Dump($e, $d) {
+            if ($d -gt 4) { return }
+            $c = $walker.GetFirstChild($e)
+            while ($c) {
+                Write-Output ("{0}[{1}] '{2}' enabled={3}" -f ('  ' * $d), $c.Current.ControlType.ProgrammaticName, $c.Current.Name, $c.Current.IsEnabled)
+                Dump $c ($d + 1)
+                $c = $walker.GetNextSibling($c)
+            }
+        }
+        Dump $win 1
+    }
+    'click' {
+        $b = $win.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found" }
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Write-Output "clicked '$Arg'"
+    }
+    'menu' {
+        $procCond = New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $win.Current.ProcessId)
+        $chevron = $win.FindFirst('Descendants', (BothOf (NameIs 'Preset menu') (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $chevron) { throw 'preset menu not found' }
+        ($chevron.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Start-Sleep -Milliseconds 900
+        foreach ($top in $A::RootElement.FindAll('Children', $procCond)) {
+            foreach ($mi in $top.FindAll('Descendants', (TypeIs ([System.Windows.Automation.ControlType]::MenuItem)))) {
+                Write-Output ("MENUITEM '{0}'" -f $mi.Current.Name)
+            }
+        }
+    }
+    'pick' {
+        $procCond = New-Object System.Windows.Automation.PropertyCondition($A::ProcessIdProperty, $win.Current.ProcessId)
+        $chevron = $win.FindFirst('Descendants', (BothOf (NameIs 'Preset menu') (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        ($chevron.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Start-Sleep -Milliseconds 900
+        $item = $null
+        foreach ($top in $A::RootElement.FindAll('Children', $procCond)) {
+            $item = $top.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::MenuItem))))
+            if ($item) { break }
+        }
+        if (-not $item) { throw "preset '$Arg' not found" }
+        ($item.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Write-Output "picked '$Arg'"
+    }
+}

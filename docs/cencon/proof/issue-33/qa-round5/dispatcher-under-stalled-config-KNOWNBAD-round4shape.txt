@@ -1,0 +1,6 @@
+dll sha256 = 
+AgentEyesApp.dll = CB394F7C0253F3D25A2557B0F21D7624672CB9F2DDA100C706410434470D2992
+HUD rect: X=893 Y=150 W=520 H=400
+STALLBAD(round-4 shape)  publishing before = True
+STALLBAD(round-4 shape)  8108ms -> publishing=True
+STALLBAD(round-4 shape)  publishing after = True  (both clicks served after 30021ms)

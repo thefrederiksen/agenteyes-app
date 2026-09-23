@@ -22,6 +22,7 @@ namespace AgentEyes.Audio
         private readonly WasapiLoopbackCapture _capture;
         private readonly ManualResetEventSlim _stopped = new(false);
         private WaveFileWriter? _writer;
+        private System.IO.Stream? _sink;
         private IWavePlayer? _keepAlive;
         private bool _isRecording;
 
@@ -44,6 +45,23 @@ namespace AgentEyes.Audio
             _stopped.Reset();
             // Start the silence keep-alive BEFORE the capture so the endpoint is already active
             // when the first loopback buffer is requested (issue #126).
+            StartSilenceKeepAlive();
+            _isRecording = true;
+            _capture.StartRecording();
+        }
+
+        /// <summary>
+        /// Issue #66: stream the raw loopback samples (the device's native format, 32-bit float) into
+        /// <paramref name="sink"/> instead of a WAV file - always-on feeds them to its ffmpeg through a
+        /// named pipe, because ffmpeg has no WASAPI loopback input of its own. A null sink captures for
+        /// the level meter only. The keep-alive runs either way: without it an idle endpoint delivers
+        /// no buffers at all and the stream would lose the silences (issue #126).
+        /// </summary>
+        public void StartToStream(System.IO.Stream? sink)
+        {
+            if (_isRecording) return;
+            _sink = sink;
+            _stopped.Reset();
             StartSilenceKeepAlive();
             _isRecording = true;
             _capture.StartRecording();
@@ -93,6 +111,7 @@ namespace AgentEyes.Audio
             _writer?.Flush();
             _writer?.Dispose();
             _writer = null;
+            _sink = null;
         }
 
         private void OnRecordingStopped(object? sender, StoppedEventArgs e)
@@ -104,6 +123,18 @@ namespace AgentEyes.Audio
         private void OnDataAvailable(object? sender, WaveInEventArgs e)
         {
             _writer?.Write(e.Buffer, 0, e.BytesRecorded);
+            var sink = _sink;
+            if (sink != null)
+            {
+                try { sink.Write(e.Buffer, 0, e.BytesRecorded); }
+                catch (Exception ex) when (ex is System.IO.IOException or ObjectDisposedException)
+                {
+                    // The reader (always-on's ffmpeg) has gone. Say so once and stop writing; the
+                    // always-on supervisor sees the exited process and restarts the whole capture.
+                    _sink = null;
+                    Log.Warn($"[LoopbackCapture] OnDataAvailable: the system-sound stream reader went away ({ex.Message}); no longer streaming");
+                }
+            }
 
             // Mix format is 32-bit IEEE float.
             float peak = 0f;

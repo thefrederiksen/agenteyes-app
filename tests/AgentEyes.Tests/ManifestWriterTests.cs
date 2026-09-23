@@ -75,7 +75,7 @@ namespace AgentEyes.Tests
         /// recovery record); everything that changes SOME fields of an existing recording must be an
         /// Update, or it erases whatever it never read.
         ///
-        /// 22 call sites in 14 files: 13 Update, 9 Replace.
+        /// 30 call sites in 17 files: 21 Update, 9 Replace.
         /// </summary>
         private static readonly WriterFile[] ExpectedWriters =
         {
@@ -83,8 +83,17 @@ namespace AgentEyes.Tests
                 "Update: the Library rename sets DisplayName"),
             new("src/AgentEyes.App/RecordingDetailWindow.cs", Updates: 1, Replaces: 0,
                 "Update: the detail-window rename sets DisplayName"),
+            new("src/AgentEyes.Core/CameraCompose.cs", Updates: 1, Replaces: 0,
+                "Update: issue #47 - the composed-camera flag and the preserved screen-only cut"),
             new("src/AgentEyes.Core/Commands.cs", Updates: 0, Replaces: 3,
                 "Replace x3: a CLI capture session's own record (shot, audio, video)"),
+            new("src/AgentEyes.Core/Housekeeping/FrameConversion.cs", Updates: 1, Replaces: 0,
+                "Update: issues #55, #56 - converted frames are repointed in Shots and Files"),
+            new("src/AgentEyes.Core/Housekeeping/Housekeeper.cs", Updates: 6, Replaces: 0,
+                "Update x6: issues #55, #56, #59 - a deleted preserved original is struck from OriginalFiles, "
+                + "a deleted composition input is struck from Files, a transcoded one is renamed in place, "
+                + "an expired recording records its intent and stops naming what it lost, and every action is appended to "
+                + "the Housekeeping record"),
             new("src/AgentEyes.Core/Package.cs", Updates: 1, Replaces: 1,
                 "Update: what packaging produced. Replace: a synthesized bare-video manifest"),
             new("src/AgentEyes.Core/Packaging/TitleBackfill.cs", Updates: 1, Replaces: 0,
@@ -131,6 +140,7 @@ namespace AgentEyes.Tests
             ("src/AgentEyes.Core/Commands.cs",                   "CLI: resolves a recording directory by the file's presence"),
             (ManifestPath,                                       "defines the file name and loads it"),
             (StorePath,                                          "THE writer"),
+            ("src/AgentEyes.Core/Housekeeping/Housekeeper.cs",   "housekeeping: a directory is a recording when it holds one"),
             ("src/AgentEyes.Core/Package.cs",                    "packaging: is this directory a recording, or a bare video?"),
             ("src/AgentEyes.Core/PostRecording.cs",              "the sequence reports a recording with no manifest"),
             ("src/AgentEyes.Core/PostRecordingPlan.cs",          "recovery scan: no manifest, nothing to resume"),
@@ -150,6 +160,7 @@ namespace AgentEyes.Tests
         private static readonly (string File, string Writes)[] WritersOfOtherFiles =
         {
             ("src/AgentEyes.Core/Commands.cs",  "File.Move of the pre-processing audio to its .original backup"),
+            ("src/AgentEyes.Core/Housekeeping/Housekeeper.cs", "rewrites an ffmpeg log so only its tail survives"),
             ("src/AgentEyes.Core/Package.cs",   "walkthrough.html, transcript.json, transcript.txt, transcript.<lang>.vtt"),
             ("src/AgentEyes.Core/Translator.cs", "transcript.<lang>.vtt for a translated language"),
         };
@@ -262,10 +273,10 @@ namespace AgentEyes.Tests
         {
             var found = CountWriters(ProductionSources(), CodeOf);
 
-            Assert.Equal(14, found.Count);                                  // files
-            Assert.Equal(13, found.Values.Sum(v => v.Updates));             // read-modify-write
+            Assert.Equal(17, found.Count);                                  // files
+            Assert.Equal(21, found.Values.Sum(v => v.Updates));             // read-modify-write
             Assert.Equal(9, found.Values.Sum(v => v.Replaces));             // whole-content
-            Assert.Equal(22, found.Values.Sum(v => v.Updates + v.Replaces));
+            Assert.Equal(30, found.Values.Sum(v => v.Updates + v.Replaces));
         }
 
         [Fact]

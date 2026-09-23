@@ -1,0 +1,6 @@
+﻿==== clamp drift: config says the person left the HUD at 200x100 ====
+  config before:   "HudWidth": 200,   "HudHeight": 100,   "HudPreviewVisible": true
+  HUD as opened (commanded 200x100, MinWidth is 260):
+    HUD rect: X=1644 Y=16 W=260 H=100
+  config after one recording, NOBODY resized anything:   "HudWidth": 260,   "HudHeight": 100,   "HudPreviewVisible": true,
+==== end clamp drift ====

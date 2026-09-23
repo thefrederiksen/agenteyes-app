@@ -1,0 +1,96 @@
+using System;
+using System.IO;
+using System.Windows;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
+using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Media;
+
+static class Probe
+{
+    public static string LogPath = Path.Combine(Path.GetTempPath(), "uiaprobe.log");
+    public static void W(string s) { File.AppendAllText(LogPath, DateTime.Now.ToString("HH:mm:ss.fff") + " " + s + Environment.NewLine); }
+}
+
+sealed class LoggingTransform : ITransformProvider
+{
+    private readonly ITransformProvider _inner;
+    public LoggingTransform(ITransformProvider inner) { _inner = inner; }
+    public bool CanMove => _inner.CanMove;
+    public bool CanResize => _inner.CanResize;
+    public bool CanRotate => _inner.CanRotate;
+    public void Move(double x, double y) { Probe.W($"PEER Move {x},{y}"); _inner.Move(x, y); }
+    public void Resize(double w, double h) { Probe.W($"PEER Resize {w}x{h}"); _inner.Resize(w, h); }
+    public void Rotate(double d) { _inner.Rotate(d); }
+}
+
+sealed class ProbePeer : WindowAutomationPeer, ITransformProvider
+{
+    private readonly Window _w;
+    public ProbePeer(Window w) : base(w) { _w = w; }
+    public override object GetPattern(PatternInterface p)
+    {
+        if (p == PatternInterface.Transform) { Probe.W("PEER GetPattern Transform -> SELF"); return this; }
+        return base.GetPattern(p);
+    }
+    public bool CanMove => true;
+    public bool CanResize => true;
+    public bool CanRotate => false;
+    public void Move(double x, double y) { Probe.W($"PEER Move {x},{y}"); _w.Left = x; _w.Top = y; }
+    public void Resize(double w, double h) { Probe.W($"PEER Resize {w}x{h}"); _w.Width = w; _w.Height = h; }
+    public void Rotate(double d) => throw new InvalidOperationException();
+}
+
+sealed class ProbeWindow : Window
+{
+    protected override AutomationPeer OnCreateAutomationPeer() => new ProbePeer(this);
+}
+
+static class Program
+{
+    const int WM_SIZE = 0x0005, WM_SIZING = 0x0214, WM_ENTERSIZEMOVE = 0x0231, WM_EXITSIZEMOVE = 0x0232, WM_WINDOWPOSCHANGED = 0x0047;
+
+    [STAThread]
+    static void Main()
+    {
+        try { File.Delete(Probe.LogPath); } catch { }
+        Probe.W("start; ITransformProvider on WindowAutomationPeer = " +
+            typeof(ITransformProvider).IsAssignableFrom(typeof(WindowAutomationPeer)));
+        var app = new Application();
+        var w = new ProbeWindow
+        {
+            Title = "UIA Probe HUD",
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.CanResize,
+            AllowsTransparency = true,
+            Background = Brushes.Transparent,
+            Topmost = true,
+            ShowInTaskbar = false,
+            ShowActivated = false,
+            SizeToContent = SizeToContent.Manual,
+            MinWidth = 260,
+            MinHeight = 52,
+            Width = 520, Height = 400,
+            Left = 100, Top = 100,
+            Content = new Border { Background = new SolidColorBrush(Color.FromArgb(0xF2,0x24,0x26,0x2B)) },
+        };
+        w.SourceInitialized += (_, _) =>
+        {
+            var h = new WindowInteropHelper(w).Handle;
+            HwndSource.FromHwnd(h).AddHook((IntPtr hh, int msg, IntPtr wp, IntPtr lp, ref bool handled) =>
+            {
+                if (msg == WM_SIZE) Probe.W("MSG WM_SIZE");
+                else if (msg == WM_SIZING) Probe.W("MSG WM_SIZING");
+                else if (msg == WM_ENTERSIZEMOVE) Probe.W("MSG WM_ENTERSIZEMOVE");
+                else if (msg == WM_EXITSIZEMOVE) Probe.W("MSG WM_EXITSIZEMOVE");
+                else if (msg == WM_WINDOWPOSCHANGED) Probe.W("MSG WM_WINDOWPOSCHANGED");
+                else if (msg == 0x0112) Probe.W($"MSG WM_SYSCOMMAND wp=0x{wp.ToInt64():X}");
+                return IntPtr.Zero;
+            });
+        };
+        w.SizeChanged += (_, _) => Probe.W($"SizeChanged {w.ActualWidth}x{w.ActualHeight}");
+        w.Show();
+        app.Run(w);
+    }
+}

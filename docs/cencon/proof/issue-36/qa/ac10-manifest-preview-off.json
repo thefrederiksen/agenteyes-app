@@ -1,0 +1,44 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-08-29T07:36:41.3928414Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "Microphone (HD Webcam eMeet C960)",
+  "DurationSeconds": 15.33,
+  "VideoFile": "recording.mp4",
+  "CameraFile": "camera.mp4",
+  "CameraStartOffsetSeconds": -0.61,
+  "CameraCapturedSeconds": 15.86,
+  "CameraStopKind": "clean-quit",
+  "CameraStderrComplete": true,
+  "CameraComplete": "yes",
+  "FfmpegCommand": "\u0022C:\\Users\\soren\\AppData\\Local\\Programs\\Python\\Python311\\Scripts\\ffmpeg.exe\u0022 -y -f gdigrab -thread_queue_size 1024 -framerate 15 -offset_x 1920 -offset_y -5 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i \u0022audio=Microphone (HD Webcam eMeet C960)\u0022 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k C:\\Users\\soren\\Videos\\AgentEyes\\2026-08-29_033641_video\\raw.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [],
+  "Files": [
+    "recording.mp4",
+    "camera.mp4",
+    "recording.original.mp4"
+  ],
+  "OriginalFiles": [
+    "recording.original.mp4"
+  ],
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-08-29T07:36:58.6033728Z"
+    },
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-08-29T07:36:59.1006068Z"
+    }
+  }
+}

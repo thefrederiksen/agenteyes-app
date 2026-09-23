@@ -1,0 +1,234 @@
+param([string]$Action = 'rect', [string]$Arg = '')
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+
+if (-not ('W32' -as [type])) {
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class W32 {
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", SetLastError=true)] public static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);
+}
+'@
+}
+
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n) { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function TypeIs($t) { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a, $b) { New-Object System.Windows.Automation.AndCondition($a, $b) }
+
+function Find-Hud {
+    for ($i = 0; $i -lt 30; $i++) {
+        $w = $A::RootElement.FindFirst('Children', (BothOf (NameIs 'Recording HUD') (TypeIs ([System.Windows.Automation.ControlType]::Window))))
+        if ($w) { return $w }
+        Start-Sleep -Milliseconds 400
+    }
+    throw 'HUD window "Recording HUD" not found within 12s'
+}
+$hud = Find-Hud
+function Rect() { $br = $hud.Current.BoundingRectangle; "X=$($br.X) Y=$($br.Y) W=$($br.Width) H=$($br.Height)" }
+function Hwnd() { [IntPtr]$hud.Current.NativeWindowHandle }
+
+switch ($Action) {
+    'rect'  { Write-Output ("HUD rect: " + (Rect)) }
+    'image' {
+        $img = $hud.FindFirst('Descendants', (TypeIs ([System.Windows.Automation.ControlType]::Image)))
+        if (-not $img) { Write-Output "IMAGE: not found"; break }
+        Write-Output ("IMAGE rect=" + $img.Current.BoundingRectangle)
+    }
+    'tree' {
+        $all = $hud.FindAll('Descendants', [System.Windows.Automation.Condition]::TrueCondition)
+        foreach ($e in $all) {
+          Write-Output ("  [{0}] name='{1}' help='{2}' enabled={3} rect={4}" -f $e.Current.ControlType.ProgrammaticName.Replace('ControlType.',''), $e.Current.Name, $e.Current.HelpText, $e.Current.IsEnabled, $e.Current.BoundingRectangle)
+        }
+    }
+    'click' {
+        $b = $hud.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found" }
+        if (-not $b.Current.IsEnabled) { Write-Output "button '$Arg' is DISABLED"; break }
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        Start-Sleep -Milliseconds 700
+        Write-Output ("clicked '$Arg' -> HUD rect: " + (Rect))
+    }
+    'clicktimed' {
+        # The STOP button, timed. What is being measured is the WPF dispatcher's responsiveness:
+        # an InvokePattern.Invoke on a WPF control is dispatched ON the UI thread, so a dispatcher
+        # blocked inside a synchronous file write cannot answer until the write returns.
+        $b = $hud.FindFirst('Descendants', (BothOf (NameIs $Arg) (TypeIs ([System.Windows.Automation.ControlType]::Button))))
+        if (-not $b) { throw "button '$Arg' not found" }
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+        $sw.Stop()
+        Write-Output ("INVOKE '$Arg' returned in " + $sw.ElapsedMilliseconds + "ms")
+    }
+    'resize' {
+        $p = $Arg.Split(',')
+        $tp = $hud.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        Write-Output ("CanResize=" + $tp.Current.CanResize)
+        $tp.Resize([double]$p[0], [double]$p[1])
+        Start-Sleep -Milliseconds 900
+        Write-Output ("HUD rect after resize: " + (Rect))
+    }
+    'move' {
+        $p = $Arg.Split(',')
+        $tp = $hud.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        $tp.Move([double]$p[0], [double]$p[1])
+        Start-Sleep -Milliseconds 800
+        Write-Output ("HUD rect after move: " + (Rect))
+    }
+    'maximise' {
+        # A REAL user maximise, commanded from outside the app through UI Automation's
+        # WindowPattern - the same SC_MAXIMIZE the maximise button, Win+Up and a double-click on
+        # the title bar produce. No input is synthesized and no window is force-foregrounded.
+        $wp = $hud.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern)
+        Write-Output ("CanMaximize=" + $wp.Current.CanMaximize + " state=" + $wp.Current.WindowVisualState)
+        $wp.SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Maximized)
+        Start-Sleep -Milliseconds 1500
+        Write-Output ("IsZoomed=" + [W32]::IsZoomed((Hwnd)) + " -> HUD rect: " + (Rect))
+    }
+    'maximise2' {
+        # THE REVIEW GATE'S OWN MEASUREMENT, replayed against the real HUD: the user maximise
+        # command, WM_SYSCOMMAND SC_MAXIMIZE (0xF030). This is what the maximise button, Win+Up, a
+        # double-click on the title bar and a drag to the top of the screen all send. It is POSTED
+        # to the window's own queue - no global input is synthesized and nothing is
+        # force-foregrounded.
+        $h = (Hwnd)
+        Write-Output ("before SC_MAXIMIZE: " + (Rect) + " IsZoomed=" + [W32]::IsZoomed($h))
+        [void][W32]::PostMessage($h, 0x0112, [IntPtr]0xF030, [IntPtr]0)
+        Start-Sleep -Milliseconds 2000
+        Write-Output ("after SC_MAXIMIZE:  " + (Rect) + " IsZoomed=" + [W32]::IsZoomed($h))
+    }
+    'restore2' {
+        $h = (Hwnd)
+        [void][W32]::PostMessage($h, 0x0112, [IntPtr]0xF120, [IntPtr]0)   # SC_RESTORE
+        Start-Sleep -Milliseconds 2000
+        Write-Output ("after SC_RESTORE:   " + (Rect) + " IsZoomed=" + [W32]::IsZoomed($h))
+    }
+    'snapmsg' {
+        # AERO SNAP'S MESSAGE SHAPE against the REAL HudWindow: a modal loop begins, the window is
+        # really resized while it is running, the loop ends - and NO WM_SIZING is ever sent. That is
+        # the sequence the fix keys on. The messages are posted rather than produced by a physical
+        # drag to a screen edge, because a real drag needs global mouse synthesis; the SHAPE is
+        # taken from the developer's claim and the Review Gate's round-1 measurement, not
+        # re-measured here.
+        $p = $Arg.Split(',')
+        $h = (Hwnd)
+        Write-Output ("before: " + (Rect))
+        [void][W32]::PostMessage($h, 0x0231, [IntPtr]0, [IntPtr]0)        # WM_ENTERSIZEMOVE
+        Start-Sleep -Milliseconds 500
+        [void][W32]::SetWindowPos($h, [IntPtr]0, 0, 0, [int]$p[0], [int]$p[1], 0x0002 -bor 0x0004 -bor 0x0010)
+        Start-Sleep -Milliseconds 700
+        Write-Output ("inside the loop, after the shell resized it: " + (Rect))
+        [void][W32]::PostMessage($h, 0x0232, [IntPtr]0, [IntPtr]0)        # WM_EXITSIZEMOVE
+        Start-Sleep -Milliseconds 1200
+        Write-Output ("after the loop: " + (Rect))
+    }
+    'movemsg' {
+        # The SAME message shape with NO size change - a plain drag. Nothing may be recorded.
+        $h = (Hwnd)
+        Write-Output ("before: " + (Rect))
+        [void][W32]::PostMessage($h, 0x0231, [IntPtr]0, [IntPtr]0)
+        Start-Sleep -Milliseconds 600
+        [void][W32]::PostMessage($h, 0x0232, [IntPtr]0, [IntPtr]0)
+        Start-Sleep -Milliseconds 1200
+        Write-Output ("after a move-shaped loop: " + (Rect))
+    }
+    'restorewin' {
+        $wp = $hud.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern)
+        $wp.SetWindowVisualState([System.Windows.Automation.WindowVisualState]::Normal)
+        Start-Sleep -Milliseconds 1500
+        Write-Output ("restored -> HUD rect: " + (Rect))
+    }
+    'minrestore' {
+        $h = (Hwnd)
+        [void][W32]::ShowWindow($h, 6)     # SW_MINIMIZE
+        Start-Sleep -Milliseconds 900
+        Write-Output ("minimised: IsIconic=" + [W32]::IsIconic($h))
+        [void][W32]::ShowWindow($h, 9)     # SW_RESTORE
+        Start-Sleep -Milliseconds 1200
+        Write-Output ("restored -> HUD rect: " + (Rect))
+    }
+    'snaploop' {
+        # AERO SNAP'S SHAPE, driven through the REAL Win32 modal loop rather than a simulation of
+        # it: SC_MOVE puts Windows itself into the move-or-size modal loop (so WM_ENTERSIZEMOVE and
+        # WM_EXITSIZEMOVE come from Windows, not from this script), the window is REALLY resized
+        # from outside while the loop is running - which is what the shell does when it snaps a
+        # dragged window to an edge - and the loop is then committed. No WM_SIZING is ever sent,
+        # exactly as in a snap.
+        #
+        # WHAT THIS IS NOT: a physical mouse drag to a screen edge. That needs global input
+        # synthesis, which would move the human's cursor, so it was not done. The message SHAPE is
+        # real; the gesture that produces it in the wild is taken from the Review Gate's round-1
+        # measurement and from the developer's claim, not re-measured here.
+        $p = $Arg.Split(',')
+        $h = (Hwnd)
+        Write-Output ("before the loop: " + (Rect))
+        $timer = New-Object System.Timers.Timer
+        $timer.Interval = 1500
+        $timer.AutoReset = $false
+        $act = { [void][W32]::SetWindowPos($script:HH, [IntPtr]0, 0, 0, [int]$script:WW, [int]$script:HHH, 0x0002 -bor 0x0004 -bor 0x0010) }
+        $script:HH = $h; $script:WW = $p[0]; $script:HHH = $p[1]
+        Register-ObjectEvent -InputObject $timer -EventName Elapsed -Action $act | Out-Null
+        $timer.Start()
+        [void][W32]::PostMessage($h, 0x0112, [IntPtr]0xF010, [IntPtr]0)    # WM_SYSCOMMAND SC_MOVE
+        Start-Sleep -Milliseconds 600
+        for ($i = 0; $i -lt 4; $i++) { [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x27, [IntPtr]0); Start-Sleep -Milliseconds 120 }  # VK_RIGHT
+        Start-Sleep -Milliseconds 1600
+        [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x0D, [IntPtr]0)      # VK_RETURN: commit the loop
+        Start-Sleep -Milliseconds 1500
+        Write-Output ("after the move loop that changed the size: " + (Rect))
+    }
+    'moveloop' {
+        # The SAME real modal loop with NO size change - a plain drag. Nothing may be recorded.
+        $h = (Hwnd)
+        Write-Output ("before the loop: " + (Rect))
+        [void][W32]::PostMessage($h, 0x0112, [IntPtr]0xF010, [IntPtr]0)
+        Start-Sleep -Milliseconds 600
+        for ($i = 0; $i -lt 8; $i++) { [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x27, [IntPtr]0); Start-Sleep -Milliseconds 90 }
+        [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x0D, [IntPtr]0)
+        Start-Sleep -Milliseconds 1200
+        Write-Output ("after a real MOVE loop (no size change): " + (Rect))
+    }
+    'borderdrag' {
+        $h = (Hwnd)
+        $steps = [int]$Arg; if ($steps -le 0) { $steps = 40 }
+        [void][W32]::PostMessage($h, 0x0112, [IntPtr]0xF008, [IntPtr]0)   # WM_SYSCOMMAND SC_SIZE
+        Start-Sleep -Milliseconds 600
+        [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x27, [IntPtr]0)
+        Start-Sleep -Milliseconds 200
+        for ($i = 0; $i -lt $steps; $i++) { [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x27, [IntPtr]0); Start-Sleep -Milliseconds 25 }
+        [void][W32]::PostMessage($h, 0x0100, [IntPtr]0x0D, [IntPtr]0)
+        Start-Sleep -Milliseconds 1200
+        Write-Output ("after border drag: HUD rect: " + (Rect))
+    }
+    'grip' {
+        $p = $Arg.Split(',')
+        $g = $hud.FindFirst('Descendants', (NameIs 'HUD resize'))
+        if (-not $g) { throw 'grip "HUD resize" not found' }
+        $tp = $g.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern)
+        $tp.Move([double]$p[0], [double]$p[1])
+        Start-Sleep -Milliseconds 900
+        Write-Output ("after the grip drag: HUD rect: " + (Rect))
+    }
+    'hwndresize' {
+        $p = $Arg.Split(',')
+        [void][W32]::SetWindowPos((Hwnd), [IntPtr]0, 0, 0, [int]$p[0], [int]$p[1], 0x0002 -bor 0x0004 -bor 0x0010)
+        Start-Sleep -Milliseconds 900
+        Write-Output ("after a bare SetWindowPos to $Arg (no gesture): HUD rect: " + (Rect))
+    }
+    'dpichange' {
+        [void][W32]::PostMessage((Hwnd), 0x02E0, [IntPtr]((120 -shl 16) -bor 120), [IntPtr]0)
+        Start-Sleep -Milliseconds 800
+        Write-Output ("after WM_DPICHANGED: HUD rect: " + (Rect))
+    }
+    'close' {
+        [void][W32]::PostMessage((Hwnd), 0x0010, [IntPtr]0, [IntPtr]0)      # WM_CLOSE
+        Start-Sleep -Milliseconds 1500
+        Write-Output "WM_CLOSE posted to the HUD"
+    }
+}

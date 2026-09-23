@@ -1,0 +1,94 @@
+QA round 6 - Review Gate round-2 defect 2: the resize canary on the ORDINARY STOP path
+=====================================================================================
+
+All four runs below are the REAL app, driven focus-free through UI Automation (no synthesized
+input, no force-foregrounding). The recording is started with the main window's REC button, which
+is the only route that puts the HUD on screen (a REST /record/start does NOT create a HUD - measured
+first, and that is why these runs do not use the API).
+
+The resize route used is a BARE SetWindowPos: no resize modal loop, no WindowState change, no grip,
+no UI Automation TransformPattern - i.e. the "fifth route" the allowlist in HudUserResize does not
+recognise. It is the message shape the Review Gate named as reproducing the same state transition
+as Windows keyboard snap / Snap Layouts.
+
+Shipped build   AgentEyesApp.dll B7E7A67631454E37CDA3BD96B51B7F93977B88E56473D729573E5CC3574CCF97
+                (worktree at PR head 8e1babe)
+Known-bad build AgentEyesApp.dll 7BD0E676622F52455D485BE86478E1B20C3906FD793C90B1AC7A6604676B8A83
+                (worktree at round-2 head c1eb48e)
+
+
+RUN 1 - SHIPPED, a genuinely unaccounted resize, then the ordinary Stop.  TRUE POSITIVE: it fires.
+-------------------------------------------------------------------------------------------------
+marker=QA33R6-D2-shipped-093614
+HUD rect: X=1354 Y=130 W=520 H=400
+after a bare SetWindowPos to 980,640 (no gesture): HUD rect: X=1354 Y=130 W=980 H=640
+HUD rect: X=1354 Y=130 W=980 H=640
+clicked 'HUD stop' -> HUD rect: X=2611 Y=377 W=260 H=52
+--- canary lines ---
+09:36:20.953 [WARN] hud: the HUD ended up at 980x640 but the last size anything attributed to a person was 520x400. A resize route is unaccounted for (issue #33, AC7): the size will NOT be remembered, because no gesture claimed it. If this is reproducible, the gesture that produced it needs a route in HudUserResize.
+09:36:20.967 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:36:20.988 [WARN] hud: the HUD ended up at 260x52 but the last size anything attributed to a person was 520x400. A resize route is unaccounted for (issue #33, AC7): the size will NOT be remembered, because no gesture claimed it. If this is reproducible, the gesture that produced it needs a route in HudUserResize.
+09:36:20.988 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:36:26.495 [WARN] hud: the HUD ended up at 260x52 but the last size anything attributed to a person was 520x400. A resize route is unaccounted for (issue #33, AC7): the size will NOT be remembered, because no gesture claimed it. If this is reproducible, the gesture that produced it needs a route in HudUserResize.
+09:36:26.495 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+
+  The 980x640 line is the real signal and it DOES reach the log now - that half of the Gate's
+  defect 2 is fixed. But it is immediately followed by two 260x52 lines saying the same thing,
+  from the same run.
+
+
+RUN 2 - KNOWN-BAD (round-2 head), identical sequence.  The instrument check: NOTHING is logged.
+----------------------------------------------------------------------------------------------
+marker=QA33R6-D2-knownbad-093851
+clicked 'REC'
+HUD rect: X=893 Y=150 W=520 H=400
+after a bare SetWindowPos to 980,640 (no gesture): HUD rect: X=893 Y=150 W=980 H=640
+clicked 'HUD stop' -> HUD rect: X=893 Y=150 W=260 H=52
+--- KNOWN-BAD (round-2 head): canary lines ---
+09:38:53.305 [INFO] hud: preview panel opening at 520x400 (the default)
+09:39:04.287 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:39:04.304 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:39:09.738 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+
+  Zero canary lines for a real unaccounted 980x640 - exactly the Gate's round-2 defect 2, live.
+  So the log-reading instrument is discriminating: it is silent when the code does not report.
+  NOTE ALSO: three "preview panel down" lines. HudPreviewSizing.HidePanel is called THREE TIMES
+  per stop on BOTH builds. That is the mechanism behind the false alarms below.
+
+
+RUN 3 - SHIPPED, CLEAN STOP.  Nothing was resized at all.  FALSE POSITIVE - it still fires.
+-------------------------------------------------------------------------------------------
+marker=QA33R6-D2-cleanstop-093709
+clicked 'REC'
+HUD rect: X=2611 Y=377 W=520 H=400          <- opened at the default, never touched
+clicked 'HUD stop' -> HUD rect: X=2611 Y=377 W=260 H=52
+--- CLEAN STOP: any canary lines? ---
+09:37:11.209 [INFO] hud: preview panel opening at 520x400 (the default)
+09:37:21.800 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:37:21.807 [WARN] hud: the HUD ended up at 260x52 but the last size anything attributed to a person was 520x400. A resize route is unaccounted for (issue #33, AC7): the size will NOT be remembered, because no gesture claimed it. If this is reproducible, the gesture that produced it needs a route in HudUserResize.
+09:37:21.808 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:37:27.192 [WARN] hud: the HUD ended up at 260x52 but the last size anything attributed to a person was 520x400. A resize route is unaccounted for (issue #33, AC7): the size will NOT be remembered, because no gesture claimed it. If this is reproducible, the gesture that produced it needs a route in HudUserResize.
+09:37:27.193 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+
+
+RUN 4 - SHIPPED, CLEAN STOP AGAIN, with the staged status labels shown.  Reproduced 2/2.
+----------------------------------------------------------------------------------------
+marker=QA33R6-D2-cleanstop2-094307
+clicked 'REC'
+HUD rect: X=893 Y=150 W=520 H=400
+IMAGE rect=909,247,490,276                  <- AC1: the preview Image is not zero-sized
+clicked 'HUD stop' -> HUD rect: X=893 Y=150 W=260 H=52
+--- CLEAN STOP #2, no resize of any kind ---
+09:43:11.450 [INFO] hud: preview panel opening at 520x400 (the default)
+09:43:23.845 [INFO] hud: status -> Saving...              <- SetStatus call #1
+09:43:23.878 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:43:23.900 [INFO] hud: status -> Saving video...        <- SetStatus call #2
+09:43:23.902 [WARN] hud: the HUD ended up at 260x52 but the last size anything attributed to a person was 520x400. A resize route is unaccounted for (issue #33, AC7): the size will NOT be remembered, because no gesture claimed it. If this is reproducible, the gesture that produced it needs a route in HudUserResize.
+09:43:23.902 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+09:43:29.885 [INFO] hud: status -> Saving audio...        <- SetStatus call #3
+09:43:29.886 [WARN] hud: the HUD ended up at 260x52 but the last size anything attributed to a person was 520x400. A resize route is unaccounted for (issue #33, AC7): the size will NOT be remembered, because no gesture claimed it. If this is reproducible, the gesture that produced it needs a route in HudUserResize.
+09:43:29.887 [INFO] hud: preview panel down; the HUD is back to its pill size, remembering no size
+
+  The staged labels make the mechanism explicit. 260x52 is the HUD's OWN PILL SIZE, produced by
+  HidePanel's own "SizeToContent = WidthAndHeight" on the immediately preceding call. The canary
+  is reporting the fix's own auto-size as an unaccounted person-resize, on every single stop.

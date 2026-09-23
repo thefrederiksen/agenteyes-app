@@ -1,0 +1,98 @@
+M1 JpegFrame stops checking the JPEG markers (a truncated buffer counts as a whole frame)            Failed!  - Failed:     4, Passed:    29, Skipped:     0, Total:    33, Duration: 62 ms - AgentEyes.Tests.dll (net8.0)
+M2 MjpegFramer keeps the bytes that arrived before the first frame                                   Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17, Duration: 30 ms - AgentEyes.Tests.dll (net8.0)
+M3 MjpegFramer buffers an unterminated frame for ever (no ceiling, no count)                         Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17, Duration: 33 ms - AgentEyes.Tests.dll (net8.0)
+M4 PreviewTap stops draining the pipe while the preview is hidden (the recording hazard)             Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 61 ms - AgentEyes.Tests.dll (net8.0)
+M5 PreviewTap lets a publish failure stop the drain (the AC10 hazard)                                Failed!  - Failed:     3, Passed:    13, Skipped:     0, Total:    16, Duration: 55 ms - AgentEyes.Tests.dll (net8.0)
+M6 PreviewTap keeps the previous recording's leftover frame                                          Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 61 ms - AgentEyes.Tests.dll (net8.0)
+M7 PreviewTap leaves the published frame behind when the preview is hidden                           Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 60 ms - AgentEyes.Tests.dll (net8.0)
+M8 PreviewFrameFile opens the frame without sharing (it would break the writer's rename)             Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 54 ms - AgentEyes.Tests.dll (net8.0)
+M9 IsStale treats 'no frame has ever arrived' as fine (the fail-open reading)                        Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 29 ms - AgentEyes.Tests.dll (net8.0)
+M10 ManifestCorner is written even when no overlay was being shown                                   Failed!  - Failed:     2, Passed:    36, Skipped:     0, Total:    38, Duration: 33 ms - AgentEyes.Tests.dll (net8.0)
+M11 the camera layer is drawn for a recording that has no camera track                               Failed!  - Failed:     2, Passed:    36, Skipped:     0, Total:    38, Duration: 34 ms - AgentEyes.Tests.dll (net8.0)
+M12 a camera mode is silently accepted on a recording with no camera                                 Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 28 ms - AgentEyes.Tests.dll (net8.0)
+M13 the preview is a FILE output on ffmpeg itself - the measured recording-truncating shape          Failed!  - Failed:     3, Passed:    44, Skipped:     0, Total:    47, Duration: 27 ms - AgentEyes.Tests.dll (net8.0)
+M14 the preview output is added to every recording, preview or not                                   Failed!  - Failed:     2, Passed:    45, Skipped:     0, Total:    47, Duration: 29 ms - AgentEyes.Tests.dll (net8.0)
+M15 the preview filter scales every input frame and decimates afterwards (the measured-slow shape)   Failed!  - Failed:     1, Passed:    46, Skipped:     0, Total:    47, Duration: 26 ms - AgentEyes.Tests.dll (net8.0)
+M16 the panel draws layers for a recording that carries no preview feed                              Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 31 ms - AgentEyes.Tests.dll (net8.0)
+M17 a recording with no feed stops saying why the panel is empty                                     Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 30 ms - AgentEyes.Tests.dll (net8.0)
+M18 the manifest writes a default corner instead of leaving the field absent                         Failed!  - Failed:     2, Passed:     5, Skipped:     0, Total:     7, Duration: 89 ms - AgentEyes.Tests.dll (net8.0)
+M19 a half-specified saved size is restored (a config with only a width becomes a size)              Failed!  - Failed:     4, Passed:    26, Skipped:     0, Total:    30, Duration: 53 ms - AgentEyes.Tests.dll (net8.0)
+M20 taking the panel down leaves the HUD manually sized, so it never returns to its pill             Failed!  - Failed:     2, Passed:    11, Skipped:     0, Total:    13, Duration: 3 s - AgentEyes.Tests.dll (net8.0)
+M21 SavePosition goes back to reading the window's live size at close time (round 1's bug)           Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 42 ms - AgentEyes.Tests.dll (net8.0)
+M22 the window never watches for user resizes (a memory nothing can ever feed)                       Failed!  - Failed:     1, Passed:    56, Skipped:     0, Total:    57, Duration: 3 s - AgentEyes.Tests.dll (net8.0)
+M23 a window MOVE is taken for a resize (WM_SIZING is no longer required)                            Failed!  - Failed:     3, Passed:    54, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+M24 ROUND 3'S SHIPPED MECHANISM, RECONSTRUCTED: the window's own size reports are trusted            Failed!  - Failed:    17, Passed:    40, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+M25 the peer stops advertising Transform, so UI Automation resizes the HUD behind WPF's back         Failed!  - Failed:     3, Passed:    54, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+M26 the panel's state is read at the END of the gesture, so a pill drag becomes a panel size         Failed!  - Failed:     1, Passed:    56, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+M27 HudWindow sizes the window by hand again, where no test can drive it                             Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 56 ms - AgentEyes.Tests.dll (net8.0)
+M28 the panel always opens at the default, ignoring the size the person left it at                   Failed!  - Failed:     6, Passed:    51, Skipped:     0, Total:    57, Duration: 3 s - AgentEyes.Tests.dll (net8.0)
+M29 the HUD stops seeding its memory from the config (QA round-2 blind spot Q1)                      Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 52 ms - AgentEyes.Tests.dll (net8.0)
+M30 the sizing-mode narrowing is dropped, so a gesture on the pill becomes a panel size              Failed!  - Failed:     2, Passed:    55, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+M31 a degenerate 0x0 layout is accepted as a size somebody chose                                     Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 56 ms - AgentEyes.Tests.dll (net8.0)
+M32 the resize grip stops recording, so a drag of it is lost at the next recording                   Failed!  - Failed:     2, Passed:    55, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+==============================================================================================================
+FIRED  M1 JpegFrame stops checking the JPEG markers (a truncated buffer counts as a whole frame)
+       Failed!  - Failed:     4, Passed:    29, Skipped:     0, Total:    33, Duration: 62 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M2 MjpegFramer keeps the bytes that arrived before the first frame
+       Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17, Duration: 30 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M3 MjpegFramer buffers an unterminated frame for ever (no ceiling, no count)
+       Failed!  - Failed:     1, Passed:    16, Skipped:     0, Total:    17, Duration: 33 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M4 PreviewTap stops draining the pipe while the preview is hidden (the recording hazard)
+       Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 61 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M5 PreviewTap lets a publish failure stop the drain (the AC10 hazard)
+       Failed!  - Failed:     3, Passed:    13, Skipped:     0, Total:    16, Duration: 55 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M6 PreviewTap keeps the previous recording's leftover frame
+       Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 61 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M7 PreviewTap leaves the published frame behind when the preview is hidden
+       Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 60 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M8 PreviewFrameFile opens the frame without sharing (it would break the writer's rename)
+       Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16, Duration: 54 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M9 IsStale treats 'no frame has ever arrived' as fine (the fail-open reading)
+       Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 29 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M10 ManifestCorner is written even when no overlay was being shown
+       Failed!  - Failed:     2, Passed:    36, Skipped:     0, Total:    38, Duration: 33 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M11 the camera layer is drawn for a recording that has no camera track
+       Failed!  - Failed:     2, Passed:    36, Skipped:     0, Total:    38, Duration: 34 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M12 a camera mode is silently accepted on a recording with no camera
+       Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 28 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M13 the preview is a FILE output on ffmpeg itself - the measured recording-truncating shape
+       Failed!  - Failed:     3, Passed:    44, Skipped:     0, Total:    47, Duration: 27 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M14 the preview output is added to every recording, preview or not
+       Failed!  - Failed:     2, Passed:    45, Skipped:     0, Total:    47, Duration: 29 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M15 the preview filter scales every input frame and decimates afterwards (the measured-slow shape)
+       Failed!  - Failed:     1, Passed:    46, Skipped:     0, Total:    47, Duration: 26 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M16 the panel draws layers for a recording that carries no preview feed
+       Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 31 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M17 a recording with no feed stops saying why the panel is empty
+       Failed!  - Failed:     1, Passed:    37, Skipped:     0, Total:    38, Duration: 30 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M18 the manifest writes a default corner instead of leaving the field absent
+       Failed!  - Failed:     2, Passed:     5, Skipped:     0, Total:     7, Duration: 89 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M19 a half-specified saved size is restored (a config with only a width becomes a size)
+       Failed!  - Failed:     4, Passed:    26, Skipped:     0, Total:    30, Duration: 53 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M20 taking the panel down leaves the HUD manually sized, so it never returns to its pill
+       Failed!  - Failed:     2, Passed:    11, Skipped:     0, Total:    13, Duration: 3 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M21 SavePosition goes back to reading the window's live size at close time (round 1's bug)
+       Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 42 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M22 the window never watches for user resizes (a memory nothing can ever feed)
+       Failed!  - Failed:     1, Passed:    56, Skipped:     0, Total:    57, Duration: 3 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M23 a window MOVE is taken for a resize (WM_SIZING is no longer required)
+       Failed!  - Failed:     3, Passed:    54, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M24 ROUND 3'S SHIPPED MECHANISM, RECONSTRUCTED: the window's own size reports are trusted
+       Failed!  - Failed:    17, Passed:    40, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M25 the peer stops advertising Transform, so UI Automation resizes the HUD behind WPF's back
+       Failed!  - Failed:     3, Passed:    54, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M26 the panel's state is read at the END of the gesture, so a pill drag becomes a panel size
+       Failed!  - Failed:     1, Passed:    56, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M27 HudWindow sizes the window by hand again, where no test can drive it
+       Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 56 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M28 the panel always opens at the default, ignoring the size the person left it at
+       Failed!  - Failed:     6, Passed:    51, Skipped:     0, Total:    57, Duration: 3 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M29 the HUD stops seeding its memory from the config (QA round-2 blind spot Q1)
+       Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 52 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M30 the sizing-mode narrowing is dropped, so a gesture on the pill becomes a panel size
+       Failed!  - Failed:     2, Passed:    55, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+FIRED  M31 a degenerate 0x0 layout is accepted as a size somebody chose
+       Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 56 ms - AgentEyes.Tests.dll (net8.0)
+FIRED  M32 the resize grip stops recording, so a drag of it is lost at the next recording
+       Failed!  - Failed:     2, Passed:    55, Skipped:     0, Total:    57, Duration: 2 s - AgentEyes.Tests.dll (net8.0)

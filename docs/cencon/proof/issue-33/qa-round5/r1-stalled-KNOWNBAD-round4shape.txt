@@ -1,0 +1,25 @@
+[05:03:32.964] ARMED=True
+[05:03:32.974] TAG=R1-KNOWNBAD-round4shape seconds=45 camera='HD Webcam eMeet C960'
+[05:03:32.974] Core assembly: <QA-SCRATCH>\r5probe\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+[05:03:32.975] Core assembly written: 2026-08-29T05:03:31
+[05:03:35.829] state=recording dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_050334_video PreviewAvailable=True
+[05:03:36.843]   +1s state=recording elapsed=1.05 framesRead screen=6 camera=7 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:03:37.856]   +2s state=recording elapsed=2.06 framesRead screen=6 camera=7 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:03:38.870]   +3s state=recording elapsed=3.08 framesRead screen=6 camera=7 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:03:40.895]   +5s state=recording elapsed=5.1 framesRead screen=6 camera=7 publishing=True previewFailed=False screenFrameFile=ABSENT cameraFrameFile=ABSENT
+[05:03:45.990]   +10s state=recording elapsed=10.2 framesRead screen=7 camera=8 publishing=True previewFailed=False screenFrameFile=13664B cameraFrameFile=1897B
+[05:03:51.052]   +15s state=recording elapsed=15.26 framesRead screen=7 camera=8 publishing=True previewFailed=False screenFrameFile=13664B cameraFrameFile=1897B
+[05:03:56.126]   +20s state=recording elapsed=20.34 framesRead screen=8 camera=9 publishing=True previewFailed=False screenFrameFile=13912B cameraFrameFile=1939B
+[05:04:01.204]   +25s state=recording elapsed=25.41 framesRead screen=9 camera=10 publishing=True previewFailed=False screenFrameFile=13912B cameraFrameFile=1946B
+[05:04:06.289]   +30s state=recording elapsed=30.5 framesRead screen=9 camera=10 publishing=True previewFailed=False screenFrameFile=13912B cameraFrameFile=1946B
+[05:04:11.361]   +35s state=recording elapsed=35.57 framesRead screen=10 camera=11 publishing=True previewFailed=False screenFrameFile=13804B cameraFrameFile=1936B
+[05:04:16.413]   +40s state=recording elapsed=40.62 framesRead screen=11 camera=12 publishing=True previewFailed=False screenFrameFile=13922B cameraFrameFile=1951B
+[05:04:21.481]   +45s state=recording elapsed=45.69 framesRead screen=11 camera=12 publishing=True previewFailed=False screenFrameFile=13922B cameraFrameFile=1951B
+[05:04:21.485] STOPPING at wall=47.3s elapsed=45.7
+Unhandled exception. AgentEyes.RecordingStopFailedException: stopping the recording in C:\Users\soren\Videos\AgentEyes\2026-08-29_050334_video failed (the manifest was saved): camera stop: the camera "HD Webcam eMeet C960" ignored the quit request and had to be force-killed, so C:\Users\soren\Videos\AgentEyes\2026-08-29_050334_video\camera.mp4 was never finalized by ffmpeg and may be truncated - it covers 2.3s of reported output. The screen recording is unaffected. See C:\Users\soren\Videos\AgentEyes\2026-08-29_050334_video\camera.mp4.ffmpeg.log.
+ ---> AgentEyes.Video.CameraForceKilledException: the camera "HD Webcam eMeet C960" ignored the quit request and had to be force-killed, so C:\Users\soren\Videos\AgentEyes\2026-08-29_050334_video\camera.mp4 was never finalized by ffmpeg and may be truncated - it covers 2.3s of reported output. The screen recording is unaffected. See C:\Users\soren\Videos\AgentEyes\2026-08-29_050334_video\camera.mp4.ffmpeg.log.
+   at AgentEyes.Video.FfmpegCameraRecorder.Stop() in D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.Core\Video\FfmpegCameraRecorder.cs:line 1110
+   at AgentEyes.RecordingStopSequence.Attempt(ICollection`1 failures, String dir, String stage, Action action) in D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.Core\RecordingStopSequence.cs:line 258
+   --- End of inner exception stack trace ---
+   at AgentEyes.RecordingService.Stop() in D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.Core\RecordingService.cs:line 866
+   at Qa33R5.Program.Main(String[] args) in <QA-SCRATCH>\r5probe\Program.cs:line 111

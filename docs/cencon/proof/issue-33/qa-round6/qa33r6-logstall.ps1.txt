@@ -1,0 +1,91 @@
+param(
+    [ValidateSet('shipped','knownbad')][string]$Build = 'shipped',
+    [ValidateSet('armed','disarmed')][string]$Arm = 'armed',
+    [string]$Ip = '4.2.2.1',
+    [string]$Ip2 = '64.6.64.6',
+    [int]$RunSeconds = 12
+)
+. "<QA-SCRATCH>\qa33r6-lib.ps1"
+
+$START_BODY = '{"mode":"video","screen":1,"source":"mic","mic":"Microphone (HD Webcam eMeet C960)","fps":30,"camera":"HD Webcam eMeet C960","cameraFps":30}'
+
+function Post($url, $body) {
+    $sink = Join-Path $Global:SP 'curl-sink.bin'
+    $bodyFile = Join-Path $Global:SP 'curl-body.json'
+    Set-Content -Path $bodyFile -Value $body -Encoding ascii -NoNewline
+    $out = & curl.exe -s -o $sink -w '%{http_code} %{time_total}' -X POST $url -H 'Content-Type: application/json' --max-time 300 --data-binary "@$bodyFile"
+    $p = $out -split ' '
+    return @{ Code = $p[0]; Sec = [double]$p[1]; Body = (Get-Content $sink -Raw -ErrorAction SilentlyContinue) }
+}
+
+$exe = if ($Build -eq 'shipped') { $Global:SHIPPED } else { $Global:KNOWNBAD }
+$REAL = "$Global:AE\logs"
+$PARK = "$Global:AE\logs-parked-by-qa33r6"
+
+Say "==================================================================="
+Say ("SHARED LOGGER STALL   build=$Build  preview=$Arm  ip=$Ip")
+Say ("The SHARED logger's own directory (%LOCALAPPDATA%\AgentEyes\logs) is replaced by a reparse")
+Say ("point onto a blackholed UNC path, so Log.Write's Directory.CreateDirectory neither returns")
+Say ("nor throws for ~21s while holding the PROCESS-WIDE log lock.")
+Say "==================================================================="
+
+Stop-App
+Clear-Preview
+New-Item -ItemType Directory -Force -Path $Global:PREVIEW | Out-Null
+
+# seed config with the preview armed or not
+$cfg = Get-Content $Global:SEED -Raw | ConvertFrom-Json
+$cfg.HudPreviewVisible = ($Arm -eq 'armed')
+$tmpSeed = Join-Path $Global:SP 'seed-logstall.json'
+$cfg | ConvertTo-Json -Depth 6 | Set-Content -Path $tmpSeed -Encoding ascii
+Copy-Item $tmpSeed $Global:CFG -Force
+
+# park the real logs directory and put a stalled reparse point in its place
+if (Test-Path $PARK) { Remove-Item $PARK -Recurse -Force }
+if (Test-Path $REAL) { Move-Item $REAL $PARK -Force }
+cmd /c "mklink /D `"$REAL`" `"\\$Ip\share`"" | Out-Null
+$it = Get-Item $REAL -Force
+Say ("LOGS PATH: " + $it.LinkType + " -> " + ($it.Target -join ','))
+
+Start-Process $exe
+$up = $false
+for ($i = 0; $i -lt 120; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 3 | Out-Null; $up = $true; break } catch {} }
+Say ("app answered /health = $up")
+if (-not $up) { Say "FATAL"; Stop-App; if (Test-Path $REAL) { cmd /c "rmdir `"$REAL`"" | Out-Null }; Move-Item $PARK $REAL -Force; exit 1 }
+
+Start-Sleep -Seconds 2
+$pre = Status
+Say ("armed=" + $pre.PreviewArmed + " state=" + $pre.State)
+
+$r1 = Post 'http://127.0.0.1:7882/record/start' $START_BODY
+Say ("START  POST /record/start -> HTTP " + $r1.Code + " in " + [math]::Round($r1.Sec,2) + " s")
+$w = Wait-State 'recording' 180
+Say ("START  /status reached 'recording' = " + $w.Ok + " after " + $w.Ms + " ms (state=" + $w.State + ")")
+
+Start-Sleep -Seconds $RunSeconds
+
+# Swap the logs reparse point onto a SECOND, never-contacted blackhole IP right before Stop, so the
+# stall is FRESH: the SMB client caches an unreachable server, which makes the first ~21s hang a
+# one-shot per server. Without this swap the stop path would meet an already-cached fast failure.
+if (Test-Path $REAL) { cmd /c "rmdir `"$REAL`"" | Out-Null }
+cmd /c "mklink /D `"$REAL`" `"\$Ip2\share`"" | Out-Null
+$it2 = Get-Item $REAL -Force
+Say ("MID    LOGS PATH SWAPPED TO A FRESH BLACKHOLE: " + $it2.LinkType + " -> " + ($it2.Target -join ','))
+
+$r2 = Post 'http://127.0.0.1:7882/record/stop' '{}'
+Say ("STOP   POST /record/stop -> HTTP " + $r2.Code + " in " + [math]::Round($r2.Sec,2) + " s")
+$w2 = Wait-State 'idle' 180
+Say ("STOP   /status returned to 'idle' = " + $w2.Ok + " after " + $w2.Ms + " ms (state=" + $w2.State + ")")
+
+Start-Sleep -Seconds 5
+Report-Recording (Latest-Recording)
+
+Stop-App
+# restore the real logs directory
+if (Test-Path $REAL) { cmd /c "rmdir `"$REAL`"" | Out-Null }
+if (Test-Path $PARK) { Move-Item $PARK $REAL -Force }
+$todayLog = Join-Path $REAL ("AgentEyes-" + (Get-Date -Format 'yyyyMMdd') + ".log")
+Say ("LOGS RESTORED: " + (Test-Path $todayLog))
+Clear-Preview
+Copy-Item $Global:SEED $Global:CFG -Force
+Say "DONE"

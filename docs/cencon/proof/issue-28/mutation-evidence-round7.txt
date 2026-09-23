@@ -1,0 +1,115 @@
+Round 7, issue #28 - every new and changed test demonstrated to FAIL first.
+
+A test written after the fix and never seen red proves only that it agrees with the code in
+front of it. Each block below names the tree the test was run against, the exact command,
+and the exact failure.
+
+The trees:
+
+    round-6 tree   D:\ReposFred\agenteyes-dev28-r7-evidence, detached at b61553c
+                   (PR #32 head, the tree the Review Gate rejected in round 5)
+    round-7 head   D:\ReposFred\agenteyes-dev28-r7, this branch
+
+Both are isolated worktrees. The running tray app (v1.6.2) locks the normal Release output
+and can hand back a stale binary, and Release output is under bin\x64\Release\ - never
+bin\Release\, which on an older checkout holds a months-stale binary.
+
+
+== 1. THE TWO BLOCKING DEFECTS, THROUGH THE ICameraProcess SEAM ====================
+
+The round-7 TEST files were copied onto the round-6 PRODUCTION tree, so the only difference
+between this run and the green one is the production fix.
+
+    cd D:\ReposFred\agenteyes-dev28-r7-evidence          (detached at b61553c)
+    copy round-7 CameraFailurePathTests.cs and StrandedCameraOwnerTests.cs
+    dotnet build AgentEyes.sln -c Release                ->  0 Error(s)
+    dotnet test  AgentEyes.sln -c Release --no-build --filter <the five tests below>
+
+    Failed  CameraFailurePathTests.StopKind_WhenTheProcessDiesBeforeTheDisposeRetry_IsNeverRecordedAsAbandoned
+       Assert.Null() Failure: Value of type 'Nullable<CameraStopKind>' has a value
+       Expected: null
+       Actual:   Abandoned
+
+    Failed  CameraFailurePathTests.Stop_WhenADeliveredQuitEndedInAnFfmpegErrorCode_IsNeverRecordedAsACleanQuit
+       Assert.Null() Failure: Value of type 'Nullable<CameraStopKind>' has a value
+       Expected: null
+       Actual:   CleanQuit
+
+    Failed!  - Failed: 2, Passed: 3, Skipped: 0, Total: 5
+
+The three that PASS on the round-6 tree are passing for a reason, stated rather than left
+to be assumed:
+
+  - Stop_WhenADeliveredQuitEndedTheProcessNormally_IsStillRecordedAsACleanQuit is AC17's
+    positive control for exit 255. It has to be green on BOTH trees; if round 7 had made it
+    red, the exit-code fix would have been applied too widely.
+  - StopKind_WhenTheSurvivingProcessFinallyDiesAfterTheDisposeRetry_StaysAbandoned is a
+    REGRESSION guard for a property round 6 already had - a record that satisfied all three
+    clauses is never relabelled. It is green on both trees on purpose.
+  - Video_HandsAnAbandonedCameraToAStrandedOwnerAtBothOfItsFailureBoundaries is green on
+    both trees because the two CLI transfers were already in the round-6 PRODUCT. The defect
+    the gate reported there was in the TEST, so its red is the mutation battery in section 2,
+    not a different tree.
+
+Against round-7 head the same five are green, and so is everything else:
+
+    cd D:\ReposFred\agenteyes-dev28-r7
+    dotnet build AgentEyes.sln -c Release  ->  Build succeeded.  0 Error(s)
+    dotnet test  AgentEyes.sln -c Release  ->  Failed: 0, Passed: 942, Skipped: 0, Total: 942
+
+    (round 6 was 940. +1 new exit-code test, +1 new abandoned-after-all-three test, and the
+     test that required the overclaim was rewritten in place.)
+
+
+== 2. THE TWO CLI FAILURE BOUNDARIES, ONE MUTATION EACH ============================
+
+The gate's round-5 QA ruling: both transfers are present and correctly ordered in the
+product, but the guard proved only that AT LEAST ONE owner call exists in Commands.Video,
+so deleting either boundary alone stayed green.
+
+Mutation A - delete the FAILED-OPEN transfer (Commands.cs:351-365): the whole
+             `if (CliStrandedCameras.RetainIfStranded(cameraRec, dir)) { ... } else { ... }`
+             in the camera-open catch, leaving only DiscardEmptyRecordingDirectory(dir).
+
+Mutation B - delete the FINAL transfer (Commands.cs:511-518): the whole
+             `if (CliStrandedCameras.RetainIfStranded(cameraRec, dir)) { ... }` in the
+             method's finally.
+
+Each mutation was applied to a clean round-6 tree, built, and the guard run; the tree was
+reverted with `git checkout -- src tests` before the next one. Every run was gated on a
+clean build first - a build failure with --no-build would have run the PREVIOUS binary and
+produced a result about code that was never compiled.
+
+    OLD guard (Video_HandsAnAbandonedCameraToAStrandedOwnerInsteadOfDroppingTheOnlyReference)
+
+      + mutation A   ->  Passed!  - Failed: 0, Passed: 1, Total: 1     NOT COVERAGE
+      + mutation B   ->  Passed!  - Failed: 0, Passed: 1, Total: 1     NOT COVERAGE
+
+    NEW guard (Video_HandsAnAbandonedCameraToAStrandedOwnerAtBothOfItsFailureBoundaries)
+
+      + no mutation  ->  Passed!  - Failed: 0, Passed: 1, Total: 1     the control
+
+      + mutation A   ->  Failed!  - Failed: 1, Passed: 0, Total: 1
+                         Assert.Single() Failure: The collection was empty
+                         (the failed-open site: the only transfer covered by a Finally region)
+
+      + mutation B   ->  Failed!  - Failed: 1, Passed: 0, Total: 1
+                         Assert.Equal() Failure: Collections differ
+                         Expected: ["...FfmpegCameraRecorder::Dispose", "...StrandedCameraOwner::RetainIfStranded"]
+                         Actual:   ["...FfmpegCameraRecorder::Dispose"]
+                         (the final site, read as the cleanup the failed-open site sits inside)
+
+Each deletion now fails on the assertion about ITS OWN boundary, not on a shared count. The
+count assertion is still there, last, and says only that there is no third transfer.
+
+How the two sites are told apart, since they are the same call to the same method: IL
+exception regions. The failed-open transfer runs while the command's own finally is still
+owed, so it is INSIDE a try covered by a Finally region; the final transfer IS that handler,
+which no try region of its own covers. Both facts come from CompiledCode.GuardedCalls, which
+throws if Commands::Video is missing or contains no call to the callee at all - so "found
+nothing" can never read as a pass.
+
+WHAT THIS STILL CANNOT SEE, stated rather than implied: it proves both transfers are
+compiled into Commands::Video in the right control-flow positions, not that each runs on
+every path. The behaviour of StrandedCameraOwner itself is exercised by the tests above it
+in the same file.

@@ -1,0 +1,28 @@
+# Issue #33 round 5 - the developer gate, run in an isolated worktree at D:\ReposFred\agenteyes-dev33-r4
+# (the installed v1.6.2 tray app locks the normal Release output, so this is its own checkout)
+# Build output is bin\x64\Release\, never bin\Release\.
+
+$ dotnet build AgentEyes.sln -c Release --no-restore --no-incremental
+  AgentEyes.App -> D:\ReposFred\agenteyes-dev33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(482,30): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(493,29): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+Build succeeded.
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(482,30): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(493,29): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+    4 Warning(s)
+    0 Error(s)
+Time Elapsed 00:00:04.86
+
+$ dotnet test AgentEyes.sln -c Release --no-build --no-restore
+Test run for D:\ReposFred\agenteyes-dev33-r4\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:  1117, Skipped:     0, Total:  1117, Duration: 10 s - AgentEyes.Tests.dll (net8.0)
+
+# The 4 warnings are pre-existing xUnit analyzer warnings in PostRecordingQueueTests.cs (309,314)
+# and StrandedCameraOwnerTests.cs (482,493). No new warning is introduced by this round.

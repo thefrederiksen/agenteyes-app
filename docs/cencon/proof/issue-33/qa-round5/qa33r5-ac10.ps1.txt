@@ -1,0 +1,57 @@
+$ErrorActionPreference = 'Continue'
+$SP  = "<QA-SCRATCH>"
+$EXE = "D:\ReposFred\agenteyes-qa33-r5\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$CFG = "$env:LOCALAPPDATA\AgentEyes\config.json"
+$SEED = "$SP\backup\config.json"
+$PREVIEW = "$env:LOCALAPPDATA\AgentEyes\preview"
+$LOG = "$env:LOCALAPPDATA\AgentEyes\logs\AgentEyes-" + (Get-Date -Format 'yyyyMMdd') + ".log"
+$VIDEOS = "$env:USERPROFILE\Videos\AgentEyes"
+$FFPROBE = (Get-Command ffprobe).Source
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action $a } }
+function Main($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r5-main.ps1" -Action $a } }
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 30 }
+function StatusText() { (& powershell -NoProfile -File "$SP\qa33r5-hud.ps1" -Action tree | Where-Object { $_ -match 'HUD preview' }) -join "`n  " }
+function Dur($f) { if (-not (Test-Path $f)) { return -1 }; $o = & $FFPROBE -v error -show_entries format=duration -of default=nw=1:nk=1 $f 2>$null; if ($o) { return [double]$o } else { return -1 } }
+
+Write-Output ("AgentEyesApp.dll = " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 3
+Copy-Item $SEED $CFG -Force
+Start-Process powershell -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',"$SP\qa33r5-churn.ps1",'-Seconds','150'
+Start-Process $EXE
+for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Milliseconds 500; try { Invoke-WebRequest http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {} }
+Start-Sleep -Seconds 3
+$mark = "QA33R5-AC10-" + (Get-Date -Format 'HHmmss')
+Add-Content -Path $LOG -Value ("00:00:00.000 [INFO] " + $mark)
+Main click 'REC' | Out-Null
+Start-Sleep -Seconds 12
+Write-Output "--- before the kill ---"
+Hud rect
+Write-Output ("  " + (StatusText))
+$pre = Status
+Write-Output ("  framesRead=" + $pre.PreviewScreenFramesRead + "/" + $pre.PreviewCameraFramesRead + " PreviewFailed=" + $pre.PreviewFailed + " publishing=" + $pre.PreviewPublishing)
+Write-Output ("KILL: removing " + $PREVIEW)
+try { Remove-Item $PREVIEW -Recurse -Force; Write-Output "  deleted" } catch { Write-Output ("  delete failed: " + $_.Exception.Message) }
+for ($i = 1; $i -le 6; $i++) {
+    Start-Sleep -Seconds 3
+    $s = Status
+    Write-Output ("  +" + ($i*3) + "s state=" + $s.State + " elapsed=" + $s.ElapsedSeconds + " framesRead=" + $s.PreviewScreenFramesRead + "/" + $s.PreviewCameraFramesRead + " PreviewFailed=" + $s.PreviewFailed)
+}
+Write-Output "--- after the kill: what the HUD says ---"
+Write-Output ("  " + (StatusText))
+Hud rect
+Start-Sleep -Seconds 10
+Hud click 'HUD stop' | Out-Null
+Start-Sleep -Seconds 14
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*qa33r5-churn*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+$d = (Get-ChildItem $VIDEOS -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+Write-Output ("recording: " + $d)
+Write-Output ("  recording.mp4 duration=" + (Dur (Join-Path $d 'recording.mp4')) + "  camera.mp4 duration=" + (Dur (Join-Path $d 'camera.mp4')))
+Get-Content (Join-Path $d 'manifest.json') | Where-Object { $_ -match 'CameraComplete|CameraStopKind|DurationSeconds|PreviewOverlayCorner' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+Write-Output "--- the WARNINGs the preview logged ---"
+$lines = Get-Content $LOG
+$start = ($lines | Select-String -SimpleMatch $mark | Select-Object -Last 1).LineNumber
+$lines | Select-Object -Skip ($start - 1) | Where-Object { $_ -match 'PreviewTap|preview' } | Select-Object -First 25 | ForEach-Object { Write-Output ("    " + $_) }
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "DONE AC10"

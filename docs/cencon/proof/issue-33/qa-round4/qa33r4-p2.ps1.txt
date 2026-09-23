@@ -1,0 +1,60 @@
+$ErrorActionPreference = 'Stop'
+. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+$OUT = "$SP\ac-proof"
+New-Item -ItemType Directory -Force $OUT | Out-Null
+
+$ARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudPreviewVisible": true,
+  "HudPreviewMode": "both",
+  "HudPreviewCorner": "bottom-right"
+}
+'@
+
+# The preset records monitor index 1 = \\.\DISPLAY1, bounds X=1920 Y=-5 1920x1080, so gdigrab's
+# origin is 1920,-5. The HUD is parked at screen 2300,300 at its 520x400 default, which is
+# 380,305 inside every captured frame. That is the rectangle cropped below.
+$HUDX = 2300; $HUDY = 300; $CROP = 'crop=520:400:380:305'
+
+function RunAc6($capturable, $tag, $seconds) {
+    Write-Output "==== AC6 run '$tag' (MQS_HUD_CAPTURABLE=$capturable) ===="
+    StartApp $ARMED $capturable
+    StartChurn 1 ($seconds + 40)
+    Rec
+    Start-Sleep -Seconds 8
+    Write-Output ("  HUD parked: " + (Hud move "$HUDX,$HUDY"))
+    Write-Output ("  " + (Hud rect))
+    Start-Sleep -Seconds $seconds
+    StopRec
+    Start-Sleep -Seconds 25
+    $dir = NewestDir
+    ReportRecording $dir "AC6 $tag"
+    $rec = Join-Path $dir 'recording.mp4'
+    $d = [Math]::Max(4, [int](Dur $rec))
+    for ($i = 1; $i -le 6; $i++) {
+        $t = [Math]::Round($d * $i / 7.0, 2)
+        $png = "$OUT\ac6-$tag-{0:00}.png" -f $i
+        & $FFMPEG -y -v error -ss $t -i $rec -frames:v 1 -vf $CROP $png 2>&1 | Out-Null
+        if (Test-Path $png) {
+            # distinct-colour count: a blank/uniform crop is 1. A HUD in the frame is many.
+            Add-Type -AssemblyName System.Drawing
+            $bmp = [System.Drawing.Bitmap]::FromFile($png)
+            $set = New-Object 'System.Collections.Generic.HashSet[int]'
+            for ($y = 0; $y -lt $bmp.Height; $y += 7) { for ($x = 0; $x -lt $bmp.Width; $x += 7) { [void]$set.Add($bmp.GetPixel($x, $y).ToArgb()) } }
+            Write-Output ("    frame at t=$t -> $png  ${($bmp.Width)}x${($bmp.Height)} distinctColors=" + $set.Count)
+            $bmp.Dispose()
+        } else { Write-Output "    frame at t=$t -> EXTRACTION FAILED (broken instrument)" }
+    }
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 2
+}
+
+Write-Output ("dll sha256: " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+RunAc6 $false 'excluded' 40
+RunAc6 $true  'knownbad' 20
+Write-Output "==== end part 2 ===="

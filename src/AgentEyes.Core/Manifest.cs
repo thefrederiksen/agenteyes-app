@@ -55,6 +55,130 @@ namespace AgentEyes
 
         public string? VideoFile { get; set; }
         public string? AudioFile { get; set; }
+
+        /// <summary>
+        /// Issue #28: the separately-recorded webcam track ("camera.mp4"), or null when the recording
+        /// had no camera. It is a SECOND, independent video file in the same directory - never
+        /// composited into <see cref="VideoFile"/> - so an editor can still choose the layout
+        /// afterwards. It carries no audio track by decision; all audio stays on the screen recording.
+        ///
+        /// Backward compatible: a manifest written before this field existed has no "CameraFile"
+        /// property and deserializes to null, which reads correctly as "no camera track". Null fields
+        /// are not written out (see <see cref="JsonOptions"/>), so a camera-less recording's
+        /// manifest.json is byte-identical in shape to what it was before this feature.
+        /// </summary>
+        public string? CameraFile { get; set; }
+
+        /// <summary>
+        /// Issue #47: true once the camera has been rendered INTO <see cref="VideoFile"/>, with the
+        /// screen-only cut kept beside it as "recording.screen.mp4".
+        ///
+        /// It exists so "has this been composed" is a fact on the record rather than something
+        /// inferred from which files happen to be present, and so re-running the compose is a
+        /// deliberate act rather than an accident. Absent (null) on every manifest written before
+        /// this feature, which reads correctly as "not composed".
+        /// </summary>
+        public bool? ComposedCamera { get; set; }
+
+        /// <summary>
+        /// Issue #28: how far the camera capture started AFTER the screen capture, in seconds -
+        /// negative when the camera started first, which is the normal case (the camera is opened
+        /// before the screen so that a camera which cannot be opened fails the start before any
+        /// bytes are written).
+        ///
+        /// An alignment HINT of tens of milliseconds measured in-process between the two ffmpeg
+        /// process starts (assumption A5) - NOT frame-accurate genlock. Precise sync is the editor's
+        /// job. Null when there is no camera track.
+        /// </summary>
+        public double? CameraStartOffsetSeconds { get; set; }
+
+        /// <summary>
+        /// Issue #28: seconds of camera footage the camera ffmpeg reported writing. This is the
+        /// file's own account of itself, not wall time, so it stays honest for a camera that was lost
+        /// mid-recording. Null when there is no camera track.
+        /// </summary>
+        public double? CameraCapturedSeconds { get; set; }
+
+        /// <summary>
+        /// Issue #28 (spec amendment 2026-08-28): HOW the camera process ended, as observed - one of
+        /// "clean-quit", "force-killed", "exited-early", "abandoned". Null when there is no camera
+        /// track, and null when no stop ever watched the process end, which is itself the honest
+        /// answer rather than a guessed one.
+        /// </summary>
+        public string? CameraStopKind { get; set; }
+
+        /// <summary>
+        /// Issue #28 (spec amendment 2026-08-28): true only when ffmpeg's stderr was read to END OF
+        /// STREAM at the stop, i.e. everything the camera ffmpeg ever said was seen. False means the
+        /// evidence behind the other camera fields is INCOMPLETE - which is why
+        /// <see cref="CameraComplete"/> can never be "yes" while this is false. Null when there is
+        /// no camera track.
+        /// </summary>
+        public bool? CameraStderrComplete { get; set; }
+
+        /// <summary>
+        /// Issue #28 (spec amendment 2026-08-28, assumption A7): whether camera.mp4 is a complete
+        /// take - "yes", "no", or "unknown". Null when there is no camera track.
+        ///
+        /// IT IS A STRING WITH THREE VALUES, AND THAT IS THE POINT. It replaces the
+        /// <c>CameraTruncated</c> boolean, which could only say complete or truncated - so every
+        /// case the recorder had not anticipated came out as COMPLETE, a claim made from an absence
+        /// of evidence. Three rounds of this feature shipped exactly that: a camera that emitted one
+        /// progress tick and then stalled for a 30-second session, and a file that was force-killed
+        /// mid-write, were both written here as clean complete takes.
+        ///
+        ///  - "yes" needs the whole presence: a clean quit, stderr read to end of stream, and output
+        ///    still advancing when the stop was requested.
+        ///  - "no" is what is KNOWN short or broken: exited early, force-killed, or never a frame.
+        ///  - "unknown" is everything else, and is the CORRECT answer whenever the evidence does not
+        ///    reach. A consumer must treat it as "do not know", never coerce it to false - which is
+        ///    why this is a string enum and not a nullable bool.
+        /// </summary>
+        public string? CameraComplete { get; set; }
+
+        /// <summary>
+        /// Issue #33 (assumption C4): which corner of the frame the person was watching the camera in
+        /// while this was recorded - "bottom-right", "bottom-left", "top-left" or "top-right".
+        ///
+        /// AN EDITING HINT, NOT A COMPOSITION. Nothing is composited: the recording is still the two
+        /// separate files issue #28 produces, and this changes neither of them. It records the
+        /// FRAMING THAT WAS ACTUALLY WANTED at the moment of recording, so the later edit (or a future
+        /// auto-compose) starts from the person's own choice instead of a guess made months later.
+        ///
+        /// Null - and, being null, absent from manifest.json entirely - whenever no overlay framing
+        /// was chosen: no preview, a preview showing only the screen or only the camera, or a
+        /// recording made before this field existed. A camera-less or preview-less recording's
+        /// manifest is therefore identical in shape to what it was before this feature (AC11).
+        /// </summary>
+        public string? PreviewOverlayCorner { get; set; }
+
+        /// <summary>
+        /// Issue #36: the overlay SHAPE the camera was framed in - "circle" (the default) or
+        /// "rectangle". Null, and therefore absent from manifest.json entirely, whenever no overlay
+        /// framing was chosen, exactly like <see cref="PreviewOverlayCorner"/> (AC10).
+        /// </summary>
+        public string? PreviewOverlayShape { get; set; }
+
+        /// <summary>
+        /// Issue #36: WHERE THE CIRCLE SAT IN THE CAMERA FRAME - centre and diameter as fractions of
+        /// the frame, so it survives the camera or its resolution changing (assumption E2). Null when
+        /// the overlay was a rectangle, and null when no overlay was framed.
+        ///
+        /// IT IS EDIT METADATA, NOT A CROP (assumption E1). <c>camera.mp4</c> in this same recording
+        /// is the FULL rectangular frame at its normal resolution - identical in dimensions to a
+        /// recording made with the rectangle overlay and to one made with the preview off (AC5).
+        /// Nothing was cut, so a later edit can reproduce this framing AND move it, which is the
+        /// entire reason the circle is recorded here instead of being burned into the file.
+        /// </summary>
+        public Preview.CameraOverlayCircle? PreviewOverlayCircle { get; set; }
+
+        /// <summary>
+        /// Issue #36, assumption E5: how large the inset was ON THE PREVIEW, as a fraction of the
+        /// preview's width. A different thing from the circle's diameter, which says how much of the
+        /// camera frame was inside it. Null when no overlay was framed.
+        /// </summary>
+        public double? PreviewOverlayInset { get; set; }
+
         public string? Transcript { get; set; }
         public string? Walkthrough { get; set; }
         public string? FfmpegCommand { get; set; }
@@ -107,6 +231,64 @@ namespace AgentEyes
         public List<string> Files { get; set; } = new();
 
         /// <summary>
+        /// Issue #56: this recording is PINNED and the Housekeeper must not touch it - not one tier,
+        /// not partially. It is the escape hatch for the recording the owner is still working from,
+        /// and it is checked before any tier so that extending the tiers later cannot reach a pinned
+        /// recording by accident.
+        ///
+        /// Backward compatible: absent on every manifest written before this field existed, which
+        /// deserializes to false - not pinned, which is the correct reading.
+        /// </summary>
+        public bool Keep { get; set; }
+
+        /// <summary>
+        /// Issue #56: what the Housekeeper has actually done to this recording - one entry per action,
+        /// appended, never rewritten.
+        ///
+        /// It is in the MANIFEST and not only in the log on purpose. A sweep whose sole evidence is a
+        /// log line cannot be queried later: "what happened to my preserved original" has to be
+        /// answerable from the record months afterwards, and log files rotate. It also carries the two
+        /// decoded-stream hashes for a transcode, so the claim that a re-encode was bit-exact is
+        /// checkable after the fact rather than taken on trust.
+        /// </summary>
+        public List<HousekeepingRecord> Housekeeping { get; set; } = new();
+
+        /// <summary>One thing the Housekeeper did, or tried and refused to do (issue #56).</summary>
+        public sealed class HousekeepingRecord
+        {
+            /// <summary>The <c>HousekeepingKind</c> value, as its name.</summary>
+            public string Kind { get; set; } = "";
+
+            /// <summary>The file acted on, relative to the recording directory.</summary>
+            public string File { get; set; } = "";
+
+            /// <summary>What a transcode produced; null for the other kinds.</summary>
+            public string? Output { get; set; }
+
+            /// <summary>Bytes the disk got back. Zero or negative is honest and possible.</summary>
+            public long BytesReclaimed { get; set; }
+
+            public DateTime WhenUtc { get; set; }
+
+            /// <summary>"done", "refused", or "failed". Three values, because a refusal is not a
+            /// failure and neither is a success - collapsing them is how a sweep that did nothing
+            /// comes to look like a sweep that worked.</summary>
+            public string Outcome { get; set; } = "";
+
+            /// <summary>Why, when the outcome is not "done". Null otherwise.</summary>
+            public string? Error { get; set; }
+
+            /// <summary>For a transcode: true when the decoded audio matched the source exactly.</summary>
+            public bool? BitExact { get; set; }
+
+            /// <summary>For a transcode: the decoded-stream hash of the source that was removed.</summary>
+            public string? SourceHash { get; set; }
+
+            /// <summary>For a transcode: the decoded-stream hash of the file that replaced it.</summary>
+            public string? OutputHash { get; set; }
+        }
+
+        /// <summary>
         /// Issue #83: untouched pre-processing capture files kept alongside the cleaned output (a
         /// ".original" infix - e.g. recording.original.mp4, mic.original.wav). These are
         /// present-but-secondary: discoverable in the folder/manifest but never the primary playable
@@ -123,6 +305,16 @@ namespace AgentEyes
         /// performs the mux, then clears this back to null. Null = nothing deferred.
         /// </summary>
         public PendingMuxInfo? PendingMux { get; set; }
+
+        /// <summary>
+        /// Issue #59: the relative names of the files an expiry started deleting, written in the same
+        /// manifest update that stops naming them - the INTENT, on the record, rather than something
+        /// the next pass has to infer from a keeper that no longer exists. A process dying between
+        /// that update and the deletes leaves the video on disk with no <see cref="VideoFile"/> naming
+        /// it, and WITHOUT this field no later pass could ever find it again. The expiry clears it
+        /// back to null once every named file is gone. Null = no expiry in flight.
+        /// </summary>
+        public List<string>? PendingExpiry { get; set; }
 
         /// <summary>
         /// Issue #152: the durable outcome of each post-recording stage (mux / thumbnail / package /

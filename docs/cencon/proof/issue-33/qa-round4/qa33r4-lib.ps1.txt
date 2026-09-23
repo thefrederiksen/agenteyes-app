@@ -1,0 +1,88 @@
+$SP  = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$EXE = "D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
+$CFG = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+$PREVIEW = "C:\Users\soren\AppData\Local\AgentEyes\preview"
+$VIDEOS = "C:\Users\soren\Videos\AgentEyes"
+$FFPROBE = "C:\Users\soren\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin\ffprobe.exe"
+$FFMPEG  = "C:\Users\soren\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
+$CHURN = "$SP\churn\bin\Release\net8.0-windows\qachurn.exe"
+
+function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a } }
+function Rec()  { & powershell -NoProfile -File "$SP\qa33r4-main.ps1" -Action click -Arg REC | Out-Null }
+function StopRec() { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action click -Arg 'HUD stop' | Out-Null }
+function Status() { Invoke-RestMethod -Uri 'http://127.0.0.1:7882/status' -TimeoutSec 20 }
+
+function StartApp($json, $capturable) {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 3
+    $json | Out-File -FilePath $CFG -Encoding utf8
+    if ($capturable) { $env:MQS_HUD_CAPTURABLE = '1' } else { Remove-Item Env:MQS_HUD_CAPTURABLE -ErrorAction SilentlyContinue }
+    Start-Process $EXE
+    for ($i = 0; $i -lt 60; $i++) {
+        Start-Sleep -Milliseconds 500
+        try { Invoke-WebRequest -Uri http://127.0.0.1:7882/health -UseBasicParsing -TimeoutSec 2 | Out-Null; break } catch {}
+    }
+    Start-Sleep -Seconds 2
+    $p = Get-Process AgentEyesApp -ErrorAction SilentlyContinue
+    Write-Output ("  [app: " + (($p | ForEach-Object { $_.Path }) -join '; ') + "  MQS_HUD_CAPTURABLE=" + $(if ($capturable) { '1' } else { '(unset)' }) + "]")
+}
+
+function StartChurn($screen, $seconds) {
+    Start-Process -FilePath $CHURN -ArgumentList "$screen $seconds" -WindowStyle Hidden
+    Start-Sleep -Seconds 2
+}
+
+function Sha($path) {
+    if (-not (Test-Path $path)) { return '(missing)' }
+    try { $b = [IO.File]::ReadAllBytes($path) } catch { return '(locked)' }
+    $h = [Security.Cryptography.SHA256]::Create().ComputeHash($b)
+    return ([BitConverter]::ToString($h) -replace '-', '').Substring(0, 16) + " len=" + $b.Length
+}
+
+function FfmpegInventory() {
+    $rows = Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'"
+    $holders = 0
+    Write-Output ("  --- ffmpeg processes: " + ($rows | Measure-Object).Count + " ---")
+    foreach ($r in $rows) {
+        $cl = $r.CommandLine
+        $dshow = ([regex]::Matches($cl, '-f dshow')).Count
+        $vin = ([regex]::Matches($cl, '-i "?video=')).Count
+        if ($vin -gt 0) { $holders++ }
+        Write-Output ("    pid=" + $r.ProcessId + " (-f dshow)=" + $dshow + " (-i video=)=" + $vin + " pipe:1=" + $cl.Contains('pipe:1') + " mjpeg=" + $cl.Contains('mjpeg'))
+    }
+    Write-Output ("  PROCESSES HOLDING THE CAMERA DEVICE = " + $holders)
+    return $holders
+}
+
+function NewestDir() { (Get-ChildItem $VIDEOS -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
+
+function Dur($file) {
+    if (-not (Test-Path $file)) { return -1 }
+    $o = & $FFPROBE -v error -show_entries format=duration -of default=nw=1:nk=1 $file 2>$null
+    if ($o) { return [double]$o } else { return -1 }
+}
+
+function Drops($log) {
+    if (-not (Test-Path $log)) { return -1 }
+    $n = -1
+    foreach ($line in Get-Content $log) {
+        $m = [regex]::Match($line, 'drop=\s*(\d+)')
+        if ($m.Success) { $n = [Math]::Max($n, [int]$m.Groups[1].Value) }
+    }
+    return $n
+}
+
+function ReportRecording($dir, $label) {
+    Write-Output "  --- $label : $dir ---"
+    Get-ChildItem $dir -File | ForEach-Object { Write-Output ("    " + $_.Name + " " + $_.Length) }
+    $rec = Join-Path $dir 'recording.mp4'; $raw = Join-Path $dir 'raw.mp4'; $cam = Join-Path $dir 'camera.mp4'
+    $screenFile = if (Test-Path $rec) { $rec } else { $raw }
+    $ds = Dur $screenFile; $dc = Dur $cam
+    Write-Output ("    duration screen=" + $ds + " camera=" + $dc + " delta=" + [Math]::Abs($ds - $dc))
+    Write-Output ("    drops raw=" + (Drops (Join-Path $dir 'raw.mp4.ffmpeg.log')) + " camera=" + (Drops (Join-Path $dir 'camera.mp4.ffmpeg.log')))
+    $mp = Join-Path $dir 'manifest.json'
+    if (Test-Path $mp) {
+        Get-Content $mp | Where-Object { $_ -match 'CameraComplete|CameraStopKind|DurationSeconds|PreviewOverlayCorner|PreviewOverlayShape|CameraCapturedSeconds' } | ForEach-Object { Write-Output ("    " + $_.Trim()) }
+        if (-not (Select-String -Path $mp -Pattern 'PreviewOverlayCorner' -Quiet)) { Write-Output "    PreviewOverlayCorner: ABSENT from the manifest" }
+    }
+}

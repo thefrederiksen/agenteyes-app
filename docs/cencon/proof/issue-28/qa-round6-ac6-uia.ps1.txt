@@ -1,0 +1,166 @@
+# QA AC6: preset editor camera round-trip + launcher start, driven by UI Automation.
+# Every step asserts a PRESENCE. A control that cannot be found throws; nothing is inferred
+# from an absence.
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+Add-Type @'
+using System; using System.Text; using System.Runtime.InteropServices; using System.Collections.Generic;
+public class W {
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumWindowsProc cb, IntPtr l);
+  delegate bool EnumWindowsProc(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] static extern int GetWindowTextLength(IntPtr h);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  public static IntPtr Find(string title) {
+    IntPtr found = IntPtr.Zero;
+    EnumWindows((h,l) => { if (!IsWindowVisible(h)) return true;
+      int n = GetWindowTextLength(h); var sb = new StringBuilder(n+2); GetWindowText(h, sb, n+2);
+      if (sb.ToString() == title) { found = h; return false; } return true; }, IntPtr.Zero);
+    return found; }
+}
+'@
+
+$exe    = 'D:\ReposFred\agenteyes-wt-qa28\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe'
+$appdir = Join-Path $env:LOCALAPPDATA 'AgentEyes'
+$vid    = Join-Path $env:USERPROFILE 'Videos\AgentEyes'
+$camera = 'HD Webcam eMeet C960'
+$presetName = 'qa28 camera preset'
+$presetId   = 'qa28000000000000000000000000cam1'
+
+$A = [System.Windows.Automation.AutomationElement]
+function NameIs($n)  { New-Object System.Windows.Automation.PropertyCondition($A::NameProperty, $n) }
+function IdIs($n)    { New-Object System.Windows.Automation.PropertyCondition($A::AutomationIdProperty, $n) }
+function TypeIs($t)  { New-Object System.Windows.Automation.PropertyCondition($A::ControlTypeProperty, $t) }
+function BothOf($a,$b){ New-Object System.Windows.Automation.AndCondition($a, $b) }
+
+function Find-Window($name, $timeoutSec = 25) {
+    # By HWND, not by walking the UIA root: an OWNED modal dialog (PresetEditor sets
+    # Owner = MainWindow) does not appear among RootElement's children in this session,
+    # and a search that cannot see the window would read as "the editor never opened".
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while ($sw.Elapsed.TotalSeconds -lt $timeoutSec) {
+        $h = [W]::Find($name)
+        if ($h -ne [IntPtr]::Zero) { return $A::FromHandle($h) }
+        Start-Sleep -Milliseconds 400
+    }
+    throw "window '$name' not found within ${timeoutSec}s"
+}
+function Wait-Elem($root, $cond, $timeoutSec = 20) {
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while ($sw.Elapsed.TotalSeconds -lt $timeoutSec) {
+        $e = $root.FindFirst('Descendants', $cond)
+        if ($e) { return $e }
+        Start-Sleep -Milliseconds 300
+    }
+    throw "element not found within ${timeoutSec}s"
+}
+function Invoke-Named($root, $name, $timeoutSec = 20) {
+    $b = Wait-Elem $root (NameIs $name) $timeoutSec
+    ($b.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)).Invoke()
+}
+function Get-ComboSelection($combo) {
+    $sel = $combo.GetCurrentPattern([System.Windows.Automation.SelectionPattern]::Pattern)
+    $items = $sel.Current.GetSelection()
+    if ($items.Count -eq 0) { return '<none>' }
+    return $items[0].Current.Name
+}
+function Select-ComboItem($win, $combo, $itemName) {
+    ($combo.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)).Expand()
+    Start-Sleep -Milliseconds 600
+    $item = $null
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    while (-not $item -and $sw.Elapsed.TotalSeconds -lt 8) {
+        $item = $combo.FindFirst('Descendants',
+            (BothOf (NameIs $itemName) (TypeIs ([System.Windows.Automation.ControlType]::ListItem))))
+        if (-not $item) { Start-Sleep -Milliseconds 300 }
+    }
+    if (-not $item) { throw "combo item '$itemName' not found" }
+    ($item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)).Select()
+    Start-Sleep -Milliseconds 400
+}
+
+$bakP = Join-Path $appdir 'presets.json.qa28-bak'
+$bakC = Join-Path $appdir 'config.json.qa28-bak'
+$fail = $null
+try {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Milliseconds 800
+    Copy-Item (Join-Path $appdir 'presets.json') $bakP -Force
+    Copy-Item (Join-Path $appdir 'config.json')  $bakC -Force
+
+    # A video preset with NO camera. The editor is what puts the camera on it.
+    $presets = @(@{ Id = $presetId; Name = $presetName; Note = $null; MonitorIndex = 1
+                    UseRegion = $false; Region = $null; Source = 'system'; Mic = $null
+                    Denoise = $true; Gate = $true; Level = $true; MicVol = 100; SysVol = 70
+                    Mode = 'video'; Fps = 15; Camera = $null; CameraFps = 30 })
+    ConvertTo-Json $presets -Depth 4 | Set-Content (Join-Path $appdir 'presets.json') -Encoding UTF8
+    ConvertTo-Json @{ Port = 7882; ApiEnabled = $true; AutoUpdate = $false; LastUsedPresetId = $presetId } |
+        Set-Content (Join-Path $appdir 'config.json') -Encoding UTF8
+
+    # ---- 1) open the editor and SELECT the camera -------------------------------------
+    Start-Process $exe | Out-Null
+    $win = Find-Window 'AgentEyes'
+    "STEP1 main window found"
+    Invoke-Named $win 'Edit active preset'
+    $ed = Find-Window 'Edit preset'
+    "STEP1 editor opened: $($ed.Current.Name)"
+    $cam = Wait-Elem $ed (IdIs 'CameraBox')
+    "STEP1 CameraBox selection BEFORE = $(Get-ComboSelection $cam)"
+    Select-ComboItem $ed $cam $camera
+    "STEP1 CameraBox selection AFTER  = $(Get-ComboSelection $cam)"
+    Invoke-Named $ed 'Save'
+    Start-Sleep -Seconds 2
+
+    # ---- 2) on disk -------------------------------------------------------------------
+    $saved = (Get-Content (Join-Path $appdir 'presets.json') -Raw | ConvertFrom-Json)
+    $row = @($saved) | Where-Object { $_.Id -eq $presetId }
+    "STEP2 presets.json Camera = '$($row.Camera)'  CameraFps = $($row.CameraFps)"
+    if ($row.Camera -ne $camera) { throw "presets.json did not keep the camera (got '$($row.Camera)')" }
+
+    # ---- 3) restart, reopen the editor, read it back through UIA ----------------------
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Seconds 2
+    Start-Process $exe | Out-Null
+    $win = Find-Window 'AgentEyes'
+    Invoke-Named $win 'Edit active preset'
+    $ed = Find-Window 'Edit preset'
+    $cam = Wait-Elem $ed (IdIs 'CameraBox')
+    $after = Get-ComboSelection $cam
+    "STEP3 after RESTART, editor CameraBox = '$after'"
+    Invoke-Named $ed 'Cancel'
+    Start-Sleep -Seconds 1
+    $reloaded = (Get-Content (Join-Path $appdir 'presets.json') -Raw | ConvertFrom-Json)
+    $row2 = @($reloaded) | Where-Object { $_.Id -eq $presetId }
+    "STEP3 presets.json after restart Camera = '$($row2.Camera)'"
+    if ($after -ne $camera) { throw "the reopened editor shows '$after', not '$camera'" }
+
+    # ---- 4) start that preset FROM THE LAUNCHER --------------------------------------
+    $before = @{}
+    Get-ChildItem $vid -Directory -ErrorAction SilentlyContinue | ForEach-Object { $before[$_.Name] = $true }
+    Invoke-Named $win 'REC' 20
+    Start-Sleep -Seconds 3
+    $st = Invoke-RestMethod 'http://127.0.0.1:7882/status' -TimeoutSec 10
+    "STEP4 launcher REC -> State=$($st.State) Camera=$($st.Camera) Dir=$($st.Dir)"
+    Start-Sleep -Seconds 8
+    Invoke-Named $win 'STOP' 20
+    Start-Sleep -Seconds 8
+    $new = @(Get-ChildItem $vid -Directory | Where-Object { -not $before.ContainsKey($_.Name) })
+    if ($new.Count -ne 1) { throw "expected exactly 1 new recording dir, got $($new.Count)" }
+    $d = $new[0].FullName
+    "STEP4 new dir = $d"
+    "STEP4 files   = $((Get-ChildItem $d -File | Select-Object -ExpandProperty Name) -join ', ')"
+    $m = Get-Content (Join-Path $d 'manifest.json') -Raw | ConvertFrom-Json
+    "STEP4 manifest CameraFile=$($m.CameraFile) CapturedSeconds=$($m.CameraCapturedSeconds) StopKind=$($m.CameraStopKind) StderrComplete=$($m.CameraStderrComplete) Complete=$($m.CameraComplete)"
+    if (-not (Test-Path (Join-Path $d 'recording.mp4'))) { throw 'no recording.mp4' }
+    if (-not (Test-Path (Join-Path $d 'camera.mp4')))    { throw 'no camera.mp4' }
+    "AC6_RESULT PASS"
+}
+catch { $fail = $_.Exception.Message; "AC6_RESULT FAIL: $fail" }
+finally {
+    Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Milliseconds 800
+    if (Test-Path $bakP) { Move-Item $bakP (Join-Path $appdir 'presets.json') -Force }
+    if (Test-Path $bakC) { Move-Item $bakC (Join-Path $appdir 'config.json')  -Force }
+    "restored presets.json + config.json"
+}

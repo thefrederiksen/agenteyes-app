@@ -1,0 +1,86 @@
+QA app dll sha256: 24E786E1C0DFA2AB149860F71EB721B36CA4FA62BAE229A4ED051A8BD20B4449
+Core dll sha256:   0FA55157A19DE5FAFCB5E62D3C5DF0A6478D4F964AB0E9535B636D6C7346CDFB
+
+===== 0. stop whatever is recording, restart clean on the seed config =====
+seed: sha=D60F3C217FAD8F27 Left=893 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+
+===== B1. hands-off recording #1 - establishes the HUD position the seed already carries =====
+HUD rect: X=893 Y=150 W=520 H=400
+after hands-off #1: sha=D60F3C217FAD8F27 Left=893 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+
+===== B2. hands-off recording #2 - AC1, and the constructor must write NOTHING =====
+config before: sha=D60F3C217FAD8F27 written=05:19:11.039
+config right after the HUD was constructed: sha=D60F3C217FAD8F27 written=05:19:14.084
+  the CONSTRUCTOR rewrote config.json? True   (expected: False)
+HUD rect: X=893 Y=150 W=520 H=400
+IMAGE rect=909,247,490,276
+  status: armed=True publishing=True corner=top-left framesRead=72/79
+  -- AC2/AC3 liveness --
+  AC2 screen t0=926C6E2FC0ED32F0 len=14071  t+3=926C6E2FC0ED32F0 len=14071  DIFFER=False
+  AC3 camera t0=56E500C4B307ACF8 len=1897  t+3=55C42F11D4523943 len=1901  DIFFER=True
+  framesRead screen 73->103 camera 80->110
+  -- AC3: exactly ONE process holds the camera --
+    pid=58984 (-i video=)=1 pipe:1=True mjpeg=True
+    pid=58300 (-i video=)=0 pipe:1=True mjpeg=True
+  PROCESSES HOLDING THE CAMERA = 1 (expected 1)
+after hands-off #2: sha=D60F3C217FAD8F27 -> BYTE-IDENTICAL to before? True
+  Left=893 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+    "DurationSeconds": 17.53,
+    "CameraCapturedSeconds": 17.89,
+    "CameraStopKind": "clean-quit",
+    "CameraComplete": "yes",
+    "PreviewOverlayCorner": "top-left",
+
+===== B3. the hands-off route attack, inside one live recording - nothing may be remembered =====
+HUD rect: X=893 Y=150 W=520 H=400
+  route: a REAL modal MOVE loop with no size change
+before the loop: X=893 Y=150 W=520 H=400
+after a real MOVE loop (no size change): X=981 Y=150 W=520 H=400
+  route: minimise and restore
+minimised: IsIconic=True
+restored -> HUD rect: X=981 Y=150 W=520 H=400
+  route: WM_DPICHANGED
+after WM_DPICHANGED: HUD rect: X=981 Y=150 W=520 H=400
+  route: a bare SetWindowPos to 1100x600 (no gesture)
+after a bare SetWindowPos to 1100,600 (no gesture): HUD rect: X=981 Y=150 W=1100 H=600
+HUD rect: X=981 Y=150 W=1100 H=600
+IMAGE rect=1082,232,900,506
+after the route attack: Left=981 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+  sha=F87796E2847CAE67 -> still byte-identical? False
+
+===== B4. MAXIMISE - the Review Gate's blocking defect 2 =====
+HUD rect: X=981 Y=150 W=520 H=400
+Exception calling "GetCurrentPattern" with "1" argument(s): "Unsupported Pattern."
+At <QA-SCRATCH>\
+qa33r5-hud.ps1:88 char:9
++         $wp = $hud.GetCurrentPattern([System.Windows.Automation.Windo ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidOperationException
+ 
+config after a maximise: Left=981 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+  -- a NEW recording must open at the maximised size --
+HUD rect: X=981 Y=150 W=520 H=400
+IMAGE rect=997,247,490,276
+config after that recording: Left=981 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+
+===== B5. AERO SNAP's shape: a REAL modal move loop that ends at a different size =====
+reseeded: Left=893 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+HUD rect: X=893 Y=150 W=520 H=400
+before the loop: X=893 Y=150 W=520 H=400
+after the move loop that changed the size: X=937 Y=150 W=520 H=400
+config after the snap-shaped loop: Left=937 Top=150 Width= Height= Visible=True Mode=both Corner=top-left
+  -- a NEW recording must open at that size --
+HUD rect: X=937 Y=150 W=520 H=400
+
+===== B6. AC7 proper: 3x the default width through UI Automation, and it survives a restart =====
+HUD rect: X=893 Y=150 W=520 H=400
+CanResize=True
+HUD rect after resize: X=893 Y=150 W=1560 H=400
+IMAGE rect=1402,232,544,306
+config after a 3x UI Automation resize: Left=893 Top=150 Width=1560 Height=400 Visible=True Mode=both Corner=top-left
+HUD rect: X=893 Y=150 W=1560 H=400
+IMAGE rect=1402,232,544,306
+config after the next app run: Left=893 Top=150 Width=1560 Height=400 Visible=True Mode=both Corner=top-left
+
+===== DONE session A2 =====

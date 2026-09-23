@@ -1,0 +1,85 @@
+==== ISSUE #33 ROUND 4 - QA ROUTE ATTACK (the running app) ====
+exe:           D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+exe lastwrite: 08/29/2026 00:36:42
+dll sha256:    A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8
+run started:   2026-08-29T00:36:57.9180963-04:00
+
+==== (A) HANDS-OFF ROUTES: no size the person did not choose may reach config ====
+  [running app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe]
+-- S1 recording 1: TOGGLE the preview on, resize nothing --
+  pill:        HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:   clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+               IMAGE: not found
+  config after S1  EXPECT no HudWidth / HudHeight:  "HudLeft": 1537, "HudTop": 16, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- S2 recording 2: the HUD is CONSTRUCTED with the preview already on (round-3 defect) --
+  HUD as opened (EXPECT 520x400):  HUD rect: X=1537 Y=16 W=520 H=400
+                                   IMAGE rect=1553,113,490,276
+  config after S2  EXPECT no HudWidth / HudHeight:  "HudLeft": 1537, "HudTop": 16, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- S3 recording 3: EVERY hostile route in one run, all hands-off --
+  as opened:                       HUD rect: X=1537 Y=16 W=520 H=400
+  toggle OFF:                      clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:                       clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  toggle OFF:                      clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:                       clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  move to DISPLAY1 (2100,100):     HUD rect after move: X=2100 Y=100 W=520 H=400
+  move to DISPLAY2 (1250,1150):    HUD rect after move: X=1250 Y=1150 W=520 H=400
+  move to DISPLAY3 (200,200):      HUD rect after move: X=200 Y=200 W=520 H=400
+  toggle OFF mid-move:             clicked 'Show preview' -> HUD rect: X=200 Y=200 W=367 H=52
+  move to (600,300):               HUD rect after move: X=600 Y=300 W=367 H=52
+  toggle ON mid-move:              clicked 'Show preview' -> HUD rect: X=600 Y=300 W=520 H=400
+  move to (800,400):               HUD rect after move: X=800 Y=400 W=520 H=400
+  minimise + restore:
+minimised: IsIconic=True
+restored -> HUD rect: X=800 Y=400 W=520 H=400
+  WM_DPICHANGED:                   after WM_DPICHANGED: HUD rect: X=800 Y=400 W=520 H=400
+  BARE SetWindowPos 1100x600:      after a bare SetWindowPos to 1100,600 (no gesture): HUD rect: X=800 Y=400 W=1100 H=600
+                                   IMAGE rect=901,482,900,506
+  config after S3  EXPECT no HudWidth / HudHeight (the window really was 1100x600):  "HudLeft": 800, "HudTop": 400, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- S4 two more stop/start cycles, nothing touched, to show nothing accumulates --
+  as opened: HUD rect: X=800 Y=400 W=520 H=400
+  as opened: HUD rect: X=800 Y=400 W=520 H=400
+  config after S4  EXPECT no HudWidth / HudHeight:  "HudLeft": 800, "HudTop": 400, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+-- S5 the HUD is CLOSED while the preview is open (WM_CLOSE, nothing resized) --
+  as opened: HUD rect: X=800 Y=400 W=520 H=400
+WM_CLOSE posted to the HUD
+  config after S5  EXPECT no HudWidth / HudHeight:  "HudLeft": 800, "HudTop": 400, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+  config after the stop that followed S5:  "HudLeft": 800, "HudTop": 400, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+
+==== (B) THE CLAMP DRIFT: a hands-off recording must leave config BYTE-IDENTICAL ====
+  [running app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe]
+  config before (the person's remembered size):  "HudWidth": 200, "HudHeight": 100, "HudPreviewVisible": true
+  HUD as opened (MinWidth is 260): HUD rect: X=1644 Y=16 W=260 H=100
+  config after  EXPECT 200 / 100 unchanged:  "HudLeft": 1644, "HudTop": 16, "HudWidth": 200, "HudHeight": 100, "HudPreviewVisible": true,
+  RESULT: HudWidth=200 HudHeight=100 -> PASS
+
+==== (C) AC7 END TO END: resize to 3x the default width, stop, start again ====
+  [running app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe]
+  pill:                    HUD rect: X=1537 Y=16 W=367 H=52
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  image at 520x400:        IMAGE: not found
+  move to 940,340:         HUD rect after move: X=940 Y=340 W=520 H=400
+  UIA resize to 1560x400 (3.0x DefaultPreviewWidth=520):
+CanResize=True
+HUD rect after resize: X=940 Y=340 W=1560 H=400
+  image after resize:      IMAGE: not found
+  config after the resize  EXPECT 1560 / 400 at 940,340:  "HudLeft": 940, "HudTop": 340, "HudWidth": 1560, "HudHeight": 400, "HudPreviewVisible": true,
+-- a NEW recording: the HUD must come back at the size AND position it was left at --
+  HUD as opened:           HUD rect: X=940 Y=340 W=1560 H=400
+  image:                   IMAGE rect=1449,422,544,306
+  config after recording 2  EXPECT 1560 / 400 unchanged:  "HudLeft": 940, "HudTop": 340, "HudWidth": 1560, "HudHeight": 400, "HudPreviewVisible": true,
+
+==== (D) THE SIZING-BORDER GESTURE: the Win32 resize-modal loop must be REMEMBERED ====
+  [running app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe]
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  drag the sizing border (SC_SIZE modal loop, messages posted to the window's own queue):
+after border drag: HUD rect: X=1537 Y=16 W=1191 H=400
+  config after the border drag  EXPECT a HudWidth WIDER than 520:  "HudLeft": 1537, "HudTop": 16, "HudWidth": 1191, "HudHeight": 400, "HudPreviewVisible": true,
+
+==== (E) A MOVE IS NOT A RESIZE ====
+  [running app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe]
+  toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
+  move to 300,200:         HUD rect after move: X=300 Y=200 W=520 H=400
+  move to 700,500:         HUD rect after move: X=700 Y=500 W=520 H=400
+  config after  EXPECT a position but NO HudWidth / HudHeight:  "HudLeft": 700, "HudTop": 500, "HudWidth": null, "HudHeight": null, "HudPreviewVisible": true,
+
+==== end 2026-08-29T00:42:39.3394699-04:00 ====

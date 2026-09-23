@@ -1,0 +1,75 @@
+$ErrorActionPreference = 'Stop'
+. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+
+$ARMED = @'
+{
+  "Port": 7882,
+  "ApiEnabled": true,
+  "RunAtLogin": false,
+  "AutoUpdate": false,
+  "LastUsedPresetId": "f95b1fb7cb7f4a9c9099f931a01b0801",
+  "HudPreviewVisible": true,
+  "HudPreviewMode": "screen",
+  "HudPreviewCorner": "bottom-right"
+}
+'@
+
+Write-Output "==== PART 3: AC8 (toggling mid-recording is safe) + the AC2 instrument's FAILING arm ===="
+Write-Output ("dll sha256: " + (Get-FileHash (Join-Path (Split-Path $EXE) 'AgentEyesApp.dll')).Hash)
+StartApp $ARMED $false
+StartChurn 1 45
+Rec
+Start-Sleep -Seconds 8
+
+$st = Status
+$sf = $st.PreviewScreenFrame
+
+Write-Output "  -- AC2 CONTROL: with the churn window GONE the screen frames must STOP differing while framesRead KEEPS CLIMBING --"
+Write-Output "     (this is the arm that proves the AC2 pass is not a check that always says yes)"
+Start-Sleep -Seconds 42          # the churn window closes itself after 45s
+$a = Status; $s1 = Sha $sf
+Start-Sleep -Seconds 4
+$b = Status; $s2 = Sha $sf
+Write-Output ("     STATIC screen t0=" + $s1 + "  t+4=" + $s2 + "  DIFFER=" + ($s1 -ne $s2) + "   (EXPECT False)")
+Write-Output ("     framesRead " + $a.PreviewScreenFramesRead + "->" + $b.PreviewScreenFramesRead + "   (EXPECT still climbing)")
+
+StartChurn 1 90
+Start-Sleep -Seconds 3
+$c = Status; $s3 = Sha $sf
+Start-Sleep -Seconds 4
+$d = Status; $s4 = Sha $sf
+Write-Output ("     MOVING again t0=" + $s3 + "  t+4=" + $s4 + "  DIFFER=" + ($s3 -ne $s4) + "   (EXPECT True)")
+Write-Output ("     framesRead " + $c.PreviewScreenFramesRead + "->" + $d.PreviewScreenFramesRead)
+
+Write-Output "  -- AC8: every preview control exercised DURING the live recording --"
+foreach ($m in @('screen', 'camera', 'both')) {
+    Hud click "Preview mode $m" | Out-Null
+    Start-Sleep -Milliseconds 800
+    Write-Output ("    mode -> $m ; /status corner=" + (Status).PreviewOverlayCorner)
+}
+foreach ($c2 in @('top-left', 'top-right', 'bottom-left', 'bottom-right')) {
+    Hud click "Preview corner $c2" | Out-Null
+    Start-Sleep -Milliseconds 700
+    Write-Output ("    corner -> $c2 ; /status corner=" + (Status).PreviewOverlayCorner)
+}
+$off0 = Status
+Hud click 'Show preview' | Out-Null        # hide the panel mid-recording
+Start-Sleep -Seconds 2
+$off1 = Status
+Write-Output ("    preview HIDDEN: publishing=" + $off1.PreviewPublishing + " frameFileExists=" + (Test-Path $sf) + " framesRead=" + $off1.PreviewScreenFramesRead)
+Start-Sleep -Seconds 3
+$off2 = Status
+Write-Output ("    STILL DRAINING while hidden: framesRead " + $off1.PreviewScreenFramesRead + " -> " + $off2.PreviewScreenFramesRead + "   (EXPECT climbing - an unread pipe would stall the recording)")
+Hud click 'Show preview' | Out-Null
+Start-Sleep -Seconds 2
+$on = Status
+Write-Output ("    preview SHOWN again: publishing=" + $on.PreviewPublishing + " frameFileExists=" + (Test-Path $sf) + " corner=" + $on.PreviewOverlayCorner)
+Hud click 'Preview corner top-right' | Out-Null
+Start-Sleep -Seconds 4
+
+StopRec
+Start-Sleep -Seconds 25
+$dir = NewestDir
+ReportRecording $dir "AC8 toggled-throughout recording"
+Get-Process AgentEyesApp -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Output "==== end part 3 ===="
