@@ -300,6 +300,7 @@ namespace AgentEyes.Tests
             "kernel32.dll!SetInformationJobObject", // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (no file access)
             "shell32.dll!SHGetKnownFolderPath",     // the user's Videos folder
             "user32.dll!CallNextHookEx",            // the low-level keyboard hook chain
+            "user32.dll!DestroyIcon",               // frees the composed always-on tray icon's handle (no file access)
             "user32.dll!GetAsyncKeyState",
             "user32.dll!GetWindowLong",             // monitor-highlight overlay style
             "user32.dll!GetWindowLongPtr",          // HUD window style

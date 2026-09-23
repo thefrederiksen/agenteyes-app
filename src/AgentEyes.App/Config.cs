@@ -140,6 +140,33 @@ namespace AgentEyes.App
         /// <summary>A footprint ceiling in gigabytes, or 0 for none.</summary>
         public double HousekeepingCeilingGb { get; set; }
 
+        // ---- Always-on recording (issue #66) ---------------------------------------------------
+        // Records the chosen setup all day in one-minute pieces and keeps only the stretches with
+        // sound. Defaults are the owner's decisions of 2026-09-23: 5 minutes either side, a 5 GB cap.
+
+        /// <summary>True while always-on is switched on, so it comes back on when AgentEyes starts.</summary>
+        public bool AlwaysOnEnabled { get; set; }
+
+        /// <summary>True while always-on is paused BY HAND. A restart brings it back paused, never
+        /// recording: the user's last word was "do not record" (review of PR 68, finding 1).</summary>
+        public bool AlwaysOnHandPaused { get; set; }
+
+        /// <summary>The recording setup (preset id) always-on records; null = the last used video setup.</summary>
+        public string? AlwaysOnPresetId { get; set; }
+
+        /// <summary>Which sound decides what is kept: "mic" | "system" | "both".</summary>
+        public string AlwaysOnCounts { get; set; } = "mic";
+
+        /// <summary>The sound line in dBFS, or null for Auto (measured noise floor plus the gate margin).</summary>
+        public double? AlwaysOnThresholdDb { get; set; }
+
+        public double AlwaysOnBeforeMinutes { get; set; } = 5;
+        public double AlwaysOnAfterMinutes { get; set; } = 5;
+        public double AlwaysOnCapGb { get; set; } = 5;
+
+        /// <summary>Where clips are saved; null = Videos\AgentEyes\AlwaysOn.</summary>
+        public string? AlwaysOnClipsFolder { get; set; }
+
         /// <summary>The config as the Core housekeeping pass wants it.</summary>
         public AgentEyes.Housekeeping.HousekeepingSettings HousekeepingSettings() => new()
         {

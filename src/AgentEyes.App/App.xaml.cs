@@ -20,6 +20,7 @@ namespace AgentEyes.App
         private RestServer? _rest;
         private RepairService? _repair;
         private TrayHost? _tray;
+        private AlwaysOnController? _alwaysOn;
         private MainWindow? _window;
         private TestPanel? _tests;
         private KeyboardHook? _captureRegionHook;
@@ -133,7 +134,11 @@ namespace AgentEyes.App
                     _rest.HousekeepingRunNow = () => _repair!.RunHousekeepingNowAsync("api");
                 }
 
-                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests);
+                // Issue #66: always-on recording. One controller for the page, the tray and the API.
+                _alwaysOn = new AlwaysOnController(_service, _cfg);
+                if (_rest != null) _rest.AlwaysOn = _alwaysOn;
+
+                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests, _alwaysOn, ShowAlwaysOn);
                 InstallCaptureHooks();
 
                 // Auto-update (opt-out in Settings): on startup, quietly ask the public releases repo
@@ -155,6 +160,9 @@ namespace AgentEyes.App
 
                 // Issue #61: the spelling of the hidden-start flags lives in LaunchArguments, so the
                 // app and the auto-update restart cannot drift apart on what "start hidden" means.
+                // It survives restarts: if it was on, it comes back on (in the background).
+                _alwaysOn.RestoreOnStartup();
+
                 bool startHidden = LaunchArguments.AsksForHiddenStart(e.Args);
                 AgentEyes.Log.Info($"app started (hidden={startHidden}, api={(_rest != null ? _rest.Url : "off")})");
 
@@ -280,12 +288,19 @@ namespace AgentEyes.App
         {
             if (_window == null)
             {
-                _window = new MainWindow(_service!, _cfg!, ShowTests, _repair!);
+                _window = new MainWindow(_service!, _cfg!, ShowTests, _repair!, _alwaysOn);
                 _window.Closing += (_, ev) => { ev.Cancel = true; _window!.Hide(); };  // close = hide to tray
             }
             _window.Show();
             _window.WindowState = WindowState.Normal;
             _window.Activate();
+        }
+
+        /// <summary>The tray's "Always-on settings...": the main window, on the Always On page.</summary>
+        private void ShowAlwaysOn()
+        {
+            ShowWindow();
+            _window?.ShowAlwaysOnPage();
         }
 
         private void ShowTests()
@@ -315,6 +330,13 @@ namespace AgentEyes.App
 
             try { _captureRegionHook?.Dispose(); } catch { }
             try { _captureFullHook?.Dispose(); } catch { }
+            // Issue #66: finish the piece being written and write the clip being kept. Always-on stays
+            // enabled in config.json, so the next start brings it back.
+            try { _tray?.ShowAlwaysOnExitWait(); }
+            catch (Exception ex) { AgentEyes.Log.Error("app exit: showing the always-on exit wait failed", ex); }
+            try { _alwaysOn?.ShutdownForExit(); }
+            catch (Exception ex) { AgentEyes.Log.Error("app exit: stopping always-on failed", ex); }
+            try { _alwaysOn?.Dispose(); } catch { }
             try { _repair?.Dispose(); } catch { }
             try { _rest?.Dispose(); } catch { }
             try { _tray?.Dispose(); } catch { }

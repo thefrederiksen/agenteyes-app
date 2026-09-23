@@ -138,7 +138,7 @@ namespace AgentEyes.Tests
             // Nothing pins the mode in XAML any more, so the very first paint has to go through the
             // same single configurator - otherwise the grid opens with WPF's virtualizing defaults.
             string ctor = RepoSource.MethodBody(RepoSource.Read(CodeBehind),
-                "internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair)");
+                "internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair,");
             Assert.Contains("ApplyLibraryMode();", ctor, StringComparison.Ordinal);
         }
 
