@@ -74,6 +74,9 @@ namespace AgentEyes
                     case "selftest":
                         return SelfTest.Run();
 
+                    case "always-on":
+                        return AlwaysOn.AlwaysOnCli.Run(opts);
+
                     case "-h":
                     case "--help":
                     case "help":
@@ -117,6 +120,7 @@ namespace AgentEyes
             Console.WriteLine("       camera:       --camera \"NAME\" [--camera-fps N]   # webcam -> camera.mp4 (video only)");
             Console.WriteLine("  agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD]");
             Console.WriteLine("  agenteyes compose <recording-dir>   render the camera into recording.mp4 at the framing the preset chose");
+            Console.WriteLine(AlwaysOn.AlwaysOnCli.Usage);
             Console.WriteLine("  agenteyes housekeep [root] [--apply] [--days N] [--ceiling-gb N] [--no-transcode] [--no-frames] [--frame-days N] [--smaller-audio]");
             Console.WriteLine("       reduce the recordings folder's own footprint. REPORTS ONLY unless --apply is given.");
             Console.WriteLine("  agenteyes import  <video.mp4>             # import an external video into the library");

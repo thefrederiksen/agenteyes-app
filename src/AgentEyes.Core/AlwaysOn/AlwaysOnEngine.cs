@@ -1,0 +1,669 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
+using AgentEyes.Housekeeping;
+using AgentEyes.Video;
+
+namespace AgentEyes.AlwaysOn
+{
+    /// <summary>What records the pieces. The real one is <see cref="ContinuousRecorder"/>; tests
+    /// substitute one that writes pieces without a screen.</summary>
+    internal interface IPieceRecorder : IDisposable
+    {
+        void Start(AlwaysOnOptions options, SoundLog sound);
+        void Stop();
+        bool HasExited { get; }
+        string Encoder { get; }
+        string StderrTail { get; }
+    }
+
+    internal sealed class ContinuousPieceRecorder : IPieceRecorder
+    {
+        private readonly ContinuousRecorder _rec = new();
+        public void Start(AlwaysOnOptions options, SoundLog sound) => _rec.Start(options, sound);
+        public void Stop() => _rec.Stop();
+        public bool HasExited => _rec.HasExited;
+        public string Encoder => _rec.Encoder;
+        public string StderrTail => _rec.StderrTail;
+        public void Dispose() => _rec.Dispose();
+    }
+
+    /// <summary>The always-on state, as the tray dot shows it.</summary>
+    internal static class AlwaysOnState
+    {
+        public const string Off = "off";
+        /// <summary>Recording, no sound lately: silence is being thrown away. Solid red dot.</summary>
+        public const string Listening = "listening";
+        /// <summary>Recording, and sound was heard within the after window. Red dot, white centre.</summary>
+        public const string Keeping = "keeping";
+        /// <summary>Paused while a normal recording runs. Grey dot.</summary>
+        public const string Paused = "paused";
+        /// <summary>Meant to be recording, but the capture failed and is being retried. Grey dot, and
+        /// the tooltip says why - the indicator never claims a recording that is not happening.</summary>
+        public const string Retrying = "retrying";
+    }
+
+    /// <summary>A snapshot of always-on for the page, the tray and the Control API.</summary>
+    internal sealed class AlwaysOnStatus
+    {
+        public string State { get; set; } = AlwaysOnState.Off;
+        public string? Setup { get; set; }
+        public string? Counts { get; set; }
+        public double? ThresholdDb { get; set; }
+        public bool ThresholdAuto { get; set; }
+        public double? KeepBeforeMinutes { get; set; }
+        public double? KeepAfterMinutes { get; set; }
+        public double? CapGb { get; set; }
+        public string? ClipsFolder { get; set; }
+        public string? Encoder { get; set; }
+        public DateTime? SinceUtc { get; set; }
+        public DateTime? LastSoundUtc { get; set; }
+        public string? PausedReason { get; set; }
+        public string? LastError { get; set; }
+        public int PiecesWaiting { get; set; }
+        public int PiecesKeptInOpenClip { get; set; }
+        public long DiskUsedBytes { get; set; }
+        public string Today { get; set; } = "";
+        public int ClipsToday { get; set; }
+        public double KeptSecondsToday { get; set; }
+        public long KeptBytesToday { get; set; }
+        public double DiscardedSecondsToday { get; set; }
+        public string? LastClip { get; set; }
+    }
+
+    /// <summary>
+    /// ALWAYS-ON RECORDING (issue #66). Records the chosen setup all day in one-minute pieces and
+    /// keeps only the stretches with sound, plus a margin either side:
+    ///
+    ///  - the RECORDER (<see cref="IPieceRecorder"/>) never stops for silence; a supervisor restarts it
+    ///    if ffmpeg dies;
+    ///  - the SOUND LOG (<see cref="SoundLog"/>) notes every second above the line;
+    ///  - the KEEPER (<see cref="KeeperRule"/>) decides each finished piece on a timer: kept pieces move
+    ///    into a holding folder per clip, silent ones are deleted, and a finished clip is joined into
+    ///    one MP4 with a lossless concat;
+    ///  - the CAP (<see cref="HousekeepingCeiling.EvictOldest"/>) holds the clips folder under the
+    ///    owner's limit, oldest clip first.
+    ///
+    /// CRASH SAFETY. A kept piece is MOVED into its clip's holding folder the moment it is kept, so a
+    /// crash or a power cut loses no kept video: the next start joins every holding folder it finds.
+    /// Loose pieces found at start have no sound log any more and are deleted, and that is logged.
+    ///
+    /// Every public method is serialised on one lock. Start, Stop, Pause and Resume talk to ffmpeg and
+    /// can take seconds - callers keep them off the UI thread.
+    /// </summary>
+    internal sealed class AlwaysOnEngine : IDisposable
+    {
+        /// <summary>How often the keeper and the supervisor look. The keeper decides at least once a
+        /// minute, as the rule asks; looking more often only makes the tray dot and counters fresher.</summary>
+        public static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(15);
+
+        /// <summary>The waits between restarts of a capture that keeps failing.</summary>
+        public static readonly TimeSpan[] RestartBackoff =
+        {
+            TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5),
+        };
+
+        /// <summary>A clip file this engine wrote: its local start time, and a counter when two
+        /// clips started in the same second. The cap only ever deletes files with this name, so a
+        /// clips folder pointed at a folder with other videos in it never loses one of them.</summary>
+        private static readonly Regex ClipName = new(@"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_\d+)?\.mp4$", RegexOptions.IgnoreCase);
+
+        private readonly object _lock = new();
+        private readonly Func<IPieceRecorder> _recorderFactory;
+        private readonly Func<DateTime> _utcNow;
+        private readonly bool _ownTimer;
+        private Timer? _timer;
+
+        private AlwaysOnOptions? _options;
+        private IPieceRecorder? _recorder;
+        private SoundLog? _sound;
+        private AlwaysOnDay _day = new();
+        private string _state = AlwaysOnState.Off;
+        private string? _pausedReason;
+        private string? _lastError;
+        private string? _lastClip;
+        private string? _encoder;
+        private DateTime? _sinceUtc;
+        private int _restartAttempt;
+        private DateTime _nextRestartUtc;
+
+        // The keeper's memory between passes.
+        private readonly Dictionary<int, string> _clipDirs = new();
+        private int? _openClip;
+        private DateTime? _openClipEndUtc;
+        private int _nextClip = 1;
+        private readonly HashSet<string> _failedJoins = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Raised (on the engine's thread) whenever the state or the counters change.</summary>
+        public event Action? Changed;
+
+        public AlwaysOnEngine() : this(() => new ContinuousPieceRecorder(), () => DateTime.UtcNow, ownTimer: true) { }
+
+        /// <param name="ownTimer">False for tests, which call <see cref="Tick"/> themselves.</param>
+        public AlwaysOnEngine(Func<IPieceRecorder> recorderFactory, Func<DateTime> utcNow, bool ownTimer)
+        {
+            _recorderFactory = recorderFactory ?? throw new ArgumentNullException(nameof(recorderFactory));
+            _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
+            _ownTimer = ownTimer;
+        }
+
+        public string State { get { lock (_lock) return _state; } }
+
+        /// <summary>True from Start until Stop - including while paused or retrying.</summary>
+        public bool IsOn { get { lock (_lock) return _state != AlwaysOnState.Off; } }
+
+        public AlwaysOnOptions? Options { get { lock (_lock) return _options; } }
+
+        /// <summary>Turn always-on on. Throws with the reason when the capture cannot start; always-on
+        /// is then off again, not half-on.</summary>
+        public void Start(AlwaysOnOptions options)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+            lock (_lock)
+            {
+                if (_state != AlwaysOnState.Off) throw new UsageException("always-on is already on - stop it first.");
+                Log.Info($"[AlwaysOnEngine] Start: {options}");
+                if (options.KeepBefore < TimeSpan.Zero || options.KeepAfter < TimeSpan.Zero)
+                    throw new UsageException("the keep windows cannot be negative.");
+
+                Directory.CreateDirectory(options.WorkFolder);
+                Directory.CreateDirectory(options.PieceFolder);
+                Directory.CreateDirectory(options.PendingFolder);
+                Directory.CreateDirectory(options.ClipsFolder);
+
+                _options = options;
+                _day = AlwaysOnDay.Load(options.StatsFile);
+                _day.EnsureDay(_utcNow());
+                _lastError = null;
+                _pausedReason = null;
+                _failedJoins.Clear();
+                ResetKeeper();
+
+                Recover(options);
+                EnforceCap(options);
+
+                try
+                {
+                    StartRecorder(options);
+                }
+                catch
+                {
+                    _options = null;
+                    _state = AlwaysOnState.Off;
+                    throw;
+                }
+                _sinceUtc = _utcNow();
+                _restartAttempt = 0;
+                _state = AlwaysOnState.Listening;
+                if (_ownTimer && _timer == null)
+                    _timer = new Timer(_ => TickFromTimer(), null, TickInterval, TickInterval);
+            }
+            Log.Info("[AlwaysOnEngine] Start: always-on is on");
+            RaiseChanged();
+        }
+
+        /// <summary>Turn always-on off: finish the current piece, decide every piece on the sound heard
+        /// so far, and write every clip that was being kept.</summary>
+        public void Stop()
+        {
+            lock (_lock)
+            {
+                if (_state == AlwaysOnState.Off) return;
+                Log.Info("[AlwaysOnEngine] Stop: stopping always-on");
+                _timer?.Dispose();
+                _timer = null;
+                StopRecorderAndFinish("stop");
+                _state = AlwaysOnState.Off;
+                _pausedReason = null;
+                _sinceUtc = null;
+            }
+            Log.Info("[AlwaysOnEngine] Stop: always-on is off");
+            RaiseChanged();
+        }
+
+        /// <summary>
+        /// Pause for a normal recording (decision 3): stop capturing and write what was being kept.
+        /// The normal recording has the screen and the microphone now; always-on comes back when it
+        /// ends. A no-op when always-on is off or already paused.
+        /// </summary>
+        public void Pause(string reason)
+        {
+            lock (_lock)
+            {
+                if (_state is AlwaysOnState.Off or AlwaysOnState.Paused) return;
+                Log.Info($"[AlwaysOnEngine] Pause: {reason}");
+                StopRecorderAndFinish("pause");
+                _state = AlwaysOnState.Paused;
+                _pausedReason = reason;
+            }
+            RaiseChanged();
+        }
+
+        /// <summary>Resume after a pause. When the capture cannot restart, always-on stays on and
+        /// retries on the supervisor's schedule, and the reason is in the status.</summary>
+        public void Resume()
+        {
+            lock (_lock)
+            {
+                if (_state != AlwaysOnState.Paused) return;
+                Log.Info("[AlwaysOnEngine] Resume: resuming always-on");
+                _pausedReason = null;
+                ResetKeeper();
+                try
+                {
+                    StartRecorder(_options!);
+                    _restartAttempt = 0;
+                    _state = AlwaysOnState.Listening;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("[AlwaysOnEngine] Resume: the capture did not restart; retrying", ex);
+                    _lastError = ex.Message;
+                    _state = AlwaysOnState.Retrying;
+                    ScheduleRestart();
+                }
+            }
+            RaiseChanged();
+        }
+
+        /// <summary>One pass of the supervisor and the keeper. Called by the timer; tests call it.</summary>
+        public void Tick()
+        {
+            bool changed;
+            lock (_lock)
+            {
+                if (_options == null || _state is AlwaysOnState.Off or AlwaysOnState.Paused) return;
+                var now = _utcNow();
+                string before = _state;
+                int clipsBefore = _day.Clips;
+                double discardedBefore = _day.DiscardedSeconds;
+
+                Supervise(now);
+                bool running = _recorder != null && !_recorder.HasExited;
+                RunKeeper(_options, now, final: false, recorderRunning: running);
+
+                if (_state is AlwaysOnState.Listening or AlwaysOnState.Keeping)
+                    _state = IsKeeping(now) ? AlwaysOnState.Keeping : AlwaysOnState.Listening;
+
+                _day.EnsureDay(now);
+                changed = before != _state || clipsBefore != _day.Clips || discardedBefore != _day.DiscardedSeconds;
+            }
+            if (changed) RaiseChanged();
+        }
+
+        public AlwaysOnStatus Status()
+        {
+            lock (_lock)
+            {
+                var now = _utcNow();
+                _day.EnsureDay(now);
+                var o = _options;
+                var s = new AlwaysOnStatus
+                {
+                    State = _state,
+                    Setup = o?.SetupName,
+                    Counts = o?.Counts.ToString().ToLowerInvariant(),
+                    ThresholdAuto = o != null && !o.ThresholdDb.HasValue,
+                    KeepBeforeMinutes = o?.KeepBefore.TotalMinutes,
+                    KeepAfterMinutes = o?.KeepAfter.TotalMinutes,
+                    CapGb = o == null ? null : Math.Round(o.CapBytes / 1024.0 / 1024 / 1024, 2),
+                    ClipsFolder = o?.ClipsFolder,
+                    Encoder = _encoder,
+                    SinceUtc = _sinceUtc,
+                    LastSoundUtc = _sound?.LastSoundUtc,
+                    PausedReason = _pausedReason,
+                    LastError = _lastError,
+                    Today = _day.Date,
+                    ClipsToday = _day.Clips,
+                    KeptSecondsToday = Math.Round(_day.KeptSeconds, 1),
+                    KeptBytesToday = _day.KeptBytes,
+                    DiscardedSecondsToday = Math.Round(_day.DiscardedSeconds, 1),
+                    LastClip = _lastClip,
+                };
+                if (_sound != null && o != null)
+                {
+                    var src = o.Counts == SoundSource.System ? SoundSource.System : SoundSource.Mic;
+                    var line = _sound.CurrentThresholdDb(src);
+                    s.ThresholdDb = line.HasValue ? Math.Round(line.Value, 1) : null;
+                }
+                if (o != null)
+                {
+                    s.PiecesWaiting = PieceFiles(o.PieceFolder).Count;
+                    s.PiecesKeptInOpenClip = _openClip.HasValue && _clipDirs.TryGetValue(_openClip.Value, out var d)
+                        && Directory.Exists(d) ? Directory.GetFiles(d, "*.mp4").Length : 0;
+                    s.DiskUsedBytes = FolderBytes(o.WorkFolder) + ClipFiles(o.ClipsFolder).Sum(f => f.Length);
+                }
+                return s;
+            }
+        }
+
+        /// <summary>Today's counters as one line.</summary>
+        public string TodaySummary() { lock (_lock) { _day.EnsureDay(_utcNow()); return _day.Summary(); } }
+
+        // ---- the recorder and its supervisor ---------------------------------
+
+        private void StartRecorder(AlwaysOnOptions o)
+        {
+            _sound = new SoundLog(o.Counts, o.ThresholdDb);
+            var rec = _recorderFactory();
+            try
+            {
+                rec.Start(o, _sound);
+            }
+            catch
+            {
+                rec.Dispose();
+                throw;
+            }
+            _recorder = rec;
+            _encoder = rec.Encoder;
+        }
+
+        private void Supervise(DateTime now)
+        {
+            if (_state == AlwaysOnState.Retrying)
+            {
+                if (now < _nextRestartUtc) return;
+                TryRestart(now);
+                return;
+            }
+            if (_recorder == null || !_recorder.HasExited) return;
+
+            string tail = _recorder.StderrTail;
+            _lastError = "the capture stopped unexpectedly: " + LastLine(tail);
+            Log.Error($"[AlwaysOnEngine] Supervise: ffmpeg exited unexpectedly; restarting. ffmpeg said: {tail}");
+            // Everything it wrote is finished now: decide it before the new capture starts writing.
+            RunKeeper(_options!, now, final: true, recorderRunning: false);
+            _recorder.Dispose();
+            _recorder = null;
+            ResetKeeper();
+            TryRestart(now);
+        }
+
+        private void TryRestart(DateTime now)
+        {
+            try
+            {
+                StartRecorder(_options!);
+                Log.Info($"[AlwaysOnEngine] TryRestart: capture restarted (attempt {_restartAttempt + 1})");
+                _restartAttempt = 0;
+                _state = AlwaysOnState.Listening;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[AlwaysOnEngine] TryRestart: restart attempt {_restartAttempt + 1} failed", ex);
+                _lastError = ex.Message;
+                _state = AlwaysOnState.Retrying;
+                ScheduleRestart();
+            }
+        }
+
+        private void ScheduleRestart()
+        {
+            var wait = RestartBackoff[Math.Min(_restartAttempt, RestartBackoff.Length - 1)];
+            _restartAttempt++;
+            _nextRestartUtc = _utcNow() + wait;
+            Log.Info($"[AlwaysOnEngine] ScheduleRestart: next attempt in {wait.TotalSeconds:0}s");
+        }
+
+        private void StopRecorderAndFinish(string why)
+        {
+            if (_recorder != null)
+            {
+                try { _recorder.Stop(); }
+                catch (Exception ex) { Log.Error($"[AlwaysOnEngine] {why}: stopping the capture failed", ex); }
+                _recorder.Dispose();
+                _recorder = null;
+            }
+            if (_options != null) RunKeeper(_options, _utcNow(), final: true, recorderRunning: false);
+            ResetKeeper();
+        }
+
+        private void ResetKeeper()
+        {
+            _openClip = null;
+            _openClipEndUtc = null;
+        }
+
+        private bool IsKeeping(DateTime now)
+        {
+            if (_openClip.HasValue) return true;
+            var last = _sound?.LastSoundUtc;
+            return last.HasValue && _options != null && now - last.Value <= _options.KeepAfter;
+        }
+
+        // ---- the keeper ------------------------------------------------------
+
+        private void RunKeeper(AlwaysOnOptions o, DateTime now, bool final, bool recorderRunning)
+        {
+            var files = PieceFiles(o.PieceFolder);
+            // The newest piece is the one ffmpeg is writing - unless nothing is writing any more.
+            int finishedCount = recorderRunning ? Math.Max(0, files.Count - 1) : files.Count;
+            var pieces = new List<Piece>(finishedCount);
+            for (int i = 0; i < finishedCount; i++)
+            {
+                var (path, startUtc) = files[i];
+                var fi = new FileInfo(path);
+                DateTime endUtc = i + 1 < files.Count ? files[i + 1].StartUtc : fi.LastWriteTimeUtc;
+                if (endUtc < startUtc) endUtc = startUtc;
+                pieces.Add(new Piece(path, startUtc, endUtc, fi.Length));
+            }
+
+            var sound = _sound;
+            var plan = KeeperRule.Decide(
+                pieces, (a, b) => sound != null && sound.AnySound(a, b), now, o.KeepBefore, o.KeepAfter,
+                _openClip, _openClipEndUtc, _nextClip, final);
+
+            foreach (var (piece, clip) in plan.Keep)
+            {
+                if (!_clipDirs.TryGetValue(clip, out var dir))
+                {
+                    dir = Path.Combine(o.PendingFolder, "clip_" + piece.StartUtc.ToLocalTime().ToString(AlwaysOnArgs.PieceStampFormat));
+                    _clipDirs[clip] = dir;
+                }
+                Directory.CreateDirectory(dir);
+                File.Move(piece.Path, Path.Combine(dir, Path.GetFileName(piece.Path)));
+                Log.Info($"[AlwaysOnEngine] keeper: KEEP {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s) -> {Path.GetFileName(dir)}");
+            }
+            foreach (var piece in plan.Delete)
+            {
+                File.Delete(piece.Path);
+                _day.EnsureDay(now);
+                _day.DiscardedSeconds += piece.Duration.TotalSeconds;
+                Log.Info($"[AlwaysOnEngine] keeper: DELETE {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s, no sound near it)");
+            }
+            foreach (int clip in plan.Close)
+            {
+                if (_clipDirs.TryGetValue(clip, out var dir))
+                {
+                    JoinClip(o, dir, now);
+                    _clipDirs.Remove(clip);
+                }
+            }
+
+            _openClip = plan.OpenClip;
+            _openClipEndUtc = plan.OpenClipEndUtc;
+            _nextClip = plan.NextClip;
+
+            if (plan.Keep.Count + plan.Delete.Count + plan.Close.Count > 0) _day.Save(o.StatsFile);
+            if (plan.Close.Count > 0) EnforceCap(o);
+
+            // Sound older than anything still undecided can reach is never asked about again.
+            _sound?.Prune(now - o.KeepBefore - o.KeepAfter - TimeSpan.FromSeconds(o.PieceSeconds * 3));
+        }
+
+        /// <summary>
+        /// Join one clip's pieces into a single MP4 in the clips folder, without re-encoding, then
+        /// remove the holding folder. A piece ffmpeg could not finish (a crash mid-piece) cannot be
+        /// read and is left out, with a warning. A join that fails leaves the holding folder in place -
+        /// nothing kept is ever deleted because the join did not work - and the next start tries again.
+        /// </summary>
+        private void JoinClip(AlwaysOnOptions o, string dir, DateTime now)
+        {
+            if (_failedJoins.Contains(dir)) return;
+            var parts = Directory.GetFiles(dir, "piece_*.mp4").OrderBy(p => Path.GetFileName(p), StringComparer.Ordinal).ToList();
+            var readable = new List<string>();
+            double seconds = 0;
+            foreach (var p in parts)
+            {
+                try
+                {
+                    double d = MediaProbe.DurationSeconds(p);
+                    if (d <= 0) throw new UsageException("zero duration");
+                    readable.Add(p);
+                    seconds += d;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(p)} cannot be read ({ex.Message}) - "
+                             + "most likely the piece being written when the capture stopped hard; it is left out");
+                }
+            }
+            if (readable.Count == 0)
+            {
+                Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} has no readable piece; removing it");
+                Directory.Delete(dir, recursive: true);
+                return;
+            }
+
+            var start = AlwaysOnArgs.PieceStartLocal(readable[0]) ?? now.ToLocalTime();
+            string outPath = UniqueClipPath(o.ClipsFolder, start);
+            string list = Path.Combine(dir, "join.txt");
+            File.WriteAllText(list, AlwaysOnArgs.JoinList(readable));
+            try
+            {
+                Ffmpeg.Run(AlwaysOnArgs.Join(list, outPath), "always-on join");
+            }
+            catch (UsageException ex)
+            {
+                _failedJoins.Add(dir);
+                _lastError = $"joining the clip {Path.GetFileName(dir)} failed; its pieces are kept in {dir}";
+                Log.Error($"[AlwaysOnEngine] JoinClip: {_lastError}", ex);
+                if (File.Exists(outPath)) File.Delete(outPath);
+                return;
+            }
+
+            long bytes = new FileInfo(outPath).Length;
+            Directory.Delete(dir, recursive: true);
+            _day.EnsureDay(now);
+            _day.Clips++;
+            _day.KeptSeconds += seconds;
+            _day.KeptBytes += bytes;
+            _lastClip = outPath;
+            Log.Info($"[AlwaysOnEngine] JoinClip: wrote {outPath} ({readable.Count} pieces, {seconds:0}s, {bytes / 1024.0 / 1024:0.0} MB)");
+        }
+
+        private static string UniqueClipPath(string folder, DateTime startLocal)
+        {
+            string stem = startLocal.ToString("yyyy-MM-dd_HH-mm-ss");
+            string path = Path.Combine(folder, stem + ".mp4");
+            for (int n = 2; File.Exists(path); n++) path = Path.Combine(folder, $"{stem}_{n}.mp4");
+            return path;
+        }
+
+        /// <summary>
+        /// At start: join every holding folder a previous run left (a crash or a power cut between
+        /// keeping and joining), and delete loose pieces - their sound log died with that run, so
+        /// nothing can say whether they were worth keeping.
+        /// </summary>
+        private void Recover(AlwaysOnOptions o)
+        {
+            foreach (var dir in Directory.GetDirectories(o.PendingFolder, "clip_*").OrderBy(d => d, StringComparer.Ordinal))
+            {
+                Log.Info($"[AlwaysOnEngine] Recover: joining {Path.GetFileName(dir)}, left by an earlier run");
+                JoinClip(o, dir, _utcNow());
+            }
+            var loose = PieceFiles(o.PieceFolder);
+            foreach (var (path, _) in loose)
+            {
+                Log.Warn($"[AlwaysOnEngine] Recover: deleting {Path.GetFileName(path)} - left by an earlier run that "
+                         + "ended before deciding it, and its sound log went with that run");
+                File.Delete(path);
+            }
+            _day.Save(o.StatsFile);
+        }
+
+        private void EnforceCap(AlwaysOnOptions o)
+        {
+            if (o.CapBytes <= 0) return;
+            var clips = ClipFiles(o.ClipsFolder).OrderBy(f => f.LastWriteTimeUtc).ToList();
+            var candidates = clips.Select(f => new HousekeepingCandidate
+            {
+                Recording = f.FullName,
+                Bytes = f.Length,
+                AgeDays = (int)(_utcNow() - f.LastWriteTimeUtc).TotalDays,
+                Pinned = false,
+            }).ToList();
+            long fixedBytes = FolderBytes(o.WorkFolder);
+            foreach (var c in HousekeepingCeiling.EvictOldest(candidates, o.CapBytes, fixedBytes))
+            {
+                File.Delete(c.Recording);
+                Log.Info($"[AlwaysOnEngine] EnforceCap: deleted {Path.GetFileName(c.Recording)} "
+                         + $"({c.Bytes / 1024.0 / 1024:0.0} MB) - the clips were over the {o.CapBytes / 1024.0 / 1024 / 1024:0.##} GB cap");
+            }
+        }
+
+        // ---- files -----------------------------------------------------------
+
+        /// <summary>The pieces in the folder, oldest first, with their start time.</summary>
+        private static List<(string Path, DateTime StartUtc)> PieceFiles(string folder)
+        {
+            var list = new List<(string, DateTime)>();
+            if (!Directory.Exists(folder)) return list;
+            foreach (var f in Directory.GetFiles(folder, "piece_*.mp4"))
+            {
+                var local = AlwaysOnArgs.PieceStartLocal(f);
+                if (local.HasValue) list.Add((f, local.Value.ToUniversalTime()));
+            }
+            list.Sort((a, b) => a.Item2.CompareTo(b.Item2));
+            return list;
+        }
+
+        private static List<FileInfo> ClipFiles(string folder) =>
+            Directory.Exists(folder)
+                ? new DirectoryInfo(folder).GetFiles("*.mp4").Where(f => ClipName.IsMatch(f.Name)).ToList()
+                : new List<FileInfo>();
+
+        private static long FolderBytes(string folder) =>
+            Directory.Exists(folder)
+                ? new DirectoryInfo(folder).GetFiles("*", SearchOption.AllDirectories).Sum(f => f.Length)
+                : 0;
+
+        private static string LastLine(string text)
+        {
+            var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return lines.Length == 0 ? "(ffmpeg said nothing)" : lines[^1];
+        }
+
+        // ---- plumbing --------------------------------------------------------
+
+        private void TickFromTimer()
+        {
+            // Timer callback: an entry point, so this is where a failure is caught and logged. A keeper
+            // pass that throws (a file held open by a virus scanner, a full disk) must not end the
+            // timer - the next pass tries again, and the error is in the status meanwhile.
+            try { Tick(); }
+            catch (Exception ex)
+            {
+                Log.Error("[AlwaysOnEngine] TickFromTimer: the keeper pass failed", ex);
+                lock (_lock) _lastError = "the keeper failed: " + ex.Message;
+                RaiseChanged();
+            }
+        }
+
+        private void RaiseChanged()
+        {
+            try { Changed?.Invoke(); }
+            catch (Exception ex) { Log.Error("[AlwaysOnEngine] RaiseChanged: a listener failed", ex); }
+        }
+
+        public void Dispose()
+        {
+            Stop();
+            _timer?.Dispose();
+        }
+    }
+}
