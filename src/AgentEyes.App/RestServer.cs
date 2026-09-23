@@ -55,6 +55,10 @@ namespace AgentEyes.App
         /// <summary>The settings the pass would use, for the GET.</summary>
         public Func<AgentEyes.Housekeeping.HousekeepingSettings>? HousekeepingSettings { get; set; }
 
+        /// <summary>Always-on recording (issue #66). Set by the app after construction, like the
+        /// housekeeping hooks; null until then, and a request in that window gets an honest 503.</summary>
+        public AlwaysOnController? AlwaysOn { get; set; }
+
         /// <summary>The configured save-folder override (Capture-tab Settings, null = default).</summary>
         private string? CaptureOverride => _captureSaveFolder?.Invoke();
 
@@ -104,6 +108,18 @@ namespace AgentEyes.App
                     // default is report-only and the report is the whole deliverable.
                     case ("GET", "/housekeeping"): Json(ctx, Housekeeping()); return;
                     case ("POST", "/housekeeping/run"): Json(ctx, HousekeepingRun()); return;
+
+                    // Issue #66: always-on recording. Start and stop wait for the change to finish
+                    // (a stop writes the clip that was being kept), so the answer is the new state.
+                    case ("GET", "/always-on"): AlwaysOnStatus(ctx); return;
+                    case ("POST", "/always-on/start"):
+                        RequireAlwaysOn(ctx)?.StartAsync("control api").GetAwaiter().GetResult();
+                        if (AlwaysOn != null) AlwaysOnStatus(ctx);
+                        return;
+                    case ("POST", "/always-on/stop"):
+                        RequireAlwaysOn(ctx)?.StopAsync("control api").GetAwaiter().GetResult();
+                        if (AlwaysOn != null) AlwaysOnStatus(ctx);
+                        return;
 
                     case ("POST", "/screenshot"):
                     {
@@ -544,6 +560,7 @@ namespace AgentEyes.App
                 "GET /recordings/{id}/frame/{offset}",
                 "GET /captures", "GET /presets",
                 "GET /housekeeping", "POST /housekeeping/run",
+                "GET /always-on", "POST /always-on/start", "POST /always-on/stop",
                 "POST /screenshot {screen, region?}",
                 "GET /capture-info",
                 "POST /capture {mode:full|monitor|region, screen?, region?}",
@@ -600,6 +617,27 @@ namespace AgentEyes.App
         private object Captures() =>
             RecordingLibrary.Captures(CaptureOverride)
                 .Select(c => new { file = c.File, path = c.Path, sizeBytes = c.SizeBytes, createdUtc = c.CreatedUtc });
+
+        /// <summary>The always-on controller, or null after answering 503 when it is not wired yet.</summary>
+        private AlwaysOnController? RequireAlwaysOn(HttpListenerContext ctx)
+        {
+            if (AlwaysOn == null) Error(ctx, 503, "always-on is not available yet - the app is still starting", "unavailable");
+            return AlwaysOn;
+        }
+
+        private void AlwaysOnStatus(HttpListenerContext ctx)
+        {
+            var ao = RequireAlwaysOn(ctx);
+            if (ao == null) return;
+            Json(ctx, new
+            {
+                status = ao.Status(),
+                today = ao.TodaySummary(),
+                busy = ao.BusyText,
+                lastStartError = ao.LastStartError,
+                clipsFolder = ao.ClipsFolder,
+            });
+        }
 
         /// <summary>Read an integer query-string parameter, falling back to a default.</summary>
         private static int QInt(HttpListenerContext ctx, string key, int def) =>

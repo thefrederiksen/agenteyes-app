@@ -3,7 +3,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using WinForms = System.Windows.Forms;
+using Drawing = System.Drawing;
 using AgentEyes;
+using AgentEyes.AlwaysOn;
 
 namespace AgentEyes.App
 {
@@ -19,6 +21,16 @@ namespace AgentEyes.App
         private readonly Config _cfg;
         private readonly Action _showWindow;
         private readonly Action _showTests;
+        private readonly AlwaysOnController? _alwaysOn;
+        private readonly Action _showAlwaysOn;
+
+        // Issue #66: the tray icon carries always-on's state as a dot on its corner. Built once.
+        private readonly Drawing.Icon _iconOff;
+        private readonly Drawing.Icon _iconListening;
+        private readonly Drawing.Icon _iconKeeping;
+        private readonly Drawing.Icon _iconPaused;
+        private WinForms.ToolStripMenuItem _alwaysOnPauseItem = null!;
+        private WinForms.ToolStripSeparator _alwaysOnSeparator = null!;
 
         private WinForms.ToolStripMenuItem _statusItem = null!;
         private WinForms.ToolStripMenuItem _recordItem = null!;
@@ -32,14 +44,22 @@ namespace AgentEyes.App
         /// <summary>Shutdown has already been requested. UI thread only.</summary>
         private bool _shuttingDown;
 
-        public TrayHost(RecordingService svc, Config cfg, Action showWindow, Action showTests)
+        public TrayHost(RecordingService svc, Config cfg, Action showWindow, Action showTests,
+            AlwaysOnController? alwaysOn = null, Action? showAlwaysOn = null)
         {
             _svc = svc; _cfg = cfg; _showWindow = showWindow; _showTests = showTests;
+            _alwaysOn = alwaysOn;
+            _showAlwaysOn = showAlwaysOn ?? showWindow;
+
+            _iconOff = AppIcon();
+            _iconListening = TrayDot.Compose(_iconOff, TrayDot.Red, centre: null);
+            _iconKeeping = TrayDot.Compose(_iconOff, TrayDot.Red, centre: Drawing.Color.White);
+            _iconPaused = TrayDot.Compose(_iconOff, TrayDot.Grey, centre: null);
 
             _menu = BuildMenu();
             _icon = new WinForms.NotifyIcon
             {
-                Icon = AppIcon(),
+                Icon = _iconOff,
                 Text = "AgentEyes",
                 Visible = true,
                 ContextMenuStrip = _menu,
@@ -49,6 +69,36 @@ namespace AgentEyes.App
             _icon.DoubleClick += (_, _) => _showWindow();
             _icon.BalloonTipClicked += (_, _) => RestartForUpdate();
             _menu.Opening += (_, _) => RefreshMenu();
+
+            if (_alwaysOn != null)
+            {
+                // Changed arrives on a background thread; the icon belongs to the UI thread.
+                _alwaysOn.Changed += () =>
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(RefreshAlwaysOn));
+                RefreshAlwaysOn();
+            }
+        }
+
+        /// <summary>
+        /// Issue #66: put always-on's state on the tray icon and its tooltip. Solid red = listening,
+        /// red with a white centre = keeping a clip, grey = paused (or retrying a failed capture - the
+        /// dot never claims a recording that is not happening), no dot = off. UI thread.
+        /// </summary>
+        private void RefreshAlwaysOn()
+        {
+            if (_alwaysOn == null || _quitting) return;
+            var s = _alwaysOn.Status();
+            var icon = s.State switch
+            {
+                AlwaysOnState.Listening => _iconListening,
+                AlwaysOnState.Keeping => _iconKeeping,
+                AlwaysOnState.Paused or AlwaysOnState.Retrying => _iconPaused,
+                _ => _iconOff,
+            };
+            if (!ReferenceEquals(icon, _icon.Icon))
+                Log.Info($"[TrayHost] RefreshAlwaysOn: tray dot -> {s.State}");
+            _icon.Icon = icon;
+            _icon.Text = TrayDot.Tooltip(s);
         }
 
         /// <summary>A background update has been downloaded and applied to disk. Show a single
@@ -100,6 +150,14 @@ namespace AgentEyes.App
             _recordItem = new WinForms.ToolStripMenuItem("Start recording", null, (_, _) => ToggleRecord());
             menu.Items.Add(_recordItem);
 
+            // Issue #66: always-on's own items.
+            _alwaysOnSeparator = new WinForms.ToolStripSeparator();
+            menu.Items.Add(_alwaysOnSeparator);
+            _alwaysOnPauseItem = new WinForms.ToolStripMenuItem("Pause always-on", null, (_, _) => ToggleAlwaysOnPause());
+            menu.Items.Add(_alwaysOnPauseItem);
+            menu.Items.Add(new WinForms.ToolStripMenuItem("Open clips folder", null, (_, _) => Safe(() => _alwaysOn?.OpenClipsFolder())));
+            menu.Items.Add(new WinForms.ToolStripMenuItem("Always-on settings...", null, (_, _) => _showAlwaysOn()));
+
             menu.Items.Add(new WinForms.ToolStripSeparator());
             menu.Items.Add(new WinForms.ToolStripMenuItem("Open recordings folder", null, (_, _) => OpenFolder()));
             menu.Items.Add(new WinForms.ToolStripMenuItem("Check for updates", null, (_, _) => UpdateChecker.CheckAndPrompt()));
@@ -132,6 +190,26 @@ namespace AgentEyes.App
                 ? $"Recording {(int)s.ElapsedSeconds / 60:D2}:{(int)s.ElapsedSeconds % 60:D2}  ({s.Mode})"
                 : "Status: idle";
             _recordItem.Text = _svc.IsRecording ? "Stop recording" : $"Start recording ({LastPreset()?.Name ?? "no preset"})";
+
+            // Pause/Resume only means something while always-on is on.
+            string ao = _alwaysOn?.State ?? AlwaysOnState.Off;
+            _alwaysOnPauseItem.Visible = ao != AlwaysOnState.Off;
+            _alwaysOnPauseItem.Text = ao == AlwaysOnState.Paused ? "Resume always-on" : "Pause always-on";
+            _alwaysOnPauseItem.Enabled = !(ao == AlwaysOnState.Paused && _svc.IsRecording);
+        }
+
+        /// <summary>Pause or resume always-on by hand. A hand pause stays until Resume; only a pause
+        /// for a normal recording resumes by itself.</summary>
+        private void ToggleAlwaysOnPause()
+        {
+            if (_alwaysOn == null) return;
+            var task = _alwaysOn.State == AlwaysOnState.Paused
+                ? _alwaysOn.ResumeAsync()
+                : _alwaysOn.PauseAsync("paused from the tray");
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted) Log.Error("[TrayHost] ToggleAlwaysOnPause FAILED", t.Exception);
+            }, System.Threading.Tasks.TaskScheduler.Default);
         }
 
         // Quick-record from the tray uses the last-used preset (or the first one).
@@ -266,6 +344,9 @@ namespace AgentEyes.App
             _icon.Visible = false;
             _icon.Dispose();
             _menu.Dispose();
+            _iconListening.Dispose();
+            _iconKeeping.Dispose();
+            _iconPaused.Dispose();
         }
     }
 }

@@ -45,13 +45,15 @@ namespace AgentEyes.App
 
         private const long LowCreditWarningThresholdMicros = 1_000_000;
 
-        internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair)
+        internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair,
+            AlwaysOnController? alwaysOn = null)
         {
             _svc = svc;
             _cfg = cfg;
             _showTests = showTests;
             _repair = repair;
             InitializeComponent();
+            InitAlwaysOn(alwaysOn);
             SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
             RecentList.ItemsSource = _library.Rows;
             _library.SortKeyChanged = ResortLibrary;
@@ -200,19 +202,22 @@ namespace AgentEyes.App
         {
             // Fires during InitializeComponent (RailRecord starts checked) - panels not built yet.
             if (RecordPanel == null || LibraryPanel == null
-                || DictionaryPanel == null || CaptureViewPanel == null) return;
+                || DictionaryPanel == null || CaptureViewPanel == null || AlwaysOnPanel == null) return;
 
             bool record = ReferenceEquals(sender, RailRecord);
             bool library = ReferenceEquals(sender, RailLibrary);
             bool dictionary = ReferenceEquals(sender, RailDictionary);
             bool capture = ReferenceEquals(sender, RailCapture);
+            bool alwaysOn = ReferenceEquals(sender, RailAlwaysOn);
             RecordPanel.Visibility = record ? Visibility.Visible : Visibility.Collapsed;
             LibraryPanel.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
             DictionaryPanel.Visibility = dictionary ? Visibility.Visible : Visibility.Collapsed;
             CaptureViewPanel.Visibility = capture ? Visibility.Visible : Visibility.Collapsed;
+            AlwaysOnPanel.Visibility = alwaysOn ? Visibility.Visible : Visibility.Collapsed;
             LibraryControls.Visibility = library ? Visibility.Visible : Visibility.Collapsed;
             ViewTitle.Text = record ? "Record" : library ? "Library"
-                : dictionary ? "Dictionary" : "Capture";
+                : dictionary ? "Dictionary" : alwaysOn ? "Always On" : "Capture";
+            if (alwaysOn) LoadAlwaysOnPage();
             if (dictionary) LoadDictionary();
             if (capture)
             {
