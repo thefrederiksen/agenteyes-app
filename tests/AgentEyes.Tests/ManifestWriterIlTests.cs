@@ -148,7 +148,8 @@ namespace AgentEyes.Tests
             "AgentEyesApp.dll!AgentEyes.App.TestPanel::Transcribe -> System.IO.File::Delete x1",             // its own temporary wav
             "AgentEyesApp.dll!AgentEyes.App.TestReport::Save -> System.IO.File::WriteAllText x1",            // the test panel's report
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnDay::Save -> System.IO.File::WriteAllText x1",          // always-on today.json (issue #66)
-            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EnforceCap -> System.IO.File::Delete x1",       // an always-on clip over the cap - only a ledger-proven one
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Delete x1", // an always-on clip over the cap - only the renamed file that still matches the ledger
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Move x2",   // the clip renamed aside for the check, and back when it does not match
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::AppendAllText x1",  // the clip ledger, work\clips.txt
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Delete x1",         // a half-written clip after a failed join
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Move x1",           // an unreadable kept piece, set aside in work\unreadable

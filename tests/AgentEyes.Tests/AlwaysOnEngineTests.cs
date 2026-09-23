@@ -215,6 +215,35 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void EvictIfUnchanged_TheProvenFile_IsDeleted()
+        {
+            string clip = Path.Combine(_root, "2026-09-20_10-00-00.mp4");
+            File.WriteAllBytes(clip, new byte[1000]);
+            var fi = new FileInfo(clip);
+
+            Assert.True(AlwaysOnEngine.EvictIfUnchanged(clip, fi.Length, fi.LastWriteTimeUtc.Ticks));
+
+            Assert.Empty(Directory.GetFiles(_root));
+        }
+
+        [Fact]
+        public void EvictIfUnchanged_FileReplacedAfterTheLedgerCheck_IsKeptUnderItsName()
+        {
+            // The ledger check saw the clip; another program then saved its own file at the same path.
+            string clip = Path.Combine(_root, "2026-09-20_10-00-00.mp4");
+            File.WriteAllBytes(clip, new byte[1000]);
+            var proven = new FileInfo(clip);
+            long bytes = proven.Length, ticks = proven.LastWriteTimeUtc.Ticks;
+            File.WriteAllBytes(clip, new byte[5000]);
+            File.SetLastWriteTimeUtc(clip, DateTime.UtcNow.AddMinutes(1));
+
+            Assert.False(AlwaysOnEngine.EvictIfUnchanged(clip, bytes, ticks));
+
+            Assert.Equal(5000, new FileInfo(clip).Length);
+            Assert.Single(Directory.GetFiles(_root));
+        }
+
+        [Fact]
         public void EnforceCap_LedgerLost_DeletesNothing()
         {
             var o = Options(capBytes: 1000);

@@ -690,18 +690,51 @@ namespace AgentEyes.AlwaysOn
                 Pinned = false,
             }).ToList();
             long fixedBytes = FolderBytes(o.WorkFolder);
+            var byPath = clips.ToDictionary(f => f.FullName, StringComparer.OrdinalIgnoreCase);
             var evicted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var c in HousekeepingCeiling.EvictOldest(candidates, o.CapBytes, fixedBytes))
             {
-                File.Delete(c.Recording);
+                var proven = byPath[c.Recording];
+                // Either way the name leaves the ledger: deleted, or no longer the file we wrote.
                 evicted.Add(c.Recording);
-                Log.Info($"[AlwaysOnEngine] EnforceCap: deleted {Path.GetFileName(c.Recording)} "
-                         + $"({c.Bytes / 1024.0 / 1024:0.0} MB) - the clips were over the {o.CapBytes / 1024.0 / 1024 / 1024:0.##} GB cap");
+                if (EvictIfUnchanged(c.Recording, proven.Length, proven.LastWriteTimeUtc.Ticks))
+                    Log.Info($"[AlwaysOnEngine] EnforceCap: deleted {Path.GetFileName(c.Recording)} "
+                             + $"({c.Bytes / 1024.0 / 1024:0.0} MB) - the clips were over the {o.CapBytes / 1024.0 / 1024 / 1024:0.##} GB cap");
             }
             // Rewrite the ledger to the clips that are still there and still the file that was
             // written: an evicted or replaced name stops being deletion authority at once (review
             // round 2, finding 2).
             WriteLedger(o, clips.Where(f => !evicted.Contains(f.FullName)));
+        }
+
+        /// <summary>
+        /// Delete one clip ONLY if the file removed is the file the ledger proved (review round 3). The
+        /// clip is first renamed, atomically, to a private name in the same folder; the check then runs
+        /// on the renamed file, which nothing else can swap out from under it, and only that file is
+        /// deleted. Checking the path and then deleting the path would remove whatever another program
+        /// saved there in between. When the renamed file does not match, it goes back under its name
+        /// (or, if that name was taken meanwhile, under a free one next to it) and nothing is deleted.
+        /// </summary>
+        /// <returns>True when the clip was deleted.</returns>
+        internal static bool EvictIfUnchanged(string path, long bytes, long lastWriteTicksUtc)
+        {
+            string folder = Path.GetDirectoryName(path)!;
+            string held = Path.Combine(folder, ".alwayson-evict-" + Guid.NewGuid().ToString("N") + ".tmp");
+            File.Move(path, held);
+            var f = new FileInfo(held);
+            if (f.Length == bytes && f.LastWriteTimeUtc.Ticks == lastWriteTicksUtc)
+            {
+                File.Delete(held);
+                return true;
+            }
+            string back = path;
+            for (int n = 2; File.Exists(back); n++)
+                back = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(path)}_kept{n}{Path.GetExtension(path)}");
+            File.Move(held, back);
+            Log.Warn($"[AlwaysOnEngine] EvictIfUnchanged: {Path.GetFileName(path)} changed since the ledger recorded it "
+                     + $"({f.Length} bytes, expected {bytes}); it is not a clip this engine can prove it wrote, so it was "
+                     + $"kept as {Path.GetFileName(back)} and dropped from the ledger");
+            return false;
         }
 
         /// <summary>
