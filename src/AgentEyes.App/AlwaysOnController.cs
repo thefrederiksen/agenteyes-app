@@ -31,6 +31,9 @@ namespace AgentEyes.App
 
         public const string PausedForRecording = "a normal recording is running";
 
+        /// <summary>The reason shown for a pause the user asked for.</summary>
+        public const string PausedByHand = "paused by you";
+
         private readonly RecordingService _svc;
         private readonly Config _cfg;
         private readonly AlwaysOnEngine _engine;
@@ -73,18 +76,23 @@ namespace AgentEyes.App
         /// <summary>The recording setups always-on can use: the ones that record the screen.</summary>
         public static List<CapturePreset> VideoPresets() => PresetStore.Load().Where(p => p.Mode == "video").ToList();
 
-        /// <summary>The setup always-on will record: the chosen one, else the last used video setup,
-        /// else the first video setup. Null when there is none.</summary>
+        /// <summary>The setup always-on will record. When one was chosen, exactly that one - null when it
+        /// no longer exists, never a different setup in its place. When none was chosen, the last used
+        /// video setup, else the first. Null when there is none.</summary>
         public CapturePreset? ChosenPreset()
         {
             var presets = VideoPresets();
-            return presets.FirstOrDefault(p => p.Id == _cfg.AlwaysOnPresetId)
-                   ?? presets.FirstOrDefault(p => p.Id == _cfg.LastUsedPresetId)
+            if (!string.IsNullOrEmpty(_cfg.AlwaysOnPresetId))
+                return presets.FirstOrDefault(p => p.Id == _cfg.AlwaysOnPresetId);
+            return presets.FirstOrDefault(p => p.Id == _cfg.LastUsedPresetId)
                    ?? presets.FirstOrDefault();
         }
 
-        /// <summary>Switch always-on on and remember it. Throws with the reason when it cannot start.</summary>
-        public Task StartAsync(string why) => Task.Run(async () =>
+        /// <summary>Switch always-on on and remember it. Throws with the reason when it cannot start.
+        /// A start the user asks for clears a hand pause.</summary>
+        public Task StartAsync(string why) => StartCoreAsync(why, restoring: false);
+
+        private Task StartCoreAsync(string why, bool restoring) => Task.Run(async () =>
         {
             await _ops.WaitAsync().ConfigureAwait(false);
             try
@@ -96,7 +104,8 @@ namespace AgentEyes.App
                 try
                 {
                     var options = BuildOptions();
-                    _engine.Start(options, _svc.IsRecording ? PausedForRecording : null);
+                    bool handPaused = restoring && _cfg.AlwaysOnHandPaused;
+                    _engine.Start(options, handPaused ? PausedByHand : _svc.IsRecording ? PausedForRecording : null);
                 }
                 catch (Exception ex)
                 {
@@ -105,6 +114,7 @@ namespace AgentEyes.App
                     throw;
                 }
                 _cfg.AlwaysOnEnabled = true;
+                if (!restoring) _cfg.AlwaysOnHandPaused = false;
                 _cfg.Save();
             }
             finally
@@ -124,6 +134,7 @@ namespace AgentEyes.App
                 SetBusy("Stopping - writing the clip...");
                 _engine.Stop();
                 _cfg.AlwaysOnEnabled = false;
+                _cfg.AlwaysOnHandPaused = false;
                 _cfg.Save();
             }
             finally
@@ -133,11 +144,22 @@ namespace AgentEyes.App
             }
         });
 
-        /// <summary>The tray's Pause item: pause by hand. The reconcile does not resume a hand pause.</summary>
+        /// <summary>Pause always-on. A hand pause (any reason but <see cref="PausedForRecording"/>) is
+        /// remembered in config.json, so a restart brings always-on back paused; the reconcile never
+        /// resumes it.</summary>
         public Task PauseAsync(string reason) => Task.Run(async () =>
         {
             await _ops.WaitAsync().ConfigureAwait(false);
-            try { _engine.Pause(reason); }
+            try
+            {
+                Log.Info($"[AlwaysOnController] PauseAsync: {reason}");
+                _engine.Pause(reason);
+                if (reason != PausedForRecording && _engine.State == AlwaysOnState.Paused && !_cfg.AlwaysOnHandPaused)
+                {
+                    _cfg.AlwaysOnHandPaused = true;
+                    _cfg.Save();
+                }
+            }
             finally { _ops.Release(); }
         });
 
@@ -146,9 +168,17 @@ namespace AgentEyes.App
             await _ops.WaitAsync().ConfigureAwait(false);
             try
             {
+                Log.Info("[AlwaysOnController] ResumeAsync");
+                if (_cfg.AlwaysOnHandPaused)
+                {
+                    _cfg.AlwaysOnHandPaused = false;
+                    _cfg.Save();
+                }
                 if (_svc.IsRecording)
                 {
                     Log.Info("[AlwaysOnController] ResumeAsync: a normal recording is still running; staying paused until it ends");
+                    // Swap the hand reason for the recording reason, so the end of the recording resumes it.
+                    _engine.Resume();
                     _engine.Pause(PausedForRecording);
                     return;
                 }
@@ -165,8 +195,9 @@ namespace AgentEyes.App
                 Log.Info("[AlwaysOnController] RestoreOnStartup: always-on was off");
                 return;
             }
-            Log.Info("[AlwaysOnController] RestoreOnStartup: always-on was on - starting it again");
-            _ = StartAsync("restored at app start").ContinueWith(t =>
+            Log.Info("[AlwaysOnController] RestoreOnStartup: always-on was on - starting it again"
+                     + (_cfg.AlwaysOnHandPaused ? " (paused, as the user left it)" : ""));
+            _ = StartCoreAsync("restored at app start", restoring: true).ContinueWith(t =>
             {
                 if (t.IsFaulted)
                     Log.Error("[AlwaysOnController] RestoreOnStartup: always-on could not start again", t.Exception);
@@ -194,19 +225,18 @@ namespace AgentEyes.App
             // Timer callback: an entry point.
             try
             {
-                if (_busy || !_engine.IsOn) return;
-                string state = _engine.State;
+                if (_busy) return;
                 var status = _engine.Status();
-                bool recording = _svc.IsRecording;
-                if (recording && state != AlwaysOnState.Paused)
+                switch (ReconcileAction(_engine.IsOn, _engine.State, status.PausedReason, _svc.IsRecording))
                 {
-                    Log.Info("[AlwaysOnController] Reconcile: a normal recording started - pausing always-on");
-                    _ = PauseAsync(PausedForRecording);
-                }
-                else if (!recording && state == AlwaysOnState.Paused && status.PausedReason == PausedForRecording)
-                {
-                    Log.Info("[AlwaysOnController] Reconcile: the normal recording ended - resuming always-on");
-                    _ = ResumeAsync();
+                    case ReconcileStep.Pause:
+                        Log.Info("[AlwaysOnController] Reconcile: a normal recording started - pausing always-on");
+                        _ = PauseAsync(PausedForRecording);
+                        break;
+                    case ReconcileStep.Resume:
+                        Log.Info("[AlwaysOnController] Reconcile: the normal recording ended - resuming always-on");
+                        _ = ResumeForRecordingEndedAsync();
+                        break;
                 }
             }
             catch (Exception ex)
@@ -215,9 +245,38 @@ namespace AgentEyes.App
             }
         }
 
+        internal enum ReconcileStep { None, Pause, Resume }
+
+        /// <summary>
+        /// The reconcile's decision, pure so it is tested: pause when a normal recording runs and
+        /// always-on is not already paused; resume ONLY a pause that was for a recording, once it has
+        /// ended. A hand pause is never resumed here.
+        /// </summary>
+        internal static ReconcileStep ReconcileAction(bool isOn, string state, string? pausedReason, bool recording)
+        {
+            if (!isOn) return ReconcileStep.None;
+            if (recording && state != AlwaysOnState.Paused) return ReconcileStep.Pause;
+            if (!recording && state == AlwaysOnState.Paused && pausedReason == PausedForRecording) return ReconcileStep.Resume;
+            return ReconcileStep.None;
+        }
+
+        /// <summary>The reconcile's resume: unlike the tray's Resume, it never touches a hand pause -
+        /// it resumes only while always-on is still paused for the recording.</summary>
+        private Task ResumeForRecordingEndedAsync() => Task.Run(async () =>
+        {
+            await _ops.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_engine.Status().PausedReason == PausedForRecording && !_svc.IsRecording) _engine.Resume();
+            }
+            finally { _ops.Release(); }
+        });
+
         /// <summary>The engine options for the saved settings and the chosen setup.</summary>
         internal AlwaysOnOptions BuildOptions()
         {
+            if (!string.IsNullOrEmpty(_cfg.AlwaysOnPresetId) && ChosenPreset() == null)
+                throw new UsageException("the recording setup chosen for always-on no longer exists. Pick another one on the Always On page.");
             var preset = ChosenPreset()
                 ?? throw new UsageException("there is no recording setup that records the screen. Create a video setup on the Record page first.");
             return BuildOptions(_cfg, preset, ClipsFolder);

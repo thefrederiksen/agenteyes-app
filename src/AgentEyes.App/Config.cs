@@ -147,6 +147,10 @@ namespace AgentEyes.App
         /// <summary>True while always-on is switched on, so it comes back on when AgentEyes starts.</summary>
         public bool AlwaysOnEnabled { get; set; }
 
+        /// <summary>True while always-on is paused BY HAND. A restart brings it back paused, never
+        /// recording: the user's last word was "do not record" (review of PR 68, finding 1).</summary>
+        public bool AlwaysOnHandPaused { get; set; }
+
         /// <summary>The recording setup (preset id) always-on records; null = the last used video setup.</summary>
         public string? AlwaysOnPresetId { get; set; }
 
