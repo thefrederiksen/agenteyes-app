@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -249,7 +249,7 @@ namespace AgentEyes
 
         private static string ResolveAudioWav(string dir, Manifest manifest)
         {
-            // Whisper needs 16 kHz mono. Always normalize the source (mic wav is already 16k mono;
+            // Whisper needs 16 kHz mono. Always normalize the source (mic wav is 48k mono since issue #64;
             // mixed/system wav is 48k stereo; video has its audio in the mp4) so transcription is
             // correct regardless of how it was recorded.
             string? media = FindFirst(dir, manifest.AudioFile, "audio.wav")
