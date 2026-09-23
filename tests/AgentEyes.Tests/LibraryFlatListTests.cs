@@ -858,7 +858,7 @@ namespace AgentEyes.Tests
 
         private static string Constructor() =>
             RepoSource.MethodBody(RepoSource.Read(CodeBehind),
-                "internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair)");
+                "internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair,");
 
         /// <summary>Every call made by one method of the app, across every body the compiler split it
         /// into - an async method's state machine and its lambdas all fold back onto their declaring
