@@ -244,6 +244,21 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void Start_ClipLeftMidEvictionByACrash_IsRestoredUnderItsName()
+        {
+            var o = Options();
+            Directory.CreateDirectory(o.ClipsFolder);
+            string held = Path.Combine(o.ClipsFolder, ".alwayson-evict-" + Guid.NewGuid().ToString("N") + ".2026-09-20_10-00-00.mp4");
+            File.WriteAllBytes(held, new byte[1000]);
+
+            using var engine = Engine();
+            engine.Start(o);
+
+            Assert.False(File.Exists(held));
+            Assert.Equal(1000, new FileInfo(Path.Combine(o.ClipsFolder, "2026-09-20_10-00-00.mp4")).Length);
+        }
+
+        [Fact]
         public void EnforceCap_LedgerLost_DeletesNothing()
         {
             var o = Options(capBytes: 1000);

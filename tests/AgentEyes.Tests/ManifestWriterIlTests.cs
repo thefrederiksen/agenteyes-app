@@ -150,6 +150,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnDay::Save -> System.IO.File::WriteAllText x1",          // always-on today.json (issue #66)
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Delete x1", // an always-on clip over the cap - only the renamed file that still matches the ledger
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Move x2",   // the clip renamed aside for the check, and back when it does not match
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RestoreEvictHolds -> System.IO.File::Move x1", // a clip left mid-eviction by a crash, back under its name
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::AppendAllText x1",  // the clip ledger, work\clips.txt
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Delete x1",         // a half-written clip after a failed join
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Move x1",           // an unreadable kept piece, set aside in work\unreadable

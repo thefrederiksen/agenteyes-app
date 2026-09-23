@@ -663,6 +663,7 @@ namespace AgentEyes.AlwaysOn
         /// </summary>
         private void Recover(AlwaysOnOptions o)
         {
+            RestoreEvictHolds(o.ClipsFolder);
             foreach (var dir in Directory.GetDirectories(o.PendingFolder, "clip_*").OrderBy(d => d, StringComparer.Ordinal))
             {
                 Log.Info($"[AlwaysOnEngine] Recover: joining {Path.GetFileName(dir)}, left by an earlier run");
@@ -719,7 +720,9 @@ namespace AgentEyes.AlwaysOn
         internal static bool EvictIfUnchanged(string path, long bytes, long lastWriteTicksUtc)
         {
             string folder = Path.GetDirectoryName(path)!;
-            string held = Path.Combine(folder, ".alwayson-evict-" + Guid.NewGuid().ToString("N") + ".tmp");
+            // The original name rides in the private name, so a crash between the rename and the
+            // delete can be undone at the next start (RestoreEvictHolds).
+            string held = Path.Combine(folder, EvictPrefix + Guid.NewGuid().ToString("N") + "." + Path.GetFileName(path));
             File.Move(path, held);
             var f = new FileInfo(held);
             if (f.Length == bytes && f.LastWriteTimeUtc.Ticks == lastWriteTicksUtc)
@@ -727,14 +730,49 @@ namespace AgentEyes.AlwaysOn
                 File.Delete(held);
                 return true;
             }
-            string back = path;
-            for (int n = 2; File.Exists(back); n++)
-                back = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(path)}_kept{n}{Path.GetExtension(path)}");
+            string back = FreeName(path);
             File.Move(held, back);
             Log.Warn($"[AlwaysOnEngine] EvictIfUnchanged: {Path.GetFileName(path)} changed since the ledger recorded it "
                      + $"({f.Length} bytes, expected {bytes}); it is not a clip this engine can prove it wrote, so it was "
                      + $"kept as {Path.GetFileName(back)} and dropped from the ledger");
             return false;
+        }
+
+        private const string EvictPrefix = ".alwayson-evict-";
+
+        /// <summary>
+        /// Put back every clip an earlier run renamed aside for eviction and never finished with (a
+        /// crash, or a delete refused by a lock): each goes back under its own name, or a free one next
+        /// to it. Leans to keep - a file that is back under its ledger name, unchanged, is simply
+        /// evicted again by the next cap pass if the cap still needs the room.
+        /// </summary>
+        internal static void RestoreEvictHolds(string clipsFolder)
+        {
+            if (!Directory.Exists(clipsFolder)) return;
+            foreach (var held in Directory.GetFiles(clipsFolder, EvictPrefix + "*"))
+            {
+                string name = Path.GetFileName(held);
+                // .alwayson-evict-<32 hex>.<original name>
+                int cut = EvictPrefix.Length + 32 + 1;
+                if (name.Length <= cut || name[cut - 1] != '.')
+                {
+                    Log.Warn($"[AlwaysOnEngine] RestoreEvictHolds: {name} does not carry an original name; left as it is");
+                    continue;
+                }
+                string back = FreeName(Path.Combine(clipsFolder, name.Substring(cut)));
+                File.Move(held, back);
+                Log.Warn($"[AlwaysOnEngine] RestoreEvictHolds: {name} was left mid-eviction by an earlier run; restored as {Path.GetFileName(back)}");
+            }
+        }
+
+        /// <summary>The path itself when nothing is there, else the first free "_keptN" name next to it.</summary>
+        private static string FreeName(string path)
+        {
+            string folder = Path.GetDirectoryName(path)!;
+            string back = path;
+            for (int n = 2; File.Exists(back); n++)
+                back = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(path)}_kept{n}{Path.GetExtension(path)}");
+            return back;
         }
 
         /// <summary>
