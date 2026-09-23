@@ -154,7 +154,9 @@ namespace AgentEyes.App
             {
                 Log.Info($"[AlwaysOnController] PauseAsync: {reason}");
                 _engine.Pause(reason);
-                if (reason != PausedForRecording && _engine.State == AlwaysOnState.Paused && !_cfg.AlwaysOnHandPaused)
+                // Only when the engine really took THIS reason: a hand pause that landed on a pause for
+                // a recording is a no-op there, and saving the flag would contradict what the engine does.
+                if (reason != PausedForRecording && _engine.Status().PausedReason == reason && !_cfg.AlwaysOnHandPaused)
                 {
                     _cfg.AlwaysOnHandPaused = true;
                     _cfg.Save();

@@ -43,6 +43,8 @@ namespace AgentEyes.App
 
         /// <summary>Shutdown has already been requested. UI thread only.</summary>
         private bool _shuttingDown;
+        private bool _exitWait;
+        private string? _shownStartError;
 
         public TrayHost(RecordingService svc, Config cfg, Action showWindow, Action showTests,
             AlwaysOnController? alwaysOn = null, Action? showAlwaysOn = null)
@@ -86,7 +88,8 @@ namespace AgentEyes.App
         /// </summary>
         private void RefreshAlwaysOn()
         {
-            if (_alwaysOn == null || _quitting) return;
+            // Once exit has begun the icon says "writing the clip, then quitting"; nothing overwrites it.
+            if (_alwaysOn == null || _quitting || _shuttingDown || _exitWait) return;
             var s = _alwaysOn.Status();
             var icon = s.State switch
             {
@@ -98,7 +101,37 @@ namespace AgentEyes.App
             if (!ReferenceEquals(icon, _icon.Icon))
                 Log.Info($"[TrayHost] RefreshAlwaysOn: tray dot -> {s.State}");
             _icon.Icon = icon;
-            _icon.Text = TrayDot.Tooltip(s);
+            string text = TrayDot.Tooltip(s);
+            // A start that failed - above all a restore at app start, where nobody is looking at the
+            // page - is said on the tray, once per reason, not only in the log (review of PR 69).
+            string? err = _alwaysOn.LastStartError;
+            if (s.State == AlwaysOnState.Off && err != null)
+            {
+                text = "AgentEyes: always-on did not start - " + err;
+                if (text.Length > TrayDot.MaxTooltip) text = text.Substring(0, TrayDot.MaxTooltip - 3) + "...";
+                if (err != _shownStartError)
+                {
+                    _shownStartError = err;
+                    Log.Warn($"[TrayHost] RefreshAlwaysOn: telling the user always-on did not start: {err}");
+                    _icon.ShowBalloonTip(10000, "Always-on did not start", err, WinForms.ToolTipIcon.Warning);
+                }
+            }
+            _icon.Text = text;
+        }
+
+        /// <summary>
+        /// Exit is about to wait for always-on to write the clip it was keeping (seconds). Keep the icon
+        /// up and say so, whatever route the exit took - Quit, an update restart, the end of the Windows
+        /// session. App.OnExit calls it; the icon goes when the tray is disposed. UI thread. Idempotent.
+        /// </summary>
+        public void ShowAlwaysOnExitWait()
+        {
+            if (_alwaysOn?.IsOn != true) return;
+            _exitWait = true;
+            Log.Info("[TrayHost] ShowAlwaysOnExitWait: the icon stays up while the always-on clip is written");
+            _icon.Icon = _iconKeeping;
+            _icon.Text = "AgentEyes: writing the always-on clip, then quitting";
+            _icon.Visible = true;
         }
 
         /// <summary>A background update has been downloaded and applied to disk. Show a single
@@ -335,18 +368,9 @@ namespace AgentEyes.App
             if (_shuttingDown) return;
             _shuttingDown = true;
             Log.Info("[TrayHost] ShutdownNow: quitting");
-            if (_alwaysOn?.IsOn == true)
-            {
-                // Exit waits for always-on to write the clip it was keeping (seconds): keep the icon up
-                // and say so, rather than a process that looks gone and is still working (review of
-                // PR 68, finding 3). App.OnExit disposes the icon once the clip is written.
-                _icon.Icon = _iconKeeping;
-                _icon.Text = "AgentEyes: writing the always-on clip, then quitting";
-            }
-            else
-            {
-                _icon.Visible = false;
-            }
+            // With always-on on, exit waits for it to write its clip: the icon stays up and says so
+            // (ShowAlwaysOnExitWait, from App.OnExit). Otherwise it goes now.
+            if (_alwaysOn?.IsOn != true) _icon.Visible = false;
             System.Windows.Application.Current.Shutdown();
         }
 

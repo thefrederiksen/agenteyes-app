@@ -332,6 +332,8 @@ namespace AgentEyes.App
             try { _captureFullHook?.Dispose(); } catch { }
             // Issue #66: finish the piece being written and write the clip being kept. Always-on stays
             // enabled in config.json, so the next start brings it back.
+            try { _tray?.ShowAlwaysOnExitWait(); }
+            catch (Exception ex) { AgentEyes.Log.Error("app exit: showing the always-on exit wait failed", ex); }
             try { _alwaysOn?.ShutdownForExit(); }
             catch (Exception ex) { AgentEyes.Log.Error("app exit: stopping always-on failed", ex); }
             try { _alwaysOn?.Dispose(); } catch { }
