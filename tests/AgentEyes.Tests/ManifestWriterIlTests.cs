@@ -147,6 +147,17 @@ namespace AgentEyes.Tests
             "AgentEyesApp.dll!AgentEyes.App.PresetStore::Save -> System.IO.File::WriteAllText x1",           // presets.json
             "AgentEyesApp.dll!AgentEyes.App.TestPanel::Transcribe -> System.IO.File::Delete x1",             // its own temporary wav
             "AgentEyesApp.dll!AgentEyes.App.TestReport::Save -> System.IO.File::WriteAllText x1",            // the test panel's report
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnDay::Save -> System.IO.File::WriteAllText x1",          // always-on today.json (issue #66)
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EnforceCap -> System.IO.File::Delete x1",       // an always-on clip over the cap - only a ledger-proven one
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::AppendAllText x1",  // the clip ledger, work\clips.txt
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Delete x1",         // a half-written clip after a failed join
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Move x1",           // an unreadable kept piece, set aside in work\unreadable
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::WriteAllText x1",   // the concat list for the join
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::Recover -> System.IO.File::Delete x1",          // a loose piece left by an earlier run
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Delete x1",        // a silent piece
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Move x1",          // a kept piece into its clip's holding folder
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::Move x1",        // the pruned clip ledger, renamed into place
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::WriteAllLines x1", // ...written to a temp first
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Create x1",               // bd.rnnn extracted to a temp
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Move x1",                 // ...then renamed into place
             "agenteyes.dll!AgentEyes.CaptureService::Delete -> System.IO.File::Delete x1",                   // a capture the user deleted
@@ -281,7 +292,10 @@ namespace AgentEyes.Tests
         private static readonly string[] PinnedNativeImports =
         {
             "dwmapi.dll!DwmSetWindowAttribute",     // dark title bar on the main window
+            "kernel32.dll!AssignProcessToJobObject", // always-on ffmpeg into its kill-on-close job (no file access)
+            "kernel32.dll!CreateJobObject",          // the kill-on-close job object (no file access)
             "kernel32.dll!GetModuleHandle",         // module handle for the keyboard hook
+            "kernel32.dll!SetInformationJobObject", // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (no file access)
             "shell32.dll!SHGetKnownFolderPath",     // the user's Videos folder
             "user32.dll!CallNextHookEx",            // the low-level keyboard hook chain
             "user32.dll!GetAsyncKeyState",
