@@ -257,11 +257,78 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void PieceStartLocal_ParsesTheNameFfmpegWrote()
+        public void PieceStartUtc_ParsesTheNameFfmpegWroteAsUtc()
         {
-            Assert.Equal(new DateTime(2026, 9, 23, 8, 6, 13), AlwaysOnArgs.PieceStartLocal(@"C:\x\piece_20260923-080613.mp4"));
-            Assert.Null(AlwaysOnArgs.PieceStartLocal("recording.mp4"));
-            Assert.Null(AlwaysOnArgs.PieceStartLocal("piece_garbage.mp4"));
+            var t = AlwaysOnArgs.PieceStartUtc(@"C:\x\piece_20260923-080613.mp4");
+            Assert.Equal(new DateTime(2026, 9, 23, 8, 6, 13, DateTimeKind.Utc), t);
+            Assert.Equal(DateTimeKind.Utc, t!.Value.Kind);
+            Assert.Null(AlwaysOnArgs.PieceStartUtc("recording.mp4"));
+            Assert.Null(AlwaysOnArgs.PieceStartUtc("piece_garbage.mp4"));
+        }
+
+        [Fact]
+        public void PieceNames_InUtc_NeverRepeatAcrossTheAutumnClockChange()
+        {
+            // 2026-11-01 in Toronto: 01:30 local happens twice, at 05:30Z and 06:30Z. The names are
+            // written in UTC, so the two pieces cannot share a name (review finding 2).
+            var first = new DateTime(2026, 11, 1, 5, 30, 0, DateTimeKind.Utc);
+            var second = first.AddHours(1);
+            string a = "piece_" + first.ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4";
+            string b = "piece_" + second.ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4";
+
+            Assert.NotEqual(a, b);
+            Assert.Equal(first, AlwaysOnArgs.PieceStartUtc(a));
+            Assert.Equal(second, AlwaysOnArgs.PieceStartUtc(b));
+        }
+
+        // ---- the pipe feeder (review finding 4) ------------------------------------
+
+        [Fact]
+        public void PipeFeeder_ReaderThatStopsReading_NeverBlocksTheWriterAndIsFlaggedStalled()
+        {
+            using var stuck = new StuckStream();
+            using var feeder = new PipeFeeder(stuck, maxQueuedBytes: 64 * 1024);
+            var chunk = new byte[4096];
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < 200; i++) feeder.Write(chunk, 0, chunk.Length);   // 800 KB into a 64 KB queue
+            sw.Stop();
+
+            Assert.True(feeder.Stalled);
+            Assert.True(sw.ElapsedMilliseconds < 2000, $"the audio callback was held {sw.ElapsedMilliseconds}ms");
+            stuck.Release();
+        }
+
+        [Fact]
+        public void PipeFeeder_HealthyReader_GetsEveryByteInOrder()
+        {
+            var sink = new System.IO.MemoryStream();
+            using (var feeder = new PipeFeeder(sink, maxQueuedBytes: 1 << 20))
+            {
+                for (byte i = 0; i < 100; i++) feeder.Write(new[] { i, i }, 0, 2);
+            }
+            Assert.False(false);
+            var got = sink.ToArray();
+            Assert.Equal(200, got.Length);
+            Assert.Equal(99, got[^1]);
+        }
+
+        /// <summary>A pipe whose reader is alive and never reads: every write blocks.</summary>
+        private sealed class StuckStream : System.IO.Stream
+        {
+            private readonly System.Threading.ManualResetEventSlim _gate = new(false);
+            public void Release() => _gate.Set();
+            public override void Write(byte[] buffer, int offset, int count) => _gate.Wait();
+            public override bool CanRead => false;
+            public override bool CanSeek => false;
+            public override bool CanWrite => true;
+            public override long Length => 0;
+            public override long Position { get => 0; set { } }
+            public override void Flush() { }
+            public override int Read(byte[] buffer, int offset, int count) => 0;
+            public override long Seek(long offset, System.IO.SeekOrigin origin) => 0;
+            public override void SetLength(long value) { }
+            protected override void Dispose(bool disposing) { _gate.Set(); base.Dispose(disposing); }
         }
 
         // ---- the cap --------------------------------------------------------------

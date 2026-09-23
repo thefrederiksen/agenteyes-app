@@ -22,8 +22,9 @@ namespace AgentEyes.AlwaysOn
         /// recording shape (gdigrab 30fps + libx264 veryfast) at 0.96 cores / 845 MB / 90 MB per hour.</summary>
         public static readonly string[] EncoderPreference = { "h264_qsv", "h264_nvenc", "h264_amf", "libx264" };
 
-        /// <summary>The file name pattern of a piece. ffmpeg fills it with the LOCAL wall-clock time
-        /// the piece was opened (-strftime 1), which is how the keeper knows when each piece started.</summary>
+        /// <summary>The file name pattern of a piece. ffmpeg fills it with the wall-clock time the piece
+        /// was opened (-strftime 1), which is how the keeper knows when each piece started. The recorder
+        /// runs ffmpeg with TZ=UTC0, so the time is UTC: a local time repeats an hour every autumn.</summary>
         public const string PiecePattern = "piece_%Y%m%d-%H%M%S.mp4";
 
         /// <summary>The format of <see cref="PiecePattern"/> for parsing a piece's name back.</summary>
@@ -191,15 +192,15 @@ namespace AgentEyes.AlwaysOn
             return sb.ToString();
         }
 
-        /// <summary>Parse the start time out of a piece's file name (local time, as ffmpeg wrote it),
-        /// or null when the name is not a piece.</summary>
-        public static DateTime? PieceStartLocal(string fileName)
+        /// <summary>Parse the start time out of a piece's file name (UTC, as ffmpeg wrote it), or null
+        /// when the name is not a piece.</summary>
+        public static DateTime? PieceStartUtc(string fileName)
         {
             string name = Path.GetFileNameWithoutExtension(fileName);
             if (!name.StartsWith("piece_", StringComparison.Ordinal)) return null;
             string stamp = name.Substring("piece_".Length);
             return DateTime.TryParseExact(stamp, PieceStampFormat, CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeLocal, out var t)
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var t)
                 ? t
                 : null;
         }

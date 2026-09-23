@@ -26,6 +26,10 @@ namespace AgentEyes.AlwaysOn
         private readonly StringBuilder _stderr = new();
         private Process? _proc;
         private NamedPipeServerStream? _pipe;
+        private PipeFeeder? _feeder;
+
+        /// <summary>How much system sound may queue for ffmpeg before it counts as stalled.</summary>
+        public static readonly TimeSpan StallAfter = TimeSpan.FromSeconds(10);
         private LoopbackCapture? _loop;
         private AudioCapture? _mic;
         private bool _stopped;
@@ -34,8 +38,9 @@ namespace AgentEyes.AlwaysOn
         public string Encoder { get; private set; } = "";
         public DateTime StartedUtc { get; private set; }
 
-        /// <summary>True when ffmpeg has ended without being asked to.</summary>
-        public bool HasExited => _proc != null && !_stopped && _proc.HasExited;
+        /// <summary>True when ffmpeg has ended without being asked to - or is alive but has stopped
+        /// taking the system sound, which is the same thing to the supervisor: restart it.</summary>
+        public bool HasExited => _proc != null && !_stopped && (_proc.HasExited || _feeder?.Stalled == true);
 
         /// <summary>The last few hundred characters ffmpeg wrote, for an actionable error.</summary>
         public string StderrTail
@@ -130,6 +135,10 @@ namespace AgentEyes.AlwaysOn
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            // Piece names come from ffmpeg's -strftime, which uses the process's local time. In UTC
+            // they are unambiguous: local names repeat an hour at the autumn clock change, and ffmpeg
+            // would overwrite that hour's pieces (review finding 2).
+            psi.Environment["TZ"] = "UTC0";
             psi.ArgumentList.Add("-hide_banner");
             psi.ArgumentList.Add("-nostats");
             foreach (var a in args) psi.ArgumentList.Add(a);
@@ -148,6 +157,17 @@ namespace AgentEyes.AlwaysOn
             _proc.OutputDataReceived += (_, _) => { };
             if (!_proc.Start()) throw new UsageException("failed to start ffmpeg for always-on recording.");
             StartedUtc = DateTime.UtcNow;
+            try
+            {
+                // An all-day capture must never outlive AgentEyes (a crash, Task Manager).
+                KillOnCloseJob.Assign(_proc);
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                StopProcess();
+                StopAudio();
+                throw new UsageException($"always-on cannot start: {ex.Message} ({ex.NativeErrorCode}).");
+            }
             _proc.BeginErrorReadLine();
             _proc.BeginOutputReadLine();
 
@@ -165,8 +185,10 @@ namespace AgentEyes.AlwaysOn
                         + "likely failed on an earlier input (the screen or the microphone). ffmpeg said: " + err);
                 }
                 Log.Info("[ContinuousRecorder] Start: ffmpeg connected to the system-sound pipe");
+                long bytesPerSecond = (long)sysFormat!.SampleRate * sysFormat.Channels * 4;
+                _feeder = new PipeFeeder(_pipe, (long)(bytesPerSecond * StallAfter.TotalSeconds));
             }
-            _loop?.StartToStream(_pipe);
+            _loop?.StartToStream(_feeder);
 
             // The microphone: ffmpeg owns it in the recording, so its level is read by a second,
             // shared-mode capture that writes no file - the same arrangement a normal video recording
@@ -242,6 +264,8 @@ namespace AgentEyes.AlwaysOn
             _mic = null;
             try { _pipe?.Dispose(); } catch (IOException) { }
             _pipe = null;
+            _feeder?.Dispose();
+            _feeder = null;
         }
 
         public void Dispose()

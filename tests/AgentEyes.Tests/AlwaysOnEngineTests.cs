@@ -57,7 +57,7 @@ namespace AgentEyes.Tests
         private static void WritePiece(string folder, DateTime startUtc)
         {
             Directory.CreateDirectory(folder);
-            string name = "piece_" + startUtc.ToLocalTime().ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4";
+            string name = "piece_" + startUtc.ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4";
             Ffmpeg.Run(new[]
             {
                 "-y", "-f", "lavfi", "-i", "color=c=gray:s=160x90:r=10:d=2",
@@ -176,6 +176,10 @@ namespace AgentEyes.Tests
             string older = Make("2026-09-21_10-00-00.mp4", 200);
             string newest = Make("2026-09-22_10-00-00.mp4", 100);
             string foreign = Make("holiday.mp4", 1000);
+            // Named exactly like a clip, older than all of them - but not one this engine wrote.
+            string lookalike = Make("2026-09-19_10-00-00.mp4", 2000);
+            Directory.CreateDirectory(o.WorkFolder);
+            File.WriteAllLines(o.ClipLedger, new[] { "2026-09-20_10-00-00.mp4", "2026-09-21_10-00-00.mp4", "2026-09-22_10-00-00.mp4" });
 
             using var engine = Engine();
             engine.Start(o);
@@ -184,6 +188,57 @@ namespace AgentEyes.Tests
             Assert.True(File.Exists(older));
             Assert.True(File.Exists(newest));
             Assert.True(File.Exists(foreign));
+            Assert.True(File.Exists(lookalike));
+        }
+
+        [Fact]
+        public void JoinClip_UnreadablePiece_IsSetAsideNeverDeleted()
+        {
+            var o = Options();
+            string held = Path.Combine(o.PendingFolder, "clip_20260923-080000");
+            WritePiece(held, _now.AddHours(-1));
+            string broken = Path.Combine(held, "piece_" + _now.AddHours(-1).AddMinutes(1).ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4");
+            File.WriteAllBytes(broken, new byte[] { 1, 2, 3, 4 });
+
+            using var engine = Engine();
+            engine.Start(o);
+
+            Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
+            Assert.True(File.Exists(Path.Combine(o.UnreadableFolder, Path.GetFileName(broken))));
+            Assert.Contains("set aside", engine.Status().LastError);
+        }
+
+        [Fact]
+        public void Tick_CaptureAliveButWritingNothing_IsRestarted()
+        {
+            var o = Options();
+            using var engine = Engine();
+            engine.Start(o);
+            WritePiece(o.PieceFolder, _now);
+
+            _now = _now + AlwaysOnEngine.HungAfter(o.PieceSeconds) + TimeSpan.FromSeconds(1);
+            engine.Tick();
+
+            Assert.Equal(2, _recorders.Count);
+            Assert.True(_recorders[0].Stopped);
+            Assert.Contains("stopped writing", engine.Status().LastError);
+        }
+
+        [Fact]
+        public void Tick_PiecesKeepComing_IsNotRestarted()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            for (int m = 0; m <= 4; m++)
+            {
+                _now = t0.AddMinutes(m);
+                WritePiece(o.PieceFolder, _now);
+                engine.Tick();
+            }
+
+            Assert.Single(_recorders);
         }
 
         [Fact]

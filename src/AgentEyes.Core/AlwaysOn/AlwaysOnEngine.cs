@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 using AgentEyes.Housekeeping;
 using AgentEyes.Video;
@@ -106,10 +105,12 @@ namespace AgentEyes.AlwaysOn
             TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(5),
         };
 
-        /// <summary>A clip file this engine wrote: its local start time, and a counter when two
-        /// clips started in the same second. The cap only ever deletes files with this name, so a
-        /// clips folder pointed at a folder with other videos in it never loses one of them.</summary>
-        private static readonly Regex ClipName = new(@"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(_\d+)?\.mp4$", RegexOptions.IgnoreCase);
+        /// <summary>
+        /// How long the capture may go without starting a new piece before it counts as hung and is
+        /// restarted: two pieces and half a minute. An ffmpeg that is alive but writing nothing would
+        /// otherwise look like a healthy recording forever (review finding 4).
+        /// </summary>
+        public static TimeSpan HungAfter(int pieceSeconds) => TimeSpan.FromSeconds(pieceSeconds * 2 + 30);
 
         private readonly object _lock = new();
         private readonly Func<IPieceRecorder> _recorderFactory;
@@ -121,7 +122,11 @@ namespace AgentEyes.AlwaysOn
         private IPieceRecorder? _recorder;
         private SoundLog? _sound;
         private AlwaysOnDay _day = new();
-        private string _state = AlwaysOnState.Off;
+        private volatile string _state = AlwaysOnState.Off;
+
+        /// <summary>The last published status. Readers never take the engine lock: a keeper pass
+        /// joining a clip holds it for seconds, and the tray and the page read status on the UI thread.</summary>
+        private volatile AlwaysOnStatus _snapshot = new();
         private string? _pausedReason;
         private string? _lastError;
         private string? _lastClip;
@@ -129,6 +134,7 @@ namespace AgentEyes.AlwaysOn
         private DateTime? _sinceUtc;
         private int _restartAttempt;
         private DateTime _nextRestartUtc;
+        private DateTime _recorderStartedUtc;
 
         // The keeper's memory between passes.
         private readonly Dictionary<int, string> _clipDirs = new();
@@ -150,16 +156,20 @@ namespace AgentEyes.AlwaysOn
             _ownTimer = ownTimer;
         }
 
-        public string State { get { lock (_lock) return _state; } }
+        /// <summary>The current state. Lock-free.</summary>
+        public string State => _state;
 
-        /// <summary>True from Start until Stop - including while paused or retrying.</summary>
-        public bool IsOn { get { lock (_lock) return _state != AlwaysOnState.Off; } }
+        /// <summary>True from Start until Stop - including while paused or retrying. Lock-free.</summary>
+        public bool IsOn => _state != AlwaysOnState.Off;
 
         public AlwaysOnOptions? Options { get { lock (_lock) return _options; } }
 
         /// <summary>Turn always-on on. Throws with the reason when the capture cannot start; always-on
         /// is then off again, not half-on.</summary>
-        public void Start(AlwaysOnOptions options)
+        /// <param name="pausedReason">Non-null to switch always-on on already PAUSED - a normal
+        /// recording is running and has the screen and the microphone (decision 3). It starts
+        /// capturing on <see cref="Resume"/>.</param>
+        public void Start(AlwaysOnOptions options, string? pausedReason = null)
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
             lock (_lock)
@@ -185,23 +195,28 @@ namespace AgentEyes.AlwaysOn
                 Recover(options);
                 EnforceCap(options);
 
-                try
+                if (pausedReason == null)
                 {
-                    StartRecorder(options);
-                }
-                catch
-                {
-                    _options = null;
-                    _state = AlwaysOnState.Off;
-                    throw;
+                    try
+                    {
+                        StartRecorder(options);
+                    }
+                    catch
+                    {
+                        _options = null;
+                        _state = AlwaysOnState.Off;
+                        throw;
+                    }
                 }
                 _sinceUtc = _utcNow();
                 _restartAttempt = 0;
-                _state = AlwaysOnState.Listening;
+                _state = pausedReason == null ? AlwaysOnState.Listening : AlwaysOnState.Paused;
+                _pausedReason = pausedReason;
                 if (_ownTimer && _timer == null)
                     _timer = new Timer(_ => TickFromTimer(), null, TickInterval, TickInterval);
             }
-            Log.Info("[AlwaysOnEngine] Start: always-on is on");
+            lock (_lock) Publish();
+            Log.Info($"[AlwaysOnEngine] Start: always-on is on{(pausedReason == null ? "" : " (paused: " + pausedReason + ")")}");
             RaiseChanged();
         }
 
@@ -219,6 +234,7 @@ namespace AgentEyes.AlwaysOn
                 _state = AlwaysOnState.Off;
                 _pausedReason = null;
                 _sinceUtc = null;
+                Publish();
             }
             Log.Info("[AlwaysOnEngine] Stop: always-on is off");
             RaiseChanged();
@@ -238,6 +254,7 @@ namespace AgentEyes.AlwaysOn
                 StopRecorderAndFinish("pause");
                 _state = AlwaysOnState.Paused;
                 _pausedReason = reason;
+                Publish();
             }
             RaiseChanged();
         }
@@ -265,6 +282,7 @@ namespace AgentEyes.AlwaysOn
                     _state = AlwaysOnState.Retrying;
                     ScheduleRestart();
                 }
+                Publish();
             }
             RaiseChanged();
         }
@@ -290,58 +308,70 @@ namespace AgentEyes.AlwaysOn
 
                 _day.EnsureDay(now);
                 changed = before != _state || clipsBefore != _day.Clips || discardedBefore != _day.DiscardedSeconds;
+                Publish();
             }
             if (changed) RaiseChanged();
         }
 
-        public AlwaysOnStatus Status()
+        /// <summary>The last published status - lock-free, safe on the UI thread.</summary>
+        public AlwaysOnStatus Status() => _snapshot;
+
+        /// <summary>Build and publish a fresh status. Caller holds the lock.</summary>
+        private void Publish() => _snapshot = BuildStatus();
+
+        private AlwaysOnStatus BuildStatus()
         {
-            lock (_lock)
+            var now = _utcNow();
+            _day.EnsureDay(now);
+            var o = _options;
+            var s = new AlwaysOnStatus
             {
-                var now = _utcNow();
-                _day.EnsureDay(now);
-                var o = _options;
-                var s = new AlwaysOnStatus
-                {
-                    State = _state,
-                    Setup = o?.SetupName,
-                    Counts = o?.Counts.ToString().ToLowerInvariant(),
-                    ThresholdAuto = o != null && !o.ThresholdDb.HasValue,
-                    KeepBeforeMinutes = o?.KeepBefore.TotalMinutes,
-                    KeepAfterMinutes = o?.KeepAfter.TotalMinutes,
-                    CapGb = o == null ? null : Math.Round(o.CapBytes / 1024.0 / 1024 / 1024, 2),
-                    ClipsFolder = o?.ClipsFolder,
-                    Encoder = _encoder,
-                    SinceUtc = _sinceUtc,
-                    LastSoundUtc = _sound?.LastSoundUtc,
-                    PausedReason = _pausedReason,
-                    LastError = _lastError,
-                    Today = _day.Date,
-                    ClipsToday = _day.Clips,
-                    KeptSecondsToday = Math.Round(_day.KeptSeconds, 1),
-                    KeptBytesToday = _day.KeptBytes,
-                    DiscardedSecondsToday = Math.Round(_day.DiscardedSeconds, 1),
-                    LastClip = _lastClip,
-                };
-                if (_sound != null && o != null)
-                {
-                    var src = o.Counts == SoundSource.System ? SoundSource.System : SoundSource.Mic;
-                    var line = _sound.CurrentThresholdDb(src);
-                    s.ThresholdDb = line.HasValue ? Math.Round(line.Value, 1) : null;
-                }
-                if (o != null)
-                {
-                    s.PiecesWaiting = PieceFiles(o.PieceFolder).Count;
-                    s.PiecesKeptInOpenClip = _openClip.HasValue && _clipDirs.TryGetValue(_openClip.Value, out var d)
-                        && Directory.Exists(d) ? Directory.GetFiles(d, "*.mp4").Length : 0;
-                    s.DiskUsedBytes = FolderBytes(o.WorkFolder) + ClipFiles(o.ClipsFolder).Sum(f => f.Length);
-                }
-                return s;
+                State = _state,
+                Setup = o?.SetupName,
+                Counts = o?.Counts.ToString().ToLowerInvariant(),
+                ThresholdAuto = o != null && !o.ThresholdDb.HasValue,
+                KeepBeforeMinutes = o?.KeepBefore.TotalMinutes,
+                KeepAfterMinutes = o?.KeepAfter.TotalMinutes,
+                CapGb = o == null ? null : Math.Round(o.CapBytes / 1024.0 / 1024 / 1024, 2),
+                ClipsFolder = o?.ClipsFolder,
+                Encoder = _encoder,
+                SinceUtc = _sinceUtc,
+                LastSoundUtc = _sound?.LastSoundUtc,
+                PausedReason = _pausedReason,
+                LastError = _lastError,
+                Today = _day.Date,
+                ClipsToday = _day.Clips,
+                KeptSecondsToday = Math.Round(_day.KeptSeconds, 1),
+                KeptBytesToday = _day.KeptBytes,
+                DiscardedSecondsToday = Math.Round(_day.DiscardedSeconds, 1),
+                LastClip = _lastClip,
+            };
+            if (_sound != null && o != null)
+            {
+                var src = o.Counts == SoundSource.System ? SoundSource.System : SoundSource.Mic;
+                var line = _sound.CurrentThresholdDb(src);
+                s.ThresholdDb = line.HasValue ? Math.Round(line.Value, 1) : null;
             }
+            if (o != null)
+            {
+                s.PiecesWaiting = PieceFiles(o.PieceFolder).Count;
+                s.PiecesKeptInOpenClip = _openClip.HasValue && _clipDirs.TryGetValue(_openClip.Value, out var d)
+                    && Directory.Exists(d) ? Directory.GetFiles(d, "*.mp4").Length : 0;
+                s.DiskUsedBytes = FolderBytes(o.WorkFolder) + ClipFiles(o).Sum(f => f.Length);
+            }
+            return s;
         }
 
         /// <summary>Today's counters as one line.</summary>
-        public string TodaySummary() { lock (_lock) { _day.EnsureDay(_utcNow()); return _day.Summary(); } }
+        public string TodaySummary()
+        {
+            var s = _snapshot;
+            return new AlwaysOnDay
+            {
+                Date = s.Today, Clips = s.ClipsToday, KeptSeconds = s.KeptSecondsToday,
+                KeptBytes = s.KeptBytesToday, DiscardedSeconds = s.DiscardedSecondsToday,
+            }.Summary();
+        }
 
         // ---- the recorder and its supervisor ---------------------------------
 
@@ -360,6 +390,7 @@ namespace AgentEyes.AlwaysOn
             }
             _recorder = rec;
             _encoder = rec.Encoder;
+            _recorderStartedUtc = _utcNow();
         }
 
         private void Supervise(DateTime now)
@@ -370,15 +401,32 @@ namespace AgentEyes.AlwaysOn
                 TryRestart(now);
                 return;
             }
-            if (_recorder == null || !_recorder.HasExited) return;
+            if (_recorder == null) return;
 
-            string tail = _recorder.StderrTail;
-            _lastError = "the capture stopped unexpectedly: " + LastLine(tail);
-            Log.Error($"[AlwaysOnEngine] Supervise: ffmpeg exited unexpectedly; restarting. ffmpeg said: {tail}");
-            // Everything it wrote is finished now: decide it before the new capture starts writing.
-            RunKeeper(_options!, now, final: true, recorderRunning: false);
+            string tail;
+            if (_recorder.HasExited)
+            {
+                tail = _recorder.StderrTail;
+                _lastError = "the capture stopped unexpectedly: " + LastLine(tail);
+                Log.Error($"[AlwaysOnEngine] Supervise: ffmpeg exited or stalled; restarting. ffmpeg said: {tail}");
+            }
+            else
+            {
+                // Alive is not the same as recording: the newest piece must keep moving.
+                var files = PieceFiles(_options!.PieceFolder);
+                DateTime newest = files.Count > 0 && files[^1].StartUtc > _recorderStartedUtc ? files[^1].StartUtc : _recorderStartedUtc;
+                if (now - newest <= HungAfter(_options.PieceSeconds)) return;
+                tail = _recorder.StderrTail;
+                _lastError = $"the capture stopped writing (no new piece since {newest.ToLocalTime():HH:mm:ss})";
+                Log.Error($"[AlwaysOnEngine] Supervise: {_lastError}; restarting. ffmpeg said: {tail}");
+            }
+            // Stop it first - a hung ffmpeg still holds the piece it was writing - then everything it
+            // wrote is finished: decide it before the new capture starts writing.
+            try { _recorder.Stop(); }
+            catch (Exception ex) { Log.Error("[AlwaysOnEngine] Supervise: stopping the failed capture threw", ex); }
             _recorder.Dispose();
             _recorder = null;
+            RunKeeper(_options!, now, final: true, recorderRunning: false);
             ResetKeeper();
             TryRestart(now);
         }
@@ -461,7 +509,7 @@ namespace AgentEyes.AlwaysOn
             {
                 if (!_clipDirs.TryGetValue(clip, out var dir))
                 {
-                    dir = Path.Combine(o.PendingFolder, "clip_" + piece.StartUtc.ToLocalTime().ToString(AlwaysOnArgs.PieceStampFormat));
+                    dir = Path.Combine(o.PendingFolder, "clip_" + piece.StartUtc.ToString(AlwaysOnArgs.PieceStampFormat));
                     _clipDirs[clip] = dir;
                 }
                 Directory.CreateDirectory(dir);
@@ -497,9 +545,11 @@ namespace AgentEyes.AlwaysOn
 
         /// <summary>
         /// Join one clip's pieces into a single MP4 in the clips folder, without re-encoding, then
-        /// remove the holding folder. A piece ffmpeg could not finish (a crash mid-piece) cannot be
-        /// read and is left out, with a warning. A join that fails leaves the holding folder in place -
-        /// nothing kept is ever deleted because the join did not work - and the next start tries again.
+        /// remove the holding folder.
+        ///
+        /// NOTHING KEPT IS EVER DELETED BECAUSE SOMETHING FAILED (review finding 1). A piece that cannot
+        /// be read is MOVED to the unreadable folder, never deleted, and the clip is joined from the
+        /// rest; a join that fails leaves the whole holding folder in place for the next start.
         /// </summary>
         private void JoinClip(AlwaysOnOptions o, string dir, DateTime now)
         {
@@ -518,18 +568,23 @@ namespace AgentEyes.AlwaysOn
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(p)} cannot be read ({ex.Message}) - "
-                             + "most likely the piece being written when the capture stopped hard; it is left out");
+                    Directory.CreateDirectory(o.UnreadableFolder);
+                    string kept = Path.Combine(o.UnreadableFolder, Path.GetFileName(p));
+                    File.Move(p, kept, overwrite: false);
+                    _lastError = $"a kept piece could not be read and was set aside in {o.UnreadableFolder}";
+                    Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(p)} cannot be read ({ex.Message}); "
+                             + $"it is left out of the clip and kept at {kept}");
                 }
             }
             if (readable.Count == 0)
             {
-                Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} has no readable piece; removing it");
+                Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} has no readable piece left; "
+                         + $"its pieces are in {o.UnreadableFolder}");
                 Directory.Delete(dir, recursive: true);
                 return;
             }
 
-            var start = AlwaysOnArgs.PieceStartLocal(readable[0]) ?? now.ToLocalTime();
+            var start = (AlwaysOnArgs.PieceStartUtc(readable[0]) ?? now).ToLocalTime();
             string outPath = UniqueClipPath(o.ClipsFolder, start);
             string list = Path.Combine(dir, "join.txt");
             File.WriteAllText(list, AlwaysOnArgs.JoinList(readable));
@@ -547,6 +602,9 @@ namespace AgentEyes.AlwaysOn
             }
 
             long bytes = new FileInfo(outPath).Length;
+            // The ledger is written BEFORE the pieces go: a clip the cap may delete is a clip this
+            // engine is on record as having written (review finding 3).
+            File.AppendAllText(o.ClipLedger, Path.GetFileName(outPath) + Environment.NewLine);
             Directory.Delete(dir, recursive: true);
             _day.EnsureDay(now);
             _day.Clips++;
@@ -589,7 +647,7 @@ namespace AgentEyes.AlwaysOn
         private void EnforceCap(AlwaysOnOptions o)
         {
             if (o.CapBytes <= 0) return;
-            var clips = ClipFiles(o.ClipsFolder).OrderBy(f => f.LastWriteTimeUtc).ToList();
+            var clips = ClipFiles(o).OrderBy(f => f.LastWriteTimeUtc).ToList();
             var candidates = clips.Select(f => new HousekeepingCandidate
             {
                 Recording = f.FullName,
@@ -615,17 +673,27 @@ namespace AgentEyes.AlwaysOn
             if (!Directory.Exists(folder)) return list;
             foreach (var f in Directory.GetFiles(folder, "piece_*.mp4"))
             {
-                var local = AlwaysOnArgs.PieceStartLocal(f);
-                if (local.HasValue) list.Add((f, local.Value.ToUniversalTime()));
+                var start = AlwaysOnArgs.PieceStartUtc(f);
+                if (start.HasValue) list.Add((f, start.Value));
             }
             list.Sort((a, b) => a.Item2.CompareTo(b.Item2));
             return list;
         }
 
-        private static List<FileInfo> ClipFiles(string folder) =>
-            Directory.Exists(folder)
-                ? new DirectoryInfo(folder).GetFiles("*.mp4").Where(f => ClipName.IsMatch(f.Name)).ToList()
-                : new List<FileInfo>();
+        /// <summary>
+        /// The clips THIS ENGINE WROTE that are still on disk: the names in the ledger, nothing else. A
+        /// name that merely looks like a clip is not proof - someone else's video called
+        /// 2026-09-20_10-00-00.mp4 in the same folder is never counted and never deleted.
+        /// </summary>
+        private static List<FileInfo> ClipFiles(AlwaysOnOptions o)
+        {
+            if (!File.Exists(o.ClipLedger) || !Directory.Exists(o.ClipsFolder)) return new List<FileInfo>();
+            var names = File.ReadAllLines(o.ClipLedger)
+                .Select(l => l.Trim())
+                .Where(l => l.Length > 0 && l.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            return names.Select(n => new FileInfo(Path.Combine(o.ClipsFolder, n))).Where(f => f.Exists).ToList();
+        }
 
         private static long FolderBytes(string folder) =>
             Directory.Exists(folder)
@@ -649,7 +717,11 @@ namespace AgentEyes.AlwaysOn
             catch (Exception ex)
             {
                 Log.Error("[AlwaysOnEngine] TickFromTimer: the keeper pass failed", ex);
-                lock (_lock) _lastError = "the keeper failed: " + ex.Message;
+                lock (_lock)
+                {
+                    _lastError = "the keeper failed: " + ex.Message;
+                    Publish();
+                }
                 RaiseChanged();
             }
         }

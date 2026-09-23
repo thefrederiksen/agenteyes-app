@@ -62,6 +62,12 @@ namespace AgentEyes.AlwaysOn
         public string PendingFolder => Path.Combine(WorkFolder, "pending");
         public string StatsFile => Path.Combine(WorkFolder, "today.json");
 
+        /// <summary>The clips this engine wrote, one file name per line - the only files the cap may delete.</summary>
+        public string ClipLedger => Path.Combine(WorkFolder, "clips.txt");
+
+        /// <summary>Kept pieces that could not be read, set aside rather than deleted.</summary>
+        public string UnreadableFolder => Path.Combine(WorkFolder, "unreadable");
+
         public static string DefaultClipsFolder => Path.Combine(RecordingPaths.Root, "AlwaysOn");
 
         public static string DefaultWorkFolder => Path.Combine(
