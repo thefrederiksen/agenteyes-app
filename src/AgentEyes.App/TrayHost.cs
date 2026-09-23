@@ -205,7 +205,7 @@ namespace AgentEyes.App
             if (_alwaysOn == null) return;
             var task = _alwaysOn.State == AlwaysOnState.Paused
                 ? _alwaysOn.ResumeAsync()
-                : _alwaysOn.PauseAsync("paused from the tray");
+                : _alwaysOn.PauseAsync(AlwaysOnController.PausedByHand);
             task.ContinueWith(t =>
             {
                 if (t.IsFaulted) Log.Error("[TrayHost] ToggleAlwaysOnPause FAILED", t.Exception);
@@ -335,7 +335,18 @@ namespace AgentEyes.App
             if (_shuttingDown) return;
             _shuttingDown = true;
             Log.Info("[TrayHost] ShutdownNow: quitting");
-            _icon.Visible = false;
+            if (_alwaysOn?.IsOn == true)
+            {
+                // Exit waits for always-on to write the clip it was keeping (seconds): keep the icon up
+                // and say so, rather than a process that looks gone and is still working (review of
+                // PR 68, finding 3). App.OnExit disposes the icon once the clip is written.
+                _icon.Icon = _iconKeeping;
+                _icon.Text = "AgentEyes: writing the always-on clip, then quitting";
+            }
+            else
+            {
+                _icon.Visible = false;
+            }
             System.Windows.Application.Current.Shutdown();
         }
 
@@ -347,6 +358,7 @@ namespace AgentEyes.App
             _iconListening.Dispose();
             _iconKeeping.Dispose();
             _iconPaused.Dispose();
+            _iconOff.Dispose();
         }
     }
 }

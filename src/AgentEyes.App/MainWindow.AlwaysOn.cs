@@ -76,6 +76,12 @@ namespace AgentEyes.App
 
                     var thresholds = new List<AOChoice> { new("Auto", null) };
                     thresholds.AddRange(AOThresholds.Select(d => new AOChoice($"{d:0} dBFS", d)));
+                    // Like the minutes and the cap: a saved line that is not one of the choices is
+                    // added, so the page never says Auto while a fixed line is in force.
+                    if (_cfg.AlwaysOnThresholdDb is double saved && !AOThresholds.Contains(saved))
+                        thresholds = thresholds.Take(1)
+                            .Concat(thresholds.Skip(1).Append(new AOChoice($"{saved:0.#} dBFS", saved)).OrderByDescending(c => c.Value))
+                            .ToList();
                     Fill(AOThresholdCombo, thresholds, _cfg.AlwaysOnThresholdDb);
                     Fill(AOBeforeCombo, Minutes(_cfg.AlwaysOnBeforeMinutes), _cfg.AlwaysOnBeforeMinutes);
                     Fill(AOAfterCombo, Minutes(_cfg.AlwaysOnAfterMinutes), _cfg.AlwaysOnAfterMinutes);

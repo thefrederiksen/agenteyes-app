@@ -135,5 +135,48 @@ namespace AgentEyes.Tests
 
             Assert.True(TrayDot.Tooltip(s).Length <= TrayDot.MaxTooltip);
         }
+
+        [Fact]
+        public void Config_HandPause_DefaultsToNotPausedAndRoundTrips()
+        {
+            Assert.False(new Config().AlwaysOnHandPaused);
+            var back = System.Text.Json.JsonSerializer.Deserialize<Config>(
+                System.Text.Json.JsonSerializer.Serialize(new Config { AlwaysOnHandPaused = true }))!;
+            Assert.True(back.AlwaysOnHandPaused);
+        }
+
+        [Fact]
+        public void ReconcileAction_NormalRecordingStarts_PausesAlwaysOn()
+        {
+            Assert.Equal(AlwaysOnController.ReconcileStep.Pause,
+                AlwaysOnController.ReconcileAction(true, AlwaysOnState.Listening, null, recording: true));
+            Assert.Equal(AlwaysOnController.ReconcileStep.Pause,
+                AlwaysOnController.ReconcileAction(true, AlwaysOnState.Keeping, null, recording: true));
+        }
+
+        [Fact]
+        public void ReconcileAction_RecordingEnded_ResumesOnlyAPauseForTheRecording()
+        {
+            Assert.Equal(AlwaysOnController.ReconcileStep.Resume,
+                AlwaysOnController.ReconcileAction(true, AlwaysOnState.Paused, AlwaysOnController.PausedForRecording, recording: false));
+        }
+
+        [Fact]
+        public void ReconcileAction_HandPause_IsNeverResumedOrRepaused()
+        {
+            Assert.Equal(AlwaysOnController.ReconcileStep.None,
+                AlwaysOnController.ReconcileAction(true, AlwaysOnState.Paused, AlwaysOnController.PausedByHand, recording: false));
+            Assert.Equal(AlwaysOnController.ReconcileStep.None,
+                AlwaysOnController.ReconcileAction(true, AlwaysOnState.Paused, AlwaysOnController.PausedByHand, recording: true));
+        }
+
+        [Fact]
+        public void ReconcileAction_Off_DoesNothing()
+        {
+            Assert.Equal(AlwaysOnController.ReconcileStep.None,
+                AlwaysOnController.ReconcileAction(false, AlwaysOnState.Off, null, recording: true));
+            Assert.Equal(AlwaysOnController.ReconcileStep.None,
+                AlwaysOnController.ReconcileAction(false, AlwaysOnState.Off, null, recording: false));
+        }
     }
 }
