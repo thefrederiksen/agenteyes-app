@@ -74,6 +74,81 @@ namespace AgentEyes.AlwaysOn
         public long KeptBytesToday { get; set; }
         public double DiscardedSecondsToday { get; set; }
         public string? LastClip { get; set; }
+
+        /// <summary>
+        /// When the clip being kept right now began (issue #70): the start of its first piece. Null
+        /// when no clip is in progress - the state is then anything but <see cref="AlwaysOnState.Keeping"/>.
+        /// Until the clip is written it exists only as pieces in the work folder; it is saved to
+        /// <see cref="ClipsFolder"/> once <see cref="KeepAfterMinutes"/> of quiet have passed.
+        /// </summary>
+        public DateTime? OpenClipStartUtc { get; set; }
+
+        /// <summary>How long the clip in progress has run, in seconds, as of when this status was
+        /// published (issue #70). Null when no clip is in progress.</summary>
+        public double? OpenClipElapsedSeconds { get; set; }
+
+        /// <summary>Every clip written today, oldest first, with its full path (issue #70).</summary>
+        public List<AlwaysOnClip> ClipsKeptToday { get; set; } = new();
+
+        /// <summary>Seconds from <see cref="OpenClipStartUtc"/> to <paramref name="nowUtc"/>, or null
+        /// when no clip is in progress. Never negative.</summary>
+        public double? OpenClipElapsedAt(DateTime nowUtc) =>
+            OpenClipStartUtc.HasValue ? Math.Round(Math.Max(0, (nowUtc - OpenClipStartUtc.Value).TotalSeconds), 1) : null;
+
+        /// <summary>
+        /// The in-progress line for the Always On page (issue #70), or null when no clip is in
+        /// progress: "Recording a clip now - 12 min so far. Saved to C:\AgentEyes after 5 min of quiet."
+        /// </summary>
+        public string? InProgressLine(DateTime nowUtc)
+        {
+            var elapsed = OpenClipElapsedAt(nowUtc);
+            if (!elapsed.HasValue) return null;
+            return $"Recording a clip now - {ClipDuration(elapsed.Value)} so far. "
+                   + $"Saved to {ClipsFolder} after {AfterMinutesText()} of quiet.";
+        }
+
+        /// <summary>The same fact in short form, for the tray tooltip (issue #70), or null.</summary>
+        public string? InProgressShort(DateTime nowUtc)
+        {
+            var elapsed = OpenClipElapsedAt(nowUtc);
+            if (!elapsed.HasValue) return null;
+            return $"Clip in progress, {ClipDuration(elapsed.Value)} so far - saved to {ClipsFolder} after {AfterMinutesText()} quiet.";
+        }
+
+        private string AfterMinutesText() =>
+            (KeepAfterMinutes ?? 0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " min";
+
+        /// <summary>A clip's running time in whole minutes: "under 1 min", "12 min", "1 h 5 min".</summary>
+        public static string ClipDuration(double seconds)
+        {
+            var t = TimeSpan.FromSeconds(Math.Max(0, seconds));
+            if (t.TotalMinutes < 1) return "under 1 min";
+            if (t.TotalHours >= 1) return $"{(int)t.TotalHours} h {t.Minutes} min";
+            return $"{(int)t.TotalMinutes} min";
+        }
+    }
+
+    /// <summary>One clip written today (issue #70): where it is, and whether it is still there - the
+    /// disk cap may have deleted it since, or the owner moved it.</summary>
+    internal sealed class AlwaysOnClip
+    {
+        public string File { get; set; } = "";
+        public string Folder { get; set; } = "";
+        public string Path { get; set; } = "";
+        public bool Exists { get; set; }
+
+        /// <summary>How the page lists it: "2026-09-23_10-00-00.mp4 in C:\AgentEyes", and says so
+        /// when the file is no longer there.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string Label => $"{File} in {Folder}" + (Exists ? "" : " (no longer there)");
+
+        public static AlwaysOnClip For(string path) => new()
+        {
+            File = System.IO.Path.GetFileName(path),
+            Folder = System.IO.Path.GetDirectoryName(path) ?? "",
+            Path = path,
+            Exists = System.IO.File.Exists(path),
+        };
     }
 
     /// <summary>
@@ -150,6 +225,8 @@ namespace AgentEyes.AlwaysOn
 
         // The keeper's memory between passes.
         private readonly Dictionary<int, string> _clipDirs = new();
+        /// <summary>When each clip in <see cref="_clipDirs"/> began - its first kept piece (issue #70).</summary>
+        private readonly Dictionary<int, DateTime> _clipStartsUtc = new();
         private int? _openClip;
         private DateTime? _openClipEndUtc;
         private int _nextClip = 1;
@@ -338,7 +415,10 @@ namespace AgentEyes.AlwaysOn
                     _state = IsKeeping(now) ? AlwaysOnState.Keeping : AlwaysOnState.Listening;
 
                 _day.EnsureDay(now);
-                changed = before != _state || clipsBefore != _day.Clips || discardedBefore != _day.DiscardedSeconds;
+                // While a clip is in progress every pass changes its running time, which the page and
+                // the tray show (issue #70) - so a keeping pass always counts as a change.
+                changed = before != _state || clipsBefore != _day.Clips || discardedBefore != _day.DiscardedSeconds
+                          || _state == AlwaysOnState.Keeping;
                 Publish();
             }
             if (changed) RaiseChanged();
@@ -377,6 +457,12 @@ namespace AgentEyes.AlwaysOn
                 DiscardedSecondsToday = Math.Round(_day.DiscardedSeconds, 1),
                 LastClip = _lastClip,
             };
+            if (_state == AlwaysOnState.Keeping)
+            {
+                s.OpenClipStartUtc = OpenClipStart(o);
+                s.OpenClipElapsedSeconds = s.OpenClipElapsedAt(now);
+            }
+            s.ClipsKeptToday = _day.ClipPaths.Select(AlwaysOnClip.For).ToList();
             if (_sound != null && o != null)
             {
                 var src = o.Counts == SoundSource.System ? SoundSource.System : SoundSource.Mic;
@@ -404,6 +490,27 @@ namespace AgentEyes.AlwaysOn
                 Date = s.Today, Clips = s.ClipsToday, KeptSeconds = s.KeptSecondsToday,
                 KeptBytes = s.KeptBytesToday, DiscardedSeconds = s.DiscardedSecondsToday,
             }.Summary();
+        }
+
+        /// <summary>
+        /// When the clip in progress began (issue #70). Caller holds the lock; only asked while keeping.
+        ///
+        /// Once the keeper has kept a piece, the clip is open and began with that first kept piece.
+        /// Before that - sound was heard, but no finished piece has been decided since - every piece
+        /// still waiting is inside the sound's lead-in window (a piece whose window had passed with no
+        /// sound was already deleted), so the clip will begin with the oldest waiting piece, or with
+        /// the piece being written when none waits.
+        /// </summary>
+        private DateTime OpenClipStart(AlwaysOnOptions? o)
+        {
+            if (_openClip.HasValue && _clipStartsUtc.TryGetValue(_openClip.Value, out var start)) return start;
+            if (o != null)
+            {
+                var files = PieceFiles(o.PieceFolder);
+                if (files.Count > 0) return files[0].StartUtc;
+            }
+            // Keeping with no piece on disk at all: the capture has only just started its first piece.
+            return _sound?.LastSoundUtc ?? _utcNow();
         }
 
         // ---- the recorder and its supervisor ---------------------------------
@@ -584,6 +691,7 @@ namespace AgentEyes.AlwaysOn
                 {
                     dir = Path.Combine(o.PendingFolder, "clip_" + piece.StartUtc.ToString(AlwaysOnArgs.PieceStampFormat));
                     _clipDirs[clip] = dir;
+                    _clipStartsUtc[clip] = piece.StartUtc;
                 }
                 Directory.CreateDirectory(dir);
                 File.Move(piece.Path, Path.Combine(dir, Path.GetFileName(piece.Path)));
@@ -602,6 +710,7 @@ namespace AgentEyes.AlwaysOn
                 {
                     JoinClip(o, dir, now);
                     _clipDirs.Remove(clip);
+                    _clipStartsUtc.Remove(clip);
                 }
             }
 
@@ -684,6 +793,7 @@ namespace AgentEyes.AlwaysOn
             _day.Clips++;
             _day.KeptSeconds += seconds;
             _day.KeptBytes += bytes;
+            _day.ClipPaths.Add(outPath);
             _lastClip = outPath;
             Log.Info($"[AlwaysOnEngine] JoinClip: wrote {outPath} ({readable.Count} pieces, {seconds:0}s, {bytes / 1024.0 / 1024:0.0} MB)");
         }

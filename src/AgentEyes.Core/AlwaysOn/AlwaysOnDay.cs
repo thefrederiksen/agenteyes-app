@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
@@ -17,6 +18,13 @@ namespace AgentEyes.AlwaysOn
         public long KeptBytes { get; set; }
         public double DiscardedSeconds { get; set; }
 
+        /// <summary>
+        /// The full path of every clip written today, oldest first (issue #70), so the page and the
+        /// Control API can say WHERE today's clips are - the clips folder can change during the day.
+        /// A counter file from before issue #70 has no list: its clips are counted but not listed.
+        /// </summary>
+        public List<string> ClipPaths { get; set; } = new();
+
         public static string Today(DateTime nowUtc) => nowUtc.ToLocalTime().ToString("yyyy-MM-dd");
 
         /// <summary>Roll over to a fresh day when the date has changed.</summary>
@@ -31,6 +39,7 @@ namespace AgentEyes.AlwaysOn
             KeptSeconds = 0;
             KeptBytes = 0;
             DiscardedSeconds = 0;
+            ClipPaths = new List<string>();
         }
 
         /// <summary>The counters as one line, as the page and the tray show them.</summary>
@@ -58,7 +67,11 @@ namespace AgentEyes.AlwaysOn
             if (!File.Exists(path)) return new AlwaysOnDay();
             try
             {
-                return JsonSerializer.Deserialize<AlwaysOnDay>(File.ReadAllText(path)) ?? new AlwaysOnDay();
+                var day = JsonSerializer.Deserialize<AlwaysOnDay>(File.ReadAllText(path)) ?? new AlwaysOnDay();
+                // An explicit null in the file must not become a null list the keeper then adds to.
+                day.ClipPaths ??= new List<string>();
+                Log.Info($"[AlwaysOnDay] Load: {path} -> {day.Date}, {day.Clips} clips, {day.ClipPaths.Count} listed");
+                return day;
             }
             catch (Exception ex) when (ex is JsonException or IOException)
             {

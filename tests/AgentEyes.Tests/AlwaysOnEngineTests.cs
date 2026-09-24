@@ -134,6 +134,186 @@ namespace AgentEyes.Tests
             Assert.Equal(AlwaysOnState.Listening, engine.State);
         }
 
+        // ---- issue #70: the clip in progress, and where today's clips are -----
+
+        [Fact]
+        public void Status_NoClipInProgress_OpenClipIsNullAndNothingListed()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            for (int m = 0; m <= 3; m++)
+            {
+                _now = t0.AddMinutes(m);
+                WritePiece(o.PieceFolder, _now);
+                engine.Tick();
+            }
+
+            var s = engine.Status();
+            Assert.Equal(AlwaysOnState.Listening, s.State);
+            Assert.Null(s.OpenClipStartUtc);
+            Assert.Null(s.OpenClipElapsedSeconds);
+            Assert.Null(s.InProgressLine(_now));
+            Assert.Empty(s.ClipsKeptToday);
+        }
+
+        [Fact]
+        public void Status_WhileKeeping_ReportsTheOpenClipsStartAndElapsedSeconds()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            for (int m = 0; m <= 3; m++)
+            {
+                _now = t0.AddMinutes(m);
+                WritePiece(o.PieceFolder, _now);
+                if (m == 1) Speak(_recorders[0].Sound!, t0.AddSeconds(30));
+                engine.Tick();
+            }
+
+            // Sound at 0:30, 2 min before-window: the clip began with the first piece, at t0.
+            var s = engine.Status();
+            Assert.Equal(AlwaysOnState.Keeping, s.State);
+            Assert.Equal(t0, s.OpenClipStartUtc);
+            Assert.Equal(180.0, s.OpenClipElapsedSeconds);
+            Assert.Equal(240.0, s.OpenClipElapsedAt(t0.AddMinutes(4)));
+            Assert.Equal($"Recording a clip now - 3 min so far. Saved to {o.ClipsFolder} after 2 min of quiet.",
+                s.InProgressLine(_now));
+            Assert.Empty(s.ClipsKeptToday);                 // nothing written yet: the clip is still pieces
+        }
+
+        [Fact]
+        public void Status_SoundHeardBeforeAnyPieceIsDecided_ClipStartsAtTheOldestWaitingPiece()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            WritePiece(o.PieceFolder, t0);                  // the only piece, still being written
+            Speak(_recorders[0].Sound!, t0.AddSeconds(10));
+            _now = t0.AddSeconds(20);
+            engine.Tick();
+
+            var s = engine.Status();
+            Assert.Equal(AlwaysOnState.Keeping, s.State);
+            Assert.Equal(t0, s.OpenClipStartUtc);
+            Assert.Equal(20.0, s.OpenClipElapsedSeconds);
+            Assert.Equal($"Recording a clip now - under 1 min so far. Saved to {o.ClipsFolder} after 2 min of quiet.",
+                s.InProgressLine(_now));
+        }
+
+        [Fact]
+        public void Status_AfterTheClipCloses_OpenClipIsNullAndTheClipIsListedWithItsFullPath()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            for (int m = 0; m <= 8; m++)
+            {
+                _now = t0.AddMinutes(m);
+                WritePiece(o.PieceFolder, _now);
+                if (m == 1) Speak(_recorders[0].Sound!, t0.AddSeconds(30));
+                engine.Tick();
+            }
+
+            var s = engine.Status();
+            Assert.Equal(AlwaysOnState.Listening, s.State);
+            Assert.Null(s.OpenClipStartUtc);
+            Assert.Null(s.OpenClipElapsedSeconds);
+            var written = Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
+            var clip = Assert.Single(s.ClipsKeptToday);
+            Assert.Equal(written, clip.Path);
+            Assert.Equal(Path.GetFileName(written), clip.File);
+            Assert.Equal(o.ClipsFolder, clip.Folder);
+            Assert.True(clip.Exists);
+            Assert.Equal($"{Path.GetFileName(written)} in {o.ClipsFolder}", clip.Label);
+            Assert.Equal(s.ClipsToday, s.ClipsKeptToday.Count);
+        }
+
+        [Fact]
+        public void Status_TodaysClips_SurviveARestartAndSayWhenAClipIsGone()
+        {
+            var o = Options();
+            string written;
+            using (var engine = Engine())
+            {
+                var t0 = _now;
+                engine.Start(o);
+                for (int m = 0; m <= 3; m++)
+                {
+                    _now = t0.AddMinutes(m);
+                    WritePiece(o.PieceFolder, _now);
+                    if (m == 1) Speak(_recorders[0].Sound!, t0.AddSeconds(30));
+                    engine.Tick();
+                }
+                engine.Stop();                              // the final pass writes the clip
+                written = Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
+            }
+
+            File.Delete(written);                           // the owner moved it, or the cap took it
+            using var again = Engine();
+            again.Start(o);
+            var clip = Assert.Single(again.Status().ClipsKeptToday);
+            Assert.Equal(written, clip.Path);
+            Assert.False(clip.Exists);
+            Assert.EndsWith("(no longer there)", clip.Label);
+        }
+
+        [Fact]
+        public void Tick_WhileKeeping_RaisesChangedEveryPassSoTheRunningTimeStaysLive()
+        {
+            var o = Options();
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            WritePiece(o.PieceFolder, t0);
+            Speak(_recorders[0].Sound!, t0.AddSeconds(5));
+            _now = t0.AddSeconds(15);
+            engine.Tick();
+            Assert.Equal(AlwaysOnState.Keeping, engine.State);
+
+            int changed = 0;
+            engine.Changed += () => changed++;
+            _now = t0.AddSeconds(30);
+            engine.Tick();                                  // same state, same counters - still a change
+            Assert.Equal(1, changed);
+            Assert.Equal(30.0, engine.Status().OpenClipElapsedSeconds);
+        }
+
+        [Fact]
+        public void Day_NewDate_ClearsTheClipList()
+        {
+            var day = new AlwaysOnDay();
+            day.EnsureDay(_now);
+            day.Clips = 1;
+            day.ClipPaths.Add(@"C:\AgentEyes\2026-09-23_09-00-00.mp4");
+            day.EnsureDay(_now.AddDays(1));
+            Assert.Equal(0, day.Clips);
+            Assert.Empty(day.ClipPaths);
+        }
+
+        [Fact]
+        public void Day_SaveAndLoad_KeepsTheClipList_AndAFileFromBeforeTheListLoadsEmpty()
+        {
+            string path = Path.Combine(_root, "today.json");
+            var day = new AlwaysOnDay { Date = "2026-09-23", Clips = 2 };
+            day.ClipPaths.Add(@"C:\AgentEyes\a.mp4");
+            day.ClipPaths.Add(@"D:\Old\b.mp4");
+            day.Save(path);
+            Assert.Equal(new[] { @"C:\AgentEyes\a.mp4", @"D:\Old\b.mp4" }, AlwaysOnDay.Load(path).ClipPaths);
+
+            File.WriteAllText(path, "{\"Date\":\"2026-09-23\",\"Clips\":2,\"KeptSeconds\":240,\"KeptBytes\":13000000,\"DiscardedSeconds\":0}");
+            var old = AlwaysOnDay.Load(path);
+            Assert.Equal(2, old.Clips);
+            Assert.Empty(old.ClipPaths);
+
+            File.WriteAllText(path, "{\"Date\":\"2026-09-23\",\"Clips\":1,\"ClipPaths\":null}");
+            Assert.Empty(AlwaysOnDay.Load(path).ClipPaths);
+        }
+
         [Fact]
         public void Status_Auto_ReportsTheLineAndTheFloorItCameFrom()
         {

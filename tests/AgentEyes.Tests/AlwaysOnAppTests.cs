@@ -102,6 +102,89 @@ namespace AgentEyes.Tests
             Assert.Equal("AgentEyes", TrayDot.Tooltip(Status(AlwaysOnState.Off)));
         }
 
+        // ---- issue #70: the clip in progress on the tray and in the Control API ----
+
+        private static readonly DateTime ClipStart = new(2026, 9, 23, 9, 0, 0, DateTimeKind.Utc);
+
+        private static AlwaysOnStatus Keeping(string folder) => new()
+        {
+            State = AlwaysOnState.Keeping, Counts = "mic", ClipsToday = 2, DiskUsedBytes = 13L * 1024 * 1024, CapGb = 5,
+            ClipsFolder = folder, KeepAfterMinutes = 5, OpenClipStartUtc = ClipStart,
+        };
+
+        [Fact]
+        public void Tooltip_KeepingWithAClipInProgress_SaysHowLongAndWhere()
+        {
+            string tip = TrayDot.Tooltip(Keeping(@"C:\AgentEyes"), ClipStart.AddMinutes(12).AddSeconds(40));
+            Assert.Equal("AgentEyes - Always-on recording\nClip in progress, 12 min so far - saved to C:\\AgentEyes after 5 min quiet.", tip);
+            Assert.True(tip.Length <= TrayDot.MaxTooltip);
+        }
+
+        [Fact]
+        public void Tooltip_KeepingWithALongFolder_KeepsTheInProgressFactAndCutsAtTheLimit()
+        {
+            string folder = @"C:\Users\someone\Videos\AgentEyes\Always on clips";
+            string tip = TrayDot.Tooltip(Keeping(folder), ClipStart.AddMinutes(3));
+            Assert.StartsWith("AgentEyes - Always-on recording\nClip in progress, 3 min so far - saved to C:\\Users\\someone", tip);
+            Assert.EndsWith("...", tip);
+            Assert.Equal(TrayDot.MaxTooltip, tip.Length);
+        }
+
+        [Fact]
+        public void InProgressLine_StatesInProgressElapsedAndDestination()
+        {
+            var s = Keeping(@"C:\AgentEyes");
+            Assert.Equal(@"Recording a clip now - 12 min so far. Saved to C:\AgentEyes after 5 min of quiet.",
+                s.InProgressLine(ClipStart.AddMinutes(12)));
+            s.KeepAfterMinutes = 2.5;
+            Assert.Equal(@"Recording a clip now - 1 h 5 min so far. Saved to C:\AgentEyes after 2.5 min of quiet.",
+                s.InProgressLine(ClipStart.AddMinutes(65)));
+            s.OpenClipStartUtc = null;
+            Assert.Null(s.InProgressLine(ClipStart.AddMinutes(65)));
+            Assert.Null(s.InProgressShort(ClipStart.AddMinutes(65)));
+        }
+
+        [Theory]
+        [InlineData(0, "under 1 min")]
+        [InlineData(59.9, "under 1 min")]
+        [InlineData(60, "1 min")]
+        [InlineData(12 * 60 + 59, "12 min")]
+        [InlineData(3600, "1 h 0 min")]
+        [InlineData(2 * 3600 + 5 * 60, "2 h 5 min")]
+        public void ClipDuration_RoundsDownToWholeMinutes(double seconds, string expected)
+        {
+            Assert.Equal(expected, AlwaysOnStatus.ClipDuration(seconds));
+        }
+
+        [Fact]
+        public void OpenClip_ForTheApi_IsNullWithNoClipAndFreshElapsedWithOne()
+        {
+            var s = Keeping(@"C:\AgentEyes");
+            s.OpenClipElapsedSeconds = 60;                  // as of the last keeper pass
+            var open = RestServer.OpenClip(s, ClipStart.AddSeconds(95));
+            Assert.NotNull(open);
+            Assert.Equal(ClipStart, open!.StartUtc);
+            Assert.Equal(95.0, open.ElapsedSeconds);        // as of the request, not the pass
+            Assert.Equal(@"C:\AgentEyes", open.SavedTo);
+            Assert.Equal(5.0, open.AfterMinutes);
+
+            s.OpenClipStartUtc = null;
+            Assert.Null(RestServer.OpenClip(s, ClipStart.AddSeconds(95)));
+        }
+
+        [Fact]
+        public void RevealClip_ClipNoLongerThere_ThrowsWithTheReasonInsteadOfOpeningAnotherFolder()
+        {
+            string gone = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "agenteyes-gone-" + Guid.NewGuid().ToString("N") + ".mp4");
+            var engine = new AlwaysOnEngine(() => throw new InvalidOperationException("no recorder in this test"),
+                () => DateTime.UtcNow, ownTimer: false);
+            using var ao = new AlwaysOnController(new RecordingService(), new Config(), engine);
+
+            var ex = Assert.Throws<UsageException>(() => ao.RevealClip(gone));
+
+            Assert.Contains(System.IO.Path.GetFileName(gone) + " is no longer in", ex.Message);
+        }
+
         [Fact]
         public void Compose_DrawsTheDotInTheCorner_RedGreyOrWithAWhiteCentre()
         {
