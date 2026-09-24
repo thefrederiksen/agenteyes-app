@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA Report Issue 72</title>
+<style>
+:root { --bg:#ffffff; --fg:#1b1f24; --muted:#57606a; --line:#d0d7de; --ok:#1a7f37; --warn:#9a6700; --bad:#cf222e; --code:#f6f8fa; }
+@media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8d96a0; --line:#30363d; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --code:#161b22; } }
+body { background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif; max-width:1100px; margin:0 auto; padding:16px; }
+h1 { font-size:22px; } h2 { font-size:18px; margin-top:28px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+table { border-collapse:collapse; width:100%; font-size:14px; } th,td { border:1px solid var(--line); padding:6px 8px; vertical-align:top; text-align:left; }
+code,pre { background:var(--code); font:13px Consolas,monospace; } pre { padding:8px; overflow-x:auto; white-space:pre-wrap; }
+.ok { color:var(--ok); font-weight:bold; } .warn { color:var(--warn); font-weight:bold; } .bad { color:var(--bad); font-weight:bold; }
+.muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<h1>QA report - issue #72: always-on counts only sustained RMS sound</h1>
+<p>Repo thefrederiksen/agenteyes-app, PR #73, branch <code>issue-72-alwayson-sustained-rms</code> at 62b8bd0. QA Agent, independent of the developer run. 2026-09-23.</p>
+<p class="ok">VERIFIED - all acceptance criteria met on the evidence available; criterion 6 was exercised live only in part (see the table and "Not exercised live").</p>
+
+<h2>Gate (run by QA)</h2>
+<table>
+<tr><th>Check</th><th>Branch</th><th>main (be430bd, separate worktree)</th></tr>
+<tr><td><code>dotnet build AgentEyes.sln -c Release</code></td><td>Build succeeded, 0 Error(s)</td><td>Build succeeded, 0 Error(s)</td></tr>
+<tr><td><code>dotnet test AgentEyes.sln -c Release</code></td><td>Failed: 4, Passed: 1695, Total: 1699</td><td>Failed: 7, Passed: 1681, Total: 1688</td></tr>
+<tr><td>Failing tests</td><td>HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile; PreviewTapTests x3 (NothingOnARecordingsCriticalPaths..., NothingTheDrainCanReach..., NothingTurningThePreviewOff...)</td><td>The SAME 4, plus 3 CameraPreviewTests (timing-flaky; they passed on the branch run)</td></tr>
+<tr><td>Always-on subset (<code>--filter FullyQualifiedName~AlwaysOn</code>)</td><td>Failed: 0, Passed: 97</td><td>-</td></tr>
+</table>
+<p>No failure is introduced by the branch: every branch failure also fails on main. Note: a project-level <code>dotnet test tests\AgentEyes.Tests</code> picks up a STALE <code>bin\Release</code> (non-x64) test DLL left from the developer's mutation run (7 always-on failures expecting margin 10 / minimum -200). The solution-level x64 build is the real one and is green for always-on. That stale folder is a local build artifact, not in git.</p>
+
+<h2>Mutation evidence (QA's own, in a separate worktree, then discarded)</h2>
+<table>
+<tr><th>Mutation</th><th>Always-on tests</th><th>Tests that fired</th></tr>
+<tr><td><code>SustainMinLoudSeconds = 1</code> (one loud second is sound - the old behaviour)</td><td>Failed: 5, Passed: 92</td><td>Replay_QuietRoomFixture_Auto_..., Replay_IsolatedSingleSecondSpikesInsideNoise_AreNotSound, Sustained_TwoLoudSecondsInTen_..., Observe_SecondIsJudgedOnlyOnceItIsOver, Describe_...</td></tr>
+<tr><td>Per-second level from the PEAK instead of the sum of squares</td><td>Failed: 7, Passed: 90</td><td>Replay_QuietRoomFixture_Auto_..., Observe_FixedLine_UsesRmsNotPeak, Observe_Auto_LineFollowsTheFloor, Observe_Auto_FloorIgnoresTheLoudFewSeconds, Describe_..., Status_Auto_ReportsTheLineAndTheFloorItCameFrom, Tick_LogsTheLevelsOncePerMinute</td></tr>
+</table>
+<p>Fixture authenticity: QA re-extracted minutes 282-325 of <code>C:\AgentEyes\2026-09-23_16-00-16.mp4</code> (read-only, the ffmpeg command in the fixture header): 2580 rows, the RMS column is identical to the committed fixture on all 2580 rows (<code>diff</code>: 0 lines). p20 -76.7, median -75.9, max -47.1 dBFS; only seconds 33 and 39 exceed -50.</p>
+
+<h2>Acceptance criteria</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>Actual (evidence)</th><th>Result</th></tr>
+<tr><td>1</td><td>Replay test from the measured file: Auto reports no sound; the clip closes after the "after" window</td><td>No sound over the 43-min stretch; keeper keeps only the 5-min tail and closes the clip</td><td><code>AlwaysOnSoundRuleTests.Replay_QuietRoomFixture_Auto_NoSoundAndTheClipClosesAfterTheAfterWindow</code> passes: floor in [-80,-70], line -50, AnySound false, LastSoundUtc null, SoundSeconds 0 with LoudSeconds &gt; 0 (instrument live), real <code>KeeperRule.Decide</code>: keep minutes 0..4, Close [1], OpenClip null, 38 deleted. Fixture load asserts exactly 2580 contiguous rows. Known-bad arm (old peak rule) marks &gt;500 loud seconds. Fires under both mutations.</td><td class="ok">PASS</td></tr>
+<tr><td>2</td><td>Synthetic speech (20 s at -35 with 1-2 s gaps inside -65 noise) is sound</td><td>Sound in the 20 s, none outside</td><td><code>Replay_SpeechLikeSeriesInsideNoise_IsSound</code> passes: AnySound 60..79 true, 0..59 and 80..140 false, LastSoundUtc = 79, Summarize = (16,16).</td><td class="ok">PASS</td></tr>
+<tr><td>3</td><td>Isolated single-second spikes (-20 every 60 s inside -65) are NOT sound</td><td>No sound</td><td><code>Replay_IsolatedSingleSecondSpikesInsideNoise_AreNotSound</code> passes: Summarize = (30 loud, 0 sound). Fires when SustainMinLoudSeconds = 1.</td><td class="ok">PASS</td></tr>
+<tr><td>4</td><td><code>GET /always-on</code> reports the auto line and the floor</td><td><code>status.ThresholdDb</code> and <code>status.FloorDb</code> are numbers</td><td>Code: <code>AlwaysOnStatus.FloorDb</code> added (AlwaysOnEngine.cs ~L57), filled from <code>SoundLog.CurrentFloorDb</code> in <code>Status()</code>; <code>RestServer.AlwaysOnStatus</code> serialises <code>ao.Status()</code> (the engine's object) with System.Text.Json defaults, so every public property is emitted. Unit: <code>Status_Auto_ReportsTheLineAndTheFloorItCameFrom</code> (null/null, then -65/-50, then -40/-25). Live: the branch CLI status line (same object) printed <code>line=-50.0 dBFS (auto) floor=-96.6 dBFS</code> every 15 s. The HTTP endpoint of a branch build was NOT hit live (port 7882 and the single-instance mutex belong to the installed app).</td><td class="ok">PASS</td></tr>
+<tr><td>5</td><td>Keeper logs once per minute: floor, line, loud seconds, sustained</td><td>One <code>[AlwaysOnEngine] levels:</code> line per minute</td><td>Live (QA run, 20 min): 19 lines at 22:50:35, 22:51:35, ... 23:08:35 - exactly 60 s apart, no 75 s gaps. Example: <code>mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=49 sustained=yes (49s)</code>. Unit: <code>Tick_LogsTheLevelsOncePerMinute</code>.</td><td class="ok">PASS</td></tr>
+<tr><td>6</td><td>Live on this laptop: built-in mic + Auto; 10+ min quiet -> no clip; 1 min talk + 6 min quiet -> one ~1+5+5 min clip</td><td>No clip for the quiet run; one ~11 min clip</td><td>See <code>qa-live-run.txt</code>. Quiet half: 11 min on the built-in mic (floor -96.6, line -50) gave loud=0 every minute and no clip before the speech. BUT the built-in mic currently delivers near-digital silence (-94..-96.6 dBFS RMS, confirmed by an independent ffmpeg dshow capture of the same device - meter and recording agree, no scale offset), so the quiet half proves little and the speech half could not use the built-in mic. Speech half, substituted: 60 s of TTS through the system output with counts=both -> loud=18 then 49, sustained=yes, clip opened and took the 5 "before" pieces (clip starts 22:54:20). Unrelated system audio (not QA's) then played ~23:01:50-23:08:20 at -20..-25 dBFS, so the clip stayed open to the run's end: one clip, ffprobe 903.479 s (15.06 min), not ~11 min. The 5-min "after" closure was not observed live; it is proven by criterion 1's test through the real KeeperRule.</td><td class="warn">PASS (partial live; judged on the evidence available)</td></tr>
+<tr><td>7</td><td><code>dotnet build</code> clean and <code>dotnet test</code> green</td><td>0 errors; no failing test</td><td>Build 0 errors. 4 failing tests, all pre-existing and failing identically on main (see Gate). None is caused by this change.</td><td class="ok">PASS (no regression; the 4 pre-existing failures need their own issue)</td></tr>
+</table>
+
+<h2>Code review findings</h2>
+<ul>
+<li>SoundLog: the line is taken before the finished second joins the floor history (a second is judged against the room, not itself); <code>MarkLoud</code> checks every 10-s span that can contain the new second, so out-of-order seconds from two sources are handled; <code>Prune</code> clears both sets; <code>LastSoundUtc</code> now tracks sustained sound only. Logic matches the issue's decisions (RMS, 3-in-10, floor p20 + 15, min -50, same rule for a fixed line).</li>
+<li>AudioCapture / LoopbackCapture: <code>BufferLevel</code> is an additional event; <code>LevelChanged</code> (meters, HUD) is unchanged. Normal-recording <code>GateCalibration</code> untouched, as scoped.</li>
+<li>Logging present (SoundLog created line states the rule; once-per-minute levels line). No try/catch added in helpers. Diff is ASCII-only (byte scan 0 hits; control string fires).</li>
+<li>Privacy posture unchanged (visible / controllable); the change keeps less, and makes the line and floor visible.</li>
+</ul>
+
+<h2>Observations (not defects against this issue's criteria)</h2>
+<ul>
+<li>Applying the new rule (-50 line, 3 in 10) to the WHOLE 5 h 51 min clip gives 1058 sustained-sound seconds; a 5/5-min keeper would still keep about 235 of 351 minutes, as several clips. That file is a MIXED recording (mic + system at 0.7), and today's live run shows system audio playing often on this laptop at -20..-25 dBFS, so those seconds are plausibly system audio that a counts=mic meter would not hear. Worth watching the first real day on the new build via the levels log.</li>
+<li>With Auto, continuous system audio from the start raises the 10-min floor (seen live: system floor -27, line -12), so steady audio that was already playing does not count. This follows the issue's rule; flagging it for the owner.</li>
+<li>Whether normal talking into the built-in Realtek mic reaches -50 dBFS RMS was not measured: the mic delivered ~-96 dBFS during QA, and no recording on disk was made with that mic while someone spoke.</li>
+</ul>
+
+<h2>Not exercised live</h2>
+<p><code>GET /always-on</code> on a branch build over HTTP (installed app owns port 7882 and the mutex; not stopped per instruction); human speech into the built-in mic (mic delivering ~-96 dBFS; no person on cue); a clean 1+5+5 clip closure (external system audio kept the clip open).</p>
+</body>
+</html>

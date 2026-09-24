@@ -31,6 +31,10 @@ namespace AgentEyes.Audio
         /// <summary>Peak amplitude of the most recent buffer, 0.0 - 1.0.</summary>
         public event Action<float>? LevelChanged;
 
+        /// <summary>Peak and sum of squares of the most recent buffer (all channels), for a
+        /// per-second RMS (issue #72).</summary>
+        public event Action<AudioLevel>? BufferLevel;
+
         public LoopbackCapture()
         {
             _capture = new WasapiLoopbackCapture(); // default render device
@@ -138,12 +142,17 @@ namespace AgentEyes.Audio
 
             // Mix format is 32-bit IEEE float.
             float peak = 0f;
+            double sumSquares = 0.0;
+            int samples = 0;
             for (int i = 0; i + 3 < e.BytesRecorded; i += 4)
             {
                 float v = Math.Abs(BitConverter.ToSingle(e.Buffer, i));
                 if (v > peak) peak = v;
+                sumSquares += (double)v * v;
+                samples++;
             }
             LevelChanged?.Invoke(peak);
+            BufferLevel?.Invoke(new AudioLevel(peak, sumSquares, samples));
         }
 
         public void Dispose()

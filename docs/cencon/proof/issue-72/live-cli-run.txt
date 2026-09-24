@@ -1,0 +1,80 @@
+Issue #72 - isolated live run of the freshly built CLI (branch issue-72-alwayson-sustained-rms), 2026-09-23 22:25-22:37 local.
+The installed app was NOT touched (its always-on state was 'off'; GET /always-on read-only). No --mic: ffmpeg did not open the microphone;
+only the shared-mode level meter on the default microphone listened. Clips and work folders in a temp directory, deleted afterwards.
+Nobody spoke on cue and the room was not guaranteed quiet - this is NOT proof of the speech half of criterion 6.
+
+Command:
+  agenteyes.exe always-on --screen 1 --counts mic --threshold auto --before 1 --after 1 --fps 2 --seconds 690 --clips <tmp>\clips --work <tmp>\work
+
+== CLI output (clips folder paths shortened) ==
+[ok] always-on started: setup="cli" capture={X=0,Y=0,Width=1920,Height=1080} mic=(none) system=False counts=Mic threshold=auto before=1m after=1m cap=5GB fps=2 piece=60s clips=<tmp>\clips
+     running for 690s
+  22:26:04 state=listening encoder=h264_qsv line=measuring floor=measuring lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:26:19 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:26:34 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:26:50 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:27:05 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:27:20 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:27:35 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:27:50 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:28:05 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:28:20 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=63s
+  22:28:35 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=63s
+  22:28:51 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=63s
+  22:29:06 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=63s
+  22:29:21 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=123s
+  22:29:36 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=123s
+  22:29:51 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=123s
+  22:30:06 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=123s
+  22:30:21 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=183s
+  22:30:36 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=183s
+  22:30:51 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=183s
+  22:31:06 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=183s
+  22:31:22 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=243s
+  22:31:37 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=243s
+  22:31:52 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=243s
+  22:32:07 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=243s
+  22:32:22 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=303s
+  22:32:37 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=303s
+  22:32:52 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=303s
+  22:33:07 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=303s
+  22:33:22 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=363s
+  22:33:38 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=363s
+  22:33:53 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=363s
+  22:34:08 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=363s
+  22:34:23 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=423s
+  22:34:38 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=423s
+  22:34:53 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=423s
+  22:35:08 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=423s
+  22:35:23 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=483s
+  22:35:39 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=483s
+  22:35:54 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=483s
+  22:36:09 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=483s
+  22:36:24 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=543s
+  22:36:39 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=543s
+  22:36:54 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=543s
+  22:37:09 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=543s
+  22:37:24 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.7 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=603s
+[ok] always-on stopped. Today: 0 clips kept, 0 s, 0 MB. 11 m of silence discarded.
+exit=0
+
+== clips folder after the run ==
+(empty - no clip written)
+
+== [AlwaysOnEngine] levels: lines from %LOCALAPPDATA%\AgentEyes\logs\AgentEyes-20260923.log during the run ==
+22:27:19.464 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:28:34.456 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 75s: loud=0 sustained=no (0s)
+22:29:49.450 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 75s: loud=0 sustained=no (0s)
+22:30:49.453 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:31:49.462 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:32:49.466 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:33:49.470 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:35:04.464 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 75s: loud=0 sustained=no (0s)
+22:36:19.471 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 75s: loud=0 sustained=no (0s)
+22:37:19.480 [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+
+Note: the 75 s gaps above are the defect found by this run (a timer tick a few ms short of 60 s was skipped);
+fixed afterwards with a 1 s tolerance and covered by AlwaysOnEngineTests.Tick_LogsTheLevelsOncePerMinute (tick at 59.99 s logs).
+
+== Installed app v1.11.0 GET /always-on at the same time (read-only, OLD rule, for comparison) ==
+  "State": "off", "Counts": "mic", "ThresholdDb": -60, "ThresholdAuto": true  (old peak-based auto line)

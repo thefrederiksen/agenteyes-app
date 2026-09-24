@@ -1,0 +1,136 @@
+Issue #72 - QA live evidence (QA Agent, independent of the developer run). 2026-09-23, this laptop.
+Binary: freshly built src/AgentEyes.Core/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes.exe from branch issue-72-alwayson-sustained-rms (62b8bd0).
+The installed v1.11.0 app was NOT touched: GET 127.0.0.1:7882/always-on read-only showed State=off; its single-instance mutex and port 7882 block a second App, so the CLI (same AlwaysOnEngine/SoundLog, no port, no mutex) was used. Clips/work went to a temp folder.
+
+== 1. Device state (read-only Core Audio query) ==
+render  Speakers (2- Realtek(R) Audio)        vol=1.00 mute=0
+render  Headset Earphone (Yealink UH36)       vol=1.00 mute=0  [DEFAULT render - the loopback source]
+capture Microphone (2- Realtek(R) Audio)      vol=0.83 mute=0  [built-in mic named in the issue]
+capture Headset Microphone (Yealink UH36)     vol=0.50 mute=0  [DEFAULT capture]
+
+== 2. Meter vs recording scale on the built-in mic (same device, ffmpeg dshow, 23 s, per-second astats) ==
+ffmpeg per-second RMS: -94.6 -94.4 -96.4 -96.6 -96.1 ... -96.4 (all 23 s between -94.4 and -96.6; peak -84.3 = 2 LSB)
+SoundLog meter floor on the same device in the same minutes: -92.7 / -95.7 / -96.3 / -96.2 dBFS
+=> the meter reads the same scale as the recorded file (no 20 dB offset). The built-in mic currently delivers
+   near-digital silence (~-96 dBFS RMS) whatever plays; it is not a gain or meter defect in this change.
+   A 15 s TTS played during this check went to the DEFAULT render device (Yealink headset) and did not reach the built-in mic.
+
+== 3. Live end-to-end run: counts=both (built-in mic + system loopback), Auto, before 5 / after 5 ==
+Command: agenteyes.exe always-on --screen 1 --mic "Realtek" --system --counts both --threshold auto --before 5 --after 5 --fps 2 --seconds 1200 --clips <tmp>\clips --work <tmp>\work
+start 22:49:15
+speech-start 23:00:16
+spoke until 23:01:24
+speech-end 23:01:24
+cli-exit 23:09:23
+<tmp>/clips/2026-09-23_22-54-20.mp4 903.479004
+(speech = 60 s of System.Speech TTS to the default render device, which the loopback hears)
+
+-- CLI status lines (the same AlwaysOnStatus object GET /always-on serialises), every 2nd line --
+[ok] always-on started: setup="cli" capture={X=0,Y=0,Width=1920,Height=1080} mic=Microphone (2- Realtek(R) Audio) system=True counts=Both threshold=auto before=5m after=5m cap=5GB fps=2 piece=60s clips=<tmp>/clips
+     running for 1200s
+  22:49:20 state=listening encoder=h264_qsv line=measuring floor=measuring lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:49:50 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:50:20 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=1 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:50:50 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:51:20 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=2 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:51:50 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=3 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:52:20 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=3 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:52:51 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=4 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:53:21 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=4 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:53:51 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=5 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:54:21 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=5 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:54:51 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=6 openClipPieces=0 clips=0 kept=0s discarded=0s
+  22:55:22 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=5 openClipPieces=0 clips=0 kept=0s discarded=62s
+  22:55:52 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=6 openClipPieces=0 clips=0 kept=0s discarded=62s
+  22:56:22 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=5 openClipPieces=0 clips=0 kept=0s discarded=122s
+  22:56:53 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=6 openClipPieces=0 clips=0 kept=0s discarded=122s
+  22:57:23 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=5 openClipPieces=0 clips=0 kept=0s discarded=182s
+  22:57:53 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=6 openClipPieces=0 clips=0 kept=0s discarded=182s
+  22:58:23 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=5 openClipPieces=0 clips=0 kept=0s discarded=242s
+  22:58:54 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=6 openClipPieces=0 clips=0 kept=0s discarded=242s
+  22:59:24 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=5 openClipPieces=0 clips=0 kept=0s discarded=302s
+  22:59:54 state=listening encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=never waiting=6 openClipPieces=0 clips=0 kept=0s discarded=302s
+  23:00:24 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:00:19 waiting=1 openClipPieces=5 clips=0 kept=0s discarded=302s
+  23:00:55 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:00:49 waiting=1 openClipPieces=6 clips=0 kept=0s discarded=302s
+  23:01:25 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:01:19 waiting=1 openClipPieces=6 clips=0 kept=0s discarded=302s
+  23:01:55 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:01:49 waiting=1 openClipPieces=7 clips=0 kept=0s discarded=302s
+  23:02:25 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:02:19 waiting=1 openClipPieces=7 clips=0 kept=0s discarded=302s
+  23:02:55 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:02:49 waiting=1 openClipPieces=8 clips=0 kept=0s discarded=302s
+  23:03:25 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:03:19 waiting=1 openClipPieces=8 clips=0 kept=0s discarded=302s
+  23:03:55 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:03:49 waiting=1 openClipPieces=9 clips=0 kept=0s discarded=302s
+  23:04:25 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:04:19 waiting=1 openClipPieces=9 clips=0 kept=0s discarded=302s
+  23:04:56 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=23:04:49 waiting=1 openClipPieces=10 clips=0 kept=0s discarded=302s
+  23:05:26 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.6 dBFS lastSound=23:05:19 waiting=1 openClipPieces=10 clips=0 kept=0s discarded=302s
+  23:05:56 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:05:49 waiting=1 openClipPieces=11 clips=0 kept=0s discarded=302s
+  23:06:26 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:06:19 waiting=1 openClipPieces=11 clips=0 kept=0s discarded=302s
+  23:06:56 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:06:49 waiting=1 openClipPieces=12 clips=0 kept=0s discarded=302s
+  23:07:27 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:07:19 waiting=1 openClipPieces=12 clips=0 kept=0s discarded=302s
+  23:07:57 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:07:49 waiting=1 openClipPieces=13 clips=0 kept=0s discarded=302s
+  23:08:27 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:08:19 waiting=1 openClipPieces=13 clips=0 kept=0s discarded=302s
+  23:08:58 state=keeping encoder=h264_qsv line=-50.0 dBFS (auto) floor=-96.5 dBFS lastSound=23:08:49 waiting=1 openClipPieces=14 clips=0 kept=0s discarded=302s
+[ok] always-on stopped. Today: 1 clip kept, 15 m, 20 MB. 5 m of silence discarded.
+
+-- [AlwaysOnEngine] levels: lines (once per minute) from %LOCALAPPDATA%\AgentEyes\logs\AgentEyes-20260923.log --
+22:50:35.092 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-26.8dBFS line=-11.8dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:51:35.083 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-26.8dBFS line=-11.8dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:52:35.077 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-27.2dBFS line=-12.2dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:53:35.088 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-27.5dBFS line=-12.5dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:54:35.086 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-28.6dBFS line=-13.6dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:55:35.077 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-31.0dBFS line=-16.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:56:35.091 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-30.6dBFS line=-15.6dBFS (auto); last 60s: loud=1 sustained=no (0s)
+22:57:35.089 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-29.6dBFS line=-14.6dBFS (auto); last 60s: loud=1 sustained=no (0s)
+22:58:35.087 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-32.2dBFS line=-17.2dBFS (auto); last 60s: loud=0 sustained=no (0s)
+22:59:35.095 [INFO] [AlwaysOnEngine] levels: mic floor=-96.6dBFS line=-50.0dBFS (auto); system floor=-46.0dBFS line=-31.0dBFS (auto); last 60s: loud=0 sustained=no (0s)
+23:00:35.098 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=18 sustained=yes (18s)
+23:01:35.087 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=49 sustained=yes (49s)
+23:02:35.089 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=49 sustained=yes (49s)
+23:03:35.088 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=60 sustained=yes (60s)
+23:04:35.089 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=60 sustained=yes (60s)
+23:05:35.097 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=60 sustained=yes (60s)
+23:06:35.101 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=60 sustained=yes (60s)
+23:07:35.099 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=60 sustained=yes (60s)
+23:08:35.092 [INFO] [AlwaysOnEngine] levels: mic floor=-96.5dBFS line=-50.0dBFS (auto); system floor=-120.0dBFS line=-50.0dBFS (auto); last 60s: loud=50 sustained=yes (50s)
+
+-- clip written --
+2026-09-23_22-54-20.mp4  ffprobe duration=903.479 s (15.06 min), video + stereo 48 kHz audio
+
+-- per-30 s audio level of that clip (ffmpeg astats; mic + system mixed), start 22:54:20 --
+  +   0s avg= -45.6 dBFS  seconds>-50=23
+  +  30s avg= -38.4 dBFS  seconds>-50=23
+  +  60s avg= -24.0 dBFS  seconds>-50=30
+  +  90s avg= -24.1 dBFS  seconds>-50=30
+  + 120s avg= -24.3 dBFS  seconds>-50=30
+  + 150s avg= -26.6 dBFS  seconds>-50=30
+  + 180s avg= -24.4 dBFS  seconds>-50=30
+  + 210s avg= -71.7 dBFS  seconds>-50=9
+  + 240s avg= -83.8 dBFS  seconds>-50=0
+  + 270s avg= -90.9 dBFS  seconds>-50=0
+  + 300s avg= -88.9 dBFS  seconds>-50=0
+  + 330s avg= -78.4 dBFS  seconds>-50=1
+  + 360s avg= -27.8 dBFS  seconds>-50=30
+  + 390s avg= -27.7 dBFS  seconds>-50=30
+  + 420s avg= -70.5 dBFS  seconds>-50=8
+  + 450s avg= -23.7 dBFS  seconds>-50=30
+  + 480s avg= -23.5 dBFS  seconds>-50=30
+  + 510s avg= -29.7 dBFS  seconds>-50=30
+  + 540s avg= -25.0 dBFS  seconds>-50=30
+  + 570s avg= -23.2 dBFS  seconds>-50=30
+  + 600s avg= -22.0 dBFS  seconds>-50=30
+  + 630s avg= -23.7 dBFS  seconds>-50=30
+  + 660s avg= -23.8 dBFS  seconds>-50=30
+  + 690s avg= -19.5 dBFS  seconds>-50=30
+  + 720s avg= -20.0 dBFS  seconds>-50=30
+  + 750s avg= -19.8 dBFS  seconds>-50=30
+  + 780s avg= -25.7 dBFS  seconds>-50=30
+  + 810s avg= -25.5 dBFS  seconds>-50=30
+  + 840s avg= -51.1 dBFS  seconds>-50=17
+  + 870s avg= -53.4 dBFS  seconds>-50=16
+  + 900s avg= -88.0 dBFS  seconds>-50=0
+
+Reading: quiet mic (floor -96.6) -> loud=0 on the mic for the whole run. Before the TTS the system output carried
+OTHER audio not started by QA (22:55-22:58, ~-24 dBFS) while the 10-min Auto floor sat at -27..-31, so the line
+was -12..-16 and none of it counted (loud=0). TTS 23:00:16-23:01:24 -> loud=18 then 49, sustained=yes -> the clip
+opened and took the 5 'before' pieces (clip starts 22:54:20, the piece holding speech-5min). From ~23:01:50 to
+~23:08:20 OTHER system audio again played at -20..-25 dBFS (60 loud s/min, sustained), so the clip correctly stayed
+open until the run ended at 23:09:23 and was flushed on stop: 15.06 min, not the 11 min a clean 1+5+5 would give.
+The 'after' window closing a clip was therefore NOT observed live; it is proven by the replay test over the real KeeperRule.

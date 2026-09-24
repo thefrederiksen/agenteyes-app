@@ -34,6 +34,9 @@ namespace AgentEyes.Audio
         /// <summary>Peak amplitude of the most recent buffer, 0.0 - 1.0.</summary>
         public event Action<float>? LevelChanged;
 
+        /// <summary>Peak and sum of squares of the most recent buffer, for a per-second RMS (issue #72).</summary>
+        public event Action<AudioLevel>? BufferLevel;
+
         public AudioCapture(int deviceNumber)
         {
             _waveIn = new WaveInEvent
@@ -79,13 +82,18 @@ namespace AgentEyes.Audio
             _writer?.Write(e.Buffer, 0, e.BytesRecorded);
 
             float peak = 0f;
+            double sumSquares = 0.0;
+            int samples = 0;
             for (int i = 0; i + 1 < e.BytesRecorded; i += 2)
             {
                 short sample = (short)(e.Buffer[i] | (e.Buffer[i + 1] << 8));
                 float a = Math.Abs(sample) / 32768f;
                 if (a > peak) peak = a;
+                sumSquares += (double)a * a;
+                samples++;
             }
             LevelChanged?.Invoke(peak);
+            BufferLevel?.Invoke(new AudioLevel(peak, sumSquares, samples));
         }
 
         /// <summary>Enumerate input devices as (deviceNumber, name), with full device names.</summary>
