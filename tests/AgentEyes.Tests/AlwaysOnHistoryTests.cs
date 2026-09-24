@@ -228,7 +228,7 @@ namespace AgentEyes.Tests
 
             Assert.Equal(new[] { "first", "second" }, Oldest(h).Select(e => e.Text));
             Assert.Equal(2, File.ReadAllLines(path).Length);        // the torn lines are gone from the file too
-            Assert.Contains("2 unreadable line(s) skipped", File.ReadAllText(Log.CurrentFile));
+            Assert.Contains("2 unreadable line(s) skipped", TestRunIsolation.ReadLog());
         }
 
         [Theory]
@@ -312,7 +312,7 @@ namespace AgentEyes.Tests
 
             Assert.Equal(1, h.Count);
             Assert.Equal("started", h.Events(null, HistoryFilter.All)[0].Text);
-            string log = File.ReadAllText(Log.CurrentFile);
+            string log = TestRunIsolation.ReadLog();
             Assert.Contains("[AlwaysOnHistory] Append: the event could not be written to " + path + "; it is kept in memory", log);
             Assert.DoesNotContain("written to " + path + " and is LOST", log);          // it is not: the list held it (this path - the log is shared by the run)
         }
@@ -569,7 +569,7 @@ namespace AgentEyes.Tests
             Assert.Equal(HistorySeverity.Info, line.Severity);
             Assert.Equal(T0.AddSeconds(60), line.AtUtc);
             Assert.Contains("[AlwaysOnEngine] levels: mic floor=-70.0dBFS line=-50.0dBFS (auto); last 60s: loud=4 sustained=yes (4s); "
-                            + "mic peak=-20.0dBFS avg=-31.8dBFS", File.ReadAllText(Log.CurrentFile));
+                            + "mic peak=-20.0dBFS avg=-31.8dBFS", TestRunIsolation.ReadLog());
         }
 
         [Fact]
@@ -902,7 +902,7 @@ namespace AgentEyes.Tests
                 h.Append(Ev(_now, HistoryKind.State, HistorySeverity.Info, "while locked"));
             }
             Assert.Equal(2, File.ReadAllLines(path).Length);                 // the file is intact
-            string log = File.ReadAllText(Log.CurrentFile);
+            string log = TestRunIsolation.ReadLog();
             Assert.Contains("[AlwaysOnHistory] Load: " + path + " could not be read; nothing is cached", log);
             // Truthful: with the file unreadable there is no memory copy either, so the event is lost - the log says so.
             Assert.Contains("[AlwaysOnHistory] Append: the event could not be written to " + path + " and is LOST - the file could not be read", log);

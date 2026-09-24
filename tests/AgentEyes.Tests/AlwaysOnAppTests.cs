@@ -133,7 +133,7 @@ namespace AgentEyes.Tests
             // The migration is on record in the log.
             Assert.Contains("[Config] MigrateAlwaysOnKeepSettings: v1.11 keep settings (before=5 min, after=5 min) -> "
                             + "keep before 10s, keep after 10s, silence gap 300s",
-                File.ReadAllText(AgentEyes.Log.CurrentFile));
+                TestRunIsolation.ReadLog());
         }
 
         [Theory]

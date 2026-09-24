@@ -211,7 +211,7 @@ namespace AgentEyes.Tests
             Assert.Equal(1, engine.Status().ClipsToday);
             Assert.Empty(Directory.GetDirectories(o.PendingFolder));
             Assert.Empty(Directory.GetFiles(o.PieceFolder));
-            string log = File.ReadAllText(Log.CurrentFile);
+            string log = TestRunIsolation.ReadLog();
             Assert.Contains($"trimmed piece_{t0.AddSeconds(12).ToString(AlwaysOnArgs.PieceStampFormat)}.mp4 (stream copy) - kept 2s to ", log);
             Assert.Contains($"trimmed piece_{t0.AddSeconds(18).ToString(AlwaysOnArgs.PieceStampFormat)}.mp4 (stream copy) - kept 0s to 4s of ", log);
         }
@@ -494,7 +494,7 @@ namespace AgentEyes.Tests
             string? line = engine.LastLevelsLine;
             Assert.NotNull(line);
             Assert.Equal("mic floor=-70.0dBFS line=-50.0dBFS (auto); last 60s: loud=4 sustained=yes (4s)", line);
-            Assert.Contains("[AlwaysOnEngine] levels: " + line, File.ReadAllText(AgentEyes.Log.CurrentFile));
+            Assert.Contains("[AlwaysOnEngine] levels: " + line, TestRunIsolation.ReadLog());
 
             _now = t0.AddSeconds(105);
             engine.Tick();
@@ -747,7 +747,7 @@ namespace AgentEyes.Tests
             Assert.Equal("piece_" + t0.AddMinutes(4).ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4", Path.GetFileName(kept));
             Assert.Contains("set aside", engine.Status().LastError);
             Assert.Equal(0, engine.Status().ClipsToday);
-            string log = File.ReadAllText(Log.CurrentFile);
+            string log = TestRunIsolation.ReadLog();
             Assert.Contains("no recorded video inside the clip's span", log);
             Assert.Contains("set aside, not deleted", log);
         }

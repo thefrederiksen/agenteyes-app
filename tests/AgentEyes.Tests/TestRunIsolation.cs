@@ -56,6 +56,30 @@ namespace AgentEyes.Tests
         /// <summary>The in-memory user environment the setup engine writes to in this run.</summary>
         internal static InMemoryUserEnvironment UserEnvironment { get; } = new();
 
+        /// <summary>
+        /// This run's log, read WITHOUT colliding with the writer (issue #84, second fix).
+        ///
+        /// <c>Log.Write</c> appends with <c>File.AppendAllText</c>, whose stream shares Read only, and
+        /// <c>File.ReadAllText</c> opens sharing Read only too - so under the parallel suite the two
+        /// refuse each other in BOTH directions. A reader that arrives while a line is being appended
+        /// throws "being used by another process" and its test fails on the wrong thing; a writer that
+        /// arrives while a test holds the file for reading gets an IOException that <c>Log.Write</c>
+        /// swallows, so the line is LOST and some other test's log assertion fails. Reading with
+        /// ReadWrite | Delete sharing admits the writer's Write access, and the writer's Read sharing
+        /// admits this reader. The tests that read the WHOLE log read it through here; the four that read
+        /// from an offset (RecordingStopSequenceTests, AlwaysOnStallTests, PreviewChoresTests,
+        /// HudPreviewSizingOrderTests) open their own stream with this same sharing mode.
+        /// </summary>
+        internal static string ReadLog() => ReadShared(Log.CurrentFile);
+
+        /// <summary>Read a whole file while another handle may hold it open for writing.</summary>
+        internal static string ReadShared(string path)
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
 #pragma warning disable CA2255 // A module initializer is exactly the point: it must run before any test does.
         [ModuleInitializer]
 #pragma warning restore CA2255
