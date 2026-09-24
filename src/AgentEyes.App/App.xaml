@@ -74,6 +74,10 @@
         <SolidColorBrush x:Key="DkAccent" Color="#4CC2FF"/>
         <SolidColorBrush x:Key="DkGreen" Color="#22C55E"/>
         <SolidColorBrush x:Key="DkRed" Color="#E5484D"/>
+        <!-- Issue #77: warnings (the silent-microphone banner, warning rows in the history). Red stays
+             for errors and the record state. -->
+        <SolidColorBrush x:Key="DkAmber" Color="#F5A623"/>
+        <SolidColorBrush x:Key="DkAmberSurface" Color="#332A14"/>
 
         <!-- ================================================================
              Redesign palette (issue #16, docs/design/redesign-mockup.html).

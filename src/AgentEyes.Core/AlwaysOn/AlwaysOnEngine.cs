@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using AgentEyes.Audio;
 using AgentEyes.Housekeeping;
 using AgentEyes.Video;
 
@@ -103,6 +104,26 @@ namespace AgentEyes.AlwaysOn
 
         /// <summary>Each of today's capture restarts, oldest first: when, why, and when it recovered (issue #81).</summary>
         public List<AlwaysOnRestart> Restarts { get; set; } = new();
+
+        /// <summary>
+        /// The silent-microphone banner (issue #77), or null when the microphone is not silent: the
+        /// issue's sentence plus why - Windows reports it muted, or no loud second for
+        /// <see cref="SilentMicRule.NoSoundAfter"/>. Never derived from the measured floor (see
+        /// <see cref="SilentMicRule"/>). Null too while always-on is off or paused, or when only the
+        /// system sound counts.
+        /// </summary>
+        public string? SilentMic { get; set; }
+
+        /// <summary>The microphone whose level counts, as Windows names it (issue #77); null when the
+        /// microphone does not count or its endpoint could not be read.</summary>
+        public string? MicDevice { get; set; }
+
+        /// <summary>Windows' mute state for <see cref="MicDevice"/> as last read (at start, then once a
+        /// minute); null when unknown.</summary>
+        public bool? MicMuted { get; set; }
+
+        /// <summary>Windows' master volume for <see cref="MicDevice"/> in percent, as last read; null when unknown.</summary>
+        public double? MicVolumePercent { get; set; }
 
         /// <summary>Seconds from <see cref="OpenClipStartUtc"/> to <paramref name="nowUtc"/>, or null
         /// when no clip is in progress. Never negative.</summary>
@@ -216,7 +237,18 @@ namespace AgentEyes.AlwaysOn
         private readonly Func<IPieceRecorder> _recorderFactory;
         private readonly Func<DateTime> _utcNow;
         private readonly bool _ownTimer;
+        private readonly AlwaysOnHistory _history;
+        private readonly Func<string?, MicEndpointState> _micEndpoint;
         private Timer? _timer;
+
+        // The silent-microphone rule's inputs (issue #77): Windows' view of the microphone as last
+        // read, when the current capture began listening, and the banner in force.
+        private bool? _micMuted;
+        private double? _micVolume;
+        private string? _micDevice;
+        private string? _micReadError;
+        private string? _silentMic;
+        private DateTime _listeningSinceUtc;
 
         private AlwaysOnOptions? _options;
         private IPieceRecorder? _recorder;
@@ -277,12 +309,21 @@ namespace AgentEyes.AlwaysOn
         public AlwaysOnEngine() : this(() => new ContinuousPieceRecorder(), () => DateTime.UtcNow, ownTimer: true) { }
 
         /// <param name="ownTimer">False for tests, which call <see cref="Tick"/> themselves.</param>
-        public AlwaysOnEngine(Func<IPieceRecorder> recorderFactory, Func<DateTime> utcNow, bool ownTimer)
+        /// <param name="history">Where the events go (issue #77); the product's file when null.</param>
+        /// <param name="micEndpoint">How Windows' mute state and volume of a microphone are read (issue
+        /// #77); the real endpoint when null. Tests substitute a muted or an unmuted answer.</param>
+        public AlwaysOnEngine(Func<IPieceRecorder> recorderFactory, Func<DateTime> utcNow, bool ownTimer,
+            AlwaysOnHistory? history = null, Func<string?, MicEndpointState>? micEndpoint = null)
         {
             _recorderFactory = recorderFactory ?? throw new ArgumentNullException(nameof(recorderFactory));
             _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
             _ownTimer = ownTimer;
+            _history = history ?? new AlwaysOnHistory(AlwaysOnOptions.DefaultHistoryFile, _utcNow);
+            _micEndpoint = micEndpoint ?? MicEndpoint.Read;
         }
+
+        /// <summary>The event history (issue #77): every decision, level line and problem, persisted.</summary>
+        public AlwaysOnHistory History => _history;
 
         /// <summary>The current state. Lock-free.</summary>
         public string State => _state;
@@ -297,9 +338,29 @@ namespace AgentEyes.AlwaysOn
         /// <param name="pausedReason">Non-null to switch always-on on already PAUSED - a normal
         /// recording is running and has the screen and the microphone (decision 3). It starts
         /// capturing on <see cref="Resume"/>.</param>
-        public void Start(AlwaysOnOptions options, string? pausedReason = null)
+        /// <param name="why">Who or what started it, for the history (issue #77): "Always On page",
+        /// "control api", "restored at app start", "command line".</param>
+        public void Start(AlwaysOnOptions options, string? pausedReason = null, string why = "user")
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
+            lock (_lock)
+            {
+                if (_state != AlwaysOnState.Off) throw new UsageException("always-on is already on - stop it first.");
+            }
+            try
+            {
+                StartCore(options, pausedReason, why);
+            }
+            catch (Exception ex)
+            {
+                // Recorded, then rethrown: the history says why always-on is not on (issue #77).
+                Record(HistoryKind.Problem, HistorySeverity.Error, $"Always-on could not start ({why}): {ex.Message}");
+                throw;
+            }
+        }
+
+        private void StartCore(AlwaysOnOptions options, string? pausedReason, string why)
+        {
             lock (_lock)
             {
                 if (_state != AlwaysOnState.Off) throw new UsageException("always-on is already on - stop it first.");
@@ -327,9 +388,12 @@ namespace AgentEyes.AlwaysOn
                 _failedJoins.Clear();
                 ResetKeeper();
                 _closedSoundUtc = null;
+                _silentMic = null;
+                _micReadError = null;
 
                 Recover(options);
                 EnforceCap(options);
+                RecordDeviceFacts(options);
 
                 if (pausedReason == null)
                 {
@@ -349,6 +413,10 @@ namespace AgentEyes.AlwaysOn
                 _quickFailures = 0;
                 _state = pausedReason == null ? AlwaysOnState.Listening : AlwaysOnState.Paused;
                 _pausedReason = pausedReason;
+                Record(HistoryKind.State, HistorySeverity.Info,
+                    $"Always-on started ({why})" + (pausedReason == null ? "" : $" - paused: {pausedReason}"));
+                // A microphone Windows reports muted is said at once, not after a minute (issue #77).
+                if (pausedReason == null) UpdateSilentMic(_utcNow(), listening: true);
                 if (_ownTimer && _timer == null)
                     _timer = new Timer(_ => TickFromTimer(), null, TickInterval, TickInterval);
             }
@@ -359,12 +427,13 @@ namespace AgentEyes.AlwaysOn
 
         /// <summary>Turn always-on off: finish the current piece, decide every piece on the sound heard
         /// so far, and write every clip that was being kept.</summary>
-        public void Stop()
+        /// <param name="why">Who or what stopped it, for the history (issue #77).</param>
+        public void Stop(string why = "user")
         {
             lock (_lock)
             {
                 if (_state == AlwaysOnState.Off) return;
-                Log.Info("[AlwaysOnEngine] Stop: stopping always-on");
+                Log.Info($"[AlwaysOnEngine] Stop: stopping always-on ({why})");
                 _timer?.Dispose();
                 _timer = null;
                 try
@@ -378,6 +447,8 @@ namespace AgentEyes.AlwaysOn
                     _state = AlwaysOnState.Off;
                     _pausedReason = null;
                     _sinceUtc = null;
+                    _silentMic = null;
+                    Record(HistoryKind.State, HistorySeverity.Info, $"Always-on stopped ({why})");
                     Publish();
                 }
             }
@@ -404,6 +475,8 @@ namespace AgentEyes.AlwaysOn
                 {
                     _state = AlwaysOnState.Paused;
                     _pausedReason = reason;
+                    _silentMic = null;
+                    Record(HistoryKind.State, HistorySeverity.Info, $"Always-on paused: {reason}");
                     Publish();
                 }
             }
@@ -426,13 +499,17 @@ namespace AgentEyes.AlwaysOn
                     _restartAttempt = 0;
                     _quickFailures = 0;
                     _state = AlwaysOnState.Listening;
+                    Record(HistoryKind.State, HistorySeverity.Info, "Always-on resumed");
+                    UpdateSilentMic(_utcNow(), listening: true);
                 }
                 catch (Exception ex)
                 {
                     Log.Error("[AlwaysOnEngine] Resume: the capture did not restart; retrying", ex);
                     _lastError = ex.Message;
                     _state = AlwaysOnState.Retrying;
-                    ScheduleRestart();
+                    var wait = ScheduleRestart();
+                    Record(HistoryKind.Problem, HistorySeverity.Error,
+                        $"Always-on resumed, but the capture did not start: {ex.Message}. Next attempt in {wait.TotalSeconds:0}s");
                 }
                 Publish();
             }
@@ -464,7 +541,11 @@ namespace AgentEyes.AlwaysOn
                     finally { ResetKeeper(); }
                 }
                 RunKeeper(_options, now, final: false, recorderRunning: running);
+                string? silentBefore = _silentMic;
                 LogLevels(now);
+                // The rule is judged every pass on the last-read mute state, so a microphone that goes
+                // quiet - or speaks again - moves the banner within a tick, not a minute (issue #77).
+                UpdateSilentMic(now, listening: running);
 
                 if (_state is AlwaysOnState.Listening or AlwaysOnState.Keeping)
                     _state = IsKeeping(now) ? AlwaysOnState.Keeping : AlwaysOnState.Listening;
@@ -473,7 +554,7 @@ namespace AgentEyes.AlwaysOn
                 // While a clip is in progress every pass changes its running time, which the page and
                 // the tray show (issue #70) - so a keeping pass always counts as a change.
                 changed = before != _state || clipsBefore != _day.Clips || discardedBefore != _day.DiscardedSeconds
-                          || _state == AlwaysOnState.Keeping;
+                          || _state == AlwaysOnState.Keeping || silentBefore != _silentMic;
                 Publish();
             }
             if (changed) RaiseChanged();
@@ -512,6 +593,10 @@ namespace AgentEyes.AlwaysOn
                 KeptBytesToday = _day.KeptBytes,
                 DiscardedSecondsToday = Math.Round(_day.DiscardedSeconds, 1),
                 LastClip = _lastClip,
+                SilentMic = _silentMic,
+                MicDevice = _micDevice,
+                MicMuted = _micMuted,
+                MicVolumePercent = _micVolume,
             };
             if (_state == AlwaysOnState.Keeping)
             {
@@ -630,6 +715,7 @@ namespace AgentEyes.AlwaysOn
             _recorder = rec;
             _encoder = rec.Encoder;
             _recorderStartedUtc = launched;
+            _listeningSinceUtc = launched;
             _piecesBeforeLaunch = before;
         }
 
@@ -653,6 +739,8 @@ namespace AgentEyes.AlwaysOn
             last.RecoveredUtc = mine[0].StartUtc;
             Log.Info($"[AlwaysOnEngine] NoteRecovery: recording again since {mine[0].StartUtc.ToLocalTime():HH:mm:ss} "
                      + $"(the capture failed at {last.AtUtc.ToLocalTime():HH:mm:ss})");
+            Record(HistoryKind.Problem, HistorySeverity.Info,
+                $"Recording again since {mine[0].StartUtc.ToLocalTime():HH:mm:ss} (the capture failed at {last.AtUtc.ToLocalTime():HH:mm:ss})");
             SaveDay("recovery");
         }
 
@@ -673,6 +761,8 @@ namespace AgentEyes.AlwaysOn
             {
                 Log.Error($"[AlwaysOnEngine] SaveDay: today's counters ({why}) could not be written to {file}; "
                           + "the recording goes on and the next save writes them", ex);
+                Record(HistoryKind.Problem, HistorySeverity.Error,
+                    $"Today's counters could not be written to {file} ({ex.Message}); the recording goes on and the next save retries");
             }
         }
 
@@ -726,6 +816,8 @@ namespace AgentEyes.AlwaysOn
             LastRestartReport = $"{reason}; ffmpeg {state}. Its last {FfmpegStderr.TailLines} lines:{Environment.NewLine}{tail}";
             Log.Error($"[AlwaysOnEngine] Supervise: {reason}; restarting. ffmpeg {state}. "
                       + $"Its last {FfmpegStderr.TailLines} lines:{Environment.NewLine}{tail}");
+            Record(HistoryKind.Problem, HistorySeverity.Error,
+                $"Capture failed: {reason}; ffmpeg {state}. ffmpeg said: {LastLine(tail)}", detail: tail);
             _day.EnsureDay(now);
             _day.Restarts.Add(new AlwaysOnRestart { AtUtc = now, Reason = reason + " - ffmpeg " + state, LastPieceStartUtc = newestPiece });
             SaveDay("restart");
@@ -757,7 +849,9 @@ namespace AgentEyes.AlwaysOn
                     _restartAttempt = Math.Min(_quickFailures - 2, RestartBackoff.Length - 1);
                     Log.Warn($"[AlwaysOnEngine] Supervise: {_quickFailures} captures in a row failed before writing a whole piece; "
                              + "the next restart waits instead of starting at once");
-                    ScheduleRestart();
+                    var wait = ScheduleRestart();
+                    Record(HistoryKind.Problem, HistorySeverity.Warning,
+                        $"{_quickFailures} captures in a row failed before writing a whole piece; the next restart waits {wait.TotalSeconds:0}s");
                 }
                 else
                 {
@@ -778,6 +872,9 @@ namespace AgentEyes.AlwaysOn
                 Log.Info($"[AlwaysOnEngine] TryRestart: capture restarted (attempt {_restartAttempt + 1}); it counts as "
                          + "recovered once it opens a piece"
                          + (_open != null ? "; the clip in progress stays open and the new pieces continue it" : ""));
+                Record(HistoryKind.Problem, HistorySeverity.Info,
+                    $"Capture restarted (attempt {_restartAttempt + 1}); it counts as recovered once it opens a piece"
+                    + (_open != null ? "; the clip in progress stays open" : ""));
                 _restartAttempt = 0;
                 _state = AlwaysOnState.Listening;
             }
@@ -786,16 +883,21 @@ namespace AgentEyes.AlwaysOn
                 Log.Error($"[AlwaysOnEngine] TryRestart: restart attempt {_restartAttempt + 1} failed", ex);
                 _lastError = ex.Message;
                 _state = AlwaysOnState.Retrying;
-                ScheduleRestart();
+                int attempt = _restartAttempt + 1;
+                var wait = ScheduleRestart();
+                Record(HistoryKind.Problem, HistorySeverity.Error,
+                    $"Restart attempt {attempt} failed: {ex.Message}. Next attempt in {wait.TotalSeconds:0}s");
             }
         }
 
-        private void ScheduleRestart()
+        /// <returns>How long the wait is.</returns>
+        private TimeSpan ScheduleRestart()
         {
             var wait = RestartBackoff[Math.Min(_restartAttempt, RestartBackoff.Length - 1)];
             _restartAttempt++;
             _nextRestartUtc = _utcNow() + wait;
             Log.Info($"[AlwaysOnEngine] ScheduleRestart: next attempt in {wait.TotalSeconds:0}s");
+            return wait;
         }
 
         private void StopRecorderAndFinish(string why)
@@ -852,10 +954,27 @@ namespace AgentEyes.AlwaysOn
             // A tolerance of one second: the 15-second timer fires a few milliseconds early as often as
             // late, and a strict compare then skips a whole tick (a 75-second "minute" seen live).
             if (now - _levelsLoggedUtc.Value < LevelLogInterval - TimeSpan.FromSeconds(1)) return;
-            string line = sound.Describe(_levelsLoggedUtc.Value, now.AddSeconds(-1));
-            Log.Info($"[AlwaysOnEngine] levels: {line}");
+            DateTime from = _levelsLoggedUtc.Value, to = now.AddSeconds(-1);
+            string line = sound.Describe(from, to);
+            // Issue #77: the minute's peak and average RMS per source, after the floor/line/loud part.
+            string levels = "";
+            foreach (var source in new[] { SoundSource.Mic, SoundSource.System })
+            {
+                if (sound.Levels(source, from, to) is MinuteLevels m)
+                    levels += $"; {source.ToString().ToLowerInvariant()} peak={m.PeakDb:0.0}dBFS avg={m.AverageDb:0.0}dBFS";
+            }
+            Log.Info($"[AlwaysOnEngine] levels: {line}{levels}");
             LastLevelsLine = line;
             _levelsLoggedUtc = now;
+
+            // Once a minute Windows is asked again whether the microphone is muted - a mute in the
+            // middle of the day shows within a minute, and the flag on the line follows the
+            // silent-microphone rule, never the floor (issue #77, tester's finding).
+            if (_options != null) ReadMicEndpoint(_options);
+            UpdateSilentMic(now, listening: _recorder != null && !_recorder.HasExited);
+            bool silent = _silentMic != null;
+            Record(HistoryKind.Level, silent ? HistorySeverity.Warning : HistorySeverity.Info,
+                $"Levels: {line}{levels}" + (silent ? " " + SilentMicRule.LevelFlag : ""));
         }
 
         private void RunKeeper(AlwaysOnOptions o, DateTime now, bool final, bool recorderRunning)
@@ -889,6 +1008,9 @@ namespace AgentEyes.AlwaysOn
                 Log.Warn($"[AlwaysOnEngine] keeper: {name} continues across a capture restart - a gap of "
                          + $"{(toUtc - fromUtc).TotalSeconds:0}s ({fromUtc.ToLocalTime():HH:mm:ss} to {toUtc.ToLocalTime():HH:mm:ss}) "
                          + "has no piece; the clip is not split there");
+                Record(HistoryKind.Problem, HistorySeverity.Warning,
+                    $"{name} continues across a capture restart - {(toUtc - fromUtc).TotalSeconds:0}s "
+                    + $"({fromUtc.ToLocalTime():HH:mm:ss} to {toUtc.ToLocalTime():HH:mm:ss}) has no video; the clip is not split there");
             }
 
             foreach (var (piece, clip, copy) in plan.Keep)
@@ -906,6 +1028,10 @@ namespace AgentEyes.AlwaysOn
                 Log.Info($"[AlwaysOnEngine] keeper: KEEP {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s) -> {Path.GetFileName(dir)}"
                          + (copy ? " (a copy: the rest of it may be the lead-in of the next clip, so it stays to be decided again)" : "")
                          + (piece.Duration < KeeperRule.ShortPiece ? " (shorter than 5s - a restart's leftover - joined to the clip it follows)" : ""));
+                Record(HistoryKind.Decision, HistorySeverity.Info,
+                    $"KEEP {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s) -> {Path.GetFileName(dir)}"
+                    + (copy ? " (a copy; the rest may begin the next clip)" : "")
+                    + (piece.Duration < KeeperRule.ShortPiece ? " (a restart's short leftover, joined to the clip it follows)" : ""));
             }
             foreach (var piece in plan.Delete)
             {
@@ -913,6 +1039,9 @@ namespace AgentEyes.AlwaysOn
                 _day.EnsureDay(now);
                 _day.DiscardedSeconds += piece.Duration.TotalSeconds;
                 Log.Info($"[AlwaysOnEngine] keeper: DELETE {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s, no sound near it)");
+                Record(HistoryKind.Decision, HistorySeverity.Info,
+                    $"DELETE {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s) - no sound within "
+                    + $"{AlwaysOnKeepSettings.Describe(o.KeepBefore)} before it or {AlwaysOnKeepSettings.Describe(o.KeepAfter)} after it");
             }
             foreach (var span in plan.Close)
             {
@@ -992,12 +1121,16 @@ namespace AgentEyes.AlwaysOn
                     _lastError = $"a kept piece could not be read and was set aside in {o.UnreadableFolder}";
                     Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(p)} cannot be read ({ex.Message}); "
                              + $"it is left out of the clip and kept at {kept}");
+                    Record(HistoryKind.Problem, HistorySeverity.Warning,
+                        $"{Path.GetFileName(p)} cannot be read ({ex.Message}); it is left out of the clip and kept at {kept}");
                 }
             }
             if (readable.Count == 0)
             {
                 Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} has no readable piece left; "
                          + $"its pieces are in {o.UnreadableFolder}");
+                Record(HistoryKind.Problem, HistorySeverity.Warning,
+                    $"{Path.GetFileName(dir)} has no readable piece left; no clip is written and its pieces are in {o.UnreadableFolder}");
                 Directory.Delete(dir, recursive: true);
                 return;
             }
@@ -1033,6 +1166,9 @@ namespace AgentEyes.AlwaysOn
                 Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} - no recorded video inside the clip's span "
                          + $"({span!.StartUtc.ToLocalTime():HH:mm:ss} to {span.EndUtc.ToLocalTime():HH:mm:ss}); no clip is written and "
                          + $"its {trim.Outside.Count} piece(s) ({outsideSeconds:0.#}s) are set aside, not deleted, in {setAside}");
+                Record(HistoryKind.Problem, HistorySeverity.Warning,
+                    $"No clip written for {Path.GetFileName(dir)}: no recorded video inside its span "
+                    + $"({span.StartUtc.ToLocalTime():HH:mm:ss} to {span.EndUtc.ToLocalTime():HH:mm:ss}); its {trim.Outside.Count} piece(s) are set aside in {setAside}");
                 return;
             }
 
@@ -1065,6 +1201,7 @@ namespace AgentEyes.AlwaysOn
                 _failedJoins.Add(dir);
                 _lastError = $"joining the clip {Path.GetFileName(dir)} failed; its pieces are kept in {dir}";
                 Log.Error($"[AlwaysOnEngine] JoinClip: {_lastError}", ex);
+                Record(HistoryKind.Problem, HistorySeverity.Error, $"Joining the clip {Path.GetFileName(dir)} failed: {ex.Message}. Its pieces are kept in {dir}");
                 if (File.Exists(outPath)) File.Delete(outPath);
                 return;
             }
@@ -1086,6 +1223,9 @@ namespace AgentEyes.AlwaysOn
             _lastClip = outPath;
             Log.Info($"[AlwaysOnEngine] JoinClip: wrote {outPath} ({trim.Parts.Count} pieces, {seconds:0}s, {bytes / 1024.0 / 1024:0.0} MB"
                      + (span == null ? "" : $", starts {start:HH:mm:ss}") + ")");
+            Record(HistoryKind.Clip, HistorySeverity.Info,
+                $"Clip saved: {outPath} - {AlwaysOnDay.Duration(seconds)}, {AlwaysOnDay.Size(bytes)}, {trim.Parts.Count} piece(s)"
+                + (span == null ? " (left by an earlier run; joined whole)" : ""));
         }
 
         /// <summary>A folder path under <paramref name="parent"/> named <paramref name="name"/> that does
@@ -1124,6 +1264,8 @@ namespace AgentEyes.AlwaysOn
                 Log.Warn($"[AlwaysOnEngine] Recover: deleting {Path.GetFileName(path)} - left by an earlier run that "
                          + "ended before deciding it, and its sound log went with that run");
                 File.Delete(path);
+                Record(HistoryKind.Decision, HistorySeverity.Warning,
+                    $"DELETE {Path.GetFileName(path)} - left by an earlier run that ended before deciding it; nothing says whether it had sound");
             }
             _day.Save(o.StatsFile);
         }
@@ -1148,8 +1290,12 @@ namespace AgentEyes.AlwaysOn
                 // Either way the name leaves the ledger: deleted, or no longer the file we wrote.
                 evicted.Add(c.Recording);
                 if (EvictIfUnchanged(c.Recording, proven.Length, proven.LastWriteTimeUtc.Ticks))
+                {
                     Log.Info($"[AlwaysOnEngine] EnforceCap: deleted {Path.GetFileName(c.Recording)} "
                              + $"({c.Bytes / 1024.0 / 1024:0.0} MB) - the clips were over the {o.CapBytes / 1024.0 / 1024 / 1024:0.##} GB cap");
+                    Record(HistoryKind.Clip, HistorySeverity.Info,
+                        $"Clip deleted: {c.Recording} ({AlwaysOnDay.Size(c.Bytes)}) - the clips were over the {o.CapBytes / 1024.0 / 1024 / 1024:0.##} GB cap");
+                }
             }
             // Rewrite the ledger to the clips that are still there and still the file that was
             // written: an evicted or replaced name stops being deletion authority at once (review
@@ -1313,10 +1459,120 @@ namespace AgentEyes.AlwaysOn
                 lock (_lock)
                 {
                     _lastError = "the keeper failed: " + ex.Message;
+                    Record(HistoryKind.Problem, HistorySeverity.Error, $"The keeper pass failed: {ex.Message}. The next pass tries again");
                     Publish();
                 }
                 RaiseChanged();
             }
+        }
+
+        // ---- the history and the silent-microphone rule (issue #77) --------
+
+        /// <summary>Add one event to the history. Never throws (the history is a record of the
+        /// recording, not a condition for it).</summary>
+        private void Record(HistoryKind kind, HistorySeverity severity, string text, string? detail = null)
+        {
+            try
+            {
+                _history.Append(new AlwaysOnEvent { AtUtc = _utcNow(), Kind = kind, Severity = severity, Text = text, Detail = detail });
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[AlwaysOnEngine] Record: the history refused an event ({kind}/{severity}: {text})", ex);
+            }
+        }
+
+        /// <summary>
+        /// The device facts at start (issue #77): which microphone and whether Windows reports it muted
+        /// and at what volume, whether the system sound is recorded, and which sound counts. Caller holds
+        /// the lock.
+        /// </summary>
+        private void RecordDeviceFacts(AlwaysOnOptions o)
+        {
+            ReadMicEndpoint(o);
+            string mic;
+            if (o.Counts == SoundSource.System)
+                mic = o.DshowMic == null ? "microphone not recorded and not listened to" : $"microphone \"{o.DshowMic}\" recorded (its level does not count)";
+            else if (_micDevice != null)
+                mic = $"microphone \"{_micDevice}\" - Windows: {(_micMuted == true ? "MUTED" : "not muted")}, volume {_micVolume:0}%"
+                      + (o.DshowMic == null ? " (level only, not recorded)" : "");
+            else
+                mic = $"microphone \"{o.MicLevelDevice ?? "(default)"}\" - Windows state unknown: {_micReadError}";
+            string system = o.RecordSystem ? "system sound recorded (default playback device)" : "system sound not recorded";
+            string counts = o.Counts switch { SoundSource.System => "system sound", SoundSource.Both => "microphone or system sound", _ => "microphone" };
+            Record(HistoryKind.Device, _micMuted == true ? HistorySeverity.Warning : HistorySeverity.Info,
+                $"Devices: {mic}; {system}; {counts} counts. Setup \"{o.SetupName}\"");
+        }
+
+        /// <summary>
+        /// Ask Windows whether the microphone whose level counts is muted, and how loud it is set. Not
+        /// asked when only the system sound counts. A read that fails - no such device, no default
+        /// microphone - leaves the state unknown (null), is recorded once per distinct message, and the
+        /// rule then judges on sound alone. Caller holds the lock.
+        /// </summary>
+        private void ReadMicEndpoint(AlwaysOnOptions o)
+        {
+            if (o.Counts == SoundSource.System)
+            {
+                _micMuted = null;
+                _micVolume = null;
+                _micDevice = null;
+                return;
+            }
+            try
+            {
+                var state = _micEndpoint(o.MicLevelDevice);
+                bool? wasMuted = _micMuted;
+                _micMuted = state.Muted;
+                _micVolume = state.VolumePercent;
+                _micDevice = state.Name;
+                _micReadError = null;
+                if (wasMuted.HasValue && wasMuted.Value != state.Muted)
+                    Log.Info($"[AlwaysOnEngine] ReadMicEndpoint: {state.Describe()}");
+            }
+            catch (Exception ex)
+            {
+                _micMuted = null;
+                _micVolume = null;
+                _micDevice = null;
+                if (_micReadError != ex.Message)
+                {
+                    _micReadError = ex.Message;
+                    Log.Warn($"[AlwaysOnEngine] ReadMicEndpoint: Windows' mute state for the microphone could not be read: {ex.Message}");
+                    Record(HistoryKind.Problem, HistorySeverity.Warning,
+                        $"Windows' mute state for the microphone could not be read ({ex.Message}); the silent-microphone rule judges on sound alone");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Apply <see cref="SilentMicRule"/> and record a transition (issue #77). Judged only while
+        /// always-on is on and the microphone counts. While the capture is down (<paramref name="listening"/>
+        /// false) no sound can arrive, so only the mute arm applies. Caller holds the lock.
+        /// </summary>
+        private void UpdateSilentMic(DateTime now, bool listening)
+        {
+            string? text = null;
+            if (_options != null && _options.Counts != SoundSource.System
+                && _state is AlwaysOnState.Listening or AlwaysOnState.Keeping or AlwaysOnState.Retrying)
+            {
+                var reason = SilentMicRule.Evaluate(_micMuted,
+                    listening ? _sound?.LastLoudUtc(SoundSource.Mic) : null,
+                    listening ? _listeningSinceUtc : now, now);
+                text = reason.HasValue ? SilentMicRule.Describe(reason.Value) : null;
+            }
+            if (text == _silentMic) return;
+            if (text != null)
+            {
+                Log.Warn($"[AlwaysOnEngine] UpdateSilentMic: {text}");
+                Record(HistoryKind.Problem, HistorySeverity.Warning, text);
+            }
+            else
+            {
+                Log.Info($"[AlwaysOnEngine] UpdateSilentMic: {SilentMicRule.ClearedText}");
+                Record(HistoryKind.Problem, HistorySeverity.Info, SilentMicRule.ClearedText);
+            }
+            _silentMic = text;
         }
 
         private void RaiseChanged()
@@ -1327,7 +1583,7 @@ namespace AgentEyes.AlwaysOn
 
         public void Dispose()
         {
-            Stop();
+            Stop("shutdown");
             _timer?.Dispose();
         }
     }

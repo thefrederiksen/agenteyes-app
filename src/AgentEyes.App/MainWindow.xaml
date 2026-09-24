@@ -600,9 +600,28 @@
 
                 <!-- ===== ALWAYS ON VIEW (issue #66): records all the time, keeps only the
                      stretches with sound. Code-behind: MainWindow.AlwaysOn.cs ===== -->
-                <ScrollViewer x:Name="AlwaysOnPanel" Visibility="Collapsed" VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel HorizontalAlignment="Center" Width="700" Margin="0,18,0,20">
+                <Grid x:Name="AlwaysOnPanel" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <!-- Issue #77: the silent-microphone banner, above both tabs. Shown from the status
+                         snapshot while the rule holds (Windows reports the microphone muted, or not one
+                         loud second for 10 min - never the measured floor); collapsed when the level returns. -->
+                    <Border Grid.Row="0" x:Name="AOSilentMicBanner" Visibility="Collapsed" Width="700" HorizontalAlignment="Center"
+                            Background="{StaticResource DkAmberSurface}" BorderBrush="{StaticResource DkAmber}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,8" Margin="0,14,0,0" AutomationProperties.Name="Silent microphone banner">
+                        <TextBlock x:Name="AOSilentMicText" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource DkAmber}"
+                                   TextWrapping="Wrap" AutomationProperties.Name="Silent microphone warning"/>
+                    </Border>
+                    <!-- Issue #77: two tabs - the recording view (settings, today, clips) and the history.
+                         Code-behind: MainWindow.AlwaysOn.cs and MainWindow.AlwaysOnHistory.cs -->
+                    <TabControl Grid.Row="1" x:Name="AOTabs" Style="{StaticResource DkTab}" Width="700" HorizontalAlignment="Center"
+                                Margin="0,10,0,0" SelectionChanged="AOTabs_SelectionChanged" AutomationProperties.Name="Always-on tabs">
+                        <TabItem x:Name="AOTabRecording" Header="Recording" Style="{StaticResource DkTabItem}"
+                                 AutomationProperties.Name="Recording tab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="0,4,0,20">
                         <TextBlock x:Name="AOStatusText" FontSize="12" Foreground="{StaticResource RdDim}"
                                    TextWrapping="Wrap" AutomationProperties.Name="Always-on status"
                                    Text="Records all the time and keeps only the stretches with sound."/>
@@ -767,6 +786,85 @@
                                    TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.Name="Always-on error"/>
                     </StackPanel>
                 </ScrollViewer>
+                        </TabItem>
+
+                        <!-- Issue #77: the History tab - every decision, level line and problem, newest
+                             first, filtered. Loaded off the UI thread; live while showing. -->
+                        <TabItem x:Name="AOTabHistory" Header="History" Style="{StaticResource DkTabItem}"
+                                 AutomationProperties.Name="History tab">
+                            <Grid Margin="0,0,0,12">
+                                <Grid.Resources>
+                                    <!-- Plain rows: the row is the line, no selection colour, a hairline between rows. -->
+                                    <Style x:Key="AOHistoryItem" TargetType="ListBoxItem">
+                                        <Setter Property="Focusable" Value="False"/>
+                                        <Setter Property="Padding" Value="8,3"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <Border Background="Transparent" Padding="{TemplateBinding Padding}"
+                                                            BorderThickness="0,0,0,1" BorderBrush="{StaticResource RdStroke}">
+                                                        <ContentPresenter/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Grid.Resources>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                    <TextBlock Text="Show:" FontSize="12" Foreground="{StaticResource RdDim}"
+                                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <RadioButton x:Name="AOHistoryAll" Content="All" Tag="all" GroupName="AOHistoryFilter" IsChecked="True"
+                                                 Style="{StaticResource DkRadio}" Checked="AOHistoryFilter_Changed" Margin="0,0,14,0"
+                                                 AutomationProperties.Name="History filter All"/>
+                                    <RadioButton x:Name="AOHistoryDecisions" Content="Decisions" Tag="decisions" GroupName="AOHistoryFilter"
+                                                 Style="{StaticResource DkRadio}" Checked="AOHistoryFilter_Changed" Margin="0,0,14,0"
+                                                 ToolTip="Pieces kept or deleted, and clips written"
+                                                 AutomationProperties.Name="History filter Decisions"/>
+                                    <RadioButton x:Name="AOHistoryLevels" Content="Levels" Tag="levels" GroupName="AOHistoryFilter"
+                                                 Style="{StaticResource DkRadio}" Checked="AOHistoryFilter_Changed" Margin="0,0,14,0"
+                                                 ToolTip="The once-a-minute level line: floor, line, loud seconds, peak and average"
+                                                 AutomationProperties.Name="History filter Levels"/>
+                                    <RadioButton x:Name="AOHistoryProblems" Content="Problems" Tag="problems" GroupName="AOHistoryFilter"
+                                                 Style="{StaticResource DkRadio}" Checked="AOHistoryFilter_Changed"
+                                                 ToolTip="Every warning and error"
+                                                 AutomationProperties.Name="History filter Problems"/>
+                                </StackPanel>
+                                <TextBlock Grid.Row="1" x:Name="AOHistoryStatus" Text="Loading..." FontSize="12"
+                                           Foreground="{StaticResource RdDim}" Margin="0,8,0,6" TextWrapping="Wrap"
+                                           AutomationProperties.Name="Always-on history status"/>
+                                <ListBox Grid.Row="2" x:Name="AOHistoryList" Background="{StaticResource RdSurface}"
+                                         BorderBrush="{StaticResource RdStroke}" BorderThickness="1"
+                                         ItemContainerStyle="{StaticResource AOHistoryItem}"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                         AutomationProperties.Name="Always-on history">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ToolTip="{Binding Detail}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="140"/>
+                                                    <ColumnDefinition Width="74"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding When}" FontFamily="Consolas" FontSize="12"
+                                                           Foreground="{StaticResource RdDim}" VerticalAlignment="Top"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Badge}" FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="{Binding BadgeBrush}" VerticalAlignment="Top" Margin="0,1,0,0"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Text}" FontSize="12"
+                                                           Foreground="{Binding TextBrush}" TextWrapping="Wrap"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
 
                 <!-- ===== DICTIONARY VIEW (issue #37 follow-up): first-class rail destination.
                      Corrects the terms recording transcription must get right. ===== -->

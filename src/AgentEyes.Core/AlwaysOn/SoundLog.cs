@@ -13,6 +13,10 @@ namespace AgentEyes.AlwaysOn
     /// <summary>What the sound log heard between two times (issue #72), for the keeper's minute log.</summary>
     internal readonly record struct SoundSummary(int LoudSeconds, int SoundSeconds);
 
+    /// <summary>The loudest second and the power-average level of a source over a stretch of finished
+    /// seconds, in dBFS RMS, and how many seconds that is (issue #77).</summary>
+    internal readonly record struct MinuteLevels(double PeakDb, double AverageDb, int Seconds);
+
     /// <summary>
     /// The always-on sound log (issues #66, #72): which SECONDS had sound, for the sources that count.
     /// It is fed the level of every audio buffer the capture produces, and the keeper asks it one
@@ -132,6 +136,7 @@ namespace AgentEyes.AlwaysOn
                 if (track.Observe(second, level, out long done, out double doneDb)
                     && line.HasValue && doneDb > line.Value)
                 {
+                    if (!track.LastLoudSecond.HasValue || done > track.LastLoudSecond.Value) track.LastLoudSecond = done;
                     MarkLoud(done);
                 }
             }
@@ -201,6 +206,37 @@ namespace AgentEyes.AlwaysOn
         {
             if (!_tracks.TryGetValue(source, out var track)) return null;
             lock (_gate) return track.FloorDb();
+        }
+
+        /// <summary>
+        /// The last second of <paramref name="source"/> whose RMS was above the line, or null when there
+        /// has been none (issue #77). Kept apart from the pruned sets, like <see cref="LastSoundUtc"/>:
+        /// the silent-microphone rule asks "when did the microphone last deliver anything loud at all"
+        /// long after the keeper has forgotten the second.
+        /// </summary>
+        public DateTime? LastLoudUtc(SoundSource source)
+        {
+            if (!_tracks.TryGetValue(source, out var track)) return null;
+            lock (_gate)
+            {
+                return track.LastLoudSecond.HasValue
+                    ? DateTimeOffset.FromUnixTimeSeconds(track.LastLoudSecond.Value).UtcDateTime
+                    : null;
+            }
+        }
+
+        /// <summary>
+        /// The loudest and the average per-second RMS of <paramref name="source"/> over the finished
+        /// seconds in [fromUtc, toUtc] (issue #77), or null when the source does not count or no second
+        /// in the range has finished. The average is a power average (mean of the mean squares, in dB),
+        /// not a mean of dB values, so one loud second is not hidden by fifty-nine quiet ones. Only the
+        /// last <see cref="FloorWindow"/> of seconds is kept, so ask within that.
+        /// </summary>
+        public MinuteLevels? Levels(SoundSource source, DateTime fromUtc, DateTime toUtc)
+        {
+            if (!_tracks.TryGetValue(source, out var track) || toUtc < fromUtc) return null;
+            long a = ToSecond(fromUtc), b = ToSecond(toUtc);
+            lock (_gate) return track.Levels(a, b);
         }
 
         /// <summary>
@@ -290,6 +326,26 @@ namespace AgentEyes.AlwaysOn
             private long _current = long.MinValue;
             private double _sumSquares;
             private long _samples;
+
+            /// <summary>The last second judged loud on this source, or null (issue #77).</summary>
+            public long? LastLoudSecond { get; set; }
+
+            /// <summary>Peak and power-average RMS of the finished seconds in [a, b], or null for none.</summary>
+            public MinuteLevels? Levels(long a, long b)
+            {
+                double peak = double.NegativeInfinity;
+                double meanSquares = 0;
+                int n = 0;
+                foreach (var (second, db) in _seconds)
+                {
+                    if (second < a || second > b) continue;
+                    if (db > peak) peak = db;
+                    meanSquares += Math.Pow(10, db / 10.0);
+                    n++;
+                }
+                if (n == 0) return null;
+                return new MinuteLevels(peak, RmsDb(meanSquares / n), n);
+            }
 
             /// <summary>Add a buffer. Returns true, with the finished second and its RMS, when this
             /// buffer belongs to a new second and so closes the one before it.</summary>
