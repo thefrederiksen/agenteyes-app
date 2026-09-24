@@ -39,8 +39,11 @@ namespace AgentEyes.Tests
             SetupName = "test",
             Counts = SoundSource.Mic,
             ThresholdDb = threshold,
+            // Two-minute margins either side of the speech (issue #79: seconds; 2 min is the most keep-before
+            // allows) and the 5 min silence gap that closes a clip.
             KeepBefore = TimeSpan.FromMinutes(2),
             KeepAfter = TimeSpan.FromMinutes(2),
+            SilenceGap = TimeSpan.FromMinutes(5),
             CapBytes = capBytes,
             ClipsFolder = Path.Combine(_root, "clips"),
             WorkFolder = Path.Combine(_root, "work"),
@@ -67,6 +70,33 @@ namespace AgentEyes.Tests
                 Path.Combine(folder, name),
             }, "test piece");
         }
+
+        /// <summary>
+        /// A real SIX-second MP4 with a keyframe every 2 s - the grid the always-on capture forces (issue
+        /// #79) - named as ffmpeg names a piece that opened at <paramref name="startUtc"/>. Encoded once per
+        /// test run and copied.
+        /// </summary>
+        private static void WriteKeyframedPiece(string folder, DateTime startUtc)
+        {
+            Directory.CreateDirectory(folder);
+            string name = "piece_" + startUtc.ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4";
+            File.Copy(KeyframedTemplate.Value, Path.Combine(folder, name), overwrite: true);
+        }
+
+        private static readonly Lazy<string> KeyframedTemplate = new(() =>
+        {
+            string path = Path.Combine(Path.GetTempPath(), "agenteyes-alwayson-keyframed-" + Guid.NewGuid().ToString("N") + ".mp4");
+            Ffmpeg.Run(new[]
+            {
+                "-y", "-f", "lavfi", "-i", "color=c=gray:s=160x90:r=10:d=6",
+                "-f", "lavfi", "-i", "sine=f=300:d=6",
+                "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                "-force_key_frames", $"expr:gte(t,n_forced*{AlwaysOnArgs.DefaultKeyframeSeconds})",
+                "-c:a", "aac", "-shortest",
+                path,
+            }, "test keyframed piece template");
+            return path;
+        });
 
         /// <summary>
         /// Four seconds of talking at -20 dBFS RMS starting at <paramref name="atUtc"/>, then one buffer
@@ -97,11 +127,14 @@ namespace AgentEyes.Tests
             }
             engine.Stop();
 
-            // Windows of 2 min: pieces 2..6 have the 4:30 sound within [start - 2, end + 2].
+            // The clip's span is 2:30 (2 min before the 4:30 speech) to 6:34 (2 min after its last second,
+            // 4:33). The keeper keeps the pieces from 2:00 to 6:00; every piece is a 2-second test file, so
+            // the piece from 2:00 holds only 2:00-2:02 - ahead of the lead-in - and the trim leaves it out (a
+            // real minute-long piece would be cut at 2:30 instead). The clip is the pieces from 3:00 to 6:00.
             var clips = Directory.GetFiles(o.ClipsFolder, "*.mp4");
             Assert.Single(clips);
-            Assert.Equal(t0.AddMinutes(2).ToLocalTime().ToString("yyyy-MM-dd_HH-mm-ss") + ".mp4", Path.GetFileName(clips[0]));
-            Assert.Equal(5 * 2, MediaProbe.DurationSeconds(clips[0]), 0);
+            Assert.Equal(t0.AddMinutes(3).ToLocalTime().ToString("yyyy-MM-dd_HH-mm-ss") + ".mp4", Path.GetFileName(clips[0]));
+            Assert.Equal(4 * 2, MediaProbe.DurationSeconds(clips[0]), 0);
             Assert.Empty(Directory.GetFiles(o.PieceFolder));
             Assert.Empty(Directory.GetDirectories(o.PendingFolder));
 
@@ -113,7 +146,7 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Engine_ClipIsWrittenOnceAfterWindowOfSilencePasses_WhileStillRecording()
+        public void Engine_ClipIsWrittenOnceTheSilenceGapPasses_WhileStillRecording()
         {
             var o = Options();
             using var engine = Engine();
@@ -129,9 +162,94 @@ namespace AgentEyes.Tests
                 if (m == 3) Assert.Equal(AlwaysOnState.Keeping, engine.State);
             }
 
-            // Sound at 0:30 with a 2 min after window: the clip closed while always-on is still on.
+            // Sound at 0:30 with a 5 min silence gap: the clip closed at 6:00, while always-on is still on.
             Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
             Assert.Equal(AlwaysOnState.Listening, engine.State);
+        }
+
+        [Fact]
+        public void Engine_ClipIsTrimmedToItsSpan_FirstPieceCutOnAKeyframeAndLastPieceCutAtTheTail()
+        {
+            // Issue #79 end to end on real files: 6 s pieces with a keyframe every 2 s (as the capture forces
+            // them), 2 s before, 2 s after, a 30 s silence gap. Talking from 0:16 to 0:19 makes the span
+            // 0:14 - 0:22: the piece from 0:12 is cut at its 2 s keyframe (0:14) and the piece from 0:18 is
+            // cut to end at 0:22 - both stream copies. Three whole pieces would be 12 s; the clip is 8 s.
+            var o = new AlwaysOnOptions
+            {
+                SetupName = "test",
+                Counts = SoundSource.Mic,
+                ThresholdDb = -40,
+                KeepBefore = TimeSpan.FromSeconds(2),
+                KeepAfter = TimeSpan.FromSeconds(2),
+                SilenceGap = TimeSpan.FromSeconds(30),
+                CapBytes = 5L * 1024 * 1024 * 1024,
+                ClipsFolder = Path.Combine(_root, "clips"),
+                WorkFolder = Path.Combine(_root, "work"),
+                PieceSeconds = 6,
+                KeyframeSeconds = 2,
+            };
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            for (int s = 0; s <= 36; s += 6)
+            {
+                _now = t0.AddSeconds(s);
+                WriteKeyframedPiece(o.PieceFolder, _now);
+                if (s == 24) Speak(_recorders[0].Sound!, t0.AddSeconds(16));
+                engine.Tick();
+            }
+            _now = t0.AddSeconds(70);
+            engine.Stop();
+
+            var clip = Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
+            // Named for where the kept video starts: the keyframe at 0:14, not the piece's 0:12.
+            Assert.Equal(t0.AddSeconds(14).ToLocalTime().ToString("yyyy-MM-dd_HH-mm-ss") + ".mp4", Path.GetFileName(clip));
+            // 4 s of the first piece + 4 s of the last. A cut that missed the keyframe (landing on 0:12)
+            // would make this 10; no trim at all would make it 12.
+            Assert.Equal(8, MediaProbe.DurationSeconds(clip), 0);
+            Assert.Equal(8, engine.Status().KeptSecondsToday, 0);
+            Assert.Equal(1, engine.Status().ClipsToday);
+            Assert.Empty(Directory.GetDirectories(o.PendingFolder));
+            Assert.Empty(Directory.GetFiles(o.PieceFolder));
+            string log = File.ReadAllText(Log.CurrentFile);
+            Assert.Contains($"trimmed piece_{t0.AddSeconds(12).ToString(AlwaysOnArgs.PieceStampFormat)}.mp4 (stream copy) - kept 2s to ", log);
+            Assert.Contains($"trimmed piece_{t0.AddSeconds(18).ToString(AlwaysOnArgs.PieceStampFormat)}.mp4 (stream copy) - kept 0s to 4s of ", log);
+        }
+
+        [Fact]
+        public void Start_KeepSettingsOutOfRange_ThrowsWithTheReasonAndLeavesAlwaysOnOff()
+        {
+            using var engine = Engine();
+            var o = new AlwaysOnOptions
+            {
+                SetupName = "test", Counts = SoundSource.Mic, ThresholdDb = -40,
+                KeepBefore = TimeSpan.FromSeconds(121), KeepAfter = TimeSpan.FromSeconds(10), SilenceGap = TimeSpan.FromMinutes(5),
+                ClipsFolder = Path.Combine(_root, "clips"), WorkFolder = Path.Combine(_root, "work"),
+            };
+
+            var ex = Assert.Throws<UsageException>(() => engine.Start(o));
+
+            Assert.Equal("Keep before the speech must be 0 s to 2 min, not 2 min 1 s.", ex.Message);
+            Assert.Equal(AlwaysOnState.Off, engine.State);
+            Assert.Empty(_recorders);                       // refused before any capture was started
+        }
+
+        [Fact]
+        public void Start_PieceNotAWholeNumberOfKeyframes_ThrowsAndLeavesAlwaysOnOff()
+        {
+            using var engine = Engine();
+            var o = new AlwaysOnOptions
+            {
+                SetupName = "test", Counts = SoundSource.Mic, ThresholdDb = -40,
+                ClipsFolder = Path.Combine(_root, "clips"), WorkFolder = Path.Combine(_root, "work"),
+                PieceSeconds = 61, KeyframeSeconds = 2,
+            };
+
+            var ex = Assert.Throws<UsageException>(() => engine.Start(o));
+
+            Assert.Contains("whole number of keyframe intervals", ex.Message);
+            Assert.Equal(AlwaysOnState.Off, engine.State);
+            Assert.Empty(_recorders);
         }
 
         // ---- issue #70: the clip in progress, and where today's clips are -----
@@ -179,7 +297,7 @@ namespace AgentEyes.Tests
             Assert.Equal(t0, s.OpenClipStartUtc);
             Assert.Equal(180.0, s.OpenClipElapsedSeconds);
             Assert.Equal(240.0, s.OpenClipElapsedAt(t0.AddMinutes(4)));
-            Assert.Equal($"Recording a clip now - 3 min so far. Saved to {o.ClipsFolder} after 2 min of quiet.",
+            Assert.Equal($"Recording a clip now - 3 min so far. Saved to {o.ClipsFolder} after 5 min of quiet.",
                 s.InProgressLine(_now));
             Assert.Empty(s.ClipsKeptToday);                 // nothing written yet: the clip is still pieces
         }
@@ -200,7 +318,7 @@ namespace AgentEyes.Tests
             Assert.Equal(AlwaysOnState.Keeping, s.State);
             Assert.Equal(t0, s.OpenClipStartUtc);
             Assert.Equal(20.0, s.OpenClipElapsedSeconds);
-            Assert.Equal($"Recording a clip now - under 1 min so far. Saved to {o.ClipsFolder} after 2 min of quiet.",
+            Assert.Equal($"Recording a clip now - under 1 min so far. Saved to {o.ClipsFolder} after 5 min of quiet.",
                 s.InProgressLine(_now));
         }
 

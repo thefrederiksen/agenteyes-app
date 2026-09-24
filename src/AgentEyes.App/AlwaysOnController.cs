@@ -67,6 +67,9 @@ namespace AgentEyes.App
         /// <summary>Why the last start failed, or null. Cleared by the next start.</summary>
         public string? LastStartError => _lastStartError;
 
+        /// <summary>The saved settings (issue #79: the Control API reports the keep settings from here).</summary>
+        internal Config Settings => _cfg;
+
         public string ClipsFolder => string.IsNullOrWhiteSpace(_cfg.AlwaysOnClipsFolder)
             ? AlwaysOnOptions.DefaultClipsFolder
             : _cfg.AlwaysOnClipsFolder!;
@@ -287,6 +290,7 @@ namespace AgentEyes.App
         /// <summary>Pure mapping from settings and a setup to engine options (devices resolved here).</summary>
         internal static AlwaysOnOptions BuildOptions(Config cfg, CapturePreset preset, string clipsFolder)
         {
+            var (keepBefore, keepAfter, silenceGap) = KeepSettings(cfg);
             var mon = Monitors.Require(preset.MonitorIndex);
             var capture = preset.UseRegion && preset.Region is { Length: 4 } r
                 ? new System.Drawing.Rectangle(r[0], r[1], r[2], r[3])
@@ -319,11 +323,30 @@ namespace AgentEyes.App
                 SystemGain = preset.SysVol / 100.0,
                 Counts = counts,
                 ThresholdDb = cfg.AlwaysOnThresholdDb,
-                KeepBefore = TimeSpan.FromMinutes(Math.Max(0, cfg.AlwaysOnBeforeMinutes)),
-                KeepAfter = TimeSpan.FromMinutes(Math.Max(0, cfg.AlwaysOnAfterMinutes)),
+                KeepBefore = keepBefore,
+                KeepAfter = keepAfter,
+                SilenceGap = silenceGap,
                 CapBytes = cfg.AlwaysOnCapGb <= 0 ? 0 : (long)(cfg.AlwaysOnCapGb * 1024 * 1024 * 1024),
                 ClipsFolder = clipsFolder,
             };
+        }
+
+        /// <summary>
+        /// The saved keep settings (issue #79), refused with the reason when config.json holds one out of
+        /// range - always-on then does not start, rather than running on a value nobody chose.
+        /// </summary>
+        internal static (TimeSpan KeepBefore, TimeSpan KeepAfter, TimeSpan SilenceGap) KeepSettings(Config cfg)
+        {
+            var before = TimeSpan.FromSeconds(cfg.AlwaysOnKeepBeforeSeconds);
+            var after = TimeSpan.FromSeconds(cfg.AlwaysOnKeepAfterSeconds);
+            var gap = TimeSpan.FromSeconds(cfg.AlwaysOnSilenceGapSeconds);
+            string? problem = AlwaysOnKeepSettings.Problem(before, after, gap);
+            if (problem != null)
+            {
+                Log.Warn($"[AlwaysOnController] KeepSettings: config.json is out of range - {problem}");
+                throw new UsageException(problem + " Change it on the Always On page.");
+            }
+            return (before, after, gap);
         }
 
         internal static SoundSource ParseCounts(string? s) => (s ?? "mic").ToLowerInvariant() switch

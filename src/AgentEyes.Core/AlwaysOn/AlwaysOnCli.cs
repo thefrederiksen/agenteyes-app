@@ -15,7 +15,7 @@ namespace AgentEyes.AlwaysOn
     {
         public const string Usage =
             "  agenteyes always-on --screen N [--mic \"NAME\"] [--system] [--counts mic|system|both] [--threshold DB|auto]\n"
-            + "                     [--before MIN] [--after MIN] [--cap-gb N] [--piece SECONDS] [--fps N] [--seconds N]\n"
+            + "                     [--before SEC] [--after SEC] [--gap SEC] [--cap-gb N] [--piece SECONDS] [--fps N] [--seconds N]\n"
             + "                     [--clips DIR] [--work DIR]    record all day, keep only the stretches with sound";
 
         public static int Run(CliArgs opts)
@@ -29,8 +29,10 @@ namespace AgentEyes.AlwaysOn
             bool system = opts.Has("system");
             var counts = ParseCounts(opts.Get("counts") ?? (micFragment != null ? "mic" : "system"));
             double? threshold = ParseThreshold(opts.Get("threshold"));
-            double before = ParseDouble(opts.Get("before"), 5, "before");
-            double after = ParseDouble(opts.Get("after"), 5, "after");
+            // Issue #79: seconds, and the silence gap that closes a clip is its own setting.
+            double before = ParseDouble(opts.Get("before"), AlwaysOnKeepSettings.DefaultKeepBefore.TotalSeconds, "before");
+            double after = ParseDouble(opts.Get("after"), AlwaysOnKeepSettings.DefaultKeepAfter.TotalSeconds, "after");
+            double gap = ParseDouble(opts.Get("gap"), AlwaysOnKeepSettings.DefaultSilenceGap.TotalSeconds, "gap");
             double capGb = ParseDouble(opts.Get("cap-gb"), 5, "cap-gb");
             int piece = opts.Has("piece") ? opts.RequireInt("piece", "e.g. --piece 60") : 60;
             int fps = opts.Has("fps") ? opts.RequireInt("fps", "e.g. --fps 10") : 10;
@@ -49,8 +51,9 @@ namespace AgentEyes.AlwaysOn
                 RecordSystem = system,
                 Counts = counts,
                 ThresholdDb = threshold,
-                KeepBefore = TimeSpan.FromMinutes(before),
-                KeepAfter = TimeSpan.FromMinutes(after),
+                KeepBefore = TimeSpan.FromSeconds(before),
+                KeepAfter = TimeSpan.FromSeconds(after),
+                SilenceGap = TimeSpan.FromSeconds(gap),
                 CapBytes = (long)(capGb * 1024 * 1024 * 1024),
                 ClipsFolder = opts.Get("clips") ?? AlwaysOnOptions.DefaultClipsFolder,
                 WorkFolder = opts.Get("work") ?? AlwaysOnOptions.DefaultWorkFolder + "-cli",

@@ -87,8 +87,20 @@ namespace AgentEyes.Tests
             Assert.True(loud > 500, $"old peak rule marked {loud} of {rows.Count} seconds loud");
         }
 
+        /// <summary>The real sound log plus one second of talking that ended before the replay started,
+        /// so the keeper has a clip open when the quiet room begins (issue #79).</summary>
+        private sealed class WithEarlierSpeech : ISoundTimes
+        {
+            private readonly SoundLog _log;
+            private readonly DateTime _speech;
+            public WithEarlierSpeech(SoundLog log, DateTime speech) { _log = log; _speech = speech; }
+            private bool Holds(DateTime from, DateTime to) => from <= _speech && _speech <= to;
+            public DateTime? FirstSound(DateTime fromUtc, DateTime toUtc) => Holds(fromUtc, toUtc) ? _speech : _log.FirstSound(fromUtc, toUtc);
+            public DateTime? LastSound(DateTime fromUtc, DateTime toUtc) => _log.LastSound(fromUtc, toUtc) ?? (Holds(fromUtc, toUtc) ? _speech : null);
+        }
+
         [Fact]
-        public void Replay_QuietRoomFixture_Auto_NoSoundAndTheClipClosesAfterTheAfterWindow()
+        public void Replay_QuietRoomFixture_Auto_NoSoundAndTheClipClosesAfterTheSilenceGap()
         {
             var rows = QuietRoomFixture();
             var log = new SoundLog(SoundSource.Mic, null);
@@ -111,28 +123,32 @@ namespace AgentEyes.Tests
             Assert.True(sum.LoudSeconds < SoundLog.SustainMinLoudSeconds * 2,
                 $"{sum.LoudSeconds} loud seconds in a quiet room - the line is in the noise");
 
-            // The keeper over the same stretch, one-minute pieces, keep 5 before / 5 after (the owner's
-            // settings). A clip is open from talking that ended one second before the stretch.
-            var before = TimeSpan.FromMinutes(5);
-            var after = TimeSpan.FromMinutes(5);
+            // The keeper over the same stretch, one-minute pieces, the issue #79 defaults (10 s before,
+            // 10 s after, a clip closes after 5 min of silence). A clip is open from talking that began
+            // at -0:30 and ended one second before the stretch.
+            var w = new KeepWindows(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10), TimeSpan.FromMinutes(5));
             DateTime lastSpeech = At(-1);
-            Func<DateTime, DateTime, bool> anySound = (a, b) => (a <= lastSpeech && lastSpeech <= b) || log.AnySound(a, b);
+            var sound = new WithEarlierSpeech(log, lastSpeech);
+            var open = new OpenClip(1, At(-30), lastSpeech, At(0));
             var pieces = Enumerable.Range(0, end / 60)
                 .Select(m => new Piece($"piece_{m}.mp4", At(m * 60), At(m * 60 + 60), 1))
                 .ToList();
             Assert.Equal(43, pieces.Count);
 
-            var plan = KeeperRule.Decide(pieces, anySound, At(end) + before + TimeSpan.FromSeconds(1),
-                before, after, openClip: 1, openClipEndUtc: At(0), nextClip: 2, final: false);
+            var plan = KeeperRule.Decide(pieces, sound, At(end) + w.SilenceGap + KeeperRule.SoundSettle, w,
+                open, null, 2, final: false);
 
-            // Kept: only the "after" tail of the earlier talking - the pieces starting at minutes 0..4.
-            Assert.Equal(Enumerable.Range(0, 5).Select(m => At(m * 60)), plan.Keep.Select(k => k.Piece.StartUtc));
-            Assert.All(plan.Keep, k => Assert.Equal(1, k.Clip));
-            // The clip closes once 5 minutes pass with no sound; nothing else is kept.
-            Assert.Equal(new[] { 1 }, plan.Close);
-            Assert.Null(plan.OpenClip);
-            Assert.Equal(38, plan.Delete.Count);
-            Assert.Equal(At(5 * 60), plan.Delete[0].StartUtc);
+            // Kept: only the piece holding the 10 s tail of the earlier talking (the clip ends at 0:10).
+            var kept = Assert.Single(plan.Keep);
+            Assert.Equal((At(0), 1, false), (kept.Piece.StartUtc, kept.Clip, kept.Copy));
+            // The clip closes once 5 minutes pass with no sound: 10 s before its first speech to 10 s
+            // after its last. Nothing else is kept.
+            var span = Assert.Single(plan.Close);
+            Assert.Equal((1, At(-40), At(10)), (span.Clip, span.StartUtc, span.EndUtc));
+            Assert.Null(plan.Open);
+            Assert.Equal(lastSpeech, plan.ClosedSoundUtc);
+            Assert.Equal(42, plan.Delete.Count);
+            Assert.Equal(At(60), plan.Delete[0].StartUtc);
         }
 
         // ---- synthetic series (criteria 2 and 3) ------------------------------------------------

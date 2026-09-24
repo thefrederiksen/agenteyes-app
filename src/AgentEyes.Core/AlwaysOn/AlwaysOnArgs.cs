@@ -30,13 +30,21 @@ namespace AgentEyes.AlwaysOn
         /// <summary>The format of <see cref="PiecePattern"/> for parsing a piece's name back.</summary>
         public const string PieceStampFormat = "yyyyMMdd-HHmmss";
 
+        /// <summary>The keyframe interval of the always-on capture, in seconds (issue #79).</summary>
+        public const int DefaultKeyframeSeconds = 2;
+
         /// <summary>
         /// One continuous capture written as fixed-length pieces.
         ///
         /// THE FORCED KEYFRAME IS THE POINT. The segment muxer can only cut at a keyframe; the June
         /// spike (docs/24-7-m0-spike-findings.md) left keyframes to the encoder and got pieces of 106,
-        /// 26 and 54 seconds. Forcing one every <paramref name="pieceSeconds"/> of output time makes
-        /// every cut land where it was asked for.
+        /// 26 and 54 seconds. Forcing one every <paramref name="keyframeSeconds"/> of output time -
+        /// a whole number of which make one piece - makes every piece cut land where it was asked for.
+        ///
+        /// Issue #79 moved the keyframe from once a piece (60 s) to every 2 s: a clip now starts
+        /// keep-before (10 s) ahead of the speech, and a lossless stream-copy trim can only start on a
+        /// keyframe. Inside every piece the keyframes are then at 0, 2, 4, ... seconds, which is what
+        /// <see cref="ClipTrim"/> relies on.
         /// </summary>
         /// <param name="capture">Region in virtual-desktop device pixels (a whole monitor = its bounds).</param>
         /// <param name="desktop">The virtual-desktop bounds, to clamp and pad an oversized region.</param>
@@ -46,10 +54,14 @@ namespace AgentEyes.AlwaysOn
         public static List<string> Capture(
             Drawing.Rectangle capture, Drawing.Rectangle? desktop, int fps, string encoder,
             string? dshowMic, double micGain, string? systemPipe, PipeAudioFormat? systemFormat, double systemGain,
-            int pieceSeconds, string pieceDir)
+            int pieceSeconds, string pieceDir, int keyframeSeconds = DefaultKeyframeSeconds)
         {
             if (fps <= 0) throw new ArgumentOutOfRangeException(nameof(fps), "frame rate must be positive");
             if (pieceSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(pieceSeconds), "piece length must be positive");
+            if (keyframeSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(keyframeSeconds), "the keyframe interval must be positive");
+            if (pieceSeconds % keyframeSeconds != 0)
+                throw new ArgumentException($"a piece ({pieceSeconds}s) must be a whole number of keyframe intervals ({keyframeSeconds}s), "
+                    + "or the pieces would not be cut where they are asked to be", nameof(keyframeSeconds));
             if (string.IsNullOrWhiteSpace(encoder)) throw new ArgumentException("an encoder is required", nameof(encoder));
             if (string.IsNullOrWhiteSpace(pieceDir)) throw new ArgumentException("a piece directory is required", nameof(pieceDir));
             if (systemPipe != null && systemFormat == null)
@@ -122,7 +134,7 @@ namespace AgentEyes.AlwaysOn
             }
 
             a.AddRange(EncoderArgs(encoder));
-            a.AddRange(new[] { "-force_key_frames", $"expr:gte(t,n_forced*{pieceSeconds.ToString(inv)})" });
+            a.AddRange(new[] { "-force_key_frames", $"expr:gte(t,n_forced*{keyframeSeconds.ToString(inv)})" });
             if (micInput >= 0 || sysInput >= 0) a.AddRange(new[] { "-c:a", "aac", "-b:a", "128k" });
 
             a.AddRange(new[]
@@ -178,6 +190,31 @@ namespace AgentEyes.AlwaysOn
             "-movflags", "+faststart",
             outPath,
         };
+
+        /// <summary>
+        /// Cut one piece of a clip WITHOUT RE-ENCODING (issue #79): a stream copy that starts at
+        /// <paramref name="inSeconds"/> (a keyframe time - the input seek lands on the keyframe at or
+        /// before it) and/or ends at <paramref name="outSeconds"/>, both measured from the piece's start.
+        /// Null keeps the piece from its start / to its end. The copied timestamps are shifted to start
+        /// at zero so the cut piece joins the rest with the concat demuxer like any other.
+        /// </summary>
+        public static List<string> Trim(string input, string output, double? inSeconds, double? outSeconds)
+        {
+            if (string.IsNullOrWhiteSpace(input)) throw new ArgumentException("an input piece is required", nameof(input));
+            if (string.IsNullOrWhiteSpace(output)) throw new ArgumentException("an output path is required", nameof(output));
+            if (inSeconds is null && outSeconds is null) throw new ArgumentException("a trim needs a start or an end");
+            if (inSeconds < 0) throw new ArgumentOutOfRangeException(nameof(inSeconds), "a trim cannot start before the piece");
+            if (outSeconds is double o && o <= (inSeconds ?? 0))
+                throw new ArgumentOutOfRangeException(nameof(outSeconds), "a trim must end after it starts");
+
+            var inv = CultureInfo.InvariantCulture;
+            var a = new List<string> { "-y" };
+            if (inSeconds is double i) a.AddRange(new[] { "-ss", i.ToString("0.###", inv) });
+            a.AddRange(new[] { "-i", input });
+            if (outSeconds is double end) a.AddRange(new[] { "-t", (end - (inSeconds ?? 0)).ToString("0.###", inv) });
+            a.AddRange(new[] { "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", output });
+            return a;
+        }
 
         /// <summary>The concat demuxer's list file for the given pieces, in order.</summary>
         public static string JoinList(IEnumerable<string> piecePaths)

@@ -27,13 +27,17 @@ namespace AgentEyes.Tests
         private static string Joined(List<string> a) => string.Join(" ", a);
 
         [Fact]
-        public void Capture_ForcesAKeyframeAtEveryPieceBoundary()
+        public void Capture_ForcesAKeyframeEveryTwoSeconds_AndCutsSixtySecondPieces()
         {
+            // Issue #79: a keyframe every 2 s (it was one per 60 s piece), so a clip can start 10 s
+            // before the speech with a lossless cut; the pieces stay 60 s, a whole number of keyframes.
             var a = Capture("Mic", false);
 
             int i = a.IndexOf("-force_key_frames");
             Assert.True(i >= 0);
-            Assert.Equal("expr:gte(t,n_forced*60)", a[i + 1]);
+            Assert.Equal("expr:gte(t,n_forced*2)", a[i + 1]);
+            Assert.Equal(2, AlwaysOnArgs.DefaultKeyframeSeconds);
+            Assert.Equal(1, a.Count(x => x == "-force_key_frames"));
             Assert.Equal("60", a[a.IndexOf("-segment_time") + 1]);
             Assert.Equal("1", a[a.IndexOf("-reset_timestamps") + 1]);
             Assert.Equal("1", a[a.IndexOf("-strftime") + 1]);
@@ -45,8 +49,26 @@ namespace AgentEyes.Tests
         {
             var a = Capture("Mic", false, piece: 10);
 
-            Assert.Equal("expr:gte(t,n_forced*10)", a[a.IndexOf("-force_key_frames") + 1]);
+            Assert.Equal("expr:gte(t,n_forced*2)", a[a.IndexOf("-force_key_frames") + 1]);
             Assert.Equal("10", a[a.IndexOf("-segment_time") + 1]);
+        }
+
+        [Fact]
+        public void Capture_KeyframeIntervalFollowsTheOption()
+        {
+            var a = AlwaysOnArgs.Capture(Screen, Screen, 10, "h264_qsv", "Mic", 1.0, null, null, 0.7, 60, @"C:\work\pieces",
+                keyframeSeconds: 5);
+
+            Assert.Equal("expr:gte(t,n_forced*5)", a[a.IndexOf("-force_key_frames") + 1]);
+        }
+
+        [Fact]
+        public void Capture_PieceNotAWholeNumberOfKeyframes_Throws()
+        {
+            // A 61 s piece cannot be cut on a 2 s keyframe grid: the pieces would drift off their minute.
+            Assert.Throws<ArgumentException>(() => Capture("Mic", false, piece: 61));
+            Assert.Throws<ArgumentOutOfRangeException>(() => AlwaysOnArgs.Capture(Screen, Screen, 10, "libx264", null, 1,
+                null, null, 1, 60, @"C:\w", keyframeSeconds: 0));
         }
 
         [Fact]
@@ -141,6 +163,67 @@ namespace AgentEyes.Tests
             Assert.Equal("copy", a[a.IndexOf("-c") + 1]);
             Assert.Equal("concat", a[a.IndexOf("-f") + 1]);
             Assert.Equal("out.mp4", a[^1]);
+        }
+
+        [Fact]
+        public void Join_NeverNamesAnEncoder()
+        {
+            var a = AlwaysOnArgs.Join("list.txt", "out.mp4");
+
+            Assert.Equal(new[] { "-y", "-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "-movflags", "+faststart", "out.mp4" }, a);
+            Assert.DoesNotContain(a, x => x.StartsWith("-c:") || x.StartsWith("-crf") || x.Contains("264") || x == "-vf" || x == "-af");
+        }
+
+        // ---- the trim (issue #79) ------------------------------------------------
+
+        [Fact]
+        public void Trim_StartAndEnd_IsAStreamCopyFromTheKeyframeForTheKeptLength()
+        {
+            var a = AlwaysOnArgs.Trim(@"C:\h\piece_1.mp4", @"C:\h\cut_piece_1.mp4", 54, 58.5);
+
+            Assert.Equal(new[]
+            {
+                "-y", "-ss", "54", "-i", @"C:\h\piece_1.mp4", "-t", "4.5",
+                "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", @"C:\h\cut_piece_1.mp4",
+            }, a);
+        }
+
+        [Fact]
+        public void Trim_StartOnly_SeeksOnTheInputAndKeepsToTheEnd()
+        {
+            var a = AlwaysOnArgs.Trim("in.mp4", "out.mp4", 54, null);
+
+            Assert.Equal(new[] { "-y", "-ss", "54", "-i", "in.mp4", "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", "out.mp4" }, a);
+            // Input seeking: -ss comes before -i, so a stream copy starts on the keyframe at or before it.
+            Assert.True(a.IndexOf("-ss") < a.IndexOf("-i"));
+        }
+
+        [Fact]
+        public void Trim_EndOnly_KeepsFromTheStartForTheGivenLength()
+        {
+            var a = AlwaysOnArgs.Trim("in.mp4", "out.mp4", null, 10);
+
+            Assert.Equal(new[] { "-y", "-i", "in.mp4", "-t", "10", "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", "out.mp4" }, a);
+        }
+
+        [Fact]
+        public void Trim_NeverReencodes()
+        {
+            foreach (var a in new[] { AlwaysOnArgs.Trim("i", "o", 2, null), AlwaysOnArgs.Trim("i", "o", null, 3), AlwaysOnArgs.Trim("i", "o", 2, 30) })
+            {
+                Assert.Equal("copy", a[a.IndexOf("-c") + 1]);
+                Assert.DoesNotContain(a, x => x.StartsWith("-c:") || x.StartsWith("-crf") || x.Contains("264") || x == "-vf" || x == "-af"
+                                              || x == "-filter_complex" || x.StartsWith("-b:"));
+            }
+        }
+
+        [Fact]
+        public void Trim_BadCut_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => AlwaysOnArgs.Trim("i", "o", null, null));
+            Assert.Throws<ArgumentOutOfRangeException>(() => AlwaysOnArgs.Trim("i", "o", -2, null));
+            Assert.Throws<ArgumentOutOfRangeException>(() => AlwaysOnArgs.Trim("i", "o", 10, 10));
+            Assert.Throws<ArgumentException>(() => AlwaysOnArgs.Trim("", "o", 2, null));
         }
 
         [Fact]

@@ -39,8 +39,17 @@ namespace AgentEyes.AlwaysOn
         /// <summary>The fixed line in dBFS, or null for Auto.</summary>
         public double? ThresholdDb { get; init; }
 
-        public TimeSpan KeepBefore { get; init; } = TimeSpan.FromMinutes(5);
-        public TimeSpan KeepAfter { get; init; } = TimeSpan.FromMinutes(5);
+        /// <summary>How much a clip keeps before its first sound (issue #79). See <see cref="AlwaysOnKeepSettings"/>.</summary>
+        public TimeSpan KeepBefore { get; init; } = AlwaysOnKeepSettings.DefaultKeepBefore;
+
+        /// <summary>How much a clip keeps after its last sound (issue #79).</summary>
+        public TimeSpan KeepAfter { get; init; } = AlwaysOnKeepSettings.DefaultKeepAfter;
+
+        /// <summary>How long a quiet stretch closes a clip (issue #79); a shorter pause stays inside it.</summary>
+        public TimeSpan SilenceGap { get; init; } = AlwaysOnKeepSettings.DefaultSilenceGap;
+
+        /// <summary>The three keep settings as the keeper takes them.</summary>
+        public KeepWindows Windows => new(KeepBefore, KeepAfter, SilenceGap);
 
         /// <summary>The most disk the clips may use, in bytes. Zero means no cap.</summary>
         public long CapBytes { get; init; } = 5L * 1024 * 1024 * 1024;
@@ -57,6 +66,10 @@ namespace AgentEyes.AlwaysOn
 
         /// <summary>The length of one piece. Sixty seconds in the product; tests shorten it.</summary>
         public int PieceSeconds { get; init; } = 60;
+
+        /// <summary>The forced keyframe interval (issue #79): where a clip's first piece can be cut
+        /// losslessly. A piece must be a whole number of them.</summary>
+        public int KeyframeSeconds { get; init; } = AlwaysOnArgs.DefaultKeyframeSeconds;
 
         public string PieceFolder => Path.Combine(WorkFolder, "pieces");
         public string PendingFolder => Path.Combine(WorkFolder, "pending");
@@ -75,7 +88,7 @@ namespace AgentEyes.AlwaysOn
         public override string ToString() =>
             $"setup=\"{SetupName}\" capture={Capture} mic={(DshowMic ?? "(none)")} system={RecordSystem} "
             + $"counts={Counts} threshold={(ThresholdDb.HasValue ? ThresholdDb.Value.ToString("0.#") + " dBFS" : "auto")} "
-            + $"before={KeepBefore.TotalMinutes:0.##}m after={KeepAfter.TotalMinutes:0.##}m cap={CapBytes / 1024.0 / 1024 / 1024:0.##}GB "
-            + $"fps={Fps} piece={PieceSeconds}s clips={ClipsFolder}";
+            + $"before={KeepBefore.TotalSeconds:0.#}s after={KeepAfter.TotalSeconds:0.#}s gap={SilenceGap.TotalSeconds:0.#}s "
+            + $"cap={CapBytes / 1024.0 / 1024 / 1024:0.##}GB fps={Fps} piece={PieceSeconds}s keyframe={KeyframeSeconds}s clips={ClipsFolder}";
     }
 }

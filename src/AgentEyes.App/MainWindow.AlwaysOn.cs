@@ -24,7 +24,11 @@ namespace AgentEyes.App
             public override string ToString() => Label;
         }
 
-        private static readonly double[] AOMinutes = { 1, 2, 3, 5, 10, 15, 30 };
+        /// <summary>Issue #79: the choices for the three keep settings, in seconds, each inside its
+        /// range (<see cref="AlwaysOnKeepSettings"/>). Keep-after is checked against the gap on save.</summary>
+        private static readonly double[] AOBeforeSeconds = { 0, 5, 10, 15, 20, 30, 45, 60, 90, 120 };
+        private static readonly double[] AOAfterSeconds = { 0, 5, 10, 15, 20, 30, 45, 60, 120, 300 };
+        private static readonly double[] AOGapSeconds = { 30, 60, 120, 180, 300, 600, 900, 1200, 1800 };
         private static readonly double[] AOCapsGb = { 1, 2, 5, 10, 20, 50, 100 };
         private static readonly double[] AOThresholds = { -25, -30, -35, -40, -45, -50, -55, -60 };
 
@@ -89,8 +93,7 @@ namespace AgentEyes.App
                             .Concat(thresholds.Skip(1).Append(new AOChoice($"{saved:0.#} dBFS", saved)).OrderByDescending(c => c.Value))
                             .ToList();
                     Fill(AOThresholdCombo, thresholds, _cfg.AlwaysOnThresholdDb);
-                    Fill(AOBeforeCombo, Minutes(_cfg.AlwaysOnBeforeMinutes), _cfg.AlwaysOnBeforeMinutes);
-                    Fill(AOAfterCombo, Minutes(_cfg.AlwaysOnAfterMinutes), _cfg.AlwaysOnAfterMinutes);
+                    FillKeepSettings();
                     Fill(AOCapCombo, Caps(_cfg.AlwaysOnCapGb), _cfg.AlwaysOnCapGb);
 
                     AOFolderText.Text = _alwaysOn.ClipsFolder;
@@ -117,12 +120,21 @@ namespace AgentEyes.App
             combo.SelectedItem = items.FirstOrDefault(i => Nullable.Equals(i.Value, value)) ?? items[0];
         }
 
-        /// <summary>The minute choices, plus the saved value when it is not one of them (set through
-        /// config.json or the API) - the page shows what is in force, never a neighbour of it.</summary>
-        private static List<AOChoice> Minutes(double saved)
+        /// <summary>Put the saved keep settings in their three drop-downs (issue #79). Caller sets
+        /// <see cref="_aoLoading"/> so the fill does not save.</summary>
+        private void FillKeepSettings()
         {
-            var values = AOMinutes.Contains(saved) ? AOMinutes : AOMinutes.Append(saved).OrderBy(v => v).ToArray();
-            return values.Select(m => new AOChoice(m == 1 ? "1 minute" : $"{m.ToString("0.##", CultureInfo.InvariantCulture)} minutes", m)).ToList();
+            Fill(AOBeforeCombo, Durations(AOBeforeSeconds, _cfg.AlwaysOnKeepBeforeSeconds), _cfg.AlwaysOnKeepBeforeSeconds);
+            Fill(AOAfterCombo, Durations(AOAfterSeconds, _cfg.AlwaysOnKeepAfterSeconds), _cfg.AlwaysOnKeepAfterSeconds);
+            Fill(AOGapCombo, Durations(AOGapSeconds, _cfg.AlwaysOnSilenceGapSeconds), _cfg.AlwaysOnSilenceGapSeconds);
+        }
+
+        /// <summary>The duration choices in seconds, plus the saved value when it is not one of them (set
+        /// through config.json) - the page shows what is in force, never a neighbour of it.</summary>
+        private static List<AOChoice> Durations(double[] choices, double saved)
+        {
+            var values = choices.Contains(saved) ? choices : choices.Append(saved).OrderBy(v => v).ToArray();
+            return values.Select(v => new AOChoice(AlwaysOnKeepSettings.Describe(TimeSpan.FromSeconds(v)), v)).ToList();
         }
 
         private static List<AOChoice> Caps(double saved)
@@ -140,13 +152,34 @@ namespace AgentEyes.App
                 if (AOPresetCombo.SelectedItem is CapturePreset p) _cfg.AlwaysOnPresetId = p.Id;
                 _cfg.AlwaysOnCounts = AOCountSystem.IsChecked == true ? "system" : AOCountBoth.IsChecked == true ? "both" : "mic";
                 if (AOThresholdCombo.SelectedItem is AOChoice t) _cfg.AlwaysOnThresholdDb = t.Value;
-                if (AOBeforeCombo.SelectedItem is AOChoice b && b.Value.HasValue) _cfg.AlwaysOnBeforeMinutes = b.Value.Value;
-                if (AOAfterCombo.SelectedItem is AOChoice a && a.Value.HasValue) _cfg.AlwaysOnAfterMinutes = a.Value.Value;
                 if (AOCapCombo.SelectedItem is AOChoice c && c.Value.HasValue) _cfg.AlwaysOnCapGb = c.Value.Value;
+
+                // Issue #79: the three keep settings are checked together - keep-after may not be longer
+                // than the silence gap. A combination out of range is refused, said on the page, and the
+                // drop-downs go back to what is saved.
+                double before = (AOBeforeCombo.SelectedItem as AOChoice)?.Value ?? _cfg.AlwaysOnKeepBeforeSeconds;
+                double after = (AOAfterCombo.SelectedItem as AOChoice)?.Value ?? _cfg.AlwaysOnKeepAfterSeconds;
+                double gap = (AOGapCombo.SelectedItem as AOChoice)?.Value ?? _cfg.AlwaysOnSilenceGapSeconds;
+                string? problem = AlwaysOnKeepSettings.Problem(TimeSpan.FromSeconds(before), TimeSpan.FromSeconds(after), TimeSpan.FromSeconds(gap));
+                if (problem != null)
+                {
+                    Log.Warn($"[MainWindow] AOSetting_Changed: keep settings refused (before={before}s after={after}s gap={gap}s): {problem}");
+                    ShowAlwaysOnError(problem);
+                    _aoLoading = true;
+                    try { FillKeepSettings(); }
+                    finally { _aoLoading = false; }
+                }
+                else
+                {
+                    _cfg.AlwaysOnKeepBeforeSeconds = before;
+                    _cfg.AlwaysOnKeepAfterSeconds = after;
+                    _cfg.AlwaysOnSilenceGapSeconds = gap;
+                    AOErrorText.Visibility = Visibility.Collapsed;
+                }
                 _cfg.Save();
                 Log.Info($"[MainWindow] AOSetting_Changed: preset={_cfg.AlwaysOnPresetId} counts={_cfg.AlwaysOnCounts} "
-                         + $"threshold={(_cfg.AlwaysOnThresholdDb?.ToString("0") ?? "auto")} before={_cfg.AlwaysOnBeforeMinutes} "
-                         + $"after={_cfg.AlwaysOnAfterMinutes} cap={_cfg.AlwaysOnCapGb}GB");
+                         + $"threshold={(_cfg.AlwaysOnThresholdDb?.ToString("0") ?? "auto")} before={_cfg.AlwaysOnKeepBeforeSeconds}s "
+                         + $"after={_cfg.AlwaysOnKeepAfterSeconds}s gap={_cfg.AlwaysOnSilenceGapSeconds}s cap={_cfg.AlwaysOnCapGb}GB");
                 UpdateAlwaysOnRule();
             }
             catch (Exception ex)
@@ -262,12 +295,17 @@ namespace AgentEyes.App
         {
             string counts = _cfg.AlwaysOnCounts switch { "system" => "system sound", "both" => "microphone or system sound", _ => "microphone sound" };
             string cap = _cfg.AlwaysOnCapGb > 0 ? $" Never use more than {_cfg.AlwaysOnCapGb:0.##} GB." : "";
-            AORuleText.Text = $"The rule in words: record the whole time. Keep {Plural(_cfg.AlwaysOnBeforeMinutes)} before any {counts}, "
-                              + $"everything while there is sound, and {Plural(_cfg.AlwaysOnAfterMinutes)} after it. "
-                              + $"Delete everything else within minutes.{cap}";
+            AORuleText.Text = RuleInWords(counts, _cfg.AlwaysOnKeepBeforeSeconds, _cfg.AlwaysOnKeepAfterSeconds, _cfg.AlwaysOnSilenceGapSeconds) + cap;
         }
 
-        private static string Plural(double minutes) => minutes == 1 ? "1 minute" : $"{minutes:0.##} minutes";
+        /// <summary>The keep rule in one sentence (issue #79).</summary>
+        internal static string RuleInWords(string counts, double beforeSeconds, double afterSeconds, double gapSeconds)
+        {
+            string D(double s) => AlwaysOnKeepSettings.Describe(TimeSpan.FromSeconds(s));
+            return $"The rule in words: record the whole time. A clip starts {D(beforeSeconds)} before the {counts} begins "
+                   + $"and ends {D(afterSeconds)} after it stops; a pause shorter than {D(gapSeconds)} stays inside the clip, "
+                   + $"and {D(gapSeconds)} of quiet closes it. Everything else is deleted within minutes.";
+        }
 
         /// <summary>The live part of the page: state line, button, counters, lock. UI thread.</summary>
         private void UpdateAlwaysOnStatus()
