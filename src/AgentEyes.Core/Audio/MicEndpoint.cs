@@ -44,7 +44,9 @@ namespace AgentEyes.Audio
             using (device)
             {
                 var volume = device.AudioEndpointVolume;
-                return new MicEndpointState(device.FriendlyName, volume.Mute, Math.Round(volume.MasterVolumeLevelScalar * 100.0));
+                var state = new MicEndpointState(device.FriendlyName, volume.Mute, Math.Round(volume.MasterVolumeLevelScalar * 100.0));
+                Log.Info($"[MicEndpoint] Read: \"{nameFragment ?? "(default)"}\" -> {state.Describe()} (id {device.ID})");
+                return state;
             }
         }
 
@@ -65,7 +67,10 @@ namespace AgentEyes.Audio
                 endpoint.Dispose();
             }
             if (match == null)
+            {
+                Log.Warn($"[MicEndpoint] Find: no active microphone matches \"{fragment}\"; active: {(names.Count == 0 ? "(none)" : string.Join("; ", names))}");
                 throw new UsageException($"no active microphone matches \"{fragment}\". Active: {(names.Count == 0 ? "(none)" : string.Join("; ", names))}.");
+            }
             return match;
         }
     }

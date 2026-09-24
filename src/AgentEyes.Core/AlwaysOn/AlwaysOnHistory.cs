@@ -152,7 +152,15 @@ namespace AgentEyes.AlwaysOn
         /// <summary>How many events are kept right now (loads the file when it has not been read yet).</summary>
         public int Count
         {
-            get { lock (_gate) return EnsureLoaded(_utcNow()).Count; }
+            get
+            {
+                lock (_gate)
+                {
+                    int count = EnsureLoaded(_utcNow())?.Count ?? 0;
+                    Log.Info($"[AlwaysOnHistory] Count: {count}");
+                    return count;
+                }
+            }
         }
 
         /// <summary>
@@ -167,11 +175,18 @@ namespace AgentEyes.AlwaysOn
             e.AtUtc = DateTime.SpecifyKind(e.AtUtc, DateTimeKind.Utc);
             lock (_gate)
             {
+                // When the file could not be READ (null), nothing is trimmed or rewritten from memory -
+                // a rewrite from an empty list would wipe every event on disk. The line is still
+                // appended, and the next read tries the file again.
                 var events = EnsureLoaded(e.AtUtc);
-                events.Add(e);
-                // A day change rewrites the whole file with this event already in it; appending it
-                // again would double it (caught by Append_OnANewDay_TrimsWhatFellOutOfTheRetention).
-                bool rewritten = TrimIfNewDay(events, e.AtUtc);
+                bool rewritten = false;
+                if (events != null)
+                {
+                    events.Add(e);
+                    // A day change rewrites the whole file with this event already in it; appending it
+                    // again would double it (caught by Append_OnANewDay_TrimsWhatFellOutOfTheRetention).
+                    rewritten = TrimIfNewDay(events, e.AtUtc);
+                }
                 if (!rewritten)
                 {
                     try
@@ -197,6 +212,14 @@ namespace AgentEyes.AlwaysOn
             lock (_gate)
             {
                 var events = EnsureLoaded(_utcNow());
+                if (events == null)
+                {
+                    // Said in the log by EnsureLoaded; the caller gets an empty answer for THIS call, not
+                    // a cached empty history - the next call reads the file again.
+                    Log.Warn($"[AlwaysOnHistory] Events: {Path} could not be read; answering with no events this time");
+                    return new List<AlwaysOnEvent>();
+                }
+                Log.Info($"[AlwaysOnHistory] Events: filter={filter} since={(sinceUtc.HasValue ? sinceUtc.Value.ToString("o") : "none")} of {events.Count}");
                 IEnumerable<AlwaysOnEvent> q = events;
                 if (sinceUtc.HasValue)
                 {
@@ -210,8 +233,12 @@ namespace AgentEyes.AlwaysOn
             }
         }
 
-        /// <summary>Read the file once. Caller holds the lock.</summary>
-        private List<AlwaysOnEvent> EnsureLoaded(DateTime nowUtc)
+        /// <summary>
+        /// Read the file once. Caller holds the lock. Returns null - and caches NOTHING - when the file
+        /// exists but cannot be read (locked by a backup or a scanner): an empty list cached in its place
+        /// would be rewritten over the real file at the next day change. The next call reads again.
+        /// </summary>
+        private List<AlwaysOnEvent>? EnsureLoaded(DateTime nowUtc)
         {
             if (_events != null) return _events;
             var events = new List<AlwaysOnEvent>();
@@ -230,8 +257,9 @@ namespace AgentEyes.AlwaysOn
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    // A history that cannot be read costs the old events, never the recorder. Say so.
-                    Log.Error($"[AlwaysOnHistory] Load: {Path} could not be read; the history starts empty", ex);
+                    // A history that cannot be read costs this read, never the recorder. Say so.
+                    Log.Error($"[AlwaysOnHistory] Load: {Path} could not be read; nothing is cached and the next read tries again", ex);
+                    return null;
                 }
             }
             events.Sort((a, b) => a.AtUtc.CompareTo(b.AtUtc));

@@ -20,7 +20,7 @@ Branch: `issue-77-history-tab`.
 | `src/AgentEyes.App/MainWindow.AlwaysOnHistory.cs` (new) | The History tab: immediate "Loading...", `Task.Run` read + row build off the UI thread, collection handed to the list on the UI thread; live inserts dispatched with `Dispatcher.BeginInvoke`; warnings amber, errors red, `Detail` (ffmpeg's tail) as the row tooltip. |
 | `src/AgentEyes.App/MainWindow.AlwaysOn.cs` | Wires the History tab; shows/hides the banner from the status snapshot. |
 | `src/AgentEyes.App/App.xaml` | `DkAmber` / `DkAmberSurface` brushes (warnings; red stays for errors and the record state). |
-| `tests/AgentEyes.Tests/AlwaysOnHistoryTests.cs` (new) | 42 tests, listed per criterion below. |
+| `tests/AgentEyes.Tests/AlwaysOnHistoryTests.cs` (new) | 45 tests, listed per criterion below. |
 | `tests/AgentEyes.Tests/ManifestWriterIlTests.cs` | The three new file-write call sites (history append, trim rewrite + move) added to the pinned IL inventory with the file each writes. |
 
 ### Events recorded (issue list 1-6)
@@ -62,7 +62,19 @@ Banner text (the issue's sentence, then why): `The microphone is sending silence
 ## Test run
 
 `dotnet build AgentEyes.sln -c Release` -> `Build succeeded.`, `0 Error(s)`.
-`dotnet test AgentEyes.sln -c Release` -> `Passed! - Failed: 0, Passed: 1899, Skipped: 0, Total: 1899` (three full runs; 42 of the 1899 are new).
+`dotnet test AgentEyes.sln -c Release` -> `Passed! - Failed: 0, Passed: 1902, Skipped: 0, Total: 1902` (45 of the 1902 are new).
+
+## Self-review round (before handoff)
+
+An independent review of the diff found two defects and several cleanups; all fixed on the branch, each with a test:
+
+- The no-sound banner used to be cleared with a false "sending sound again" whenever the capture was down, and a capture restart reset the ten-minute clock (a flapping banner on every #81-style restart). Now `_listeningSinceUtc` is set only at Start and Resume, and while the capture is down only the mute arm can change the verdict. Test: `Tick_CaptureRestartsWhileTheMicIsSilent_TheBannerStaysAndNothingIsFalselyCleared`.
+- A history file that could not be read was cached as empty, so the next day-change rewrite would have wiped seven days of events on disk. Now a failed read caches nothing, that call answers empty, and nothing is rewritten. Test: `Load_FileLocked_AnswersEmptyForThatCallOnly_NeverRewritesOverIt_AndReadsItNextTime`.
+- Resume judged the rule on the mute state from before the pause; it now re-reads Windows first. Test: `Resume_ReReadsWindowsMuteState_SoAnUnmuteDuringThePauseRaisesNoFalseWarning`.
+- The once-a-minute endpoint read moved OUT of the engine lock (a wedged audio service must not stall Pause/Stop/the keeper); the rule is judged once per tick, before the level line, so the line's flag is that judgement.
+- The History tab retries the load after a failure (the next event, tab change or filter click) instead of inserting live rows into an incomplete list.
+- `MicEndpoint.Read` and `AlwaysOnHistory.Events/Count` log their result (CLAUDE.md logging rule).
+- Considered and kept: level lines recorded while the rule holds carry Severity Warning (the issue says "flagged as a WARNING"; a muted hour is one warning row per minute under Problems - truthful, and the transition events mark where it began and ended).
 
 Honest note on flakes seen during development (checks-that-fail-open, item 6): one full run out of four failed
 `AlwaysOnStallTests.Tick_CaptureFails_WritesTheFullTailAndTheProcessStateToTheLog` and

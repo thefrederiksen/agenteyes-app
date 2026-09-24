@@ -126,6 +126,9 @@ namespace AgentEyes.App
             {
                 Log.Error("[MainWindow] LoadAlwaysOnHistory FAILED", ex);
                 AOHistoryStatus.Text = "The history could not be loaded: " + ex.Message;
+                // Stale again: the next event, tab change or filter click loads afresh, and until then
+                // no live insert may dress the old rows up as a complete list.
+                _aoHistoryStale = true;
             }
             finally
             {
@@ -147,6 +150,13 @@ namespace AgentEyes.App
                     if (!AlwaysOnHistoryVisible || _aoHistoryLoading)
                     {
                         _aoHistoryStale = true;
+                        return;
+                    }
+                    if (_aoHistoryStale)
+                    {
+                        // A load failed earlier: this event is the cue to try the whole file again rather
+                        // than insert one row into a list that is missing everything else.
+                        LoadAlwaysOnHistory();
                         return;
                     }
                     if (!ev.Matches(_aoHistoryFilter)) return;

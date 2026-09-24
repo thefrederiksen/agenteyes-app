@@ -248,7 +248,11 @@ namespace AgentEyes.AlwaysOn
         private string? _micDevice;
         private string? _micReadError;
         private string? _silentMic;
+        /// <summary>When THIS on-period began delivering the microphone's level: Start or Resume. A
+        /// capture restart does not move it - the silence continued across the restart.</summary>
         private DateTime _listeningSinceUtc;
+        /// <summary>When Windows is next asked about the microphone (once a minute, outside the lock).</summary>
+        private DateTime _nextMicReadUtc;
 
         private AlwaysOnOptions? _options;
         private IPieceRecorder? _recorder;
@@ -343,10 +347,7 @@ namespace AgentEyes.AlwaysOn
         public void Start(AlwaysOnOptions options, string? pausedReason = null, string why = "user")
         {
             if (options == null) throw new ArgumentNullException(nameof(options));
-            lock (_lock)
-            {
-                if (_state != AlwaysOnState.Off) throw new UsageException("always-on is already on - stop it first.");
-            }
+            lock (_lock) ThrowIfOn();
             try
             {
                 StartCore(options, pausedReason, why);
@@ -359,11 +360,17 @@ namespace AgentEyes.AlwaysOn
             }
         }
 
+        /// <summary>Caller holds the lock.</summary>
+        private void ThrowIfOn()
+        {
+            if (_state != AlwaysOnState.Off) throw new UsageException("always-on is already on - stop it first.");
+        }
+
         private void StartCore(AlwaysOnOptions options, string? pausedReason, string why)
         {
             lock (_lock)
             {
-                if (_state != AlwaysOnState.Off) throw new UsageException("always-on is already on - stop it first.");
+                ThrowIfOn();
                 Log.Info($"[AlwaysOnEngine] Start: {options}");
                 AlwaysOnKeepSettings.Validate(options.KeepBefore, options.KeepAfter, options.SilenceGap);
                 if (options.KeyframeSeconds <= 0 || options.PieceSeconds % options.KeyframeSeconds != 0)
@@ -409,6 +416,8 @@ namespace AgentEyes.AlwaysOn
                     }
                 }
                 _sinceUtc = _utcNow();
+                _listeningSinceUtc = _sinceUtc.Value;
+                _nextMicReadUtc = _sinceUtc.Value + LevelLogInterval;
                 _restartAttempt = 0;
                 _quickFailures = 0;
                 _state = pausedReason == null ? AlwaysOnState.Listening : AlwaysOnState.Paused;
@@ -499,7 +508,12 @@ namespace AgentEyes.AlwaysOn
                     _restartAttempt = 0;
                     _quickFailures = 0;
                     _state = AlwaysOnState.Listening;
+                    _listeningSinceUtc = _utcNow();
+                    _nextMicReadUtc = _listeningSinceUtc + LevelLogInterval;
                     Record(HistoryKind.State, HistorySeverity.Info, "Always-on resumed");
+                    // The pause may have lasted half an hour: Windows is asked again before the rule is
+                    // judged, so a mic unmuted (or muted) meanwhile is not judged on the stale state.
+                    ReadMicEndpoint(_options!);
                     UpdateSilentMic(_utcNow(), listening: true);
                 }
                 catch (Exception ex)
@@ -520,6 +534,18 @@ namespace AgentEyes.AlwaysOn
         public void Tick()
         {
             bool changed;
+            // Once a minute Windows is asked whether the microphone is muted (issue #77) - OUTSIDE the
+            // lock: the audio service can take seconds to answer after a sleep or a device hot-plug, and
+            // Pause, Stop and the keeper must not wait behind that. The answer is applied under the lock.
+            MicEndpointState? micState = null;
+            Exception? micError = null;
+            var o = _options;
+            if (o != null && o.Counts != SoundSource.System && _state is not (AlwaysOnState.Off or AlwaysOnState.Paused)
+                && _utcNow() >= _nextMicReadUtc)
+            {
+                try { micState = _micEndpoint(o.MicLevelDevice); }
+                catch (Exception ex) { micError = ex; }
+            }
             lock (_lock)
             {
                 if (_options == null || _state is AlwaysOnState.Off or AlwaysOnState.Paused) return;
@@ -527,6 +553,11 @@ namespace AgentEyes.AlwaysOn
                 string before = _state;
                 int clipsBefore = _day.Clips;
                 double discardedBefore = _day.DiscardedSeconds;
+                if (micState.HasValue || micError != null)
+                {
+                    ApplyMicEndpoint(micState, micError);
+                    _nextMicReadUtc = now + LevelLogInterval;
+                }
 
                 Supervise(now);
                 NoteRecovery();
@@ -541,11 +572,12 @@ namespace AgentEyes.AlwaysOn
                     finally { ResetKeeper(); }
                 }
                 RunKeeper(_options, now, final: false, recorderRunning: running);
-                string? silentBefore = _silentMic;
-                LogLevels(now);
                 // The rule is judged every pass on the last-read mute state, so a microphone that goes
-                // quiet - or speaks again - moves the banner within a tick, not a minute (issue #77).
+                // quiet - or speaks again - moves the banner within a tick, not a minute (issue #77);
+                // the minute line that may follow carries the judgement as its flag.
+                string? silentBefore = _silentMic;
                 UpdateSilentMic(now, listening: running);
+                LogLevels(now);
 
                 if (_state is AlwaysOnState.Listening or AlwaysOnState.Keeping)
                     _state = IsKeeping(now) ? AlwaysOnState.Keeping : AlwaysOnState.Listening;
@@ -715,7 +747,6 @@ namespace AgentEyes.AlwaysOn
             _recorder = rec;
             _encoder = rec.Encoder;
             _recorderStartedUtc = launched;
-            _listeningSinceUtc = launched;
             _piecesBeforeLaunch = before;
         }
 
@@ -967,11 +998,9 @@ namespace AgentEyes.AlwaysOn
             LastLevelsLine = line;
             _levelsLoggedUtc = now;
 
-            // Once a minute Windows is asked again whether the microphone is muted - a mute in the
-            // middle of the day shows within a minute, and the flag on the line follows the
-            // silent-microphone rule, never the floor (issue #77, tester's finding).
-            if (_options != null) ReadMicEndpoint(_options);
-            UpdateSilentMic(now, listening: _recorder != null && !_recorder.HasExited);
+            // The flag follows the silent-microphone rule as judged this pass (Tick reads Windows' mute
+            // state once a minute and applies the rule before this line) - never the floor (issue #77,
+            // tester's finding).
             bool silent = _silentMic != null;
             Record(HistoryKind.Level, silent ? HistorySeverity.Warning : HistorySeverity.Info,
                 $"Levels: {line}{levels}" + (silent ? " " + SilentMicRule.LevelFlag : ""));
@@ -1519,36 +1548,50 @@ namespace AgentEyes.AlwaysOn
                 _micDevice = null;
                 return;
             }
-            try
+            MicEndpointState? state = null;
+            Exception? error = null;
+            try { state = _micEndpoint(o.MicLevelDevice); }
+            catch (Exception ex) { error = ex; }
+            ApplyMicEndpoint(state, error);
+        }
+
+        /// <summary>Take Windows' answer about the microphone (or the failure to get one). Caller holds the lock.</summary>
+        private void ApplyMicEndpoint(MicEndpointState? state, Exception? error)
+        {
+            if (state.HasValue)
             {
-                var state = _micEndpoint(o.MicLevelDevice);
                 bool? wasMuted = _micMuted;
-                _micMuted = state.Muted;
-                _micVolume = state.VolumePercent;
-                _micDevice = state.Name;
+                _micMuted = state.Value.Muted;
+                _micVolume = state.Value.VolumePercent;
+                _micDevice = state.Value.Name;
                 _micReadError = null;
-                if (wasMuted.HasValue && wasMuted.Value != state.Muted)
-                    Log.Info($"[AlwaysOnEngine] ReadMicEndpoint: {state.Describe()}");
+                if (wasMuted.HasValue && wasMuted.Value != state.Value.Muted)
+                    Log.Info($"[AlwaysOnEngine] ApplyMicEndpoint: {state.Value.Describe()}");
+                return;
             }
-            catch (Exception ex)
+            _micMuted = null;
+            _micVolume = null;
+            _micDevice = null;
+            string message = error?.Message ?? "no answer";
+            if (_micReadError != message)
             {
-                _micMuted = null;
-                _micVolume = null;
-                _micDevice = null;
-                if (_micReadError != ex.Message)
-                {
-                    _micReadError = ex.Message;
-                    Log.Warn($"[AlwaysOnEngine] ReadMicEndpoint: Windows' mute state for the microphone could not be read: {ex.Message}");
-                    Record(HistoryKind.Problem, HistorySeverity.Warning,
-                        $"Windows' mute state for the microphone could not be read ({ex.Message}); the silent-microphone rule judges on sound alone");
-                }
+                _micReadError = message;
+                Log.Warn($"[AlwaysOnEngine] ApplyMicEndpoint: Windows' mute state for the microphone could not be read: {message}");
+                Record(HistoryKind.Problem, HistorySeverity.Warning,
+                    $"Windows' mute state for the microphone could not be read ({message}); the silent-microphone rule judges on sound alone");
             }
         }
 
         /// <summary>
         /// Apply <see cref="SilentMicRule"/> and record a transition (issue #77). Judged only while
-        /// always-on is on and the microphone counts. While the capture is down (<paramref name="listening"/>
-        /// false) no sound can arrive, so only the mute arm applies. Caller holds the lock.
+        /// always-on is on and the microphone counts.
+        ///
+        /// While the capture is down (<paramref name="listening"/> false - it failed and is being
+        /// restarted) no sound can arrive, so nothing is learned about the no-sound arm: a banner that
+        /// was up STAYS up and one that was down stays down; only the mute arm can change it. A capture
+        /// restart does not restart the ten-minute clock either (<see cref="_listeningSinceUtc"/>) -
+        /// otherwise every restart would clear a true banner with a false "sending sound again" and
+        /// raise it again ten minutes later. Caller holds the lock.
         /// </summary>
         private void UpdateSilentMic(DateTime now, bool listening)
         {
@@ -1556,10 +1599,21 @@ namespace AgentEyes.AlwaysOn
             if (_options != null && _options.Counts != SoundSource.System
                 && _state is AlwaysOnState.Listening or AlwaysOnState.Keeping or AlwaysOnState.Retrying)
             {
-                var reason = SilentMicRule.Evaluate(_micMuted,
-                    listening ? _sound?.LastLoudUtc(SoundSource.Mic) : null,
-                    listening ? _listeningSinceUtc : now, now);
-                text = reason.HasValue ? SilentMicRule.Describe(reason.Value) : null;
+                if (listening)
+                {
+                    var reason = SilentMicRule.Evaluate(_micMuted, _sound?.LastLoudUtc(SoundSource.Mic), _listeningSinceUtc, now);
+                    text = reason.HasValue ? SilentMicRule.Describe(reason.Value) : null;
+                }
+                else if (_micMuted == true)
+                {
+                    text = SilentMicRule.Describe(SilentMicReason.Muted);
+                }
+                else
+                {
+                    // Capture down, not muted: the sound's last verdict stands. A mute verdict whose
+                    // mute has ended cannot stand on its own; the no-sound arm is judged when sound can arrive again.
+                    text = _silentMic == SilentMicRule.Describe(SilentMicReason.Muted) ? null : _silentMic;
+                }
             }
             if (text == _silentMic) return;
             if (text != null)

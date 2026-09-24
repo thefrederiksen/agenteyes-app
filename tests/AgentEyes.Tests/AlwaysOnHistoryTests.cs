@@ -709,6 +709,121 @@ namespace AgentEyes.Tests
             Assert.Empty(h.Events(null, HistoryFilter.Problems));
         }
 
+        /// <summary>
+        /// Review finding: a capture restart used to reset the ten-minute clock and a capture that was
+        /// down used to CLEAR the banner with a false "sending sound again". Now the silence is one
+        /// silence across the restart: the banner stays up through the failure, the failed replacement
+        /// and the recovery, and clears exactly once - when the owner speaks.
+        /// </summary>
+        [Fact]
+        public void Tick_CaptureRestartsWhileTheMicIsSilent_TheBannerStaysAndNothingIsFalselyCleared()
+        {
+            var o = Options(threshold: null);
+            var h = History();
+            using var engine = Engine(h);
+            engine.Start(o, why: "test");
+            engine.Tick();
+            var sound = _recorders[0].Sound!;
+            for (int m = 0; m < 10; m++)
+            {
+                WriteFakePiece(o.PieceFolder, T0.AddMinutes(m));
+                Level(sound, T0.AddMinutes(m), 60, -96.7);
+                _now = T0.AddMinutes(m + 1);
+                engine.Tick();
+            }
+            string banner = SilentMicRule.Describe(SilentMicReason.NoSound);
+            Assert.Equal(banner, engine.Status().SilentMic);
+
+            // The capture dies and its replacement fails to start: always-on is retrying, nothing is heard.
+            _recorders[0].Exited = true;
+            _make = () => new FakeRecorder { FailStart = "the monitor is gone" };
+            _now = T0.AddMinutes(10).AddSeconds(15);
+            engine.Tick();
+            Assert.Equal(AlwaysOnState.Retrying, engine.State);
+            Assert.Equal(banner, engine.Status().SilentMic);                 // still up: nothing said otherwise
+
+            // The restart succeeds; the new capture hears the same silence.
+            _make = () => new FakeRecorder();
+            _now = T0.AddMinutes(10).AddSeconds(30);
+            engine.Tick();
+            Assert.Equal(AlwaysOnState.Listening, engine.State);
+            WriteFakePiece(o.PieceFolder, _now);
+            _now = T0.AddMinutes(11);
+            engine.Tick();
+            Assert.Equal(banner, engine.Status().SilentMic);                 // the restart did not reset the clock
+
+            // The owner speaks: cleared once.
+            Speak(_recorders[^1].Sound!, T0.AddMinutes(11).AddSeconds(1));
+            _now = T0.AddMinutes(11).AddSeconds(15);
+            engine.Tick();
+
+            Assert.Null(engine.Status().SilentMic);
+            var all = Oldest(h);
+            Assert.Single(all, e => e.Text == banner);
+            Assert.Single(all, e => e.Text == SilentMicRule.ClearedText);
+            Assert.Equal(SilentMicRule.ClearedText, all[^1].Text);          // and it is the newest event
+        }
+
+        [Fact]
+        public void Resume_ReReadsWindowsMuteState_SoAnUnmuteDuringThePauseRaisesNoFalseWarning()
+        {
+            _mic = _mic with { Muted = true };
+            var h = History();
+            using var engine = Engine(h);
+            engine.Start(Options(), why: "test");
+            Assert.Equal(SilentMicRule.Describe(SilentMicReason.Muted), engine.Status().SilentMic);
+
+            engine.Pause("a normal recording is running");
+            _mic = _mic with { Muted = false };                              // unmuted during the pause
+            _now = T0.AddMinutes(30);
+            engine.Resume();
+
+            Assert.Null(engine.Status().SilentMic);
+            Assert.False(engine.Status().MicMuted);
+            Assert.Equal(2, _micReads);                                      // start, and again on resume
+            var all = Oldest(h);
+            Assert.Single(all, e => e.Kind == HistoryKind.Problem && e.Severity == HistorySeverity.Warning);   // the one at start
+            Assert.DoesNotContain(all, e => e.Text == SilentMicRule.ClearedText);                              // nothing to clear
+            Assert.Equal("Always-on resumed", all[^1].Text);
+        }
+
+        /// <summary>
+        /// Review finding: a history file that could not be read was cached as EMPTY, and the next
+        /// day-change rewrite would have written that emptiness over seven days of events on disk.
+        /// Now a failed read caches nothing: that call answers empty, nothing is rewritten, and the next
+        /// call reads the file.
+        /// </summary>
+        [Fact]
+        public void Load_FileLocked_AnswersEmptyForThatCallOnly_NeverRewritesOverIt_AndReadsItNextTime()
+        {
+            string path = Path.Combine(_root, "history.jsonl");
+            File.WriteAllLines(path, new[]
+            {
+                AlwaysOnHistory.Serialize(Ev(_now.AddMinutes(-2), HistoryKind.State, HistorySeverity.Info, "first")),
+                AlwaysOnHistory.Serialize(Ev(_now.AddMinutes(-1), HistoryKind.Level, HistorySeverity.Info, "second")),
+            });
+            var h = History();
+
+            using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                Assert.Empty(h.Events(null, HistoryFilter.All));             // this call: nothing readable
+                Assert.Equal(0, h.Count);
+                // An append while locked cannot rewrite from the (unloaded) memory - and cannot write either.
+                _now = _now.AddDays(1);
+                h.Append(Ev(_now, HistoryKind.State, HistorySeverity.Info, "while locked"));
+            }
+            Assert.Equal(2, File.ReadAllLines(path).Length);                 // the file is intact
+            string log = File.ReadAllText(Log.CurrentFile);
+            Assert.Contains("[AlwaysOnHistory] Load: " + path + " could not be read; nothing is cached", log);
+            Assert.Contains("[AlwaysOnHistory] Append: the event could not be written", log);
+
+            // Unlocked: read afresh, and an append lands.
+            Assert.Equal(new[] { "first", "second" }, Oldest(h).Select(e => e.Text));
+            h.Append(Ev(_now, HistoryKind.State, HistorySeverity.Info, "after"));
+            Assert.Equal(new[] { "first", "second", "after" }, Oldest(h).Select(e => e.Text));
+            Assert.Equal(3, File.ReadAllLines(path).Length);
+        }
+
         // ---- GET /always-on/history over real HTTP ------------------------------------------------------
 
         [Fact]
