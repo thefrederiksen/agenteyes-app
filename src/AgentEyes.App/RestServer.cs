@@ -121,6 +121,8 @@ namespace AgentEyes.App
                         RequireAlwaysOn(ctx)?.StopAsync("control api").GetAwaiter().GetResult();
                         if (AlwaysOn != null) AlwaysOnStatus(ctx);
                         return;
+                    // Issue #77: the event history, newest first, filtered by since= and kind=.
+                    case ("GET", "/always-on/history"): AlwaysOnHistoryRoute(ctx); return;
 
                     case ("POST", "/screenshot"):
                     {
@@ -565,6 +567,7 @@ namespace AgentEyes.App
                 "GET /captures", "GET /presets",
                 "GET /housekeeping", "POST /housekeeping/run",
                 "GET /always-on", "POST /always-on/start", "POST /always-on/stop",
+                "GET /always-on/history {since?, kind?:all|decisions|levels|problems}",
                 "POST /screenshot {screen, region?}",
                 "GET /capture-info",
                 "POST /capture {mode:full|monitor|region, screen?, region?}",
@@ -662,6 +665,51 @@ namespace AgentEyes.App
                     silenceGapSeconds = open.SilenceGapSeconds,
                 },
                 clipsKeptToday = s.ClipsKeptToday.Select(c => new { file = c.File, folder = c.Folder, path = c.Path, exists = c.Exists }),
+            });
+        }
+
+        /// <summary>
+        /// GET /always-on/history?since=&lt;iso&gt;&amp;kind=&lt;all|decisions|levels|problems&gt; (issue #77): the
+        /// same events the History tab lists, newest first, as JSON. A kind that is not one of the four,
+        /// or a since that is not a date, is a 400 with the reason - never silently "all".
+        /// </summary>
+        private void AlwaysOnHistoryRoute(HttpListenerContext ctx)
+        {
+            var ao = RequireAlwaysOn(ctx);
+            if (ao == null) return;
+            HistoryFilter kind;
+            try { kind = AlwaysOnHistory.ParseFilter(ctx.Request.QueryString["kind"]); }
+            catch (UsageException ex) { Error(ctx, 400, ex.Message); return; }
+            DateTime? since = null;
+            string? sinceText = ctx.Request.QueryString["since"];
+            if (!string.IsNullOrWhiteSpace(sinceText))
+            {
+                if (!DateTime.TryParse(sinceText, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var parsed))
+                {
+                    Error(ctx, 400, $"since must be an ISO 8601 date/time (e.g. 2026-09-24T09:00:00Z), got '{sinceText}'.");
+                    return;
+                }
+                since = parsed;
+            }
+            var events = ao.History.Events(since, kind);
+            Log.Info($"[RestServer] AlwaysOnHistory: kind={kind} since={(since.HasValue ? since.Value.ToString("o") : "none")} -> {events.Count} events");
+            Json(ctx, new
+            {
+                kind = kind.ToString().ToLowerInvariant(),
+                since,
+                count = events.Count,
+                retentionDays = AlwaysOnHistory.RetentionDays,
+                file = ao.History.Path,
+                events = events.Select(e => new
+                {
+                    atUtc = e.AtUtc,
+                    atLocal = e.AtLocal.ToString("yyyy-MM-dd HH:mm:ss"),
+                    kind = e.Kind.ToString().ToLowerInvariant(),
+                    severity = e.Severity.ToString().ToLowerInvariant(),
+                    text = e.Text,
+                    detail = e.Detail,
+                }),
             });
         }
 

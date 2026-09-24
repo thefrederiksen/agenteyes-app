@@ -161,6 +161,9 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Move x1",          // a kept piece into its clip's holding folder
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::Move x1",        // the pruned clip ledger, renamed into place
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::WriteAllLines x1", // ...written to a temp first
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHistory::Append -> System.IO.File::AppendAllText x1",  // one event line onto alwayson\history.jsonl (issue #77)
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHistory::Rewrite -> System.IO.File::Move x1",          // the 7-day-trimmed history, renamed into place
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHistory::Rewrite -> System.IO.File::WriteAllLines x1", // ...written to history.jsonl.tmp first
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Create x1",               // bd.rnnn extracted to a temp
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Move x1",                 // ...then renamed into place
             "agenteyes.dll!AgentEyes.CaptureService::Delete -> System.IO.File::Delete x1",                   // a capture the user deleted

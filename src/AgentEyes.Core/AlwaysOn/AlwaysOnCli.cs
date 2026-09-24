@@ -61,8 +61,12 @@ namespace AgentEyes.AlwaysOn
                 PieceSeconds = piece,
             };
 
-            using var engine = new AlwaysOnEngine();
-            engine.Start(o);
+            // The CLI's history lives beside its own work folder (issue #77): it must not contend with
+            // the app's history file when both run at once - an append to a file another process holds
+            // open is refused, and that event would be lost.
+            using var engine = new AlwaysOnEngine(() => new ContinuousPieceRecorder(), () => DateTime.UtcNow, ownTimer: true,
+                new AlwaysOnHistory(System.IO.Path.Combine(o.WorkFolder, AlwaysOnHistory.FileName)));
+            engine.Start(o, why: "command line");
             Console.WriteLine($"[ok] always-on started: {o}");
             Console.WriteLine(seconds > 0 ? $"     running for {seconds}s" : "     press Q to stop");
 
@@ -79,7 +83,7 @@ namespace AgentEyes.AlwaysOn
                 Thread.Sleep(250);
             }
 
-            engine.Stop();
+            engine.Stop("command line");
             var s = engine.Status();
             Console.WriteLine($"[ok] always-on stopped. Today: {engine.TodaySummary()}");
             if (s.LastClip != null) Console.WriteLine($"     last clip: {s.LastClip}");

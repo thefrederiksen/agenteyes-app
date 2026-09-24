@@ -53,6 +53,7 @@ namespace AgentEyes.App
                 return;
             }
             _alwaysOn.Changed += () => Dispatcher.BeginInvoke(new Action(UpdateAlwaysOnStatus));
+            InitAlwaysOnHistory(_alwaysOn);
             Closed += (_, _) => _alwaysOn = null;
         }
 
@@ -67,6 +68,8 @@ namespace AgentEyes.App
             {
                 if (_alwaysOn == null) return;
                 AOStatusText.Text = "Loading...";
+                // Issue #77: the History tab, when it is the one showing, loads on its own worker.
+                ShowAlwaysOnHistoryIfSelected();
                 var presets = await System.Threading.Tasks.Task.Run(AlwaysOnController.VideoPresets);
                 var chosen = await System.Threading.Tasks.Task.Run(() => _alwaysOn?.ChosenPreset());
                 if (_alwaysOn == null) return;
@@ -340,6 +343,7 @@ namespace AgentEyes.App
 
             AOTodayText.Text = "Today: " + ao.TodaySummary() + UnlistedNote(s);
             UpdateAlwaysOnClips(s);
+            UpdateSilentMicBanner(s);
             string? err = s.State == AlwaysOnState.Retrying ? null : (ao.LastStartError != null && !on ? "Last start failed: " + ao.LastStartError : null);
             if (err != null) ShowAlwaysOnError(err);
         }
@@ -366,6 +370,25 @@ namespace AgentEyes.App
                 .Select(c => new AOClipRow(c.Label, c.Path, c.Exists ? "Open the folder with this clip selected" : c.Path + " is no longer there"))
                 .ToList();
             Log.Info($"[MainWindow] UpdateAlwaysOnClips: listing {s.ClipsKeptToday.Count} clips kept today");
+        }
+
+        /// <summary>The silent-microphone banner last shown, so a change is logged once (issue #77).</summary>
+        private string? _aoSilentMicShown;
+
+        /// <summary>
+        /// Issue #77: the silent-microphone banner, from the status snapshot - shown while the engine's
+        /// rule holds (Windows reports the microphone muted, or no loud second for 10 min), gone when the
+        /// level returns. UI thread.
+        /// </summary>
+        private void UpdateSilentMicBanner(AlwaysOnStatus s)
+        {
+            AOSilentMicText.Text = s.SilentMic ?? "";
+            AOSilentMicBanner.Visibility = s.SilentMic == null ? Visibility.Collapsed : Visibility.Visible;
+            if (s.SilentMic != _aoSilentMicShown)
+            {
+                Log.Info($"[MainWindow] UpdateSilentMicBanner: {(s.SilentMic == null ? "(hidden)" : s.SilentMic)}");
+                _aoSilentMicShown = s.SilentMic;
+            }
         }
 
         /// <summary>Clips counted today but not listed - kept before the list existed (issue #70).</summary>

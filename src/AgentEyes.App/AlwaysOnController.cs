@@ -70,6 +70,9 @@ namespace AgentEyes.App
         /// <summary>The saved settings (issue #79: the Control API reports the keep settings from here).</summary>
         internal Config Settings => _cfg;
 
+        /// <summary>The always-on event history (issue #77), for the History tab and GET /always-on/history.</summary>
+        public AlwaysOnHistory History => _engine.History;
+
         public string ClipsFolder => string.IsNullOrWhiteSpace(_cfg.AlwaysOnClipsFolder)
             ? AlwaysOnOptions.DefaultClipsFolder
             : _cfg.AlwaysOnClipsFolder!;
@@ -108,7 +111,7 @@ namespace AgentEyes.App
                 {
                     var options = BuildOptions();
                     bool handPaused = restoring && _cfg.AlwaysOnHandPaused;
-                    _engine.Start(options, handPaused ? PausedByHand : _svc.IsRecording ? PausedForRecording : null);
+                    _engine.Start(options, handPaused ? PausedByHand : _svc.IsRecording ? PausedForRecording : null, why);
                 }
                 catch (Exception ex)
                 {
@@ -135,7 +138,7 @@ namespace AgentEyes.App
             {
                 Log.Info($"[AlwaysOnController] StopAsync: {why}");
                 SetBusy("Stopping - writing the clip...");
-                _engine.Stop();
+                _engine.Stop(why);
                 _cfg.AlwaysOnEnabled = false;
                 _cfg.AlwaysOnHandPaused = false;
                 _cfg.Save();
@@ -217,7 +220,7 @@ namespace AgentEyes.App
             if (!_engine.IsOn) return;
             Log.Info("[AlwaysOnController] ShutdownForExit: stopping always-on for exit (it will come back at the next start)");
             _reconcile.Change(Timeout.Infinite, Timeout.Infinite);
-            _engine.Stop();
+            _engine.Stop("app exit - it comes back at the next start");
         }
 
         /// <summary>

@@ -88,6 +88,10 @@ namespace AgentEyes.AlwaysOn
 
         public static string DefaultWorkFolder => Path.Combine(AppDataPaths.Root, "alwayson");
 
+        /// <summary>The always-on event history (issue #77): its own file under the work folder, kept
+        /// across runs and across the setups a run may use.</summary>
+        public static string DefaultHistoryFile => Path.Combine(DefaultWorkFolder, AlwaysOnHistory.FileName);
+
         public override string ToString() =>
             $"setup=\"{SetupName}\" capture={Capture} mic={(DshowMic ?? "(none)")} system={RecordSystem} "
             + $"counts={Counts} threshold={(ThresholdDb.HasValue ? ThresholdDb.Value.ToString("0.#") + " dBFS" : "auto")} "
