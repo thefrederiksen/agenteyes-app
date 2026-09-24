@@ -101,8 +101,13 @@ privacy-posture change; the recording indicator behaviour is unchanged - a faile
      or for EVERY entry: `recoveredUtc` is set and `recoveredUtc - (lastPieceStartUtc + 60 s)` <= 75 s.
      (Round 2: `recoveredUtc` is the start of the first piece the NEW capture opened - recording resumed -
      not the launch; `lastPieceStartUtc` is the newest piece the FAILED capture opened, its first piece
-     included; it is null only when that capture never opened a piece - then use `atUtc - 80 s` as the
-     reference.) An entry with `recoveredUtc` null while `status.state` is `retrying` is a capture that
+     included; it is null only when that capture never opened a piece - then the stall timing for that
+     entry is UNAVAILABLE: record it as such, do not substitute an assumed launch time.)
+     One outage can leave SEVERAL entries: a replacement that opens no piece and fails on the next tick
+     adds a new entry, and only the NEWEST entry gets `recoveredUtc` when a later retry succeeds. Judge
+     an OUTAGE, not an entry: consecutive entries whose earlier ones have `recoveredUtc` null are one
+     outage, recovered when its last entry has `recoveredUtc`; measure from the FIRST entry's
+     `lastPieceStartUtc + 60 s` to the last entry's `recoveredUtc`. An entry with `recoveredUtc` null while `status.state` is `retrying` is a capture that
      has not come back - a FAIL unless the session was locked at the time.
    - The log (`%LOCALAPPDATA%\AgentEyes\logs\AgentEyes-<date>.log`): every `Supervise:` error shows
      `ffmpeg exited with code N` or `ffmpeg still running (pid N)...` and up to 20 full stderr lines, no
