@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA Report - Issue 75</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 1000px; margin: 24px auto; padding: 0 16px; color: #1b1b1b; background: #fff; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; text-align: left; font-size: 14px; }
+th { background: #f0f0f0; }
+code { background: #f4f4f4; padding: 1px 3px; }
+.pass { color: #0a6b0a; font-weight: bold; }
+.note { color: #7a5200; }
+</style>
+</head>
+<body>
+<h1>QA Report - Issue #75 / PR #76</h1>
+<p>Issue: [Tests] Four HUD/preview guard tests fail since #26 and block the v1.11.1 release<br>
+Branch: <code>issue-75-guard-tests</code> at <code>70e3e57</code>. Verified independently by the QA Agent on 2026-09-24.
+Raw output: <code>docs/cencon/proof/issue-75/qa-test-output.txt</code>.</p>
+
+<h2>Acceptance criteria</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>Actual (QA's own run / review)</th><th>Result</th></tr>
+<tr><td>1</td><td>All 4 tests pass; full release.yml test command green</td>
+<td>4 guards pass; <code>dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release</code> Failed: 0</td>
+<td>4 guards Passed (targeted verbose run). Project command: Passed 1730 / Failed 0. Guard assertions: <code>git diff main...HEAD</code> on PreviewTapTests.cs changes only two predicates <code>private</code> -&gt; <code>internal</code>; HudResponsivenessTests.cs is untouched. No skip, delete or loosening.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>2</td><td>Each listed path stated real/false with call chain</td><td>PR body table covers every path</td>
+<td>PR body table covers all 4 paths plus the PreviewChores Carry/DoRemove offenders the same guard reported. QA's independent verdicts below agree.</td><td class="pass">PASS</td></tr>
+<tr><td>3</td><td>If walker changed: decoys prove a real HUD-thread write and a real drain -&gt; shared-logger call are still flagged</td>
+<td>Must-report decoys exist and genuinely go red when the rule is wrong</td>
+<td><code>DelegateHandoffWalkTests</code>: 4 HUD must-report shapes, 3 drain must-report shapes, all pass. QA mutation checks (below) confirm the guards still catch real product defects under the new walker.</td><td class="pass">PASS</td></tr>
+<tr><td>4</td><td>#26 library tests still pass</td><td>LibraryFlatListTests green</td><td>All LibraryFlatListTests passed (targeted run).</td><td class="pass">PASS</td></tr>
+<tr><td>5</td><td><code>dotnet build AgentEyes.sln -c Release</code> clean</td><td>Build succeeded, 0 Error(s)</td><td>Build succeeded, 0 Error(s) (19 pre-existing xUnit analyzer warnings).</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>Independent per-path verdicts (from product code)</h2>
+<table>
+<tr><th>Path</th><th>QA verdict</th><th>Evidence</th></tr>
+<tr><td>BackgroundFileWriter::WriteToDisk -&gt; File::WriteAllText</td><td>FALSE</td>
+<td>BackgroundFileWriter.cs: <code>_write</code> is invoked only in <code>WriteOnce</code>, called only from <code>Loop</code>, the thread started by <code>Start()</code>. <code>Queue</code> is an interlocked swap + event set; <code>WriteNow</code>/<code>Flush</code> only poll with <code>Thread.Sleep</code> (bounded wait, no inline write). No synchronous fallback path exists.</td></tr>
+<tr><td>Config::WriteJson -&gt; File::WriteAllText</td><td>FALSE</td>
+<td>Config.cs:205 parks <code>WriteJson</code> in the writer; <code>Save()</code> uses <code>WriteNow</code> (queue + bounded wait), <code>SaveWithoutBlockingTheUiThread</code> uses <code>Queue</code>. No caller invokes <code>WriteJson</code> directly; the static initializer only builds a path and allocates.</td></tr>
+<tr><td>PreviewLog::Drain -&gt; Log::Error</td><td>FALSE</td>
+<td>PreviewLog.cs: <code>Drain</code> is private and called only from <code>Loop</code>. <code>Say</code> (behind Info/Warn/Error) only enqueues and sets an event; <code>Settle</code> only polls.</td></tr>
+<tr><td>PreviewLog::Loop -&gt; Log::Error</td><td>FALSE</td>
+<td><code>Loop</code> is the appender thread body, referenced only by <code>new Thread(Loop)</code> in <code>StartAppender</code> (type initializer); nothing calls it inline.</td></tr>
+</table>
+<p>The main walker's full offender list (Mutation 1 below) is exactly these paths plus PreviewChores Carry/DoRemove (worker thread body started in its ctor, <code>_perform</code> read only by <code>Perform</code> from <code>Loop</code>) - so the walker change masks nothing beyond the analyzed set.</p>
+
+<h2>Mutation checks (all temporary edits discarded; tree verified clean)</h2>
+<ol>
+<li><b>Walker reverted to main:</b> the 4 guards fail again with the reported offenders; 5 DelegateHandoffWalkTests (narrowness + thread-body reach) fail. The fix is what turns them green.</li>
+<li><b>Real product defects under the NEW walker:</b> added an inline <code>_write(_path, text)</code> in <code>BackgroundFileWriter.Queue</code> and an inline <code>Drain()</code> in <code>PreviewLog.Say</code>. Result: all 4 guards FAIL, naming <code>WriteToDisk/WriteJson -&gt; File::WriteAllText</code> and <code>PreviewLog::Drain -&gt; Log::*</code>. The parked-field-reader rule carries the edge to the real invoker, so the guards were not weakened.</li>
+</ol>
+
+<h2>Review findings</h2>
+<ul>
+<li>Change is test-only (CompiledCode.cs walker, decoys, decoy tests, two predicate visibility changes). No product code, no runtime surface - no heavy smoke warranted.</li>
+<li>Walker rule is fail-closed: only <code>ldftn; newobj Delegate; [dup; stsfld &lt;&gt;O cache]; newobj Thread(delegate)</code> and stores into private fields (direct or via a store-only last parameter) drop the builder edge; every other shape keeps it. Edge dropped only when every naming of it is a handoff.</li>
+<li>ASCII-only diff (byte scan with positive control); no attribution strings in diff, commit or PR body.</li>
+</ul>
+
+<h2>Caveat judgement (new-Thread rule also applies to #26 Library guards)</h2>
+<p>Acceptable, not a weakening of what the guards target: work started on a new thread genuinely does not run on the handler's thread, and WPF views cannot be grouped from a foreign thread. <span class="note">Known residual blind spot (all guards): <code>new Thread(X); Start(); Join()</code> on a guarded thread is a synchronous handoff the rule now treats as off-thread (the shape exists today in Screenshot.cs clipboard copy, not on any guarded path and not a file write). Recommended as a follow-up, not a blocker.</span></p>
+
+<h2>Test runs</h2>
+<ul>
+<li><code>dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release</code>: Passed 1730, Failed 0.</li>
+<li><code>dotnet test AgentEyes.sln -c Release</code>: 3 of 4 runs Passed 1730 / Failed 0. <span class="note">One run (immediately after a build) had 3 failures including <code>CameraPreviewTests.Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession</code>, which asserts on the process-wide static <code>CameraDeviceArbiter.HolderCount</code>. Not reproduced in 3 further full runs or 5 filtered runs; the test does not use the reachability walk. Pre-existing flake unrelated to this PR - recommended follow-up.</span></li>
+</ul>
+
+<p><b>VERIFIED - all acceptance criteria met.</b></p>
+</body>
+</html>

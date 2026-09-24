@@ -361,6 +361,16 @@ namespace AgentEyes.Tests
         /// because the runtime invokes those without any call instruction for a walk to see.
         /// Per touched type, never a blanket sweep.
         ///
+        /// DELEGATES are edges from the method that builds them - the conservative stand-in for an
+        /// invoker the walk cannot see - with exactly two IL-proven exceptions (issue #75): a
+        /// delegate handed straight to <c>new Thread(...)</c> runs on the new thread, so it is not
+        /// an edge on the builder's thread; and a delegate parked in a private field runs wherever
+        /// that field is READ, so the edge moves to the readers. The static-constructor edges above
+        /// made both matter: the product builds its background workers in type initializers, and
+        /// without these the walk followed them into the workers' thread bodies. See
+        /// <see cref="DelegateHandoffs"/>; <c>DelegateHandoffWalkTests</c> proves the real shapes
+        /// are still reported.
+        ///
         /// Fail-closed: every seed must exist as a method definition in the assembly. A renamed seed
         /// would otherwise silently shrink the closure to nothing, and a scan over nothing passes.
         /// </summary>
@@ -369,6 +379,11 @@ namespace AgentEyes.Tests
             var wanted = seeds.ToList();
             if (wanted.Count == 0) throw new ArgumentException("at least one seed is required", nameof(seeds));
 
+            // The call graph, with DELEGATE HANDOFFS resolved (issue #75): a delegate built in a
+            // method is an edge from that method, EXCEPT where the IL proves the delegate is handed
+            // straight to a new thread (it runs there, never on the builder's thread) or parked in a
+            // private field (it runs wherever that field is READ). See DelegateHandoffs.
+            var handoffs = DelegateHandoffs(assemblyPath);
             var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
             foreach (var site in CallSites(assemblyPath, _ => true))
             {
@@ -376,6 +391,9 @@ namespace AgentEyes.Tests
                     graph[site.Method] = callees = new HashSet<string>(StringComparer.Ordinal);
                 callees.Add(NormalizeCallee(site.Callee));
             }
+            foreach (var edge in handoffs.RemovedEdges)
+                if (graph.TryGetValue(edge.Method, out var callees))
+                    callees.Remove(edge.Callee);
 
             // A method with no calls at all still exists; it just has no edges. Both matter: the
             // seed check below must accept it, and the closure must be able to contain it.
@@ -462,6 +480,14 @@ namespace AgentEyes.Tests
 
                 foreach (string callee in graph[current])
                     FanOut(callee);
+
+                // A delegate parked in a field runs wherever the field is READ (issue #75): reading
+                // it is the only way to invoke it or hand it on, so the reader carries the edge.
+                if (handoffs.FieldReads.TryGetValue(current, out var readFields))
+                    foreach (string field in readFields)
+                        if (handoffs.ParkedIn.TryGetValue(field, out var parked))
+                            foreach (string target in parked)
+                                FanOut(target);
             }
 
             return reached.OrderBy(m => m, StringComparer.Ordinal).ToList();
@@ -608,6 +634,296 @@ namespace AgentEyes.Tests
             }
 
             return edges;
+        }
+
+        /// <summary>A (method, callee) edge, both normalized the way the reachability graph keys them.</summary>
+        private readonly record struct Edge(string Method, string Callee);
+
+        /// <summary>What <see cref="DelegateHandoffs"/> found: the builder edges to drop, the
+        /// delegates parked in each field, and the fields each method READS.</summary>
+        private sealed record Handoffs(
+            IReadOnlyCollection<Edge> RemovedEdges,
+            IReadOnlyDictionary<string, HashSet<string>> ParkedIn,
+            IReadOnlyDictionary<string, HashSet<string>> FieldReads);
+
+        /// <summary>One decoded instruction: where it starts and ends, its opcode, and its operand.</summary>
+        private readonly record struct Instruction(int Start, int End, int Opcode, bool TwoByte, int OperandAt);
+
+        /// <summary>
+        /// WHERE A DELEGATE ACTUALLY RUNS (issue #75). The call-site scan counts <c>ldftn X</c> as a
+        /// use of X by the method that builds the delegate, and for an API scan that is right: a
+        /// delegate built over an API is a use of it. The reachability walk inherited that as a
+        /// CALL edge - the builder is assumed to run X - because once the delegate is handed to code
+        /// outside this assembly (<c>List.ForEach</c>, <c>Dispatcher.Invoke</c>, an event) the walk
+        /// cannot see who invokes it, and the builder is the conservative stand-in. That stays the
+        /// default: every delegate is an edge from its builder unless the IL PROVES otherwise.
+        ///
+        /// Two shapes are proven otherwise, and only these, each recognized from the instructions
+        /// that consume the freshly built delegate (the compiler's method-group cache - a
+        /// <c>dup; stsfld &lt;&gt;O::...</c> between construction and use - is looked through,
+        /// because its fast path loads the cached delegate and jumps to the SAME consumer):
+        ///
+        /// 1. THREAD ENTRY: the delegate is the sole argument of <c>new Thread(...)</c>. A thread
+        ///    constructor never invokes its start delegate; <c>Thread.Start</c> runs it on the NEW
+        ///    thread. So X is not reachable on the builder's thread through this site. The
+        ///    one-argument form is guaranteed because the delegate is on top of the stack at the
+        ///    constructor: the (delegate, maxStackSize) overloads would have the int there.
+        /// 2. PARKED IN A PRIVATE FIELD: the delegate is stored into a private field of this
+        ///    assembly - directly, or as the LAST argument of an in-assembly constructor or
+        ///    non-virtual method whose every use of that parameter stores it straight into private
+        ///    fields (the <c>perform ?? Default</c> shape included). A delegate in a field can only
+        ///    be invoked or handed on by LOADING the field, so the edge moves from the builder to
+        ///    every method that reads the field. Private, because a field another assembly can read
+        ///    would move the edge past the assembly boundary where the walk cannot follow it.
+        ///
+        /// Everything else - a delegate passed to any other call, returned, stored in a local, a
+        /// non-private field, or a parameter used any other way - keeps its builder edge, so an
+        /// unrecognized shape over-reports rather than under-reports: fail closed.
+        ///
+        /// Why this exists at all: since issue #2 the walk reaches a type's static constructor
+        /// whenever a member of the type is touched, and the product's background workers
+        /// (PreviewLog, PreviewChores, Config's BackgroundFileWriter) are built in static
+        /// constructors precisely so their thread bodies stay off the callers' threads. Under the
+        /// builder-edge model the walk then followed <c>new Thread(Loop)</c> and the parked
+        /// <c>Action</c> into the thread bodies, and reported the workers' own file and log work as
+        /// if the HUD thread or the preview drain performed it.
+        /// </summary>
+        private static Handoffs DelegateHandoffs(string assemblyPath)
+        {
+            using var stream = File.OpenRead(assemblyPath);
+            using var pe = new PEReader(stream);
+            var md = pe.GetMetadataReader();
+            string assembly = Path.GetFileName(assemblyPath);
+
+            var bodies = new Dictionary<MethodDefinitionHandle, (byte[] Il, List<Instruction> Code)>();
+            (byte[] Il, List<Instruction> Code) Load(MethodDefinitionHandle handle)
+            {
+                if (bodies.TryGetValue(handle, out var known)) return known;
+                var method = md.GetMethodDefinition(handle);
+                var il = method.RelativeVirtualAddress == 0
+                    ? Array.Empty<byte>()
+                    : pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()
+                      ?? throw new InvalidOperationException($"No IL for {MethodName(md, handle)} in {assembly}.");
+                return bodies[handle] = (il, Decode(il, $"{assembly}!{MethodName(md, handle)}"));
+            }
+            List<Instruction> Body(MethodDefinitionHandle handle) => Load(handle).Code;
+            byte[] RawIl(MethodDefinitionHandle handle) => Load(handle).Il;
+
+            // How many times each (method, callee) edge is named, and how many of those namings are
+            // delegate handoffs. An edge is dropped only when EVERY naming is a handoff - a method
+            // that parks X and also calls X directly keeps its edge.
+            var named = new Dictionary<Edge, int>();
+            var handedOff = new Dictionary<Edge, int>();
+            var parkedIn = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            var fieldReads = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+            foreach (var handle in md.MethodDefinitions)
+            {
+                if (md.GetMethodDefinition(handle).RelativeVirtualAddress == 0) continue;
+                string where = MethodName(md, handle);
+                var code = Body(handle);
+
+                for (int i = 0; i < code.Count; i++)
+                {
+                    var ins = code[i];
+                    int token = ins.OperandAt >= 0 && ins.End - ins.OperandAt == 4 ? ReadToken(handle, ins) : 0;
+
+                    if (!ins.TwoByte && IsFieldLoad(ins.Opcode) && FieldOf(md, token) is string readField)
+                        AddTo(fieldReads, where, readField);
+
+                    bool namesAMethod = ins.TwoByte
+                        ? ins.Opcode == LdFtn || ins.Opcode == LdVirtFtn
+                        : ins.Opcode == Call || ins.Opcode == CallVirt || ins.Opcode == NewObj
+                          || ins.Opcode == LdToken || ins.Opcode == Jmp;
+                    if (!namesAMethod || Callee(md, token) is not string callee) continue;
+
+                    var edge = new Edge(where, NormalizeCallee(callee));
+                    named[edge] = named.GetValueOrDefault(edge) + 1;
+
+                    if (!ins.TwoByte) continue;                       // only ldftn / ldvirtftn hand off
+                    var fate = FateOfDelegate(handle, code, i);
+                    if (fate == null) continue;                       // unproven: keep the builder edge
+
+                    handedOff[edge] = handedOff.GetValueOrDefault(edge) + 1;
+                    foreach (string field in fate) AddTo(parkedIn, field, edge.Callee);
+                }
+            }
+
+            var removed = handedOff.Where(h => h.Value == named[h.Key]).Select(h => h.Key).ToList();
+            return new Handoffs(removed, parkedIn, fieldReads);
+
+            int ReadToken(MethodDefinitionHandle owner, Instruction ins) =>
+                BitConverter.ToInt32(RawIl(owner), ins.OperandAt);
+
+            // Where the delegate built by the ldftn/ldvirtftn at code[at] goes. Null: not proven -
+            // the builder keeps its edge. Empty: handed to a new thread. Otherwise: the private
+            // fields it is parked in.
+            IReadOnlyCollection<string>? FateOfDelegate(MethodDefinitionHandle owner, List<Instruction> code, int at)
+            {
+                // ldftn X ; newobj Delegate::.ctor
+                int next = at + 1;
+                if (!Adjacent(code, at, next) || code[next].TwoByte || code[next].Opcode != NewObj) return null;
+                if (MethodSimpleName(md, ReadToken(owner, code[next])) != ".ctor") return null;
+
+                // ... dup ; stsfld <>O::cache   (the compiler's method-group cache - looked through)
+                int consumer = next + 1;
+                while (Adjacent(code, consumer - 1, consumer) && Adjacent(code, consumer, consumer + 1)
+                       && !code[consumer].TwoByte && code[consumer].Opcode == Dup
+                       && !code[consumer + 1].TwoByte && code[consumer + 1].Opcode == StSFld
+                       && FieldOf(md, ReadToken(owner, code[consumer + 1])) is string cache
+                       && cache.Contains("/<>O::", StringComparison.Ordinal))
+                    consumer += 2;
+                if (!Adjacent(code, consumer - 1, consumer)) return null;
+
+                var use = code[consumer];
+                if (use.TwoByte) return null;
+                int useToken = ReadTokenOrZero(owner, use);
+
+                // 1. new Thread(delegate)
+                if (use.Opcode == NewObj && Callee(md, useToken) == "System.Threading.Thread::.ctor")
+                    return Array.Empty<string>();
+
+                // 2a. stfld / stsfld into a private field of this assembly
+                if ((use.Opcode == StFld || use.Opcode == StSFld) && PrivateField(useToken) is string field)
+                    return new[] { field };
+
+                // 2b. the last argument of an in-assembly ctor / non-virtual method that parks it
+                if (use.Opcode == NewObj || use.Opcode == Call)
+                    return ParkedParameter(useToken);
+
+                return null;
+            }
+
+            int ReadTokenOrZero(MethodDefinitionHandle owner, Instruction ins) =>
+                ins.OperandAt >= 0 && ins.End - ins.OperandAt == 4 ? ReadToken(owner, ins) : 0;
+
+            string? PrivateField(int token)
+            {
+                if (token == 0) return null;
+                var handle = MetadataTokens.EntityHandle(token);
+                if (handle.Kind != HandleKind.FieldDefinition) return null;
+                var field = md.GetFieldDefinition((FieldDefinitionHandle)handle);
+                if ((field.Attributes & FieldAttributes.FieldAccessMask) != FieldAttributes.Private) return null;
+                return FieldOf(md, token);
+            }
+
+            // The private fields the LAST parameter of an in-assembly method is parked in, when
+            // every use of that parameter is "ldarg p ; st(s)fld F" or "ldarg p ; dup ; brtrue L"
+            // with a st(s)fld F at L (the `p ?? Default` shape). Anything else: null.
+            IReadOnlyCollection<string>? ParkedParameter(int token)
+            {
+                if (token == 0) return null;
+                var handle = MetadataTokens.EntityHandle(token);
+                if (handle.Kind != HandleKind.MethodDefinition) return null;
+                var callee = (MethodDefinitionHandle)handle;
+                var definition = md.GetMethodDefinition(callee);
+                if ((definition.Attributes & MethodAttributes.Virtual) != 0) return null;
+                if (definition.RelativeVirtualAddress == 0) return null;
+
+                var signature = md.GetBlobReader(definition.Signature);
+                var header = signature.ReadSignatureHeader();
+                if (header.IsGeneric) signature.ReadCompressedInteger();
+                int parameters = signature.ReadCompressedInteger();
+                if (parameters == 0) return null;
+                int slot = header.IsInstance ? parameters : parameters - 1;
+
+                var code = Body(callee);
+                var fields = new HashSet<string>(StringComparer.Ordinal);
+                for (int i = 0; i < code.Count; i++)
+                {
+                    int? touched = ArgumentSlot(RawIl(callee), code[i], out bool loadsValue);
+                    if (touched != slot) continue;
+                    if (!loadsValue) return null;                          // ldarga / starg: escapes
+
+                    int use = i + 1;
+                    if (!Adjacent(code, i, use)) return null;
+                    if (!code[use].TwoByte && code[use].Opcode == Dup)
+                    {
+                        // ldarg p ; dup ; brtrue L   ->   the non-null value arrives at L
+                        int branch = use + 1;
+                        if (!Adjacent(code, use, branch) || code[branch].TwoByte) return null;
+                        int? target = BranchIfTrueTarget(RawIl(callee), code[branch]);
+                        if (target == null) return null;
+                        use = code.FindIndex(c => c.Start == target.Value);
+                        if (use < 0) return null;
+                    }
+
+                    var store = code[use];
+                    if (store.TwoByte || (store.Opcode != StFld && store.Opcode != StSFld)) return null;
+                    if (PrivateField(BitConverter.ToInt32(RawIl(callee), store.OperandAt)) is not string field)
+                        return null;
+                    fields.Add(field);
+                }
+                return fields.Count == 0 ? null : fields;
+            }
+        }
+
+        /// <summary>The bare name of the method a token names, whatever its parent - including a
+        /// generic instantiation of an external type such as <c>Action`2&lt;string,string&gt;</c>,
+        /// which <see cref="Callee"/> deliberately reports as null.</summary>
+        private static string? MethodSimpleName(MetadataReader md, int token)
+        {
+            var handle = MetadataTokens.EntityHandle(token);
+            return handle.Kind switch
+            {
+                HandleKind.MethodDefinition => md.GetString(md.GetMethodDefinition((MethodDefinitionHandle)handle).Name),
+                HandleKind.MemberReference when md.GetMemberReference((MemberReferenceHandle)handle).GetKind() == MemberReferenceKind.Method
+                    => md.GetString(md.GetMemberReference((MemberReferenceHandle)handle).Name),
+                _ => null,
+            };
+        }
+
+        private static void AddTo(Dictionary<string, HashSet<string>> map, string key, string value)
+        {
+            if (!map.TryGetValue(key, out var set)) map[key] = set = new HashSet<string>(StringComparer.Ordinal);
+            set.Add(value);
+        }
+
+        private static bool Adjacent(List<Instruction> code, int first, int second) =>
+            first >= 0 && second < code.Count && second == first + 1 && code[first].End == code[second].Start;
+
+        private static bool IsFieldLoad(int opcode) =>
+            opcode == LdFld || opcode == LdFlda || opcode == LdSFld || opcode == LdSFlda;
+
+        /// <summary>The argument slot an ldarg/ldarga/starg instruction names, or null for any other
+        /// instruction. <paramref name="loadsValue"/> is true only for the value loads (ldarg).</summary>
+        private static int? ArgumentSlot(byte[] il, Instruction ins, out bool loadsValue)
+        {
+            loadsValue = false;
+            if (!ins.TwoByte)
+            {
+                if (ins.Opcode >= 0x02 && ins.Opcode <= 0x05) { loadsValue = true; return ins.Opcode - 0x02; }  // ldarg.0-3
+                if (ins.Opcode == 0x0E) { loadsValue = true; return il[ins.OperandAt]; }                        // ldarg.s
+                if (ins.Opcode == 0x0F || ins.Opcode == 0x10) return il[ins.OperandAt];                         // ldarga.s, starg.s
+                return null;
+            }
+            if (ins.Opcode == 0x09) { loadsValue = true; return BitConverter.ToUInt16(il, ins.OperandAt); }     // ldarg
+            if (ins.Opcode == 0x0A || ins.Opcode == 0x0B) return BitConverter.ToUInt16(il, ins.OperandAt);      // ldarga, starg
+            return null;
+        }
+
+        /// <summary>The target offset of a brtrue / brtrue.s, else null.</summary>
+        private static int? BranchIfTrueTarget(byte[] il, Instruction ins)
+        {
+            if (ins.Opcode == 0x2D) return ins.End + (sbyte)il[ins.OperandAt];                 // brtrue.s
+            if (ins.Opcode == 0x3A) return ins.End + BitConverter.ToInt32(il, ins.OperandAt);  // brtrue
+            return null;
+        }
+
+        /// <summary>The instruction stream of one body, decoded with the same operand tables and the
+        /// same fail-loud rules as <see cref="Walk"/>. A <c>switch</c> is not reported by Walk, so
+        /// it shows up here as a GAP between neighbours - which <see cref="Adjacent"/> refuses, so
+        /// no pattern is ever matched across one.</summary>
+        private static List<Instruction> Decode(byte[] il, string where)
+        {
+            var code = new List<Instruction>();
+            Walk(il, where, (opcode, twoByte, operandAt) =>
+            {
+                int size = twoByte ? TwoByteOperand[opcode] : OneByteOperand[opcode];
+                int start = operandAt - (twoByte ? 2 : 1);
+                code.Add(new Instruction(start, operandAt + size, opcode, twoByte, size == 0 ? -1 : operandAt));
+            });
+            return code;
         }
 
         /// <summary>An interface plus every in-assembly interface it TRANSITIVELY inherits, read
@@ -1028,7 +1344,12 @@ namespace AgentEyes.Tests
         private const int NewObj = 0x73;
         private const int LdToken = 0xD0;
         private const int LdStr = 0x72;
+        private const int Dup = 0x25;
         private const int LdFld = 0x7B;         // ldfld, ldflda, stfld, ldsfld, ldsflda, stsfld
+        private const int LdFlda = 0x7C;
+        private const int StFld = 0x7D;
+        private const int LdSFld = 0x7E;
+        private const int LdSFlda = 0x7F;
         private const int StSFld = 0x80;        // ...are 0x7B..0x80, contiguous
         private const int Prefix = 0xFE;
         private const int LdFtn = 0x06;         // 0xFE 0x06
