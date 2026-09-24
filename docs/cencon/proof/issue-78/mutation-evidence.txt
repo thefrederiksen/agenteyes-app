@@ -1,0 +1,113 @@
+Issue #78 - mutation evidence for the isolation guards (checks-that-fail-open, rule 3).
+
+Each mutation below was applied to the committed branch, the solution was rebuilt
+(dotnet build AgentEyes.sln -c Release), ONLY the TestIsolationTests class was run
+(dotnet test ... --filter FullyQualifiedName~TestIsolationTests), and the file was reverted.
+The filter matters: no mutation was run through the full suite, because a broken isolation would
+then write into the REAL %LOCALAPPDATA%\AgentEyes of this machine, where the owner's app is live.
+For the same reason no mutation redirects the LOG itself back to the real folder - the log
+guard is instead shown to fire through the pid mutation (M2) and the ordering mutation (M5).
+
+Baseline (unmutated branch): Passed! - Failed: 0, Passed: 12 (TestIsolationTests)
+==================================================================
+MUTATION M1: a state path bypasses AppDataPaths and asks Windows directly (the pre-#78 shape)
+file: src/AgentEyes.Core/Preview/PreviewPaths.cs
+-        public static string Dir => Path.Combine(AppDataPaths.Root, "preview");
++        public static string Dir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "preview");
+Build succeeded.
+[xUnit.net 00:00:03.35]     AgentEyes.Tests.TestIsolationTests.FolderLookups_InTheCompiledProductAndTests_AreExactlyThePinnedOnes [FAIL]
+[xUnit.net 00:00:03.40]     AgentEyes.Tests.TestIsolationTests.EveryStateLocation_InATestRun_IsInThisRunsFolderAndNotTheRealOne [FAIL]
+  Error Message:
+   the folder lookups in the compiled code changed. Actual inventory:
+AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallFinalizer::DesktopShortcutPath -> DesktopDirectory x1
+AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallFinalizer::StartMenuShortcutPath -> StartMenu x1
+AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallLayout::Default -> LocalApplicationData x1
+AgentEyes.Tests.dll!AgentEyes.Tests.PluginRegistryChannelTests::WindowsPowerShellHome -> System x1
+AgentEyes.Tests.dll!AgentEyes.Tests.PluginRegistryChannelTests::WindowsPowerShellModulePath -> ProgramFiles x1
+AgentEyes.Tests.dll!AgentEyes.Tests.RealFolderDecoys::AsksForTheRealLocalAppData -> LocalApplicationData x1
+AgentEyes.Tests.dll!AgentEyes.Tests.RealFolderDecoys::AsksWithAFolderInAVariable -> <not a constant> x1
+agenteyes.dll!AgentEyes.AppDataPaths::get_MachineLocalAppData -> LocalApplicationData x1
+agenteyes.dll!AgentEyes.AppDataPaths::get_Videos -> MyVideos x1
+agenteyes.dll!AgentEyes.Preview.PreviewPaths::get_Dir -> LocalApplicationData x1
+  Error Message:
+   these AgentEyes state locations escape the test run's folder:
+PreviewPaths.Dir = C:\Users\soren\AppData\Local\AgentEyes\preview
+Failed!  - Failed:     2, Passed:    10, Skipped:     0, Total:    12, Duration: 972 ms - AgentEyes.Tests.dll (net8.0)
+reverted (git checkout of the mutated file)
+==================================================================
+MUTATION M2: log lines lose the process id (the pre-#78 line shape)
+file: src/AgentEyes.Core/Log.cs
+-            $"{at:HH:mm:ss.fff} [pid {processId}] [{level}] {message}";
++            $"{at:HH:mm:ss.fff} [{level}] {message}";
+Build succeeded.
+[xUnit.net 00:00:03.93]     AgentEyes.Tests.TestIsolationTests.FormatLine_TwoProcesses_AreToldApart [FAIL]
+[xUnit.net 00:00:04.64]     AgentEyes.Tests.TestIsolationTests.Log_EachLineWritten_CarriesTheWritingProcessId [FAIL]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+                         v (pos 14)
+Expected: "09:03:01.250 [pid 1111] [INFO] [AlwaysOnE"...
+Actual:   "09:03:01.250 [INFO] [AlwaysOnEngine] kept"...
+                         ^ (pos 14)
+  Error Message:
+   the line does not have the [pid N] shape: 10:33:09.778 [WARN] [TestIsolationTests] pid marker 5127d5c14f514a9d8b653baccc630dd9
+Failed!  - Failed:     2, Passed:    10, Skipped:     0, Total:    12, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+reverted (git checkout of the mutated file)
+==================================================================
+MUTATION M3: the product reads %LOCALAPPDATA% from the environment instead of AppDataPaths
+file: src/AgentEyes.Core/Video/FfmpegLocator.cs
++            string? viaEnvironment = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+Build succeeded.
+[xUnit.net 00:00:03.14]     AgentEyes.Tests.TestIsolationTests.EnvironmentVariableRoutes_ToTheUserFolders_AreNotInTheProduct [FAIL]
+  Error Message:
+   the environment-variable reads in the product changed. Actual inventory:
+AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallLayout::Default -> AGENTEYES_ROOT x1
+AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.RegistryUserEnvironment::Get -> <not a literal> x1
+AgentEyesApp.dll!AgentEyes.App.HudWindow::ApplyWindowStyles -> MQS_HUD_CAPTURABLE x1
+agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> LOCALAPPDATA x1
+agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> PATH x1
+agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> QA_RECORD_FFMPEG_DIR x1
+Failed!  - Failed:     1, Passed:    11, Skipped:     0, Total:    12, Duration: 846 ms - AgentEyes.Tests.dll (net8.0)
+reverted (git checkout of the mutated file)
+==================================================================
+MUTATION M4: the test host forgets to swap the installer's user-environment store (tests would write HKCU)
+file: tests/AgentEyes.Tests/TestRunIsolation.cs
+-            InstallFinalizer.UserEnvironment = UserEnvironment;
+Build succeeded.
+[xUnit.net 00:00:02.29]     AgentEyes.Tests.TestIsolationTests.InstallFinalizer_InATestRun_WritesTheUserEnvironmentInMemoryNotTheRegistry [FAIL]
+  Error Message:
+   Assert.Same() Failure: Values are not the same instance
+Expected: InMemoryUserEnvironment { }
+Actual:   RegistryUserEnvironment { }
+Failed!  - Failed:     1, Passed:    11, Skipped:     0, Total:    12, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+reverted (git checkout of the mutated file)
+==================================================================
+MUTATION M5: a path is resolved BEFORE the redirect (the redirect would only look isolated)
+file: tests/AgentEyes.Tests/TestRunIsolation.cs
++            string resolvedTooEarly = Log.Dir;
+Build succeeded.
+[xUnit.net 00:00:01.05]     AgentEyes.Tests.TestIsolationTests.FormatLine_TwoProcesses_AreToldApart [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.InstallFinalizer_InATestRun_WritesTheUserEnvironmentInMemoryNotTheRegistry [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.EnvironmentVariableRoutes_ToTheUserFolders_AreNotInTheProduct [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.RedirectForThisProcess_WhenAlreadyRedirected_Throws [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.Log_EachLineWritten_CarriesTheWritingProcessId [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.FolderLookups_InTheCompiledProductAndTests_AreExactlyThePinnedOnes [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.PruneOldRuns_DeletesOnlyOldFoldersThisHostNamed [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.EveryStateLocation_InATestRun_IsInThisRunsFolderAndNotTheRealOne [FAIL]
+[xUnit.net 00:00:01.08]     AgentEyes.Tests.TestIsolationTests.FolderLookupScanner_OnTheCompiledDecoys_ReportsBothShapes [FAIL]
+  Error Message:
+   System.TypeInitializationException : The type initializer for '<Module>' threw an exception.
+---- System.InvalidOperationException : An AgentEyes data path was resolved before the redirect. Something may already hold the REAL %LOCALAPPDATA%\AgentEyes path, so redirecting now would only look isolated. Redirect first.
+----- Inner Stack Trace -----
+  (the same TypeInitializationException is reported for each of the 12 failing tests; 11 repeats elided)
+[xUnit.net 00:00:01.17]     AgentEyes.Tests.TestIsolationTests.LogFile_InATestRun_IsInThisRunsFolderAndNotTheRealLog [FAIL]
+[xUnit.net 00:00:01.17]     AgentEyes.Tests.TestIsolationTests.RedirectForThisProcess_RelativePath_Throws [FAIL]
+[xUnit.net 00:00:01.17]     AgentEyes.Tests.TestIsolationTests.RunStamp_ParsesOnlyTheRunFolderShape [FAIL]
+reverted (git checkout of the mutated file)
+==================================================================
+SUMMARY
+M1 state path bypasses AppDataPaths         -> FolderLookups inventory + EveryStateLocation FIRE
+M2 pid dropped from log lines               -> FormatLine + Log_EachLineWritten FIRE
+M3 GetEnvironmentVariable("LOCALAPPDATA")   -> EnvironmentVariableRoutes FIRE
+M4 installer user-env store not swapped     -> InstallFinalizer_InATestRun FIRE
+M5 path resolved before the redirect        -> module initializer throws; every test in the assembly fails
+After the last revert the branch was rebuilt and TestIsolationTests re-run: see the handoff note.

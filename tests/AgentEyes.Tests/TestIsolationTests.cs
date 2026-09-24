@@ -31,6 +31,18 @@ namespace AgentEyes.Tests
     }
 
     /// <summary>
+    /// Runs <see cref="TestIsolationTests"/> ALONE, after the parallel part of the suite. Its IL
+    /// inventories read four whole assemblies, and run in parallel with everything else that CPU load
+    /// starved the thread pool enough to push the timing-sensitive CameraPreviewTests past their 5s
+    /// waits (7 of 9 full runs failed with it in parallel; 3 of 3 passed without it).
+    /// </summary>
+    [CollectionDefinition(Name, DisableParallelization = true)]
+    public sealed class TestIsolationCollection
+    {
+        public const string Name = "Test isolation guards (run alone)";
+    }
+
+    /// <summary>
     /// Issue #78: a test run never writes to - or reads from - the machine's REAL AgentEyes state
     /// (%LOCALAPPDATA%\AgentEyes and Videos\AgentEyes), and every log line names its process.
     ///
@@ -65,6 +77,7 @@ namespace AgentEyes.Tests
     ///    monitors, the Start Menu / Desktop shortcut paths and the Run key that the uninstall PLAN
     ///    only checks for existence - are outside this criterion.
     /// </summary>
+    [Collection(TestIsolationCollection.Name)]
     public sealed class TestIsolationTests
     {
         private static string RealAgentEyesRoot =>
