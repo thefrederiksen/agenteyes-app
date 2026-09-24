@@ -574,7 +574,7 @@ namespace AgentEyes.Tests
         /// creates a directory and appends to a file under a process-wide lock, so a stalled log is a
         /// stalled recording lifecycle (Review Gate round 2 on PR #39, defect 1).
         /// </summary>
-        private static bool TouchesTheFilesystemOrTheSharedLogger(string callee) =>
+        internal static bool TouchesTheFilesystemOrTheSharedLogger(string callee) =>
             TouchesTheFilesystem(callee) || callee.StartsWith("AgentEyes.Log::", StringComparison.Ordinal);
 
         /// <summary>
@@ -583,7 +583,7 @@ namespace AgentEyes.Tests
         /// exactly as fatally as a write. System.IO.Stream itself is deliberately absent - the pipe
         /// the drain reads IS a Stream, and reading it is the whole job.
         /// </summary>
-        private static bool TouchesTheFilesystem(string callee) =>
+        internal static bool TouchesTheFilesystem(string callee) =>
             callee.StartsWith("System.IO.File::", StringComparison.Ordinal)
          || callee.StartsWith("System.IO.FileInfo::", StringComparison.Ordinal)
          || callee.StartsWith("System.IO.Directory::", StringComparison.Ordinal)

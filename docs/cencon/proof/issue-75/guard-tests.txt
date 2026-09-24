@@ -1,0 +1,18 @@
+  Passed AgentEyes.Tests.HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile [332 ms]
+  Passed AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger [363 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.HudFileWriteScan_RealUiThreadWrite_IsStillReported(seed: "HudDecoy::ClickInvokesAParkedDelegate", writer: "ParkedAndInvokedHere::WriteToDisk") [535 ms]
+  Passed AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem [258 ms]
+  Passed AgentEyes.Tests.PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem [329 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.HudFileWriteScan_RealUiThreadWrite_IsStillReported(seed: "HudDecoy::ClickTouchesAWritingTypeInitializer", writer: "CctorWritingSettings::Load") [483 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.HudFileWriteScan_RealUiThreadWrite_IsStillReported(seed: "HudDecoy::ClickBuildsAWriterWhoseCtorAlsoInvokesIt", writer: "HudDecoy::WriteTwo") [291 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.HudFileWriteScan_RealUiThreadWrite_IsStillReported(seed: "HudDecoy::ClickHandsADelegateToASameThreadInvoker", writer: "HudDecoy::WriteOne") [334 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.DrainLoggerScan_RealDrainToSharedLoggerCall_IsStillReported(seed: "DrainDecoy::DrainInvokesAParkedLogger", caller: "ParkedLogger::SayNow", logger: "AgentEyes.Log::Info") [320 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.DrainLoggerScan_RealDrainToSharedLoggerCall_IsStillReported(seed: "DrainDecoy::DrainTouchesALoggingTypeInitializer", caller: "CctorLogging::Announce", logger: "AgentEyes.Log::Warn") [289 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.DrainLoggerScan_RealDrainToSharedLoggerCall_IsStillReported(seed: "DrainDecoy::DrainLogsDirectly", caller: "DrainDecoy::DrainLogsDirectly", logger: "AgentEyes.Log::Error") [485 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.HudFileWriteScan_TheProductsBackgroundWriterShape_IsNotReported [425 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.DrainLoggerScan_TheProductsWorkerShapes_AreNotReported(seed: "DrainDecoy::DrainHandsAChoreToTheWorker") [480 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.DrainLoggerScan_TheProductsWorkerShapes_AreNotReported(seed: "DrainDecoy::DrainSaysThroughTheLogLane") [532 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.Reachable_ThreadStartAndParkedDelegate_EdgesMoveToTheThreadBody [959 ms]
+  Passed AgentEyes.Tests.DelegateHandoffWalkTests.Reachable_TheProductsThreadBodies_StillReachTheirFileAndLogWork [599 ms]
+Total tests: 16
+     Passed: 16
