@@ -484,7 +484,10 @@ namespace AgentEyes.AlwaysOn
                 {
                     _state = AlwaysOnState.Paused;
                     _pausedReason = reason;
-                    _silentMic = null;
+                    // The silent-mic verdict is KEPT across the pause (the status hides the banner while
+                    // paused): nothing is judged until Resume, which re-reads Windows and records a
+                    // transition only if the verdict actually changed - so a microphone muted across
+                    // many pause/resume cycles is warned about once, not once per cycle (review of #77).
                     Record(HistoryKind.State, HistorySeverity.Info, $"Always-on paused: {reason}");
                     Publish();
                 }
@@ -513,6 +516,8 @@ namespace AgentEyes.AlwaysOn
                     Record(HistoryKind.State, HistorySeverity.Info, "Always-on resumed");
                     // The pause may have lasted half an hour: Windows is asked again before the rule is
                     // judged, so a mic unmuted (or muted) meanwhile is not judged on the stale state.
+                    // The verdict from before the pause is still in force, so this records a
+                    // transition only when Windows' answer differs from it.
                     ReadMicEndpoint(_options!);
                     UpdateSilentMic(_utcNow(), listening: true);
                 }
@@ -625,7 +630,9 @@ namespace AgentEyes.AlwaysOn
                 KeptBytesToday = _day.KeptBytes,
                 DiscardedSecondsToday = Math.Round(_day.DiscardedSeconds, 1),
                 LastClip = _lastClip,
-                SilentMic = _silentMic,
+                // The banner is not shown while paused (nothing is being listened to); the verdict
+                // behind it is kept for Resume.
+                SilentMic = _state == AlwaysOnState.Paused ? null : _silentMic,
                 MicDevice = _micDevice,
                 MicMuted = _micMuted,
                 MicVolumePercent = _micVolume,
@@ -1000,9 +1007,10 @@ namespace AgentEyes.AlwaysOn
 
             // The flag follows the silent-microphone rule as judged this pass (Tick reads Windows' mute
             // state once a minute and applies the rule before this line) - never the floor (issue #77,
-            // tester's finding).
+            // tester's finding). The line is always Info: the flag is in its TEXT, and the two
+            // transition events in UpdateSilentMic are the problems - not one row per quiet minute.
             bool silent = _silentMic != null;
-            Record(HistoryKind.Level, silent ? HistorySeverity.Warning : HistorySeverity.Info,
+            Record(HistoryKind.Level, HistorySeverity.Info,
                 $"Levels: {line}{levels}" + (silent ? " " + SilentMicRule.LevelFlag : ""));
         }
 
@@ -1623,8 +1631,14 @@ namespace AgentEyes.AlwaysOn
             }
             else
             {
-                Log.Info($"[AlwaysOnEngine] UpdateSilentMic: {SilentMicRule.ClearedText}");
-                Record(HistoryKind.Problem, HistorySeverity.Info, SilentMicRule.ClearedText);
+                // Say what happened, not what it might mean: a cleared MUTE is Windows' report changing
+                // (no sound need have arrived - the capture may be down); only the no-sound arm's
+                // clearing means a loud second was heard.
+                string cleared = _silentMic == SilentMicRule.Describe(SilentMicReason.Muted)
+                    ? SilentMicRule.UnmutedText
+                    : SilentMicRule.ClearedText;
+                Log.Info($"[AlwaysOnEngine] UpdateSilentMic: {cleared}");
+                Record(HistoryKind.Problem, HistorySeverity.Info, cleared);
             }
             _silentMic = text;
         }

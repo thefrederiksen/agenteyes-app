@@ -42,11 +42,20 @@ namespace AgentEyes.AlwaysOn
         /// <summary>The banner and the warning event, as the issue words them.</summary>
         public const string BannerText = "The microphone is sending silence - check it is not muted.";
 
-        /// <summary>The flag on a level line recorded while the rule holds.</summary>
-        public const string LevelFlag = "WARNING: The microphone is sending silence - is it muted?";
+        /// <summary>
+        /// The flag on a level line recorded while the rule holds. The line itself stays Info - the
+        /// transition events are the problems; a warning row per quiet minute would fill the Problems
+        /// filter with the same fact over and over (review of #77).
+        /// </summary>
+        public const string LevelFlag = "[mic silent]";
 
-        /// <summary>The event recorded when the rule stops holding.</summary>
+        /// <summary>The event recorded when the no-sound arm stops holding: a loud second arrived.</summary>
         public const string ClearedText = "The microphone is sending sound again.";
+
+        /// <summary>The event recorded when the mute arm stops holding: Windows no longer reports the
+        /// endpoint muted. Says only what happened - no sound has necessarily arrived (the capture may
+        /// be down, or the pause may just have ended).</summary>
+        public const string UnmutedText = "Windows no longer reports the microphone muted.";
 
         /// <param name="windowsMuted">The endpoint's mute state, or null when it could not be read.</param>
         /// <param name="lastLoudUtc">The last second whose RMS was above the line, or null for none yet.</param>

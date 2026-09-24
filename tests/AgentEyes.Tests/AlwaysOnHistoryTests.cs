@@ -235,11 +235,12 @@ namespace AgentEyes.Tests
         [InlineData("Decision", "Info", true, true, false, false)]
         [InlineData("Clip", "Info", true, true, false, false)]
         [InlineData("Level", "Info", true, false, true, false)]
-        [InlineData("Level", "Warning", true, false, true, true)]   // a flagged level line is a problem too
+        [InlineData("Level", "Warning", true, false, true, true)]   // a warning is a problem whatever its kind
         [InlineData("State", "Info", true, false, false, false)]
         [InlineData("Device", "Warning", true, false, false, true)]
         [InlineData("Problem", "Error", true, false, false, true)]
-        [InlineData("Problem", "Info", true, false, false, false)]  // a recovery is not a problem
+        [InlineData("Problem", "Warning", true, false, false, true)]
+        [InlineData("Problem", "Info", true, false, false, true)]   // the line that ENDS a problem (recovery, sound again, unmuted) is shown with it
         public void Matches_EachFilter_SelectsByKindOrSeverity(string kindName, string sevName, bool all, bool decisions, bool levels, bool problems)
         {
             var e = Ev(T0, Enum.Parse<HistoryKind>(kindName), Enum.Parse<HistorySeverity>(sevName), "x");
@@ -274,14 +275,16 @@ namespace AgentEyes.Tests
             h.Append(Ev(T0.AddMinutes(2), HistoryKind.Decision, HistorySeverity.Info, "KEEP"));
             h.Append(Ev(T0.AddMinutes(3), HistoryKind.Level, HistorySeverity.Warning, "levels 2 flagged"));
             h.Append(Ev(T0.AddMinutes(4), HistoryKind.Clip, HistorySeverity.Info, "Clip saved"));
+            h.Append(Ev(T0.AddMinutes(5), HistoryKind.Problem, HistorySeverity.Info, "Recording again since 08:05:00"));
 
-            Assert.Equal(new[] { "Clip saved", "levels 2 flagged", "KEEP" },
+            Assert.Equal(new[] { "Recording again since 08:05:00", "Clip saved", "levels 2 flagged", "KEEP" },
                 h.Events(T0.AddMinutes(2), HistoryFilter.All).Select(e => e.Text));            // since is inclusive
             Assert.Equal(new[] { "Clip saved", "KEEP" }, h.Events(null, HistoryFilter.Decisions).Select(e => e.Text));
             Assert.Equal(new[] { "levels 2 flagged", "levels 1" }, h.Events(null, HistoryFilter.Levels).Select(e => e.Text));
-            Assert.Equal(new[] { "levels 2 flagged" }, h.Events(null, HistoryFilter.Problems).Select(e => e.Text));
+            // Problems: every warning/error, and the Info line of kind Problem that ends one - both ends of it.
+            Assert.Equal(new[] { "Recording again since 08:05:00", "levels 2 flagged" }, h.Events(null, HistoryFilter.Problems).Select(e => e.Text));
             Assert.Equal(new[] { "Clip saved" }, h.Events(T0.AddMinutes(4), HistoryFilter.Decisions).Select(e => e.Text));
-            Assert.Empty(h.Events(T0.AddMinutes(5), HistoryFilter.All));
+            Assert.Empty(h.Events(T0.AddMinutes(6), HistoryFilter.All));
         }
 
         [Fact]
@@ -309,7 +312,9 @@ namespace AgentEyes.Tests
 
             Assert.Equal(1, h.Count);
             Assert.Equal("started", h.Events(null, HistoryFilter.All)[0].Text);
-            Assert.Contains("[AlwaysOnHistory] Append: the event could not be written", File.ReadAllText(Log.CurrentFile));
+            string log = File.ReadAllText(Log.CurrentFile);
+            Assert.Contains("[AlwaysOnHistory] Append: the event could not be written to " + path + "; it is kept in memory", log);
+            Assert.DoesNotContain("written to " + path + " and is LOST", log);          // it is not: the list held it (this path - the log is shared by the run)
         }
 
         [Fact]
@@ -424,9 +429,15 @@ namespace AgentEyes.Tests
 
             Assert.Null(engine.Status().SilentMic);
             Assert.False(engine.Status().MicMuted);
-            var cleared = Assert.Single(Oldest(h), e => e.Text == SilentMicRule.ClearedText);
+            // The MUTE arm cleared: the event says what Windows reported, not that sound arrived.
+            var cleared = Assert.Single(Oldest(h), e => e.Text == SilentMicRule.UnmutedText);
             Assert.Equal(HistorySeverity.Info, cleared.Severity);
+            Assert.Equal(HistoryKind.Problem, cleared.Kind);
+            Assert.DoesNotContain(Oldest(h), e => e.Text == SilentMicRule.ClearedText);
             Assert.Equal(2, _micReads);
+            // Under Problems the reader sees both ends of the silence: where it began and where it ended.
+            Assert.Equal(new[] { SilentMicRule.UnmutedText, warning.Text },
+                h.Events(null, HistoryFilter.Problems).Where(e => e.Kind == HistoryKind.Problem).Select(e => e.Text));
         }
 
         /// <summary>
@@ -471,6 +482,7 @@ namespace AgentEyes.Tests
                 Assert.Contains("mic floor=-96.7dBFS line=-50.0dBFS (auto)", e.Text);   // the floor is still REPORTED
                 Assert.Contains("loud=4", e.Text);
                 Assert.DoesNotContain("WARNING", e.Text);
+                Assert.DoesNotContain(SilentMicRule.LevelFlag, e.Text);
             });
             Assert.Empty(h.Events(null, HistoryFilter.Problems));
             Assert.DoesNotContain(Oldest(h), e => e.Text.Contains(SilentMicRule.BannerText));
@@ -499,7 +511,8 @@ namespace AgentEyes.Tests
                 }
             }
 
-            // Ten minutes without one loud second: the banner, the warning, and the level line flagged.
+            // Ten minutes without one loud second: the banner, the warning, and the level line flagged
+            // in its TEXT - the line itself stays Info (the transition is the problem, not every minute).
             string expected = SilentMicRule.Describe(SilentMicReason.NoSound);
             Assert.Equal(expected, engine.Status().SilentMic);
             var warning = Assert.Single(Oldest(h), e => e.Kind == HistoryKind.Problem && e.Severity == HistorySeverity.Warning);
@@ -507,12 +520,13 @@ namespace AgentEyes.Tests
             Assert.Equal(T0.AddMinutes(10), warning.AtUtc);
             var levels = Oldest(h, HistoryFilter.Levels);
             Assert.Equal(10, levels.Count);
-            Assert.All(levels.Take(9), e => Assert.Equal(HistorySeverity.Info, e.Severity));
-            Assert.Equal(HistorySeverity.Warning, levels[9].Severity);
-            Assert.EndsWith(SilentMicRule.LevelFlag, levels[9].Text);
-            Assert.Single(h.Events(null, HistoryFilter.Problems), e => e.Kind == HistoryKind.Level);
+            Assert.All(levels, e => Assert.Equal(HistorySeverity.Info, e.Severity));
+            Assert.All(levels.Take(9), e => Assert.DoesNotContain(SilentMicRule.LevelFlag, e.Text));
+            Assert.EndsWith(" " + SilentMicRule.LevelFlag, levels[9].Text);
+            Assert.DoesNotContain(h.Events(null, HistoryFilter.Problems), e => e.Kind == HistoryKind.Level);
+            Assert.Equal(new[] { expected }, h.Events(null, HistoryFilter.Problems).Select(e => e.Text));
 
-            // The owner speaks: cleared within a tick.
+            // The owner speaks: cleared within a tick, with the no-sound arm's own words.
             Speak(sound, T0.AddMinutes(10).AddSeconds(1));
             _now = T0.AddMinutes(10).AddSeconds(15);
             engine.Tick();
@@ -521,6 +535,9 @@ namespace AgentEyes.Tests
             var cleared = Assert.Single(Oldest(h), e => e.Text == SilentMicRule.ClearedText);
             Assert.Equal(HistorySeverity.Info, cleared.Severity);
             Assert.Equal(_now, cleared.AtUtc);
+            Assert.DoesNotContain(Oldest(h), e => e.Text == SilentMicRule.UnmutedText);
+            // Both ends of the silence under Problems, newest first.
+            Assert.Equal(new[] { SilentMicRule.ClearedText, expected }, h.Events(null, HistoryFilter.Problems).Select(e => e.Text));
         }
 
         [Fact]
@@ -624,23 +641,48 @@ namespace AgentEyes.Tests
             Assert.Contains($"since {T0.AddSeconds(60).ToLocalTime():HH:mm:ss} (the capture failed at {T0.AddSeconds(30).ToLocalTime():HH:mm:ss})", recovered.Text);
         }
 
+        /// <summary>
+        /// Review finding: Pause used to drop the verdict silently and Resume recorded the same warning
+        /// again, so a microphone muted across many pause/resume cycles produced a warning row per cycle.
+        /// Now the verdict is kept across the pause (the banner is hidden by the status while paused) and
+        /// Resume records a transition only if Windows' answer changed: mute, pause, resume, pause, resume
+        /// -> exactly ONE warning row, no cleared row, and the banner back after each resume.
+        /// </summary>
         [Fact]
-        public void Pause_AndResume_AreRecorded_AndThePauseClearsTheBanner()
+        public void Pause_AndResume_AreRecorded_TheBannerHidesWhilePaused_AndAMutedMicIsWarnedAboutOnce()
         {
             _mic = _mic with { Muted = true };
             var h = History();
             using var engine = Engine(h);
             engine.Start(Options(), why: "test");
-            Assert.NotNull(engine.Status().SilentMic);
+            string banner = SilentMicRule.Describe(SilentMicReason.Muted);
+            Assert.Equal(banner, engine.Status().SilentMic);
 
             engine.Pause("a normal recording is running");
-            Assert.Null(engine.Status().SilentMic);                          // not judged while paused
+            Assert.Null(engine.Status().SilentMic);                          // hidden while paused - nothing is listened to
             _now = T0.AddMinutes(1);
             engine.Resume();
+            Assert.Equal(banner, engine.Status().SilentMic);                 // still muted: the banner is back, nothing new recorded
+            _now = T0.AddMinutes(2);
+            engine.Pause("a normal recording is running");
+            Assert.Null(engine.Status().SilentMic);
+            _now = T0.AddMinutes(3);
+            engine.Resume();
+            Assert.Equal(banner, engine.Status().SilentMic);
 
-            var states = Oldest(h).Where(e => e.Kind == HistoryKind.State).Select(e => e.Text).ToList();
-            Assert.Equal(new[] { "Always-on started (test)", "Always-on paused: a normal recording is running", "Always-on resumed" }, states);
-            Assert.Equal(SilentMicRule.Describe(SilentMicReason.Muted), engine.Status().SilentMic);   // judged again on resume
+            var all = Oldest(h);
+            var states = all.Where(e => e.Kind == HistoryKind.State).Select(e => e.Text).ToList();
+            Assert.Equal(new[]
+            {
+                "Always-on started (test)", "Always-on paused: a normal recording is running", "Always-on resumed",
+                "Always-on paused: a normal recording is running", "Always-on resumed",
+            }, states);
+            Assert.Equal(3, _micReads);                                      // start and each resume re-read Windows
+            var warning = Assert.Single(all, e => e.Kind == HistoryKind.Problem);     // ONE problem row in all: the warning at start
+            Assert.Equal(HistorySeverity.Warning, warning.Severity);
+            Assert.Equal(banner, warning.Text);
+            Assert.Equal(T0, warning.AtUtc);
+            Assert.DoesNotContain(all, e => e.Text == SilentMicRule.ClearedText || e.Text == SilentMicRule.UnmutedText);
         }
 
         [Fact]
@@ -783,8 +825,55 @@ namespace AgentEyes.Tests
             Assert.Equal(2, _micReads);                                      // start, and again on resume
             var all = Oldest(h);
             Assert.Single(all, e => e.Kind == HistoryKind.Problem && e.Severity == HistorySeverity.Warning);   // the one at start
-            Assert.DoesNotContain(all, e => e.Text == SilentMicRule.ClearedText);                              // nothing to clear
-            Assert.Equal("Always-on resumed", all[^1].Text);
+            // The verdict from before the pause was Muted; Windows now says otherwise, so the silence that
+            // began at start is closed with what happened - not with "sound again" (no sound was heard).
+            var cleared = Assert.Single(all, e => e.Kind == HistoryKind.Problem && e.Severity == HistorySeverity.Info);
+            Assert.Equal(SilentMicRule.UnmutedText, cleared.Text);
+            Assert.DoesNotContain(all, e => e.Text == SilentMicRule.ClearedText);
+            Assert.Equal("Always-on resumed", all[^2].Text);
+            Assert.Equal(SilentMicRule.UnmutedText, all[^1].Text);
+        }
+
+        /// <summary>
+        /// Review finding: when the MUTE cleared while the capture was down (Retrying), the recorded text
+        /// said "sending sound again" although no sound could arrive. The mute arm's clearing now says what
+        /// Windows reported; "sending sound again" is kept for the no-sound arm (a loud second heard - see
+        /// Tick_NoLoudSecondForTenMinutes_RaisesTheBannerAndClearsWhenSoundReturns).
+        /// </summary>
+        [Fact]
+        public void Tick_MuteClearsWhileTheCaptureIsDown_SaysWindowsNoLongerReportsItMuted_NotSoundAgain()
+        {
+            _mic = _mic with { Muted = true };
+            var h = History();
+            using var engine = Engine(h);
+            engine.Start(Options(), why: "test");
+            string banner = SilentMicRule.Describe(SilentMicReason.Muted);
+            Assert.Equal(banner, engine.Status().SilentMic);
+            engine.Tick();
+
+            // The capture dies and its replacement fails to start: retrying, nothing can be heard.
+            _recorders[0].Exited = true;
+            _make = () => new FakeRecorder { FailStart = "the monitor is gone" };
+            _now = T0.AddSeconds(15);
+            engine.Tick();
+            Assert.Equal(AlwaysOnState.Retrying, engine.State);
+            Assert.Equal(banner, engine.Status().SilentMic);                 // muted is muted, capture or no capture
+
+            // Unmuted in Windows while still down: the minute read sees it.
+            _mic = _mic with { Muted = false };
+            _now = T0.AddSeconds(60);
+            engine.Tick();
+
+            Assert.Equal(AlwaysOnState.Retrying, engine.State);
+            Assert.Null(engine.Status().SilentMic);
+            Assert.False(engine.Status().MicMuted);
+            var all = Oldest(h);
+            var cleared = Assert.Single(all, e => e.Text == SilentMicRule.UnmutedText);
+            Assert.Equal(HistorySeverity.Info, cleared.Severity);
+            Assert.Equal(HistoryKind.Problem, cleared.Kind);
+            Assert.Equal(_now, cleared.AtUtc);
+            Assert.DoesNotContain(all, e => e.Text == SilentMicRule.ClearedText);       // no sound arrived; it is not claimed
+            Assert.Single(all, e => e.Text == banner);
         }
 
         /// <summary>
@@ -815,7 +904,9 @@ namespace AgentEyes.Tests
             Assert.Equal(2, File.ReadAllLines(path).Length);                 // the file is intact
             string log = File.ReadAllText(Log.CurrentFile);
             Assert.Contains("[AlwaysOnHistory] Load: " + path + " could not be read; nothing is cached", log);
-            Assert.Contains("[AlwaysOnHistory] Append: the event could not be written", log);
+            // Truthful: with the file unreadable there is no memory copy either, so the event is lost - the log says so.
+            Assert.Contains("[AlwaysOnHistory] Append: the event could not be written to " + path + " and is LOST - the file could not be read", log);
+            Assert.DoesNotContain("written to " + path + "; it is kept in memory", log);  // this path: the log is shared by the run
 
             // Unlocked: read afresh, and an append lands.
             Assert.Equal(new[] { "first", "second" }, Oldest(h).Select(e => e.Text));

@@ -21,11 +21,11 @@ namespace AgentEyes.Audio
     internal static class MicEndpoint
     {
         /// <summary>
-        /// The state of the active capture endpoint whose friendly name starts with or contains
-        /// <paramref name="nameFragment"/> (case-insensitive; a WaveIn name is a 31-character prefix
-        /// of the friendly name), or of Windows' default microphone when the fragment is null. Throws
-        /// a <see cref="UsageException"/> naming the problem when there is no such device - never a
-        /// guess at another one.
+        /// The state of the active capture endpoint <paramref name="nameFragment"/> names (see
+        /// <see cref="Select"/>: the exact friendly name, else the ONE name it is a prefix of - a WaveIn
+        /// name is a 31-character prefix of the friendly name), or of Windows' default microphone when
+        /// the fragment is null. Throws a <see cref="UsageException"/> naming the problem when there is
+        /// no such device or more than one could be meant - never a guess at another one.
         /// </summary>
         public static MicEndpointState Read(string? nameFragment)
         {
@@ -50,28 +50,70 @@ namespace AgentEyes.Audio
             }
         }
 
+        /// <summary>
+        /// Which of the active capture endpoints' friendly <paramref name="names"/> the configured
+        /// <paramref name="fragment"/> means (case-insensitive) - the selection rule, pure so it is tested:
+        ///  1. exactly one name EQUAL to the fragment -> that one;
+        ///  2. else exactly one name that STARTS WITH the fragment (the WaveIn 31-character prefix) -> that one;
+        ///  3. else a <see cref="UsageException"/>: none matched, or more than one could be meant (two
+        ///     devices both called "Microphone (USB Audio)", or two whose names begin with "Microphone") -
+        ///     the candidates are named so the owner can pick; nothing is guessed (the no-fallback rule).
+        /// </summary>
+        /// <returns>The index into <paramref name="names"/> of the one endpoint meant.</returns>
+        public static int Select(string fragment, IReadOnlyList<string> names)
+        {
+            if (string.IsNullOrWhiteSpace(fragment)) throw new ArgumentException("the microphone name to look for is empty", nameof(fragment));
+            if (names == null) throw new ArgumentNullException(nameof(names));
+            string wanted = fragment.Trim();
+            string active = names.Count == 0 ? "(none)" : string.Join("; ", names);
+
+            var exact = new List<int>();
+            for (int i = 0; i < names.Count; i++)
+                if (string.Equals(names[i], wanted, StringComparison.OrdinalIgnoreCase)) exact.Add(i);
+            if (exact.Count == 1) return exact[0];
+            if (exact.Count > 1)
+                throw new UsageException($"{exact.Count} active microphones are both named \"{wanted}\" - Windows cannot tell them apart by name, "
+                                         + $"so the mute state cannot be read for one of them. Active: {active}.");
+
+            var prefix = new List<int>();
+            for (int i = 0; i < names.Count; i++)
+                if (names[i].StartsWith(wanted, StringComparison.OrdinalIgnoreCase)) prefix.Add(i);
+            if (prefix.Count == 1) return prefix[0];
+            if (prefix.Count > 1)
+            {
+                var candidates = new List<string>(prefix.Count);
+                foreach (int i in prefix) candidates.Add("\"" + names[i] + "\"");
+                throw new UsageException($"\"{wanted}\" could mean {prefix.Count} active microphones: {string.Join(", ", candidates)}. "
+                                         + "Use the full device name in the setup so exactly one is meant.");
+            }
+            throw new UsageException($"no active microphone matches \"{wanted}\". Active: {active}.");
+        }
+
         private static MMDevice Find(MMDeviceEnumerator enumerator, string fragment)
         {
             var endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
-            MMDevice? match = null;
+            var devices = new List<MMDevice>(endpoints.Count);
             var names = new List<string>(endpoints.Count);
             for (int i = 0; i < endpoints.Count; i++)
             {
-                var endpoint = endpoints[i];
-                names.Add(endpoint.FriendlyName);
-                if (match == null && endpoint.FriendlyName.Contains(fragment, StringComparison.OrdinalIgnoreCase))
-                {
-                    match = endpoint;
-                    continue;
-                }
-                endpoint.Dispose();
+                devices.Add(endpoints[i]);
+                names.Add(endpoints[i].FriendlyName);
             }
-            if (match == null)
+            int chosen;
+            try
             {
-                Log.Warn($"[MicEndpoint] Find: no active microphone matches \"{fragment}\"; active: {(names.Count == 0 ? "(none)" : string.Join("; ", names))}");
-                throw new UsageException($"no active microphone matches \"{fragment}\". Active: {(names.Count == 0 ? "(none)" : string.Join("; ", names))}.");
+                chosen = Select(fragment, names);
             }
-            return match;
+            catch (UsageException ex)
+            {
+                foreach (var d in devices) d.Dispose();
+                Log.Warn($"[MicEndpoint] Find: \"{fragment}\" -> {ex.Message}");
+                throw;
+            }
+            for (int i = 0; i < devices.Count; i++)
+                if (i != chosen) devices[i].Dispose();
+            Log.Info($"[MicEndpoint] Find: \"{fragment}\" -> \"{names[chosen]}\" (of {names.Count} active)");
+            return devices[chosen];
         }
     }
 }

@@ -46,15 +46,17 @@ namespace AgentEyes.AlwaysOn
 
         /// <summary>
         /// Whether the event is in a filter (issue #77): Decisions are the keep/delete decisions and the
-        /// clips; Levels the minute lines; Problems every warning and error, whatever it is about (a
-        /// level line flagged for a silent microphone is a problem too).
+        /// clips; Levels the minute lines; Problems every warning and error, whatever it is about, AND
+        /// every event of kind Problem whatever its severity - so the Info lines that END a problem (the
+        /// capture recovered, the microphone is sending sound again, Windows no longer reports it muted)
+        /// are read beside the warning that began it, not hidden by the filter.
         /// </summary>
         public bool Matches(HistoryFilter filter) => filter switch
         {
             HistoryFilter.All => true,
             HistoryFilter.Decisions => Kind is HistoryKind.Decision or HistoryKind.Clip,
             HistoryFilter.Levels => Kind == HistoryKind.Level,
-            HistoryFilter.Problems => Severity != HistorySeverity.Info,
+            HistoryFilter.Problems => Severity != HistorySeverity.Info || Kind == HistoryKind.Problem,
             _ => throw new ArgumentOutOfRangeException(nameof(filter), filter, "unknown history filter"),
         };
     }
@@ -69,8 +71,9 @@ namespace AgentEyes.AlwaysOn
     /// ~1440 events, so the file stays in the low megabytes.
     ///
     /// THE HISTORY IS A RECORD OF THE RECORDING, NEVER A CONDITION FOR IT (the rule issue #81 set for
-    /// today.json): a file that cannot be written is logged as an error and the event stays in memory;
-    /// nothing in the recorder waits on it or stops for it.
+    /// today.json): a file that cannot be written is logged as an error and the event stays in memory
+    /// (or, when the file could not be read either, the log says the event is lost); nothing in the
+    /// recorder waits on it or stops for it.
     ///
     /// Loaded lazily, on first use, so the app's start-up does not read it on the UI thread; the page
     /// asks for events from a worker. Thread safe: the engine appends on its timer thread while the
@@ -196,8 +199,12 @@ namespace AgentEyes.AlwaysOn
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                        Log.Error($"[AlwaysOnHistory] Append: the event could not be written to {Path}; it is kept in memory "
-                                  + "and the recording goes on", ex);
+                        // Truthful about where the event is now: in memory when the file was loaded;
+                        // LOST when it was not (the read failed too, so there is no memory copy to keep).
+                        Log.Error(events != null
+                            ? $"[AlwaysOnHistory] Append: the event could not be written to {Path}; it is kept in memory and the recording goes on"
+                            : $"[AlwaysOnHistory] Append: the event could not be written to {Path} and is LOST - the file could not be read "
+                              + "earlier either, so it is not in memory; the recording goes on", ex);
                     }
                 }
             }
