@@ -33,6 +33,12 @@ namespace AgentEyes.App
         /// <summary>True while the page is filling its controls, so the fill does not save.</summary>
         private bool _aoLoading;
 
+        /// <summary>The in-progress line last shown, so a change is logged once, not every refresh (issue #70).</summary>
+        private string? _aoClipNowShown;
+
+        /// <summary>Today's clip list last shown, as one key, so the list is rebuilt only when it changes.</summary>
+        private string? _aoClipsShownKey;
+
         /// <summary>Wire the page to the app's one always-on controller. Called from the constructor.</summary>
         private void InitAlwaysOn(AlwaysOnController? alwaysOn)
         {
@@ -227,6 +233,24 @@ namespace AgentEyes.App
             }
         }
 
+        /// <summary>A clip in today's list was clicked: open its folder with the clip selected (issue #70).</summary>
+        private void AOClip_Click(object sender, RoutedEventArgs e)
+        {
+            // Entry point (click): a clip that is gone is said on the page, never thrown.
+            try
+            {
+                if (sender is not FrameworkElement { Tag: string path }) return;
+                Log.Info($"[MainWindow] AOClip_Click: {path}");
+                AOErrorText.Visibility = Visibility.Collapsed;
+                _alwaysOn?.RevealClip(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("[MainWindow] AOClip_Click FAILED", ex);
+                ShowAlwaysOnError("The clip could not be shown: " + ex.Message);
+            }
+        }
+
         private void ShowAlwaysOnError(string text)
         {
             AOErrorText.Text = text;
@@ -272,10 +296,45 @@ namespace AgentEyes.App
             AOSettingsGrid.IsEnabled = !on && !ao.Busy;
             AOLockedNote.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
 
-            AOTodayText.Text = "Today: " + ao.TodaySummary();
+            AOTodayText.Text = "Today: " + ao.TodaySummary() + UnlistedNote(s);
+            UpdateAlwaysOnClips(s);
             string? err = s.State == AlwaysOnState.Retrying ? null : (ao.LastStartError != null && !on ? "Last start failed: " + ao.LastStartError : null);
             if (err != null) ShowAlwaysOnError(err);
         }
+
+        /// <summary>
+        /// Issue #70: the in-progress line (how long so far, where it will be saved) and today's clips with
+        /// their folders. Everything shown comes from the status snapshot - no disk access here. UI thread.
+        /// </summary>
+        private void UpdateAlwaysOnClips(AlwaysOnStatus s)
+        {
+            string? clipNow = s.State == AlwaysOnState.Keeping ? s.InProgressLine(DateTime.UtcNow) : null;
+            AOClipNowText.Text = clipNow ?? "";
+            AOClipNowText.Visibility = clipNow == null ? Visibility.Collapsed : Visibility.Visible;
+            if (clipNow != _aoClipNowShown)
+            {
+                Log.Info($"[MainWindow] UpdateAlwaysOnClips: in-progress line -> {clipNow ?? "(none)"}");
+                _aoClipNowShown = clipNow;
+            }
+
+            string key = string.Join("|", s.ClipsKeptToday.Select(c => c.Path + (c.Exists ? "" : "?")));
+            if (key == _aoClipsShownKey) return;
+            _aoClipsShownKey = key;
+            AOTodayClipsList.ItemsSource = s.ClipsKeptToday
+                .Select(c => new AOClipRow(c.Label, c.Path, c.Exists ? "Open the folder with this clip selected" : c.Path + " is no longer there"))
+                .ToList();
+            Log.Info($"[MainWindow] UpdateAlwaysOnClips: listing {s.ClipsKeptToday.Count} clips kept today");
+        }
+
+        /// <summary>Clips counted today but not listed - kept before the list existed (issue #70).</summary>
+        private static string UnlistedNote(AlwaysOnStatus s)
+        {
+            int unlisted = s.ClipsToday - s.ClipsKeptToday.Count;
+            return unlisted > 0 ? $" {unlisted} of today's clips were kept before AgentEyes listed where clips go, so they are not listed below." : "";
+        }
+
+        /// <summary>One row of today's clip list.</summary>
+        private sealed record AOClipRow(string Label, string Path, string Hint);
 
         private static void AutomationPropertiesName(DependencyObject d, string name) =>
             System.Windows.Automation.AutomationProperties.SetName(d, name);

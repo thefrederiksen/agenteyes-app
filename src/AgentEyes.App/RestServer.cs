@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using AgentEyes;
+using AgentEyes.AlwaysOn;
 using AgentEyes.Audio;
 using AgentEyes.Packaging;
 using AgentEyes.Video;
@@ -633,15 +634,41 @@ namespace AgentEyes.App
         {
             var ao = RequireAlwaysOn(ctx);
             if (ao == null) return;
+            var s = ao.Status();
+            var open = OpenClip(s, DateTime.UtcNow);
+            Log.Info($"[RestServer] AlwaysOnStatus: state={s.State} openClipSeconds={(open == null ? "null" : open.ElapsedSeconds.ToString("0"))} "
+                     + $"clipsKeptToday={s.ClipsKeptToday.Count}");
             Json(ctx, new
             {
-                status = ao.Status(),
+                status = s,
                 today = ao.TodaySummary(),
                 busy = ao.BusyText,
                 lastStartError = ao.LastStartError,
                 clipsFolder = ao.ClipsFolder,
+                // Issue #70: the clip in progress (null when none) and where today's clips are.
+                openClip = open == null ? null : new
+                {
+                    startUtc = open.StartUtc,
+                    elapsedSeconds = open.ElapsedSeconds,
+                    savedTo = open.SavedTo,
+                    afterMinutes = open.AfterMinutes,
+                },
+                clipsKeptToday = s.ClipsKeptToday.Select(c => new { file = c.File, folder = c.Folder, path = c.Path, exists = c.Exists }),
             });
         }
+
+        /// <summary>The clip in progress in GET /always-on (issue #70), or null when none is.</summary>
+        internal sealed record OpenClipInfo(DateTime StartUtc, double ElapsedSeconds, string? SavedTo, double? AfterMinutes);
+
+        /// <summary>
+        /// The clip in progress, with its running time as of <paramref name="nowUtc"/> - the status
+        /// snapshot's own elapsed value is as of the last keeper pass (up to 15 s old). Null when no clip
+        /// is in progress.
+        /// </summary>
+        internal static OpenClipInfo? OpenClip(AlwaysOnStatus s, DateTime nowUtc) =>
+            s.OpenClipStartUtc is DateTime start
+                ? new OpenClipInfo(start, s.OpenClipElapsedAt(nowUtc)!.Value, s.ClipsFolder, s.KeepAfterMinutes)
+                : null;
 
         /// <summary>Read an integer query-string parameter, falling back to a default.</summary>
         private static int QInt(HttpListenerContext ctx, string key, int def) =>

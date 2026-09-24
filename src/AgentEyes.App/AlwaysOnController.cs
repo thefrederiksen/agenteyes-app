@@ -341,6 +341,25 @@ namespace AgentEyes.App
             Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
         }
 
+        /// <summary>
+        /// Open a clip's folder in Explorer with the clip selected (issue #70). Throws with the reason
+        /// when the clip is no longer there - the disk cap deleted it, or it was moved - rather than
+        /// opening some other folder in its place.
+        /// </summary>
+        public void RevealClip(string path)
+        {
+            Log.Info($"[AlwaysOnController] RevealClip: {path}");
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("no clip path given", nameof(path));
+            if (!File.Exists(path))
+            {
+                Log.Warn($"[AlwaysOnController] RevealClip: {path} is not there any more");
+                throw new UsageException($"{Path.GetFileName(path)} is no longer in {Path.GetDirectoryName(path)} - "
+                                         + "the disk cap may have deleted it, or it was moved.");
+            }
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+            Log.Info($"[AlwaysOnController] RevealClip: opened {Path.GetDirectoryName(path)} with {Path.GetFileName(path)} selected");
+        }
+
         private void SetBusy(string? text)
         {
             _busy = text != null;

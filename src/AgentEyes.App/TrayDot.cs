@@ -60,11 +60,19 @@ namespace AgentEyes.App
         }
 
         /// <summary>The tray tooltip for an always-on status, at most <see cref="MaxTooltip"/> characters.</summary>
-        public static string Tooltip(AlwaysOnStatus s)
+        public static string Tooltip(AlwaysOnStatus s) => Tooltip(s, DateTime.UtcNow);
+
+        /// <summary>The tray tooltip as of <paramref name="nowUtc"/>. While a clip is in progress it says
+        /// that instead of today's totals - how long so far and where it will be saved (issue #70). The
+        /// two do not fit together in the 127 characters Windows allows, and the clip in progress is the
+        /// fact the owner cannot see anywhere else on the tray.</summary>
+        public static string Tooltip(AlwaysOnStatus s, DateTime nowUtc)
         {
             string counts = s.Counts switch { "system" => "system sound", "both" => "mic + system", _ => "microphone" };
             string cap = s.CapGb.HasValue && s.CapGb.Value > 0 ? $" of {s.CapGb.Value:0.#} GB" : "";
             string today = $"Today: {s.ClipsToday} clip{(s.ClipsToday == 1 ? "" : "s")}, {AlwaysOnDay.Size(s.DiskUsedBytes)}{cap}";
+            if (s.State == AlwaysOnState.Keeping && s.InProgressShort(nowUtc) is string now)
+                return Fit("AgentEyes - Always-on recording\n" + now);
             string text = s.State switch
             {
                 AlwaysOnState.Listening => $"AgentEyes - Always-on recording\nListening ({counts}). {today}",
@@ -73,8 +81,11 @@ namespace AgentEyes.App
                 AlwaysOnState.Retrying => $"AgentEyes - Always-on NOT recording\n{s.LastError ?? "the capture failed"} - retrying",
                 _ => "AgentEyes",
             };
-            return text.Length <= MaxTooltip ? text : text.Substring(0, MaxTooltip - 3) + "...";
+            return Fit(text);
         }
+
+        private static string Fit(string text) =>
+            text.Length <= MaxTooltip ? text : text.Substring(0, MaxTooltip - 3) + "...";
 
         private static string Capitalise(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
     }

@@ -606,6 +606,11 @@
                         <TextBlock x:Name="AOStatusText" FontSize="12" Foreground="{StaticResource RdDim}"
                                    TextWrapping="Wrap" AutomationProperties.Name="Always-on status"
                                    Text="Records all the time and keeps only the stretches with sound."/>
+                        <!-- Issue #70: while a clip is being kept, say so - how long so far, and where
+                             it will be saved. Collapsed when no clip is in progress. -->
+                        <TextBlock x:Name="AOClipNowText" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{StaticResource RdText}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Visibility="Collapsed" AutomationProperties.Name="Always-on clip in progress"/>
 
                         <Border Background="{StaticResource RdSurface}" BorderBrush="{StaticResource RdStroke}"
                                 BorderThickness="1" CornerRadius="8" Padding="18,8" Margin="0,12,0,0">
@@ -733,6 +738,19 @@
 
                         <TextBlock x:Name="AOTodayText" FontSize="12" Foreground="{StaticResource RdText}" Margin="0,14,0,0"
                                    TextWrapping="Wrap" AutomationProperties.Name="Always-on today"/>
+                        <!-- Issue #70: each clip kept today, with its folder. A click opens the folder
+                             with the clip selected. Code-behind: MainWindow.AlwaysOn.cs -->
+                        <ItemsControl x:Name="AOTodayClipsList" Margin="0,4,0,0"
+                                      AutomationProperties.Name="Always-on clips kept today">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding Label}" Tag="{Binding Path}" Style="{StaticResource DkLink}"
+                                            FontSize="12" HorizontalAlignment="Left" Margin="0,2,0,0"
+                                            Click="AOClip_Click" ToolTip="{Binding Hint}"
+                                            AutomationProperties.Name="{Binding Label}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                         <TextBlock x:Name="AOErrorText" FontSize="12" Foreground="{StaticResource DkRed}" Margin="0,6,0,0"
                                    TextWrapping="Wrap" Visibility="Collapsed" AutomationProperties.Name="Always-on error"/>
                     </StackPanel>
