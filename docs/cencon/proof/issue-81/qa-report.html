@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA Report - Issue 81</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 1000px; margin: 24px auto; padding: 0 16px; color: #222; background: #fff; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; text-align: left; font-size: 14px; }
+th { background: #f0f0f0; }
+.pass { color: #1a7f37; font-weight: bold; }
+.pend { color: #9a6700; font-weight: bold; }
+code, pre { font-family: Consolas, monospace; font-size: 13px; }
+pre { background: #f6f8fa; padding: 8px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>QA Report - Issue #81</h1>
+<p>[Always On] Capture stalls for ~2.5 min, and the restart splits the clip and drops the lead-in.<br>
+PR #82, branch <code>issue-81-capture-stall</code>, reviewed at head <code>9238e69</code>. QA date 2026-09-24.</p>
+
+<h2>Verification method</h2>
+<p>Independent code review of <code>git diff origin/main...HEAD</code> against each acceptance criterion, plus
+build and test run by QA in the worktree. Per the owner's rules for this item, the app, CLI, REST API,
+smokes, selftest and ffmpeg captures were NOT run (the owner is using the machine); the live 2-hour
+criterion is pending the tester session after merge, as the issue allows.</p>
+
+<h2>Gate (run by QA)</h2>
+<pre>dotnet build AgentEyes.sln -c Release   -> 0 Error(s), 20 Warning(s) (pre-existing xUnit analyzer warnings)
+dotnet test  AgentEyes.sln -c Release   -> Passed! Failed: 0, Passed: 1767, Skipped: 0, Total: 1767</pre>
+<p>No CameraPreviewTests flake occurred; no re-run was needed.</p>
+
+<h2>Acceptance criteria</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>What the code does (evidence)</th><th>Result</th></tr>
+<tr><td>1</td><td>Full 20-line stderr + exit code / alive state</td>
+<td>Supervise error logs the last 20 lines in full, no "...", plus process state.</td>
+<td><code>FfmpegStderr.cs</code> keeps whole lines (ring of 200); <code>Tail()</code> returns the last 20 joined by newline, no truncation. <code>ContinuousRecorder.ProcessState</code> returns "exited with code N" or "still running (pid N) - why". <code>AlwaysOnEngine.RestartFailedCapture</code> logs reason + state + tail. Test <code>Tick_CaptureFails_WritesTheFullTailAndTheProcessStateToTheLog</code> asserts each 900+ char line appears whole in the WRITTEN log and no "..." appears.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>2</td><td>Stall detected within 75 s of the expected piece end</td>
+<td>&lt;= 75 s past piece start + 60 s.</td>
+<td><code>HungAfter</code> = piece length + 20 s (was 2x + 30 s); checked every 15 s tick, worst case 35 s past expected end. A dead input ("Error during demuxing") now counts as failed (<code>HasExited</code>) and is caught on the next tick. Tests <code>HungAfter_OneMinutePieces_IsCaughtWithin75SecondsOfTheExpectedEnd</code>, <code>Tick_NoNewPiece_IsRestartedWithin75SecondsOfTheExpectedEnd</code>, <code>Tick_NextPieceLateButInsideTheMargin_IsNotRestarted</code>, <code>Tick_FirstPieceOpenedDuringTheStartUpWait_...</code>.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>3</td><td>Restart keeps the open clip; gap logged with duration</td>
+<td>Post-restart pieces continue the same clip if sound resumes within the gap; gap logged.</td>
+<td>Restart runs a NON-final keeper pass (<code>RunKeeper(..., final: false, ...)</code>) so the open clip survives. <code>KeeperRule.Decide</code> gains <code>restartBridge</code> (= KeepAfter): a kept piece after a hole up to that length continues the clip and is reported in <code>plan.Bridged</code>; the engine logs "a gap of Ns (from to to)". A capture down longer than KeepAfter finishes the clip. Tests <code>Engine_StallDuringAClip_TheRestartContinuesTheSameClipWithItsLeadIn</code> (stall 2 replayed: one clip, 18 s = all 9 pieces), <code>Decide_KeptPieceAfterARestartHoleWithinTheBridge_...</code>, <code>Decide_HoleLongerThanTheBridge_StartsANewClip</code>, <code>Tick_CaptureDownLongerThanTheAfterWindow_WritesTheOpenClip</code>.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>4</td><td>Short (&lt;5 s) restart pieces joined or dropped without closing the clip</td>
+<td>Leftover pieces never close the clip.</td>
+<td><code>KeeperRule.ShortPiece</code> = 5 s; a short piece contiguous with or bridged to the open clip is joined whatever its sound. With no open clip it goes through the normal rule. Piece end = min(next start, last write) so a hole shows as a hole. Tests <code>Decide_ShortSilentPieceAfterTheOpenClip_IsJoinedAndTheClipStaysOpen</code>, <code>Decide_ShortPieceWithNoOpenClip_IsDecidedByTheNormalRule</code>, and the stall-2 replay (two 1-2 s leftovers joined).</td>
+<td class="pass">PASS</td></tr>
+<tr><td>5</td><td>Root cause identified and stated</td>
+<td>Cause stated in the PR; fixed if in AgentEyes; else restart path makes it harmless.</td>
+<td>Handoff/PR: stall 1 proven external (gdigrab error 5 at a Windows session switch at 09:02:03, Winlogon log; ffmpeg lived on via audio inputs). Stall 2 stated as an unproven hypothesis (dshow mic input silent without EOF). The AgentEyes-side faults - dead input not treated as failure, 150 s detection, truncated evidence, final pass splitting the clip - are all fixed. The issue explicitly permits an external trigger when the restart path makes it harmless.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>6</td><td>Unit tests for timing, restart-continues-clip, short pieces, full stderr</td>
+<td>All four areas covered.</td>
+<td><code>tests/AgentEyes.Tests/AlwaysOnStallTests.cs</code>: 22 tests covering all four, plus stats-file-locked and dead-replacement regressions. All pass in QA's run.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>7</td><td>Live 2-hour always-on run</td>
+<td>Zero stalls, or each recovered within 75 s with the clip intact.</td>
+<td>Live-only; issue says tester session after merge. Steps in <code>docs/cencon/proof/issue-81/handoff.md</code> item 7 (judge per outage via <code>GET /always-on</code> <code>restarts[]</code>).</td>
+<td class="pend">PENDING TESTER</td></tr>
+<tr><td>8</td><td>Build clean, tests green</td>
+<td>0 errors, 0 failures.</td>
+<td>QA run above: 0 errors; 1767/1767 passed.</td>
+<td class="pass">PASS</td></tr>
+</table>
+
+<h2>Codex review blockers - independently confirmed fixed</h2>
+<ul>
+<li><b>Blocking 1 (stats I/O broke recovery / duplicate capture):</b> all day saves on the restart path go through <code>SaveDay</code>, which catches IOException/UnauthorizedAccessException and logs; the recovery stamp (<code>NoteRecovery</code>) is outside the start try; <code>StartRecorder</code> throws if <code>_recorder != null</code>, so a second capture can never overwrite a live one. Regressions <code>Tick_StatsFileLockedWhenACaptureFails_TheCaptureStillRestarts</code>, <code>Tick_StatsFileLockedWhenTheRestartRecovers_NoSecondCaptureIsStarted</code>.</li>
+<li><b>Blocking 2 (dead replacement marked recovered):</b> <code>StartRecorder</code> checks <code>HasExited</code> right after Start, disposes the failing recorder and throws, so the engine stays Retrying; <code>RecoveredUtc</code> is stamped only when the new capture opens a piece of its own (by filename, not timestamp). Regressions <code>Tick_ReplacementIsAlreadyFailingWhenItStarts_StaysRetryingAndIsNotRecovered</code>, <code>Tick_ReplacementOpensAPiece_OnlyThenIsTheRestartRecovered</code>.</li>
+<li>Follow-ups in 9238e69 are docs only (stall 2 worded as hypothesis; live check judged per outage).</li>
+</ul>
+
+<h2>Standards check</h2>
+<ul>
+<li>ASCII only: 0 non-ASCII bytes in the full PR diff.</li>
+<li>Logging: restart, recovery, bridged gap, short-piece join, dead input, stats-save failure all logged.</li>
+<li>No fallback hiding: the one new catch (SaveDay) logs at ERROR and is scoped to I/O on a record-keeping file, by design per the review.</li>
+<li>Privacy posture unchanged (no UI or indicator change). No component-map drift.</li>
+</ul>
+
+<h2>Not covered by this QA</h2>
+<p>No live ffmpeg run: the "Error during demuxing" marker and the real restart behavior against a real
+session switch or USB device loss are proven only by unit tests with fake recorders and by the handoff's
+reading of the owner's log. The tester's 2-hour live run is the check for that.</p>
+
+<h2>Verdict</h2>
+<p class="pass">VERIFIED - all code-verifiable acceptance criteria met (7 of 8); criterion 7 (2-hour live run) pending tester after merge, as the issue allows.</p>
+</body>
+</html>
