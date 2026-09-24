@@ -14,8 +14,11 @@ namespace AgentEyes.AlwaysOn
     ///  - SILENCE GAP: how long a quiet stretch must last before the clip is closed. A shorter pause
     ///    stays inside one clip. Default 5 min, 30 s - 30 min.
     ///
-    /// ASSUMPTIONS of the issue, pending the owner: keep-after 10 s (not the full 5 silent minutes) and
-    /// keep-before 10 s (the owner mentioned 10 or 30).
+    /// The issue's two assumptions were RESOLVED by the owner before implementation: keep-before 10 s,
+    /// keep-after 10 s (not the full silent stretch), and the 5 min silence gap. Those are the defaults.
+    ///
+    /// <see cref="LeadInNote"/> states the keeper's one known limit for a combination the ranges allow
+    /// (a gap shorter than keep-before + keep-after + one piece); it is a note, never a refusal.
     /// </summary>
     internal static class AlwaysOnKeepSettings
     {
@@ -38,6 +41,26 @@ namespace AgentEyes.AlwaysOn
             if (keepAfter < TimeSpan.Zero || keepAfter > silenceGap)
                 return $"Keep after the speech must be 0 s to the silence gap ({Describe(silenceGap)}), not {Describe(keepAfter)}.";
             return null;
+        }
+
+        /// <summary>
+        /// The keeper's known limit, in words, or null when these settings are clear of it (issue #79,
+        /// review fix pass). A piece kept whole for an OPEN clip (it holds the clip's tail) sits in that
+        /// clip's holding folder; when the clip then closes and the NEXT clip's lead-in reaches back into
+        /// that same piece, the part of the lead-in inside it is not in the next clip (never speech - the
+        /// next sound came after the piece was decided). That needs the silence gap to be shorter than
+        /// keep-before + keep-after + one piece. The defaults (10 s, 10 s, 5 min, 60 s pieces) are far
+        /// from it; the ranges allow it (a 30 s gap with 60 s of keep-before), so the page and the log
+        /// state it rather than refuse it. Written for the page: one sentence, no jargon.
+        /// </summary>
+        public static string? LeadInNote(TimeSpan keepBefore, TimeSpan keepAfter, TimeSpan silenceGap, int pieceSeconds)
+        {
+            if (pieceSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(pieceSeconds), "the piece length must be positive");
+            TimeSpan limit = keepBefore + keepAfter + TimeSpan.FromSeconds(pieceSeconds);
+            if (silenceGap >= limit) return null;
+            return $"Note: with a silence gap under {Describe(limit)} (keep before + keep after + one {Describe(TimeSpan.FromSeconds(pieceSeconds))} "
+                   + "piece of recording), the start of a clip that follows the one before it closely can be cut short at a piece boundary; "
+                   + "no speech is lost.";
         }
 
         /// <summary>Throw a <see cref="UsageException"/> saying what is out of range; a no-op when all are in range.</summary>

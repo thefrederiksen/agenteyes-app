@@ -43,8 +43,13 @@ namespace AgentEyes.AlwaysOn
         ///
         /// Issue #79 moved the keyframe from once a piece (60 s) to every 2 s: a clip now starts
         /// keep-before (10 s) ahead of the speech, and a lossless stream-copy trim can only start on a
-        /// keyframe. Inside every piece the keyframes are then at 0, 2, 4, ... seconds, which is what
-        /// <see cref="ClipTrim"/> relies on.
+        /// keyframe. The keyframe is asked for TWICE, because -force_key_frames alone is not honoured on
+        /// time by every encoder: on the owner's laptop (h264_qsv, 10 fps) 60 s pieces came out 43-77 s
+        /// long, so the hardware encoder placed the forced keyframe tens of seconds off. So besides
+        /// -force_key_frames the encoder's own GOP is set to the same interval (<see cref="GopArgs"/>:
+        /// -g fps*keyframeSeconds, plus the encoder's flag that makes a forced keyframe a real IDR frame
+        /// where it has one). The trim (<see cref="ClipTrim"/>) does not assume the keyframes are on the
+        /// grid - it seeks on the input, which lands on the keyframe actually at or before the asked time.
         /// </summary>
         /// <param name="capture">Region in virtual-desktop device pixels (a whole monitor = its bounds).</param>
         /// <param name="desktop">The virtual-desktop bounds, to clamp and pad an oversized region.</param>
@@ -134,6 +139,7 @@ namespace AgentEyes.AlwaysOn
             }
 
             a.AddRange(EncoderArgs(encoder));
+            a.AddRange(GopArgs(encoder, fps, keyframeSeconds));
             a.AddRange(new[] { "-force_key_frames", $"expr:gte(t,n_forced*{keyframeSeconds.ToString(inv)})" });
             if (micInput >= 0 || sysInput >= 0) a.AddRange(new[] { "-c:a", "aac", "-b:a", "128k" });
 
@@ -160,8 +166,42 @@ namespace AgentEyes.AlwaysOn
             _ => throw new ArgumentException($"unknown always-on encoder '{encoder}'", nameof(encoder)),
         };
 
+        /// <summary>
+        /// The encoder's own keyframe interval (issue #79, review fix pass), so a keyframe every
+        /// <paramref name="keyframeSeconds"/> is not left to -force_key_frames alone. The live finding on
+        /// the owner's laptop: h264_qsv at 10 fps with only -force_key_frames every 60 s cut pieces of
+        /// 43-77 s, so the forced keyframes were not where they were asked for. Per encoder:
+        ///
+        ///  - every encoder: -g fps*keyframeSeconds (20 frames at 10 fps / 2 s) - the GOP length the
+        ///    encoder closes on its own, independent of the forced-keyframe expression;
+        ///  - h264_qsv: -forced_idr 1 - QSV writes a forced keyframe as a real IDR frame only with this
+        ///    flag; without it the "keyframe" can be a plain I-frame a demuxer cannot start a copy at;
+        ///  - h264_nvenc: -forced-idr 1 - the same flag, spelled with a hyphen in NVENC;
+        ///  - h264_amf: no such flag exists; -g is all AMF takes (its IDR period follows the GOP);
+        ///  - libx264: -keyint_min equal to -g so the GOP cannot be shortened, and -sc_threshold 0 so a
+        ///    scene cut does not insert a keyframe that shifts the grid.
+        ///
+        /// These are output options for the video stream and follow -c:v. <see cref="EncoderProbe"/>
+        /// deliberately leaves them out: a 10-frame probe answers "does the encoder work", nothing more.
+        /// </summary>
+        public static IReadOnlyList<string> GopArgs(string encoder, int fps, int keyframeSeconds)
+        {
+            if (fps <= 0) throw new ArgumentOutOfRangeException(nameof(fps), "frame rate must be positive");
+            if (keyframeSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(keyframeSeconds), "the keyframe interval must be positive");
+            string gop = (fps * keyframeSeconds).ToString(CultureInfo.InvariantCulture);
+            return encoder switch
+            {
+                "h264_qsv" => new[] { "-g", gop, "-forced_idr", "1" },
+                "h264_nvenc" => new[] { "-g", gop, "-forced-idr", "1" },
+                "h264_amf" => new[] { "-g", gop },
+                "libx264" => new[] { "-g", gop, "-keyint_min", gop, "-sc_threshold", "0" },
+                _ => throw new ArgumentException($"unknown always-on encoder '{encoder}'", nameof(encoder)),
+            };
+        }
+
         /// <summary>A one-second test encode that answers "does this encoder work on this machine".
-        /// Fed through the same nv12 conversion the real capture uses.</summary>
+        /// Fed through the same nv12 conversion the real capture uses. It carries no GOP options
+        /// (<see cref="GopArgs"/>): ten frames say nothing about keyframe placement.</summary>
         public static List<string> EncoderProbe(string encoder)
         {
             var a = new List<string>

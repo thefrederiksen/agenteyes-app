@@ -64,8 +64,11 @@ namespace AgentEyes.AlwaysOn
         /// <see cref="AlwaysOnArgs.EncoderPreference"/>).</summary>
         public int Fps { get; init; } = 10;
 
+        /// <summary>The product's piece length, in seconds; the page states the keeper's limit against it.</summary>
+        public const int DefaultPieceSeconds = 60;
+
         /// <summary>The length of one piece. Sixty seconds in the product; tests shorten it.</summary>
-        public int PieceSeconds { get; init; } = 60;
+        public int PieceSeconds { get; init; } = DefaultPieceSeconds;
 
         /// <summary>The forced keyframe interval (issue #79): where a clip's first piece can be cut
         /// losslessly. A piece must be a whole number of them.</summary>

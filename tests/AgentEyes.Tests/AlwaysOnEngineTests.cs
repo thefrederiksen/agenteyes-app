@@ -712,6 +712,47 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void JoinClip_EveryKeptPieceOutsideTheSpan_TheHoldingFolderIsSetAsideNeverDeleted()
+        {
+            // Review fix pass, finding 4. Keep-before and keep-after of 0 s; talking at 4:30-4:34 makes the
+            // span 4:30-4:34. The keeper keeps the piece from 4:00 (it holds the speech); but every test
+            // piece is a 2-second file, so on disk that piece is 4:00-4:02 - wholly outside the span, as a
+            // piece a stall truncated would look. Nothing is written, and the holding folder with its piece
+            // is MOVED to the unreadable folder, not deleted.
+            var o = new AlwaysOnOptions
+            {
+                SetupName = "test", Counts = SoundSource.Mic, ThresholdDb = -40,
+                KeepBefore = TimeSpan.Zero, KeepAfter = TimeSpan.Zero, SilenceGap = TimeSpan.FromMinutes(5),
+                CapBytes = 5L * 1024 * 1024 * 1024,
+                ClipsFolder = Path.Combine(_root, "clips"), WorkFolder = Path.Combine(_root, "work"),
+                PieceSeconds = 60,
+            };
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            for (int m = 0; m <= 10; m++)
+            {
+                _now = t0.AddMinutes(m);
+                WritePiece(o.PieceFolder, _now);
+                if (m == 5) Speak(_recorders[0].Sound!, t0.AddMinutes(4.5));
+                engine.Tick();
+            }
+            engine.Stop();
+
+            Assert.Empty(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
+            Assert.Empty(Directory.GetDirectories(o.PendingFolder));
+            var setAside = Assert.Single(Directory.GetDirectories(o.UnreadableFolder));
+            Assert.StartsWith("clip_", Path.GetFileName(setAside));
+            string kept = Assert.Single(Directory.GetFiles(setAside, "piece_*.mp4"));
+            Assert.Equal("piece_" + t0.AddMinutes(4).ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4", Path.GetFileName(kept));
+            Assert.Contains("set aside", engine.Status().LastError);
+            Assert.Equal(0, engine.Status().ClipsToday);
+            string log = File.ReadAllText(Log.CurrentFile);
+            Assert.Contains("no recorded video inside the clip's span", log);
+            Assert.Contains("set aside, not deleted", log);
+        }
+
+        [Fact]
         public void JoinClip_UnreadablePiece_IsSetAsideNeverDeleted()
         {
             var o = Options();

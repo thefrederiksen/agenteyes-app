@@ -73,6 +73,54 @@ namespace AgentEyes.Tests
             AlwaysOnKeepSettings.Validate(S(120), S(1800), S(1800));
         }
 
+        // ---- the keeper's known limit, stated not refused (review fix pass, finding 5) ----------------
+
+        [Theory]
+        [InlineData(10, 10, 300, 60)]      // the defaults: 5 min gap, limit 80 s
+        [InlineData(60, 30, 150, 60)]      // a gap equal to the limit is clear of it
+        [InlineData(0, 0, 60, 60)]         // no margins at all: one piece is the whole limit
+        public void LeadInNote_GapAtOrAboveBeforePlusAfterPlusOnePiece_IsNull(double before, double after, double gap, int piece)
+        {
+            Assert.True(gap >= before + after + piece, "the row reaches the limit - wrong theory");
+            Assert.Null(AlwaysOnKeepSettings.LeadInNote(S(before), S(after), S(gap), piece));
+        }
+
+        [Theory]
+        [InlineData(0, 0, 30, 60)]         // even the lowest ends: a 30 s gap is under one 60 s piece
+        [InlineData(120, 1800, 1800, 60)]  // keep-after equal to the gap always reaches the limit
+        [InlineData(60, 10, 30, 60)]       // the reviewer's case
+        public void LeadInNote_GapUnderBeforePlusAfterPlusOnePiece_IsStated(double before, double after, double gap, int piece)
+        {
+            Assert.True(gap < before + after + piece, "the row does not reach the limit - wrong theory");
+            Assert.NotNull(AlwaysOnKeepSettings.LeadInNote(S(before), S(after), S(gap), piece));
+        }
+
+        [Fact]
+        public void LeadInNote_GapShorterThanBeforePlusAfterPlusOnePiece_SaysSoInOneSentence()
+        {
+            // The reviewer's case: a 30 s gap with 60 s of keep-before, which the ranges allow.
+            string? note = AlwaysOnKeepSettings.LeadInNote(S(60), S(10), S(30), 60);
+
+            Assert.Equal("Note: with a silence gap under 2 min 10 s (keep before + keep after + one 1 min piece of recording), "
+                         + "the start of a clip that follows the one before it closely can be cut short at a piece boundary; no speech is lost.", note);
+        }
+
+        [Fact]
+        public void LeadInNote_Boundary_OneSecondUnderTheLimitGetsTheNote_AtTheLimitDoesNot()
+        {
+            Assert.NotNull(AlwaysOnKeepSettings.LeadInNote(S(10), S(10), S(79), 60));
+            Assert.Null(AlwaysOnKeepSettings.LeadInNote(S(10), S(10), S(80), 60));
+        }
+
+        [Fact]
+        public void LeadInNote_IsNeverAProblem()
+        {
+            // The limit is a note, not a refusal: the same values pass Problem().
+            Assert.NotNull(AlwaysOnKeepSettings.LeadInNote(S(60), S(10), S(30), 60));
+            Assert.Null(AlwaysOnKeepSettings.Problem(S(60), S(10), S(30)));
+            Assert.Throws<ArgumentOutOfRangeException>(() => AlwaysOnKeepSettings.LeadInNote(S(10), S(10), S(30), 0));
+        }
+
         [Theory]
         [InlineData(0, "0 s")]
         [InlineData(10, "10 s")]

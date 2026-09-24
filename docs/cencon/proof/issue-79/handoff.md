@@ -182,3 +182,103 @@ silence is kept than before (10 s each side instead of up to 5 min).
 
 I believe this is finished, except for the two criteria marked PENDING TESTER, which need the owner's
 laptop and are handed to the tester session.
+
+## Review fix pass (2026-09-24)
+
+After the tester's live finding on #79 (h264_qsv at 10 fps put forced keyframes 43-77 s apart when
+asked for 60 s) and an independent code review of PR #87. Each finding -> what changed.
+
+### Finding 1 (BLOCKING) - the encoder did not honour `-force_key_frames` on time
+
+- **1a, `AlwaysOnArgs.Capture`**: the keyframe is now asked for twice. Besides the unchanged
+  `-force_key_frames expr:gte(t,n_forced*2)`, a new `AlwaysOnArgs.GopArgs(encoder, fps, keyframeSeconds)`
+  sets the encoder's own GOP, appended right after `EncoderArgs` (so after `-c:v`, before the segment
+  muxer): `-g fps*keyframeSeconds` (20 at 10 fps / 2 s) for every encoder; `-forced_idr 1` for
+  `h264_qsv` (QSV writes a forced keyframe as a real IDR frame only with it); `-forced-idr 1` for
+  `h264_nvenc` (same flag, hyphen spelling); nothing more for `h264_amf` (no such flag exists - `-g`
+  is all it takes); `-keyint_min 20 -sc_threshold 0` with `-g 20` for `libx264` (no shortened GOP, no
+  scene-cut keyframe shifting the grid). The reason is in the code comment. `EncoderProbe` is
+  unchanged (ten frames say nothing about keyframe placement) and a test pins that.
+- **1b, tests** (`AlwaysOnSoundAndArgsTests`): `Capture_EveryEncoder_SetsItsOwnGopToTheKeyframeIntervalBesidesTheForcedKeyframes`
+  (theory over the four encoders: `-g 20` present once, the encoder's IDR/keyint options present with
+  their values, `-force_key_frames` still present, `-g` after `-c:v` and before the muxer's `-f`),
+  `Capture_GopFollowsTheFrameRateAndTheKeyframeOption` (30 fps x 5 s -> `-g 150 -keyint_min 150`),
+  `Capture_OnlyTheEncodersThatHaveTheFlag_GetAnIdrOption`, `GopArgs_UnknownEncoderOrBadNumbers_Throw`,
+  `EncoderProbe_CarriesNoGopOptions`.
+- **1c, `ClipTrim` summary**: no longer says it relies on keyframes at 0, k, 2k inside every piece. It
+  now states that the trim is an input-side seek with stream copy which lands on the keyframe ACTUALLY
+  at or before the asked time, so a late keyframe makes the lead-in LONGER, never shorter; the encoder
+  GOP + forced keyframes keep that error within one keyframe interval when the encoder honours them.
+  The input-seek trim itself is unchanged, as the tester asked.
+- **1d, PENDING TESTER - measure the keyframes on the real encoder (h264_qsv, 10 fps).** After merge,
+  on a live piece from `%LOCALAPPDATA%\AgentEyes\alwayson\pieces\` (or a clip's holding folder):
+
+  ```
+  ffprobe -skip_frame nokey -select_streams v -show_entries frame=pts_time -of csv=p=0 <piece>
+  ```
+
+  Expected: one `pts_time` roughly every 2.0 s (0.0, 2.0, 4.0, ... ; at 10 fps a keyframe may sit
+  one frame, 0.1 s, off). Bad: gaps of tens of seconds as the 60 s capture showed. Empty output is a
+  broken instrument (wrong path or no video stream), never a pass. Also expect every piece to be 60 s
+  again (`-show_entries format=duration`), where the live 60 s capture measured 43-77 s. The log's
+  `[ContinuousRecorder] Start:` line must show `-c:v h264_qsv ... -g 20 -forced_idr 1 -force_key_frames expr:gte(t,n_forced*2)`.
+
+### Finding 2 - stale "pending the owner" comment
+
+`AlwaysOnKeepSettings` summary now says the two assumptions were resolved by the owner (10 s / 10 s /
+5 min are the defaults) and points at the new `LeadInNote`.
+
+### Finding 3 - a quiet stretch of exactly the gap started a new clip (off by one second)
+
+`KeeperRule.Extend` asked about `[last+1, last+gap]`; a second of sound starting at `last` ends at
+`last+1`, so the quiet after it runs from `last+1`, and a stretch of exactly the gap ends at
+`last+1+gap`. The window is now `[last+1, last+1+gap]`: exactly the gap stays inside one clip, one
+second more starts a new one. The close time moved with it: a clip closes at
+`last + 1 s + gap + SoundSettle` (was `last + gap + SoundSettle`), so the log's answer about the last
+second the gap can hold is final before the clip closes. The class summary states the boundary.
+Tests (`AlwaysOnKeeperTests`): `Extend_QuietStretchOfExactlyTheGap_StaysInsideTheClip` (sound 30-35 s,
+then at 336 s: one clip to 340 s), `Extend_QuietStretchOneSecondLongerThanTheGap_StartsANewClip`
+(next sound at 337 s: the clip ends at 35 s), `Decide_PauseOfExactlyTheGap_IsOneClip_OneSecondMoreIsTwo`
+(the whole rule over 12 pieces), and `Decide_GapNotYetPassed_TheClipStaysOpen` now asserts both arms
+(open at 347 s, closed at 348 s). The issue's four AC cases are unchanged and still pass.
+
+### Finding 4 - a clip whose every piece is judged Outside deleted the holding folder
+
+`AlwaysOnEngine.JoinClip`: when the trim planner finds no piece inside the span, the holding folder
+is now MOVED whole to the unreadable folder (`%LOCALAPPDATA%\AgentEyes\alwayson\unreadable\clip_...`,
+where pieces a join could not read already go; a numbered suffix if the name exists), `LastError`
+says "set aside in ...", and the log line says how many pieces and seconds were set aside, not
+deleted. "Outside" is judged from ffprobe duration + file-name stamp, which a stall-truncated piece
+can fool; kept video is not deleted on a judgement that can be wrong. Those seconds are no longer
+counted as discarded (they were not). Test: `AlwaysOnEngineTests.JoinClip_EveryKeptPieceOutsideTheSpan_TheHoldingFolderIsSetAsideNeverDeleted`
+(0 s margins, talking at 4:30, a 2-second test piece at 4:00: no clip written, the pending folder
+empty, the piece present under `unreadable\clip_*`, the two log lines present).
+
+### Finding 5 - the keeper's known limit was only in a code comment
+
+The smaller change, a page hint, not a `Problem()` refusal: `AlwaysOnKeepSettings.LeadInNote(before,
+after, gap, pieceSeconds)` returns one sentence when `gap < before + after + one piece` and null
+otherwise. `MainWindow.RuleInWords` appends it to the rule sentence on the Always On page only when it
+applies (the defaults carry no note), using the product's `AlwaysOnOptions.DefaultPieceSeconds` (60);
+`AlwaysOnEngine.Start` logs it once as a warning when the running options reach it. Tests:
+`AlwaysOnKeepSettingsTests.LeadInNote_*` (null at and above the limit, stated under it, the boundary
+79 s / 80 s, never a `Problem`, the exact sentence for the reviewer's 30 s gap / 60 s before) and
+`AlwaysOnAppTests.RuleInWords_GapShorterThanBeforePlusAfterPlusOnePiece_AddsTheKeeperLimitNote`.
+QA, live: choose "Keep before the speech" = 1 min and "Close the clip after silence of" = 30 s on the
+page; the rule text ends with "Note: with a silence gap under 2 min 10 s ...". Back at the defaults the
+note is gone.
+
+### Not changed (accepted by the reviewer, kept as documented)
+
+The v1.11 migration clamp; the 300 s keep-after choice offered when the gap is 30 s (refused with the
+reason on the page); the synchronous `Save()` on the UI thread (the page's pre-existing pattern).
+
+### Gate for this pass (run by the developer)
+
+- `dotnet build AgentEyes.sln -c Release` -> `Build succeeded.`, `0 Error(s)` (20 warnings, none in a
+  file this pass touched).
+- `dotnet test AgentEyes.sln -c Release` -> `Passed! - Failed: 0, Passed: 1857, Skipped: 0, Total: 1857`
+  (1835 before the pass + 22 new).
+
+No app was launched and no smoke was run by the developer in this pass; the live keyframe measurement
+(1d) and the two earlier PENDING TESTER criteria are the tester's, after merge.

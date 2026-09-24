@@ -178,12 +178,57 @@ namespace AgentEyes.Tests
         {
             var open = new OpenClip(1, At(30), At(35), At(60));
 
-            // 35 s + 5 min gap + the settle time is 347 s; at 346 s the clip is still open.
-            var plan = KeeperRule.Decide(Pieces(1, 2), TestSounds.Range(T0, 30, 35), At(346), W, open, null, 2, final: false);
+            // The last second of sound starts at 35 s and ends at 36 s; 36 s + 5 min gap + the 12 s settle
+            // time is 348 s. At 347 s the clip is still open; at 348 s it closes.
+            var plan = KeeperRule.Decide(Pieces(1, 2), TestSounds.Range(T0, 30, 35), At(347), W, open, null, 2, final: false);
 
             Assert.Empty(plan.Close);
             Assert.Empty(plan.Delete);
             Assert.Equal(1, plan.Open!.Id);
+
+            var closing = KeeperRule.Decide(Pieces(1, 2), TestSounds.Range(T0, 30, 35), At(348), W, open, null, 2, final: false);
+            Assert.Single(closing.Close);
+            Assert.Null(closing.Open);
+        }
+
+        // ---- the silence gap boundary (review fix pass, finding 3) -----------------------------------
+
+        [Fact]
+        public void Extend_QuietStretchOfExactlyTheGap_StaysInsideTheClip()
+        {
+            // Sound in the second starting at 35 s ends at 36 s. With a 5 min gap the quiet may run to
+            // 336 s; sound starting AT 336 s follows a quiet stretch of exactly 300 s and is the same clip.
+            var sound = TestSounds.Range(T0, 30, 35).And(336, 340);
+
+            DateTime last = KeeperRule.Extend(sound, At(35), At(1000), W);
+
+            Assert.Equal(At(340), last);
+        }
+
+        [Fact]
+        public void Extend_QuietStretchOneSecondLongerThanTheGap_StartsANewClip()
+        {
+            // Sound starting at 337 s follows 301 s of quiet: longer than the gap, so the clip ends at 35 s.
+            var sound = TestSounds.Range(T0, 30, 35).And(337, 340);
+
+            DateTime last = KeeperRule.Extend(sound, At(35), At(1000), W);
+
+            Assert.Equal(At(35), last);
+        }
+
+        [Fact]
+        public void Decide_PauseOfExactlyTheGap_IsOneClip_OneSecondMoreIsTwo()
+        {
+            // The whole rule, not just Extend: speech to 119 s (last second ends at 120 s), then quiet.
+            // Speech again at 420 s (a 300 s pause, exactly the gap) is one clip; at 421 s it is two.
+            var one = KeeperRule.Decide(PiecesRange(0, 12), TestSounds.Range(T0, 60, 119).And(420, 430), T0 + 30 * Min, W, null, null, 1, final: false);
+            var span = Assert.Single(one.Close);
+            Assert.Equal((At(60), At(430)), (span.FirstSoundUtc, span.LastSoundUtc));
+
+            var two = KeeperRule.Decide(PiecesRange(0, 12), TestSounds.Range(T0, 60, 119).And(421, 430), T0 + 30 * Min, W, null, null, 1, final: false);
+            Assert.Equal(2, two.Close.Count);
+            Assert.Equal(At(119), two.Close[0].LastSoundUtc);
+            Assert.Equal(At(421), two.Close[1].FirstSoundUtc);
         }
 
         [Fact]

@@ -307,6 +307,8 @@ namespace AgentEyes.AlwaysOn
                 AlwaysOnKeepSettings.Validate(options.KeepBefore, options.KeepAfter, options.SilenceGap);
                 if (options.KeyframeSeconds <= 0 || options.PieceSeconds % options.KeyframeSeconds != 0)
                     throw new UsageException($"a piece ({options.PieceSeconds}s) must be a whole number of keyframe intervals ({options.KeyframeSeconds}s).");
+                string? leadInNote = AlwaysOnKeepSettings.LeadInNote(options.KeepBefore, options.KeepAfter, options.SilenceGap, options.PieceSeconds);
+                if (leadInNote != null) Log.Warn($"[AlwaysOnEngine] Start: {leadInNote}");
 
                 Directory.CreateDirectory(options.WorkFolder);
                 Directory.CreateDirectory(options.PieceFolder);
@@ -1018,13 +1020,19 @@ namespace AgentEyes.AlwaysOn
             double outsideSeconds = trim.Outside.Sum(p => p.Seconds);
             if (trim.Parts.Count == 0)
             {
-                // Every kept piece lies outside the span: the speech fell where nothing was recorded (a
-                // capture restart's hole). There is no video of it to write.
+                // Every kept piece lies outside the span. Usually the speech fell where nothing was
+                // recorded (a capture restart's hole) and there is no video of it to write - but
+                // "outside" is judged from each piece's ffprobe duration and its file-name stamp, and a
+                // piece a stall truncated can be misjudged. Kept video is never deleted on a judgement
+                // that can be wrong: the holding folder is SET ASIDE whole in the unreadable folder, where
+                // the pieces a join could not read already go (review fix pass, finding 4).
+                Directory.CreateDirectory(o.UnreadableFolder);
+                string setAside = UniqueFolder(o.UnreadableFolder, Path.GetFileName(dir));
+                Directory.Move(dir, setAside);
+                _lastError = $"a clip had no recorded video inside its span; its pieces were set aside in {setAside}";
                 Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} - no recorded video inside the clip's span "
-                         + $"({span!.StartUtc.ToLocalTime():HH:mm:ss} to {span.EndUtc.ToLocalTime():HH:mm:ss}); no clip is written");
-                Directory.Delete(dir, recursive: true);
-                _day.EnsureDay(now);
-                _day.DiscardedSeconds += outsideSeconds;
+                         + $"({span!.StartUtc.ToLocalTime():HH:mm:ss} to {span.EndUtc.ToLocalTime():HH:mm:ss}); no clip is written and "
+                         + $"its {trim.Outside.Count} piece(s) ({outsideSeconds:0.#}s) are set aside, not deleted, in {setAside}");
                 return;
             }
 
@@ -1078,6 +1086,15 @@ namespace AgentEyes.AlwaysOn
             _lastClip = outPath;
             Log.Info($"[AlwaysOnEngine] JoinClip: wrote {outPath} ({trim.Parts.Count} pieces, {seconds:0}s, {bytes / 1024.0 / 1024:0.0} MB"
                      + (span == null ? "" : $", starts {start:HH:mm:ss}") + ")");
+        }
+
+        /// <summary>A folder path under <paramref name="parent"/> named <paramref name="name"/> that does
+        /// not exist yet (a numbered suffix when it does).</summary>
+        private static string UniqueFolder(string parent, string name)
+        {
+            string path = Path.Combine(parent, name);
+            for (int n = 2; Directory.Exists(path); n++) path = Path.Combine(parent, $"{name}_{n}");
+            return path;
         }
 
         private static string UniqueClipPath(string folder, DateTime startLocal)

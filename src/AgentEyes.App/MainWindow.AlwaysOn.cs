@@ -298,13 +298,17 @@ namespace AgentEyes.App
             AORuleText.Text = RuleInWords(counts, _cfg.AlwaysOnKeepBeforeSeconds, _cfg.AlwaysOnKeepAfterSeconds, _cfg.AlwaysOnSilenceGapSeconds) + cap;
         }
 
-        /// <summary>The keep rule in one sentence (issue #79).</summary>
+        /// <summary>The keep rule in one sentence (issue #79) - plus, only when the chosen values reach
+        /// the keeper's known limit, the note that says so (<see cref="AlwaysOnKeepSettings.LeadInNote"/>).</summary>
         internal static string RuleInWords(string counts, double beforeSeconds, double afterSeconds, double gapSeconds)
         {
             string D(double s) => AlwaysOnKeepSettings.Describe(TimeSpan.FromSeconds(s));
-            return $"The rule in words: record the whole time. A clip starts {D(beforeSeconds)} before the {counts} begins "
-                   + $"and ends {D(afterSeconds)} after it stops; a pause shorter than {D(gapSeconds)} stays inside the clip, "
-                   + $"and {D(gapSeconds)} of quiet closes it. Everything else is deleted within minutes.";
+            string rule = $"The rule in words: record the whole time. A clip starts {D(beforeSeconds)} before the {counts} begins "
+                          + $"and ends {D(afterSeconds)} after it stops; a pause shorter than {D(gapSeconds)} stays inside the clip, "
+                          + $"and {D(gapSeconds)} of quiet closes it. Everything else is deleted within minutes.";
+            string? note = AlwaysOnKeepSettings.LeadInNote(TimeSpan.FromSeconds(beforeSeconds), TimeSpan.FromSeconds(afterSeconds),
+                TimeSpan.FromSeconds(gapSeconds), AlwaysOnOptions.DefaultPieceSeconds);
+            return note == null ? rule : rule + " " + note;
         }
 
         /// <summary>The live part of the page: state line, button, counters, lock. UI thread.</summary>

@@ -74,10 +74,13 @@ namespace AgentEyes.AlwaysOn
     ///
     /// CLIPS COME FROM THE SOUND. Seconds of sound that follow each other with no quiet stretch
     /// longer than the SILENCE GAP are one clip; a quiet stretch longer than the gap starts a new
-    /// one. A clip keeps the recording from KEEP-BEFORE ahead of its first sound to KEEP-AFTER past
-    /// the end of its last second of sound - its span (<see cref="ClipSpan"/>). A clip is CLOSED once
-    /// the gap has passed with no sound (plus <see cref="SoundSettle"/>, see there), or at the final
-    /// pass.
+    /// one. A quiet stretch of EXACTLY the gap stays inside the clip: a second of sound lasts one
+    /// second, so after sound in the second starting at S the quiet runs from S+1, and the next sound
+    /// may start as late as S+1+gap (inclusive) and still belong to the clip (<see cref="Extend"/>).
+    /// A clip keeps the recording from KEEP-BEFORE ahead of its first sound to KEEP-AFTER past the end
+    /// of its last second of sound - its span (<see cref="ClipSpan"/>). A clip is CLOSED once the
+    /// gap has passed with no sound - measured from the end of the last second of sound, plus
+    /// <see cref="SoundSettle"/>, see there - or at the final pass.
     ///
     /// PIECES. The continuous recording in one-minute pieces IS the lead-in buffer: a piece is only
     /// deleted once no speech can need it. Pieces are decided in order and the pass stops at the first
@@ -172,14 +175,17 @@ namespace AgentEyes.AlwaysOn
 
         /// <summary>
         /// The last second of sound of the clip that has sound at <paramref name="lastUtc"/>: follow the
-        /// sound forward as long as each next second of sound comes within the silence gap of the one
-        /// before. Only sound already heard (up to <paramref name="nowUtc"/>) is asked about.
+        /// sound forward as long as each next second of sound comes within the silence gap of the END
+        /// of the one before. The second of sound starting at <paramref name="lastUtc"/> ends one second
+        /// later, so the window asked about is [last+1, last+1+gap]: a quiet stretch of exactly the gap
+        /// keeps the clip going, one second more than the gap starts a new clip (review fix pass, was
+        /// off by one second). Only sound already heard (up to <paramref name="nowUtc"/>) is asked about.
         /// </summary>
         public static DateTime Extend(ISoundTimes sound, DateTime lastUtc, DateTime nowUtc, KeepWindows w)
         {
             while (true)
             {
-                DateTime? next = sound.LastSound(lastUtc + OneSecond, Min(lastUtc + w.SilenceGap, nowUtc));
+                DateTime? next = sound.LastSound(lastUtc + OneSecond, Min(lastUtc + OneSecond + w.SilenceGap, nowUtc));
                 if (next is not DateTime n || n <= lastUtc) return lastUtc;
                 lastUtc = n;
             }
@@ -275,7 +281,9 @@ namespace AgentEyes.AlwaysOn
                     return Step.Reconsider;
                 }
 
-                bool closed = _final || _now >= last + _w.SilenceGap + SoundSettle;
+                // Closed once the gap has run from the END of the last second of sound (last + 1 s) and
+                // the log's answer about the last second the gap could hold is final.
+                bool closed = _final || _now >= last + OneSecond + _w.SilenceGap + SoundSettle;
                 DateTime spanEnd = SpanEnd(last, _w);
 
                 // A restart's leftover joins the clip it follows while the clip is open, sound or not (issue #81).

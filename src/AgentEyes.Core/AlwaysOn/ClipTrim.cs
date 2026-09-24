@@ -43,11 +43,15 @@ namespace AgentEyes.AlwaysOn
     /// the span end - a stream copy can end on any frame). Every piece in between is joined untouched,
     /// so a clip is never split and the kept video is byte-for-byte what was captured.
     ///
-    /// The keyframe times come from the capture: it forces one every <c>keyframeSeconds</c> of recorded
-    /// time and cuts pieces on a whole number of them, so inside every piece the keyframes are at 0,
-    /// k, 2k, ... seconds (see <see cref="AlwaysOnArgs.Capture"/>). The trim asks ffmpeg for exactly
-    /// that time; ffmpeg's input seek lands on the keyframe at or before whatever it is asked for, so
-    /// the cut is on a keyframe even when a piece's name is a fraction of a second off.
+    /// WHERE THE CUT LANDS. The planner asks for the span start rounded DOWN to the capture's keyframe
+    /// grid (<c>keyframeSeconds</c>, see <see cref="AlwaysOnArgs.Capture"/>), but the trim itself is an
+    /// INPUT-SIDE SEEK with stream copy (<see cref="AlwaysOnArgs.Trim"/>: -ss before -i, -c copy), and
+    /// an input seek lands on the keyframe ACTUALLY at or before the asked time - the one in the file,
+    /// not the one the grid promised. So a keyframe the encoder placed late makes the lead-in LONGER
+    /// (the cut falls back to the previous keyframe), never shorter: no speech is lost, and a bit more
+    /// picture before it is kept. The encoder GOP plus the forced keyframes (<see cref="AlwaysOnArgs.GopArgs"/>)
+    /// keep that error within one keyframe interval when the encoder honours them; the live measurement
+    /// of where h264_qsv really puts them is the tester's (ffprobe -skip_frame nokey).
     /// </summary>
     internal static class ClipTrim
     {

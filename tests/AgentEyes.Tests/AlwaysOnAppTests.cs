@@ -314,6 +314,18 @@ namespace AgentEyes.Tests
             Assert.Contains("a pause shorter than 1 min stays inside the clip", custom);
         }
 
+        [Fact]
+        public void RuleInWords_GapShorterThanBeforePlusAfterPlusOnePiece_AddsTheKeeperLimitNote()
+        {
+            // Review fix pass, finding 5: the ranges allow a 30 s gap with 60 s of keep-before; the page
+            // says what that costs instead of refusing it. The defaults (above) carry no note.
+            string hinted = MainWindow.RuleInWords("microphone sound", 60, 10, 30);
+
+            Assert.Contains("and 30 s of quiet closes it. Everything else is deleted within minutes. Note: with a silence gap under 2 min 10 s", hinted);
+            Assert.Contains("can be cut short at a piece boundary; no speech is lost.", hinted);
+            Assert.DoesNotContain("Note:", MainWindow.RuleInWords("microphone sound", 10, 10, 300));
+        }
+
         // ---- issue #79: GET /always-on reports the saved keep settings ----------------------------------
 
         [Fact]
