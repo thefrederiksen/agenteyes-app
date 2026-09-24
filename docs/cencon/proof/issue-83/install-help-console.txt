@@ -1,0 +1,156 @@
+Issue #83 - console output of the freshly built setup CLI (worktree build, branch issue-83-setup-help, commit 6ea1218)
+Binary: tools/AgentEyes.Setup.Cli/bin/Release/net8.0-windows/agenteyes-setup.exe
+Built:  2026-09-24 19:52  size 163328
+Run only after 'dotnet test AgentEyes.sln -c Release' passed on this same build. Every line below carries --help / -h, an unknown option, or a positional no command takes; per SetupCliHelpTests these exit before any layout, log, engine or transport.
+
+$ agenteyes-setup install --help
+Usage: agenteyes-setup install [options]
+
+Install or update ALL components from the release, then finalize the per-user install:
+PATH, Start Menu shortcut, Add/Remove Programs entry. Repair semantics - always finalizes.
+
+Options:
+  --manifest <path|latest>   Release source (default latest = GitHub Releases)
+  --release-dir <dir>        Use a local directory as the release (offline)
+  --component <id|all>       Limit to one component (default all)
+  --autostart <on|off>       Set run-at-login (default: keep as-is) - install only
+  --desktop-shortcut         Also create a desktop shortcut - install only
+  --no-finalize              Skip PATH/shortcut/registry finalization (testing)
+  --dry-run                  Show what would change; download, apply and remove nothing
+  --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
+  --json                     Machine-readable output
+  --help, -h                 Show help and exit (nothing is run)
+[exit 0]
+
+$ agenteyes-setup install -h
+Usage: agenteyes-setup install [options]
+
+Install or update ALL components from the release, then finalize the per-user install:
+PATH, Start Menu shortcut, Add/Remove Programs entry. Repair semantics - always finalizes.
+
+Options:
+  --manifest <path|latest>   Release source (default latest = GitHub Releases)
+  --release-dir <dir>        Use a local directory as the release (offline)
+  --component <id|all>       Limit to one component (default all)
+  --autostart <on|off>       Set run-at-login (default: keep as-is) - install only
+  --desktop-shortcut         Also create a desktop shortcut - install only
+  --no-finalize              Skip PATH/shortcut/registry finalization (testing)
+  --dry-run                  Show what would change; download, apply and remove nothing
+  --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
+  --json                     Machine-readable output
+  --help, -h                 Show help and exit (nothing is run)
+[exit 0]
+
+$ agenteyes-setup update --help
+Usage: agenteyes-setup update [options]
+
+Download, verify, and apply updates only. Finalizes only when something was replaced.
+
+Options:
+  --manifest <path|latest>   Release source (default latest = GitHub Releases)
+  --release-dir <dir>        Use a local directory as the release (offline)
+  --component <id|all>       Limit to one component (default all)
+  --no-finalize              Skip PATH/shortcut/registry finalization (testing)
+  --dry-run                  Show what would change; download, apply and remove nothing
+  --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
+  --json                     Machine-readable output
+  --help, -h                 Show help and exit (nothing is run)
+[exit 0]
+
+$ agenteyes-setup uninstall -h
+Usage: agenteyes-setup uninstall [options]
+
+Remove install-owned files under the install root. Your recordings and settings are preserved.
+Refuses while AgentEyes is running - quit it first (tray icon -> Quit).
+
+Options:
+  --dry-run                  Show what would change; download, apply and remove nothing
+  --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
+  --json                     Machine-readable output
+  --help, -h                 Show help and exit (nothing is run)
+[exit 0]
+
+$ agenteyes-setup plan --root C:\nowhere --json --help
+Usage: agenteyes-setup plan [options]
+
+Show what an update/install would change: the release is fetched (or read locally) and
+compared with the install root. Downloads nothing, applies nothing.
+
+Options:
+  --manifest <path|latest>   Release source (default latest = GitHub Releases)
+  --release-dir <dir>        Use a local directory as the release (offline)
+  --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
+  --json                     Machine-readable output
+  --help, -h                 Show help and exit (nothing is run)
+[exit 0]
+
+$ agenteyes-setup install --bogus
+usage error: unknown option '--bogus'.
+Run 'agenteyes-setup help' or 'agenteyes-setup <command> --help'.
+[exit 2]
+
+$ agenteyes-setup install --help --bogus
+usage error: unknown option '--bogus'.
+Run 'agenteyes-setup help' or 'agenteyes-setup <command> --help'.
+[exit 2]
+
+$ agenteyes-setup install /? --root C:\nowhere
+usage error: unexpected argument '/?'. 'install' takes options only.
+Run 'agenteyes-setup help' or 'agenteyes-setup <command> --help'.
+[exit 2]
+
+$ agenteyes-setup help install
+Usage: agenteyes-setup install [options]
+
+Install or update ALL components from the release, then finalize the per-user install:
+PATH, Start Menu shortcut, Add/Remove Programs entry. Repair semantics - always finalizes.
+
+Options:
+  --manifest <path|latest>   Release source (default latest = GitHub Releases)
+  --release-dir <dir>        Use a local directory as the release (offline)
+  --component <id|all>       Limit to one component (default all)
+  --autostart <on|off>       Set run-at-login (default: keep as-is) - install only
+  --desktop-shortcut         Also create a desktop shortcut - install only
+  --no-finalize              Skip PATH/shortcut/registry finalization (testing)
+  --dry-run                  Show what would change; download, apply and remove nothing
+  --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
+  --json                     Machine-readable output
+  --help, -h                 Show help and exit (nothing is run)
+[exit 0]
+
+$ agenteyes-setup --help
+agenteyes-setup - install, update, and uninstall AgentEyes
+
+Usage:
+  agenteyes-setup <command> [options]
+  agenteyes-setup <command> --help      Help for one command
+  agenteyes-setup help [<command>]
+
+Commands:
+  components                 List known components and their assets/paths
+  status                     Show installed components and their versions
+  plan                       Show what an update/install would change
+  install                    Install or update all components, then finalize
+                             (PATH, Start Menu shortcut, Add/Remove Programs)
+  update                     Download, verify, and apply updates only
+  uninstall                  Remove install-owned files (your data is preserved)
+
+Options:
+  --manifest <path|latest>   Release source (default latest = GitHub Releases)
+  --release-dir <dir>        Use a local directory as the release (offline)
+  --component <id|all>       Limit to one component (default all)
+  --autostart <on|off>       Set run-at-login (default: keep as-is) - install only
+  --desktop-shortcut         Also create a desktop shortcut - install only
+  --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
+  --no-finalize              Skip PATH/shortcut/registry finalization (testing)
+  --dry-run                  Show what would change; download, apply and remove nothing
+  --json                     Machine-readable output
+  --help, -h                 Show help and exit (nothing is run)
+
+An unknown option is a usage error (exit code 2) and nothing is run.
+Exit codes: 0 ok, 1 runtime error, 2 usage error.
+[exit 0]
+
+$ ls C:\nowhere   (the --root given to two lines above)
+ls: cannot access '/c/nowhere': No such file or directory
+[exit 2 - 2 = does not exist: neither help nor the rejected line touched an install root]
