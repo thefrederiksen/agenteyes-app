@@ -73,7 +73,7 @@ An independent review of the diff found two defects and several cleanups; all fi
 - Resume judged the rule on the mute state from before the pause; it now re-reads Windows first. Test: `Resume_ReReadsWindowsMuteState_SoAnUnmuteDuringThePauseRaisesNoFalseWarning`.
 - The once-a-minute endpoint read moved OUT of the engine lock (a wedged audio service must not stall Pause/Stop/the keeper); the rule is judged once per tick, before the level line, so the line's flag is that judgement.
 - The History tab retries the load after a failure (the next event, tab change or filter click) instead of inserting live rows into an incomplete list.
-- `MicEndpoint.Read` and `AlwaysOnHistory.Events/Count` log their result (CLAUDE.md logging rule).
+- `MicEndpoint.Read` and `AlwaysOnHistory.Events/Count` log their result (the repo's coding-standards logging rule).
 - Considered and kept: level lines recorded while the rule holds carry Severity Warning (the issue says "flagged as a WARNING"; a muted hour is one warning row per minute under Problems - truthful, and the transition events mark where it began and ended).
 
 Honest note on flakes seen during development (checks-that-fail-open, item 6): one full run out of four failed
