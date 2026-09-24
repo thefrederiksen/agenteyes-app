@@ -1,0 +1,25 @@
+test-loop: 7 run(s) numbered 1..7 of dotnet test AgentEyes.sln -c Release, each a fresh test-host process
+test-loop: repo=C:\ReposFred\agenteyes-app-wt-84
+test-loop: started 2026-09-24 17:20:05
+test-loop: building once (dotnet build AgentEyes.sln -c Release)
+  Build succeeded.
+  0 Error(s)
+run  1/7: Passed!  - Failed:     0, Passed:  1915, Skipped:     0, Total:  1915, Duration: 46 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-172011-3624
+run  2/7: Failed!  - Failed:     1, Passed:  1914, Skipped:     0, Total:  1915, Duration: 49 s - AgentEyes.Tests.dll (net8.0) (exit 1)
+           Failed AgentEyes.Tests.CameraPreviewTests.Teardown_ASurvivingSessionLeftBehindByAnAbortedTest_IsRecoveredAndUnregistered [46 ms]
+           test-host run folder(s): run-20260924-172101-4984
+run  3/7: Passed!  - Failed:     0, Passed:  1915, Skipped:     0, Total:  1915, Duration: 46 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-172154-656
+run  4/7: Passed!  - Failed:     0, Passed:  1915, Skipped:     0, Total:  1915, Duration: 50 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-172244-26880
+run  5/7: Failed!  - Failed:     1, Passed:  1914, Skipped:     0, Total:  1915, Duration: 47 s - AgentEyes.Tests.dll (net8.0) (exit 1)
+           Failed AgentEyes.Tests.CameraPreviewTests.Teardown_ASurvivingSessionLeftBehindByAnAbortedTest_IsRecoveredAndUnregistered [14 ms]
+           test-host run folder(s): run-20260924-172337-26648
+run  6/7: Passed!  - Failed:     0, Passed:  1915, Skipped:     0, Total:  1915, Duration: 54 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-172429-14576
+run  7/7: Failed!  - Failed:     1, Passed:  1914, Skipped:     0, Total:  1915, Duration: 49 s - AgentEyes.Tests.dll (net8.0) (exit 1)
+           Failed AgentEyes.Tests.CameraPreviewTests.AStopThatThrows_IsNotAReleaseAndTheSessionIsNotDiscarded [97 ms]
+           test-host run folder(s): run-20260924-172526-15084
+test-loop: finished 2026-09-24 17:26:16
+test-loop: RESULT 4 of 7 run(s) passed, 3 failed

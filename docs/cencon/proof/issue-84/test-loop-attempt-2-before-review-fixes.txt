@@ -1,0 +1,58 @@
+test-loop: 7 run(s) numbered 1..7 of dotnet test AgentEyes.sln -c Release, each a fresh test-host process
+test-loop: repo=C:\ReposFred\agenteyes-app-wt-84
+test-loop: started 2026-09-24 17:33:07
+test-loop: building once (dotnet build AgentEyes.sln -c Release)
+  Build succeeded.
+  0 Error(s)
+run  1/7: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 50 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): trx, run-20260924-173312-9004
+run  2/7: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 56 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-173406-21204
+run  3/7: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 50 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-173506-12344
+run  4/7: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 45 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-173600-27656
+run  5/7: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 51 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-173649-20740
+run  6/7: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 48 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-173745-18748
+run  7/7: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 50 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-173838-11556
+test-loop: finished 2026-09-24 17:39:30
+test-loop: RESULT 7 of 7 run(s) passed, 0 failed
+test-loop: 7 run(s) numbered 8..14 of dotnet test AgentEyes.sln -c Release, each a fresh test-host process
+test-loop: repo=C:\ReposFred\agenteyes-app-wt-84
+test-loop: started 2026-09-24 17:40:00
+run  8/14: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 47 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174003-11676
+run  9/14: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 48 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174053-7724
+run 10/14: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 47 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174146-28664
+run 11/14: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 49 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174237-3760
+run 12/14: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 46 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174330-26240
+run 13/14: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 55 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174420-7048
+run 14/14: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 46 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174520-4660
+test-loop: finished 2026-09-24 17:46:08
+test-loop: RESULT 7 of 7 run(s) passed, 0 failed
+test-loop: 6 run(s) numbered 15..20 of dotnet test AgentEyes.sln -c Release, each a fresh test-host process
+test-loop: repo=C:\ReposFred\agenteyes-app-wt-84
+test-loop: started 2026-09-24 17:46:30
+run 15/20: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 53 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174632-24968
+run 16/20: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 56 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174730-26012
+run 17/20: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 46 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174831-14548
+run 18/20: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 1 m - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-174922-2676
+run 19/20: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 52 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-175027-18288
+run 20/20: Passed!  - Failed:     0, Passed:  1916, Skipped:     0, Total:  1916, Duration: 50 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-175123-15488
+test-loop: finished 2026-09-24 17:52:15
+test-loop: RESULT 6 of 6 run(s) passed, 0 failed

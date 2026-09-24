@@ -1,0 +1,79 @@
+Issue #84 - mutation evidence (the new guards shown to FIRE on known-bad code, then restored)
+Each mutation was applied to the working tree, the solution rebuilt, CameraPreviewTests run
+(dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~CameraPreviewTests),
+and the file restored byte-for-byte (cmp) before the next step. Quoted output follows.
+
+M1 - CameraPreviewController.Select: the dedicated open thread replaced by the pre-#84
+     Task.Run(() => OpenSession(token, wanted, finished)). Expected: the thread test fails.
+     Actual:
+         Failed AgentEyes.Tests.CameraPreviewTests.Select_OpensTheCameraOnItsOwnBackgroundThread_NotTheThreadPool [16 ms]
+          the camera open ran as a thread-pool work item - it is queued behind the rest of the process
+       Failed!  - Failed:     1, Passed:    34, Skipped:     0, Total:    35, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+
+M2 - CameraPreviewTests.FakeCameraFactory.Dispose: body replaced by 'return;' (teardown does nothing).
+     Expected: the teardown test fails. Actual: it fails, AND the two later tests fail with the
+     EXACT signature the flake showed on main (a stale stranded row, Pid 24512) - the cascade,
+     reproduced deterministically:
+         Failed AgentEyes.Tests.CameraPreviewTests.Teardown_ASurvivingSessionLeftBehindByAnAbortedTest_IsRecoveredAndUnregistered [20 ms]
+          Assert.False() Failure
+       Expected: False
+       Actual:   True
+         Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WithACleanStop_RetainsNothingAndUnregisters [20 ms]
+          Assert.DoesNotContain() Failure: Filter matched in collection
+       Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = null, Output = null, Pid = 24512 }]
+         Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession [28 ms]
+          Assert.DoesNotContain() Failure: Filter matched in collection
+       Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = null, Output = null, Pid = 24512 }]
+       Failed!  - Failed:     3, Passed:    32, Skipped:     0, Total:    35, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+
+M3 - the shared-log reader carries its known-bad arm inside the test itself:
+     TestIsolationTests.ReadShared_WhileTheLoggerHoldsTheFileForAppend_Reads_WhereReadAllTextIsRefused
+     asserts that File.ReadAllText THROWS IOException while an appending writer holds the file
+     (and that an appending writer is refused while a Read-sharing reader holds it), and that
+     TestRunIsolation.ReadShared reads both lines at the same moment. No mutation needed.
+
+M4 - CameraPreviewController.OpenInFlight forced to 'return false;' (the publication gap made invisible).
+     Expected: the gap test fails at its known-bad arm (the factory has the session, the controller
+     has not published it, yet no open is reported in flight). Actual:
+         Failed AgentEyes.Tests.CameraPreviewTests.TheGapBetweenTheFactoryAndPublication_IsAnOpenInFlight_AndClosesWhenTheOpenLands [10 s]
+          the factory has the session and the controller does not, yet it reports no open in flight
+       Failed!  - Failed:     1, Passed:    35, Skipped:     0, Total:    36, Duration: 35 s - AgentEyes.Tests.dll (net8.0)
+
+Every mutation above was reverted and the file compared byte-for-byte with its pre-mutation copy
+(cmp: identical) before the solution was rebuilt for the 20-run loop.
+
+M5 - CameraPreviewController.Select: 'Starting' announced AFTER opener.Start() again (the ordering the
+     code review flagged: a factory that fails at once has its Failed buried under Starting).
+     Expected: Select_WhoseCameraFailsToOpenAtOnce_EndsFailed_NeverStuckOnStarting fails WHEN the race
+     lands - it cannot force it (the gap is between Start() and the next statement, no seam). Run three
+     times on the mutant. Actual: fired on attempt 1 (Expected: Failed / Actual: Starting), passed on
+     attempts 2 and 3 - a race, reported as one:
+       --- M5 attempt 1 (the burial is a race; the test is not expected to force it)
+         Failed AgentEyes.Tests.CameraPreviewTests.Select_WhoseCameraFailsToOpenAtOnce_EndsFailed_NeverStuckOnStarting [178 ms]
+       Expected: Failed
+       Actual:   Starting
+       Failed!  - Failed:     1, Passed:    36, Skipped:     0, Total:    37, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+       --- M5 attempt 2 (the burial is a race; the test is not expected to force it)
+       Passed!  - Failed:     0, Passed:    37, Skipped:     0, Total:    37, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+       --- M5 attempt 3 (the burial is a race; the test is not expected to force it)
+       Passed!  - Failed:     0, Passed:    37, Skipped:     0, Total:    37, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+
+     The fix is by construction (Announce before Start(), both under the gate); the test pins the end
+     state and reports the burial whenever it happens. M5 was reverted and the file compared
+     byte-for-byte (cmp: identical) before the final rebuild and the final 20-run loop.
+
+M6 - CameraDeviceArbiter.IsRegistered forced to 'return true;' (a holder is never reported gone).
+     Background: the third loop attempt failed run 7 on Dispose_WhileTheCameraIsStillBeingReleased_
+     KeepsTheHolderRegistered (Expected: 1, Actual: 2) - the run's log shows PresetEditorFitsWithout-
+     ScrollingTests building preset editors in a PARALLEL class, each registering a controller of its
+     own, so the process-wide holder COUNT moved under the test. Five tests now ask by identity
+     (CameraPreviewController.IsRegisteredWithArbiter) instead of counting. Expected: those five fail
+     when the arbiter cannot say a holder is gone. Actual:
+         Failed AgentEyes.Tests.CameraPreviewTests.Teardown_ASurvivingSessionLeftBehindByAnAbortedTest_IsRecoveredAndUnregistered [23 ms]
+         Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WithACleanStop_RetainsNothingAndUnregisters [12 ms]
+         Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhileTheCameraIsStillBeingReleased_KeepsTheHolderRegistered [51 ms]
+         Failed AgentEyes.Tests.CameraPreviewTests.AClosedEditor_IsNoLongerAskedToReleaseAnything [2 ms]
+         Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession [13 ms]
+       Failed!  - Failed:     5, Passed:    32, Skipped:     0, Total:    37, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+
+     M6 was reverted and the file compared byte-for-byte (cmp: identical) before the final rebuild.
