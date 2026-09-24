@@ -148,3 +148,23 @@ by the product. Component map: one new Core type (`AppDataPaths`) and one new Se
 - The recording HUD is capture-excluded; assert HUD/recording state via UIA or `/status`, not a grab.
 - Run the suite from the `bin\x64\Release` build of this branch; a stale `bin\Release` binary tests
   other code.
+
+## Round 2 - Codex review fixes (2026-09-24)
+
+- BLOCKING (fixed): a multi-line message (e.g. `Log.Error(msg, ex)` with a stack trace) put the pid
+  on its first line only. `Log.FormatLine` now splits the message on CRLF / LF / CR and prefixes
+  EVERY physical line with `HH:mm:ss.fff [pid N] [LEVEL] `.
+  Tests: `FormatLine_MultilineMessage_PutsThePidOnEveryLine` (pure),
+  `Log_ErrorWithAnException_EveryLineOfTheStackTraceCarriesThePid` (end-to-end through the per-run
+  log file; the entry's lines are collected WITHOUT requiring the pid, so a bare frame is reported).
+  Mutation: restoring the single-prefix `prefix + message` fails both (`Failed: 2, Passed: 13` in the
+  TestIsolationTests class); restored -> green.
+- NON-BLOCKING (closed): `AppDataPaths.MachineLocalAppData` is never redirected, and only its own
+  GetFolderPath call was pinned, so a new caller could build a path to the real
+  `%LOCALAPPDATA%\AgentEyes` unseen. New IL guard
+  `MachineLocalAppDataReaders_InTheCompiledProductAndTests_AreExactlyThePinnedOnes` pins every reader
+  (AppDataPaths.get_LocalAppData fallback, FfmpegLocator.Find winget folder, this test class's
+  RealAgentEyesRoot) across Core, App, Setup.Engine and Tests, with an instrument check that the
+  scan sees the product's own read.
+- Gate: `dotnet build AgentEyes.sln -c Release` -> 0 Error(s); `dotnet test` ->
+  `Passed! - Failed: 0, Passed: 1745, Total: 1745`.

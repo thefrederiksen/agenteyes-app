@@ -10,7 +10,8 @@ namespace AgentEyes
     ///
     /// Every line carries the writing process's id: the app, the CLI and a second instance can all
     /// append to one day's file, and without the pid their lines are indistinguishable.
-    /// Line shape: <c>HH:mm:ss.fff [pid 1234] [INFO] message</c>.
+    /// Line shape: <c>HH:mm:ss.fff [pid 1234] [INFO] message</c> - on EVERY physical line, the
+    /// continuation lines of a multi-line message (an exception's stack trace) included.
     /// </summary>
     internal static class Log
     {
@@ -28,9 +29,21 @@ namespace AgentEyes
         public static void Error(string message, Exception? ex = null) =>
             Write("ERROR", ex == null ? message : $"{message}{Environment.NewLine}{ex}");
 
-        /// <summary>One log line, without the newline. Pure.</summary>
-        internal static string FormatLine(DateTime at, int processId, string level, string message) =>
-            $"{at:HH:mm:ss.fff} [pid {processId}] [{level}] {message}";
+        private static readonly string[] LineBreaks = { "\r\n", "\n", "\r" };
+
+        /// <summary>
+        /// The text for one log entry, without the trailing newline. Pure.
+        /// A multi-line message (an exception's stack trace, a captured stderr block) becomes one
+        /// PREFIXED line per message line, so every physical line in the file carries the timestamp,
+        /// the pid and the level - a continuation line with no pid could not be told apart from
+        /// another process's output (issue #78).
+        /// </summary>
+        internal static string FormatLine(DateTime at, int processId, string level, string message)
+        {
+            string prefix = $"{at:HH:mm:ss.fff} [pid {processId}] [{level}] ";
+            string[] lines = message.Split(LineBreaks, StringSplitOptions.None);
+            return string.Join(Environment.NewLine, Array.ConvertAll(lines, line => prefix + line));
+        }
 
         private static void Write(string level, string message)
         {

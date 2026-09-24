@@ -139,6 +139,47 @@ namespace AgentEyes.Tests
             Assert.NotEqual(app, tests);
         }
 
+        [Fact]
+        public void FormatLine_MultilineMessage_PutsThePidOnEveryLine()
+        {
+            var at = new DateTime(2026, 9, 24, 9, 3, 1, 250);
+            string nl = Environment.NewLine;
+
+            string text = Log.FormatLine(at, 1111, "ERROR", "first\r\nsecond\nthird\rfourth");
+
+            Assert.Equal(
+                "09:03:01.250 [pid 1111] [ERROR] first" + nl
+                + "09:03:01.250 [pid 1111] [ERROR] second" + nl
+                + "09:03:01.250 [pid 1111] [ERROR] third" + nl
+                + "09:03:01.250 [pid 1111] [ERROR] fourth", text);
+        }
+
+        [Fact]
+        public void Log_ErrorWithAnException_EveryLineOfTheStackTraceCarriesThePid()
+        {
+            string marker = "[TestIsolationTests] multiline marker " + Guid.NewGuid().ToString("N");
+            Exception ex;
+            try { throw new InvalidOperationException("inner " + marker); }
+            catch (InvalidOperationException caught) { ex = caught; }
+
+            Log.Error(marker, ex);
+
+            // The entry's physical lines: the message line, the exception line, then each "   at ..."
+            // frame. Taken WITHOUT requiring the pid, so a continuation line that lost it is still
+            // collected - and then reported below.
+            var lines = ReadShared(Log.CurrentFile).Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            int first = Array.FindIndex(lines, l => l.EndsWith("[ERROR] " + marker, StringComparison.Ordinal));
+            Assert.True(first >= 0, "the entry's first line was not found in the log");
+            var entry = lines.Skip(first).TakeWhile((l, i) => i < 2 || l.Contains("   at ", StringComparison.Ordinal)).ToList();
+            Assert.True(entry.Count >= 3, "expected the message, the exception and at least one stack frame:"
+                + Environment.NewLine + string.Join(Environment.NewLine, entry));
+            Assert.Contains(entry, l => l.Contains("InvalidOperationException: inner " + marker, StringComparison.Ordinal));
+
+            string pidPrefix = $@"^\d\d:\d\d:\d\d\.\d{{3}} \[pid {Environment.ProcessId}\] \[ERROR\] ";
+            var bare = entry.Where(l => !Regex.IsMatch(l, pidPrefix)).ToList();
+            Assert.True(bare.Count == 0, "these lines of the entry do not carry the pid:" + Environment.NewLine + string.Join(Environment.NewLine, bare));
+        }
+
         // ---- criterion 2: every state location -----------------------------------------------
 
         [Fact]
@@ -249,6 +290,40 @@ namespace AgentEyes.Tests
                 "AgentEyes.Tests.RealFolderDecoys::AsksForTheRealLocalAppData -> LocalApplicationData",
                 "AgentEyes.Tests.RealFolderDecoys::AsksWithAFolderInAVariable -> <not a constant>",
             }, decoys);
+        }
+
+        /// <summary>
+        /// Every reader of <see cref="AppDataPaths.MachineLocalAppData"/> - the one member that is NEVER
+        /// redirected. The folder-lookup guard above pins only that member's own GetFolderPath call, so
+        /// without this list a new caller could build a path to the real %LOCALAPPDATA%\AgentEyes from
+        /// it and pass every other check.
+        /// </summary>
+        private static readonly string[] PinnedMachineLocalAppDataReaders =
+        {
+            // The redirectable root falls back to it when no redirect is set - the normal product path.
+            "agenteyes.dll!AgentEyes.AppDataPaths::get_LocalAppData -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
+            // The winget package folder ffmpeg may be installed in: a tool location, not AgentEyes state.
+            "agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
+            // This class, naming the real folder it asserts the test run stays out of.
+            "AgentEyes.Tests.dll!AgentEyes.Tests.TestIsolationTests::get_RealAgentEyesRoot -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
+        };
+
+        [Fact]
+        public void MachineLocalAppDataReaders_InTheCompiledProductAndTests_AreExactlyThePinnedOnes()
+        {
+            var readers = GuardedAssemblies()
+                .SelectMany(a => CompiledCode.CallSites(a, c => c == "AgentEyes.AppDataPaths::get_MachineLocalAppData"))
+                .ToList();
+
+            // Instrument check: the scan must see the product's own fallback read, or "exactly the
+            // pinned ones" could be the answer of a scan that matched nothing.
+            Assert.Contains(readers, r => r.Method == "AgentEyes.AppDataPaths::get_LocalAppData");
+
+            string expected = string.Join(Environment.NewLine, PinnedMachineLocalAppDataReaders.OrderBy(s => s, StringComparer.Ordinal));
+            string actual = CompiledCode.Describe(readers);
+            Assert.True(expected == actual,
+                "the readers of the never-redirected AppDataPaths.MachineLocalAppData changed. Actual inventory:"
+                + Environment.NewLine + actual);
         }
 
         [Fact]
