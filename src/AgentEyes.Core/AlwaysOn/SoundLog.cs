@@ -46,7 +46,7 @@ namespace AgentEyes.AlwaysOn
     ///
     /// Thread safe: the level callbacks arrive on the capture threads, the keeper reads on its own.
     /// </summary>
-    internal sealed class SoundLog
+    internal sealed class SoundLog : ISoundTimes
     {
         /// <summary>How much history the automatic floor is measured over.</summary>
         public static readonly TimeSpan FloorWindow = TimeSpan.FromMinutes(10);
@@ -145,6 +145,32 @@ namespace AgentEyes.AlwaysOn
             lock (_gate)
             {
                 return _soundSeconds.GetViewBetween(a, b).Count > 0;
+            }
+        }
+
+        /// <summary>The first second in [fromUtc, toUtc] (inclusive, whole seconds) that had sustained
+        /// sound, or null when none had (issue #79: where a clip's lead-in is measured from).</summary>
+        public DateTime? FirstSound(DateTime fromUtc, DateTime toUtc)
+        {
+            if (toUtc < fromUtc) return null;
+            long a = ToSecond(fromUtc), b = ToSecond(toUtc);
+            lock (_gate)
+            {
+                var view = _soundSeconds.GetViewBetween(a, b);
+                return view.Count == 0 ? null : DateTimeOffset.FromUnixTimeSeconds(view.Min).UtcDateTime;
+            }
+        }
+
+        /// <summary>The last second in [fromUtc, toUtc] (inclusive, whole seconds) that had sustained
+        /// sound, or null when none had (issue #79: where a clip's tail is measured from).</summary>
+        public DateTime? LastSound(DateTime fromUtc, DateTime toUtc)
+        {
+            if (toUtc < fromUtc) return null;
+            long a = ToSecond(fromUtc), b = ToSecond(toUtc);
+            lock (_gate)
+            {
+                var view = _soundSeconds.GetViewBetween(a, b);
+                return view.Count == 0 ? null : DateTimeOffset.FromUnixTimeSeconds(view.Max).UtcDateTime;
             }
         }
 

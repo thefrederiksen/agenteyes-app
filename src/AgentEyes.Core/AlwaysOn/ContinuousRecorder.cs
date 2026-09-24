@@ -137,7 +137,7 @@ namespace AgentEyes.AlwaysOn
 
             var args = AlwaysOnArgs.Capture(
                 o.Capture, o.Desktop, o.Fps, Encoder, o.DshowMic, o.MicGain, pipePath, sysFormat, o.SystemGain,
-                o.PieceSeconds, o.PieceFolder);
+                o.PieceSeconds, o.PieceFolder, o.KeyframeSeconds);
             string exe = FfmpegLocator.Ffmpeg();
             CommandLine = FfmpegArgs.ToCommandLine(exe, args);
             Log.Info($"[ContinuousRecorder] Start: {CommandLine}");

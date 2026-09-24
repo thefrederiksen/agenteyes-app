@@ -142,7 +142,8 @@ namespace AgentEyes.App
 
         // ---- Always-on recording (issue #66) ---------------------------------------------------
         // Records the chosen setup all day in one-minute pieces and keeps only the stretches with
-        // sound. Defaults are the owner's decisions of 2026-09-23: 5 minutes either side, a 5 GB cap.
+        // sound. A 5 GB cap is the owner's decision of 2026-09-23; the keep settings are issue #79's
+        // (10 s before, 10 s after, a clip closes after 5 min of silence).
 
         /// <summary>True while always-on is switched on, so it comes back on when AgentEyes starts.</summary>
         public bool AlwaysOnEnabled { get; set; }
@@ -160,8 +161,30 @@ namespace AgentEyes.App
         /// <summary>The sound line in dBFS, or null for Auto (measured noise floor plus the gate margin).</summary>
         public double? AlwaysOnThresholdDb { get; set; }
 
-        public double AlwaysOnBeforeMinutes { get; set; } = 5;
-        public double AlwaysOnAfterMinutes { get; set; } = 5;
+        // ---- the keep settings (issue #79) ----
+        // Seconds. Ranges and defaults live in AlwaysOnKeepSettings; BuildOptions refuses a config.json
+        // edited out of range, with the reason, rather than guessing a value.
+
+        /// <summary>How much a clip keeps before the first speech: 0 - 120 s, default 10 s.</summary>
+        public double AlwaysOnKeepBeforeSeconds { get; set; } = AgentEyes.AlwaysOn.AlwaysOnKeepSettings.DefaultKeepBefore.TotalSeconds;
+
+        /// <summary>How much a clip keeps after the last speech: 0 s up to the silence gap, default 10 s.</summary>
+        public double AlwaysOnKeepAfterSeconds { get; set; } = AgentEyes.AlwaysOn.AlwaysOnKeepSettings.DefaultKeepAfter.TotalSeconds;
+
+        /// <summary>How long a silence closes a clip: 30 s - 30 min, default 5 min.</summary>
+        public double AlwaysOnSilenceGapSeconds { get; set; } = AgentEyes.AlwaysOn.AlwaysOnKeepSettings.DefaultSilenceGap.TotalSeconds;
+
+        /// <summary>
+        /// v1.11.x's "keep before" in minutes (issue #66). Read only to migrate it (issue #79) and never
+        /// written again: null once migrated, and a null is left out of config.json.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public double? AlwaysOnBeforeMinutes { get; set; }
+
+        /// <summary>v1.11.x's "keep after" in minutes - what closed a clip then. Migrated to the silence gap (issue #79).</summary>
+        [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        public double? AlwaysOnAfterMinutes { get; set; }
+
         public double AlwaysOnCapGb { get; set; } = 5;
 
         /// <summary>Where clips are saved; null = Videos\AgentEyes\AlwaysOn.</summary>
@@ -211,10 +234,50 @@ namespace AgentEyes.App
             try
             {
                 if (File.Exists(FilePath))
-                    return JsonSerializer.Deserialize<Config>(File.ReadAllText(FilePath)) ?? new Config();
+                    return FromJson(File.ReadAllText(FilePath));
             }
             catch { }
             return new Config();
+        }
+
+        /// <summary>Read a config.json's text, bringing settings from an older version forward.</summary>
+        internal static Config FromJson(string json)
+        {
+            var cfg = JsonSerializer.Deserialize<Config>(json) ?? new Config();
+            cfg.MigrateAlwaysOnKeepSettings();
+            return cfg;
+        }
+
+        /// <summary>
+        /// Issue #79: v1.11.x kept whole minutes either side of the sound ("keep before" and "keep after",
+        /// 5 min each by default), and "keep after" was also what closed a clip. Now the lead-in and the
+        /// tail are seconds and the silence that closes a clip is its own setting. So:
+        ///  - the old "keep after" becomes the SILENCE GAP (it was the silence that closed a clip);
+        ///  - "keep before" and "keep after" take the new 10 s defaults - the old minute values meant
+        ///    "a piece either side", which the 2 s keyframes replace.
+        /// Runs once: the old fields are cleared, and a cleared field is not written back. A no-op for a
+        /// config that has no old fields.
+        /// </summary>
+        internal void MigrateAlwaysOnKeepSettings()
+        {
+            if (AlwaysOnBeforeMinutes == null && AlwaysOnAfterMinutes == null) return;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            string was = $"before={AlwaysOnBeforeMinutes?.ToString("0.##", inv) ?? "(none)"} min, after={AlwaysOnAfterMinutes?.ToString("0.##", inv) ?? "(none)"} min";
+            if (AlwaysOnAfterMinutes is double after)
+            {
+                var gap = TimeSpan.FromMinutes(after);
+                // The old choices were 1 - 30 minutes, all inside the gap's range; a hand-edited value
+                // outside it is brought to the nearest end, and the log says so.
+                if (gap < AgentEyes.AlwaysOn.AlwaysOnKeepSettings.SilenceGapMin) gap = AgentEyes.AlwaysOn.AlwaysOnKeepSettings.SilenceGapMin;
+                if (gap > AgentEyes.AlwaysOn.AlwaysOnKeepSettings.SilenceGapMax) gap = AgentEyes.AlwaysOn.AlwaysOnKeepSettings.SilenceGapMax;
+                AlwaysOnSilenceGapSeconds = gap.TotalSeconds;
+            }
+            AlwaysOnKeepBeforeSeconds = AgentEyes.AlwaysOn.AlwaysOnKeepSettings.DefaultKeepBefore.TotalSeconds;
+            AlwaysOnKeepAfterSeconds = AgentEyes.AlwaysOn.AlwaysOnKeepSettings.DefaultKeepAfter.TotalSeconds;
+            AlwaysOnBeforeMinutes = null;
+            AlwaysOnAfterMinutes = null;
+            Log.Info($"[Config] MigrateAlwaysOnKeepSettings: v1.11 keep settings ({was}) -> keep before "
+                     + $"{AlwaysOnKeepBeforeSeconds:0}s, keep after {AlwaysOnKeepAfterSeconds:0}s, silence gap {AlwaysOnSilenceGapSeconds:0}s");
         }
 
         /// <summary>

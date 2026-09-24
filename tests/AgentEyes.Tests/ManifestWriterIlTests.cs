@@ -156,6 +156,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Move x1",           // an unreadable kept piece, set aside in work\unreadable
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::WriteAllText x1",   // the concat list for the join
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::Recover -> System.IO.File::Delete x1",          // a loose piece left by an earlier run
+            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Copy x1",          // a piece that ends one clip and may begin the next: copied into the closed clip, left to be decided again (issue #79)
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Delete x1",        // a silent piece
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RunKeeper -> System.IO.File::Move x1",          // a kept piece into its clip's holding folder
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::Move x1",        // the pruned clip ledger, renamed into place

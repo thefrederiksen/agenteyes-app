@@ -637,7 +637,8 @@ namespace AgentEyes.App
             var s = ao.Status();
             var open = OpenClip(s, DateTime.UtcNow);
             Log.Info($"[RestServer] AlwaysOnStatus: state={s.State} openClipSeconds={(open == null ? "null" : open.ElapsedSeconds.ToString("0"))} "
-                     + $"clipsKeptToday={s.ClipsKeptToday.Count}");
+                     + $"clipsKeptToday={s.ClipsKeptToday.Count} keepBefore={ao.Settings.AlwaysOnKeepBeforeSeconds}s "
+                     + $"keepAfter={ao.Settings.AlwaysOnKeepAfterSeconds}s silenceGap={ao.Settings.AlwaysOnSilenceGapSeconds}s");
             Json(ctx, new
             {
                 status = s,
@@ -645,20 +646,27 @@ namespace AgentEyes.App
                 busy = ao.BusyText,
                 lastStartError = ao.LastStartError,
                 clipsFolder = ao.ClipsFolder,
+                // Issue #79: the three keep settings as saved (the ones the next start uses), in seconds.
+                settings = new
+                {
+                    keepBeforeSeconds = ao.Settings.AlwaysOnKeepBeforeSeconds,
+                    keepAfterSeconds = ao.Settings.AlwaysOnKeepAfterSeconds,
+                    silenceGapSeconds = ao.Settings.AlwaysOnSilenceGapSeconds,
+                },
                 // Issue #70: the clip in progress (null when none) and where today's clips are.
                 openClip = open == null ? null : new
                 {
                     startUtc = open.StartUtc,
                     elapsedSeconds = open.ElapsedSeconds,
                     savedTo = open.SavedTo,
-                    afterMinutes = open.AfterMinutes,
+                    silenceGapSeconds = open.SilenceGapSeconds,
                 },
                 clipsKeptToday = s.ClipsKeptToday.Select(c => new { file = c.File, folder = c.Folder, path = c.Path, exists = c.Exists }),
             });
         }
 
         /// <summary>The clip in progress in GET /always-on (issue #70), or null when none is.</summary>
-        internal sealed record OpenClipInfo(DateTime StartUtc, double ElapsedSeconds, string? SavedTo, double? AfterMinutes);
+        internal sealed record OpenClipInfo(DateTime StartUtc, double ElapsedSeconds, string? SavedTo, double? SilenceGapSeconds);
 
         /// <summary>
         /// The clip in progress, with its running time as of <paramref name="nowUtc"/> - the status
@@ -667,7 +675,7 @@ namespace AgentEyes.App
         /// </summary>
         internal static OpenClipInfo? OpenClip(AlwaysOnStatus s, DateTime nowUtc) =>
             s.OpenClipStartUtc is DateTime start
-                ? new OpenClipInfo(start, s.OpenClipElapsedAt(nowUtc)!.Value, s.ClipsFolder, s.KeepAfterMinutes)
+                ? new OpenClipInfo(start, s.OpenClipElapsedAt(nowUtc)!.Value, s.ClipsFolder, s.SilenceGapSeconds)
                 : null;
 
         /// <summary>Read an integer query-string parameter, falling back to a default.</summary>

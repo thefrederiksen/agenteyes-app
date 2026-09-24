@@ -640,6 +640,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <StackPanel Grid.Row="0" Margin="0,8">
@@ -671,35 +672,46 @@
                                           Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
                                           AutomationProperties.Name="Always-on sound level"/>
 
+                                <!-- Issue #79: the clip starts this long before the first speech (0 - 120 s),
+                                     ends this long after the last (0 s - the silence gap), and closes after
+                                     the silence gap (30 s - 30 min). -->
                                 <StackPanel Grid.Row="3" Margin="0,8">
-                                    <TextBlock Text="Keep before sound" Style="{StaticResource AOLabel}"/>
-                                    <TextBlock Text="Context before you start talking" Style="{StaticResource AOHint}"/>
+                                    <TextBlock Text="Keep before the speech" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="What was on screen just before you started talking (0 - 120 s)" Style="{StaticResource AOHint}"/>
                                 </StackPanel>
                                 <ComboBox Grid.Row="3" Grid.Column="1" x:Name="AOBeforeCombo" Style="{StaticResource DkCombo}"
                                           Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
-                                          AutomationProperties.Name="Keep before sound"/>
+                                          AutomationProperties.Name="Keep before the speech"/>
 
                                 <StackPanel Grid.Row="4" Margin="0,8">
-                                    <TextBlock Text="Keep after sound" Style="{StaticResource AOLabel}"/>
-                                    <TextBlock Text="A clip ends after this long with no sound" Style="{StaticResource AOHint}"/>
+                                    <TextBlock Text="Keep after the speech" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="How long a clip runs on after the last sound (0 s up to the silence gap)" Style="{StaticResource AOHint}"/>
                                 </StackPanel>
                                 <ComboBox Grid.Row="4" Grid.Column="1" x:Name="AOAfterCombo" Style="{StaticResource DkCombo}"
                                           Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
-                                          AutomationProperties.Name="Keep after sound"/>
+                                          AutomationProperties.Name="Keep after the speech"/>
 
                                 <StackPanel Grid.Row="5" Margin="0,8">
+                                    <TextBlock Text="Close the clip after silence of" Style="{StaticResource AOLabel}"/>
+                                    <TextBlock Text="A shorter pause stays inside one clip (30 s - 30 min)" Style="{StaticResource AOHint}"/>
+                                </StackPanel>
+                                <ComboBox Grid.Row="5" Grid.Column="1" x:Name="AOGapCombo" Style="{StaticResource DkCombo}"
+                                          Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
+                                          AutomationProperties.Name="Close the clip after silence of"/>
+
+                                <StackPanel Grid.Row="6" Margin="0,8">
                                     <TextBlock Text="Disk cap" Style="{StaticResource AOLabel}"/>
                                     <TextBlock Text="When full, the oldest clips are deleted first" Style="{StaticResource AOHint}"/>
                                 </StackPanel>
-                                <ComboBox Grid.Row="5" Grid.Column="1" x:Name="AOCapCombo" Style="{StaticResource DkCombo}"
+                                <ComboBox Grid.Row="6" Grid.Column="1" x:Name="AOCapCombo" Style="{StaticResource DkCombo}"
                                           Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"
                                           AutomationProperties.Name="Always-on disk cap"/>
 
-                                <StackPanel Grid.Row="6" Margin="0,8">
+                                <StackPanel Grid.Row="7" Margin="0,8">
                                     <TextBlock Text="Save clips to" Style="{StaticResource AOLabel}"/>
                                     <TextBlock Text="One file per clip, named by date and time" Style="{StaticResource AOHint}"/>
                                 </StackPanel>
-                                <Grid Grid.Row="6" Grid.Column="1" VerticalAlignment="Center">
+                                <Grid Grid.Row="7" Grid.Column="1" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
@@ -712,11 +724,11 @@
                                             AutomationProperties.Name="Change clips folder"/>
                                 </Grid>
 
-                                <StackPanel Grid.Row="7" Margin="0,8">
+                                <StackPanel Grid.Row="8" Margin="0,8">
                                     <TextBlock Text="Start when Windows starts" Style="{StaticResource AOLabel}"/>
                                     <TextBlock Text="So it is on without you remembering" Style="{StaticResource AOHint}"/>
                                 </StackPanel>
-                                <CheckBox Grid.Row="7" Grid.Column="1" x:Name="AOStartWithWindows" Content="On"
+                                <CheckBox Grid.Row="8" Grid.Column="1" x:Name="AOStartWithWindows" Content="On"
                                           Style="{StaticResource DkCheck}" VerticalAlignment="Center"
                                           Click="AOStartWithWindows_Click" AutomationProperties.Name="Start when Windows starts"/>
                             </Grid>

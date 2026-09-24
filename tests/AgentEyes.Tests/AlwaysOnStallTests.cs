@@ -20,7 +20,9 @@ namespace AgentEyes.Tests
         private static readonly DateTime T0 = new(2026, 9, 23, 9, 0, 0, DateTimeKind.Utc);
         private static readonly TimeSpan Min = TimeSpan.FromMinutes(1);
         private static readonly TimeSpan Five = TimeSpan.FromMinutes(5);
-        private static readonly Func<DateTime, DateTime, bool> Silence = (_, _) => false;
+
+        /// <summary>The issue #79 defaults: 10 s before, 10 s after, a clip closes after 5 min of silence.</summary>
+        private static readonly KeepWindows W = new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10), Five);
 
         private readonly string _root;
         private DateTime _now = T0;
@@ -329,28 +331,37 @@ namespace AgentEyes.Tests
         [Fact]
         public void Decide_KeptPieceAfterARestartHoleWithinTheBridge_ContinuesTheClipAndReportsTheHole()
         {
-            // The clip ended at 2:00; the restarted capture's first piece opens at 2:40.
+            // The clip's last piece ended at 2:00 (talking at 1:30-1:33); the restarted capture's first
+            // piece opens at 2:40, and the owner talks again inside it at 3:20.
             var piece = new Piece("p", T0 + 2 * Min + TimeSpan.FromSeconds(40), T0 + 3 * Min + TimeSpan.FromSeconds(40), 1000);
+            var open = new OpenClip(7, T0.AddSeconds(90), T0.AddSeconds(93), T0 + 2 * Min);
 
-            var plan = KeeperRule.Decide(new[] { piece }, SoundAt(90), T0 + 4 * Min, Five, Five, 7, T0 + 2 * Min, 8,
-                final: false, restartBridge: Five);
+            var plan = KeeperRule.Decide(new[] { piece }, TestSounds.At(T0, 90, 91, 92, 93, 200, 201, 202), T0 + 4 * Min, W,
+                open, null, 8, final: false, restartBridge: Five);
 
             Assert.Equal(7, plan.Keep.Single().Clip);
             Assert.Empty(plan.Close);
-            Assert.Equal(7, plan.OpenClip);
+            Assert.Equal(7, plan.Open!.Id);
+            Assert.Equal(T0.AddSeconds(202), plan.Open.LastSoundUtc);
+            Assert.Equal(piece.EndUtc, plan.Open.LastPieceEndUtc);
             Assert.Equal((7, T0 + 2 * Min, piece.StartUtc), plan.Bridged.Single());
         }
 
         [Fact]
-        public void Decide_HoleLongerThanTheBridge_StartsANewClip()
+        public void Decide_HoleLongerThanTheBridge_ClosesTheClipAndTheNextSpeechStartsANewOne()
         {
+            // The clip's last piece ended at 2:00; the next piece opens at 8:00, a six-minute hole - longer
+            // than the bridge - with talking at 8:20.
             var piece = new Piece("p", T0 + 8 * Min, T0 + 9 * Min, 1000);
+            var open = new OpenClip(7, T0.AddSeconds(60), T0.AddSeconds(63), T0 + 2 * Min);
 
-            var plan = KeeperRule.Decide(new[] { piece }, SoundAt(500), T0 + 10 * Min, Five, Five, 7, T0 + 2 * Min, 8,
-                final: false, restartBridge: Five);
+            var plan = KeeperRule.Decide(new[] { piece }, TestSounds.At(T0, 60, 61, 62, 63, 500, 501, 502), T0 + 10 * Min, W,
+                open, null, 8, final: false, restartBridge: Five);
 
-            Assert.Equal(new[] { 7 }, plan.Close);
+            Assert.Equal(new[] { 7 }, plan.Close.Select(c => c.Clip));
             Assert.Equal(8, plan.Keep.Single().Clip);
+            Assert.Equal(8, plan.Open!.Id);
+            Assert.Equal(T0.AddSeconds(500), plan.Open.FirstSoundUtc);
             Assert.Empty(plan.Bridged);
         }
 
@@ -358,7 +369,7 @@ namespace AgentEyes.Tests
         public void Decide_NegativeRestartBridge_Throws()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() =>
-                KeeperRule.Decide(new List<Piece>(), Silence, T0, Five, Five, null, null, 1, final: false,
+                KeeperRule.Decide(new List<Piece>(), TestSounds.Silence(T0), T0, W, null, null, 1, final: false,
                     restartBridge: -Min));
         }
 
@@ -368,17 +379,19 @@ namespace AgentEyes.Tests
         public void Decide_ShortSilentPieceAfterTheOpenClip_IsJoinedAndTheClipStaysOpen()
         {
             // Stall 2: a dying ffmpeg flushed a 2 s and a 1 s piece; both were deleted and the clip closed.
+            // Talking ended at 1:50, so at 2:30 the clip is still open (5 min of silence close it).
             var shortA = new Piece("a", T0 + 2 * Min, T0 + 2 * Min + TimeSpan.FromSeconds(2), 100);
             var shortB = new Piece("b", shortA.EndUtc, shortA.EndUtc + TimeSpan.FromSeconds(1), 100);
+            var open = new OpenClip(7, T0.AddSeconds(100), T0.AddSeconds(110), T0 + 2 * Min);
 
-            var plan = KeeperRule.Decide(new[] { shortA, shortB }, Silence, T0 + 30 * Min, Five, Five, 7, T0 + 2 * Min, 8,
-                final: false, restartBridge: Five);
+            var plan = KeeperRule.Decide(new[] { shortA, shortB }, TestSounds.Range(T0, 100, 110), T0 + 2 * Min + TimeSpan.FromSeconds(30), W,
+                open, null, 8, final: false, restartBridge: Five);
 
             Assert.Equal(new[] { (shortA, 7), (shortB, 7) }, plan.Keep.Select(k => (k.Piece, k.Clip)).ToArray());
             Assert.Empty(plan.Delete);
             Assert.Empty(plan.Close);
-            Assert.Equal(7, plan.OpenClip);
-            Assert.Equal(shortB.EndUtc, plan.OpenClipEndUtc);
+            Assert.Equal(7, plan.Open!.Id);
+            Assert.Equal(shortB.EndUtc, plan.Open.LastPieceEndUtc);
         }
 
         [Fact]
@@ -386,7 +399,7 @@ namespace AgentEyes.Tests
         {
             var shortPiece = new Piece("a", T0, T0 + TimeSpan.FromSeconds(2), 100);
 
-            var plan = KeeperRule.Decide(new[] { shortPiece }, Silence, T0 + 30 * Min, Five, Five, null, null, 1, final: false);
+            var plan = KeeperRule.Decide(new[] { shortPiece }, TestSounds.Silence(T0), T0 + 30 * Min, W, null, null, 1, final: false);
 
             Assert.Equal(shortPiece, plan.Delete.Single());
             Assert.Empty(plan.Keep);
@@ -440,15 +453,19 @@ namespace AgentEyes.Tests
             engine.Stop();
 
             var clip = Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
-            Assert.Equal(T0.ToLocalTime().ToString("yyyy-MM-dd_HH-mm-ss") + ".mp4", Path.GetFileName(clip));
-            // Every piece is a 2-second test file: 4 before the stall, 2 short leftovers, and the 3 new
-            // pieces with the 5:30 speech in their window (the piece from 7:47 is past it).
-            Assert.Equal(9 * 2, MediaProbe.DurationSeconds(clip), 0);
+            // Issue #79: the clip's span is 0:30 (2 min before the 2:30 speech) to 7:34 (2 min after the
+            // 5:30 speech). Every piece is a 2-second test file, so the piece from 0:00 holds only
+            // 0:00-0:02 - all of it ahead of the lead-in - and the trim leaves it out (a real minute-long
+            // piece would be cut at 0:30 instead); the clip starts with the piece from 1:00. Joined:
+            // 1:00, 2:00, 3:00, the 2 short leftovers, and the new capture's 4:47, 5:47 and 6:47 -
+            // 8 pieces; the piece from 7:47 is past the tail. ONE clip, across the restart.
+            Assert.Equal(T0.AddMinutes(1).ToLocalTime().ToString("yyyy-MM-dd_HH-mm-ss") + ".mp4", Path.GetFileName(clip));
+            Assert.Equal(8 * 2, MediaProbe.DurationSeconds(clip), 0);
             Assert.Equal(1, engine.Status().RestartsToday);
         }
 
         [Fact]
-        public void Tick_CaptureDownLongerThanTheAfterWindow_WritesTheOpenClip()
+        public void Tick_CaptureDownLongerThanTheSilenceGap_WritesTheOpenClip()
         {
             var o = Options();
             using var engine = Engine();
@@ -468,7 +485,7 @@ namespace AgentEyes.Tests
             Assert.Equal(AlwaysOnState.Retrying, engine.State);
             Assert.Empty(Directory.GetFiles(o.ClipsFolder, "*.mp4"));   // still open: the capture may come back
 
-            _now = T0.AddMinutes(3) + o.KeepAfter + TimeSpan.FromSeconds(30);
+            _now = T0.AddMinutes(3) + o.SilenceGap + TimeSpan.FromSeconds(30);
             engine.Tick();
 
             Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
@@ -481,8 +498,12 @@ namespace AgentEyes.Tests
             SetupName = "test",
             Counts = SoundSource.Mic,
             ThresholdDb = -40,
+            // Two-minute margins either side of the speech (issue #79: seconds; 2 min is the most keep-before
+            // allows), and the 5 min silence gap that closes a clip - so the 3-minute quiet between stall 2's
+            // two speeches stays inside one clip.
             KeepBefore = TimeSpan.FromMinutes(2),
             KeepAfter = TimeSpan.FromMinutes(2),
+            SilenceGap = TimeSpan.FromMinutes(5),
             CapBytes = 5L * 1024 * 1024 * 1024,
             ClipsFolder = Path.Combine(_root, "clips"),
             WorkFolder = Path.Combine(_root, "work"),
@@ -503,9 +524,6 @@ namespace AgentEyes.Tests
             using var reader = new StreamReader(fs);
             return reader.ReadToEnd().Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).ToList();
         }
-
-        private static Func<DateTime, DateTime, bool> SoundAt(params int[] seconds) =>
-            (a, b) => seconds.Any(s => T0.AddSeconds(s) >= a && T0.AddSeconds(s) <= b);
 
         private static string PiecePath(AlwaysOnOptions o, DateTime startUtc) =>
             Path.Combine(o.PieceFolder, "piece_" + startUtc.ToString(AlwaysOnArgs.PieceStampFormat) + ".mp4");

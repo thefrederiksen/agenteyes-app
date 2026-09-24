@@ -60,8 +60,12 @@ namespace AgentEyes.AlwaysOn
         /// <summary>The measured noise floor the Auto line is derived from, in dBFS RMS (issue #72).</summary>
         public double? FloorDb { get; set; }
         public bool ThresholdAuto { get; set; }
-        public double? KeepBeforeMinutes { get; set; }
-        public double? KeepAfterMinutes { get; set; }
+        /// <summary>Keep before the speech, in seconds (issue #79); null while always-on is off.</summary>
+        public double? KeepBeforeSeconds { get; set; }
+        /// <summary>Keep after the speech, in seconds (issue #79).</summary>
+        public double? KeepAfterSeconds { get; set; }
+        /// <summary>The silence that closes a clip, in seconds (issue #79).</summary>
+        public double? SilenceGapSeconds { get; set; }
         public double? CapGb { get; set; }
         public string? ClipsFolder { get; set; }
         public string? Encoder { get; set; }
@@ -83,7 +87,7 @@ namespace AgentEyes.AlwaysOn
         /// When the clip being kept right now began (issue #70): the start of its first piece. Null
         /// when no clip is in progress - the state is then anything but <see cref="AlwaysOnState.Keeping"/>.
         /// Until the clip is written it exists only as pieces in the work folder; it is saved to
-        /// <see cref="ClipsFolder"/> once <see cref="KeepAfterMinutes"/> of quiet have passed.
+        /// <see cref="ClipsFolder"/> once <see cref="SilenceGapSeconds"/> of quiet have passed.
         /// </summary>
         public DateTime? OpenClipStartUtc { get; set; }
 
@@ -114,7 +118,7 @@ namespace AgentEyes.AlwaysOn
             var elapsed = OpenClipElapsedAt(nowUtc);
             if (!elapsed.HasValue) return null;
             return $"Recording a clip now - {ClipDuration(elapsed.Value)} so far. "
-                   + $"Saved to {ClipsFolder} after {AfterMinutesText()} of quiet.";
+                   + $"Saved to {ClipsFolder} after {GapText()} of quiet.";
         }
 
         /// <summary>The same fact in short form, for the tray tooltip (issue #70), or null.</summary>
@@ -122,11 +126,10 @@ namespace AgentEyes.AlwaysOn
         {
             var elapsed = OpenClipElapsedAt(nowUtc);
             if (!elapsed.HasValue) return null;
-            return $"Clip in progress, {ClipDuration(elapsed.Value)} so far - saved to {ClipsFolder} after {AfterMinutesText()} quiet.";
+            return $"Clip in progress, {ClipDuration(elapsed.Value)} so far - saved to {ClipsFolder} after {GapText()} quiet.";
         }
 
-        private string AfterMinutesText() =>
-            (KeepAfterMinutes ?? 0).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " min";
+        private string GapText() => AlwaysOnKeepSettings.Describe(TimeSpan.FromSeconds(SilenceGapSeconds ?? 0));
 
         /// <summary>A clip's running time in whole minutes: "under 1 min", "12 min", "1 h 5 min".</summary>
         public static string ClipDuration(double seconds)
@@ -261,8 +264,10 @@ namespace AgentEyes.AlwaysOn
         private readonly Dictionary<int, string> _clipDirs = new();
         /// <summary>When each clip in <see cref="_clipDirs"/> began - its first kept piece (issue #70).</summary>
         private readonly Dictionary<int, DateTime> _clipStartsUtc = new();
-        private int? _openClip;
-        private DateTime? _openClipEndUtc;
+        /// <summary>The clip being kept, with its first and last sound (issue #79), or null.</summary>
+        private OpenClip? _open;
+        /// <summary>The last sound of the newest closed clip - sound that never starts a new one (issue #79).</summary>
+        private DateTime? _closedSoundUtc;
         private int _nextClip = 1;
         private readonly HashSet<string> _failedJoins = new(StringComparer.OrdinalIgnoreCase);
 
@@ -299,8 +304,11 @@ namespace AgentEyes.AlwaysOn
             {
                 if (_state != AlwaysOnState.Off) throw new UsageException("always-on is already on - stop it first.");
                 Log.Info($"[AlwaysOnEngine] Start: {options}");
-                if (options.KeepBefore < TimeSpan.Zero || options.KeepAfter < TimeSpan.Zero)
-                    throw new UsageException("the keep windows cannot be negative.");
+                AlwaysOnKeepSettings.Validate(options.KeepBefore, options.KeepAfter, options.SilenceGap);
+                if (options.KeyframeSeconds <= 0 || options.PieceSeconds % options.KeyframeSeconds != 0)
+                    throw new UsageException($"a piece ({options.PieceSeconds}s) must be a whole number of keyframe intervals ({options.KeyframeSeconds}s).");
+                string? leadInNote = AlwaysOnKeepSettings.LeadInNote(options.KeepBefore, options.KeepAfter, options.SilenceGap, options.PieceSeconds);
+                if (leadInNote != null) Log.Warn($"[AlwaysOnEngine] Start: {leadInNote}");
 
                 Directory.CreateDirectory(options.WorkFolder);
                 Directory.CreateDirectory(options.PieceFolder);
@@ -318,6 +326,7 @@ namespace AgentEyes.AlwaysOn
                 _pausedReason = null;
                 _failedJoins.Clear();
                 ResetKeeper();
+                _closedSoundUtc = null;
 
                 Recover(options);
                 EnforceCap(options);
@@ -445,12 +454,12 @@ namespace AgentEyes.AlwaysOn
                 Supervise(now);
                 NoteRecovery();
                 bool running = _recorder != null && !_recorder.HasExited;
-                if (!running && _openClip.HasValue && _openClipEndUtc.HasValue && now - _openClipEndUtc.Value > _options.KeepAfter)
+                if (!running && _open != null && now - _open.LastPieceEndUtc > _options.SilenceGap)
                 {
                     // The capture has been down (retrying) for longer than a clip may be carried across
                     // (issue #81): nothing recorded later can continue it, so finish it now.
-                    Log.Warn($"[AlwaysOnEngine] Tick: the capture has been down since {_openClipEndUtc.Value.ToLocalTime():HH:mm:ss}, "
-                             + "longer than the keep-after window; the open clip is finished and written");
+                    Log.Warn($"[AlwaysOnEngine] Tick: the capture has been down since {_open.LastPieceEndUtc.ToLocalTime():HH:mm:ss}, "
+                             + "longer than the silence gap; the open clip is finished and written");
                     try { RunKeeper(_options, now, final: true, recorderRunning: false); }
                     finally { ResetKeeper(); }
                 }
@@ -487,8 +496,9 @@ namespace AgentEyes.AlwaysOn
                 Setup = o?.SetupName,
                 Counts = o?.Counts.ToString().ToLowerInvariant(),
                 ThresholdAuto = o != null && !o.ThresholdDb.HasValue,
-                KeepBeforeMinutes = o?.KeepBefore.TotalMinutes,
-                KeepAfterMinutes = o?.KeepAfter.TotalMinutes,
+                KeepBeforeSeconds = o?.KeepBefore.TotalSeconds,
+                KeepAfterSeconds = o?.KeepAfter.TotalSeconds,
+                SilenceGapSeconds = o?.SilenceGap.TotalSeconds,
                 CapGb = o == null ? null : Math.Round(o.CapBytes / 1024.0 / 1024 / 1024, 2),
                 ClipsFolder = o?.ClipsFolder,
                 Encoder = _encoder,
@@ -525,7 +535,7 @@ namespace AgentEyes.AlwaysOn
             if (o != null)
             {
                 s.PiecesWaiting = PieceFiles(o.PieceFolder).Count;
-                s.PiecesKeptInOpenClip = _openClip.HasValue && _clipDirs.TryGetValue(_openClip.Value, out var d)
+                s.PiecesKeptInOpenClip = _open != null && _clipDirs.TryGetValue(_open.Id, out var d)
                     && Directory.Exists(d) ? Directory.GetFiles(d, "*.mp4").Length : 0;
                 s.DiskUsedBytes = FolderBytes(o.WorkFolder) + ClipFiles(o).Sum(f => f.Length);
             }
@@ -554,11 +564,30 @@ namespace AgentEyes.AlwaysOn
         /// </summary>
         private DateTime OpenClipStart(AlwaysOnOptions? o)
         {
-            if (_openClip.HasValue && _clipStartsUtc.TryGetValue(_openClip.Value, out var start)) return start;
+            if (_open != null && _clipStartsUtc.TryGetValue(_open.Id, out var start))
+            {
+                // The clip keeps from keep-before ahead of its first sound, or from its first piece when
+                // the recording does not reach back that far (issue #79).
+                DateTime leadIn = o == null ? start : KeeperRule.SpanStart(_open.FirstSoundUtc, o.Windows);
+                return leadIn > start ? leadIn : start;
+            }
             if (o != null)
             {
                 var files = PieceFiles(o.PieceFolder);
-                if (files.Count > 0) return files[0].StartUtc;
+                if (files.Count > 0)
+                {
+                    // Sound was heard and no piece is decided yet: the clip will begin keep-before ahead
+                    // of that sound, or with the oldest piece still waiting when that is later.
+                    DateTime oldest = files[0].StartUtc;
+                    DateTime from = oldest - o.KeepAfter;
+                    if (_closedSoundUtc is DateTime closed && from <= closed) from = closed.AddSeconds(1);
+                    if (_sound?.FirstSound(from, _utcNow()) is DateTime first)
+                    {
+                        DateTime leadIn = KeeperRule.SpanStart(first, o.Windows);
+                        return leadIn > oldest ? leadIn : oldest;
+                    }
+                    return oldest;
+                }
             }
             // Keeping with no piece on disk at all: the capture has only just started its first piece.
             return _sound?.LastSoundUtc ?? _utcNow();
@@ -748,7 +777,7 @@ namespace AgentEyes.AlwaysOn
                 StartRecorder(_options!);
                 Log.Info($"[AlwaysOnEngine] TryRestart: capture restarted (attempt {_restartAttempt + 1}); it counts as "
                          + "recovered once it opens a piece"
-                         + (_openClip.HasValue ? "; the clip in progress stays open and the new pieces continue it" : ""));
+                         + (_open != null ? "; the clip in progress stays open and the new pieces continue it" : ""));
                 _restartAttempt = 0;
                 _state = AlwaysOnState.Listening;
             }
@@ -790,15 +819,17 @@ namespace AgentEyes.AlwaysOn
 
         private void ResetKeeper()
         {
-            _openClip = null;
-            _openClipEndUtc = null;
+            _open = null;
         }
 
         private bool IsKeeping(DateTime now)
         {
-            if (_openClip.HasValue) return true;
+            if (_open != null) return true;
             var last = _sound?.LastSoundUtc;
-            return last.HasValue && _options != null && now - last.Value <= _options.KeepAfter;
+            if (!last.HasValue || _options == null) return false;
+            // Sound a closed clip already ended with is not a clip in progress.
+            if (_closedSoundUtc is DateTime closed && last.Value <= closed) return false;
+            return now - last.Value <= _options.SilenceGap;
         }
 
         // ---- the keeper ------------------------------------------------------
@@ -846,10 +877,11 @@ namespace AgentEyes.AlwaysOn
                 pieces.Add(new Piece(path, startUtc, endUtc, fi.Length));
             }
 
-            var sound = _sound;
+            ISoundTimes sound = (ISoundTimes?)_sound ?? NoSound.Instance;
+            // The restart bridge is the silence gap: a hole no longer than that could not have closed
+            // the clip anyway (issues #79, #81).
             var plan = KeeperRule.Decide(
-                pieces, (a, b) => sound != null && sound.AnySound(a, b), now, o.KeepBefore, o.KeepAfter,
-                _openClip, _openClipEndUtc, _nextClip, final, restartBridge: o.KeepAfter);
+                pieces, sound, now, o.Windows, _open, _closedSoundUtc, _nextClip, final, restartBridge: o.SilenceGap);
 
             foreach (var (clip, fromUtc, toUtc) in plan.Bridged)
             {
@@ -859,17 +891,20 @@ namespace AgentEyes.AlwaysOn
                          + "has no piece; the clip is not split there");
             }
 
-            foreach (var (piece, clip) in plan.Keep)
+            foreach (var (piece, clip, copy) in plan.Keep)
             {
                 if (!_clipDirs.TryGetValue(clip, out var dir))
                 {
-                    dir = Path.Combine(o.PendingFolder, "clip_" + piece.StartUtc.ToString(AlwaysOnArgs.PieceStampFormat));
+                    dir = FreeClipDir(o, piece.StartUtc);
                     _clipDirs[clip] = dir;
                     _clipStartsUtc[clip] = piece.StartUtc;
                 }
                 Directory.CreateDirectory(dir);
-                File.Move(piece.Path, Path.Combine(dir, Path.GetFileName(piece.Path)));
+                string dest = Path.Combine(dir, Path.GetFileName(piece.Path));
+                if (copy) File.Copy(piece.Path, dest);
+                else File.Move(piece.Path, dest);
                 Log.Info($"[AlwaysOnEngine] keeper: KEEP {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s) -> {Path.GetFileName(dir)}"
+                         + (copy ? " (a copy: the rest of it may be the lead-in of the next clip, so it stays to be decided again)" : "")
                          + (piece.Duration < KeeperRule.ShortPiece ? " (shorter than 5s - a restart's leftover - joined to the clip it follows)" : ""));
             }
             foreach (var piece in plan.Delete)
@@ -879,49 +914,75 @@ namespace AgentEyes.AlwaysOn
                 _day.DiscardedSeconds += piece.Duration.TotalSeconds;
                 Log.Info($"[AlwaysOnEngine] keeper: DELETE {Path.GetFileName(piece.Path)} ({piece.Duration.TotalSeconds:0}s, no sound near it)");
             }
-            foreach (int clip in plan.Close)
+            foreach (var span in plan.Close)
             {
-                if (_clipDirs.TryGetValue(clip, out var dir))
+                if (_clipDirs.TryGetValue(span.Clip, out var dir))
                 {
-                    JoinClip(o, dir, now);
-                    _clipDirs.Remove(clip);
-                    _clipStartsUtc.Remove(clip);
+                    Log.Info($"[AlwaysOnEngine] keeper: CLOSE {Path.GetFileName(dir)} - sound {span.FirstSoundUtc.ToLocalTime():HH:mm:ss} "
+                             + $"to {span.LastSoundUtc.ToLocalTime():HH:mm:ss}, kept {span.StartUtc.ToLocalTime():HH:mm:ss} "
+                             + $"to {span.EndUtc.ToLocalTime():HH:mm:ss} ({AlwaysOnKeepSettings.Describe(o.KeepBefore)} before, "
+                             + $"{AlwaysOnKeepSettings.Describe(o.KeepAfter)} after)");
+                    JoinClip(o, dir, now, span);
+                    _clipDirs.Remove(span.Clip);
+                    _clipStartsUtc.Remove(span.Clip);
                 }
             }
 
-            _openClip = plan.OpenClip;
-            _openClipEndUtc = plan.OpenClipEndUtc;
+            _open = plan.Open;
+            _closedSoundUtc = plan.ClosedSoundUtc;
             _nextClip = plan.NextClip;
 
             if (plan.Keep.Count + plan.Delete.Count + plan.Close.Count > 0) _day.Save(o.StatsFile);
             if (plan.Close.Count > 0) EnforceCap(o);
 
-            // Sound older than anything still undecided can reach is never asked about again.
-            _sound?.Prune(now - o.KeepBefore - o.KeepAfter - TimeSpan.FromSeconds(o.PieceSeconds * 3));
+            // Sound older than anything still undecided can reach is never asked about again: a waiting
+            // piece looks back keep-after (and a gap's worth of sound chains), an open clip only forward.
+            _sound?.Prune(now - o.KeepBefore - o.KeepAfter - o.SilenceGap - TimeSpan.FromSeconds(o.PieceSeconds * 3));
+        }
+
+        /// <summary>A holding folder for a clip that begins with the piece opened at <paramref name="startUtc"/>.
+        /// Two clips can begin in the same piece (issue #79), so the second gets a numbered name.</summary>
+        private static string FreeClipDir(AlwaysOnOptions o, DateTime startUtc)
+        {
+            string dir = Path.Combine(o.PendingFolder, "clip_" + startUtc.ToString(AlwaysOnArgs.PieceStampFormat));
+            for (int n = 2; Directory.Exists(dir); n++)
+                dir = Path.Combine(o.PendingFolder, $"clip_{startUtc.ToString(AlwaysOnArgs.PieceStampFormat)}_{n}");
+            return dir;
+        }
+
+        /// <summary>No sound log (only before the first start): nothing was ever heard.</summary>
+        private sealed class NoSound : ISoundTimes
+        {
+            public static readonly NoSound Instance = new();
+            public DateTime? FirstSound(DateTime fromUtc, DateTime toUtc) => null;
+            public DateTime? LastSound(DateTime fromUtc, DateTime toUtc) => null;
         }
 
         /// <summary>
-        /// Join one clip's pieces into a single MP4 in the clips folder, without re-encoding, then
-        /// remove the holding folder.
+        /// Trim a clip's first and last piece to its span and join the pieces into a single MP4 in the
+        /// clips folder, all without re-encoding (issue #79), then remove the holding folder.
+        ///
+        /// <paramref name="span"/> is null for a holding folder an earlier run left (a crash): its sound
+        /// log went with that run, so nothing says where the speech was, and the clip is joined whole -
+        /// it holds at most a piece more than it would have.
         ///
         /// NOTHING KEPT IS EVER DELETED BECAUSE SOMETHING FAILED (review finding 1). A piece that cannot
         /// be read is MOVED to the unreadable folder, never deleted, and the clip is joined from the
-        /// rest; a join that fails leaves the whole holding folder in place for the next start.
+        /// rest; a trim or a join that fails leaves the whole holding folder - every piece uncut - in
+        /// place for the next start.
         /// </summary>
-        private void JoinClip(AlwaysOnOptions o, string dir, DateTime now)
+        private void JoinClip(AlwaysOnOptions o, string dir, DateTime now, ClipSpan? span)
         {
             if (_failedJoins.Contains(dir)) return;
             var parts = Directory.GetFiles(dir, "piece_*.mp4").OrderBy(p => Path.GetFileName(p), StringComparer.Ordinal).ToList();
-            var readable = new List<string>();
-            double seconds = 0;
+            var readable = new List<TrimInput>();
             foreach (var p in parts)
             {
                 try
                 {
                     double d = MediaProbe.DurationSeconds(p);
                     if (d <= 0) throw new UsageException("zero duration");
-                    readable.Add(p);
-                    seconds += d;
+                    readable.Add(new TrimInput(p, AlwaysOnArgs.PieceStartUtc(p) ?? now, d));
                 }
                 catch (Exception ex)
                 {
@@ -941,12 +1002,62 @@ namespace AgentEyes.AlwaysOn
                 return;
             }
 
-            var start = (AlwaysOnArgs.PieceStartUtc(readable[0]) ?? now).ToLocalTime();
+            TrimPlan trim;
+            if (span == null)
+            {
+                trim = new TrimPlan();
+                trim.Parts.AddRange(readable.Select(r => new TrimPart(r.Path, r.StartUtc, r.Seconds, null, null)));
+                Log.Info($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} has no known speech times (left by an earlier run); "
+                         + "it is joined whole, untrimmed");
+            }
+            else
+            {
+                trim = ClipTrim.Plan(readable, span.StartUtc, span.EndUtc, o.KeyframeSeconds);
+            }
+            foreach (var outside in trim.Outside)
+                Log.Info($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(outside.Path)} ({outside.Seconds:0.#}s) is wholly outside the clip's "
+                         + "span - silence past its tail or ahead of its lead-in - and is not joined");
+            double outsideSeconds = trim.Outside.Sum(p => p.Seconds);
+            if (trim.Parts.Count == 0)
+            {
+                // Every kept piece lies outside the span. Usually the speech fell where nothing was
+                // recorded (a capture restart's hole) and there is no video of it to write - but
+                // "outside" is judged from each piece's ffprobe duration and its file-name stamp, and a
+                // piece a stall truncated can be misjudged. Kept video is never deleted on a judgement
+                // that can be wrong: the holding folder is SET ASIDE whole in the unreadable folder, where
+                // the pieces a join could not read already go (review fix pass, finding 4).
+                Directory.CreateDirectory(o.UnreadableFolder);
+                string setAside = UniqueFolder(o.UnreadableFolder, Path.GetFileName(dir));
+                Directory.Move(dir, setAside);
+                _lastError = $"a clip had no recorded video inside its span; its pieces were set aside in {setAside}";
+                Log.Warn($"[AlwaysOnEngine] JoinClip: {Path.GetFileName(dir)} - no recorded video inside the clip's span "
+                         + $"({span!.StartUtc.ToLocalTime():HH:mm:ss} to {span.EndUtc.ToLocalTime():HH:mm:ss}); no clip is written and "
+                         + $"its {trim.Outside.Count} piece(s) ({outsideSeconds:0.#}s) are set aside, not deleted, in {setAside}");
+                return;
+            }
+
+            var start = trim.Parts[0].KeptStartUtc.ToLocalTime();
             string outPath = UniqueClipPath(o.ClipsFolder, start);
             string list = Path.Combine(dir, "join.txt");
-            File.WriteAllText(list, AlwaysOnArgs.JoinList(readable));
             try
             {
+                var joinPaths = new List<string>(trim.Parts.Count);
+                foreach (var part in trim.Parts)
+                {
+                    if (!part.IsTrimmed)
+                    {
+                        joinPaths.Add(part.Path);
+                        continue;
+                    }
+                    // The cut goes next to the piece under a name that is not a piece's, so a crash
+                    // before the join leaves the uncut piece to be joined whole at the next start.
+                    string cut = Path.Combine(dir, "cut_" + Path.GetFileName(part.Path));
+                    Ffmpeg.Run(AlwaysOnArgs.Trim(part.Path, cut, part.InSeconds, part.OutSeconds), "always-on trim");
+                    Log.Info($"[AlwaysOnEngine] JoinClip: trimmed {Path.GetFileName(part.Path)} (stream copy) - kept "
+                             + $"{(part.InSeconds ?? 0):0.#}s to {(part.OutSeconds ?? part.Seconds):0.#}s of {part.Seconds:0.#}s");
+                    joinPaths.Add(cut);
+                }
+                File.WriteAllText(list, AlwaysOnArgs.JoinList(joinPaths));
                 Ffmpeg.Run(AlwaysOnArgs.Join(list, outPath), "always-on join");
             }
             catch (UsageException ex)
@@ -958,6 +1069,8 @@ namespace AgentEyes.AlwaysOn
                 return;
             }
 
+            double seconds = trim.Parts.Sum(p => p.KeptSeconds);
+            double trimmedAway = trim.Parts.Sum(p => p.Seconds - p.KeptSeconds);
             var written = new FileInfo(outPath);
             long bytes = written.Length;
             // The ledger is written BEFORE the pieces go: a clip the cap may delete is a clip this
@@ -968,9 +1081,20 @@ namespace AgentEyes.AlwaysOn
             _day.Clips++;
             _day.KeptSeconds += seconds;
             _day.KeptBytes += bytes;
+            _day.DiscardedSeconds += outsideSeconds + trimmedAway;
             _day.ClipPaths.Add(outPath);
             _lastClip = outPath;
-            Log.Info($"[AlwaysOnEngine] JoinClip: wrote {outPath} ({readable.Count} pieces, {seconds:0}s, {bytes / 1024.0 / 1024:0.0} MB)");
+            Log.Info($"[AlwaysOnEngine] JoinClip: wrote {outPath} ({trim.Parts.Count} pieces, {seconds:0}s, {bytes / 1024.0 / 1024:0.0} MB"
+                     + (span == null ? "" : $", starts {start:HH:mm:ss}") + ")");
+        }
+
+        /// <summary>A folder path under <paramref name="parent"/> named <paramref name="name"/> that does
+        /// not exist yet (a numbered suffix when it does).</summary>
+        private static string UniqueFolder(string parent, string name)
+        {
+            string path = Path.Combine(parent, name);
+            for (int n = 2; Directory.Exists(path); n++) path = Path.Combine(parent, $"{name}_{n}");
+            return path;
         }
 
         private static string UniqueClipPath(string folder, DateTime startLocal)
@@ -992,7 +1116,7 @@ namespace AgentEyes.AlwaysOn
             foreach (var dir in Directory.GetDirectories(o.PendingFolder, "clip_*").OrderBy(d => d, StringComparer.Ordinal))
             {
                 Log.Info($"[AlwaysOnEngine] Recover: joining {Path.GetFileName(dir)}, left by an earlier run");
-                JoinClip(o, dir, _utcNow());
+                JoinClip(o, dir, _utcNow(), span: null);
             }
             var loose = PieceFiles(o.PieceFolder);
             foreach (var (path, _) in loose)

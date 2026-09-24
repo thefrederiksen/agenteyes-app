@@ -30,13 +30,26 @@ namespace AgentEyes.AlwaysOn
         /// <summary>The format of <see cref="PiecePattern"/> for parsing a piece's name back.</summary>
         public const string PieceStampFormat = "yyyyMMdd-HHmmss";
 
+        /// <summary>The keyframe interval of the always-on capture, in seconds (issue #79).</summary>
+        public const int DefaultKeyframeSeconds = 2;
+
         /// <summary>
         /// One continuous capture written as fixed-length pieces.
         ///
         /// THE FORCED KEYFRAME IS THE POINT. The segment muxer can only cut at a keyframe; the June
         /// spike (docs/24-7-m0-spike-findings.md) left keyframes to the encoder and got pieces of 106,
-        /// 26 and 54 seconds. Forcing one every <paramref name="pieceSeconds"/> of output time makes
-        /// every cut land where it was asked for.
+        /// 26 and 54 seconds. Forcing one every <paramref name="keyframeSeconds"/> of output time -
+        /// a whole number of which make one piece - makes every piece cut land where it was asked for.
+        ///
+        /// Issue #79 moved the keyframe from once a piece (60 s) to every 2 s: a clip now starts
+        /// keep-before (10 s) ahead of the speech, and a lossless stream-copy trim can only start on a
+        /// keyframe. The keyframe is asked for TWICE, because -force_key_frames alone is not honoured on
+        /// time by every encoder: on the owner's laptop (h264_qsv, 10 fps) 60 s pieces came out 43-77 s
+        /// long, so the hardware encoder placed the forced keyframe tens of seconds off. So besides
+        /// -force_key_frames the encoder's own GOP is set to the same interval (<see cref="GopArgs"/>:
+        /// -g fps*keyframeSeconds, plus the encoder's flag that makes a forced keyframe a real IDR frame
+        /// where it has one). The trim (<see cref="ClipTrim"/>) does not assume the keyframes are on the
+        /// grid - it seeks on the input, which lands on the keyframe actually at or before the asked time.
         /// </summary>
         /// <param name="capture">Region in virtual-desktop device pixels (a whole monitor = its bounds).</param>
         /// <param name="desktop">The virtual-desktop bounds, to clamp and pad an oversized region.</param>
@@ -46,10 +59,14 @@ namespace AgentEyes.AlwaysOn
         public static List<string> Capture(
             Drawing.Rectangle capture, Drawing.Rectangle? desktop, int fps, string encoder,
             string? dshowMic, double micGain, string? systemPipe, PipeAudioFormat? systemFormat, double systemGain,
-            int pieceSeconds, string pieceDir)
+            int pieceSeconds, string pieceDir, int keyframeSeconds = DefaultKeyframeSeconds)
         {
             if (fps <= 0) throw new ArgumentOutOfRangeException(nameof(fps), "frame rate must be positive");
             if (pieceSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(pieceSeconds), "piece length must be positive");
+            if (keyframeSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(keyframeSeconds), "the keyframe interval must be positive");
+            if (pieceSeconds % keyframeSeconds != 0)
+                throw new ArgumentException($"a piece ({pieceSeconds}s) must be a whole number of keyframe intervals ({keyframeSeconds}s), "
+                    + "or the pieces would not be cut where they are asked to be", nameof(keyframeSeconds));
             if (string.IsNullOrWhiteSpace(encoder)) throw new ArgumentException("an encoder is required", nameof(encoder));
             if (string.IsNullOrWhiteSpace(pieceDir)) throw new ArgumentException("a piece directory is required", nameof(pieceDir));
             if (systemPipe != null && systemFormat == null)
@@ -122,7 +139,8 @@ namespace AgentEyes.AlwaysOn
             }
 
             a.AddRange(EncoderArgs(encoder));
-            a.AddRange(new[] { "-force_key_frames", $"expr:gte(t,n_forced*{pieceSeconds.ToString(inv)})" });
+            a.AddRange(GopArgs(encoder, fps, keyframeSeconds));
+            a.AddRange(new[] { "-force_key_frames", $"expr:gte(t,n_forced*{keyframeSeconds.ToString(inv)})" });
             if (micInput >= 0 || sysInput >= 0) a.AddRange(new[] { "-c:a", "aac", "-b:a", "128k" });
 
             a.AddRange(new[]
@@ -148,8 +166,42 @@ namespace AgentEyes.AlwaysOn
             _ => throw new ArgumentException($"unknown always-on encoder '{encoder}'", nameof(encoder)),
         };
 
+        /// <summary>
+        /// The encoder's own keyframe interval (issue #79, review fix pass), so a keyframe every
+        /// <paramref name="keyframeSeconds"/> is not left to -force_key_frames alone. The live finding on
+        /// the owner's laptop: h264_qsv at 10 fps with only -force_key_frames every 60 s cut pieces of
+        /// 43-77 s, so the forced keyframes were not where they were asked for. Per encoder:
+        ///
+        ///  - every encoder: -g fps*keyframeSeconds (20 frames at 10 fps / 2 s) - the GOP length the
+        ///    encoder closes on its own, independent of the forced-keyframe expression;
+        ///  - h264_qsv: -forced_idr 1 - QSV writes a forced keyframe as a real IDR frame only with this
+        ///    flag; without it the "keyframe" can be a plain I-frame a demuxer cannot start a copy at;
+        ///  - h264_nvenc: -forced-idr 1 - the same flag, spelled with a hyphen in NVENC;
+        ///  - h264_amf: no such flag exists; -g is all AMF takes (its IDR period follows the GOP);
+        ///  - libx264: -keyint_min equal to -g so the GOP cannot be shortened, and -sc_threshold 0 so a
+        ///    scene cut does not insert a keyframe that shifts the grid.
+        ///
+        /// These are output options for the video stream and follow -c:v. <see cref="EncoderProbe"/>
+        /// deliberately leaves them out: a 10-frame probe answers "does the encoder work", nothing more.
+        /// </summary>
+        public static IReadOnlyList<string> GopArgs(string encoder, int fps, int keyframeSeconds)
+        {
+            if (fps <= 0) throw new ArgumentOutOfRangeException(nameof(fps), "frame rate must be positive");
+            if (keyframeSeconds <= 0) throw new ArgumentOutOfRangeException(nameof(keyframeSeconds), "the keyframe interval must be positive");
+            string gop = (fps * keyframeSeconds).ToString(CultureInfo.InvariantCulture);
+            return encoder switch
+            {
+                "h264_qsv" => new[] { "-g", gop, "-forced_idr", "1" },
+                "h264_nvenc" => new[] { "-g", gop, "-forced-idr", "1" },
+                "h264_amf" => new[] { "-g", gop },
+                "libx264" => new[] { "-g", gop, "-keyint_min", gop, "-sc_threshold", "0" },
+                _ => throw new ArgumentException($"unknown always-on encoder '{encoder}'", nameof(encoder)),
+            };
+        }
+
         /// <summary>A one-second test encode that answers "does this encoder work on this machine".
-        /// Fed through the same nv12 conversion the real capture uses.</summary>
+        /// Fed through the same nv12 conversion the real capture uses. It carries no GOP options
+        /// (<see cref="GopArgs"/>): ten frames say nothing about keyframe placement.</summary>
         public static List<string> EncoderProbe(string encoder)
         {
             var a = new List<string>
@@ -178,6 +230,31 @@ namespace AgentEyes.AlwaysOn
             "-movflags", "+faststart",
             outPath,
         };
+
+        /// <summary>
+        /// Cut one piece of a clip WITHOUT RE-ENCODING (issue #79): a stream copy that starts at
+        /// <paramref name="inSeconds"/> (a keyframe time - the input seek lands on the keyframe at or
+        /// before it) and/or ends at <paramref name="outSeconds"/>, both measured from the piece's start.
+        /// Null keeps the piece from its start / to its end. The copied timestamps are shifted to start
+        /// at zero so the cut piece joins the rest with the concat demuxer like any other.
+        /// </summary>
+        public static List<string> Trim(string input, string output, double? inSeconds, double? outSeconds)
+        {
+            if (string.IsNullOrWhiteSpace(input)) throw new ArgumentException("an input piece is required", nameof(input));
+            if (string.IsNullOrWhiteSpace(output)) throw new ArgumentException("an output path is required", nameof(output));
+            if (inSeconds is null && outSeconds is null) throw new ArgumentException("a trim needs a start or an end");
+            if (inSeconds < 0) throw new ArgumentOutOfRangeException(nameof(inSeconds), "a trim cannot start before the piece");
+            if (outSeconds is double o && o <= (inSeconds ?? 0))
+                throw new ArgumentOutOfRangeException(nameof(outSeconds), "a trim must end after it starts");
+
+            var inv = CultureInfo.InvariantCulture;
+            var a = new List<string> { "-y" };
+            if (inSeconds is double i) a.AddRange(new[] { "-ss", i.ToString("0.###", inv) });
+            a.AddRange(new[] { "-i", input });
+            if (outSeconds is double end) a.AddRange(new[] { "-t", (end - (inSeconds ?? 0)).ToString("0.###", inv) });
+            a.AddRange(new[] { "-map", "0", "-c", "copy", "-avoid_negative_ts", "make_zero", output });
+            return a;
+        }
 
         /// <summary>The concat demuxer's list file for the given pieces, in order.</summary>
         public static string JoinList(IEnumerable<string> piecePaths)
