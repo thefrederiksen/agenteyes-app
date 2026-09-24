@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA Report - Issue 70</title>
+<style>
+:root { --bg:#ffffff; --fg:#1b1d21; --dim:#5b616b; --line:#d8dbe0; --ok:#1a7f37; --warn:#9a6700; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#16181c; --fg:#eceef1; --dim:#9aa1ab; --line:#30343b; --ok:#3fb950; --warn:#d29922; } }
+body { background:var(--bg); color:var(--fg); font:14px/1.5 Segoe UI, sans-serif; max-width:1000px; margin:0 auto; padding:16px; }
+table { border-collapse:collapse; width:100%; margin:8px 0 16px; }
+th, td { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+code, pre { font-family:Consolas, monospace; font-size:12px; }
+pre { overflow-x:auto; border:1px solid var(--line); padding:8px; }
+.pass { color:var(--ok); font-weight:600; } .note { color:var(--warn); }
+</style>
+</head>
+<body>
+<h1>QA Report - Issue #70 (PR #74)</h1>
+<p><b>Issue:</b> [Always On] Counters do not say where clips are, or that a clip is still being recorded<br>
+<b>Tracker:</b> thefrederiksen/agenteyes-app #70 &nbsp; <b>Branch:</b> issue-70-always-on-clip-location @ 459f3b1 (base main 2652c19)<br>
+<b>Date:</b> 2026-09-23 &nbsp; <b>Verdict:</b> <span class="pass">VERIFIED - all acceptance criteria met (6/6), judged by code review + unit tests; UI and API not exercised live (see Limits).</span></p>
+
+<h2>Gate (run by QA)</h2>
+<ul>
+<li><code>dotnet build AgentEyes.sln -c Release</code> on the branch: <code>Build succeeded.</code> <code>0 Error(s)</code> (19 warnings, pre-existing).</li>
+<li><code>dotnet test AgentEyes.sln -c Release</code> on the branch, 3 runs: <code>Failed: 7, Passed: 1711, Total: 1718</code>; <code>Failed: 4, Passed: 1714, Total: 1718</code>; <code>Failed: 7, Passed: 1711, Total: 1718</code>.</li>
+<li>Same command on main 2652c19 (separate worktree), 2 runs: <code>Failed: 7, Passed: 1692, Total: 1699</code>; <code>Failed: 4, Passed: 1695, Total: 1699</code>.</li>
+<li>The 4 steady failures are the same on main and branch: <code>HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile</code>, <code>PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger</code>, <code>PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem</code>, <code>PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem</code>. The full failure messages (the IL call-edge lists) were extracted from both runs and diffed: <b>IDENTICAL</b> (33 lines each) - so the branch adds no new call edge hidden inside an already-failing guard.</li>
+<li>The 3 extra failures (<code>CameraPreviewTests.*</code>) are intermittent and occur on main too (main run 1 had them, run 2 did not) - flaky on this laptop, not introduced by the branch. The developer's "4 failures identical to main" claim is correct for the steady set; it omitted the flaky camera trio.</li>
+<li>Always-on tests only (<code>--filter FullyQualifiedName~AlwaysOn</code>): <code>Passed: 116, Failed: 0</code>.</li>
+</ul>
+
+<h2>Mutation evidence (QA's own - each check run against known-bad code)</h2>
+<table>
+<tr><th>Mutation (applied, tested, reverted)</th><th>Result</th></tr>
+<tr><td>M1 TrayDot.Tooltip ignores the keeping branch</td><td>FIRES: 2 failed (Tooltip_KeepingWithAClipInProgress_..., Tooltip_KeepingWithALongFolder_...)</td></tr>
+<tr><td>M2 RestServer.OpenClip always null</td><td>FIRES: 1 failed (OpenClip_ForTheApi_IsNullWithNoClipAndFreshElapsedWithOne)</td></tr>
+<tr><td>M3 BuildStatus never fills ClipsKeptToday</td><td>FIRES: 2 failed (Status_TodaysClips_SurviveARestart..., Status_AfterTheClipCloses_...)</td></tr>
+<tr><td>M4 in-progress line drops the destination folder</td><td>FIRES: 3 failed (InProgressLine_..., Status_SoundHeardBeforeAnyPieceIsDecided_..., Status_WhileKeeping_...)</td></tr>
+<tr><td>M5 day rollover does not clear the clip list</td><td>FIRES: 1 failed (Day_NewDate_ClearsTheClipList)</td></tr>
+</table>
+
+<h2>Acceptance criteria</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>What the code does (evidence)</th><th>Result</th></tr>
+<tr><td>1</td><td>Page in-progress line while keeping</td><td>"Recording a clip now - 12 min so far. Saved to C:\AgentEyes after 5 min of quiet." with live minutes/folder/after</td><td><code>AlwaysOnStatus.InProgressLine</code> (AlwaysOnEngine.cs ~L101) produces exactly that form from OpenClipStartUtc, ClipsFolder, KeepAfterMinutes. <code>UpdateAlwaysOnClips</code> (MainWindow.AlwaysOn.cs ~L309) shows it in <code>AOClipNowText</code> only when State==Keeping, else Collapsed. Liveness: Tick treats every keeping pass as a change (AlwaysOnEngine.cs ~L420) -> Changed -> Dispatcher.BeginInvoke(UpdateAlwaysOnStatus) every 15 s. Tests: InProgressLine_StatesInProgressElapsedAndDestination, Status_WhileKeeping_..., Tick_WhileKeeping_RaisesChangedEveryPass...</td><td class="pass">PASS</td></tr>
+<tr><td>2</td><td>Tray tooltip short in-progress form while keeping</td><td>Short form of the same fact</td><td>TrayDot.Tooltip(s, now) returns "AgentEyes - Always-on recording\nClip in progress, N min so far - saved to &lt;folder&gt; after N min quiet." while Keeping, cut to the 127-char limit (TrayDot.cs ~L74). TrayHost.RefreshAlwaysOn calls it on every Changed. Tests pin the text and the long-folder cut; M1 fires.</td><td class="pass">PASS</td></tr>
+<tr><td>3</td><td>Each clip kept today listed with file name and folder; click opens folder with file selected</td><td>List rows "file in folder"; click -> Explorer /select</td><td>JoinClip appends the written path to AlwaysOnDay.ClipPaths (persisted in today.json, cleared at rollover). BuildStatus maps to AlwaysOnClip{File,Folder,Path,Exists}; <code>AOTodayClipsList</code> ItemsControl renders a DkLink button per clip, Label "&lt;file&gt; in &lt;folder&gt;" (+ " (no longer there)"). AOClip_Click -> AlwaysOnController.RevealClip -> <code>explorer.exe /select,"&lt;path&gt;"</code>; a missing file raises a UsageException shown on the page (no fallback folder). XAML resources DkLink/RdText/DkRed confirmed present in App.xaml. <span class="note">Transitional limit confirmed: clips kept today BEFORE this build are counted but not listed - the real today.json on this laptop is <code>{"Date":"2026-09-23","Clips":3,...}</code> with no path list, and the test Day_SaveAndLoad_... proves that shape loads as an empty list; the page then says "3 of today's clips were kept before AgentEyes listed where clips go, so they are not listed below." The paths were never recorded, clips in a previous folder are explicitly OUT of scope, and the gap ends at the next day rollover; every clip written by this build is listed.</span></td><td class="pass">PASS</td></tr>
+<tr><td>4</td><td>GET /always-on: open clip start + elapsed (null when none) + today's clips with full paths</td><td>openClip {startUtc, elapsedSeconds} or null; list of full paths</td><td>RestServer.AlwaysOnStatus adds <code>openClip</code> (startUtc, elapsedSeconds computed at request time, savedTo, afterMinutes) or null, and <code>clipsKeptToday[] {file, folder, path, exists}</code>. JsonOpts has no ignore-null condition, so <code>"openClip": null</code> is written, not omitted. Tests: OpenClip_ForTheApi_..., Status_NoClipInProgress_..., Status_AfterTheClipCloses_...; M2/M3 fire.</td><td class="pass">PASS</td></tr>
+<tr><td>5</td><td>New status reads / UI updates logged; no UI-thread blocking</td><td>Logging per standard; no sync I/O on UI thread</td><td>New log lines: [AlwaysOnDay] Load, [RestServer] AlwaysOnStatus, [MainWindow] UpdateAlwaysOnClips (once per change), [MainWindow] AOClip_Click (+FAILED), [AlwaysOnController] RevealClip. UpdateAlwaysOnClips reads only the lock-free snapshot; File.Exists per clip and the piece listing run in BuildStatus under the engine lock on the timer thread (same place the existing PieceFiles/FolderBytes I/O already runs). The only UI-thread I/O is one File.Exists in RevealClip on a click - negligible. HUD IL guard output identical to main.</td><td class="pass">PASS</td></tr>
+<tr><td>6</td><td>Build clean, tests green, unit tests for new fields (elapsed, list, no-open-clip)</td><td>0 errors; no new failures; tests exist</td><td>Build 0 errors. 14 new tests (8 engine, 6 app) all pass; they cover open-clip elapsed, today's list, and the no-open-clip case. No failure introduced by the branch (see Gate).</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>Review notes (non-blocking)</h2>
+<ul>
+<li>The tooltip drops today's totals while keeping (both do not fit in 127 chars); a long clips folder gets cut with "...". Acceptable for "short form".</li>
+<li>OpenClipStart before the first keeper decision uses the oldest waiting piece - an approximation within one piece length; the display is in whole minutes.</li>
+<li>UnlistedNote and the AOClipRow binding have no unit test (private UI code); covered by review only.</li>
+</ul>
+
+<h2>Limits - what was NOT exercised live</h2>
+<p>The installed v1.11.0 AgentEyesApp (running from %LOCALAPPDATA%\AgentEyes\app, always-on to C:\AgentEyes) holds the global single-instance mutex, port 7882 and the shared config, and QA was instructed not to stop or disturb it. A second instance of the new build cannot run beside it, and no harness exists that hosts the Always On page in isolation. Therefore the page line, the clip list rendering, click-to-reveal in Explorer, the tray tooltip, and the new GET /always-on fields were NOT exercised in a running app. They are judged by code review plus the unit tests above (with mutation evidence). The only live action was a read-only GET /always-on against the installed v1.11.0 instance (state "off", ClipsToday 3, no new fields - as expected for the old build) and a read of its today.json, used to confirm the upgrade-day counted-but-not-listed behaviour.</p>
+</body>
+</html>
