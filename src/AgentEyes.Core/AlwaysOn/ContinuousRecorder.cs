@@ -1,8 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
-using System.Text;
 using System.Threading;
 using AgentEyes.Audio;
 using AgentEyes.Video;
@@ -23,7 +23,7 @@ namespace AgentEyes.AlwaysOn
         private static string? _encoderCache;
         private static readonly object EncoderGate = new();
 
-        private readonly StringBuilder _stderr = new();
+        private readonly FfmpegStderr _stderr = new();
         private Process? _proc;
         private NamedPipeServerStream? _pipe;
         private PipeFeeder? _feeder;
@@ -39,18 +39,34 @@ namespace AgentEyes.AlwaysOn
         public DateTime StartedUtc { get; private set; }
 
         /// <summary>True when ffmpeg has ended without being asked to - or is alive but has stopped
-        /// taking the system sound, which is the same thing to the supervisor: restart it.</summary>
-        public bool HasExited => _proc != null && !_stopped && (_proc.HasExited || _feeder?.Stalled == true);
+        /// taking the system sound, or is alive with one of its inputs dead (issue #81: the screen grab
+        /// failed and only the sound is still coming in) - all the same thing to the supervisor: restart it.</summary>
+        public bool HasExited => _proc != null && !_stopped
+                                 && (_proc.HasExited || _feeder?.Stalled == true || _stderr.FatalInputLine != null);
 
-        /// <summary>The last few hundred characters ffmpeg wrote, for an actionable error.</summary>
-        public string StderrTail
+        /// <summary>The last <see cref="FfmpegStderr.TailLines"/> lines ffmpeg wrote, each in full (issue #81).</summary>
+        public string StderrTail => _stderr.Tail();
+
+        /// <summary>
+        /// Whether ffmpeg is still running, and if not its exit code; and why it counts as failed while
+        /// alive (issue #81). One line, for the supervisor's error.
+        /// </summary>
+        public string ProcessState
         {
             get
             {
-                lock (_stderr)
+                if (_proc == null) return "not started";
+                try
                 {
-                    string s = _stderr.ToString();
-                    return s.Length <= 800 ? s : "..." + s.Substring(s.Length - 800);
+                    if (_proc.HasExited) return $"exited with code {_proc.ExitCode}";
+                    var why = new List<string>();
+                    if (_feeder?.Stalled == true) why.Add("it stopped taking the system sound");
+                    if (_stderr.FatalInputLine is string dead) why.Add("an input died: " + dead.Trim());
+                    return $"still running (pid {_proc.Id})" + (why.Count == 0 ? "" : " - " + string.Join("; ", why));
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return "unknown (" + ex.Message + ")";
                 }
             }
         }
@@ -146,13 +162,8 @@ namespace AgentEyes.AlwaysOn
             _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
             _proc.ErrorDataReceived += (_, e) =>
             {
-                if (e.Data == null) return;
-                lock (_stderr)
-                {
-                    _stderr.AppendLine(e.Data);
-                    // All day: keep the tail, not the whole day.
-                    if (_stderr.Length > 64_000) _stderr.Remove(0, _stderr.Length - 32_000);
-                }
+                // All day: the ring keeps the recent lines, not the whole day.
+                _stderr.Add(e.Data);
             };
             _proc.OutputDataReceived += (_, _) => { };
             if (!_proc.Start()) throw new UsageException("failed to start ffmpeg for always-on recording.");

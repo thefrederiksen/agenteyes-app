@@ -25,6 +25,13 @@ namespace AgentEyes.AlwaysOn
         /// </summary>
         public List<string> ClipPaths { get; set; } = new();
 
+        /// <summary>
+        /// Every capture restart today, oldest first (issue #81): when it happened and why - a stall, a
+        /// dead input, an ffmpeg that exited. The Control API shows them, so a live run can be checked
+        /// for stalls without reading the log; the History tab (issue #77) will list them.
+        /// </summary>
+        public List<AlwaysOnRestart> Restarts { get; set; } = new();
+
         public static string Today(DateTime nowUtc) => nowUtc.ToLocalTime().ToString("yyyy-MM-dd");
 
         /// <summary>Roll over to a fresh day when the date has changed.</summary>
@@ -40,6 +47,7 @@ namespace AgentEyes.AlwaysOn
             KeptBytes = 0;
             DiscardedSeconds = 0;
             ClipPaths = new List<string>();
+            Restarts = new List<AlwaysOnRestart>();
         }
 
         /// <summary>The counters as one line, as the page and the tray show them.</summary>
@@ -70,6 +78,7 @@ namespace AgentEyes.AlwaysOn
                 var day = JsonSerializer.Deserialize<AlwaysOnDay>(File.ReadAllText(path)) ?? new AlwaysOnDay();
                 // An explicit null in the file must not become a null list the keeper then adds to.
                 day.ClipPaths ??= new List<string>();
+                day.Restarts ??= new List<AlwaysOnRestart>();
                 Log.Info($"[AlwaysOnDay] Load: {path} -> {day.Date}, {day.Clips} clips, {day.ClipPaths.Count} listed");
                 return day;
             }
@@ -86,5 +95,22 @@ namespace AgentEyes.AlwaysOn
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, JsonSerializer.Serialize(this));
         }
+    }
+
+    /// <summary>One capture restart (issue #81).</summary>
+    internal sealed class AlwaysOnRestart
+    {
+        /// <summary>When the supervisor found the capture failed and restarted it.</summary>
+        public DateTime AtUtc { get; set; }
+
+        /// <summary>Why, in one line: "stalled - no new piece since 09:23:17", "an input died: ...".</summary>
+        public string Reason { get; set; } = "";
+
+        /// <summary>When the newest piece of the failed capture began - the footage after it until the
+        /// restart may be missing its picture.</summary>
+        public DateTime? LastPieceStartUtc { get; set; }
+
+        /// <summary>When the new capture was recording again, or null while it is still being retried.</summary>
+        public DateTime? RecoveredUtc { get; set; }
     }
 }
