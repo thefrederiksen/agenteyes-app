@@ -1,0 +1,84 @@
+QA independent runs for issue #75 (PR #76, branch issue-75-guard-tests @ 70e3e57)
+
+== Targeted: 4 guards + DelegateHandoffWalkTests + LibraryFlatListTests (PR walker) ==
+  Passed AgentEyes.Tests.HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile [327 ms]
+  Passed AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger [390 ms]
+  Passed AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem [330 ms]
+  Passed AgentEyes.Tests.PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem [358 ms]
+Total tests: 75
+DelegateHandoffWalkTests passed: 12
+LibraryFlatListTests passed: 59
+failed lines: 0
+
+== Mutation 1: CompiledCode.cs reverted to main (discarded afterwards) ==
+  Failed AgentEyes.Tests.HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile [252 ms]
+  Failed AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger [311 ms]
+  Failed AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem [171 ms]
+  Failed AgentEyes.Tests.PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem [249 ms]
+  Failed AgentEyes.Tests.DelegateHandoffWalkTests.HudFileWriteScan_TheProductsBackgroundWriterShape_IsNotReported [244 ms]
+  Failed AgentEyes.Tests.DelegateHandoffWalkTests.DrainLoggerScan_TheProductsWorkerShapes_AreNotReported(seed: "DrainDecoy::DrainHandsAChoreToTheWorker") [258 ms]
+  Failed AgentEyes.Tests.DelegateHandoffWalkTests.DrainLoggerScan_TheProductsWorkerShapes_AreNotReported(seed: "DrainDecoy::DrainSaysThroughTheLogLane") [212 ms]
+  Failed AgentEyes.Tests.DelegateHandoffWalkTests.Reachable_ThreadStartAndParkedDelegate_EdgesMoveToTheThreadBody [163 ms]
+  Failed AgentEyes.Tests.DelegateHandoffWalkTests.Reachable_TheProductsThreadBodies_StillReachTheirFileAndLogWork [73 ms]
+Failed!  - Failed:     9, Passed:     7, Skipped:     0, Total:    16, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+-- offenders reported by the main walker (the full masked set) --
+  Failed AgentEyes.Tests.HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile [191 ms]
+AgentEyesApp.dll!AgentEyes.App.BackgroundFileWriter::WriteToDisk -> System.IO.File::WriteAllText x1
+AgentEyesApp.dll!AgentEyes.App.Config::WriteJson -> System.IO.File::WriteAllText x1
+  Failed AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger [246 ms]
+agenteyes.dll!AgentEyes.Log::Error -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Info -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Warn -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Write -> AgentEyes.Log::get_CurrentFile x1
+agenteyes.dll!AgentEyes.Log::Write -> AgentEyes.Log::get_Dir x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1
+agenteyes.dll!AgentEyes.Log::get_CurrentFile -> AgentEyes.Log::get_Dir x1
+agenteyes.dll!AgentEyes.Preview.PreviewChores::Carry -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Preview.PreviewChores::DoRemove -> System.IO.File::Delete x2
+agenteyes.dll!AgentEyes.Preview.PreviewChores::DoRemove -> System.IO.File::Exists x2
+agenteyes.dll!AgentEyes.Preview.PreviewLog::Drain -> AgentEyes.Log::Error x1
+agenteyes.dll!AgentEyes.Preview.PreviewLog::Drain -> AgentEyes.Log::Info x1
+agenteyes.dll!AgentEyes.Preview.PreviewLog::Drain -> AgentEyes.Log::Warn x2
+agenteyes.dll!AgentEyes.Preview.PreviewLog::Loop -> AgentEyes.Log::Error x1
+  Failed AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem [109 ms]
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1
+  Failed AgentEyes.Tests.PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem [101 ms]
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1
+
+== Mutation 2: PR walker, product mutated (discarded afterwards) ==
+   BackgroundFileWriter.Queue: added inline '_write(_path, text);'  (real UI-thread write via the parked delegate)
+   PreviewLog.Say: added inline 'Drain();'  (real drain-thread -> shared logger call)
+  Failed AgentEyes.Tests.HudResponsivenessTests.NothingTheHudsUiThreadCanReach_WritesAFile [428 ms]
+AgentEyesApp.dll!AgentEyes.App.BackgroundFileWriter::WriteToDisk -> System.IO.File::WriteAllText x1
+AgentEyesApp.dll!AgentEyes.App.Config::WriteJson -> System.IO.File::WriteAllText x1
+  Failed AgentEyes.Tests.PreviewTapTests.NothingOnARecordingsCriticalPaths_TouchesTheFilesystemOrTheSharedLogger [497 ms]
+agenteyes.dll!AgentEyes.Log::Error -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Info -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Warn -> AgentEyes.Log::Write x1
+agenteyes.dll!AgentEyes.Log::Write -> AgentEyes.Log::get_CurrentFile x1
+agenteyes.dll!AgentEyes.Log::Write -> AgentEyes.Log::get_Dir x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1
+agenteyes.dll!AgentEyes.Log::get_CurrentFile -> AgentEyes.Log::get_Dir x1
+agenteyes.dll!AgentEyes.Preview.PreviewLog::Drain -> AgentEyes.Log::Error x1
+agenteyes.dll!AgentEyes.Preview.PreviewLog::Drain -> AgentEyes.Log::Info x1
+agenteyes.dll!AgentEyes.Preview.PreviewLog::Drain -> AgentEyes.Log::Warn x2
+  Failed AgentEyes.Tests.PreviewTapTests.NothingTheDrainCanReach_TouchesTheFilesystem [363 ms]
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1
+  Failed AgentEyes.Tests.PreviewTapTests.NothingTurningThePreviewOffCanReach_TouchesTheFilesystem [387 ms]
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.Directory::CreateDirectory x1
+agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1
+Failed!  - Failed:     4, Passed:     0, Skipped:     0, Total:     4, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+== Full suite ==
+dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release:
+Passed!  - Failed:     0, Passed:  1730, Skipped:     0, Total:  1730, Duration: 32 s - AgentEyes.Tests.dll (net8.0)
+dotnet test AgentEyes.sln -c Release (4 runs):
+  run 1: Failed: 3, Passed: 1727 (incl. CameraPreviewTests.Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession - static CameraDeviceArbiter.HolderCount, run straight after a build; not reproduced)
+  runs 2-4: Passed! - Failed: 0, Passed: 1730, Total: 1730
+  CameraPreviewTests filtered x5: Passed! 33/33 each
