@@ -170,57 +170,61 @@ namespace AgentEyes.Tests
             Assert.False(InstallFinalizer.IsSameDirectory("   ", dir));
         }
 
+        // These two drive the user-environment variables through InstallFinalizer.UserEnvironment,
+        // which the test host has swapped for an in-memory store (TestRunIsolation, issue #78). They
+        // used to write HKCU\Environment for real: for the length of the test the INSTALLED app's
+        // DOTNET_BUNDLE_EXTRACT_BASE_DIR pointed at a temp folder and was then removed, and a test run
+        // that died in between left it that way.
+
         [Fact]
         public void SetBundleExtractBaseDir_CreatesTheDirectoryAndIsIdempotent()
         {
-            // Point the variable at a temp root so the test never touches the real install.
+            var env = InstallFinalizer.UserEnvironment;
+            Assert.Same(TestRunIsolation.UserEnvironment, env);     // never the registry in a test run
             var layout = new InstallLayout(Path.Combine(_temp, "bundle-root"));
-            var before = Environment.GetEnvironmentVariable(
-                InstallFinalizer.BundleExtractBaseDirVariable, EnvironmentVariableTarget.User);
-            var pathBefore = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User);
+            var before = env.Get(InstallFinalizer.BundleExtractBaseDirVariable);
+            env.Set("Path", @"C:\Tools;C:\Other");
             try
             {
                 Assert.True(InstallFinalizer.SetBundleExtractBaseDir(layout));   // first call sets it
                 Assert.True(Directory.Exists(layout.BundleExtractDir));
                 Assert.True(InstallFinalizer.IsBundleExtractBaseDirSet(layout));
-                Assert.Equal(layout.BundleExtractDir, Environment.GetEnvironmentVariable(
-                    InstallFinalizer.BundleExtractBaseDirVariable, EnvironmentVariableTarget.User));
+                Assert.Equal(layout.BundleExtractDir, env.Get(InstallFinalizer.BundleExtractBaseDirVariable));
 
                 Assert.False(InstallFinalizer.SetBundleExtractBaseDir(layout));  // second call: no change
                 Assert.True(InstallFinalizer.IsBundleExtractBaseDirSet(layout));
                 // The PATH is untouched by this code path.
-                Assert.Equal(pathBefore, Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User));
+                Assert.Equal(@"C:\Tools;C:\Other", env.Get("Path"));
 
                 Assert.True(InstallFinalizer.RemoveBundleExtractBaseDir(layout)); // uninstall clears it
                 Assert.False(InstallFinalizer.IsBundleExtractBaseDirSet(layout));
+                Assert.Null(env.Get(InstallFinalizer.BundleExtractBaseDirVariable));
                 Assert.False(InstallFinalizer.RemoveBundleExtractBaseDir(layout)); // already gone
             }
             finally
             {
-                Environment.SetEnvironmentVariable(
-                    InstallFinalizer.BundleExtractBaseDirVariable, before, EnvironmentVariableTarget.User);
+                env.Set(InstallFinalizer.BundleExtractBaseDirVariable, before);
+                env.Set("Path", null);
             }
         }
 
         [Fact]
         public void RemoveBundleExtractBaseDir_LeavesAValuePointingElsewhereAlone()
         {
+            var env = InstallFinalizer.UserEnvironment;
+            Assert.Same(TestRunIsolation.UserEnvironment, env);     // never the registry in a test run
             var layout = new InstallLayout(Path.Combine(_temp, "bundle-root"));
-            var before = Environment.GetEnvironmentVariable(
-                InstallFinalizer.BundleExtractBaseDirVariable, EnvironmentVariableTarget.User);
+            var before = env.Get(InstallFinalizer.BundleExtractBaseDirVariable);
             const string foreign = @"C:\SomewhereElse\dotnet-bundles";
             try
             {
-                Environment.SetEnvironmentVariable(
-                    InstallFinalizer.BundleExtractBaseDirVariable, foreign, EnvironmentVariableTarget.User);
+                env.Set(InstallFinalizer.BundleExtractBaseDirVariable, foreign);
                 Assert.False(InstallFinalizer.RemoveBundleExtractBaseDir(layout));
-                Assert.Equal(foreign, Environment.GetEnvironmentVariable(
-                    InstallFinalizer.BundleExtractBaseDirVariable, EnvironmentVariableTarget.User));
+                Assert.Equal(foreign, env.Get(InstallFinalizer.BundleExtractBaseDirVariable));
             }
             finally
             {
-                Environment.SetEnvironmentVariable(
-                    InstallFinalizer.BundleExtractBaseDirVariable, before, EnvironmentVariableTarget.User);
+                env.Set(InstallFinalizer.BundleExtractBaseDirVariable, before);
             }
         }
 

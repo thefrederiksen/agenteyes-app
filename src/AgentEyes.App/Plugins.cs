@@ -54,9 +54,7 @@ namespace AgentEyes.App
 
     internal static class Plugins
     {
-        public static string Root => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "AgentEyes", "plugins");
+        public static string Root => Path.Combine(AgentEyes.AppDataPaths.Root, "plugins");
 
         private const int TimeoutMinutes = 10;
 

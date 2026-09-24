@@ -16,9 +16,7 @@ namespace AgentEyes.Packaging
         /// <summary>Pure: where a given model type is cached.</summary>
         public static string PathFor(GgmlType type)
         {
-            string dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "AgentEyes", "models");
+            string dir = Path.Combine(AppDataPaths.Root, "models");
             return Path.Combine(dir, $"ggml-{type.ToString().ToLowerInvariant()}.bin");
         }
 

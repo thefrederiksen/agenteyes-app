@@ -17,18 +17,23 @@ public static class InstallFinalizer
     private const string RunValueName = "AgentEyes";
     private const string UninstallKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\AgentEyes";
 
+    /// <summary>Where the user PATH and DOTNET_BUNDLE_EXTRACT_BASE_DIR are read and written. The
+    /// user's registry in the product; a test host swaps in an in-memory store so a test run never
+    /// changes the variables the installed app depends on (issue #78).</summary>
+    internal static IUserEnvironment UserEnvironment { get; set; } = new RegistryUserEnvironment();
+
     // ---- PATH ---------------------------------------------------------------
 
     /// <summary>Add the app dir to the user PATH if not already present. Returns true if it changed.</summary>
     public static bool AddAppDirToPath(InstallLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
-        var current = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User) ?? "";
+        var current = UserEnvironment.Get("Path") ?? "";
         var updated = ComputePathWith(current, layout.AppDir);
         if (updated == current) return false;
         // SetEnvironmentVariable(User) persists to the registry and broadcasts WM_SETTINGCHANGE, so new
         // processes pick it up (existing shells still need to be reopened).
-        Environment.SetEnvironmentVariable("Path", updated, EnvironmentVariableTarget.User);
+        UserEnvironment.Set("Path", updated);
         EngineLog.Write($"[InstallFinalizer] added to PATH: {layout.AppDir}");
         return true;
     }
@@ -37,10 +42,10 @@ public static class InstallFinalizer
     public static bool RemoveAppDirFromPath(InstallLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
-        var current = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User) ?? "";
+        var current = UserEnvironment.Get("Path") ?? "";
         var updated = ComputePathWithout(current, layout.AppDir);
         if (updated == current) return false;
-        Environment.SetEnvironmentVariable("Path", updated, EnvironmentVariableTarget.User);
+        UserEnvironment.Set("Path", updated);
         EngineLog.Write($"[InstallFinalizer] removed from PATH: {layout.AppDir}");
         return true;
     }
@@ -66,7 +71,7 @@ public static class InstallFinalizer
     /// <summary>True when the app dir is on the user PATH.</summary>
     public static bool IsAppDirOnPath(InstallLayout layout)
     {
-        var current = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User) ?? "";
+        var current = UserEnvironment.Get("Path") ?? "";
         return ComputePathWithout(current, layout.AppDir) != current;
     }
 
@@ -89,7 +94,7 @@ public static class InstallFinalizer
     {
         ArgumentNullException.ThrowIfNull(layout);
         Directory.CreateDirectory(layout.BundleExtractDir);
-        var current = Environment.GetEnvironmentVariable(BundleExtractBaseDirVariable, EnvironmentVariableTarget.User);
+        var current = UserEnvironment.Get(BundleExtractBaseDirVariable);
         if (IsSameDirectory(current, layout.BundleExtractDir))
         {
             EngineLog.Write($"[InstallFinalizer] {BundleExtractBaseDirVariable} already set: {layout.BundleExtractDir}");
@@ -98,7 +103,7 @@ public static class InstallFinalizer
         // SetEnvironmentVariable(User) persists to the registry and broadcasts WM_SETTINGCHANGE,
         // so Explorer-launched processes (shortcuts, the Run-key autostart) inherit it; a terminal
         // opened before the install still needs reopening, exactly as for the PATH entry above.
-        Environment.SetEnvironmentVariable(BundleExtractBaseDirVariable, layout.BundleExtractDir, EnvironmentVariableTarget.User);
+        UserEnvironment.Set(BundleExtractBaseDirVariable, layout.BundleExtractDir);
         EngineLog.Write($"[InstallFinalizer] set {BundleExtractBaseDirVariable}={layout.BundleExtractDir}");
         return true;
     }
@@ -107,7 +112,7 @@ public static class InstallFinalizer
     public static bool IsBundleExtractBaseDirSet(InstallLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
-        var current = Environment.GetEnvironmentVariable(BundleExtractBaseDirVariable, EnvironmentVariableTarget.User);
+        var current = UserEnvironment.Get(BundleExtractBaseDirVariable);
         return IsSameDirectory(current, layout.BundleExtractDir);
     }
 
@@ -119,7 +124,7 @@ public static class InstallFinalizer
     {
         ArgumentNullException.ThrowIfNull(layout);
         if (!IsBundleExtractBaseDirSet(layout)) return false;
-        Environment.SetEnvironmentVariable(BundleExtractBaseDirVariable, null, EnvironmentVariableTarget.User);
+        UserEnvironment.Set(BundleExtractBaseDirVariable, null);
         EngineLog.Write($"[InstallFinalizer] removed {BundleExtractBaseDirVariable}");
         return true;
     }

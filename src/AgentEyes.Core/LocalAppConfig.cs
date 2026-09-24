@@ -24,9 +24,7 @@ namespace AgentEyes
 
         private static readonly Lazy<(int Port, bool ExtractFrames)> _values = new(Read);
 
-        private static string FilePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "AgentEyes", "config.json");
+        private static string FilePath => Path.Combine(AppDataPaths.Root, "config.json");
 
         private static (int Port, bool ExtractFrames) Read()
         {

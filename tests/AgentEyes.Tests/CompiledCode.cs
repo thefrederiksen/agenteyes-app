@@ -1122,6 +1122,162 @@ namespace AgentEyes.Tests
             return sites;
         }
 
+        /// <summary>One call to a method whose first argument is decoded from the IL: the method that
+        /// makes the call and what it passes (a folder for GetFolderPath, a variable name for
+        /// GetEnvironmentVariable).</summary>
+        internal sealed record ArgumentSite(string Assembly, string Method, string Argument);
+
+        /// <summary>
+        /// Every call to <c>System.Environment::GetFolderPath</c> in the assembly, with the
+        /// <see cref="Environment.SpecialFolder"/> it asks for (issue #78: which methods ask Windows
+        /// where the user's real folders are).
+        ///
+        /// The folder is decoded from the instruction IMMEDIATELY before the call, which is how the C#
+        /// compiler emits a constant enum argument (<c>ldc.i4.s 28; call GetFolderPath</c>). It is
+        /// FAIL-CLOSED rather than guessed: an argument that is not a constant loaded right there (a
+        /// variable, a field, a computed value) is reported as <c>&lt;not a constant&gt;</c>, and the
+        /// two-argument overload (whose last constant is the OPTION, not the folder) as
+        /// <c>&lt;two-argument overload&gt;</c> - both of which a pinned inventory then refuses.
+        /// </summary>
+        public static IReadOnlyList<ArgumentSite> FolderLookups(string assemblyPath)
+        {
+            if (!File.Exists(assemblyPath))
+                throw new FileNotFoundException(
+                    "The assembly to scan was not built. This scan cannot be allowed to pass by finding nothing.",
+                    assemblyPath);
+
+            var found = new List<ArgumentSite>();
+            string assembly = Path.GetFileName(assemblyPath);
+            using var stream = File.OpenRead(assemblyPath);
+            using var pe = new PEReader(stream);
+            var md = pe.GetMetadataReader();
+
+            if (md.MethodDefinitions.Count == 0)
+                throw new InvalidOperationException($"{assembly} contains no methods - the scanner is looking at the wrong file.");
+
+            foreach (var handle in md.MethodDefinitions)
+            {
+                var method = md.GetMethodDefinition(handle);
+                if (method.RelativeVirtualAddress == 0) continue;
+
+                string where = MethodName(md, handle);
+                byte[] il = pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()
+                            ?? throw new InvalidOperationException($"No IL for {where} in {assembly}.");
+
+                int? previousConstant = null;
+                Walk(il, $"{assembly}!{where}", (opcode, twoByte, operandAt) =>
+                {
+                    int? constant = null;
+                    if (!twoByte && (opcode == Call || opcode == CallVirt))
+                    {
+                        int token = BitConverter.ToInt32(il, operandAt);
+                        if (Callee(md, token) == "System.Environment::GetFolderPath")
+                        {
+                            string folder = ParameterCount(md, token) != 1 ? "<two-argument overload>"
+                                : previousConstant is int value ? FolderName(value)
+                                : "<not a constant>";
+                            found.Add(new ArgumentSite(assembly, where, folder));
+                        }
+                    }
+                    else if (!twoByte)
+                    {
+                        if (opcode >= LdcI4M1 && opcode <= LdcI48) constant = opcode - LdcI40;
+                        else if (opcode == LdcI4S) constant = (sbyte)il[operandAt];
+                        else if (opcode == LdcI4) constant = BitConverter.ToInt32(il, operandAt);
+                    }
+                    previousConstant = constant;
+                });
+            }
+
+            return found;
+        }
+
+        /// <summary>
+        /// Every call to <c>System.Environment::GetEnvironmentVariable</c> in the assembly, with the
+        /// variable NAME it reads when that name is a string literal (issue #78: "LOCALAPPDATA" read
+        /// from the environment is the other road to the user's real folders). The name is the
+        /// FIRST argument, so it is decoded from the instruction as many places before the call as
+        /// the overload has parameters; anything other than an <c>ldstr</c> there is reported as
+        /// <c>&lt;not a literal&gt;</c>, never guessed.
+        /// </summary>
+        public static IReadOnlyList<ArgumentSite> EnvironmentVariableReads(string assemblyPath)
+        {
+            if (!File.Exists(assemblyPath))
+                throw new FileNotFoundException(
+                    "The assembly to scan was not built. This scan cannot be allowed to pass by finding nothing.",
+                    assemblyPath);
+
+            var found = new List<ArgumentSite>();
+            string assembly = Path.GetFileName(assemblyPath);
+            using var stream = File.OpenRead(assemblyPath);
+            using var pe = new PEReader(stream);
+            var md = pe.GetMetadataReader();
+
+            if (md.MethodDefinitions.Count == 0)
+                throw new InvalidOperationException($"{assembly} contains no methods - the scanner is looking at the wrong file.");
+
+            foreach (var handle in md.MethodDefinitions)
+            {
+                var method = md.GetMethodDefinition(handle);
+                if (method.RelativeVirtualAddress == 0) continue;
+
+                string where = MethodName(md, handle);
+                byte[] il = pe.GetMethodBody(method.RelativeVirtualAddress).GetILBytes()
+                            ?? throw new InvalidOperationException($"No IL for {where} in {assembly}.");
+
+                var recent = new List<string?>();   // per instruction: the ldstr value, else null
+                Walk(il, $"{assembly}!{where}", (opcode, twoByte, operandAt) =>
+                {
+                    if (!twoByte && (opcode == Call || opcode == CallVirt))
+                    {
+                        int token = BitConverter.ToInt32(il, operandAt);
+                        if (Callee(md, token) == "System.Environment::GetEnvironmentVariable")
+                        {
+                            int back = ParameterCount(md, token);
+                            string? name = recent.Count >= back ? recent[recent.Count - back] : null;
+                            found.Add(new ArgumentSite(assembly, where, name ?? "<not a literal>"));
+                        }
+                    }
+                    recent.Add(!twoByte && opcode == LdStr
+                        ? md.GetUserString(MetadataTokens.UserStringHandle(BitConverter.ToInt32(il, operandAt)))
+                        : null);
+                });
+            }
+
+            return found;
+        }
+
+        /// <summary>An argument-site inventory rendered as stable, sorted lines:
+        /// <c>assembly!Type::Method -> Argument xN</c>.</summary>
+        public static string Describe(IEnumerable<ArgumentSite> sites) =>
+            string.Join(Environment.NewLine, sites
+                .GroupBy(l => $"{l.Assembly}!{l.Method} -> {l.Argument}", StringComparer.Ordinal)
+                .Select(g => $"{g.Key} x{g.Count()}")
+                .OrderBy(s => s, StringComparer.Ordinal));
+
+        private static string FolderName(int value) =>
+            Enum.IsDefined(typeof(Environment.SpecialFolder), value)
+                ? ((Environment.SpecialFolder)value).ToString()
+                : $"<unknown folder {value}>";
+
+        /// <summary>The parameter count of the method a call token names, read from its signature blob.</summary>
+        private static int ParameterCount(MetadataReader md, int token)
+        {
+            var handle = MetadataTokens.EntityHandle(token);
+            BlobHandle signature = handle.Kind switch
+            {
+                HandleKind.MemberReference => md.GetMemberReference((MemberReferenceHandle)handle).Signature,
+                HandleKind.MethodDefinition => md.GetMethodDefinition((MethodDefinitionHandle)handle).Signature,
+                HandleKind.MethodSpecification => throw new InvalidOperationException(
+                    $"call token 0x{token:X8} is a generic instantiation - GetFolderPath has none, so the scanner is confused"),
+                _ => throw new InvalidOperationException($"call token 0x{token:X8} names neither a MemberRef nor a MethodDef"),
+            };
+            var reader = md.GetBlobReader(signature);
+            var header = reader.ReadSignatureHeader();
+            if (header.IsGeneric) reader.ReadCompressedInteger();
+            return reader.ReadCompressedInteger();
+        }
+
         /// <summary>How many string literals an assembly loads in total - the instrument check for
         /// <see cref="StringLiterals"/>, so "no offending literal" can never be the answer of a scan
         /// that read nothing.</summary>
@@ -1337,6 +1493,11 @@ namespace AgentEyes.Tests
         private const int SwitchOperand = -2;
         private const int TwoBytePrefix = -3;
 
+        private const int LdcI4M1 = 0x15;       // ldc.i4.m1, then ldc.i4.0 .. ldc.i4.8 at 0x16..0x1E
+        private const int LdcI40 = 0x16;
+        private const int LdcI48 = 0x1E;
+        private const int LdcI4S = 0x1F;        // one-byte signed operand
+        private const int LdcI4 = 0x20;         // four-byte operand
         private const int Jmp = 0x27;
         private const int Call = 0x28;
         private const int Calli = 0x29;
