@@ -83,6 +83,7 @@ namespace AgentEyes.Tests
         [Theory]
         [InlineData("install --help")]
         [InlineData("install -h")]
+        [InlineData("install -H")]
         [InlineData("update --help")]
         [InlineData("uninstall -h")]
         [InlineData("plan --help")]
@@ -118,6 +119,34 @@ namespace AgentEyes.Tests
             var ex = Assert.Throws<CliUsageException>(() => CliArgs.Parse(Split(line)));
 
             Assert.Contains($"unknown option '{offender}'", ex.Message);
+        }
+
+        [Theory]
+        [InlineData("install /?", "/?")]
+        [InlineData("install /help", "/help")]
+        [InlineData("install help", "help")]
+        [InlineData("install extra --json", "extra")]
+        [InlineData("install 2013help", "2013help")]      // an en-dash pasted from a chat or a document
+        [InlineData("help install extra", "extra")]
+        public void Parse_PositionalNoCommandTakes_ThrowsUsageException(string line, string offender)
+        {
+            // A token the command would have ignored while it RAN - "install /?" used to install.
+            var ex = Assert.Throws<CliUsageException>(() => CliArgs.Parse(Split(line)));
+
+            Assert.Contains($"unexpected argument '{offender}'", ex.Message);
+        }
+
+        [Fact]
+        public void Parse_ToString_SummarizesTheLineForTheLog()
+        {
+            var args = CliArgs.Parse(Split("install --root D:/x --json --component app"));
+
+            var s = args.ToString();
+
+            Assert.Contains("command=install", s);
+            Assert.Contains("json", s);
+            Assert.Contains("root=D:/x", s);
+            Assert.Contains("component=app", s);
         }
 
         [Theory]
@@ -194,15 +223,20 @@ namespace AgentEyes.Tests
         {
             // The report, verbatim: exactly `install --help`, through the real entry point, with the
             // DEFAULT install root because the report had no --root. A repeat of the defect goes
-            // install -> resolve "latest" -> the transport, which throws: exit 1 and the double's
-            // message on stderr, never a green test.
+            // install -> WireLogging(default root) -> resolve "latest" -> the transport, which throws:
+            // exit 1 and the double's message on stderr, never a green test. Because the root is the
+            // real one, the real setup-cli.log is pinned too: a regression would append to it before
+            // the transport tripped, and that write must show up here, not only in the transport log.
+            var defaultLog = Path.Combine(InstallLayout.Default().LogsDir, "setup-cli.log");
+            var before = LogSnapshot(defaultLog);
+
             var exit = await Run("install", "--help");
 
             Assert.Equal(0, exit);
             Assert.Contains("Usage: agenteyes-setup install [options]", _out.ToString());
-            Assert.DoesNotContain("installed=", _out.ToString());
             Assert.Equal("", _err.ToString());
             Assert.Empty(_transport.Requests);
+            Assert.Equal(before, LogSnapshot(defaultLog));
         }
 
         [Fact]
@@ -240,6 +274,19 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public async Task Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing()
+        {
+            // "install /?" is not help in this CLI and it is not an option either; before this change it
+            // was a positional nobody read, and the install ran.
+            var exit = await Run("install", "/?", "--root", _root);
+
+            Assert.Equal(2, exit);
+            Assert.Contains("usage error: unexpected argument '/?'", _err.ToString());
+            Assert.Equal("", _out.ToString());
+            AssertNothingWasTouched();
+        }
+
+        [Fact]
         public async Task Run_UnknownCommand_ExitsWithTheUsageCode_BeforeTheInstallRootIsTouched()
         {
             var exit = await Run("frobnicate", "--root", _root);
@@ -271,6 +318,11 @@ namespace AgentEyes.Tests
             // got a release. Wiring the log is the first thing a dispatched command does, so the
             // root's logs dir must now exist.
             var exit = await Run("plan", "--root", _root);
+            // The dispatched command pointed the process-wide EngineLog.Sink at a file under _root. Other
+            // test classes call EngineLog.Write in parallel; detach the sink now rather than in Dispose so
+            // the window in which their lines land under a directory about to be deleted is as short as
+            // the run itself. (Nothing in the suite installs its own sink - see the class comment.)
+            EngineLog.Sink = null;
 
             Assert.Equal(1, exit);
             Assert.Equal(new[] { ReleaseSource.LatestReleaseUrl }, _transport.Requests.ToArray());
@@ -357,6 +409,10 @@ namespace AgentEyes.Tests
         private string[] WithRoot(string[] argv) => argv.Concat(new[] { "--root", _root }).ToArray();
 
         private static string[] Split(string line) => line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        /// <summary>Existence and length of a log file - enough to see one appended line.</summary>
+        private static (bool exists, long length) LogSnapshot(string path) =>
+            File.Exists(path) ? (true, new FileInfo(path).Length) : (false, 0L);
 
         /// <summary>
         /// Nothing dispatched: the release channel saw no request and the install root (the first

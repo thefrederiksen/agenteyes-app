@@ -36,9 +36,7 @@ public static class Program
         }
         catch (UsageException ux)
         {
-            stderr.WriteLine($"usage error: {ux.Message}");
-            stderr.WriteLine(CliHelp.UsageHint);
-            return ExitUsage;
+            return UsageError(ux, stderr);
         }
 
         var command = args.Command.ToLowerInvariant();
@@ -64,7 +62,7 @@ public static class Program
         var json = args.HasFlag("json");
         var layout = ResolveLayout(args);
         WireLogging(layout);
-        EngineLog.Write($"[Program] RunAsync: command={command} root={layout.LocalRoot}");
+        EngineLog.Write($"[Program] RunAsync: {args} root={layout.LocalRoot}");
 
         try
         {
@@ -83,9 +81,8 @@ public static class Program
         }
         catch (UsageException ux)
         {
-            stderr.WriteLine($"usage error: {ux.Message}");
             EngineLog.Write($"[Program] RunAsync usage error: {ux.Message}");
-            return ExitUsage;
+            return UsageError(ux, stderr);
         }
         catch (Exception ex)
         {
@@ -114,6 +111,14 @@ public static class Program
             };
         }
         catch { /* logging setup must never block the command */ }
+    }
+
+    /// <summary>The one shape every exit-2 message has: the problem, then where help is.</summary>
+    private static int UsageError(UsageException ux, TextWriter stderr)
+    {
+        stderr.WriteLine($"usage error: {ux.Message}");
+        stderr.WriteLine(CliHelp.UsageHint);
+        return ExitUsage;
     }
 
     private static int Unknown(string command, TextWriter stderr)

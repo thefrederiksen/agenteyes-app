@@ -1,5 +1,4 @@
 using System.Text;
-using AgentEyes.Setup.Engine;
 
 namespace AgentEyes.Setup.Cli;
 
@@ -9,6 +8,10 @@ namespace AgentEyes.Setup.Cli;
 /// network, which is what lets <see cref="Program"/> answer "--help" before it resolves
 /// anything (issue #83). Every option a page documents is one <see cref="CliArgs"/>
 /// accepts; SetupCliHelpTests pins the two vocabularies to each other.
+///
+/// No logging here on purpose: help is answered before the host decides whether a log file may
+/// be opened at all, so a log line from here would go to a null sink (or create the very file
+/// help must not create). Program logs the request once a sink exists.
 /// </summary>
 public static class CliHelp
 {
@@ -26,26 +29,21 @@ public static class CliHelp
     private const string OptManifest = "  --manifest <path|latest>   Release source (default latest = GitHub Releases)";
     private const string OptReleaseDir = "  --release-dir <dir>        Use a local directory as the release (offline)";
     private const string OptComponent = "  --component <id|all>       Limit to one component (default all)";
-    private const string OptAutostart = "  --autostart <on|off>       Set run-at-login (default: keep as-is)";
-    private const string OptDesktopShortcut = "  --desktop-shortcut         Also create a desktop shortcut";
+    private const string OptAutostart = "  --autostart <on|off>       Set run-at-login (default: keep as-is) - install only";
+    private const string OptDesktopShortcut = "  --desktop-shortcut         Also create a desktop shortcut - install only";
     private const string OptRoot = "  --root <dir>               Override the per-user root %LOCALAPPDATA%\\AgentEyes (testing)";
     private const string OptNoFinalize = "  --no-finalize              Skip PATH/shortcut/registry finalization (testing)";
-    private const string OptDryRun = "  --dry-run                  Plan only; do not download or apply";
+    private const string OptDryRun = "  --dry-run                  Show what would change; download, apply and remove nothing";
     private const string OptJson = "  --json                     Machine-readable output";
     private const string OptHelp = "  --help, -h                 Show help and exit (nothing is run)";
 
     /// <summary>True when <paramref name="name"/> is a command the CLI dispatches (case-insensitive).</summary>
     public static bool IsCommand(string name)
-    {
-        var known = Commands.Contains(name, StringComparer.OrdinalIgnoreCase);
-        EngineLog.Write($"[CliHelp] IsCommand: name={name} known={known}");
-        return known;
-    }
+        => Commands.Contains(name, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The general page: every command and every option. Ends with a newline.</summary>
     public static string General()
     {
-        EngineLog.Write("[CliHelp] General");
         return Lines(
             "agenteyes-setup - install, update, and uninstall AgentEyes",
             "",
@@ -67,8 +65,8 @@ public static class CliHelp
             OptManifest,
             OptReleaseDir,
             OptComponent,
-            "  --autostart <on|off>       install only: set run-at-login (default: keep as-is)",
-            "  --desktop-shortcut         install only: also create a desktop shortcut",
+            OptAutostart,
+            OptDesktopShortcut,
             OptRoot,
             OptNoFinalize,
             OptDryRun,
@@ -81,15 +79,11 @@ public static class CliHelp
 
     /// <summary>
     /// The page for one command. Ends with a newline. Throws <see cref="UsageException"/> for
-    /// a name that is not a command, so a typo is reported rather than answered with the
-    /// wrong page.
+    /// a name that is not a command (the switch's default arm - the one place that decides),
+    /// so a typo is reported rather than answered with the wrong page.
     /// </summary>
     public static string ForCommand(string command)
     {
-        EngineLog.Write($"[CliHelp] ForCommand: command={command}");
-        if (!IsCommand(command))
-            throw new UsageException($"unknown command: {command}. {UsageHint}");
-
         return command.ToLowerInvariant() switch
         {
             "components" => Page("components",
@@ -127,8 +121,7 @@ public static class CliHelp
                     "Remove install-owned files under the install root. Your recordings and settings are preserved.",
                     "Refuses while AgentEyes is running - quit it first (tray icon -> Quit).",
                 },
-                "  --dry-run                  List what would be removed; remove nothing",
-                OptRoot, OptJson),
+                OptDryRun, OptRoot, OptJson),
 
             _ => throw new UsageException($"unknown command: {command}. {UsageHint}"),
         };
