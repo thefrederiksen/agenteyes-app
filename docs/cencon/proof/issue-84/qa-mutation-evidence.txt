@@ -1,0 +1,37 @@
+Issue #84 - QA mutation evidence (independent of the developer's mutation-evidence.txt)
+
+Worktree: C:\ReposFred\agenteyes-app-wt-84, branch issue-84-camera-preview-flake, HEAD 63d363a.
+Each mutation was applied to the working tree, the solution rebuilt (dotnet build AgentEyes.sln
+-c Release -> Build succeeded.), CameraPreviewTests run TWICE
+(dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~CameraPreviewTests),
+then the file was restored with git checkout and confirmed identical to HEAD
+(git diff --exit-code HEAD -- <file>). The final 21-run loop rebuilt the restored tree first.
+
+QA-M2 - CameraPreviewTests.FakeCameraFactory.Dispose: 'return;' inserted as its first statement
+        (the teardown does nothing). Expected: the teardown test fails and the two later tests fail
+        on the stranded row the aborted-test cascade leaves behind - the wild signature from main.
+        Actual, both runs identical:
+  Failed AgentEyes.Tests.CameraPreviewTests.Teardown_ASurvivingSessionLeftBehindByAnAbortedTest_IsRecoveredAndUnregistered [20 ms]
+   Assert.False() Failure
+  Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WithACleanStop_RetainsNothingAndUnregisters [21 ms]
+   Assert.DoesNotContain() Failure: Filter matched in collection
+Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = null, Output = null, Pid = 24512 }]
+  Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhoseCameraSurvivesTheStop_KeepsTheHolderAndRetainsTheSession [15 ms]
+   Assert.DoesNotContain() Failure: Filter matched in collection
+Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = null, Output = null, Pid = 24512 }]
+Failed!  - Failed:     3, Passed:    34, Skipped:     0, Total:    37, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+        (run 2: the same three tests, same messages, Failed: 3, Passed: 34, Total: 37)
+        Restored: git diff --exit-code HEAD -- tests/AgentEyes.Tests/CameraPreviewTests.cs -> identical.
+
+QA-M1 - CameraPreviewController.Select: 'opener.Start();' replaced by
+        '_ = System.Threading.Tasks.Task.Run(() => OpenSession(token, wanted, finished));'
+        (the dedicated thread is never started; the open is a thread-pool work item again, as before
+        this PR). Expected: the thread test fails. Actual, both runs identical:
+  Failed AgentEyes.Tests.CameraPreviewTests.Select_OpensTheCameraOnItsOwnBackgroundThread_NotTheThreadPool [16 ms]
+   the camera open ran as a thread-pool work item - it is queued behind the rest of the process
+Failed!  - Failed:     1, Passed:    36, Skipped:     0, Total:    37, Duration: 6 s - AgentEyes.Tests.dll (net8.0)
+        (run 2: the same test, Failed: 1, Passed: 36, Total: 37)
+        Restored: git diff --exit-code HEAD -- src/AgentEyes.App/CameraPreviewController.cs -> identical.
+
+Both guards fire on their known-bad input, deterministically, and the M2 signature is byte-for-byte
+the failure the issue describes (three CameraPreviewTests, a stale stranded row with Pid 24512).
