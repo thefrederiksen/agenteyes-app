@@ -51,7 +51,10 @@ namespace AgentEyes.AlwaysOn
         public string State { get; set; } = AlwaysOnState.Off;
         public string? Setup { get; set; }
         public string? Counts { get; set; }
+        /// <summary>The line in force, in dBFS RMS: fixed, or Auto's floor + margin (issue #72).</summary>
         public double? ThresholdDb { get; set; }
+        /// <summary>The measured noise floor the Auto line is derived from, in dBFS RMS (issue #72).</summary>
+        public double? FloorDb { get; set; }
         public bool ThresholdAuto { get; set; }
         public double? KeepBeforeMinutes { get; set; }
         public double? KeepAfterMinutes { get; set; }
@@ -136,6 +139,15 @@ namespace AgentEyes.AlwaysOn
         private DateTime _nextRestartUtc;
         private DateTime _recorderStartedUtc;
 
+        /// <summary>When the keeper last logged the levels, or null for "not yet this run" (issue #72).</summary>
+        private DateTime? _levelsLoggedUtc;
+
+        /// <summary>How often the keeper logs the floor, the line and what it heard (issue #72).</summary>
+        public static readonly TimeSpan LevelLogInterval = TimeSpan.FromMinutes(1);
+
+        /// <summary>The last levels line the keeper logged, or null before the first (issue #72).</summary>
+        public string? LastLevelsLine { get; private set; }
+
         // The keeper's memory between passes.
         private readonly Dictionary<int, string> _clipDirs = new();
         private int? _openClip;
@@ -188,6 +200,7 @@ namespace AgentEyes.AlwaysOn
                 // One sound log for the whole run: a capture restart must not forget what was heard
                 // around the pieces the old capture wrote, or they would be decided as silence.
                 _sound = new SoundLog(options.Counts, options.ThresholdDb);
+                _levelsLoggedUtc = null;
                 _day = AlwaysOnDay.Load(options.StatsFile);
                 _day.EnsureDay(_utcNow());
                 _lastError = null;
@@ -319,6 +332,7 @@ namespace AgentEyes.AlwaysOn
                 Supervise(now);
                 bool running = _recorder != null && !_recorder.HasExited;
                 RunKeeper(_options, now, final: false, recorderRunning: running);
+                LogLevels(now);
 
                 if (_state is AlwaysOnState.Listening or AlwaysOnState.Keeping)
                     _state = IsKeeping(now) ? AlwaysOnState.Keeping : AlwaysOnState.Listening;
@@ -368,6 +382,8 @@ namespace AgentEyes.AlwaysOn
                 var src = o.Counts == SoundSource.System ? SoundSource.System : SoundSource.Mic;
                 var line = _sound.CurrentThresholdDb(src);
                 s.ThresholdDb = line.HasValue ? Math.Round(line.Value, 1) : null;
+                var floor = _sound.CurrentFloorDb(src);
+                s.FloorDb = floor.HasValue ? Math.Round(floor.Value, 1) : null;
             }
             if (o != null)
             {
@@ -517,6 +533,30 @@ namespace AgentEyes.AlwaysOn
         }
 
         // ---- the keeper ------------------------------------------------------
+
+        /// <summary>
+        /// Once a minute, log the floor, the line, how many loud seconds the last minute had and
+        /// whether any of it was sustained sound (issue #72) - so a line that sits in the room noise
+        /// shows in the log instead of as a five-hour clip. Caller holds the lock.
+        /// </summary>
+        private void LogLevels(DateTime now)
+        {
+            var sound = _sound;
+            if (sound == null) return;
+            if (_levelsLoggedUtc == null)
+            {
+                // The first minute is measured from the first tick, so the first line covers a full minute.
+                _levelsLoggedUtc = now;
+                return;
+            }
+            // A tolerance of one second: the 15-second timer fires a few milliseconds early as often as
+            // late, and a strict compare then skips a whole tick (a 75-second "minute" seen live).
+            if (now - _levelsLoggedUtc.Value < LevelLogInterval - TimeSpan.FromSeconds(1)) return;
+            string line = sound.Describe(_levelsLoggedUtc.Value, now.AddSeconds(-1));
+            Log.Info($"[AlwaysOnEngine] levels: {line}");
+            LastLevelsLine = line;
+            _levelsLoggedUtc = now;
+        }
 
         private void RunKeeper(AlwaysOnOptions o, DateTime now, bool final, bool recorderRunning)
         {

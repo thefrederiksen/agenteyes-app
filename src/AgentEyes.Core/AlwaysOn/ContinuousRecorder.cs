@@ -108,7 +108,7 @@ namespace AgentEyes.AlwaysOn
                         $"the default playback device delivers {wf.BitsPerSample}-bit audio; always-on streams "
                         + "32-bit float. Set the device to its default format in Windows Sound settings.");
                 if (sound.Listens(SoundSource.System))
-                    _loop.LevelChanged += p => sound.Observe(SoundSource.System, DateTime.UtcNow, p);
+                    _loop.BufferLevel += l => sound.Observe(SoundSource.System, DateTime.UtcNow, l);
                 if (o.RecordSystem)
                 {
                     sysFormat = new PipeAudioFormat(wf.SampleRate, wf.Channels);
@@ -200,7 +200,7 @@ namespace AgentEyes.AlwaysOn
                         "the microphone's sound counts but no microphone is set - pick a recording setup with a "
                         + "microphone, or set Windows' default microphone.");
                 _mic = new AudioCapture(AudioCapture.ResolveDevice(o.MicLevelDevice));
-                _mic.LevelChanged += p => sound.Observe(SoundSource.Mic, DateTime.UtcNow, p);
+                _mic.BufferLevel += l => sound.Observe(SoundSource.Mic, DateTime.UtcNow, l);
                 _mic.StartMonitor();
             }
 

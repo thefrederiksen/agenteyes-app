@@ -660,7 +660,7 @@
 
                                 <StackPanel Grid.Row="2" Margin="0,8">
                                     <TextBlock Text="Sound level that counts" Style="{StaticResource AOLabel}"/>
-                                    <TextBlock x:Name="AOThresholdHint" Text="Auto: 10 dB above the measured noise floor" Style="{StaticResource AOHint}"/>
+                                    <TextBlock x:Name="AOThresholdHint" Text="Auto: 15 dB above the noise floor, at least -50 dBFS" Style="{StaticResource AOHint}"/>
                                 </StackPanel>
                                 <ComboBox Grid.Row="2" Grid.Column="1" x:Name="AOThresholdCombo" Style="{StaticResource DkCombo}"
                                           Height="30" VerticalAlignment="Center" SelectionChanged="AOSetting_Changed"

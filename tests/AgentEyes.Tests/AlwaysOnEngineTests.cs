@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using AgentEyes.AlwaysOn;
+using AgentEyes.Audio;
 using AgentEyes.Video;
 using Xunit;
 
@@ -33,11 +34,11 @@ namespace AgentEyes.Tests
             try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
         }
 
-        private AlwaysOnOptions Options(long capBytes = 5L * 1024 * 1024 * 1024) => new()
+        private AlwaysOnOptions Options(long capBytes = 5L * 1024 * 1024 * 1024, double? threshold = -40) => new()
         {
             SetupName = "test",
             Counts = SoundSource.Mic,
-            ThresholdDb = -40,
+            ThresholdDb = threshold,
             KeepBefore = TimeSpan.FromMinutes(2),
             KeepAfter = TimeSpan.FromMinutes(2),
             CapBytes = capBytes,
@@ -67,6 +68,18 @@ namespace AgentEyes.Tests
             }, "test piece");
         }
 
+        /// <summary>
+        /// Four seconds of talking at -20 dBFS RMS starting at <paramref name="atUtc"/>, then one buffer
+        /// of the next second so the last spoken second is closed and judged. Since issue #72 a single
+        /// loud buffer is not sound: it takes 3 loud seconds within 10.
+        /// </summary>
+        private static void Speak(SoundLog log, DateTime atUtc)
+        {
+            for (int s = 0; s < 4; s++)
+                log.Observe(SoundSource.Mic, atUtc.AddSeconds(s), AudioLevel.FromDb(-20, -10, 48000));
+            log.Observe(SoundSource.Mic, atUtc.AddSeconds(4), AudioLevel.FromDb(-80, -70, 48000));
+        }
+
         [Fact]
         public void Engine_SoundInTheMiddle_KeepsOneClipWithItsMarginsAndDeletesTheRest()
         {
@@ -79,7 +92,7 @@ namespace AgentEyes.Tests
             {
                 _now = t0.AddMinutes(m);
                 WritePiece(o.PieceFolder, _now);   // the piece being written now; earlier ones are finished
-                if (m == 5) _recorders[0].Sound!.Observe(SoundSource.Mic, t0.AddMinutes(4.5), 0.5f);
+                if (m == 5) Speak(_recorders[0].Sound!, t0.AddMinutes(4.5));
                 engine.Tick();
             }
             engine.Stop();
@@ -111,7 +124,7 @@ namespace AgentEyes.Tests
             {
                 _now = t0.AddMinutes(m);
                 WritePiece(o.PieceFolder, _now);
-                if (m == 1) _recorders[0].Sound!.Observe(SoundSource.Mic, t0.AddSeconds(30), 0.5f);
+                if (m == 1) Speak(_recorders[0].Sound!, t0.AddSeconds(30));
                 engine.Tick();
                 if (m == 3) Assert.Equal(AlwaysOnState.Keeping, engine.State);
             }
@@ -119,6 +132,79 @@ namespace AgentEyes.Tests
             // Sound at 0:30 with a 2 min after window: the clip closed while always-on is still on.
             Assert.Single(Directory.GetFiles(o.ClipsFolder, "*.mp4"));
             Assert.Equal(AlwaysOnState.Listening, engine.State);
+        }
+
+        [Fact]
+        public void Status_Auto_ReportsTheLineAndTheFloorItCameFrom()
+        {
+            var o = Options(threshold: null);
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            var s0 = engine.Status();
+            Assert.Null(s0.FloorDb);       // nothing heard yet: no floor, no line
+            Assert.Null(s0.ThresholdDb);
+
+            // Thirty seconds of room noise at -65 dBFS RMS: floor -65, line max(-65 + 15, -50) = -50.
+            for (int s = 0; s <= 30; s++)
+                _recorders[0].Sound!.Observe(SoundSource.Mic, t0.AddSeconds(s), AudioLevel.FromDb(-65, -55, 48000));
+            _now = t0.AddSeconds(31);
+            engine.Tick();
+
+            var st = engine.Status();
+            Assert.True(st.ThresholdAuto);
+            Assert.Equal(-65.0, st.FloorDb);
+            Assert.Equal(SoundLog.AutoMinLineDb, st.ThresholdDb);
+
+            // A louder room lifts the line above the minimum: floor -40 -> line -25.
+            for (int s = 31; s <= 700; s++)
+                _recorders[0].Sound!.Observe(SoundSource.Mic, t0.AddSeconds(s), AudioLevel.FromDb(-40, -30, 48000));
+            _now = t0.AddSeconds(701);
+            engine.Tick();
+            st = engine.Status();
+            Assert.Equal(-40.0, st.FloorDb);
+            Assert.Equal(-40.0 + SoundLog.AutoMarginDb, st.ThresholdDb);
+        }
+
+        [Fact]
+        public void Tick_LogsTheLevelsOncePerMinute()
+        {
+            var o = Options(threshold: null);
+            using var engine = Engine();
+            var t0 = _now;
+            engine.Start(o);
+            engine.Tick();                                  // the minute is measured from here
+            var sound = _recorders[0].Sound!;
+            for (int s = 0; s < 40; s++)
+                sound.Observe(SoundSource.Mic, t0.AddSeconds(s), AudioLevel.FromDb(-70, -60, 48000));
+            Speak(sound, t0.AddSeconds(40));                // 4 loud seconds, sustained
+            for (int s = 45; s < 59; s++)
+                sound.Observe(SoundSource.Mic, t0.AddSeconds(s), AudioLevel.FromDb(-70, -60, 48000));
+
+            _now = t0.AddSeconds(30);
+            engine.Tick();
+            Assert.Null(engine.LastLevelsLine);             // not a minute yet
+
+            _now = t0.AddSeconds(58);
+            engine.Tick();
+            Assert.Null(engine.LastLevelsLine);             // 58 s is not a minute
+
+            // A timer tick a few milliseconds short of the minute still logs (seen live: a strict
+            // compare skipped to the next tick and logged "last 75s").
+            _now = t0.AddSeconds(60).AddMilliseconds(-10);
+            engine.Tick();
+            string? line = engine.LastLevelsLine;
+            Assert.NotNull(line);
+            Assert.Equal("mic floor=-70.0dBFS line=-50.0dBFS (auto); last 60s: loud=4 sustained=yes (4s)", line);
+            Assert.Contains("[AlwaysOnEngine] levels: " + line, File.ReadAllText(AgentEyes.Log.CurrentFile));
+
+            _now = t0.AddSeconds(105);
+            engine.Tick();
+            Assert.Equal(line, engine.LastLevelsLine);      // 45 s later: still the same line
+
+            _now = t0.AddSeconds(120).AddMilliseconds(-10);
+            engine.Tick();
+            Assert.Equal("mic floor=-70.0dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s)", engine.LastLevelsLine);
         }
 
         [Fact]

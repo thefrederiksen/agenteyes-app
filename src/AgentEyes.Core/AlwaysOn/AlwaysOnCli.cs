@@ -87,7 +87,8 @@ namespace AgentEyes.AlwaysOn
         {
             string last = s.LastSoundUtc.HasValue ? s.LastSoundUtc.Value.ToLocalTime().ToString("HH:mm:ss") : "never";
             string line = s.ThresholdDb.HasValue ? $"{s.ThresholdDb.Value:0.0} dBFS{(s.ThresholdAuto ? " (auto)" : "")}" : "measuring";
-            Console.WriteLine($"  {DateTime.Now:HH:mm:ss} state={s.State} encoder={s.Encoder} line={line} lastSound={last} "
+            string floor = s.FloorDb.HasValue ? $"{s.FloorDb.Value:0.0} dBFS" : "measuring";
+            Console.WriteLine($"  {DateTime.Now:HH:mm:ss} state={s.State} encoder={s.Encoder} line={line} floor={floor} lastSound={last} "
                               + $"waiting={s.PiecesWaiting} openClipPieces={s.PiecesKeptInOpenClip} clips={s.ClipsToday} "
                               + $"kept={s.KeptSecondsToday:0}s discarded={s.DiscardedSecondsToday:0}s"
                               + (s.LastError != null ? $" error=\"{s.LastError}\"" : ""));
