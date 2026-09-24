@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue 79 / PR 87</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #222; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
+th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; font-size: 14px; }
+th { background: #eee; }
+code, pre { font-family: Consolas, monospace; font-size: 13px; }
+pre { background: #f6f6f6; border: 1px solid #ddd; padding: 8px; overflow-x: auto; }
+.pass { color: #1a7f37; font-weight: bold; }
+.pending { color: #9a6700; font-weight: bold; }
+.note { color: #555; }
+</style>
+</head>
+<body>
+
+<h1>QA report - issue #79 / PR #87</h1>
+<p><b>[Always On] Start each clip 10 s before the speech and close it after 5 min of silence, as settings</b></p>
+<p>Branch <code>issue-79-clip-lead-in</code>, HEAD <code>f0b8de8</code> (the review fix pass on top of <code>023f4b7</code>), base <code>main</code> at <code>f80a6d8</code> (v1.11.2).
+QA date 2026-09-24. Verified in the git worktree <code>C:\ReposFred\agenteyes-app-wt-79</code>; tree clean, HEAD equal to <code>origin/issue-79-clip-lead-in</code>.</p>
+
+<p><b>Verdict: VERIFIED - every acceptance criterion that can be judged without a running app is met.</b>
+Four checks need the owner's laptop and a running app (the file-size measurement, the live speak-then-quiet
+clip, the h264_qsv keyframe probe added by the tester, and the on-screen look of the three settings); those are
+recorded as <span class="pending">PENDING TESTER</span> below - not passed, not failed - and are handed to the
+tester session after the merge, as the owner's brief directs. QA did not launch the app, run a smoke, or
+touch the installed build.</p>
+
+<h2>1. The gate, run by QA (never trusted from the developer)</h2>
+<pre>
+dotnet build AgentEyes.sln -c Release   -> Build succeeded.  0 Error(s)  (20 warnings, all pre-existing: xUnit analyzers + one CS8602)
+
+dotnet test AgentEyes.sln -c Release    (four full runs of the unmodified branch)
+  run 1: Failed!  - Failed:     1, Passed:  1856, Skipped:     0, Total:  1857, Duration: 38 s
+         [FAIL] AgentEyes.Tests.RecordingStopSequenceTests.Run_ManifestSaveFails_TheFailureReachesTheLogWithTheDirectory
+                "the log gained nothing while the stop ran"
+  run 2: Passed!  - Failed:     0, Passed:  1857, Skipped:     0, Total:  1857, Duration: 39 s
+  run 3: Passed!  - Failed:     0, Passed:  1857, Skipped:     0, Total:  1857, Duration: 39 s
+  run 4: Passed!  - Failed:     0, Passed:  1857, Skipped:     0, Total:  1857, Duration: 38 s   (after a fresh rebuild)
+
+  RecordingStopSequenceTests in isolation, 3 runs: Passed 16/16, 16/16, 16/16.
+</pre>
+<p>The one failure in run 1 is a test this PR does not touch (<code>tests/AgentEyes.Tests/RecordingStopSequenceTests.cs</code>,
+unchanged since the initial commit <code>8b78167</code>) and it is a shared-log race, not a product defect:
+<code>Log.Write</code> (<code>src/AgentEyes.Core/Log.cs:55</code>) appends with <code>File.AppendAllText</code> and swallows
+every exception ("Logging must never throw"); a test running in parallel that holds the same file open with
+<code>File.ReadAllText(Log.CurrentFile)</code> (share mode Read) denies the append for that instant, and the line is
+lost. The tests run in parallel and all share one per-run log (issue #78). See section 5 for why this PR is
+mentioned in that story at all.</p>
+
+<h2>2. Acceptance criteria - each judged independently from the diff, the code and QA's own test runs</h2>
+<table>
+<tr><th>#</th><th>Criterion (from the issue)</th><th>Expected</th><th>What the code does - file:line evidence</th><th>Result</th></tr>
+
+<tr><td>1</td>
+<td>Keeper + trim planner unit tests: speech at 125 s, keep-before 10 s -&gt; clip starts at the keyframe at or before 115 s and no earlier than 113 s; last speech at 300 s, keep-after 10 s -&gt; ends 310 s (+-2 s); 2-min pause with a 5-min gap -&gt; one clip; 6-min pause -&gt; two clips.</td>
+<td>The four numeric cases exist as tests, assert the numbers as written, and the rule produces them.</td>
+<td>
+Rule: <code>KeeperRule.SpanStart</code> = first sound - before (<code>src/AgentEyes.Core/AlwaysOn/KeeperRule.cs:138</code>); <code>SpanEnd</code> = last sound + 1 s + after (<code>:141</code>); <code>Extend</code> follows sound while the next second of sound is within <code>[last+1, last+1+gap]</code> (<code>:184-192</code>); a clip closes at <code>last + 1 s + gap + SoundSettle</code> (<code>:286</code>).
+Planner: first piece cut at <code>floor(offset / keyframeSeconds) * keyframeSeconds</code> (<code>src/AgentEyes.Core/AlwaysOn/ClipTrim.cs:75-80</code>), last piece cut at the span end (<code>:81</code>), pieces wholly outside reported and not joined (<code>:68-72</code>).<br>
+Tests read by QA (<code>tests/AgentEyes.Tests/AlwaysOnKeeperTests.cs</code>): <code>Decide_SpeechAt125s_KeepBefore10s_ClipStartsAtTheKeyframeAtOrBefore115sAndNoEarlierThan113s</code> (:44) asserts span start 115 s, cut at 54 s into the piece opened at 60 s = 114 s, and both bounds 113 &lt;= start &lt;= 115; <code>Decide_LastSpeechAt300s_KeepAfter10s_ClipEndsAt310s</code> (:67) asserts span end exactly 310 s and the cut end in [308, 312]; <code>Decide_TwoMinutePauseInsideSpeech_FiveMinuteGap_IsOneClip</code> (:88) one close; <code>Decide_SixMinutePauseInsideSpeech_FiveMinuteGap_IsTwoClips</code> (:104) two closes with the silent minutes deleted. Boundary: <code>Decide_PauseOfExactlyTheGap_IsOneClip_OneSecondMoreIsTwo</code> (:220) and <code>Decide_GapNotYetPassed_TheClipStaysOpen</code> (:177, open at 347 s / closed at 348 s - both arms).
+End to end with real ffmpeg on real 2 s-keyframed 6 s pieces: <code>AlwaysOnEngineTests.Engine_ClipIsTrimmedToItsSpan_FirstPieceCutOnAKeyframeAndLastPieceCutAtTheTail</code> (:171) - clip is 8 s (a missed keyframe would give 10, no trim 12) and named for the keyframe.<br>
+Fail-closed proof (section 3): mutations M2 and M3 made these tests FAIL.
+</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>2</td>
+<td>Unit tests for the ffmpeg arguments (2 s keyframes) and for the trim/join commands (stream copy, no re-encode).</td>
+<td>The capture command asks for a keyframe every 2 s; trim and join name no encoder.</td>
+<td>
+<code>AlwaysOnArgs.DefaultKeyframeSeconds = 2</code> (<code>src/AgentEyes.Core/AlwaysOn/AlwaysOnArgs.cs:34</code>); <code>Capture</code> emits <code>GopArgs</code> right after <code>-c:v</code> and then <code>-force_key_frames expr:gte(t,n_forced*2)</code> (<code>:142-143</code>); a piece must be a whole number of keyframe intervals (<code>:67-69</code>). <code>GopArgs</code>: <code>-g fps*keyframeSeconds</code> for every encoder, <code>-forced_idr 1</code> for h264_qsv, <code>-forced-idr 1</code> for h264_nvenc, nothing more for h264_amf, <code>-keyint_min</code> + <code>-sc_threshold 0</code> for libx264 (<code>:187-200</code>). <code>Trim</code> = <code>-y [-ss IN] -i input [-t LEN] -map 0 -c copy -avoid_negative_ts make_zero output</code>, input-side seek (<code>:241-257</code>). <code>Join</code> unchanged: concat demuxer, <code>-c copy</code>.<br>
+Tests read by QA (<code>tests/AgentEyes.Tests/AlwaysOnSoundAndArgsTests.cs</code>): <code>Capture_ForcesAKeyframeEveryTwoSeconds_AndCutsSixtySecondPieces</code>, <code>Capture_KeyframeIntervalFollowsTheOption</code>, <code>Capture_PieceNotAWholeNumberOfKeyframes_Throws</code>, the four-encoder theory <code>Capture_EveryEncoder_SetsItsOwnGopToTheKeyframeIntervalBesidesTheForcedKeyframes</code> (asserts <code>-g 20</code> once, the IDR options per encoder, <code>-g</code> after <code>-c:v</code> and before the muxer's <code>-f</code>), <code>Capture_GopFollowsTheFrameRateAndTheKeyframeOption</code> (30 fps x 5 s -&gt; 150), <code>Capture_OnlyTheEncodersThatHaveTheFlag_GetAnIdrOption</code>, <code>EncoderProbe_CarriesNoGopOptions</code>, <code>Trim_StartAndEnd_IsAStreamCopyFromTheKeyframeForTheKeptLength</code>, <code>Trim_StartOnly_SeeksOnTheInputAndKeepsToTheEnd</code> (asserts <code>-ss</code> before <code>-i</code>), <code>Trim_EndOnly_KeepsFromTheStartForTheGivenLength</code>, <code>Trim_NeverReencodes</code>, <code>Trim_BadCut_Throws</code>, <code>Join_CopiesStreamsWithoutReencoding</code>, <code>Join_NeverNamesAnEncoder</code>.<br>
+Fail-closed proof: mutation M1 (drop <code>-forced_idr</code> for qsv) made exactly the qsv theory case FAIL.
+</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>3</td>
+<td>Settings appear on the Always On page with the ranges above, are validated, persisted, and returned by <code>GET /always-on</code>.</td>
+<td>Three settings with ranges before 0-120 s, after 0 s - gap, gap 30 s - 30 min; refused when out of range; saved in config.json; present in the API.</td>
+<td>
+Ranges in one place: <code>src/AgentEyes.Core/AlwaysOn/AlwaysOnKeepSettings.cs:112-131</code> (<code>KeepBeforeMax</code> 120 s, <code>SilenceGapMin</code> 30 s, <code>SilenceGapMax</code> 30 min, <code>Problem()</code> checks after &lt;= gap).<br>
+Page: <code>src/AgentEyes.App/MainWindow.xaml</code> rows 3-5 - combos <code>AOBeforeCombo</code> ("Keep before the speech", hint "0 - 120 s"), <code>AOAfterCombo</code> ("Keep after the speech", hint "0 s up to the silence gap"), new <code>AOGapCombo</code> ("Close the clip after silence of", hint "30 s - 30 min"); QA counted the grid: 9 <code>RowDefinition</code>s and rows 0-8 each used by exactly two children, so nothing was pushed into a wrong row. Choices inside the ranges: <code>AOBeforeSeconds</code> 0..120, <code>AOAfterSeconds</code> 0..300, <code>AOGapSeconds</code> 30..1800 (<code>src/AgentEyes.App/MainWindow.AlwaysOn.cs:29-31</code>); a saved value outside the list is added so the page shows what is in force (<code>Durations</code>, :134-138). Validation on change: <code>AOSetting_Changed</code> checks the three together with <code>Problem()</code>, shows the reason via <code>ShowAlwaysOnError</code> and reverts the combos, otherwise saves (<code>:157-181</code>). Rule text: <code>RuleInWords</code> (<code>:303-312</code>) with the <code>LeadInNote</code> only when the combination reaches the keeper's limit.<br>
+Persistence: <code>Config.AlwaysOnKeepBeforeSeconds / AlwaysOnKeepAfterSeconds / AlwaysOnSilenceGapSeconds</code> (<code>src/AgentEyes.App/Config.cs:169-175</code>); the start refuses an out-of-range config.json with the reason and "Change it on the Always On page." (<code>AlwaysOnController.KeepSettings</code>, <code>src/AgentEyes.App/AlwaysOnController.cs:337-349</code>); the engine validates again at <code>Start</code> (<code>src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs:307</code>).<br>
+API: <code>GET /always-on</code> adds <code>settings: { keepBeforeSeconds, keepAfterSeconds, silenceGapSeconds }</code> and <code>openClip.silenceGapSeconds</code> (<code>src/AgentEyes.App/RestServer.cs:649-664</code>); the read is logged with the three values.<br>
+Tests read by QA: <code>AlwaysOnKeepSettingsTests</code> (every range end, the reason text per setting, page order), <code>AlwaysOnAppTests.KeepSettings_ConfigOutOfRange_RefusesWithTheReasonAndWhereToFixIt</code> (5 cases), <code>BuildOptions_KeepSettingsOutOfRange_RefusesToBuild</code>, <code>Config_KeepSettings_RoundTripInSeconds_AndTheOldMinuteFieldsAreNotWritten</code>, <code>RuleInWords_*</code> (2), and the real-HTTP <code>GetAlwaysOn_ReturnsTheSavedKeepSettingsInSeconds</code> (a real <code>RestServer</code> on a free loopback port; asserts 20/15/90 and that no minute field remains), <code>AlwaysOnEngineTests.Start_KeepSettingsOutOfRange_ThrowsWithTheReasonAndLeavesAlwaysOnOff</code>.<br>
+<span class="note">The on-screen look of the three drop-downs (the proof-target screenshot) needs the running app and is the tester's after merge: PENDING TESTER. Everything else in this criterion is verified here.</span>
+</td>
+<td class="pass">PASS (on-screen look: PENDING TESTER)</td></tr>
+
+<tr><td>4</td>
+<td>Migration test from a v1.11.x config.json.</td>
+<td>An old file's "keep after" (minutes) becomes the silence gap; before/after take 10 s; the old fields are dropped on the next save; runs once.</td>
+<td>
+<code>Config.FromJson</code> runs <code>MigrateAlwaysOnKeepSettings()</code> (<code>src/AgentEyes.App/Config.cs:244-282</code>): no-op when both old fields are null; old after -&gt; gap (clamped to 30 s - 30 min, the one accepted clamp); before/after -&gt; defaults; old fields nulled and <code>JsonIgnore(WhenWritingNull)</code> keeps them out of the next save (<code>:177-186</code>); one log line. <code>Config.Load</code> now goes through <code>FromJson</code> (<code>:237</code>).<br>
+Tests read by QA (<code>tests/AgentEyes.Tests/AlwaysOnAppTests.cs</code>): <code>FromJson_V111Config_MigratesKeepAfterToTheSilenceGapAndTakesTheNewSecondDefaults</code> (:111 - a full v1.11.2 config.json text; asserts 300/10/10, old fields absent from the re-serialised JSON, every other field untouched, the log line present), <code>FromJson_V111ConfigWithAChosenKeepAfter_TheGapIsThatManyMinutes</code> (1, 2.5, 10, 30 min), <code>FromJson_V111ConfigWithAKeepAfterOutsideTheGapsRange_IsBroughtToTheNearestEnd</code> (0.25 -&gt; 30 s, 45 -&gt; 1800 s), <code>FromJson_V111ConfigWithOnlyKeepBefore_TheGapStaysTheDefault</code>, <code>MigrateAlwaysOnKeepSettings_RunsOnce_ASecondCallLeavesLaterChoicesAlone</code>, <code>FromJson_CurrentConfig_IsNotMigrated</code>.<br>
+Fail-closed proof: mutation M4 (migration forgets the gap) made 6 migration cases FAIL.
+</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>5</td>
+<td>Measure on a real 10-minute recording on the owner's laptop the file size with 60 s vs 2 s keyframes (h264_qsv, 10 fps) and state it in the PR.</td>
+<td>Two sizes and the ratio, from the owner's laptop.</td>
+<td>Needs the owner's laptop and a live capture. Procedure is in the handoff note (run the logged <code>[ContinuousRecorder] Start:</code> command for 600 s with <code>n_forced*2</code> and with <code>n_forced*60</code>, compare the pieces' total size). Not run by QA per the owner's brief.</td>
+<td class="pending">PENDING TESTER</td></tr>
+
+<tr><td>6</td>
+<td>Live on the owner's laptop, only when the owner says it is free: speak ~1 min, then 6 min quiet -&gt; exactly one clip; ffprobe shows it starts 10-12 s before the first speech and ends ~10 s after the last.</td>
+<td>One clip; ffprobe start/end against the noted speech times; the <code>keeper: CLOSE ... kept HH:mm:ss to HH:mm:ss</code> and <code>trimmed piece_...</code> log lines.</td>
+<td>Needs the owner's laptop and the running app. Procedure is in the handoff note and the PR body. Not run by QA per the owner's brief.</td>
+<td class="pending">PENDING TESTER</td></tr>
+
+<tr><td>7</td>
+<td><code>dotnet build</code> clean and <code>dotnet test</code> green.</td>
+<td>0 errors; Failed: 0.</td>
+<td>Section 1: Build succeeded, 0 Error(s); tests 1857/1857 in three pristine full runs (runs 2-4) and 1856/1857 in run 1 with the pre-existing shared-log race in an untouched test, which passed 16/16 three times in isolation. Numbers quoted, not summarised.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>8</td>
+<td>Added by the tester (issue comment, 2026-09-24 18:22): measure on the real encoder (h264_qsv) that keyframes actually land every 2 s (<code>ffprobe -skip_frame nokey -show_entries frame=pts_time</code> on a live piece); if QSV drifts, fix it with the encoder's own GOP rather than trusting <code>-force_key_frames</code>; the trim must use the actual keyframe times in the piece.</td>
+<td>Code side: the encoder's own GOP is set beside the forced keyframes, and the trim lands on the keyframe actually in the file. Live side: a <code>pts_time</code> every ~2.0 s on a real qsv piece.</td>
+<td>Code side verified: <code>GopArgs</code> (criterion 2) and the input-side <code>-ss ... -c copy</code> trim, which by ffmpeg's stream-copy seeking starts at the keyframe actually at or before the asked time, so a late keyframe lengthens the lead-in and never loses speech (<code>ClipTrim.cs:46-54</code>, <code>AlwaysOnArgs.cs:241-257</code>). The live probe on h264_qsv needs the owner's laptop: expected one <code>pts_time</code> roughly every 2.0 s; gaps of tens of seconds are bad; EMPTY output is a broken instrument (wrong file / no video stream), never a pass. Also the <code>[ContinuousRecorder] Start:</code> log line must show <code>-c:v h264_qsv ... -g 20 -forced_idr 1 -force_key_frames expr:gte(t,n_forced*2)</code>, and pieces should be 60 s again.</td>
+<td class="pending">PENDING TESTER (code side verified)</td></tr>
+</table>
+
+<h2>3. Fail-closed evidence: the new tests were run against a known-BAD input and FIRED</h2>
+<p>Each mutation was a one-line <code>sed</code> in the worktree, followed by <code>dotnet test AgentEyes.sln -c Release</code> (full suite), then <code>git checkout --</code> of the file; <code>git status</code> was empty afterwards and the tree was rebuilt before the final pristine run 4.</p>
+<table>
+<tr><th>Mutation</th><th>What was broken</th><th>Result (quoted)</th></tr>
+<tr><td>M1</td><td><code>AlwaysOnArgs.GopArgs</code>: h264_qsv -&gt; <code>{ "-g", gop }</code> (dropped <code>-forced_idr 1</code>)</td><td><code>Failed: 1, Passed: 1856</code> - <code>Capture_EveryEncoder_SetsItsOwnGopToTheKeyframeIntervalBesidesTheForcedKeyframes(encoder: "h264_qsv", ...)</code> [FAIL]</td></tr>
+<tr><td>M2</td><td><code>KeeperRule.Extend</code>: window back to <code>[last+1, last+gap]</code> (the reviewer's off-by-one)</td><td><code>Failed: 4, Passed: 1853</code> - <code>Decide_PauseOfExactlyTheGap_IsOneClip_OneSecondMoreIsTwo</code> [FAIL], <code>Extend_QuietStretchOfExactlyTheGap_StaysInsideTheClip</code> [FAIL]; plus two <code>CameraPreviewTests</code> timing failures unrelated to the mutation (they passed in every pristine run; pre-existing timing tests, not in this PR)</td></tr>
+<tr><td>M3</td><td><code>ClipTrim.Plan</code>: <code>Math.Floor</code> -&gt; <code>Math.Ceiling</code> (cut at the keyframe AFTER the lead-in)</td><td><code>Failed: 6, Passed: 1851</code> - <code>Decide_SpeechAt125s_KeepBefore10s_...NoEarlierThan113s</code> [FAIL], <code>Plan_SpanStartsInsideThePiece_CutsAtTheKeyframeAtOrBefore</code> x3 [FAIL], <code>Plan_OnlyTheFirstAndLastPieceAreCut_AndPiecesOutsideAreLeftOut</code> [FAIL], <code>Plan_OnePieceHoldsTheWholeClip_IsCutAtBothEnds</code> [FAIL]</td></tr>
+<tr><td>M4</td><td><code>Config.MigrateAlwaysOnKeepSettings</code>: the gap is not set</td><td><code>Failed: 7, Passed: 1850</code> - <code>FromJson_V111ConfigWithAChosenKeepAfter_TheGapIsThatManyMinutes</code> x4 [FAIL], <code>FromJson_V111ConfigWithAKeepAfterOutsideTheGapsRange_IsBroughtToTheNearestEnd</code> x2 [FAIL]; plus one failure of <code>Engine_ClipIsTrimmedToItsSpan_FirstPieceCutOnAKeyframeAndLastPieceCutAtTheTail</code>, which cannot be M4's (M4 is App-project code the engine never sees) - see section 5</td></tr>
+</table>
+
+<h2>4. The review fixes (commit f0b8de8) are real in the diff</h2>
+<table>
+<tr><th>Finding</th><th>Confirmed at</th></tr>
+<tr><td>1a BLOCKING - encoder GOP beside <code>-force_key_frames</code></td><td><code>AlwaysOnArgs.GopArgs</code> (<code>AlwaysOnArgs.cs:187-200</code>), appended after <code>EncoderArgs</code> and before the segment muxer (<code>:142</code>). <code>EncoderProbe</code> untouched.</td></tr>
+<tr><td>1b - argument-builder tests</td><td>The four-encoder theory and four more tests in <code>AlwaysOnSoundAndArgsTests.cs</code>; M1 proves the qsv case fires.</td></tr>
+<tr><td>1c - <code>ClipTrim</code> summary</td><td><code>ClipTrim.cs:46-54</code>: input-side seek lands on the keyframe actually at or before; a late keyframe only lengthens the lead-in.</td></tr>
+<tr><td>2 - stale "pending the owner" comment</td><td><code>AlwaysOnKeepSettings.cs:104-105</code>: resolved by the owner, 10 s / 10 s / 5 min.</td></tr>
+<tr><td>3 - <code>Extend</code> off by one second</td><td><code>KeeperRule.cs:188</code> window <code>[last+1, last+1+gap]</code>; close time <code>last + 1 s + gap + SoundSettle</code> at <code>:286</code>; boundary tests present; M2 proves they fire.</td></tr>
+<tr><td>4 - all-Outside holding folder was deleted</td><td><code>AlwaysOnEngine.JoinClip</code>: <code>Directory.Move(dir, setAside)</code> into <code>UnreadableFolder</code>, <code>_lastError</code> "set aside in ...", warn line with piece count and seconds; test <code>JoinClip_EveryKeptPieceOutsideTheSpan_TheHoldingFolderIsSetAsideNeverDeleted</code> asserts no clip, empty pending, the piece under <code>unreadable\clip_*</code>, both log lines.</td></tr>
+<tr><td>5 - keeper limit only in a comment</td><td><code>AlwaysOnKeepSettings.LeadInNote</code> (<code>:143-151</code>); <code>RuleInWords</code> appends it only when it applies (<code>MainWindow.AlwaysOn.cs:303-312</code>); <code>AlwaysOnEngine.Start</code> logs it as a warning (<code>AlwaysOnEngine.cs:310-311</code>); tests <code>LeadInNote_*</code> and <code>RuleInWords_GapShorterThan...</code>.</td></tr>
+<tr><td>6-8 accepted as documented</td><td>Not re-litigated: migration clamp, the 300 s keep-after choice at a 30 s gap (refused with reason), synchronous <code>Save()</code> on the UI thread.</td></tr>
+</table>
+
+<h2>5. Review findings by QA (non-blocking; recorded so they are not lost)</h2>
+<ol>
+<li><b>Shared-log read race widened.</b> <code>Log.Write</code> swallows the IOException when another thread holds the log open for reading (section 1). Tests that read the run log with <code>File.ReadAllText(Log.CurrentFile)</code> (share mode Read) went from 1 on main to 4 on this branch (<code>AlwaysOnAppTests.cs</code> x1, <code>AlwaysOnEngineTests.cs</code> x3). Two flakes were seen across QA's eight full runs (four pristine, four mutated): the untouched <code>RecordingStopSequenceTests</code> case in pristine run 1, and this PR's own <code>Engine_ClipIsTrimmedToItsSpan_...</code> once under M4 (5/5 in isolation, green in the other seven full runs). No product code is wrong; the log-asserting tests are exposed to a race that already existed on main. Suggested follow-up issue: have test readers open the log with <code>FileShare.ReadWrite | FileShare.Delete</code> as <code>RecordingStopSequenceTests.LogSince</code> already does, or make the logger retry the append instead of swallowing. Not a criterion of #79.</li>
+<li><code>CameraPreviewTests</code> timing cases failed once under M2 (not touched by this PR; green in all pristine runs). Same class of pre-existing flake; noted for the same follow-up.</li>
+<li>API contract change (<code>openClip.afterMinutes</code> -&gt; <code>openClip.silenceGapSeconds</code>; <code>status.KeepAfterMinutes</code> -&gt; three second-fields) is stated in the PR body and the handoff; no consumer in this repo reads the old names.</li>
+</ol>
+
+<h2>6. Method and standards checks</h2>
+<ul>
+<li>ASCII only: a byte scan of all 24 changed files (pattern <code>[^	 -~]</code>, first shown to fire on a known-bad line) found no non-ASCII character in any changed text; the only hit is the pre-existing UTF-8 byte-order mark at byte 0 of <code>MainWindow.xaml</code>, identical on <code>main</code> (17 source files carry one). Commit messages and the diff carry no banned attribution strings. No <code>nul</code> file in the tree.</li>
+<li>Logging: every new public path logs (<code>Start</code> validation and lead-in warning, <code>keeper: CLOSE</code> with sound and kept span, <code>JoinClip: trimmed ... (stream copy)</code>, the set-aside warning, <code>MigrateAlwaysOnKeepSettings</code>, <code>AOSetting_Changed</code> refusal, <code>AlwaysOnStatus</code> with the three values).</li>
+<li>No fallback programming: an out-of-range config.json is refused at start with the reason and where to fix it; the page refuses and reverts; the one clamp (v1.11 migration gap) is documented and was accepted by the reviewer.</li>
+<li>Try-catch at entry points only: <code>AOSetting_Changed</code> (event handler) and the ffmpeg run in <code>JoinClip</code> (external process) - unchanged pattern.</li>
+<li>UI thread: no <code>ObservableCollection</code> touched; combos are filled on the UI thread inside the existing <code>_aoLoading</code> guard.</li>
+<li>Tests named <code>Method_Scenario_Result</code>; Arrange-Act-Assert.</li>
+<li>CenCon: no component-map change; privacy posture (visible, controllable) unchanged - the indicator and controls are untouched and less silence is kept than before. The IL manifest-writer inventory pins the one new writer (<code>RunKeeper -&gt; File::Copy x1</code>).</li>
+<li>Handoff note present at <code>docs/cencon/proof/issue-79/handoff.md</code> and matches the diff.</li>
+</ul>
+
+<h2>7. Result</h2>
+<p><b>VERIFIED - all acceptance criteria met</b> for everything judgeable by review and by QA's own build and test runs (criteria 1, 2, 3, 4, 7, and the code side of 8). Criteria 5, 6, the live half of 8 and the on-screen look of the three settings in 3 are <span class="pending">PENDING TESTER</span> on the owner's laptop after the merge, exactly as the owner's brief directs; they are neither passed nor failed here.</p>
+<p>Disposition: <code>flow:done</code>, issue closed, PR #87 squash-merged to <code>main</code>, branch deleted. No deploy, install, tag or release.</p>
+
+</body>
+</html>
