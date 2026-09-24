@@ -14,8 +14,8 @@ namespace AgentEyes
     {
         public static void Run()
         {
-            string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string videos = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+            string local = AppDataPaths.LocalAppData;
+            string videos = AppDataPaths.Videos;
             Migrate(Path.Combine(local, "qa-record"), Path.Combine(local, "AgentEyes"));
             Migrate(Path.Combine(videos, "qa-record"), Path.Combine(videos, "AgentEyes"));
         }

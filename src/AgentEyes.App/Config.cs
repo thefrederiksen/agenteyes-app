@@ -185,8 +185,7 @@ namespace AgentEyes.App
             CeilingBytes = HousekeepingCeilingGb <= 0 ? 0 : (long)(HousekeepingCeilingGb * 1024 * 1024 * 1024),
         };
 
-        private static string FilePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "config.json");
+        private static string FilePath => Path.Combine(AgentEyes.AppDataPaths.Root, "config.json");
 
         /// <summary>How long a blocking save waits for its snapshot to reach the disk before it
         /// reports that it has not. Bounded because the writer is allowed to be stuck in a filesystem

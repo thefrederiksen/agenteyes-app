@@ -68,9 +68,7 @@ namespace AgentEyes.Transcription
     /// </summary>
     internal static class DictionaryStore
     {
-        public static string DefaultPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "AgentEyes", "dictionary.json");
+        public static string DefaultPath => Path.Combine(AppDataPaths.Root, "dictionary.json");
 
         public static TranscriptionDictionary Load() => Load(DefaultPath);
 
