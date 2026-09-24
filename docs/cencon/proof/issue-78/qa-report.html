@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="us-ascii">
+<title>Issue 78 QA Report</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; max-width: 1100px; color: #222; background: #fff; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; font-size: 14px; }
+th { background: #eee; }
+code, pre { font-family: Consolas, monospace; font-size: 13px; }
+pre { background: #f5f5f5; padding: 8px; overflow-x: auto; }
+.pass { color: #0a6b1f; font-weight: bold; }
+.pend { color: #8a5a00; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>QA Report - Issue #78</h1>
+<p><b>Issue:</b> [Tests] Test runs write into the live app's log and state, hiding real always-on problems<br>
+<b>PR:</b> #80, branch <code>issue-78-test-log-isolation</code>, head <code>223c563</code><br>
+<b>QA date:</b> 2026-09-24<br>
+<b>Method:</b> independent diff review (<code>gh pr diff 80</code>) against each acceptance criterion,
+build + full test suite run by QA in the worktree, read-only inspection of the per-run test log and of
+the owner's live log. Per owner rule, no app/CLI launch, no REST call, no smoke. The required Codex
+re-review (PR #80 comment "Codex re-review verdict", head 0cedae9) reports no blocking defects; its
+one non-blocking note is documented in the guard's "WHAT THEY DO NOT CLAIM" list (commit 223c563).</p>
+
+<h2>Gate (run by QA)</h2>
+<pre>dotnet build AgentEyes.sln -c Release
+    19 Warning(s)
+    0 Error(s)
+
+dotnet test AgentEyes.sln -c Release   (started 12:26:51, finished 12:28:12)
+Passed!  - Failed:     0, Passed:  1745, Skipped:     0, Total:  1745, Duration: 55 s - AgentEyes.Tests.dll (net8.0)</pre>
+
+<h2>Runtime evidence from QA's own test run (read-only file inspection)</h2>
+<pre>Per-run folder: %TEMP%\agenteyes-tests\run-20260924-122716-4956   (testhost pid 4956)
+Per-run log:    ...\LocalAppData\AgentEyes\logs\AgentEyes-20260924.log
+  total lines: 5008   lines carrying "[pid 4956]": 5008   lines WITHOUT "[pid 4956]": 0
+  12:27:16.816 [pid 4956] [INFO] [TestRunIsolation] RedirectEverything: run=C:\Users\soren\AppData\Local\Temp\agenteyes-tests\run-20260924-122716-4956
+  12:28:05.322 [pid 4956] [INFO] [TestIsolationTests] marker 7095bc126aac4ce8bf4763138b9571c9
+
+Live log %LOCALAPPDATA%\AgentEyes\logs\AgentEyes-20260924.log, window 12:26:00-12:29:00:
+  only the installed app's own lines (always-on join, tray/main window refresh, AlwaysOnEngine levels
+  at 12:26:19, 12:27:19, 12:28:19 - the always-on engine kept ticking through the run).
+  test-shaped hits (setup="test" | fake ffmpeg | stop-throws | then-retry | abandon-report |
+  agenteyes-tests | TestIsolation | agenteyes-alwayson-) in that window: 0</pre>
+<p>Three arms: expected = run lines in the per-run log and none in the live log (observed); bad = any
+test-shaped line in the live log (0 found); empty = a per-run log with no lines would mean the
+instrument saw nothing - it holds 5008 lines including the redirect line and the marker, so the
+instrument is live. The live log also shows real app lines in the same window, so the zero is not
+from reading a dead file.</p>
+
+<h2>Acceptance criteria</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>What the code does (evidence)</th><th>Result</th></tr>
+<tr><td>1</td><td>During dotnet test all logging goes to a per-run test dir, never the real logs; a test asserts it</td>
+<td>Log.Dir resolves under a per-run %TEMP% folder in the test host; asserting test exists</td>
+<td><code>src/AgentEyes.Core/Log.cs:32</code> Log.Dir = AppDataPaths.Root\logs; <code>src/AgentEyes.Core/AppDataPaths.cs:137-159</code> fail-closed redirect;
+<code>tests/AgentEyes.Tests/TestRunIsolation.cs:60-78</code> [ModuleInitializer] redirects to %TEMP%\agenteyes-tests\run-&lt;stamp&gt;-&lt;pid&gt;;
+<code>tests/AgentEyes.Tests/TestIsolationTests.cs:98-114</code> asserts redirect, path under run folder and not the real root, and that a marker line lands in the file. Confirmed at runtime above (5008 lines in per-run log, 0 test lines in live log).</td>
+<td class="pass">PASS</td></tr>
+<tr><td>2</td><td>No test reads/writes the real %LOCALAPPDATA%\AgentEyes; guard test</td>
+<td>All state paths route through the redirectable root; guard that fails on a new direct lookup</td>
+<td>Every former GetFolderPath(LocalApplicationData/MyVideos) state path replaced (Config, PresetStore, Plugins, AlwaysOnOptions, RnnoiseModel, DevThrottleAccount, LocalAppConfig, ModelStore, PreviewPaths, RecordingPaths, StorageMigration, DictionaryStore). QA grep of src/ and tools/ finds GetFolderPath only in AppDataPaths.cs:37,55, InstallLayout.cs:33 (after AGENTEYES_ROOT, set by the test host), InstallFinalizer shortcut paths, and SetupLog.cs (setup wizard, not referenced by tests).
+Guards: <code>TestIsolationTests.cs:188-219</code> (16 locations), <code>:269-296</code> IL inventory of GetFolderPath across 4 assemblies with compiled decoys, <code>:314-330</code> pins readers of the never-redirected MachineLocalAppData, <code>:332-364</code> env-var / Expand / P-Invoke routes. HKCU writes moved behind IUserEnvironment (<code>tools/AgentEyes.Setup.Engine/UserEnvironment.cs</code>, <code>InstallFinalizer.cs:368</code>), SetupEngineTests now use the in-memory store. Mutation evidence committed (<code>mutation-evidence.txt</code>, M1-M5 each fires). Limits stated in the class comment (reflection, runtime-assembled strings, out-of-process children, setup wizard/CLI).</td>
+<td class="pass">PASS</td></tr>
+<tr><td>3</td><td>Each log line includes the process id</td>
+<td><code>[pid N]</code> on every physical line</td>
+<td><code>Log.cs:249-254</code> FormatLine prefixes every CRLF/LF/CR-split line with timestamp, pid, level; tests <code>TestIsolationTests.cs:118-184</code> (file round trip, two-process, multiline, exception stack). Runtime: 5008/5008 lines of QA's per-run log carry [pid 4956].</td>
+<td class="pass">PASS</td></tr>
+<tr><td>4</td><td>Investigate and state in the PR whether a test run can disturb a running app; fix anything found</td>
+<td>Investigation table in the PR; fixes for findings</td>
+<td>PR #80 body section "Can a test run disturb a running AgentEyes? (criterion 4)" covers log, LocalAppData state, Videos, HKCU env var (fixed), named pipes, process kills, mutex/port/listener, and the unestablished 09:01:45 stall (stated, not claimed). QA spot-checked: pipe name includes the pid (<code>src/AgentEyes.Core/AlwaysOn/ContinuousRecorder.cs:115</code>); by-name process queries exist only in <code>tools/AgentEyes.Setup.Engine/RunningApp.cs</code> and tests call only the injected-provider overloads (<code>tests/AgentEyes.Tests/RunningAppTests.cs:46-92</code>).</td>
+<td class="pass">PASS</td></tr>
+<tr><td>5</td><td>Full suite while the installed app runs always-on: no test lines in the app log, always-on uninterrupted (GET /always-on before/after)</td>
+<td>Two /always-on responses showing uninterrupted state; app log clean</td>
+<td>Log half observed by QA (0 test lines in the live log during a 1745-test run; AlwaysOnEngine level ticks continued at 12:26:19/12:27:19/12:28:19). The GET /always-on before/after cannot be done in this session (owner rule: no live REST calls).</td>
+<td class="pend">PENDING TESTER</td></tr>
+<tr><td>6</td><td>dotnet build clean, dotnet test green</td>
+<td>0 Error(s); Failed: 0</td>
+<td>QA run: 0 Error(s); Passed 1745, Failed 0.</td>
+<td class="pass">PASS</td></tr>
+</table>
+
+<h2>Review findings</h2>
+<ul>
+<li>No product behaviour change: the redirect is never called by product code (only TestRunIsolation calls RedirectForThisProcess).</li>
+<li>Fail-closed ordering: a path resolved before the redirect makes the module initializer throw, failing every test rather than running against real folders.</li>
+<li>Log format change: new shape <code>HH:mm:ss.fff [pid N] [LEVEL] message</code>; nothing in the repo parses the old shape (QA grep of src, tools, scripts, clients, plugins for [INFO]/[WARN]/[ERROR], Log.CurrentFile, Log.Dir: only path displays in App.xaml.cs/UpdateChecker.cs and SelfTest's work folder, no line parser).</li>
+<li>Pruning of old run folders only deletes names that parse as <code>run-yyyyMMdd-HHmmss-pid</code> older than 2 days (enumerates what to delete).</li>
+<li>Repo coding standards: ASCII only, logging on the new public entry points, no fallbacks added; try/catch in PruneOldRuns is narrow (IO/Unauthorized) and logged.</li>
+<li>Non-blocking: the env-var scan does not cover the test assembly (documented limit).</li>
+</ul>
+
+<p><b>VERIFIED - acceptance criteria 1, 2, 3, 4 and 6 met by review and QA's own test run. Criterion 5's live GET /always-on check is pending the tester session after merge, per owner rule.</b></p>
+</body>
+</html>

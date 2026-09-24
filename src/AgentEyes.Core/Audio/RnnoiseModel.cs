@@ -20,9 +20,7 @@ namespace AgentEyes.Audio
         {
             if (_cache != null && File.Exists(_cache)) return _cache;
 
-            string dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "AgentEyes", "models");
+            string dir = Path.Combine(AppDataPaths.Root, "models");
             string path = Path.Combine(dir, "bd.rnnn");
 
             using var src = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName)

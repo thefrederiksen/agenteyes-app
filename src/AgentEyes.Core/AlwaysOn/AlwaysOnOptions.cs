@@ -70,8 +70,7 @@ namespace AgentEyes.AlwaysOn
 
         public static string DefaultClipsFolder => Path.Combine(RecordingPaths.Root, "AlwaysOn");
 
-        public static string DefaultWorkFolder => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "alwayson");
+        public static string DefaultWorkFolder => Path.Combine(AppDataPaths.Root, "alwayson");
 
         public override string ToString() =>
             $"setup=\"{SetupName}\" capture={Capture} mic={(DshowMic ?? "(none)")} system={RecordSystem} "

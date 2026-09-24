@@ -135,8 +135,7 @@ namespace AgentEyes.App
     /// <summary>Loads/saves presets to %LOCALAPPDATA%\AgentEyes\presets.json and seeds a "Default" on first run.</summary>
     internal static class PresetStore
     {
-        private static readonly string FilePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "presets.json");
+        private static string FilePath => Path.Combine(AgentEyes.AppDataPaths.Root, "presets.json");
         private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
         public static List<CapturePreset> Load()

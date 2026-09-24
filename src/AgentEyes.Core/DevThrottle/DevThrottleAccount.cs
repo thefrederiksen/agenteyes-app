@@ -44,9 +44,7 @@ namespace AgentEyes.DevThrottle
             "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tcHVqcGZyZ2xncXZxcHJpbHhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MTQ4OTksImV4cCI6MjA5NzE5MDg5OX0." +
             "YKq4AK2af5O0HbI9Q6ujaFrvRbLDeY8HSn-OdK6RAgo";
 
-        private static string CredPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "AgentEyes", "devthrottle.cred");
+        private static string CredPath => Path.Combine(AppDataPaths.Root, "devthrottle.cred");
 
         /// <summary>True when a credential with a non-empty dt_ key is stored.</summary>
         public static bool IsSignedIn => Load()?.ApiKey is { Length: > 0 };

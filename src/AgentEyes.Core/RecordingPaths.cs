@@ -6,8 +6,7 @@ namespace AgentEyes
     /// <summary>Where recordings live and how new per-session folders are named. Shared by all callers.</summary>
     internal static class RecordingPaths
     {
-        public static string Root =>
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "AgentEyes");
+        public static string Root => AppDataPaths.RecordingsRoot;
 
         public static string NewDir(string mode, string? label)
         {

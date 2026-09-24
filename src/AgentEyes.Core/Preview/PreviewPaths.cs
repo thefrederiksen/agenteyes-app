@@ -21,8 +21,7 @@ namespace AgentEyes.Preview
         public const string CameraTrack = "camera";
 
         /// <summary>%LOCALAPPDATA%\AgentEyes\preview</summary>
-        public static string Dir => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentEyes", "preview");
+        public static string Dir => Path.Combine(AppDataPaths.Root, "preview");
 
         /// <summary>The published frame for one track ("screen", "camera").</summary>
         public static string Frame(string track)

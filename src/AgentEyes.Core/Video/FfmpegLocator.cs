@@ -46,9 +46,8 @@ namespace AgentEyes.Video
             }
 
             // 3) common winget install location
-            string winget = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Microsoft", "WinGet", "Packages");
+            //    (a tool location, not AgentEyes state - so the machine's real folder, never redirected)
+            string winget = Path.Combine(AppDataPaths.MachineLocalAppData, "Microsoft", "WinGet", "Packages");
             if (Directory.Exists(winget))
             {
                 foreach (string match in Directory.GetFiles(winget, tool + ".exe", SearchOption.AllDirectories))
