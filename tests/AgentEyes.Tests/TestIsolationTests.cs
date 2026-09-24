@@ -69,6 +69,9 @@ namespace AgentEyes.Tests
     ///    not seen.
     ///  - Path.GetTempPath() is %LOCALAPPDATA%\Temp on a default Windows profile. Temp is not AgentEyes
     ///    state and is where every test's scratch folder lives; only %LOCALAPPDATA%\AgentEyes is guarded.
+    ///  - The environment-variable and ExpandEnvironmentVariables scans cover the three PRODUCT
+    ///    assemblies only, not this test assembly; a test reading LOCALAPPDATA that way is not seen
+    ///    (none does today - GetFolderPath in tests IS pinned, above).
     ///  - Out-of-process children (ffmpeg, powershell) are not scanned; none of them is given an
     ///    AgentEyes state path by a test.
     ///  - The setup WIZARD and setup CLI (AgentEyes.Setup, AgentEyes.Setup.Cli) are not referenced by
