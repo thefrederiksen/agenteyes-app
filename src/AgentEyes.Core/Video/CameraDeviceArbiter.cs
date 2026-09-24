@@ -73,6 +73,17 @@ namespace AgentEyes.Video
             Log.Info($"[CameraDeviceArbiter] Register: {HolderCount} camera holder(s) registered");
         }
 
+        /// <summary>
+        /// Whether THIS holder is currently registered - i.e. will be asked on the next recording start.
+        /// The question a holder's owner (and a test) actually has; <see cref="HolderCount"/> answers a
+        /// process-wide one that moves whenever any other editor opens or closes (issue #84).
+        /// </summary>
+        public static bool IsRegistered(Func<string, bool> holder)
+        {
+            if (holder == null) throw new ArgumentNullException(nameof(holder));
+            lock (Gate) { return Holders.Contains(holder); }
+        }
+
         /// <summary>Stop asking this holder to release (its owner is gone).</summary>
         public static void Unregister(Func<string, bool> holder)
         {

@@ -129,6 +129,31 @@ namespace AgentEyes.App
         public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
         /// <summary>
+        /// True while an open started by <see cref="Select"/> has not finished - between the factory
+        /// being asked for a session and that session being PUBLISHED here (or, when the selection
+        /// moved on meanwhile, released through the "superseded while opening" door).
+        ///
+        /// Observable ON PURPOSE, like <see cref="IsDisposed"/> (issue #84). A test that has seen the
+        /// factory hand a session out has seen it one step UPSTREAM of this controller: for the next
+        /// few instructions the session exists and is not yet published, and a stop issued in that
+        /// gap is correctly answered "nothing was held" while the open itself releases what it made.
+        /// Both answers are right; they are different, and a test asserting on one of them must know
+        /// which door it is at. This is the same fact <see cref="StopSession"/> waits on.
+        /// </summary>
+        public bool OpenInFlight
+        {
+            get { lock (_gate) { return _opening != null && !_opening.IsCompleted; } }
+        }
+
+        /// <summary>
+        /// True while this controller is one of the holders a recording start asks to release: from
+        /// construction until a Dispose (or a later release) that ESTABLISHED the camera free. Asked of
+        /// the arbiter by identity, so it is unaffected by every other editor opening or closing
+        /// (issue #84) - the process-wide <c>CameraDeviceArbiter.HolderCount</c> is not.
+        /// </summary>
+        public bool IsRegisteredWithArbiter => CameraDeviceArbiter.IsRegistered(_releaseForRecording);
+
+        /// <summary>
         /// The size of the frames the CAMERA is producing, as ffmpeg reported them, or null when no
         /// session is running or ffmpeg has not said yet (issue #36).
         ///
@@ -233,7 +258,7 @@ namespace AgentEyes.App
             {
                 // The disposal flag is written under this same lock, so a Dispose that has begun
                 // cannot be overtaken here: either it has not started (and Dispose will wait on the
-                // task queued below) or it has, and nothing is queued at all.
+                // open started below) or it has, and nothing is started at all.
                 if (Volatile.Read(ref _disposed) != 0)
                 {
                     Log.Error("[CameraPreviewController] Select REFUSED: the controller was disposed while the " +
@@ -245,11 +270,39 @@ namespace AgentEyes.App
                 _generation = token;
                 DeviceName = wanted;
                 // Opening a camera launches a process; the dialog must not wait for it (standard 1).
-                // Queued INSIDE the lock so _opening is never observed as "nothing is opening" while
+                // Started INSIDE the lock so _opening is never observed as "nothing is opening" while
                 // an open is already on its way to holding the device.
-                _opening = Task.Run(() => OpenSession(token, wanted));
+                //
+                // ON ITS OWN THREAD, NOT THE THREAD POOL (issue #84). The open launches ffmpeg and
+                // blocks on it, and StopSession waits at most OpenWaitMs for it - so it has to START
+                // the moment it is asked for. A pool work item does not: it waits behind whatever else
+                // this process has queued, and this app queues plenty (the always-on engine, the
+                // post-recording queue, the preview feed). Under that load an open sat unscheduled for
+                // more than five seconds, and a stop then reported "the camera may still be held" about
+                // a camera nothing had even begun to open - a scheduling delay read as a device state,
+                // the same shape as issue #35, defect 3. The same starvation is what made
+                // CameraPreviewTests fail at random under the parallel suite. A dedicated thread runs
+                // as soon as the OS schedules it, whatever the pool is doing. _opening stays a Task
+                // because the stop path waits on it; the thread completes it when the open has landed.
+                var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var opener = new Thread(() => OpenSession(token, wanted, finished))
+                {
+                    IsBackground = true,
+                    Name = "AgentEyes camera preview open",
+                };
+
+                // "Starting" is announced BEFORE the thread starts - so before anything the open itself
+                // can announce. Announced after Start(), a factory that fails at once (ffmpeg missing)
+                // had its Failed buried under this Starting: a pane saying "Starting camera..." for ever
+                // over a dead camera, and HoldsCamera true on it. A pre-existing race that a thread
+                // starting immediately made likelier (issue #84, review). The subscriber is the editor's
+                // Dispatcher.BeginInvoke, so raising it under the gate blocks nothing; and _opening is
+                // set only once the announcement is out, so a subscriber that threw could not leave an
+                // open on record that no thread will ever complete.
+                Announce(CameraPreviewState.Starting, StartingStatus);
+                _opening = finished.Task;
+                opener.Start();
             }
-            Announce(CameraPreviewState.Starting, StartingStatus);
         }
 
         /// <summary>
@@ -304,9 +357,9 @@ namespace AgentEyes.App
             return release.AnythingReleased;
         }
 
-        private void OpenSession(object token, string deviceName)
+        private void OpenSession(object token, string deviceName, TaskCompletionSource<bool> finished)
         {
-            // Task body: its own stack, so it catches (standard 4). A camera that will not open is a
+            // Thread body: its own stack, so it catches (standard 4). A camera that will not open is a
             // message on the pane naming the device, not a crash and not a silent blank pane.
             try
             {
@@ -330,14 +383,25 @@ namespace AgentEyes.App
             catch (Exception ex)
             {
                 Log.Error($"[CameraPreviewController] OpenSession FAILED for \"{deviceName}\"", ex);
-                OnFailed(token, $"The camera \"{deviceName}\" could not be previewed: {ex.Message}");
+                // On a DEDICATED thread nothing may leave this method: an exception escaping here ends
+                // the process, where a faulted Task was merely unobserved (issue #84, review). The one
+                // thing left that can throw is reporting the failure - a StateChanged subscriber - so
+                // that is logged rather than let out.
+                try { OnFailed(token, $"The camera \"{deviceName}\" could not be previewed: {ex.Message}"); }
+                catch (Exception reporting)
+                {
+                    Log.Error($"[CameraPreviewController] OpenSession: reporting the failed open of \"{deviceName}\" itself threw", reporting);
+                }
             }
             finally
             {
                 // Whatever happened, this open is no longer on its way to the device: either it
                 // published a session, or it released/retained the one it made, or it never made one.
-                // Only now may a stop that timed out on this task stop saying "something may be held".
+                // Only now may a stop that timed out on this open stop saying "something may be held".
                 Interlocked.Exchange(ref _unresolvedOpens, 0);
+                // Completed LAST: a stop that sees this open finish must also see the flag above
+                // already cleared, exactly as it did when the open was a Task's own body.
+                finished.TrySetResult(true);
             }
         }
 

@@ -1,0 +1,27 @@
+test-loop: 7 run(s) numbered 1..7 of dotnet test AgentEyes.sln -c Release, each a fresh test-host process
+test-loop: repo=C:\ReposFred\agenteyes-app-wt-84
+test-loop: started 2026-09-24 18:01:37
+test-loop: building once (dotnet build AgentEyes.sln -c Release)
+  Build succeeded.
+  0 Error(s)
+run  1/7: Passed!  - Failed:     0, Passed:  1917, Skipped:     0, Total:  1917, Duration: 40 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-180142-3992
+run  2/7: Passed!  - Failed:     0, Passed:  1917, Skipped:     0, Total:  1917, Duration: 47 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-180225-24216
+run  3/7: Passed!  - Failed:     0, Passed:  1917, Skipped:     0, Total:  1917, Duration: 42 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-180317-18776
+run  4/7: Passed!  - Failed:     0, Passed:  1917, Skipped:     0, Total:  1917, Duration: 55 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-180402-468
+run  5/7: Passed!  - Failed:     0, Passed:  1917, Skipped:     0, Total:  1917, Duration: 47 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-180501-8464
+run  6/7: Passed!  - Failed:     0, Passed:  1917, Skipped:     0, Total:  1917, Duration: 51 s - AgentEyes.Tests.dll (net8.0)
+           test-host run folder(s): run-20260924-180552-11636
+run  7/7: Failed!  - Failed:     1, Passed:  1916, Skipped:     0, Total:  1917, Duration: 53 s - AgentEyes.Tests.dll (net8.0) (exit 1)
+           Failed AgentEyes.Tests.CameraPreviewTests.Dispose_WhileTheCameraIsStillBeingReleased_KeepsTheHolderRegistered [30 s]
+               Assert.Equal() Failure: Values differ
+               Expected: 1
+               Actual:   2
+               at AgentEyes.Tests.CameraPreviewTests.Dispose_WhileTheCameraIsStillBeingReleased_KeepsTheHolderRegistered() in C:\ReposFred\agenteyes-app-wt-84\tests\AgentEyes.Tests\CameraPreviewTests.cs:line 524
+           test-host run folder(s): run-20260924-180646-12832
+test-loop: finished 2026-09-24 18:07:40
+test-loop: RESULT 6 of 7 run(s) passed, 1 failed

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="us-ascii">
+<title>QA report - issue #84</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #222; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; }
+th { background: #eee; }
+code, pre { font-family: Consolas, monospace; font-size: 13px; }
+pre { background: #f6f6f6; border: 1px solid #ddd; padding: 8px; overflow-x: auto; }
+.pass { color: #0a6b0a; font-weight: bold; }
+.note { background: #fff8e1; border: 1px solid #e0c060; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>QA report - issue #84: CameraPreviewTests fail at random on a first run and can fail a release</h1>
+<p>PR #89, branch <code>issue-84-camera-preview-flake</code>, HEAD <code>63d363a</code> (equal to <code>origin/issue-84-camera-preview-flake</code>, tree clean).
+Verified 2026-09-24 in the separate worktree <code>C:\ReposFred\agenteyes-app-wt-84</code>. Tracker: thefrederiksen/agenteyes-app.</p>
+
+<p><span class="pass">VERIFIED - all acceptance criteria met.</span> 4 of 4 criteria verified by QA itself; 0 pending a tester (no criterion needs the running app).</p>
+
+<h2>1. What QA ran (nothing taken from the developer's report)</h2>
+<ul>
+<li><code>git fetch origin &amp;&amp; git status</code>: HEAD 63d363a, up to date with origin, working tree clean.</li>
+<li><code>dotnet build AgentEyes.sln -c Release</code>: <code>Build succeeded.</code> 20 Warning(s) (pre-existing, none in the touched files), <code>0 Error(s)</code>.</li>
+<li><code>dotnet test AgentEyes.sln -c Release --no-build</code>: <code>Passed! - Failed: 0, Passed: 1917, Skipped: 0, Total: 1917, Duration: 52 s</code>.</li>
+<li>Two QA mutations against the new guards (section 4), each run twice, each restored and confirmed identical to HEAD by <code>git diff --exit-code HEAD</code>.</li>
+<li>The PR's <code>scripts/test-loop.ps1</code>: 21 consecutive <code>dotnet test</code> runs, each a fresh test-host process, in three invocations (runs 1-7 with a fresh build of the restored tree, 8-14, 15-21) because one call is capped at ten minutes in this session. Output: <code>docs/cencon/proof/issue-84/qa-test-loop-20-runs.txt</code>.</li>
+<li>Presence checks over the loop file and the binaries (section 3), so the loop cannot pass on an absence.</li>
+<li>NOT run, per the owner's brief: AgentEyesApp.exe, agenteyes.exe, any smoke, selftest, install, release, tag, UIA, screenshots.</li>
+</ul>
+
+<h2>2. Acceptance criteria - Expected vs Actual</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>Actual (what the code does / what QA observed)</th><th>Evidence</th><th>Result</th></tr>
+<tr><td>1</td><td>Root cause stated in the PR</td>
+<td>A stated cause (timing, shared static state, JIT, device...) that the diff supports.</td>
+<td>The PR states four links: (1) the open was a <code>Task.Run</code> work item starved by the parallel suite past WaitForSession's 5 s; (2) the aborted test's surviving fake was retained for ever in the process-global <code>CameraDeviceArbiter.StrandedPreviews</code> (Pid 24512), failing every later test expecting it empty; (3) the factory-to-publication gap; (4) a parallel class (<code>PresetEditorFitsWithoutScrollingTests</code>) moving the process-wide holder count. The diff matches each: the open now runs on a dedicated background thread with a <code>TaskCompletionSource</code> keeping <code>_opening</code> a Task; <code>FakeCameraFactory</code> is IDisposable and its teardown makes leaked fakes killable and calls <code>ReleaseForRecording</code>, which runs <code>StrandedPreviews.Recover()</code>; <code>OpenInFlight</code> plus a two-part <code>WaitForSession</code> close the gap; <code>IsRegistered(holder)</code> by identity replaces every <code>HolderCount</code> assertion. <code>PresetEditor</code>'s constructor does create a registering controller (PresetEditor.xaml.cs:141). QA mutation M2 reproduces the exact three-test / Pid 24512 signature; M1 fails the thread test.</td>
+<td>CameraPreviewController.cs:288-304 (thread, Announce before Start, <code>_opening = finished.Task</code>), :143 (<code>OpenInFlight</code>), :154 (<code>IsRegisteredWithArbiter</code>), :390 (guarded failure report), :404 (<code>TrySetResult</code> last in finally); CameraDeviceArbiter.cs:81 (<code>IsRegistered</code>), :107-113 (<code>ReleaseForRecording</code> -> <code>Recover()</code>); CameraPreviewTests.cs:919-978 (<code>FakeCameraFactory : IDisposable</code>, Dispose calls the arbiter), :823-832 (<code>WaitForSession</code> requires <code>!preview.OpenInFlight</code>); qa-mutation-evidence.txt</td>
+<td class="pass">PASS</td></tr>
+<tr><td>2</td><td>CameraPreviewTests pass 20 consecutive full-suite runs, fresh process each, script output in the PR</td>
+<td>20 consecutive fresh-process full-suite runs in which CameraPreviewTests pass; the output committed.</td>
+<td>QA's own loop: 21 runs, 21 distinct test-host pids (4572, 8460, 18908, 1508, 28596, 16140, 25124, 14288, 14108, 7732, 16012, 21392, 28104, 27388, 15756, 9192, 28232, 15776, 4584, 27244, 3580), 1917 tests each. CameraPreviewTests failures quoted: 0 of 21 runs. Runs 2-21: 20 consecutive runs <code>Passed! - Failed: 0, Passed: 1917</code>. Run 1: <code>Failed: 1, Passed: 1916</code> - the one failure is <code>PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn</code>, outside this issue's scope (section 5). The developer's committed 20-run file is consistent with this (20 of 20, 20 distinct pids) but was not relied on.</td>
+<td>qa-test-loop-20-runs.txt (3 x <code>RESULT</code> lines: 6 of 7, 7 of 7, 7 of 7); counts in section 3</td>
+<td class="pass">PASS</td></tr>
+<tr><td>3</td><td>No test skipped, retried-until-green, or given a longer timeout as the fix</td>
+<td>No <code>Skip</code>, no retry loop, no raised timeout in the diff.</td>
+<td><code>WaitForSession</code> still spins to 5000 ms and still throws on a timeout (the added condition <code>!preview.OpenInFlight</code> makes it stricter, not longer). The tests diff adds 0 lines matching <code>Skip</code> or <code>Retry</code>. <code>SpinUntil</code> bounds in the touched tests are 5000 / 15000 as before. The 20-round test <code>Select_WhoseCameraFailsToOpenAtOnce_...</code> asserts the end state in every round - a repetition that can only make the test stricter, not a retry-until-green. Total tests 1884 -> 1917 (33 -> 37 in this class, +1 in TestIsolationTests, none removed).</td>
+<td>CameraPreviewTests.cs:823-832, :771-790; grep of the tests diff for <code>Skip|Retry</code>: 0 hits</td>
+<td class="pass">PASS</td></tr>
+<tr><td>4</td><td><code>dotnet build</code> clean, <code>dotnet test</code> green</td>
+<td><code>Build succeeded.</code> <code>0 Error(s)</code>; <code>Failed: 0</code>.</td>
+<td><code>Build succeeded. 0 Error(s)</code> (QA's build in the worktree). <code>Passed! - Failed: 0, Passed: 1917, Skipped: 0, Total: 1917</code> (QA's single run), plus runs 2-21 of the loop.</td>
+<td>section 1; qa-test-loop-20-runs.txt</td>
+<td class="pass">PASS</td></tr>
+</table>
+
+<h2>3. Fail-closed presence checks over the loop proof</h2>
+<pre>
+run lines: 21
+Passed! runs: 20
+Failed! runs: 1
+CameraPreviewTests failures quoted: 0
+other failures quoted:
+           Failed AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [3 s]
+distinct test-host pids: 21
+RESULT lines:
+test-loop: RESULT 6 of 7 run(s) passed, 1 failed
+test-loop: RESULT 7 of 7 run(s) passed, 0 failed
+test-loop: RESULT 7 of 7 run(s) passed, 0 failed
+CameraPreviewTests present in the tested binaries (dotnet test --list-tests --filter FullyQualifiedName~CameraPreviewTests): 37
+</pre>
+<p>The three arms: a run line saying <code>Passed!</code> with 1917 tests is a pass; a quoted <code>Failed AgentEyes.Tests.CameraPreviewTests.*</code> line would be this issue's defect; a run with no result line is counted by the script as a failure, never a pass - none occurred.</p>
+
+<h2>4. QA mutations (the new guards shown to fire)</h2>
+<p>Full quoted output in <code>qa-mutation-evidence.txt</code>. Each mutation: build, CameraPreviewTests twice, restore, <code>git diff --exit-code HEAD</code> identical.</p>
+<table>
+<tr><th>Mutation</th><th>Expected</th><th>Actual (both runs)</th></tr>
+<tr><td>QA-M2: <code>FakeCameraFactory.Dispose</code> body disabled (<code>return;</code> first)</td><td>The teardown test fails and the aborted-test cascade returns.</td><td><code>Failed: 3, Passed: 34, Total: 37</code> - <code>Teardown_ASurvivingSession...</code> (Assert.False), <code>Dispose_WithACleanStop_...</code> and <code>Dispose_WhoseCameraSurvivesTheStop_...</code> both <code>Assert.DoesNotContain() Failure ... Pid = 24512</code>. This is the issue's wild signature, reproduced deterministically.</td></tr>
+<tr><td>QA-M1: <code>opener.Start()</code> replaced by <code>Task.Run(() =&gt; OpenSession(...))</code> (open back on the pool)</td><td>The thread test fails.</td><td><code>Failed: 1, Passed: 36, Total: 37</code> - <code>Select_OpensTheCameraOnItsOwnBackgroundThread_NotTheThreadPool</code>: "the camera open ran as a thread-pool work item".</td></tr>
+</table>
+
+<h2>5. Out-of-scope observation (reported, not a defect of this issue)</h2>
+<div class="note">
+<p>QA loop run 1 (test-host pid 4572, <code>run-20260924-184808-4572</code>): <code>PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [3 s]</code> failed with
+<code>System.UnauthorizedAccessException : Access to the path 'screen.jpg' is denied. at AgentEyes.Tests.PreviewTapTests.Dispose() in tests\AgentEyes.Tests\PreviewTapTests.cs:line 35</code>.</p>
+<p>What the code shows: the class fixture (PreviewTapTests.cs:33-36) deletes the per-test temp directory recursively and catches only <code>IOException</code>; the test's last line (PreviewTapTests.cs:548) is <code>stalled.Set()</code>, which releases the deliberately wedged publisher thread, so it can still be writing <code>screen.jpg</code> while the fixture deletes the directory, and an <code>UnauthorizedAccessException</code> escapes the catch. The run-1 log shows the wedged tap's 3000 ms Dispose timeout at 18:48:16.518 immediately before. Neither <code>PreviewTapTests</code> nor <code>PreviewTap</code> is touched by PR #89 (no PreviewTap file in the diff). The test passed in the other 20 runs. This is a pre-existing test-fixture race in another area; the issue's criterion 2 is about CameraPreviewTests, which passed in all 21 runs, and runs 2-21 are 20 consecutive fully green runs. Recommend a separate <code>[Tests]</code> issue for the PreviewTapTests fixture.</p>
+</div>
+
+<h2>6. Review notes</h2>
+<ul>
+<li>Coding standards: the dedicated thread is <code>IsBackground = true</code> and named; the thread body catches at its entry point and guards the failure report so nothing escapes a raw thread (standard 4); logging at entry/failure kept; no fallbacks added; ASCII only (no non-ASCII in the diff); no banned attribution strings in the diff or commit messages.</li>
+<li>The product change is defensible as a product fix as well: a stop waiting on an open that was never scheduled had been reading a queue delay as a device state.</li>
+<li>Second, related fix (shared-log reader through <code>TestRunIsolation.ReadLog</code>, TestRunIsolation.cs:73-76, regression test TestIsolationTests.cs:428) is outside the issue's IN scope, small, tested with a known-bad arm (HResult 0x80070020), and acknowledged in the PR; accepted per the code review's note (a).</li>
+<li>Code review verdict on PR #89 (no blocking defects; notes (a)-(e)) accepted as posted; not re-litigated.</li>
+<li>CenCon: no component-map or privacy-posture change.</li>
+</ul>
+
+<h2>7. Stated limits of this verification</h2>
+<ul>
+<li>One machine (the developer's and QA's runs are on the same host); <code>release.yml</code>'s runner has not run this tree. The mechanism is scheduling, so a slower runner would have failed the old code more, not the new code, but that is inference, not observation.</li>
+<li>No real camera was opened (forbidden for this issue and needed by no criterion); the dedicated thread and <code>OpenInFlight</code> are proven with the fake session only.</li>
+<li>The M5 race (Failed buried under Starting) was not re-forced by QA; the fix is by construction and the 20-round test pins the end state.</li>
+</ul>
+
+<h2>8. Files</h2>
+<ul>
+<li><code>docs/cencon/proof/issue-84/qa-report.html</code> - this report</li>
+<li><code>docs/cencon/proof/issue-84/qa-test-loop-20-runs.txt</code> - QA's own 21-run loop output (the proof for criterion 2)</li>
+<li><code>docs/cencon/proof/issue-84/qa-mutation-evidence.txt</code> - QA's mutations M1 and M2</li>
+<li>Developer's files (context, not relied on): handoff.md, test-loop-20-runs.txt, mutation-evidence.txt, the three attempt files</li>
+</ul>
+</body>
+</html>

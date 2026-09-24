@@ -110,7 +110,7 @@ namespace AgentEyes.Tests
             // And a line said now really lands in that file - the path is not just a string.
             string marker = "[TestIsolationTests] marker " + Guid.NewGuid().ToString("N");
             Log.Info(marker);
-            Assert.Contains(marker, ReadShared(Log.CurrentFile));
+            Assert.Contains(marker, TestRunIsolation.ReadShared(Log.CurrentFile));
         }
 
         // ---- criterion 3: the process id on every line ----------------------------------------
@@ -121,7 +121,7 @@ namespace AgentEyes.Tests
             string marker = "[TestIsolationTests] pid marker " + Guid.NewGuid().ToString("N");
             Log.Warn(marker);
 
-            string line = ReadShared(Log.CurrentFile)
+            string line = TestRunIsolation.ReadShared(Log.CurrentFile)
                 .Split(new[] { "\r\n", "\n" }, StringSplitOptions.None)
                 .Single(l => l.EndsWith(marker, StringComparison.Ordinal));
             var m = Regex.Match(line, @"^\d\d:\d\d:\d\d\.\d{3} \[pid (\d+)\] \[WARN\] ");
@@ -170,7 +170,7 @@ namespace AgentEyes.Tests
             // The entry's physical lines: the message line, the exception line, then each "   at ..."
             // frame. Taken WITHOUT requiring the pid, so a continuation line that lost it is still
             // collected - and then reported below.
-            var lines = ReadShared(Log.CurrentFile).Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            var lines = TestRunIsolation.ReadShared(Log.CurrentFile).Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
             int first = Array.FindIndex(lines, l => l.EndsWith("[ERROR] " + marker, StringComparison.Ordinal));
             Assert.True(first >= 0, "the entry's first line was not found in the log");
             var entry = lines.Skip(first).TakeWhile((l, i) => i < 2 || l.Contains("   at ", StringComparison.Ordinal)).ToList();
@@ -422,14 +422,44 @@ namespace AgentEyes.Tests
             Assert.Null(TestRunIsolation.RunStamp(""));
         }
 
-        // ---- helpers ---------------------------------------------------------------------------
+        // ---- issue #84, second fix: reading the shared log must not collide with its writer -------
 
-        private static string ReadShared(string path)
+        [Fact]
+        public void ReadShared_WhileTheLoggerHoldsTheFileForAppend_Reads_WhereReadAllTextIsRefused()
         {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(stream);
-            return reader.ReadToEnd();
+            // The writer's handle is opened exactly as Log.Write opens it: File.AppendAllText is a
+            // StreamWriter(path, append: true), i.e. Write access sharing Read only. KNOWN-BAD FIRST,
+            // so the sharing mode is seen to matter: the plain reader is refused while that handle is
+            // open. Then the shared reader on the same file, at the same moment, reads both lines.
+            // A probe file, not the run log - holding the real log open with Read sharing would lock
+            // every other test's Log.Write out for the duration, which is the very defect at issue.
+            string path = Path.Combine(TestRunIsolation.RunRoot, "read-shared-probe-" + Guid.NewGuid().ToString("N") + ".log");
+            File.WriteAllText(path, "first line" + Environment.NewLine);
+            using (var appending = new StreamWriter(path, append: true))
+            {
+                appending.Write("second line");
+                appending.Flush();
+
+                var refused = Assert.Throws<IOException>(() => File.ReadAllText(path));
+                // ERROR_SHARING_VIOLATION by code, not by the message: the text is localized Windows.
+                Assert.Equal(unchecked((int)0x80070020), refused.HResult);
+
+                string text = TestRunIsolation.ReadShared(path);
+                Assert.Contains("first line", text, StringComparison.Ordinal);
+                Assert.Contains("second line", text, StringComparison.Ordinal);
+            }
+
+            // The other direction - the one that LOSES a log line: a plain reader holding the file
+            // refuses the appending writer, and Log.Write swallows that refusal. The shared reader
+            // does not hold the file (it reads and closes), so the writer is admitted after it.
+            using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                Assert.Throws<IOException>(() => new StreamWriter(path, append: true).Dispose());
+            TestRunIsolation.ReadShared(path);
+            using (var appending = new StreamWriter(path, append: true)) appending.Write(Environment.NewLine + "third line");
+            Assert.Contains("third line", TestRunIsolation.ReadShared(path), StringComparison.Ordinal);
         }
+
+        // ---- helpers ---------------------------------------------------------------------------
 
         /// <summary>A private static string property, read by reflection. Throws when it does not
         /// exist, so a rename cannot turn this into a check of nothing.</summary>
