@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue 77 / PR 88</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #222; }
+table { border-collapse: collapse; width: 100%; margin: 12px 0 24px; }
+th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; font-size: 14px; }
+th { background: #eee; }
+code, pre { font-family: Consolas, monospace; font-size: 13px; }
+pre { background: #f6f6f6; border: 1px solid #ddd; padding: 8px; overflow-x: auto; }
+.pass { color: #1a7f37; font-weight: bold; }
+.pending { color: #9a6700; font-weight: bold; }
+.note { color: #555; }
+</style>
+</head>
+<body>
+
+<h1>QA report - issue #77 / PR #88</h1>
+<p><b>[Always On] History tab: show every decision, level and problem so a missing clip can be explained</b></p>
+<p>Branch <code>issue-77-history-tab</code>, HEAD <code>94210cc</code> (the review fix pass on top of <code>333196c</code> and <code>df0a868</code>),
+base <code>main</code> at <code>53e1a32</code> (v1.11.3). QA date 2026-09-24. Verified in the git worktree
+<code>C:\ReposFred\agenteyes-app-wt-77</code>; <code>git fetch origin</code> then <code>git status</code>: tree clean, HEAD equal to
+<code>origin/issue-77-history-tab</code>.</p>
+
+<p><b>Verdict: VERIFIED - every acceptance criterion that can be judged without a running app is met.</b>
+The parts that need the owner's laptop and a running app (the History tab and banner screenshots, the live-update
+check, the real muted-mic check, the gated-floor no-banner live check, the live <code>GET /always-on/history</code>
+response) are recorded as <span class="pending">PENDING TESTER</span> - not passed, not failed - and are handed to the
+tester session after the merge, as the owner's brief directs. QA did not launch <code>AgentEyesApp.exe</code> or
+<code>agenteyes.exe</code>, run a smoke, or touch the installed build.</p>
+
+<h2>1. The gate, run by QA (never trusted from the developer)</h2>
+<pre>
+dotnet build AgentEyes.sln -c Release   -> Build succeeded.  0 Error(s)  20 Warning(s)
+   (all pre-existing: xUnit analyzer notes in untouched test files, plus CS8602 at AlwaysOnEngine.cs(830,47) -
+    that line is blame f3da8d62 of 2026-09-23 and is present on main at line 702; not this PR)
+
+dotnet test AgentEyes.sln -c Release --no-build
+   run 1 (unmodified branch):          Passed!  - Failed:     0, Passed:  1912, Skipped:     0, Total:  1912, Duration: 48 s
+   run 2 (after the mutation rounds
+          below, tree restored, full
+          rebuild: Build succeeded.
+          0 Error(s)):                 Passed!  - Failed:     0, Passed:  1912, Skipped:     0, Total:  1912, Duration: 52 s
+</pre>
+<p>Neither full run hit the known flakes (CameraPreviewTests first-run, shared-log lock races); no isolation re-run was needed.
+New tests, counted from the source, not the handoff: <code>AlwaysOnHistoryTests.cs</code> has 38 <code>[Fact]</code> and one
+<code>[Theory]</code> with 9 <code>[InlineData]</code> rows = 47 cases; <code>MicEndpointTests.cs</code> has 8 <code>[Fact]</code>. 55 new,
+which matches 1912 - 1857 (the #79 baseline) = 55.</p>
+
+<h2>2. The silent-mic rule, checked against the tester's comment on the issue</h2>
+<p>The tester's requirement: the rule must be the Windows endpoint mute state plus "no loud second for N minutes",
+never the gated floor, with a regression test that a -96.7 dBFS gated floor WITH loud seconds present does NOT raise
+the banner. What the code does:</p>
+<table>
+<tr><th>Requirement</th><th>What the code does</th><th>Evidence</th></tr>
+<tr><td>Arm 1 = Windows endpoint mute state</td>
+<td><code>SilentMicRule.Evaluate</code> returns <code>Muted</code> when <code>windowsMuted == true</code>, before anything else.
+The state comes from <code>MicEndpoint.Read</code>: NAudio <code>MMDevice.AudioEndpointVolume.Mute</code> (IAudioEndpointVolume),
+read at Start (<code>RecordDeviceFacts -> ReadMicEndpoint</code>), on Resume, and once a minute in <code>Tick</code> outside the engine lock.</td>
+<td><code>src/AgentEyes.Core/AlwaysOn/SilentMicRule.cs:65-70</code>; <code>src/AgentEyes.Core/Audio/MicEndpoint.cs:30-51</code>;
+<code>src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs:403, 521, 551-563, 1550-1565</code></td></tr>
+<tr><td>Arm 2 = no loud second for N minutes</td>
+<td><code>quietSince</code> = the later of the last loud second and when this on-period began listening; silent when
+<code>now - quietSince >= NoSoundAfter</code> (10 min, named constant, stated assumption). The last loud second is
+<code>SoundLog.LastLoudUtc(Mic)</code>, set only when a finished second's RMS is above the line.</td>
+<td><code>SilentMicRule.cs:40, 68-69</code>; <code>src/AgentEyes.Core/AlwaysOn/SoundLog.cs:139, 217-226</code>; <code>AlwaysOnEngine.cs:1612</code></td></tr>
+<tr><td>The gated floor is never an input</td>
+<td><code>Evaluate</code> takes (muted, lastLoud, listeningSince, now) - no level, no floor. <code>LogLevels</code> REPORTS the floor
+in the level line's text and appends <code>[mic silent]</code> only from <code>_silentMic</code>, the rule's verdict.</td>
+<td><code>SilentMicRule.cs:65</code>; <code>AlwaysOnEngine.cs:1011-1014</code></td></tr>
+<tr><td>The regression test</td>
+<td><code>Tick_GatedFloorOfMinus96WithLoudSecondsPresent_DoesNotRaiseTheBanner</code> drives the real engine and sound log
+for 12 minutes: every second at -96.7 dBFS except 4 loud seconds a minute; asserts <code>SilentMic</code> null at every tick,
+12 level lines all Info reading <code>floor=-96.7dBFS</code> and <code>loud=4</code>, no <code>[mic silent]</code>, an empty Problems filter,
+and <code>LastLoudUtc</code> at 11:13.</td>
+<td><code>tests/AgentEyes.Tests/AlwaysOnHistoryTests.cs:450-491</code>; it FAILS under mutations 1 and 4 in section 5</td></tr>
+</table>
+
+<h2>3. Acceptance criteria, judged from the diff and the tests</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>What the code does (evidence)</th><th>Result</th></tr>
+
+<tr><td>1</td><td>History tab lists the events, newest first, local time, plain-English line, severity; warnings/errors stand out</td>
+<td>Rows newest first; time local; a badge and a colour per severity</td>
+<td><code>AlwaysOnHistory.Events</code> filters then reverses the oldest-first list (<code>AlwaysOnHistory.cs:217-240</code>);
+<code>AtLocal = AtUtc.ToLocalTime()</code> (<code>:45</code>); the tab binds <code>When</code>/<code>Badge</code>/<code>Text</code> with per-severity brushes -
+warnings <code>DkAmber</code>, errors <code>DkRed</code>, badge WARNING/ERROR (<code>MainWindow.AlwaysOnHistory.cs:187-200</code>;
+<code>MainWindow.xaml:840-862</code>). Every event kind in the issue's list 1-6 is recorded: state (<code>AlwaysOnEngine.cs:358, 428 area, 440-460, 491, 516</code>),
+device (<code>:1527-1548</code>), level (<code>:1013</code>), decision KEEP/DELETE (<code>:1069, 1080</code>), clip saved/deleted (<code>:1264, 1334</code>),
+problems - capture failed with ffmpeg's tail as <code>Detail</code>, restarted, restart failed, recovered (<code>:858, 914, 927, 781</code>).
+Tests: <code>Append_ThenEvents_ReturnsNewestFirst...</code>, <code>Start_RecordsTheDeviceFacts...</code>, <code>Tick_EveryMinute_RecordsALevelLine...</code>,
+<code>Engine_KeepDeleteClipAndStop_AreRecorded</code>, <code>Tick_CaptureFails_RecordsTheError...</code>, <code>HistoryBadge_...</code>, <code>HistoryWhen_...</code>.</td>
+<td><span class="pass">PASS by review + tests</span>; the screenshot is <span class="pending">PENDING TESTER</span> (handoff procedure A)</td></tr>
+
+<tr><td>2</td><td>Filters All / Decisions / Levels / Problems</td>
+<td>Four filters with those exact meanings</td>
+<td><code>AlwaysOnEvent.Matches</code> (<code>AlwaysOnHistory.cs:54-61</code>): Decisions = kind Decision or Clip; Levels = kind Level;
+Problems = severity Warning/Error OR kind Problem. Four radios <code>AOHistoryAll/Decisions/Levels/Problems</code> (<code>MainWindow.xaml:821-835</code>)
+-> <code>AOHistoryFilter_Changed</code> -> <code>ParseFilter(tag)</code> -> reload (<code>MainWindow.AlwaysOnHistory.cs:80-96</code>).
+Tests: <code>Matches_EachFilter_SelectsByKindOrSeverity</code> (9 rows), <code>ParseFilter_AcceptsTheFourNames...</code>, <code>Events_SinceAndFilter_ReturnOnlyWhatMatches</code>.
+Mutation 2 (section 5) proves the Problems rule is pinned.</td>
+<td><span class="pass">PASS</span></td></tr>
+
+<tr><td>3</td><td>Opens immediately (&lt;100 ms), loads off the UI thread, new events appear live</td>
+<td>No sync I/O on the UI thread; live inserts dispatched</td>
+<td><code>LoadAlwaysOnHistory</code> sets "Loading..." at once, then <code>await Task.Run(() => ao.History.Events(...))</code> and builds the rows
+on the worker; the finished collection is assigned on the UI thread; a load sequence number discards a stale load
+(<code>MainWindow.AlwaysOnHistory.cs:99-139</code>). The store loads its file lazily on first <code>Events</code>, never in the constructor
+(<code>AlwaysOnHistory.cs:104-109, 248</code>). Live: <code>Appended</code> is raised on the engine thread and <code>OnAlwaysOnHistoryAppended</code>
+does <code>Dispatcher.BeginInvoke</code> before touching the <code>ObservableCollection</code> (<code>:143-171</code>); a failed load marks the tab stale so the next event
+reloads instead of inserting into an incomplete list. The listener is detached on <code>Closed</code> (<code>:42-46</code>).
+Test: <code>Append_RaisesAppendedWithTheEvent</code>. No WPF test host exists in this suite, so the tab's behaviour under a real
+dispatcher is code-reviewed, not executed.</td>
+<td><span class="pass">PASS by review</span>; the live check is <span class="pending">PENDING TESTER</span> (procedure B)</td></tr>
+
+<tr><td>4</td><td>Muted or silent mic -> a warning event AND a visible banner "The microphone is sending silence - check it is not muted."; the banner clears when the level returns (rule as the tester redefined it)</td>
+<td>Warning event + banner on Windows mute or 10 min without a loud second; never on the floor; clears on sound / unmute</td>
+<td>Section 2 for the rule. <code>UpdateSilentMic</code> records ONE Warning problem event with the banner text on the way in and
+ONE Info problem event on the way out - <code>UnmutedText</code> when the mute arm clears, <code>ClearedText</code> when a loud second clears the
+no-sound arm (<code>AlwaysOnEngine.cs:1604-1642</code>). The banner is <code>AlwaysOnStatus.SilentMic</code> (<code>:635</code>, null while paused);
+the page shows/hides <code>AOSilentMicBanner</code> from the status snapshot (<code>MainWindow.AlwaysOn.cs:346, 383-391</code>; <code>MainWindow.xaml:611-616</code>,
+banner text starts with <code>SilentMicRule.BannerText</code> = the issue's sentence, <code>SilentMicRule.cs:43</code>). Judged every 15 s tick
+(<code>:584</code>) and a change raises <code>Changed</code> (<code>:594</code>) so the page repaints. Tests: <code>Evaluate_*</code> (5),
+<code>Describe_BothReasons...</code>, <code>Tick_NoLoudSecondForTenMinutes_RaisesTheBannerAndClearsWhenSoundReturns</code>,
+<code>Tick_GatedFloorOfMinus96WithLoudSecondsPresent_DoesNotRaiseTheBanner</code>, <code>Tick_CaptureRestartsWhileTheMicIsSilent...</code>,
+<code>Tick_MuteClearsWhileTheCaptureIsDown...</code>, <code>Start_OnlySystemSoundCounts_NeverAsksWindows...</code>, <code>GetAlwaysOn_ReportsTheSilentMicBannerAndTheMicState</code> (real HTTP).</td>
+<td><span class="pass">PASS by review + tests</span>; the real muted-mic banner screenshot and the gated-floor live no-banner check are <span class="pending">PENDING TESTER</span> (procedure C)</td></tr>
+
+<tr><td>5</td><td>At start, the mic's Windows mute state and volume are recorded; if muted, the warning is shown immediately</td>
+<td>A device event with mute + volume at Start; banner at once when muted</td>
+<td><code>StartCore</code> calls <code>RecordDeviceFacts</code> (<code>AlwaysOnEngine.cs:403</code>) which reads the endpoint and records
+<code>Devices: microphone "..." - Windows: MUTED|not muted, volume NN%; ...</code>, Warning when muted (<code>:1527-1548</code>); then
+<code>UpdateSilentMic(now, listening: true)</code> runs at Start when not starting paused (<code>:428</code>), so a muted mic raises the warning and the
+banner before the first tick. A read failure records one Warning per distinct message and the rule judges on sound alone (<code>:1567-1602</code>).
+Tests: <code>Start_RecordsTheDeviceFactsAndTheStartWithItsReason</code>, <code>Start_MicMutedInWindows_RaisesTheWarningAndTheBannerImmediately_AndClearsWhenUnmuted</code>,
+<code>Start_MicEndpointCannotBeRead_RecordsAWarningOnce_AndJudgesOnSoundAlone</code>.</td>
+<td><span class="pass">PASS</span></td></tr>
+
+<tr><td>6</td><td><code>GET /always-on/history?since=&lt;iso&gt;&amp;kind=&lt;all|decisions|levels|problems&gt;</code> returns the same events as JSON</td>
+<td>Same store, same filter, newest first; bad input refused</td>
+<td>Route <code>RestServer.cs:125 -> AlwaysOnHistoryRoute :676-713</code>: <code>ParseFilter</code> for kind (400 with the reason on anything else),
+<code>DateTime.TryParse</code> invariant/AssumeUniversal for since (400 with the reason), then <code>ao.History.Events(since, kind)</code> - the very
+method the tab uses - serialized as <code>{ kind, since, count, retentionDays, file, events[{atUtc, atLocal, kind, severity, text, detail}] }</code>;
+listed in <code>GET /</code> (<code>:570</code>). Tests over a real listener on a free port: <code>GetAlwaysOnHistory_ReturnsTheEventsAsJsonNewestFirst_FilteredByKindAndSince</code>
+(all / problems / since+all / decisions+since), <code>GetAlwaysOnHistory_BadKindOrSince_Is400WithTheReason</code> (also asserts the discovery entry).</td>
+<td><span class="pass">PASS by review + real-HTTP tests</span>; the live response from the installed app is <span class="pending">PENDING TESTER</span> (procedure D)</td></tr>
+
+<tr><td>7</td><td>History survives an app restart and is trimmed to 7 days</td>
+<td>File-backed; today + 7 local days kept; older dropped</td>
+<td>One JSON line per event appended to <code>%LOCALAPPDATA%\AgentEyes\alwayson\history.jsonl</code> (<code>AlwaysOnOptions.cs:93</code>;
+<code>AlwaysOnHistory.cs:173-213</code>); a new instance reads the file (<code>:248-283</code>). <code>KeepFromUtc</code> = local midnight
+<code>RetentionDays</code> (7) days before today (<code>:85, 116-117</code>); dropped at load (<code>:275-278</code>, rewritten via <code>.tmp</code> + move,
+<code>:300-313</code>) and once per local day change (<code>:287-298</code>). A file that cannot be read caches nothing and is never rewritten over
+(<code>:244-270</code>). Tests: <code>Events_ANewInstanceOnTheSameFile_ReadsWhatWasAppended</code>, <code>KeepFromUtc_IsMidnightLocal...</code>,
+<code>Load_EventsOlderThanSevenDays_AreDroppedAndTheFileRewritten</code>, <code>Append_OnANewDay_TrimsWhatFellOutOfTheRetention</code>,
+<code>Load_ATornLine_IsSkippedAndTheRestKept</code>, <code>Load_FileLocked_...NeverRewritesOverIt...</code>, <code>Append_FileCannotBeWritten_...</code>.
+Mutations 3 and 5 (section 5) prove the 7-day number and the load-time drop are each pinned.
+The IL write-site guard (<code>ManifestWriterIlTests.cs:164-166</code>) pins the three new file writes.</td>
+<td><span class="pass">PASS</span></td></tr>
+
+<tr><td>8</td><td><code>dotnet build</code> clean and <code>dotnet test</code> green, with unit tests for event recording, the silent-mic rule, trimming, and the API filter</td>
+<td>0 errors; 0 failed; the four test areas present</td>
+<td>Section 1. Recording: 10 engine tests; rule: 5 <code>Evaluate_*</code> + 6 engine tests; trimming: 4; API filter: 2 real-HTTP + <code>ParseFilter</code>.</td>
+<td><span class="pass">PASS</span></td></tr>
+</table>
+
+<h2>4. The six review fixes (commit 94210cc) - confirmed in the diff, not re-litigated</h2>
+<table>
+<tr><th>Fix</th><th>Where it is in the code</th><th>Pinned by</th></tr>
+<tr><td>A. Level lines always Info; flag in the text</td><td><code>AlwaysOnEngine.cs:1013-1014</code> records <code>HistorySeverity.Info</code> unconditionally and appends <code>" [mic silent]"</code> only from <code>_silentMic</code></td><td><code>Tick_NoLoudSecondForTenMinutes_...</code> (all 10 lines Info, only the 10th flagged), <code>Tick_GatedFloor...</code> (no flag)</td></tr>
+<tr><td>B. Problems = Warning/Error OR kind Problem</td><td><code>AlwaysOnHistory.cs:59</code></td><td><code>Matches_EachFilter...</code> row ("Problem","Info") and 3 more tests; mutation 2 fails them</td></tr>
+<tr><td>C. No ambiguous mic guess</td><td><code>MicEndpoint.Select</code> (<code>MicEndpoint.cs:63-90</code>): exact, else a single prefix, else <code>UsageException</code> naming the candidates; <code>Find</code> disposes every endpoint it does not return (<code>:92-117</code>)</td><td><code>MicEndpointTests</code> (8)</td></tr>
+<tr><td>D. A cleared mute says what Windows reported</td><td><code>AlwaysOnEngine.cs:1637-1639</code>: <code>UnmutedText</code> when the prior verdict was Muted, else <code>ClearedText</code></td><td><code>Tick_MuteClearsWhileTheCaptureIsDown_...</code>, <code>Start_MicMutedInWindows_..._AndClearsWhenUnmuted</code>, <code>Tick_NoLoudSecondForTenMinutes_...</code></td></tr>
+<tr><td>E. Truthful append-failure log (LOST vs kept)</td><td><code>AlwaysOnHistory.cs:204-207</code></td><td><code>Load_FileLocked_...</code> (LOST), <code>Append_FileCannotBeWritten_...</code> (kept)</td></tr>
+<tr><td>F. Pause keeps the verdict; one warning across pause/resume</td><td><code>AlwaysOnEngine.cs:484-493</code> (no reset on pause), <code>:635</code> (status hides it while paused), <code>:516-522</code> (Resume re-reads Windows then judges)</td><td><code>Pause_AndResume_AreRecorded_TheBannerHidesWhilePaused_AndAMutedMicIsWarnedAboutOnce</code>, <code>Resume_ReReadsWindowsMuteState_...</code></td></tr>
+</table>
+
+<h2>5. Mutation evidence - the tests were run against a known-BAD code, and fired</h2>
+<p>Each mutation was a one-line <code>sed</code> on the worktree, followed by
+<code>dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release --filter "FullyQualifiedName~AlwaysOnHistoryTests"</code> (47 cases),
+then <code>git checkout -- &lt;file&gt;</code>; <code>git status --porcelain</code> was empty after every restore. The full suite was rebuilt and
+re-run on the restored tree afterwards (section 1, run 2).</p>
+<table>
+<tr><th>#</th><th>Mutation (the bad code)</th><th>Actual output</th></tr>
+<tr><td>1</td><td><code>SilentMicRule.cs:68</code>: the rule ignores loud seconds (<code>quietSince = listeningSinceUtc</code>)</td>
+<td><pre>Failed Tick_NoLoudSecondForTenMinutes_RaisesTheBannerAndClearsWhenSoundReturns
+Failed Evaluate_LoudSecondsPresent_IsNotSilent
+Failed Tick_CaptureRestartsWhileTheMicIsSilent_TheBannerStaysAndNothingIsFalselyCleared
+Failed Tick_GatedFloorOfMinus96WithLoudSecondsPresent_DoesNotRaiseTheBanner
+Failed Evaluate_MuteStateUnknown_JudgesOnSoundAlone
+Failed!  - Failed:     5, Passed:    42, Skipped:     0, Total:    47</pre></td></tr>
+<tr><td>2</td><td><code>AlwaysOnHistory.cs:59</code>: Problems = severity only (review fix B reverted)</td>
+<td><pre>Failed Tick_NoLoudSecondForTenMinutes_RaisesTheBannerAndClearsWhenSoundReturns
+Failed Matches_EachFilter_SelectsByKindOrSeverity(kindName: "Problem", sevName: "Info", ...)
+Failed Events_SinceAndFilter_ReturnOnlyWhatMatches
+Failed Start_MicMutedInWindows_RaisesTheWarningAndTheBannerImmediately_AndClearsWhenUnmuted
+Failed!  - Failed:     4, Passed:    43, Skipped:     0, Total:    47</pre></td></tr>
+<tr><td>3</td><td><code>AlwaysOnHistory.cs:117</code>: <code>KeepFromUtc</code> goes back 700 days instead of 7</td>
+<td><pre>Failed KeepFromUtc_IsMidnightLocalOfTheDaySevenDaysBeforeToday
+Failed!  - Failed:     1, Passed:    46, Skipped:     0, Total:    47</pre>
+<span class="note">Honest limit: only this one test pins the NUMBER 7; the two trim tests compute their expectation from
+<code>KeepFromUtc</code> itself and so stayed green here. Mutation 5 covers the other half (that trimming actually uses it).</span></td></tr>
+<tr><td>4</td><td><code>AlwaysOnEngine.cs:1612</code>: the rule ALSO fires when <code>CurrentFloorDb(Mic) &lt;= -90</code> - the tester's exact fear</td>
+<td><pre>Failed Tick_NoLoudSecondForTenMinutes_RaisesTheBannerAndClearsWhenSoundReturns
+Failed Tick_CaptureRestartsWhileTheMicIsSilent_TheBannerStaysAndNothingIsFalselyCleared
+Failed Tick_GatedFloorOfMinus96WithLoudSecondsPresent_DoesNotRaiseTheBanner
+Failed!  - Failed:     3, Passed:    44, Skipped:     0, Total:    47</pre></td></tr>
+<tr><td>5</td><td><code>AlwaysOnHistory.cs:276</code>: the load-time <code>RemoveAll</code> is deleted (nothing dropped at load)</td>
+<td><pre>Failed Load_EventsOlderThanSevenDays_AreDroppedAndTheFileRewritten
+Failed!  - Failed:     1, Passed:    46, Skipped:     0, Total:    47</pre></td></tr>
+</table>
+
+<h2>6. Instruments and sweeps (each one shown to fire on a known-bad input)</h2>
+<table>
+<tr><th>Check</th><th>Instrument and its known-bad proof</th><th>Result on the PR</th></tr>
+<tr><td>ASCII only, all 17 changed files</td>
+<td><b>Incident, recorded:</b> QA's first sweep used <code>LC_ALL=C grep -P '[^\x00-\x7F]'</code>, which on this Git Bash refuses to run
+("-P supports only unibyte and UTF-8 locales", exit 2); the loop swallowed the error and reported "no non-ASCII" - a check that
+failed OPEN. Replaced by <code>LC_ALL=C grep -c $'[\x80-\xff]'</code>, shown to answer exit 1 on a plain line and to FIRE on the file below,
+with exit 2 trapped as "INSTRUMENT ERROR".</td>
+<td>Every changed file 0 hits except <code>src/AgentEyes.App/MainWindow.xaml</code> line 1: the UTF-8 BOM (<code>ef bb bf</code>). The same three bytes
+head that file on <code>main</code> (<code>git show main:... | head -c 3</code> -> <code>ef bb bf</code>), so the BOM predates this PR; the rest of the file has 0
+non-ASCII bytes. Verdict: ASCII clean for this change.</td></tr>
+<tr><td>None of the four banned tool-attribution strings from the project instructions (commit trailers, footer lines, vendor or assistant names) anywhere in the change</td>
+<td>A case-insensitive <code>grep -niE</code> over the four strings; shown to FIRE (exit 0) on a synthetic commit-trailer line containing one of them</td>
+<td>PR diff: exit 1 (no hit). The four commit messages <code>df0a868, 333196c, b23e217, 94210cc</code>: exit 1 (no hit). All authored "Soren Frederiksen". This report itself was swept with the same instrument before it was committed (the first draft named the strings in this row and was caught by that sweep - reworded).</td></tr>
+<tr><td>Every <code>StaticResource</code>/<code>FindResource</code> key the new UI uses exists (a missing key is a runtime crash the build cannot catch)</td>
+<td>Each key grepped as <code>x:Key="..."</code> in <code>App.xaml</code>/<code>MainWindow.xaml</code>; the instrument reports MISSING for the fake key <code>NoSuchKeyXYZ</code></td>
+<td>OK for all 11: <code>AOHistoryItem, DkAmber, DkAmberSurface, DkRadio, DkTab, DkTabItem, RdDim, RdStroke, RdSurface</code> (XAML) and <code>DkAmber, DkRed, RdDim, RdText</code> (code).
+<code>DkTab</code>'s template has <code>PART_SelectedContentHost</code> (<code>App.xaml:411-414</code>), so the tab content stays visible to UIA for the tester.</td></tr>
+<tr><td>Build warning provenance</td><td><code>git blame -L 830,830</code> and a grep of the same statement on <code>main</code></td>
+<td>CS8602 at <code>AlwaysOnEngine.cs:830</code> is commit <code>f3da8d62</code> (2026-09-23), present on main at line 702 - pre-existing.</td></tr>
+</table>
+
+<h2>7. Coding standards and CenCon review</h2>
+<ul>
+<li><b>Responsive UI:</b> "Loading..." at once, <code>Task.Run</code> for the read and the row build, virtualized recycling <code>ListBox</code> (<code>MainWindow.xaml:844</code>). No sync I/O on the UI thread found in the new UI code.</li>
+<li><b>UI thread safety:</b> every <code>ObservableCollection</code> change goes through <code>Dispatcher.BeginInvoke</code>; the collection built off-thread is not bound until it is handed over on the UI thread.</li>
+<li><b>Logging:</b> <code>MicEndpoint.Read/Find</code>, <code>AlwaysOnHistory.Count/Events/Load/Trim/Rewrite/Append</code>, the engine's <code>UpdateSilentMic/ApplyMicEndpoint/Stop(why)</code>, the route, and every tab handler log entry/result/failure with the <code>[Class] Method:</code> prefix.</li>
+<li><b>No fallback programming:</b> <code>MicEndpoint.Select</code> refuses an ambiguous or missing name with the candidates and the fix, never guesses; <code>ParseFilter</code> refuses an unknown kind (400), never "all"; a bad <code>since</code> is a 400. The history's own failures are logged and truthfully described (kept vs LOST) and, by design, never stop the recording - stated in the class remarks and the same rule #81 set for <code>today.json</code>.</li>
+<li><b>Try-catch at entry points:</b> the tab's handlers (<code>AOTabs_SelectionChanged</code>, <code>AOHistoryFilter_Changed</code>, the async void load, the dispatched insert) and the engine's <code>Record</code> boundary; the store catches only <code>IOException</code>/<code>UnauthorizedAccessException</code> at its file I/O with a logged reason.</li>
+<li><b>Tests named Method_Scenario_Result</b>, Arrange-Act-Assert; each test isolated on its own temp folder and its own history file; none touches the live history file.</li>
+<li><b>Privacy posture:</b> unchanged. The change adds visibility of what always-on did and of Windows' own mute/volume for the mic it already listens to; nothing new about the owner's content is captured. No component-map change.</li>
+<li><b>Non-blocking observations</b> (not defects against any criterion): (a) if the endpoint READ starts failing (device unplugged) while the capture is down and the prior verdict was Muted, <code>UpdateSilentMic</code> closes the silence with <code>Windows no longer reports the microphone muted.</code> - literally true, since Windows then reports nothing, and the separate "could not be read" warning is recorded beside it; (b) the trim tests derive their expectation from <code>KeepFromUtc</code> (section 5, mutation 3 note); (c) N = 10 min is a named constant and a stated assumption for the owner, as the review already noted.</li>
+</ul>
+
+<h2>8. What this QA could not see - PENDING TESTER</h2>
+<p>By the owner's rule for this run, no app was launched from this session. The tester session verifies after the merge, with the
+exact steps, UIA names and expected values in <code>docs/cencon/proof/issue-77/handoff.md</code>, section "PENDING TESTER":</p>
+<ul>
+<li>Procedure A - PrintWindow of the History tab under each of the four filters (criteria 1, 2 on screen).</li>
+<li>Procedure B - live update: a new <code>Levels:</code> row each minute without a click; reload after navigating away and back (criterion 3).</li>
+<li>Procedure C - the amber banner with the mic really muted in Windows; its clearing on unmute with the Info row <code>Windows no longer reports the microphone muted.</code>;
+one warning row across two pause/resume cycles; and the tester's own case - gate on, floor -96.7 dBFS, talking 12+ min: NO banner (criteria 4, 5).</li>
+<li>Procedure D - <code>GET /always-on/history</code> (all / kind=problems / since+kind=levels / kind=errors -> 400) from the installed app (criterion 6).</li>
+<li>The two <code>MainWindow.*</code> files have no WPF test host; their pure helpers are tested, the rest is reviewed and built.</li>
+</ul>
+
+<h2>9. Decision</h2>
+<p><span class="pass">VERIFIED - all acceptance criteria met by independent review and by tests QA ran itself</span>; the running-app
+proof is owed by the tester session after the merge. Per the owner's brief for this run: label <code>flow:done</code>, close #77,
+squash-merge PR #88 to <code>main</code> and delete the branch. No deploy, install, tag or release.</p>
+
+</body>
+</html>
