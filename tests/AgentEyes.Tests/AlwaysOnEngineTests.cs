@@ -552,8 +552,11 @@ namespace AgentEyes.Tests
             _now = t0.AddMinutes(10);
             _recorders[0].Exited = true;
 
-            // A silent finished piece held open with no sharing: the final pass cannot delete it.
+            // A silent finished piece held open with no sharing: the restart's pass cannot delete it.
+            // It was last written a minute after it opened, on the test's clock (issue #81: the pass
+            // after a restart is an ordinary one, and it reads a piece's end from its write time).
             string held = Directory.GetFiles(o.PieceFolder)[0];
+            File.SetLastWriteTimeUtc(held, t0.AddMinutes(1));
             using (new FileStream(held, FileMode.Open, FileAccess.Read, FileShare.None))
             {
                 Assert.ThrowsAny<IOException>(() => engine.Tick());
@@ -750,7 +753,8 @@ namespace AgentEyes.Tests
             public void Stop() => Stopped = true;
             public bool HasExited => Exited;
             public string Encoder => "fake";
-            public string StderrTail => "fake ffmpeg: device lost";
+            public string StderrTail { get; set; } = "fake ffmpeg: device lost";
+            public string ProcessState { get; set; } = "still running (pid 1)";
             public void Dispose() { }
         }
     }
