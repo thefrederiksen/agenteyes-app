@@ -97,10 +97,13 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Tick_CaptureFails_LogsTheFullTailAndTheProcessStateAndRecordsTheRestart()
+        public void Tick_CaptureFails_WritesTheFullTailAndTheProcessStateToTheLog()
         {
-            var tail = string.Join(Environment.NewLine, Enumerable.Range(1, 20).Select(i => $"ffmpeg line {i} " + new string('y', 100)));
-            _make = () => new FakeRecorder { StderrTail = tail, ProcessState = "still running (pid 42) - an input died: Error during demuxing: I/O error" };
+            // A marker no other test writes, so the lines found in the shared per-run log are this test's.
+            string marker = Guid.NewGuid().ToString("N");
+            var lines = Enumerable.Range(1, 20).Select(i => $"ffmpeg line {i} {marker} " + new string('y', 900)).ToList();
+            var tail = string.Join(Environment.NewLine, lines);
+            _make = () => new FakeRecorder { StderrTail = tail, ProcessState = $"still running (pid 42) - an input died: {marker}" };
             var o = Options();
             using var engine = Engine();
             engine.Start(o);
@@ -110,14 +113,108 @@ namespace AgentEyes.Tests
 
             engine.Tick();
 
-            Assert.Contains(tail, engine.LastRestartReport);
-            Assert.Contains("still running (pid 42) - an input died", engine.LastRestartReport);
-            var s = engine.Status();
-            Assert.Equal(1, s.RestartsToday);
-            var r = Assert.Single(s.Restarts);
+            // The WRITTEN log: every one of the 20 lines, whole, as its own prefixed log line.
+            var logged = ReadLog().Where(l => l.Contains(marker)).ToList();
+            Assert.Contains(logged, l => l.Contains("[ERROR] [AlwaysOnEngine] Supervise: the capture stopped unexpectedly")
+                                         && l.Contains($"ffmpeg still running (pid 42) - an input died: {marker}"));
+            foreach (var line in lines)
+                Assert.Contains(logged, l => l.EndsWith("[ERROR] " + line, StringComparison.Ordinal));
+            Assert.DoesNotContain(logged, l => l.Contains("..."));
+
+            var r = Assert.Single(engine.Status().Restarts);
             Assert.Equal(T0.AddSeconds(30), r.AtUtc);
             Assert.Contains("stopped unexpectedly", r.Reason);
-            Assert.Equal(T0.AddSeconds(30), r.RecoveredUtc);
+        }
+
+        [Fact]
+        public void Tick_ReplacementOpensAPiece_OnlyThenIsTheRestartRecovered()
+        {
+            var o = Options();
+            using var engine = Engine();
+            engine.Start(o);
+            _recorders[0].Exited = true;
+            _now = T0.AddSeconds(30);
+            engine.Tick();
+            Assert.Equal(2, _recorders.Count);
+            Assert.Null(Assert.Single(engine.Status().Restarts).RecoveredUtc);   // launched is not recording
+
+            WritePiece(o.PieceFolder, T0.AddSeconds(31), null);
+            _now = T0.AddSeconds(45);
+            engine.Tick();
+
+            Assert.Equal(T0.AddSeconds(31), Assert.Single(engine.Status().Restarts).RecoveredUtc);
+        }
+
+        [Fact]
+        public void Tick_ReplacementIsAlreadyFailingWhenItStarts_StaysRetryingAndIsNotRecovered()
+        {
+            // Round 2: the new ffmpeg is alive but its screen input died during the start-up wait.
+            var o = Options();
+            using var engine = Engine();
+            engine.Start(o);
+            _recorders[0].Exited = true;
+            _make = () => new FakeRecorder { Exited = true, ProcessState = "still running (pid 7) - an input died: x" };
+            _now = T0.AddSeconds(30);
+
+            engine.Tick();
+
+            Assert.Equal(AlwaysOnState.Retrying, engine.State);
+            Assert.True(_recorders[1].Disposed);                 // stopped, not left running
+            Assert.Contains("failed as it started", engine.Status().LastError);
+            Assert.Null(Assert.Single(engine.Status().Restarts).RecoveredUtc);
+
+            _make = () => new FakeRecorder();
+            _now = _now + AlwaysOnEngine.RestartBackoff[0] + TimeSpan.FromSeconds(1);
+            engine.Tick();
+            Assert.Equal(3, _recorders.Count);
+            Assert.Equal(AlwaysOnState.Listening, engine.State);
+        }
+
+        [Fact]
+        public void Tick_StatsFileLockedWhenACaptureFails_TheCaptureStillRestarts()
+        {
+            var o = Options();
+            using var engine = Engine();
+            engine.Start(o);
+            _recorders[0].Exited = true;
+            _now = T0.AddSeconds(30);
+
+            using (new FileStream(o.StatsFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+            {
+                engine.Tick();
+            }
+
+            Assert.Equal(2, _recorders.Count);
+            Assert.True(_recorders[0].Stopped);
+            Assert.Equal(AlwaysOnState.Listening, engine.State);
+            Assert.Equal(1, engine.Status().RestartsToday);      // in memory and in the status all the same
+        }
+
+        [Fact]
+        public void Tick_StatsFileLockedWhenTheRestartRecovers_NoSecondCaptureIsStarted()
+        {
+            var o = Options();
+            using var engine = Engine();
+            engine.Start(o);
+            _recorders[0].Exited = true;
+            _now = T0.AddSeconds(30);
+            engine.Tick();
+            WritePiece(o.PieceFolder, T0.AddSeconds(31), null);
+
+            using (new FileStream(o.StatsFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+            {
+                _now = T0.AddSeconds(45);
+                engine.Tick();                                   // stamps the recovery; the save fails
+                _now = T0.AddSeconds(60);
+                engine.Tick();
+            }
+
+            Assert.Equal(2, _recorders.Count);                   // no duplicate capture
+            Assert.False(_recorders[1].Stopped);
+            Assert.Equal(AlwaysOnState.Listening, engine.State);
+            Assert.Equal(T0.AddSeconds(31), Assert.Single(engine.Status().Restarts).RecoveredUtc);
+            engine.Stop();
+            Assert.True(_recorders[1].Stopped);
         }
 
         // ---- stall detection timing ---------------------------------------------
@@ -170,26 +267,56 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void Tick_FirstPieceOpenedDuringTheStartUpWait_CountsAsTheCapturesLastPiece()
+        {
+            // Round 2: ffmpeg opens its first piece while Start is still waiting (1.5 s); the piece's
+            // name is whole seconds, so it can read OLDER than the launch. It is still this capture's.
+            var o = Options();
+            _now = T0.AddMilliseconds(600);
+            _make = () => new FakeRecorder
+            {
+                OnStart = () =>
+                {
+                    WritePiece(o.PieceFolder, T0, T0.AddSeconds(1));
+                    _now = _now.AddMilliseconds(1500);
+                },
+            };
+            using var engine = Engine();
+            engine.Start(o);
+            _make = () => new FakeRecorder();
+
+            DateTime? caught = null;
+            for (_now = T0.AddSeconds(15); _now < T0.AddMinutes(5) && caught == null; _now += AlwaysOnEngine.TickInterval)
+            {
+                engine.Tick();
+                if (_recorders.Count > 1) caught = _now;
+            }
+
+            Assert.NotNull(caught);
+            Assert.True(caught!.Value - T0.AddSeconds(o.PieceSeconds) <= TimeSpan.FromSeconds(75));
+            Assert.Equal(T0, Assert.Single(engine.Status().Restarts).LastPieceStartUtc);
+        }
+
+        [Fact]
         public void Tick_CapturesKeepDyingAtOnce_TheSecondRestartWaitsOnTheBackoff()
         {
-            // A locked session: every new capture's screen input dies straight away.
+            // A locked session: every new capture's screen input dies soon after it starts.
             var o = Options();
             using var engine = Engine();
             engine.Start(o);
             _recorders[0].Exited = true;
-            _make = () => new FakeRecorder { Exited = true };
 
             _now = T0.AddSeconds(15);
             engine.Tick();                                   // first quick failure: restarted at once
             Assert.Equal(2, _recorders.Count);
             Assert.Equal(AlwaysOnState.Listening, engine.State);
 
+            _recorders[1].Exited = true;                     // the replacement dies too
             _now = T0.AddSeconds(30);
             engine.Tick();                                   // second in a row: waits
             Assert.Equal(2, _recorders.Count);
             Assert.Equal(AlwaysOnState.Retrying, engine.State);
 
-            _make = () => new FakeRecorder();
             _now = _now + AlwaysOnEngine.RestartBackoff[0] + TimeSpan.FromSeconds(1);
             engine.Tick();
             Assert.Equal(3, _recorders.Count);
@@ -369,6 +496,14 @@ namespace AgentEyes.Tests
             return r;
         }, () => _now, ownTimer: false);
 
+        /// <summary>This run's log (issue #78 gives a test host its own log file), read while others write it.</summary>
+        private static List<string> ReadLog()
+        {
+            using var fs = new FileStream(Log.CurrentFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(fs);
+            return reader.ReadToEnd().Split(new[] { "\r\n", "\n" }, StringSplitOptions.None).ToList();
+        }
+
         private static Func<DateTime, DateTime, bool> SoundAt(params int[] seconds) =>
             (a, b) => seconds.Any(s => T0.AddSeconds(s) >= a && T0.AddSeconds(s) <= b);
 
@@ -417,11 +552,14 @@ namespace AgentEyes.Tests
             public bool Exited;
             public string? FailStart;
             public Action? OnStop;
+            public Action? OnStart;
+            public bool Disposed;
 
             public void Start(AlwaysOnOptions options, SoundLog sound)
             {
                 if (FailStart != null) throw new UsageException(FailStart);
                 Sound = sound;
+                OnStart?.Invoke();
             }
 
             public void Stop()
@@ -434,7 +572,7 @@ namespace AgentEyes.Tests
             public string Encoder => "fake";
             public string StderrTail { get; set; } = "fake ffmpeg: device lost";
             public string ProcessState { get; set; } = "exited with code 1";
-            public void Dispose() { }
+            public void Dispose() => Disposed = true;
         }
     }
 }

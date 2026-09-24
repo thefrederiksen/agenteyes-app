@@ -239,7 +239,14 @@ namespace AgentEyes.AlwaysOn
         /// </summary>
         private int _quickFailures;
         private DateTime _nextRestartUtc;
+        /// <summary>When the current capture was launched - taken BEFORE ffmpeg starts, so its first
+        /// piece (opened during the start-up wait) is never older than this (issue #81 round 2).</summary>
         private DateTime _recorderStartedUtc;
+
+        /// <summary>The pieces already in the folder when the current capture was launched. A piece
+        /// not in this set is the current capture's own - known by name, not by comparing times that
+        /// are only whole seconds (issue #81 round 2).</summary>
+        private HashSet<string> _piecesBeforeLaunch = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>When the keeper last logged the levels, or null for "not yet this run" (issue #72).</summary>
         private DateTime? _levelsLoggedUtc;
@@ -436,6 +443,7 @@ namespace AgentEyes.AlwaysOn
                 double discardedBefore = _day.DiscardedSeconds;
 
                 Supervise(now);
+                NoteRecovery();
                 bool running = _recorder != null && !_recorder.HasExited;
                 if (!running && _openClip.HasValue && _openClipEndUtc.HasValue && now - _openClipEndUtc.Value > _options.KeepAfter)
                 {
@@ -558,21 +566,85 @@ namespace AgentEyes.AlwaysOn
 
         // ---- the recorder and its supervisor ---------------------------------
 
+        /// <summary>
+        /// Start a new capture and take ownership of it. It is installed ONLY once it has started and is
+        /// not already failing: a capture whose process is alive but whose input died during the start
+        /// (issue #81 round 2) is stopped here and reported as a failed start, never installed as a
+        /// recovery. Every capture this creates is either <see cref="_recorder"/> or disposed.
+        /// </summary>
         private void StartRecorder(AlwaysOnOptions o)
         {
+            if (_recorder != null)
+                throw new InvalidOperationException("a capture is already running; it must be stopped before another starts");
+            var launched = _utcNow();
+            var before = new HashSet<string>(
+                PieceFiles(o.PieceFolder).Select(f => Path.GetFileName(f.Path)), StringComparer.OrdinalIgnoreCase);
             var rec = _recorderFactory();
             try
             {
                 rec.Start(o, _sound!);
+                if (rec.HasExited)
+                {
+                    string state = rec.ProcessState;
+                    string tail = rec.StderrTail;
+                    Log.Error($"[AlwaysOnEngine] StartRecorder: the new capture is already failing - ffmpeg {state}. "
+                              + $"Its last {FfmpegStderr.TailLines} lines:{Environment.NewLine}{tail}");
+                    throw new UsageException($"the capture failed as it started: ffmpeg {state}: {LastLine(tail)}");
+                }
             }
             catch
             {
+                // Dispose stops it: an ffmpeg that is alive with a dead input must not outlive the attempt.
                 rec.Dispose();
                 throw;
             }
             _recorder = rec;
             _encoder = rec.Encoder;
-            _recorderStartedUtc = _utcNow();
+            _recorderStartedUtc = launched;
+            _piecesBeforeLaunch = before;
+        }
+
+        /// <summary>The current capture's own pieces, oldest first (see <see cref="_piecesBeforeLaunch"/>).</summary>
+        private List<(string Path, DateTime StartUtc)> CurrentCapturePieces(AlwaysOnOptions o) =>
+            PieceFiles(o.PieceFolder).Where(f => !_piecesBeforeLaunch.Contains(Path.GetFileName(f.Path))).ToList();
+
+        /// <summary>
+        /// Stamp the last restart as recovered once the new capture is PROVEN to record (issue #81 round
+        /// 2): it is running, not failing, and has opened a piece of its own - ffmpeg opens a piece on the
+        /// first encoded picture, so a piece means pictures are flowing again. The stamp is when that
+        /// piece began, i.e. when recording resumed - not when ffmpeg was launched.
+        /// </summary>
+        private void NoteRecovery()
+        {
+            if (_recorder == null || _recorder.HasExited || _day.Restarts.Count == 0) return;
+            var last = _day.Restarts[^1];
+            if (last.RecoveredUtc != null) return;
+            var mine = CurrentCapturePieces(_options!);
+            if (mine.Count == 0) return;
+            last.RecoveredUtc = mine[0].StartUtc;
+            Log.Info($"[AlwaysOnEngine] NoteRecovery: recording again since {mine[0].StartUtc.ToLocalTime():HH:mm:ss} "
+                     + $"(the capture failed at {last.AtUtc.ToLocalTime():HH:mm:ss})");
+            SaveDay("recovery");
+        }
+
+        /// <summary>
+        /// Write today's counters and restart history. The history is a record OF the recording, never a
+        /// condition FOR it (issue #81 round 2): a stats file that cannot be written - locked by a scanner,
+        /// a full disk - is logged as an error and retried on the next save, and supervision, restarts and
+        /// the keeper go on. Everything saved is also still in memory and in the status.
+        /// </summary>
+        private void SaveDay(string why)
+        {
+            string file = _options!.StatsFile;
+            try
+            {
+                _day.Save(file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log.Error($"[AlwaysOnEngine] SaveDay: today's counters ({why}) could not be written to {file}; "
+                          + "the recording goes on and the next save writes them", ex);
+            }
         }
 
         private void Supervise(DateTime now)
@@ -585,8 +657,10 @@ namespace AgentEyes.AlwaysOn
             }
             if (_recorder == null) return;
 
-            var files = PieceFiles(_options!.PieceFolder);
-            DateTime? newestPiece = files.Count > 0 && files[^1].StartUtc > _recorderStartedUtc ? files[^1].StartUtc : null;
+            // The newest piece THIS capture opened - the first one included, although it opened during
+            // the start-up wait (issue #81 round 2).
+            var mine = CurrentCapturePieces(_options!);
+            DateTime? newestPiece = mine.Count > 0 ? mine[^1].StartUtc : null;
             string reason;
             if (_recorder.HasExited)
             {
@@ -625,7 +699,7 @@ namespace AgentEyes.AlwaysOn
                       + $"Its last {FfmpegStderr.TailLines} lines:{Environment.NewLine}{tail}");
             _day.EnsureDay(now);
             _day.Restarts.Add(new AlwaysOnRestart { AtUtc = now, Reason = reason + " - ffmpeg " + state, LastPieceStartUtc = newestPiece });
-            _day.Save(o.StatsFile);
+            SaveDay("restart");
             bool quick = now - _recorderStartedUtc < TimeSpan.FromSeconds(o.PieceSeconds);
             _quickFailures = quick ? _quickFailures + 1 : 0;
 
@@ -672,16 +746,11 @@ namespace AgentEyes.AlwaysOn
             try
             {
                 StartRecorder(_options!);
-                Log.Info($"[AlwaysOnEngine] TryRestart: capture restarted (attempt {_restartAttempt + 1})"
+                Log.Info($"[AlwaysOnEngine] TryRestart: capture restarted (attempt {_restartAttempt + 1}); it counts as "
+                         + "recovered once it opens a piece"
                          + (_openClip.HasValue ? "; the clip in progress stays open and the new pieces continue it" : ""));
                 _restartAttempt = 0;
                 _state = AlwaysOnState.Listening;
-                var last = _day.Restarts.Count > 0 ? _day.Restarts[^1] : null;
-                if (last != null && last.RecoveredUtc == null)
-                {
-                    last.RecoveredUtc = _utcNow();
-                    _day.Save(_options!.StatsFile);
-                }
             }
             catch (Exception ex)
             {

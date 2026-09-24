@@ -27,8 +27,8 @@ the system-sound pipe kept it running, so one piece grew with sound and no pictu
 into the same daily log file, which is why "fake ffmpeg: device lost" lines are interleaved there;
 they never touch the live capture.)
 
-**Stall 2 (09:23:17) - no error text; best-supported cause: an audio input went silent without an
-error and ffmpeg held the picture back to stay in sync.** Evidence: (a) no error line at all in the
+**Stall 2 (09:23:17) - no error text; cause NOT proven. Working hypothesis: an audio input went
+silent without an error and ffmpeg held the picture back to stay in sync.** Evidence: (a) no error line at all in the
 tail; (b) the system-sound pipe kept being read - `PipeFeeder` never reported a stall, so the
 pipe/amix side was consuming; (c) ffmpeg ignored `q` for 15 s and was killed (a thread blocked in an
 input); (d) right after `q`, two new pieces opened (09:26:03, 09:26:05, 2 s and 1 s) - the picture
@@ -38,8 +38,10 @@ quick cuts. That matches the dshow microphone (USB headset) stopping delivery wi
 ahead of the stalled audio output. This cannot be proven from the old log because the tail was
 truncated; the new full tail + process state (below) will show it on the next occurrence.
 
-Both triggers are outside AgentEyes (a Windows desktop switch; a USB audio device). What was in
-AgentEyes, and is fixed here: a dead input did not count as a failure, a hang took ~150 s to notice,
+Stall 1's trigger is outside AgentEyes (a Windows desktop switch). Stall 2's trigger is UNPROVEN: the
+hypothesis above points outside AgentEyes (a USB audio device), but an ffmpeg/encoder hang is not ruled
+out; the full tail logged from now on is what will settle it. What was in AgentEyes, and is fixed here
+whatever the trigger: a dead input did not count as a failure, a hang took ~150 s to notice,
 the evidence was truncated, and the restart split the clip.
 
 ## What changed
@@ -51,7 +53,7 @@ the evidence was truncated, and the restart split the clip.
 | `src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs` | `HungAfter` = piece length + 20 s (was 2 x piece + 30 s). Supervise logs reason + process state + last 20 stderr lines in full (`LastRestartReport`). The restart runs a NON-final keeper pass and keeps the open clip. Two captures in a row that die before writing a whole piece -> the next restart waits on the backoff (no 4-per-minute churn while a session stays locked). A capture that stays down longer than the after-window writes the open clip. Each restart is recorded (`status.RestartsToday`, `status.Restarts`). A piece's end is now min(next piece's start, its last write), so a restart's hole shows as a hole. |
 | `src/AgentEyes.Core/AlwaysOn/KeeperRule.cs` | `restartBridge` (engine passes KeepAfter): a kept piece after a hole up to that long continues the open clip; each hole is reported in `plan.Bridged` and logged with its length. A piece under 5 s (`ShortPiece`) right after the open clip is joined to it, sound or not. |
 | `src/AgentEyes.Core/AlwaysOn/AlwaysOnDay.cs` | `Restarts` list (per day, persisted): `AtUtc`, `Reason`, `LastPieceStartUtc`, `RecoveredUtc`. This is the feed for the History tab (#77). |
-| `tests/AgentEyes.Tests/AlwaysOnStallTests.cs` (new) | 17 tests, below. |
+| `tests/AgentEyes.Tests/AlwaysOnStallTests.cs` (new) | 22 tests (17 in round 1, 5 more in round 2), below. |
 | `tests/AgentEyes.Tests/AlwaysOnEngineTests.cs` | Fake recorder gains `ProcessState`; `Tick_KeeperFailsDuringARestart_TheCaptureStillRestarts` now dates its piece's write time on the test clock (the restart pass is no longer final, so it reads the piece's end from that). |
 
 No App / REST code changed: `GET /always-on` serializes `AlwaysOnStatus` whole, so `restartsToday`
@@ -64,7 +66,7 @@ privacy-posture change; the recording indicator behaviour is unchanged - a faile
 1. **Supervise logs the last 20 stderr lines in full and the exit code / still-alive state.**
    Unit: `Tail_MoreLinesThanTheTail_ReturnsTheLast20EachInFull` (25 lines in, last 20 out, a 750-char
    line intact, no "..."), `Tail_NothingWritten_SaysSo`, `Add_AllDayOfLines_KeepsOnlyTheCapacity`,
-   `Tick_CaptureFails_LogsTheFullTailAndTheProcessStateAndRecordsTheRestart` (the engine's report holds
+   `Tick_CaptureFails_WritesTheFullTailAndTheProcessStateToTheLog` (the written log holds
    all 20 lines and the state). Code: `AlwaysOnEngine.RestartFailedCapture` log line
    `Supervise: <reason>; restarting. ffmpeg <state>. Its last 20 lines:` followed by the lines.
 2. **Stall detected within 75 s of the last piece's expected end.** `HungAfter(60)` = 80 s from the
@@ -96,7 +98,12 @@ privacy-posture change; the recording indicator behaviour is unchanged - a faile
    no capture on this machine from the dev session). What the tester checks:
    - Always-on on, owner working normally for 2 hours.
    - `GET http://127.0.0.1:7882/always-on` -> `status.restartsToday` and `status.restarts[]`. Pass if 0,
-     or for EVERY entry: `recoveredUtc - (lastPieceStartUtc + 60 s)` <= 75 s.
+     or for EVERY entry: `recoveredUtc` is set and `recoveredUtc - (lastPieceStartUtc + 60 s)` <= 75 s.
+     (Round 2: `recoveredUtc` is the start of the first piece the NEW capture opened - recording resumed -
+     not the launch; `lastPieceStartUtc` is the newest piece the FAILED capture opened, its first piece
+     included; it is null only when that capture never opened a piece - then use `atUtc - 80 s` as the
+     reference.) An entry with `recoveredUtc` null while `status.state` is `retrying` is a capture that
+     has not come back - a FAIL unless the session was locked at the time.
    - The log (`%LOCALAPPDATA%\AgentEyes\logs\AgentEyes-<date>.log`): every `Supervise:` error shows
      `ffmpeg exited with code N` or `ffmpeg still running (pid N)...` and up to 20 full stderr lines, no
      leading "...". Copy those lines into the proof - they name the trigger for a stall like #2.
@@ -123,3 +130,48 @@ synthesize input without warning the owner; the recording HUD is capture-exclude
 `/always-on` or UIA, not a screen grab.
 
 I believe this is finished.
+
+## Round 2 - Codex fixes
+
+Review verdict: PR #82 comment 5818513011 (REQUEST CHANGES). All items addressed.
+
+**Blocking 1 [P1] - stats I/O broke the recorder lifecycle.** All today.json writes on the restart
+path go through `AlwaysOnEngine.SaveDay`, which logs an IOException / UnauthorizedAccessException as an
+ERROR and returns; the history stays in memory and in the status, and the next save writes it. The
+recovery stamp no longer lives inside `TryRestart`'s try (it moved to `NoteRecovery`, after a start has
+fully succeeded), so a save failure can never send a started capture to the catch. `StartRecorder` now
+refuses to start while `_recorder` is set, so a second capture can never overwrite the reference.
+Regressions: `Tick_StatsFileLockedWhenACaptureFails_TheCaptureStillRestarts` (stats file held with
+FileShare.None during the failing tick: the capture is stopped and restarted, Listening),
+`Tick_StatsFileLockedWhenTheRestartRecovers_NoSecondCaptureIsStarted` (locked while the recovery is
+stamped: still exactly 2 recorders, the live one running, and Stop stops it).
+
+**Blocking 2 [P2] - a known-dead replacement was marked recovered.** `StartRecorder` checks
+`HasExited` (process exit, dead input, stalled feeder) right after `Start`; a replacement that is
+already failing is disposed (which stops its ffmpeg) and reported as a failed start -> Retrying on the
+backoff. `RecoveredUtc` is stamped only by `NoteRecovery`: the new capture is running, not failing, and
+has opened a piece of its own (ffmpeg opens a piece on the first encoded picture); the value is that
+piece's start. Regressions: `Tick_ReplacementIsAlreadyFailingWhenItStarts_StaysRetryingAndIsNotRecovered`,
+`Tick_ReplacementOpensAPiece_OnlyThenIsTheRestartRecovered`. The backoff test now lets the replacement
+start healthy and die on the next pass (it no longer expects Listening for a dead replacement).
+
+**Non-blocking 1 - the first piece before `_recorderStartedUtc`.** The launch time is now taken BEFORE
+ffmpeg starts, and the current capture's pieces are known BY NAME (every piece not already in the folder
+at launch), not by comparing whole-second names with a sub-second clock. Regression:
+`Tick_FirstPieceOpenedDuringTheStartUpWait_CountsAsTheCapturesLastPiece` (launch at 0.6 s, first piece
+named 0 s, start takes 1.5 s: the stall is caught within 75 s and `LastPieceStartUtc` is that piece).
+Live-check instructions in item 7 updated.
+
+**Non-blocking 2 - stall 2 is a hypothesis.** The root-cause section now says so.
+
+**Non-blocking 3 - the stderr test reads the WRITTEN log.**
+`Tick_CaptureFails_WritesTheFullTailAndTheProcessStateToTheLog` reads this test run's own log file
+(issue #78 isolates it) and asserts the Supervise ERROR line with the process state, and each of the
+20 stderr lines (900+ characters each) as its own whole log line, with no "..." anywhere.
+
+Mutation check: reverting each fix (plain `_day.Save` on the restart path, no post-start `HasExited`
+check, the old time comparison for the capture's pieces) makes those four regressions fail.
+
+Gate: `dotnet build AgentEyes.sln -c Release` 0 errors; `dotnet test AgentEyes.sln -c Release`
+1767 passed, 0 failed (the `CameraPreviewTests` load flake noted in item 8 recurred in one of two runs;
+unrelated, it also occurs without this branch's tests). 22 tests in `AlwaysOnStallTests`.
