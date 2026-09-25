@@ -10,6 +10,11 @@
     <Platforms>x64</Platforms>
     <RootNamespace>AgentEyes.Tests</RootNamespace>
     <AssemblyName>AgentEyes.Tests</AssemblyName>
+    <!-- Issue #94: the test SDK's generated empty Main is switched off so LaunchProbe.Main is the
+         assembly's entry point. ProcessAppLauncherTests runs this assembly as a separate process
+         (dotnet AgentEyes.Tests.dll launch-probe ...) with its stdout piped, standing in for the
+         updater, to prove that the app the launcher starts holds no copy of that pipe. -->
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
 
   <ItemGroup>
