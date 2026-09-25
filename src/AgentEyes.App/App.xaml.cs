@@ -25,6 +25,8 @@ namespace AgentEyes.App
         private TestPanel? _tests;
         private KeyboardHook? _captureRegionHook;
         private KeyboardHook? _captureFullHook;
+        /// <summary>The planned-stop channel the setup engine asks this process to quit through (issue #86).</summary>
+        private IDisposable? _quitListener;
 
         /// <summary>Raised on the UI thread after a capture (shortcut or API) is saved, so the
         /// Capture gallery refreshes live (issue #64). Payload is the saved PNG path.</summary>
@@ -141,14 +143,23 @@ namespace AgentEyes.App
                 _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests, _alwaysOn, ShowAlwaysOn);
                 InstallCaptureHooks();
 
+                // Issue #86: the setup engine (an update from the CLI, the wizard or this app's own
+                // AutoUpdate) asks this process to quit through a named event instead of killing it -
+                // CloseMainWindow never reached a tray app. The request takes the tray's own quit path,
+                // so a recording in progress is stopped cleanly and always-on hands its open clip over.
+                var tray = _tray;
+                _quitListener = QuitRequest.Listen(() =>
+                    Dispatcher.BeginInvoke(() => tray.QuitRequested("the setup engine asked for a planned stop")));
+
                 // Auto-update (opt-out in Settings): on startup, quietly ask the public releases repo
-                // for the latest version; if newer, download + swap in the BACKGROUND and surface a
-                // single non-blocking tray balloon - it applies on the next restart. No modal nagging.
-                UpdateChecker.StagedUpdate = _tray.NotifyUpdateStaged;
+                // for the latest version; if newer, hand the update to the setup CLI, which stops this
+                // app, replaces the files and starts it again (issue #86) - or, while a recording session
+                // is active, surface a single non-blocking tray balloon and wait. No modal nagging.
+                UpdateChecker.UpdateWaiting = _tray.NotifyUpdateWaiting;
                 UpdateChecker.InfoNotice = _tray.ShowInfo;
-                // Issue #107: an applied in-place update must never leave this process serving from the
-                // replaced single-file bundle. Tell UpdateChecker how to see an active session (so it
-                // defers the restart) and complete a deferred restart when a recording session ends.
+                // Issue #107: this process never serves from replaced files. Tell UpdateChecker how to see
+                // an active session (so it defers the handover) and complete a deferred handover when a
+                // recording session ends.
                 UpdateChecker.SessionActive = IsSessionActive;
                 _service.RecordingStopped += UpdateChecker.OnSessionEnded;
                 // Issue #152: the capture ending is NOT the app going idle - the mux, the
@@ -327,11 +338,13 @@ namespace AgentEyes.App
                     + "they will be resumed by the recovery pass on the next start");
             }
             PostRecording.WorkIdle -= UpdateChecker.OnSessionEnded;
+            try { _quitListener?.Dispose(); } catch { }
 
             try { _captureRegionHook?.Dispose(); } catch { }
             try { _captureFullHook?.Dispose(); } catch { }
-            // Issue #66: finish the piece being written and write the clip being kept. Always-on stays
-            // enabled in config.json, so the next start brings it back.
+            // Issue #66: finish the piece being written. Always-on stays enabled in config.json, so the
+            // next start brings it back - and (issue #86) the clip being kept is handed over to that
+            // start rather than closed here, so an update's restart does not split it.
             try { _tray?.ShowAlwaysOnExitWait(); }
             catch (Exception ex) { AgentEyes.Log.Error("app exit: showing the always-on exit wait failed", ex); }
             try { _alwaysOn?.ShutdownForExit(); }
@@ -357,7 +370,6 @@ namespace AgentEyes.App
             if (!AgentEyes.Preview.PreviewLog.Settle(1000))
                 AgentEyes.Log.Warn("app exit: the preview log appender still had lines in hand; "
                                    + "they were not waited out.");
-            UpdateChecker.StartPendingRestart();   // after the mutex is gone, so the new exe can take it
             AgentEyes.Log.Info("app exit");
             base.OnExit(e);
         }

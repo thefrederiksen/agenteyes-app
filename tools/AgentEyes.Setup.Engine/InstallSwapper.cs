@@ -2,9 +2,11 @@ namespace AgentEyes.Setup.Engine;
 
 /// <summary>
 /// Places a staged build over an install target, keeping the previous build as a
-/// "<c>.old</c>" backup, and rolls that backup back on demand. A running exe can
-/// be swapped this way on Windows (the replace is rename-based; the running image
-/// stays mapped), which is how the in-app updater applies itself.
+/// "<c>.old</c>" backup, and rolls that backup back on demand. The replace is
+/// rename-based, so Windows would allow it under a running exe - but no caller does
+/// that any more: every update stops the app first through <see cref="UpdateRestartCycle"/>
+/// (issue #86), because a single-file host whose exe is replaced underneath it cannot
+/// load the assemblies it has not loaded yet (issue #107).
 ///
 /// All operations are plain file moves/replaces, so they are fully testable in a
 /// temp directory.

@@ -107,12 +107,19 @@ public static class CliHelp
                 {
                     "Install or update ALL components from the release, then finalize the per-user install:",
                     "PATH, Start Menu shortcut, Add/Remove Programs entry. Repair semantics - always finalizes.",
+                    "A running AgentEyes is stopped before any file is replaced and started again afterwards",
+                    "with the arguments it was running with; if it cannot be stopped, nothing is replaced.",
                 },
                 OptManifest, OptReleaseDir, OptComponent, OptAutostart, OptDesktopShortcut,
                 OptNoFinalize, OptDryRun, OptRoot, OptJson),
 
             "update" => Page("update",
-                new[] { "Download, verify, and apply updates only. Finalizes only when something was replaced." },
+                new[]
+                {
+                    "Download, verify, and apply updates only. Finalizes only when something was replaced.",
+                    "A running AgentEyes is stopped before any file is replaced and started again afterwards",
+                    "with the arguments it was running with; if it cannot be stopped, nothing is replaced.",
+                },
                 OptManifest, OptReleaseDir, OptComponent, OptNoFinalize, OptDryRun, OptRoot, OptJson),
 
             "uninstall" => Page("uninstall",

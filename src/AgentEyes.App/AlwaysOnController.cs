@@ -213,14 +213,20 @@ namespace AgentEyes.App
             }, TaskScheduler.Default);
         }
 
-        /// <summary>At app exit: finish the current piece and write what was being kept. It stays
-        /// "enabled" in the config, so the next start brings it back.</summary>
+        /// <summary>
+        /// At app exit: finish the current piece and hand the clip being kept over to the next start
+        /// (issue #86) - an exit is a PLANNED stop, not a crash, so the clip is continued if sound
+        /// resumes within the silence gap after the restart, and no piece is deleted for want of its
+        /// sound log. Always-on stays "enabled" in the config, so the next start brings it back
+        /// (<see cref="RestoreOnStartup"/>); this method never touches the config.
+        /// </summary>
         public void ShutdownForExit()
         {
             if (!_engine.IsOn) return;
-            Log.Info("[AlwaysOnController] ShutdownForExit: stopping always-on for exit (it will come back at the next start)");
+            Log.Info("[AlwaysOnController] ShutdownForExit: stopping always-on for exit (it will come back at the next start "
+                     + "and carry on with the clip in progress)");
             _reconcile.Change(Timeout.Infinite, Timeout.Infinite);
-            _engine.Stop("app exit - it comes back at the next start");
+            _engine.StopForRestart("app exit - it comes back at the next start");
         }
 
         /// <summary>

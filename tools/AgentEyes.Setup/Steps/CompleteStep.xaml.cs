@@ -12,7 +12,11 @@ public partial class CompleteStep : UserControl
 {
     private readonly string _appExePath;
 
-    public CompleteStep(int installed, int skipped, string installPath, string appExePath, bool isUpdate, bool alreadyUpToDate = false)
+    /// <param name="restart">What the install did about a running AgentEyes (issue #86): when it was
+    /// stopped and started again, the page says so with the pids, so a person can see the new build
+    /// is the one running - the old one is not left on the previous version.</param>
+    public CompleteStep(int installed, int skipped, string installPath, string appExePath, bool isUpdate,
+        bool alreadyUpToDate = false, AppRestartReport? restart = null)
     {
         InitializeComponent();
         _appExePath = appExePath;
@@ -21,6 +25,10 @@ public partial class CompleteStep : UserControl
         PathText.Text = installPath;
         LogPathBox.Text = SetupLog.Path;
 
+        bool restarted = restart?.Restarted == true;
+        string restartedNote = restarted
+            ? $" AgentEyes was running and has been started again on the new build (pid {restart!.Stopped!.Pid} -> pid {restart.NewPid})."
+            : "";
         if (alreadyUpToDate)
         {
             HeadingText.Text = "Already Up to Date";
@@ -30,8 +38,12 @@ public partial class CompleteStep : UserControl
         else if (isUpdate)
         {
             HeadingText.Text = "Update Complete";
-            DescriptionText.Text = "AgentEyes has been updated successfully.";
+            DescriptionText.Text = "AgentEyes has been updated successfully." + restartedNote;
             PathNote.Visibility = Visibility.Collapsed;
+        }
+        else if (restarted)
+        {
+            DescriptionText.Text += restartedNote;
         }
 
         // Success looks clean: the log panel stays behind the tiny "Logs" link.

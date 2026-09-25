@@ -37,8 +37,9 @@ public static class LaunchArguments
     }
 
     /// <summary>
-    /// The arguments a restart must hand to the new process, taken from this process's own
-    /// <see cref="Environment.GetCommandLineArgs"/>. That array's FIRST element is the executable
+    /// The arguments a restart must hand to the new process, taken from an argv in the shape of
+    /// <see cref="Environment.GetCommandLineArgs"/> - the app's own, or (issue #86) the running app's
+    /// command line as the setup engine read it. That array's FIRST element is the executable
     /// path, not an argument - passing it on would hand the app its own path as an argument - so it
     /// is dropped here rather than at each call site. Everything after it is carried verbatim: the
     /// app understood those arguments when it was launched and must understand them again.

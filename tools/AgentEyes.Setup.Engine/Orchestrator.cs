@@ -8,9 +8,11 @@ public sealed record OrchestratorResult(UpdatePlan Plan, UpdateRunResult? Run)
 }
 
 /// <summary>
-/// The single "update everything in scope" entry point hosts call: the tray
-/// app's "Check for updates" and the setup CLI's update command both compose
-/// the read -> plan -> apply pipeline through here so neither re-implements it.
+/// The read -> plan -> apply pipeline in one call, for a host that wants all of it.
+/// Since issue #86 no product host replaces files through here: the tray app hands
+/// its AutoUpdate to the setup CLI, and the CLI plans and applies step by step so it
+/// can filter by component and run the apply inside <see cref="UpdateRestartCycle"/>.
+/// Kept for the offline end-to-end test of the pipeline.
 /// </summary>
 public sealed class Orchestrator
 {

@@ -17,6 +17,11 @@ namespace AgentEyes.AlwaysOn
     /// seconds, in dBFS RMS, and how many seconds that is (issue #77).</summary>
     internal readonly record struct MinuteLevels(double PeakDb, double AverageDb, int Seconds);
 
+    /// <summary>What the sound log knows, as a planned stop hands it to the next start (issue #86): the
+    /// loud seconds, the seconds of sustained sound, and the last second of sound - all as unix seconds,
+    /// the log's own unit. Serialised into the handover file as it is.</summary>
+    internal sealed record SoundLogState(long[] LoudSeconds, long[] SoundSeconds, long? LastSound);
+
     /// <summary>
     /// The always-on sound log (issues #66, #72): which SECONDS had sound, for the sources that count.
     /// It is fed the level of every audio buffer the capture produces, and the keeper asks it one
@@ -260,6 +265,46 @@ namespace AgentEyes.AlwaysOn
             int span = (int)Math.Round((toUtc - fromUtc).TotalSeconds) + 1;
             sb.Append($"last {span}s: loud={sum.LoudSeconds} sustained={(sum.SoundSeconds > 0 ? "yes" : "no")} ({sum.SoundSeconds}s)");
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// The seconds this log knows from <paramref name="fromUtc"/> on (issue #86), for the handover a
+        /// planned stop writes: which seconds were loud, which were sustained sound, and the last second
+        /// of sound. The caller passes the same horizon the keeper prunes to.
+        /// </summary>
+        public SoundLogState Export(DateTime fromUtc)
+        {
+            long cut = ToSecond(fromUtc);
+            lock (_gate)
+            {
+                return new SoundLogState(
+                    _loudSeconds.Where(s => s >= cut).ToArray(),
+                    _soundSeconds.Where(s => s >= cut).ToArray(),
+                    _lastSound);
+            }
+        }
+
+        /// <summary>
+        /// Take the seconds an earlier run heard (issue #86), so the keeper judges the pieces that run
+        /// left, and the clip it left open, on the same facts it had. New loud seconds gather with the
+        /// imported ones for the sustained rule, as they would have without the restart.
+        /// </summary>
+        public void Import(SoundLogState state)
+        {
+            if (state == null) throw new ArgumentNullException(nameof(state));
+            lock (_gate)
+            {
+                foreach (long s in state.LoudSeconds) _loudSeconds.Add(s);
+                foreach (long s in state.SoundSeconds)
+                {
+                    // A second of sound is a loud second by definition; keep that invariant on import.
+                    _loudSeconds.Add(s);
+                    _soundSeconds.Add(s);
+                }
+                if (state.LastSound.HasValue && (!_lastSound.HasValue || state.LastSound.Value > _lastSound.Value))
+                    _lastSound = state.LastSound;
+            }
+            Log.Info($"[SoundLog] Import: {state.LoudSeconds.Length} loud and {state.SoundSeconds.Length} sound second(s) from an earlier run");
         }
 
         /// <summary>Forget seconds older than <paramref name="beforeUtc"/>. The keeper calls this once

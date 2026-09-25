@@ -12,12 +12,28 @@ No installer framework. Three pieces share one brain, exactly like cc-director
 |---|---|---|
 | Setup engine | manifest parse, plan, download, SHA-256 verify, stage, atomic swap with `.old` backup, installed-version bookkeeping, finalize (PATH/native-extraction dir/shortcuts/Run key/ARP), uninstall, Inno takeover | tools/AgentEyes.Setup.Engine |
 | Setup wizard (WPF) | what users download: `AgentEyes-Setup-win-x64.exe`. Welcome -> Options -> Install -> Complete; detects install vs update; force-install/repair semantics | tools/AgentEyes.Setup |
-| Setup CLI | headless `agenteyes-setup.exe`: components / status / plan / install / update / uninstall; installed to app\ so the Add/Remove Programs Uninstall button works. `<command> --help` (or `-h`, anywhere on the line) prints that command's help and runs nothing; an unknown option is a usage error (exit 2) and runs nothing (issue #83) | tools/AgentEyes.Setup.Cli |
+| Setup CLI | headless `agenteyes-setup.exe`: components / status / plan / install / update / uninstall; installed to app\ so the Add/Remove Programs Uninstall button works. `<command> --help` (or `-h`, anywhere on the line) prints that command's help and runs nothing; an unknown option is a usage error (exit 2) and runs nothing (issue #83). `update` / `install` stop a running AgentEyes before any file is replaced and start it again afterwards with the arguments it was running with, printing `restarted the running app (pid A -> pid B)`; when it cannot be stopped nothing is replaced and the command fails (issue #86) | tools/AgentEyes.Setup.Cli |
 
-The tray app references the engine too: tray -> "Check for updates..." plans against
-the latest GitHub release, confirms with the user, swaps with `.old` backups, offers a
-restart (src/AgentEyes.App/UpdateChecker.cs). On-demand only - the product phones
-home for nothing, so update checks must be user-visible.
+Every update path - the CLI, the wizard and the tray app's own AutoUpdate - takes ONE
+stop -> replace -> relaunch decision, `UpdateRestartCycle` in the engine (issue #86):
+find the running app, ask it to quit through a per-pid named event (`QuitRequest`, so
+the app leaves through its own quit path - a tray app never saw `CloseMainWindow`),
+force-stop after a bound, and only then replace; afterwards start the app again with
+the command line it was running with (read from the process, Win32_Process.CommandLine).
+
+The tray app never replaces its own files (issue #107: a replaced single-file host cannot
+load the assemblies it has not loaded yet). Its AutoUpdate (src/AgentEyes.App/UpdateChecker.cs)
+plans against the latest GitHub release and, when behind, hands over to the installed
+`agenteyes-setup.exe update` - or waits while a recording session is active and hands over
+when it ends (or when the person clicks "Install update now" in the tray). On-demand and
+opt-out only - the product phones home for nothing, so update checks must be user-visible.
+
+Always-on and a planned stop (issue #86): an app exit or an update's restart writes a
+handover (`%LOCALAPPDATA%\AgentEyes\alwayson\handover.json` - the clip left open and the
+sound log behind the undecided pieces); the next start continues the clip if sound resumes
+within the silence gap and never deletes a piece for want of its sound log. Without a
+handover (a crash) the start recovers as before: holding folders joined whole, loose
+pieces deleted and said so.
 
 ### Components and assets
 

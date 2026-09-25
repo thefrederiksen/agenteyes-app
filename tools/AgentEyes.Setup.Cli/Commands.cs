@@ -1,5 +1,8 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using AgentEyes.Setup.Engine;
+
+[assembly: InternalsVisibleTo("AgentEyes.Tests")]
 
 namespace AgentEyes.Setup.Cli;
 
@@ -8,6 +11,16 @@ internal static class Commands
 {
     private const int Ok = 0;
     private const int Error = 1;
+
+    /// <summary>
+    /// Testable seams (issue #86): how update/install see and start the running app. Production uses
+    /// the real process handle and launcher; a test substitutes doubles so the CLI's whole update path
+    /// runs in-process without finding, stopping or starting any real AgentEyes.
+    /// </summary>
+    internal static Func<InstallLayout, IRunningAppHandle> RunningAppHandleFactory { get; set; } = layout => new RunningAppHandle(layout);
+
+    /// <inheritdoc cref="RunningAppHandleFactory"/>
+    internal static Func<InstallLayout, IAppLauncher> AppLauncherFactory { get; set; } = layout => new ProcessAppLauncher(layout);
 
     // ---- commands ----------------------------------------------------------
 
@@ -91,37 +104,45 @@ internal static class Commands
             return Ok;
         }
 
-        // Taking over the Inno v0.1 install wipes the app dir first, which needs the
-        // app stopped - and forces a fresh Install plan since nothing remains on disk.
-        if (installMode && InnoMigration.IsInnoInstall(layout))
-        {
-            // The Inno takeover wipes the app dir, which needs the app stopped. Stop it
-            // automatically (issue #95) instead of aborting with a manual-quit error. The
-            // stop is bounded + confirmed; only a genuine failure to stop aborts.
-            if (RunningApp.IsRunning(layout))
-            {
-                if (!json) Console.WriteLine("AgentEyes is running - stopping it to replace the previous (v0.1) install...");
-                if (!RunningApp.StopAndWait(layout))
-                {
-                    const string msg = "ERROR: AgentEyes is running and could not be stopped automatically.\n" +
-                                       "       Close it (tray icon -> Quit) and re-run this command.";
-                    if (json) Program.WriteJson(new { failed = msg }); else Console.Error.WriteLine(msg);
-                    return Error;
-                }
-            }
-            InnoMigration.RemoveInnoInstall(layout);
-            (plan, release) = await ComputePlanAsync(args, layout);
-            if (!json) Console.WriteLine("Removed the previous Inno-based install (taking over in place).");
-        }
-
+        // Issue #86: everything that replaces a file runs inside the ONE stop -> replace -> relaunch
+        // cycle. A running AgentEyes is stopped first - and when it cannot be stopped, nothing is
+        // replaced and the command fails with the reason - then the files are replaced, then the
+        // app is started again with the arguments it was running with. Before this the files were
+        // replaced under the running process, which stayed on the old build until somebody happened
+        // to restart it. The Inno v0.1 takeover wipes the app dir, so it is part of the replace step
+        // (it used to stop the app on its own, issue #95). With nothing to replace, the app is left alone.
+        bool innoTakeover = installMode && InnoMigration.IsInnoInstall(layout);
         var source = new ReleaseSource();
         var result = new UpdateRunResult { Results = Array.Empty<ApplyResult>() };
-        if (plan.HasWork)
+        if (plan.HasWork || innoTakeover)
         {
-            var runner = new UpdateRunner(layout, ComponentRegistry.All,
-                (item, ct) => source.DownloadAssetAsync(item.AssetName, release.DownloadUrls, ct));
-            result = await runner.ApplyAsync(plan);
-            PrintRun(result, installMode, json);
+            var cycle = new UpdateRestartCycle(RunningAppHandleFactory(layout), AppLauncherFactory(layout));
+            UpdateRestartOutcome<UpdateRunResult> outcome;
+            try
+            {
+                outcome = await cycle.RunAsync(async ct =>
+                {
+                    if (innoTakeover)
+                    {
+                        InnoMigration.RemoveInnoInstall(layout);
+                        (plan, release) = await ComputePlanAsync(args, layout);
+                        if (!json) Console.WriteLine("Removed the previous Inno-based install (taking over in place).");
+                    }
+                    if (!plan.HasWork) return new UpdateRunResult { Results = Array.Empty<ApplyResult>() };
+                    var runner = new UpdateRunner(layout, ComponentRegistry.All,
+                        (item, innerCt) => source.DownloadAssetAsync(item.AssetName, release.DownloadUrls, innerCt));
+                    return await runner.ApplyAsync(plan, ct);
+                });
+            }
+            catch (AppStopFailedException ex)
+            {
+                // Nothing was replaced (the cycle throws before its replace step). Say so and stop.
+                if (json) Program.WriteJson(new { failed = ex.Message });
+                else Console.Error.WriteLine("ERROR: " + ex.Message);
+                return Error;
+            }
+            result = outcome.Result;
+            PrintRun(result, installMode, json, outcome.Restart);
         }
         else
         {
@@ -296,7 +317,7 @@ internal static class Commands
         Console.WriteLine($"Actionable: {plan.Actionable.Count} ({plan.ToInstall.Count} install, {plan.ToUpdate.Count} update)");
     }
 
-    private static void PrintRun(UpdateRunResult result, bool installMode, bool json)
+    private static void PrintRun(UpdateRunResult result, bool installMode, bool json, AppRestartReport restart)
     {
         if (json)
         {
@@ -314,6 +335,15 @@ internal static class Commands
                     to = r.ToVersion,
                     error = r.Error,
                 }),
+                // Issue #86: what happened to the running app.
+                restart = new
+                {
+                    restarted = restart.Restarted,
+                    oldPid = restart.Stopped?.Pid,
+                    newPid = restart.NewPid,
+                    arguments = restart.Stopped?.Arguments,
+                    message = restart.Describe(),
+                },
             });
             return;
         }
@@ -326,5 +356,7 @@ internal static class Commands
             Console.WriteLine(line);
         }
         Console.WriteLine($"installed={result.Installed} updated={result.Updated} failed={result.Failed}");
+        // Issue #86: the pids when the running app was stopped and started again, or that it was not running.
+        Console.WriteLine(restart.Describe());
     }
 }

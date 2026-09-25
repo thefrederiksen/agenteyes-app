@@ -84,6 +84,10 @@ namespace AgentEyes.AlwaysOn
         /// <summary>Kept pieces that could not be read, set aside rather than deleted.</summary>
         public string UnreadableFolder => Path.Combine(WorkFolder, "unreadable");
 
+        /// <summary>What a planned stop leaves for the next start (issue #86): the clip left open and the
+        /// sound log behind the pieces still to be decided. Consumed - deleted - by the start that reads it.</summary>
+        public string HandoverFile => Path.Combine(WorkFolder, "handover.json");
+
         public static string DefaultClipsFolder => Path.Combine(RecordingPaths.Root, "AlwaysOn");
 
         public static string DefaultWorkFolder => Path.Combine(AppDataPaths.Root, "alwayson");

@@ -15,6 +15,8 @@ public partial class MainWindow : Window
     private bool _alreadyUpToDate;
     private string? _latestVersion;
     private EngineInstallRunner.Prep? _cachedPrep;
+    /// <summary>What the last apply did about the running app (issue #86), for the Complete step.</summary>
+    private AppRestartReport? _restart;
 
     private readonly InstallLayout _layout = InstallLayout.Default();
     private readonly bool _isUpdate;
@@ -97,7 +99,7 @@ public partial class MainWindow : Window
             2 => _optionsStep ??= new OptionsStep(),
             3 => _installStep ??= new InstallStep(),
             4 => _completeStep ??= new CompleteStep(_installedCount, _skippedCount, _layout.AppDir,
-                     _layout.PathFor(ComponentRegistry.App), _isUpdate, _alreadyUpToDate),
+                     _layout.PathFor(ComponentRegistry.App), _isUpdate, _alreadyUpToDate, _restart),
             _ => null
         };
 
@@ -251,10 +253,14 @@ public partial class MainWindow : Window
         var (installed, skipped) = await runner.ApplyAsync(prep, options);
         _installedCount = installed;
         _skippedCount = skipped;
+        _restart = runner.LastRestart;
 
         var verb = repair ? "Repair complete" : "Done";
-        _installStep?.SetStatus($"{verb} - {installed} installed, {skipped} skipped");
-        SetupLog.Write($"[MainWindow] RunEngineApplyAsync: repair={repair}, installed={installed}, skipped={skipped}");
+        // Issue #86: say what happened to the running app, in the same words the CLI prints.
+        var restartNote = _restart?.Restarted == true ? $"; {_restart.Describe()}" : "";
+        _installStep?.SetStatus($"{verb} - {installed} installed, {skipped} skipped{restartNote}");
+        SetupLog.Write($"[MainWindow] RunEngineApplyAsync: repair={repair}, installed={installed}, skipped={skipped}, "
+                       + $"restart={_restart?.Describe() ?? "(not run)"}");
 
         NextButton.Content = "Next";
         NextButton.IsEnabled = true;

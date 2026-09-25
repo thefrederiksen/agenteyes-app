@@ -1,37 +1,38 @@
 ﻿namespace AgentEyes.Setup.Engine;
 
 /// <summary>
-/// What the running app must do once an in-place AutoUpdate has swapped the on-disk exe (issue #107).
-/// There is deliberately NO "keep running" option: AgentEyes ships as a single-file self-contained
-/// host that reads its managed assemblies out of AgentEyesApp.exe lazily, the first time each is
-/// needed. Once that exe is replaced on disk, the still-running pre-update process can no longer load
-/// any assembly it had not already loaded, so every not-yet-exercised feature dies on first use with
-/// System.IO.FileNotFoundException. The only safe end states are therefore "restart now" or "defer the
-/// restart" - never "continue serving from the replaced bundle".
+/// What the running app does about an available AutoUpdate (issues #107, #86). There is deliberately
+/// NO "keep running on the new files" option: AgentEyes ships as a single-file self-contained host that
+/// reads its managed assemblies out of AgentEyesApp.exe lazily, the first time each is needed. If that
+/// exe were replaced on disk under the running process, every not-yet-exercised feature would die on
+/// first use with System.IO.FileNotFoundException (#107). So since #86 the app never replaces its own
+/// files at all: it either hands the update to the setup engine NOW - which stops this process,
+/// replaces the files and starts the app again (<see cref="UpdateRestartCycle"/>) - or DEFERS that
+/// handover while a recording session is active.
 /// </summary>
 public enum UpdateApplyDecision
 {
-    /// <summary>No recording session is active: restart the process into the fresh exe now.</summary>
+    /// <summary>No recording session is active: hand over to the setup engine now (stop, replace, relaunch).</summary>
     RestartNow,
 
-    /// <summary>A recording session is active: defer the restart until that session ends
-    /// (or until the next clean launch) so no in-flight capture is truncated.</summary>
+    /// <summary>A recording session is active: defer the handover until that session ends
+    /// (or until the person asks from the tray) so no in-flight capture is truncated.</summary>
     DeferSessionActive,
 }
 
 /// <summary>
-/// The single decision the running app makes AFTER an AutoUpdate has swapped the on-disk exe
-/// (issue #107): restart into the new exe now, or defer that restart because an active
-/// recording session must not be interrupted. Kept as a pure, side-effect-free function
-/// so the "an applied update never leaves the process serving from a replaced bundle" invariant is
-/// unit-testable without launching the app (mirrors the injected-seam style of <see cref="RunningApp"/>).
+/// The single decision the running app makes when an AutoUpdate is available (issues #107, #86):
+/// hand over to the stop/replace/relaunch cycle now, or defer because an active recording session
+/// must not be interrupted. The decision is made BEFORE any file is replaced. Kept as a pure,
+/// side-effect-free function so the "the running process never serves from replaced files" invariant
+/// is unit-testable without launching the app (mirrors the injected-seam style of <see cref="RunningApp"/>).
 /// </summary>
 public static class UpdateRestartPolicy
 {
     /// <summary>
-    /// Decide what to do once the update has been applied on disk. When a session is active the
-    /// restart is deferred (the caller re-invokes when the session ends); otherwise the process
-    /// restarts immediately. In neither case does the process keep serving from the stale bundle.
+    /// Decide what to do about an available update. When a session is active the handover is deferred
+    /// (the caller re-invokes when the session ends); otherwise the app hands over immediately. In
+    /// neither case are files replaced under the running process.
     /// </summary>
     /// <param name="sessionActive">True when a recording session is in progress.</param>
     public static UpdateApplyDecision Decide(bool sessionActive)
