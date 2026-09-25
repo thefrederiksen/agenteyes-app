@@ -1,7 +1,7 @@
 # Issue #83 - 'install --help' runs a real install instead of printing help - Developer handoff
 
 Branch: `issue-83-setup-help` (from `main` at f264ef7, v1.11.4). Tracker: thefrederiksen/agenteyes-app.
-Commits: `14734c7` (the fix + tests), `6ea1218` (code-review fixes), then this proof folder.
+Commits: `14734c7` (the fix + tests), `6ea1218` (code-review fixes), `b012353` (this proof folder), `13e5618` (review fix pass - tests only, section 10).
 
 I believe this is finished. The root cause is the one the issue named, confirmed in the code; the fix
 moves the help/usage decision ahead of everything that has a side effect; every acceptance criterion
@@ -80,7 +80,7 @@ created `%LOCALAPPDATA%\AgentEyes\logs` first. Help now runs before either.
 
 ### 2.2 Tests - `tests/AgentEyes.Tests`
 
-`SetupCliHelpTests.cs` (new, 62 tests). Two instruments, both fail-closed:
+`SetupCliHelpTests.cs` (new, 62 tests at `6ea1218`; 67 after the review fix pass in section 10). Two instruments, both fail-closed:
 - `ForbiddenTransport`, installed at `ReleaseSource.DefaultTransport` - the seam every production
   `new ReleaseSource()` reads (the CLI's `Commands.ResolveReleaseAsync` included). It records each
   request and THROWS, so a command that dispatches ends as exit 1 with a distinctive message, never
@@ -114,8 +114,8 @@ and runs nothing, and an unknown option is exit 2 and runs nothing.
 
 | Criterion | How the change satisfies it | Test(s) | How QA verifies |
 |-----------|-----------------------------|---------|-----------------|
-| `install --help`, `update --help`, `uninstall --help`, `plan --help` print command help, exit 0, perform no install/update/uninstall/network call (transport double fails the test if called) | `WantsHelp` answered before layout/logging/engine; `CliHelp.ForCommand` is pure text | `Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing` - 13 cases: all four commands with `--help` AND `-h`, the switch AFTER other options (`install --no-finalize --json --help`, `update --component app -h`, `plan --manifest latest --help`), `help install`, `--help uninstall`. Each asserts exit 0, stdout == the command page, stderr empty, `Requests` empty, root absent. Known-bad arm: `Run_PlanWithoutHelp_..._SoBothInstrumentsAreLive` | `dotnet test --filter FullyQualifiedName~SetupCliHelpTests`; read `install-help-console.txt` (exit 0 on every help line, `C:\nowhere` never created); mutation M1 shows these 11 cases + the regression test FAIL with `Expected: 0 / Actual: 1` when help is again dispatched only as the first argument |
-| `install --bogus` exits with the usage exit code and does nothing | `CliArgs.Parse` throws -> `UsageError` prints `usage error: unknown option '--bogus'.` + hint, returns 2 before `ResolveLayout` | `Run_InstallWithAnUnknownOption_ExitsWithTheUsageCode_AndDoesNothing`; `Parse_UnknownOption_ThrowsUsageException_NamingTheOption` (5 lines incl. `-x`, `--json=true`, `--help --bogus`); `Parse_ValueOptionWithoutAValue_ThrowsUsageException` (3); `Run_UnknownCommand_..._BeforeTheInstallRootIsTouched`; and the review-added positional rule: `Parse_PositionalNoCommandTakes_ThrowsUsageException` (6: `/?`, `/help`, `help`, `extra --json`, an en-dash `-help`, `help install extra`), `Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing` | Console lines `install --bogus`, `install --help --bogus`, `install /? --root C:\nowhere` -> `[exit 2]`; M2: `Run_InstallWithAnUnknownOption` FAILS `Expected: 2 / Actual: 1` (the install dispatched and hit the transport), 4 of 5 `Parse_UnknownOption` cases FAIL `No exception was thrown`; M3: 5 `Parse_PositionalNoCommandTakes` cases + `Run_InstallWithAWindowsStyleHelpToken` FAIL the same way |
+| `install --help`, `update --help`, `uninstall --help`, `plan --help` print command help, exit 0, perform no install/update/uninstall/network call (transport double fails the test if called) | `WantsHelp` answered before layout/logging/engine; `CliHelp.ForCommand` is pure text | `Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing` - 17 cases (13 at `6ea1218`): all six commands with `--help` AND `-h`, the switch AFTER other options (`install --no-finalize --json --help`, `update --component app -h`, `plan --manifest latest --help`), `help install`, `--help uninstall`. Each asserts exit 0, stdout == the command page, stderr empty, `Requests` empty, root absent. Known-bad arm: `Run_PlanWithoutHelp_..._SoBothInstrumentsAreLive` | `dotnet test --filter FullyQualifiedName~SetupCliHelpTests`; read `install-help-console.txt` (exit 0 on every help line, `C:\nowhere` never created); mutation M1 shows these 11 cases + the regression test FAIL with `Expected: 0 / Actual: 1` when help is again dispatched only as the first argument |
+| `install --bogus` exits with the usage exit code and does nothing | `CliArgs.Parse` throws -> `UsageError` prints `usage error: unknown option '--bogus'.` + hint, returns 2 before `ResolveLayout` | `Run_InstallWithAnUnknownOption_ExitsWithTheUsageCode_AndDoesNothing`; `Parse_UnknownOption_ThrowsUsageException_NamingTheOption` (6 lines incl. `-x`, `--json=true`, `--help --bogus`, `components --bogus`); `Parse_ValueOptionWithoutAValue_ThrowsUsageException` (3); `Run_UnknownCommand_..._BeforeTheInstallRootIsTouched`; and the review-added positional rule: `Parse_PositionalNoCommandTakes_ThrowsUsageException` (6: `/?`, `/help`, `help`, `extra --json`, an en-dash `\u2013help` - a REAL en-dash only since `13e5618`, see section 10, `help install extra`), `Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing` | Console lines `install --bogus`, `install --help --bogus`, `install /? --root C:\nowhere` -> `[exit 2]`; M2: `Run_InstallWithAnUnknownOption` FAILS `Expected: 2 / Actual: 1` (the install dispatched and hit the transport), 4 of 5 `Parse_UnknownOption` cases FAIL `No exception was thrown`; M3: 5 `Parse_PositionalNoCommandTakes` cases + `Run_InstallWithAWindowsStyleHelpToken` FAIL the same way |
 | Regression test for this exact report | `InstallHelp_Issue83_PrintsHelpInsteadOfDownloadingTheLatestReleaseAndReplacingTheInstalledApp` - argv exactly `install --help`, through `Program.RunAsync`, DEFAULT install root; asserts exit 0, the install page, stderr empty, `Requests` empty, the real `setup-cli.log` unchanged | same | In M1 it fails `Expected: 0 / Actual: 1` |
 | `dotnet build` clean, `dotnet test` green | - | - | `dotnet build AgentEyes.sln -c Release` -> `Build succeeded.` `0 Error(s)`; `dotnet test AgentEyes.sln -c Release` -> `Passed! - Failed: 0, Passed: 1979` (1917 on main + 62) |
 
@@ -213,7 +213,7 @@ the developer machine (the owner's laptop, where this session runs):
 
 | # | Finding | Done |
 |---|---------|------|
-| 1 | Stray positionals silently accepted, so `install /?`, `install help`, an en-dash `-help` still ran a real install | Rejected as `unexpected argument` for every command but `help` (which takes one). 6 parser cases + 1 entry-point test + M3 |
+| 1 | Stray positionals silently accepted, so `install /?`, `install help`, an en-dash `\u2013help` (a REAL en-dash in the test only since `13e5618`, section 10) still ran a real install | Rejected as `unexpected argument` for every command but `help` (which takes one). 6 parser cases + 1 entry-point test + M3 |
 | 2 | `Assert.DoesNotContain("installed=", _out)` could never fail (Commands write to Console, not the injected writer) | Dropped - it claimed coverage it lacked |
 | 3 | Regression test on the default root: a regression would append to the real `setup-cli.log` before the transport tripped | The real log is pinned unchanged (existence + length) around the run; argv stays verbatim |
 | 4 | `EngineLog.Write` in `CliArgs.Parse` / `CliHelp` fired before the sink existed - discarded in production | Removed; `Program` logs `CliArgs.ToString()` after `WireLogging`. `Parse_ToString_SummarizesTheLineForTheLog` |
@@ -252,3 +252,41 @@ and a closed vocabulary; the engine, the wizard and the app are untouched.
   force-foreground and synthesize input without warning the human; the recording HUD is capture-excluded.
 - The developer did NOT launch AgentEyesApp.exe or agenteyes.exe, run any smoke, selftest, release or
   tag. The one real `install` dispatch and its single network call are the incident in section 5.
+
+## 10. Review fix pass (commit `13e5618`, tests only)
+
+An independent read-only review of PR #90 found no blocking defect and three test notes. Each is
+fixed in `13e5618`; no product file under `tools/AgentEyes.Setup.Cli` changed. The developer ran
+no binary at any point in this pass: the CLI was never launched, and the two mutation runs below were
+filtered to the parser / help-text theories, which never call `Program.RunAsync`.
+
+| # | Review note | What changed | Fail-closed evidence |
+|---|-------------|--------------|----------------------|
+| 1 | The "en-dash" row of `Parse_PositionalNoCommandTakes_ThrowsUsageException` was the plain ASCII token `2013help` (a paste that lost its backslash, bytes checked). The test comment, commit `6ea1218`, the PR body and sections 3 and 6 of this note all claimed an en-dash case that was never tested. | The row is `"install \u2013help"` / `"\u2013help"` - the `\uXXXX` escape, so the source stays ASCII while the runtime token is the real U+2013 character. Behaviour, now actually observed: the token's first character is not `-`, so `IsOptionToken` says positional, and the parser rejects it as `unexpected argument '<en-dash>help'. 'install' takes options only.` -> exit 2. It is NOT the `unknown option` shape (that one is for tokens starting with `-`); either way nothing runs. | M-B: `if (false && positionals.Count > allowedPositionals)` in `CliArgs.Parse` -> all 6 rows FAIL `Assert.Throws() Failure: No exception was thrown`, the real en-dash row among them (`mutation-evidence.txt`, review fix pass). The historical M3 record shows the row as it was then, `"install 2013help"` - left as written; it is what ran. |
+| 2 | `Assert.Contains("-h", page)` in `General_ListsEveryCommandAndEveryOptionTheParserAccepts` was vacuous: `--help` contains `-h`. | `Assert.Matches(new Regex(@"^\s+--help, -h\s", RegexOptions.Multiline), page)` - the short switch as its own token on the printed option line. | M-A: `OptHelp` mutated to `"  --help                     Show help..."` (short switch dropped) -> `General_Lists...` FAILS `Assert.Matches() Failure: Pattern not found in value` (and `ForCommand_EveryCommand_ReturnsAPageHeadedByItsUsageLine` FAILS its `Contains("--help, -h")`). Under the old assertion the general-page test would have stayed green on this mutation, because `--help` is still on the page. |
+| 3 | `components --help` and `status --help` go through the same help path but had no rows in the `RunAsync` help theory. | Four rows added to `Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing`: `components --help`, `components -h`, `status --help`, `status -h` (17 cases now). The theory had no unknown-option rows to mirror; one parser row `components --bogus` added to `Parse_UnknownOption_ThrowsUsageException_NamingTheOption` (6 now). | Each new row asserts exit 0, stdout == `CliHelp.ForCommand(command)`, stderr empty, no transport request, root never created - the same fail-closed instruments as the other rows, whose known-bad arm is `Run_PlanWithoutHelp_..._SoBothInstrumentsAreLive`. |
+
+Clarifications the review asked to have on record (no code change):
+
+- Exit 2 has two message shapes: `usage error: <problem>` + hint (a `UsageException`, from the parser or
+  from a command) and `unknown command: <name>. <hint>` (from `Program.Unknown`). Both exit 2, both before
+  `ResolveLayout`.
+- `help help` reports `unknown command: help` - `help` is not in `CliHelp.Commands`, and
+  `IsCommand_KnowsExactlyTheDispatchedCommands` pins `IsCommand("help") == false`.
+- `install --help --bogus` -> exit 2 (help does not rescue a malformed line) is a fail-closed choice
+  flagged as an ASSUMPTION for the owner; flipping it is a one-line change plus the
+  `Parse_UnknownOption` row that pins it.
+- A parse-time usage error leaves NO line in `setup-cli.log`, by design: the log sink is created by
+  `WireLogging`, which needs the resolved layout, and the layout is resolved only after parse / help /
+  unknown-command have all passed. There is nowhere to log to before that, and creating the log
+  directory for `--help` is the behaviour this issue removed.
+
+Gate on the final tree (`13e5618`, the restored tree rebuilt after the mutations):
+
+```
+dotnet build AgentEyes.sln -c Release   ->  Build succeeded.  0 Error(s)
+dotnet test  AgentEyes.sln -c Release   ->  Passed!  - Failed: 0, Passed: 1984, Skipped: 0, Total: 1984
+```
+
+1984 = 1979 at `6ea1218` + 5 new rows (4 help rows + 1 parser row). The `SetupCliHelpTests` class has
+67 tests. Label unchanged: `flow:ready-qa`.

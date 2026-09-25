@@ -459,3 +459,66 @@ Actual:   1
 --- restore: git checkout -- CliArgs.cs (safe: the file is committed) ---
 ?? docs/cencon/proof/issue-83/
 (only the untracked proof folder remains; the tree is commit 6ea1218)
+
+
+=====================================================================
+REVIEW FIX PASS (commit 13e5618, tests only) - two mutations, restored tree
+=====================================================================
+
+Tree: 13e5618 committed BEFORE either mutation, so each `git checkout --` restores the reviewed code.
+Each mutation: one line by a unique anchor, `dotnet build AgentEyes.sln -c Release` (Build succeeded, 0 Error(s)),
+`dotnet test AgentEyes.sln -c Release --no-build --filter <theory>`, `git checkout -- <file>`, `git status --short` empty.
+Both filters name parser / help-text theories only; no Run_* test (nothing calls Program.RunAsync during a mutated build).
+No binary was launched at any point in this pass.
+
+--- M-A: CliHelp.OptHelp loses the short switch (review note 2) ---
+
+-    private const string OptHelp = "  --help, -h                 Show help and exit (nothing is run)";
++    private const string OptHelp = "  --help                     Show help and exit (nothing is run)";
+
+Filter: FullyQualifiedName~SetupCliHelpTests.General_Lists|FullyQualifiedName~SetupCliHelpTests.ForCommand_EveryCommand
+[xUnit.net 00:00:01.61]       Assert.Contains() Failure: Sub-string not found
+[xUnit.net 00:00:01.62]       Assert.Matches() Failure: Pattern not found in value
+Failed AgentEyes.Tests.SetupCliHelpTests.ForCommand_EveryCommand_ReturnsAPageHeadedByItsUsageLine [203 ms]
+Assert.Contains() Failure: Sub-string not found
+Failed AgentEyes.Tests.SetupCliHelpTests.General_ListsEveryCommandAndEveryOptionTheParserAccepts [7 ms]
+Assert.Matches() Failure: Pattern not found in value
+Total tests: 2
+
+Reading: the new token-bounded assertion (^\s+--help, -h\s) FIRES on a page that lost the short switch. The
+assertion it replaced, Assert.Contains("-h", page), would have PASSED this mutation because "--help" is still on
+the page - the vacuity the review named. ForCommand_EveryCommand also fails, on its Contains("--help, -h").
+
+--- M-B: positional rule disabled in CliArgs.Parse (review note 1 - the en-dash row is now real) ---
+
+-        if (positionals.Count > allowedPositionals)
++        if (false && positionals.Count > allowedPositionals)
+
+Filter: FullyQualifiedName~SetupCliHelpTests.Parse_PositionalNoCommandTakes
+(the en-dash character is rendered here as <U+2013> per UTF-8 byte, three markers for one character)
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.67]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.67]       Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install extra --json", offender: "extra") [225 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "help install extra", offender: "extra") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install help", offender: "help") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install <U+2013><U+2013><U+2013>help", offender: "<U+2013><U+2013><U+2013>help") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /help", offender: "/help") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /?", offender: "/?") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Total tests: 6
+
+Reading: all 6 rows fire, including the en-dash row - which the M3 record above shows as the ASCII token
+"install 2013help" because that is what the row WAS at 6ea1218. The M3 record is left as written: it is what ran.
+On the restored tree the en-dash row passes on the message `unexpected argument` (the token does not start
+with `-`, so it is a positional, not an unknown option).
+
+Restored tree gate: Build succeeded, 0 Error(s); Passed: 1984, Failed: 0, Total: 1984.
