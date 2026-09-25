@@ -112,6 +112,7 @@ namespace AgentEyes.Tests
         [InlineData("install --bogus", "--bogus")]
         [InlineData("install -x", "-x")]
         [InlineData("status --json=true", "--json=true")]
+        [InlineData("components --bogus", "--bogus")]
         [InlineData("install --help --bogus", "--bogus")]   // help does not rescue a malformed line
         [InlineData("--bogus", "--bogus")]
         public void Parse_UnknownOption_ThrowsUsageException_NamingTheOption(string line, string offender)
@@ -126,7 +127,7 @@ namespace AgentEyes.Tests
         [InlineData("install /help", "/help")]
         [InlineData("install help", "help")]
         [InlineData("install extra --json", "extra")]
-        [InlineData("install 2013help", "2013help")]      // an en-dash pasted from a chat or a document
+        [InlineData("install \u2013help", "\u2013help")]  // an en-dash (U+2013) pasted from a chat or a document: not '-', so a positional, not an option
         [InlineData("help install extra", "extra")]
         public void Parse_PositionalNoCommandTakes_ThrowsUsageException(string line, string offender)
         {
@@ -202,6 +203,10 @@ namespace AgentEyes.Tests
         [InlineData("uninstall -h", "uninstall")]
         [InlineData("plan --help", "plan")]
         [InlineData("plan -h", "plan")]
+        [InlineData("components --help", "components")]
+        [InlineData("components -h", "components")]
+        [InlineData("status --help", "status")]
+        [InlineData("status -h", "status")]
         [InlineData("install --no-finalize --json --help", "install")]   // the switch after other options
         [InlineData("update --component app -h", "update")]
         [InlineData("plan --manifest latest --help", "plan")]            // "latest" would be a fetch; help wins
@@ -380,7 +385,8 @@ namespace AgentEyes.Tests
                 Assert.Matches(new Regex($@"^\s+{Regex.Escape(command)}\s", RegexOptions.Multiline), page);
             foreach (var option in CliArgs.KnownFlags.Concat(CliArgs.KnownOptions).Where(o => o != "relaunched"))
                 Assert.Contains($"--{option}", page);
-            Assert.Contains("-h", page);
+            // The short switch as its own token: "-h" is also a substring of "--help", so a bare Contains proves nothing.
+            Assert.Matches(new Regex(@"^\s+--help, -h\s", RegexOptions.Multiline), page);
             Assert.Contains("exit code 2", page);
         }
 
