@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue #85 / PR #91</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 2em auto; padding: 0 1em; color: #222; }
+h1, h2 { border-bottom: 1px solid #ccc; padding-bottom: .2em; }
+table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+th, td { border: 1px solid #bbb; padding: .4em .6em; vertical-align: top; text-align: left; }
+th { background: #eee; }
+code, pre { font-family: Consolas, monospace; font-size: .92em; }
+pre { background: #f6f6f6; border: 1px solid #ddd; padding: .6em; overflow-x: auto; }
+.pass { color: #1a7f37; font-weight: bold; }
+.verdict { font-size: 1.2em; font-weight: bold; padding: .6em; border: 2px solid #1a7f37; background: #eaf7ee; }
+</style>
+</head>
+<body>
+<h1>QA report - issue #85 - CenCon skills and CLAUDE.md point at the retired tracker</h1>
+
+<ul>
+<li>Repository: <code>thefrederiksen/agenteyes-app</code></li>
+<li>Issue #85, PR #91, branch <code>issue-85-tracker-name</code>, verified at tip <code>de79c7c</code> (base <code>origin/main</code> = <code>096c642</code>)</li>
+<li>Verified in the git worktree <code>C:\ReposFred\agenteyes-app-wt-85</code>; <code>git fetch origin</code> then <code>git status</code> showed the branch up to date with origin and the tree clean</li>
+<li>Date: 2026-09-24</li>
+<li>Affected area: docs and skills only - no product code, no test code, no runtime surface. Heavy smokes not applicable; no app or CLI binary was run.</li>
+</ul>
+
+<p class="verdict">VERIFIED - all acceptance criteria met. 3 of 3 criteria PASS, 0 pending, no defects.</p>
+
+<h2>Reading of acceptance criterion 1 adopted for this PR</h2>
+<p>Criterion 1 as written says the grep over <code>CLAUDE.md</code>, <code>.claude</code> and <code>docs/cencon</code> returns only the retired sentence.
+The reading recorded on issue #85 ("Acceptance criterion 1 - reading adopted") is applied here: the criterion governs the LIVE method files
+(<code>CLAUDE.md</code>, <code>.claude</code>, <code>docs/cencon/DEVELOPMENT_METHOD.md</code>, <code>docs/cencon/INDEX.md</code>);
+<code>docs/cencon/proof/</code> and <code>docs/cencon/review/</code> are the audit trail and are excluded - they are not edited to satisfy an instrument,
+and their existing text already says the old repository is archived, so none of those lines can send an agent to the wrong tracker.
+QA judged against that reading AND ran the grep in the full form as the issue wrote it, so the owner can see both numbers.</p>
+
+<h2>Acceptance criteria</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Expected</th><th>Actual (QA ran it)</th><th>Evidence</th><th>Verdict</th></tr>
+<tr>
+<td>1</td>
+<td><code>grep -rn "thefrederiksen/AgentEyes\b"</code> over CLAUDE.md, .claude and docs/cencon returns only the one sentence saying it is retired</td>
+<td>Live form: exactly 1 match, the retired sentence. 0 = broken instrument (sentence missing), 2+ = defect.<br>
+Full form (minus <code>proof/issue-85</code>, which quotes the pattern): that sentence plus only historical hits under <code>proof/issue-33</code> and <code>review</code>.<br>
+Known-bad control at <code>origin/main</code> must FIRE.</td>
+<td>Live form: <b>1</b> match - <code>docs/cencon/DEVELOPMENT_METHOD.md:32</code>.<br>
+Full form: <b>11</b> matches = the retired sentence + <b>10</b> historical (8 under <code>docs/cencon/proof/issue-33/</code>, 2 under <code>docs/cencon/review/</code>); hits outside that set: <b>0</b>.<br>
+Known-bad control (<code>git grep</code> of the same pattern at <code>origin/main</code> over the live files): <b>35</b> - the instrument fires.</td>
+<td>Raw output below. Developer captures <code>grep-before.txt</code> (35 live / 45 full at base) and <code>grep-after.txt</code> (1 / 11 at tip) agree with QA's own run.</td>
+<td class="pass">PASS</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>gh</code> commands in the skills use <code>-R thefrederiksen/agenteyes-app</code> (or rely on the repo's own remote) consistently</td>
+<td>Every runnable <code>gh</code> command in the five CenCon skills and the method targets <code>thefrederiksen/agenteyes-app</code>; one spelling only, no <code>-R</code> mixed with <code>--repo</code>; no <code>--repo</code> pointing anywhere else.</td>
+<td>25 runnable <code>gh</code> command lines found across the five skills and <code>DEVELOPMENT_METHOD.md</code>; <b>all 25</b> carry <code>--repo thefrederiksen/agenteyes-app</code> (<code>--repo</code> is the long spelling of <code>-R</code>). Lines without it: 3, all prose - <code>implementation-loop/skill.md:188</code> (a command wrapped onto line 189, which carries the repo), <code>qa-agent/skill.md:104</code> and <code>:175</code> (notes describing the <code>--delete-branch</code> flag). <code>-R</code> spelling: <b>0</b> occurrences. <code>--repo</code> to another repo: <b>0</b>. Counts of the new name per skill: developer 7, implementation-loop 9, product 6, qa 11, support 3 - match the handoff.</td>
+<td><code>.claude/skills/*/skill.md</code>, <code>docs/cencon/DEVELOPMENT_METHOD.md:188</code>; commands and output below.</td>
+<td class="pass">PASS</td>
+</tr>
+<tr>
+<td>3</td>
+<td>No code change; <code>dotnet build</code> clean</td>
+<td><code>git diff origin/main -- src tests tools</code> empty. <code>dotnet build AgentEyes.sln -c Release</code> -> <code>Build succeeded.</code>, <code>0 Error(s)</code>. <code>dotnet test</code> numbers equal main's (1984 passed).</td>
+<td>Code-dir diff: <b>empty</b>. Build: <code>21 Warning(s)</code>, <code>0 Error(s)</code>, elapsed 13.76 s. Test: <code>Passed! - Failed: 0, Passed: 1984, Skipped: 0, Total: 1984, Duration: 43 s</code>. Numbers equal main's.</td>
+<td>QA's own run in the worktree; output below.</td>
+<td class="pass">PASS</td>
+</tr>
+</table>
+
+<h2>Method checks (beyond the three criteria)</h2>
+<table>
+<tr><th>Check</th><th>Expected</th><th>Actual</th><th>Verdict</th></tr>
+<tr><td>Changed files vs <code>origin/main</code></td><td>Only <code>CLAUDE.md</code>, <code>.claude/skills/*/skill.md</code>, <code>docs/cencon/DEVELOPMENT_METHOD.md</code>, <code>docs/cencon/INDEX.md</code>, <code>docs/cencon/proof/issue-85/</code></td><td>11 files: the 8 live files (M) + 3 new proof files (A). Files outside that set: 0.</td><td class="pass">PASS</td></tr>
+<tr><td>Historical records restored (the code-review finding)</td><td>Every file under <code>docs/cencon/proof/issue-33</code> and <code>docs/cencon/review</code> byte-identical to <code>origin/main</code></td><td><code>git diff origin/main --stat</code> on those two directories: empty. Per-file blob comparison (<code>git rev-parse origin/main:f</code> vs <code>HEAD:f</code>) over every tracked file in both directories: all SAME, 0 DIFF. The revert in <code>de79c7c</code> is real.</td><td class="pass">PASS</td></tr>
+<tr><td>Scope - "OUT: any other change to the method"</td><td>Every changed line in the 8 live files is a tracker rename, version bump + changelog line, Last Updated date, or the retired sentence</td><td>Read every +/- line of the live diff. All as expected; the one other edit is the DEV spawn prompt path <code>D:\ReposFred\AgentEyes</code> -> <code>C:\ReposFred\agenteyes-app</code> (accepted in the code review as a non-blocking note).</td><td class="pass">PASS</td></tr>
+<tr><td>Retired sentence exists and is true</td><td>Sentence present in Section 2; <code>thefrederiksen/AgentEyes</code> actually archived on GitHub</td><td><code>DEVELOPMENT_METHOD.md:32</code>: "The predecessor repo `thefrederiksen/AgentEyes` is retired - no issue is created, moved, or read there." <code>gh repo view thefrederiksen/AgentEyes --json isArchived</code> -> <code>true</code> (last push 2026-08-18). <code>thefrederiksen/agenteyes-app</code> -> <code>isArchived: false</code>.</td><td class="pass">PASS</td></tr>
+<tr><td>ASCII only, no attribution</td><td>No non-ASCII bytes in added lines; no banned attribution strings in the diff or the three branch commit messages</td><td>Non-ASCII in added lines (C locale): 0. Banned strings in added lines: 0. Commit messages: clean.</td><td class="pass">PASS</td></tr>
+<tr><td>Line-ending churn</td><td>None</td><td><code>git diff --stat</code> with and without <code>--ignore-all-space</code> both report 268 insertions / 42 deletions.</td><td class="pass">PASS</td></tr>
+<tr><td>Handoff note</td><td>Present, lists each criterion and how QA exercises it</td><td><code>docs/cencon/proof/issue-85/handoff.md</code> present; its per-criterion table, counts and follow-ups match what QA observed.</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>Raw output - criterion 1</h2>
+<pre>
+$ grep -rn "thefrederiksen/AgentEyes\b" CLAUDE.md .claude docs/cencon/DEVELOPMENT_METHOD.md docs/cencon/INDEX.md
+docs/cencon/DEVELOPMENT_METHOD.md:32:The predecessor repo `thefrederiksen/AgentEyes` is retired - no issue is created, moved, or read there.
+live count: 1
+
+$ grep -rn --exclude-dir=issue-85 "thefrederiksen/AgentEyes\b" CLAUDE.md .claude docs/cencon
+docs/cencon/DEVELOPMENT_METHOD.md:32:The predecessor repo `thefrederiksen/AgentEyes` is retired - no issue is created, moved, or read there.
+docs/cencon/proof/issue-33/handoff-round2.md:5:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` named in the skill files
+docs/cencon/proof/issue-33/qa-report.md:7:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` repo named in the skill
+docs/cencon/proof/issue-33/qa-round2/qa-report.md:8:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/qa-round3/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/qa-round4/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/qa-round5/qa-report.md:10:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/round3/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/round4/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/review/archived-pr-188-issue-187-review-round3.md:1:&lt;!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written
+docs/cencon/review/archived-pr-189-issue-186-review-round2.md:1:&lt;!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written
+full count: 11
+historical (proof/issue-33 + review): 10
+outside allowed set: 0
+
+$ git grep -n "thefrederiksen/AgentEyes\b" origin/main -- CLAUDE.md .claude docs/cencon/DEVELOPMENT_METHOD.md docs/cencon/INDEX.md | wc -l
+35     (known-bad control: the instrument fires on the base)
+</pre>
+
+<h2>Raw output - criterion 2</h2>
+<pre>
+$ grep -nE '\bgh (issue|pr|repo|api|label|run|release)\b' .claude/skills/{developer-agent,implementation-loop,product-agent,qa-agent,support-agent}/skill.md docs/cencon/DEVELOPMENT_METHOD.md | grep -v -- '--repo thefrederiksen/agenteyes-app'
+.claude/skills/implementation-loop/skill.md:188:- (a) empty AND (b) empty: good. On a DONE outcome also confirm the PR is gone (`gh pr list --repo
+.claude/skills/qa-agent/skill.md:104:   `gh pr merge --squash --delete-branch` force-deletes the REMOTE branch, but for the local branch
+.claude/skills/qa-agent/skill.md:175:`gh pr merge --delete-branch` only force-deletes the REMOTE branch; on a squash the local tip is not
+
+$ sed -n '188,189p' .claude/skills/implementation-loop/skill.md
+- (a) empty AND (b) empty: good. On a DONE outcome also confirm the PR is gone (`gh pr list --repo
+  thefrederiksen/agenteyes-app --state open` must not show it).
+
+$ grep -nE '(^|\s)-R(\s|$)' (same six files)
+(no output)
+
+$ grep -nE -- '--repo [^ ]+' (same six files) | grep -v -- '--repo thefrederiksen/agenteyes-app'
+(no output)
+</pre>
+
+<h2>Raw output - criterion 3 and the gate</h2>
+<pre>
+$ git diff origin/main --stat -- src tests tools
+(empty)
+
+$ dotnet build AgentEyes.sln -c Release
+    21 Warning(s)
+    0 Error(s)
+Time Elapsed 00:00:13.76
+
+$ dotnet test AgentEyes.sln -c Release
+Passed!  - Failed:     0, Passed:  1984, Skipped:     0, Total:  1984, Duration: 43 s - AgentEyes.Tests.dll (net8.0)
+</pre>
+
+<h2>Raw output - historical files and changed-file set</h2>
+<pre>
+$ git diff origin/main --stat -- docs/cencon/proof/issue-33 docs/cencon/review
+(empty)
+
+$ for f in $(git ls-tree -r --name-only origin/main -- docs/cencon/proof/issue-33 docs/cencon/review); do
+    [ "$(git rev-parse origin/main:$f)" = "$(git rev-parse HEAD:$f)" ] && echo SAME $f || echo DIFF $f; done
+all SAME, 0 DIFF  (every tracked file in both directories)
+
+$ git diff origin/main --name-status
+M   .claude/skills/developer-agent/skill.md
+M   .claude/skills/implementation-loop/skill.md
+M   .claude/skills/product-agent/skill.md
+M   .claude/skills/qa-agent/skill.md
+M   .claude/skills/support-agent/skill.md
+M   CLAUDE.md
+M   docs/cencon/DEVELOPMENT_METHOD.md
+M   docs/cencon/INDEX.md
+A   docs/cencon/proof/issue-85/grep-after.txt
+A   docs/cencon/proof/issue-85/grep-before.txt
+A   docs/cencon/proof/issue-85/handoff.md
+</pre>
+
+<h2>What this verification does not cover</h2>
+<ul>
+<li>Files outside <code>CLAUDE.md</code>, <code>.claude</code> and <code>docs/cencon</code> were not in scope. <code>docs/signing.md:97</code> still names the old repo for the Actions signing secrets (a live instruction) - already listed as a follow-up in the handoff; needs its own issue.</li>
+<li>The method (<code>DEVELOPMENT_METHOD.md</code>, D7) says QA hands to a Review Gate and does not merge; <code>CLAUDE.md</code> and this skill (D5) say QA merges. That drift pre-dates this PR and is out of its scope (listed as a follow-up in the handoff). For this issue the owner's brief directed the skill path: an independent code review was completed on PR #91 before QA, and QA merges on pass.</li>
+<li>Source-text greps cannot see an alias or a different spelling of the old name; the pattern used is the one the issue specified.</li>
+</ul>
+
+<h2>Outcome</h2>
+<p>PASS. Label <code>flow:ready-qa</code> -> <code>flow:done</code>; issue #85 closed; PR #91 squash-merged to <code>main</code> and the branch deleted. Not deployed.</p>
+</body>
+</html>
