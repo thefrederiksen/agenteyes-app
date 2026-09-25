@@ -1,0 +1,524 @@
+Issue #83 - mutation evidence: the new tests fired at the ORIGINAL defect, restored on purpose
+Tree: commit 14734c7 with two mutations applied, then reverted (git checkout).
+
+M1 (Program.cs): help dispatched only when it is the FIRST argument - the reported root cause.
+M2 (CliArgs.cs): an unknown option is filed as a flag instead of rejected - the old parser.
+
+=== Attempt 1 - DISCARDED (broken instrument, not a clean run) ===
+The mutations were applied (diff identical to the one below) and the mutated tree was built with
+'dotnet build tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release', then tested with
+'dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests'.
+Result: Passed! 53/53. A pass on the mutated tree is impossible if the assembly under test held the
+mutation, so the instrument was checked first. The project-level build and the solution-level test do
+not share an output directory - exactly the bin\Release vs bin\x64\Release trap the project instructions record:
+  2026-09-24 19:29:57  tests/AgentEyes.Tests/bin/Release/net8.0-windows10.0.19041.0/agenteyes-setup.dll
+  2026-09-24 19:25:47  tests/AgentEyes.Tests/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes-setup.dll
+The test run read the older, unmutated x64 assembly. Attempt 2 below builds with the gate's exact
+command, 'dotnet build AgentEyes.sln -c Release', so the built and the tested assembly are the same file.
+
+=== Attempt 2 - the evidence ===
+--- git diff (the mutations) ---
+diff --git a/tools/AgentEyes.Setup.Cli/Program.cs b/tools/AgentEyes.Setup.Cli/Program.cs
+index 43fa01b..5f0701b 100644
+--- a/tools/AgentEyes.Setup.Cli/Program.cs
++++ b/tools/AgentEyes.Setup.Cli/Program.cs
+@@ -46,3 +46,3 @@ public static class Program
+         // Help exits here: no layout, no log directory, no engine object, no network.
+-        if (args.WantsHelp || command == "help")
++        if (command == "help")
+         {
+
+--- dotnet build AgentEyes.sln -c Release (mutated tree) ---
+    0 Error(s)
+Build succeeded.
+assembly under test: 2026-09-24 19:31:14  tests/AgentEyes.Tests/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes-setup.dll
+
+--- dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests (mutated tree) ---
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall -h", command: "uninstall") [17 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall --help", command: "uninstall") [7 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --manifest latest --help", command: "plan") [35 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update -h", command: "update") [5 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --help", command: "update") [4 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --help", command: "plan") [8 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install -h", command: "install") [3 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --no-finalize --json --help", command: "install") [4 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --component app -h", command: "update") [7 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --help", command: "install") [5 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan -h", command: "plan") [4 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.InstallHelp_Issue83_PrintsHelpInsteadOfDownloadingTheLatestReleaseAndReplacingTheInstalledApp [2 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 0
+Actual:   1
+Failed!  - Failed:    12, Passed:    41, Skipped:     0, Total:    53, Duration: 175 ms - AgentEyes.Tests.dll (net8.0)
+
+--- restore: git checkout -- Program.cs CliArgs.cs ---
+?? docs/cencon/proof/issue-83/
+(only the untracked proof folder remains; Program.cs and CliArgs.cs are back to 14734c7)
+
+=== Attempt 3 - M2 alone (M2 did not apply in attempt 2) ===
+Attempt 2's recorded diff shows only Program.cs: the git checkout that restored attempt 1 rewrote the
+working copy with CRLF line endings (autocrlf), and M2's multi-line pattern was written for LF. So
+attempt 2 is evidence for M1 only. M2 is applied here on its own, with the pattern tolerant of CRLF.
+
+--- git diff (the mutation) ---
+diff --git a/tools/AgentEyes.Setup.Cli/CliArgs.cs b/tools/AgentEyes.Setup.Cli/CliArgs.cs
+index ca4708e..f6215f6 100644
+--- a/tools/AgentEyes.Setup.Cli/CliArgs.cs
++++ b/tools/AgentEyes.Setup.Cli/CliArgs.cs
+@@ -99,3 +99,3 @@ public sealed class CliArgs
+             {
+-                throw new UsageException($"unknown option '{a}'.");
++                flags.Add(key);
+             }
+
+--- dotnet build AgentEyes.sln -c Release (mutated tree) ---
+    0 Error(s)
+Build succeeded.
+assembly under test: 2026-09-24 19:32:11  tests/AgentEyes.Tests/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes-setup.dll
+
+--- dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests --logger console;verbosity=normal (mutated tree) ---
+[xUnit.net 00:00:00.36]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:00.36]       Expected: 2
+[xUnit.net 00:00:00.36]       Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_InstallWithAnUnknownOption_ExitsWithTheUsageCode_AndDoesNothing 
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   1
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall -h", command: "uninstall") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall --help", command: "uninstall") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --manifest latest --help", command: "plan") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update -h", command: "update") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --help", command: "update") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --help", command: "plan") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install -h", command: "install") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --no-finalize --json --help", command: "install") 
+[xUnit.net 00:00:00.39]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.39]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:00.39]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.39]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:00.39]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.39]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "--help uninstall", command: "uninstall") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --component app -h", command: "update") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --help", command: "install") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan -h", command: "plan") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "help install", command: "install") 
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "install --bogus", offender: "--bogus") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "--bogus", offender: "--bogus") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "status --json=true", offender: "--json=true") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "install -x", offender: "-x") 
+[xUnit.net 00:00:00.39]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.39]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "install --help --bogus", offender: "--bogus") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_UnknownCommand_ExitsWithTheUsageCode_BeforeTheInstallRootIsTouched 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_TheRelaunchedReExecShape_StillParses(command: "uninstall") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_TheRelaunchedReExecShape_StillParses(command: "update") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install --help") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install --root C:\\x --no-finalize --help") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "-h") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "--help") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "update --help") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "plan --help") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install -h") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "uninstall -h") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "--help install") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install --release-dir dist --json -h --no-finalize") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_TheReleaseWorkflowInvocation_StillParses 
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "frobnicate", expected: False) 
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "INSTALL", expected: True) 
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "", expected: False) 
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "install", expected: True) 
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "help", expected: False) 
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "plan", expected: True) 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_NoArguments_PrintsTheGeneralPage 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_ValueOptionWithoutAValue_ThrowsUsageException(line: "install --root") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_ValueOptionWithoutAValue_ThrowsUsageException(line: "install --root --json") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_ValueOptionWithoutAValue_ThrowsUsageException(line: "plan --manifest -h") 
+  Passed AgentEyes.Tests.SetupCliHelpTests.ForCommand_EveryCommand_ReturnsAPageHeadedByItsUsageLine 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_PlanWithoutHelp_ReachesTheTransportAndOpensTheLog_SoBothInstrumentsAreLive 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_HelpForAnUnknownCommand_ExitsWithTheUsageCode 
+  Passed AgentEyes.Tests.SetupCliHelpTests.HelpPages_DocumentOnlyOptionsTheParserAccepts 
+  Passed AgentEyes.Tests.SetupCliHelpTests.ForCommand_IsCaseInsensitive 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_WithoutTheSwitch_DoesNotWantHelp 
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_HelpCommand_PrintsTheGeneralPage 
+  Passed AgentEyes.Tests.SetupCliHelpTests.ForCommand_UnknownCommand_ThrowsUsageException 
+  Passed AgentEyes.Tests.SetupCliHelpTests.General_ListsEveryCommandAndEveryOptionTheParserAccepts 
+  Passed AgentEyes.Tests.SetupCliHelpTests.InstallHelp_Issue83_PrintsHelpInsteadOfDownloadingTheLatestReleaseAndReplacingTheInstalledApp 
+
+--- restore: git checkout -- CliArgs.cs ---
+?? docs/cencon/proof/issue-83/
+(only the untracked proof folder remains; CliArgs.cs is back to 14734c7)
+
+=== Attempt 4 - M3: the positional rule added after code review, disabled ===
+Tree: the reviewed tree (positional rejection, -H, ToString, shared UsageError) with ONE mutation: a
+command other than help may carry any number of positionals again ("install /?" runs the install).
+
+--- git diff (the mutation) ---
+diff --git a/tools/AgentEyes.Setup.Cli/CliArgs.cs b/tools/AgentEyes.Setup.Cli/CliArgs.cs
+index ca4708e..6ca45fe 100644
+--- a/tools/AgentEyes.Setup.Cli/CliArgs.cs
++++ b/tools/AgentEyes.Setup.Cli/CliArgs.cs
+@@ -1,3 +1 @@
+-using AgentEyes.Setup.Engine;
+-
+ namespace AgentEyes.Setup.Cli;
+@@ -9,7 +7,12 @@ namespace AgentEyes.Setup.Cli;
+ /// The vocabulary is CLOSED (issue #83). Every option token must be one of
+-/// <see cref="KnownFlags"/> or <see cref="KnownOptions"/>; anything else is a
+-/// <see cref="UsageException"/> and the command never runs. Before this, an unknown
+-/// token was silently filed as a flag, so "install --bogus" ran a real install - and so
+-/// did "install --help", because the parser knew "help" but nothing acted on it unless
+-/// it was the first argument. <see cref="WantsHelp"/> is that flag, seen anywhere.
++/// <see cref="KnownFlags"/> or <see cref="KnownOptions"/>, and no command but "help" takes
++/// a positional; anything else is a <see cref="UsageException"/> and the command never
++/// runs. Before this, an unknown token was silently filed as a flag, so "install --bogus"
++/// ran a real install - and so did "install --help", because the parser knew "help" but
++/// nothing acted on it unless it was the first argument. <see cref="WantsHelp"/> is that
++/// flag, seen anywhere.
++///
++/// No logging here on purpose: Parse runs before the host has decided whether a log file
++/// may be opened at all (help must not create one). Program logs the parse summary
++/// (<see cref="ToString"/>) once the sink exists.
+ /// </summary>
+@@ -20,3 +23,3 @@ public sealed class CliArgs
+ 
+-    /// <summary>Positionals after the command. Only "help &lt;command&gt;" reads one.</summary>
++    /// <summary>Positionals after the command. Only "help &lt;command&gt;" takes one.</summary>
+     public IReadOnlyList<string> Positionals { get; }
+@@ -30,2 +33,3 @@ public sealed class CliArgs
+     private const string HelpFlag = "help";
++    private const string HelpCommand = "help";
+ 
+@@ -54,5 +58,6 @@ public sealed class CliArgs
+     /// <summary>
+-    /// Parse a command line. Throws <see cref="UsageException"/> for an unknown option or a
+-    /// value option with no value; the caller maps that to the usage exit code without
+-    /// running anything. A malformed line is rejected even when it also carries --help.
++    /// Parse a command line. Throws <see cref="UsageException"/> for an unknown option, a
++    /// value option with no value, or a positional no command takes; the caller maps that to
++    /// the usage exit code without running anything. A malformed line is rejected even when
++    /// it also carries --help.
+     /// </summary>
+@@ -60,6 +65,4 @@ public sealed class CliArgs
+     {
+-        EngineLog.Write($"[CliArgs] Parse: argc={argv.Length}");
+-
+         var hasCommand = argv.Length > 0 && !IsOptionToken(argv[0]);
+-        var command = hasCommand ? argv[0] : "help";
++        var command = hasCommand ? argv[0] : HelpCommand;
+         var positionals = new List<string>();
+@@ -68,3 +71,3 @@ public sealed class CliArgs
+ 
+-        for (int i = hasCommand ? 1 : 0; i < argv.Length; i++)
++        for (int i = hasCommand ? 1 : int.MaxValue; i < argv.Length; i++)
+         {
+@@ -77,3 +80,3 @@ public sealed class CliArgs
+ 
+-            if (a == "-h")
++            if (a.Equals("-h", StringComparison.OrdinalIgnoreCase))
+             {
+@@ -103,3 +106,9 @@ public sealed class CliArgs
+ 
+-        EngineLog.Write($"[CliArgs] Parse: command={command} flags=[{string.Join(",", flags)}] options=[{string.Join(",", options.Keys)}] help={flags.Contains(HelpFlag)}");
++        // Only "help <command>" takes a positional. Anything else ("install /?", "install help",
++        // "install extra") is a token the command would silently ignore while it RAN - the shape
++        // this issue exists to close - so it is a usage error instead.
++        var allowed = command.Equals(HelpCommand, StringComparison.OrdinalIgnoreCase) ? 1 : int.MaxValue;
++        if (positionals.Count > allowed)
++            throw new UsageException($"unexpected argument '{positionals[allowed]}'. '{command}' takes options only.");
++
+         return new CliArgs(command, positionals, options, flags);
+@@ -111,2 +120,7 @@ public sealed class CliArgs
+ 
++    /// <summary>One-line summary for the log: command, positionals, flags, and options with their values.</summary>
++    public override string ToString() =>
++        $"command={Command} positionals=[{string.Join(",", Positionals)}] flags=[{string.Join(",", _flags)}] " +
++        $"options=[{string.Join(",", _options.Select(kv => $"{kv.Key}={kv.Value}"))}]";
++
+     /// <summary>An option token is '-' followed by at least one character. A bare "-" is a positional.</summary>
+
+--- dotnet build AgentEyes.sln -c Release (mutated tree) ---
+    0 Error(s)
+Build succeeded.
+assembly under test: 2026-09-24 19:47:49  tests/AgentEyes.Tests/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes-setup.dll
+
+--- dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests --logger console;verbosity=normal (mutated tree) ---
+[xUnit.net 00:00:00.49]       Assert.Equal() Failure: Strings differ
+[xUnit.net 00:00:00.49]       Expected: "Usage: agenteyes-setup uninstall [options"<non-ascii>
+[xUnit.net 00:00:00.49]       Actual:   "agenteyes-setup - install, update, and un"<non-ascii>
+[xUnit.net 00:00:00.49]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.49]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "--help uninstall", command: "uninstall") 
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+Expected: "Usage: agenteyes-setup uninstall [options"<non-ascii>
+Actual:   "agenteyes-setup - install, update, and un"<non-ascii>
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "--bogus", offender: "--bogus") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "-h") 
+  Error Message:
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "--help") 
+  Error Message:
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "--help install") 
+  Error Message:
+[xUnit.net 00:00:00.50]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.50]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:00.50]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.50]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:00.50]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.50]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install 2013help", offender: "2013help") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install extra --json", offender: "extra") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install help", offender: "help") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:00.51]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.51]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:00.51]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.51]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /help", offender: "/help") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /?", offender: "/?") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:00.52]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:00.52]       Expected: 2
+[xUnit.net 00:00:00.52]       Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing 
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   1
+
+--- restore: git checkout -- CliArgs.cs ---
+ M tests/AgentEyes.Tests/SetupCliHelpTests.cs
+ M tools/AgentEyes.Setup.Cli/CliHelp.cs
+ M tools/AgentEyes.Setup.Cli/Program.cs
+?? docs/cencon/proof/issue-83/
+(CliArgs.cs is back to the reviewed tree; the proof folder and the review-fix edits remain as working-tree changes until committed)
+
+=== Attempt 4 - DISCARDED, and it caused a real side effect on the developer machine ===
+Two errors in that chain, both the developer's, recorded here because the record must hold them:
+1. The pattern meant for the positional-rule line ("? 1 : 0;") also matched the for-loop start on the
+   line above it, so M3 was a DOUBLE mutation (no options parsed at all once a command was present).
+   The 11 failures above therefore say nothing clean about the positional rule. Discarded.
+2. The "restore" was 'git checkout -- CliArgs.cs' while the code-review fixes to that file were still
+   UNCOMMITTED, so it restored the file to commit 14734c7 (the pre-review parser), not to the reviewed
+   tree. The "FINAL GATE" that followed built a MIXED binary - new Program.cs and CliHelp.cs, OLD
+   CliArgs.cs - and failed 9 tests, which is the mixed tree showing. The console capture was then run
+   against that mixed binary, and its line 'agenteyes-setup install /?' - a token the OLD parser files
+   as an ignored positional - DISPATCHED A REAL INSTALL against the default root on the developer
+   machine. From the machine's %LOCALAPPDATA%\AgentEyes\logs\setup-cli.log:
+     19:48:45 [Program] RunAsync: AgentEyes.Setup.Cli.CliArgs root=C:\Users\...\AppData\Local\AgentEyes
+     19:48:46 [ReleaseSource] FetchLatestAsync: channel=https://api.github.com/repos/thefrederiksen/agenteyes-app/releases/latest
+     19:48:47 [UpdatePlanner] Plan: 4 components, 0 install, 0 update, 0 missing-asset.
+     19:48:47 [InstallFinalizer] DOTNET_BUNDLE_EXTRACT_BASE_DIR already set: ...\AgentEyes\bundle
+     19:48:47 [InstallFinalizer] created shortcut: ...\Start Menu\Programs\AgentEyes.lnk
+     19:48:47 [InstallFinalizer] registered Add/Remove Programs entry (v1.11.4)
+     19:48:47 [Program] RunAsync: command=install exit=0
+   Effect: ONE network call to the release channel; NO binary replaced (plan 0/0; every file under
+   app\ keeps its 16:59 timestamp from the owner's own update); the Start Menu shortcut re-created and
+   the identical v1.11.4 Add/Remove Programs entry re-registered (install mode always finalizes); seven
+   lines appended to the real log. The owner's brief forbade any network call and any real command;
+   this violated both, by process error, not by the code under test - the reviewed parser rejects
+   '/?' and the test Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing pins it.
+   Lessons applied from here on: mutate only AFTER the tree is committed (so a checkout restores what
+   was meant), target one line by a unique anchor, and run the console capture only after the full
+   suite on the SAME binary has passed.
+
+=== Attempt 5 - M3: the positional rule disabled (clean run) ===
+Tree: commit 6ea1218 (the review fixes COMMITTED first, so 'git checkout' restores exactly this tree).
+Mutation: the one line that computes how many positionals a command may carry, matched by its unique name.
+
+--- git diff (the mutation) ---
+diff --git a/tools/AgentEyes.Setup.Cli/CliArgs.cs b/tools/AgentEyes.Setup.Cli/CliArgs.cs
+index b88e4bf..361a3c7 100644
+--- a/tools/AgentEyes.Setup.Cli/CliArgs.cs
++++ b/tools/AgentEyes.Setup.Cli/CliArgs.cs
+@@ -109,3 +109,3 @@ public sealed class CliArgs
+         // this issue exists to close - so it is a usage error instead.
+-        var allowedPositionals = command.Equals(HelpCommand, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
++        var allowedPositionals = command.Equals(HelpCommand, StringComparison.OrdinalIgnoreCase) ? 1 : int.MaxValue;
+         if (positionals.Count > allowedPositionals)
+
+--- dotnet build AgentEyes.sln -c Release (mutated tree) ---
+    0 Error(s)
+Build succeeded.
+assembly under test: 2026-09-24 19:52:39  tests/AgentEyes.Tests/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes-setup.dll
+
+--- dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests --logger console;verbosity=normal (mutated tree) ---
+[xUnit.net 00:00:01.33]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:01.33]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:01.33]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:01.33]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:01.33]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:01.33]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install 2013help", offender: "2013help") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install extra --json", offender: "extra") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install help", offender: "help") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:01.33]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:01.33]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:01.34]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:01.34]       Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /help", offender: "/help") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+  Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /?", offender: "/?") 
+  Error Message:
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Cli.UsageException)
+[xUnit.net 00:00:01.36]       Assert.Equal() Failure: Values differ
+[xUnit.net 00:00:01.36]       Expected: 2
+[xUnit.net 00:00:01.36]       Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing 
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   1
+
+--- restore: git checkout -- CliArgs.cs (safe: the file is committed) ---
+?? docs/cencon/proof/issue-83/
+(only the untracked proof folder remains; the tree is commit 6ea1218)
+
+
+=====================================================================
+REVIEW FIX PASS (commit 13e5618, tests only) - two mutations, restored tree
+=====================================================================
+
+Tree: 13e5618 committed BEFORE either mutation, so each `git checkout --` restores the reviewed code.
+Each mutation: one line by a unique anchor, `dotnet build AgentEyes.sln -c Release` (Build succeeded, 0 Error(s)),
+`dotnet test AgentEyes.sln -c Release --no-build --filter <theory>`, `git checkout -- <file>`, `git status --short` empty.
+Both filters name parser / help-text theories only; no Run_* test (nothing calls Program.RunAsync during a mutated build).
+No binary was launched at any point in this pass.
+
+--- M-A: CliHelp.OptHelp loses the short switch (review note 2) ---
+
+-    private const string OptHelp = "  --help, -h                 Show help and exit (nothing is run)";
++    private const string OptHelp = "  --help                     Show help and exit (nothing is run)";
+
+Filter: FullyQualifiedName~SetupCliHelpTests.General_Lists|FullyQualifiedName~SetupCliHelpTests.ForCommand_EveryCommand
+[xUnit.net 00:00:01.61]       Assert.Contains() Failure: Sub-string not found
+[xUnit.net 00:00:01.62]       Assert.Matches() Failure: Pattern not found in value
+Failed AgentEyes.Tests.SetupCliHelpTests.ForCommand_EveryCommand_ReturnsAPageHeadedByItsUsageLine [203 ms]
+Assert.Contains() Failure: Sub-string not found
+Failed AgentEyes.Tests.SetupCliHelpTests.General_ListsEveryCommandAndEveryOptionTheParserAccepts [7 ms]
+Assert.Matches() Failure: Pattern not found in value
+Total tests: 2
+
+Reading: the new token-bounded assertion (^\s+--help, -h\s) FIRES on a page that lost the short switch. The
+assertion it replaced, Assert.Contains("-h", page), would have PASSED this mutation because "--help" is still on
+the page - the vacuity the review named. ForCommand_EveryCommand also fails, on its Contains("--help, -h").
+
+--- M-B: positional rule disabled in CliArgs.Parse (review note 1 - the en-dash row is now real) ---
+
+-        if (positionals.Count > allowedPositionals)
++        if (false && positionals.Count > allowedPositionals)
+
+Filter: FullyQualifiedName~SetupCliHelpTests.Parse_PositionalNoCommandTakes
+(the en-dash character is rendered here as <U+2013> per UTF-8 byte, three markers for one character)
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.66]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.67]       Assert.Throws() Failure: No exception was thrown
+[xUnit.net 00:00:00.67]       Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install extra --json", offender: "extra") [225 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "help install extra", offender: "extra") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install help", offender: "help") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install <U+2013><U+2013><U+2013>help", offender: "<U+2013><U+2013><U+2013>help") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /help", offender: "/help") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Failed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /?", offender: "/?") [< 1 ms]
+Assert.Throws() Failure: No exception was thrown
+Total tests: 6
+
+Reading: all 6 rows fire, including the en-dash row - which the M3 record above shows as the ASCII token
+"install 2013help" because that is what the row WAS at 6ea1218. The M3 record is left as written: it is what ran.
+On the restored tree the en-dash row passes on the message `unexpected argument` (the token does not start
+with `-`, so it is a positional, not an unknown option).
+
+Restored tree gate: Build succeeded, 0 Error(s); Passed: 1984, Failed: 0, Total: 1984.

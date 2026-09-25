@@ -12,7 +12,7 @@ No installer framework. Three pieces share one brain, exactly like cc-director
 |---|---|---|
 | Setup engine | manifest parse, plan, download, SHA-256 verify, stage, atomic swap with `.old` backup, installed-version bookkeeping, finalize (PATH/native-extraction dir/shortcuts/Run key/ARP), uninstall, Inno takeover | tools/AgentEyes.Setup.Engine |
 | Setup wizard (WPF) | what users download: `AgentEyes-Setup-win-x64.exe`. Welcome -> Options -> Install -> Complete; detects install vs update; force-install/repair semantics | tools/AgentEyes.Setup |
-| Setup CLI | headless `agenteyes-setup.exe`: components / status / plan / install / update / uninstall; installed to app\ so the Add/Remove Programs Uninstall button works | tools/AgentEyes.Setup.Cli |
+| Setup CLI | headless `agenteyes-setup.exe`: components / status / plan / install / update / uninstall; installed to app\ so the Add/Remove Programs Uninstall button works. `<command> --help` (or `-h`, anywhere on the line) prints that command's help and runs nothing; an unknown option is a usage error (exit 2) and runs nothing (issue #83) | tools/AgentEyes.Setup.Cli |
 
 The tray app references the engine too: tray -> "Check for updates..." plans against
 the latest GitHub release, confirms with the user, swaps with `.old` backups, offers a

@@ -8,6 +8,11 @@ namespace AgentEyes.Setup.Cli;
 /// wizard uses, so a human and an agent install/update identically.
 ///
 /// Exit codes: 0 ok, 1 runtime error, 2 usage error.
+///
+/// Order of business (issue #83): parse, then answer help / reject an unknown command or
+/// option, and only THEN resolve the install root, open the log file and run a command.
+/// "install --help" used to run a real install because help was dispatched only when it
+/// was the first argument; the line below that touches anything is the one after help.
 /// </summary>
 public static class Program
 {
@@ -15,17 +20,53 @@ public static class Program
     private const int ExitError = 1;
     private const int ExitUsage = 2;
 
-    public static async Task<int> Main(string[] argv)
-    {
-        var args = CliArgs.Parse(argv);
-        var json = args.HasFlag("json");
+    public static Task<int> Main(string[] argv) => RunAsync(argv, Console.Out, Console.Error);
 
+    /// <summary>
+    /// The whole CLI, with the two streams injectable so a test can run the real entry
+    /// point and read what it printed. Help and usage errors are written to the given
+    /// writers; a command that runs writes through the same streams (Console) it always did.
+    /// </summary>
+    public static async Task<int> RunAsync(string[] argv, TextWriter stdout, TextWriter stderr)
+    {
+        CliArgs args;
+        try
+        {
+            args = CliArgs.Parse(argv);
+        }
+        catch (UsageException ux)
+        {
+            return UsageError(ux, stderr);
+        }
+
+        var command = args.Command.ToLowerInvariant();
+
+        // Help exits here: no layout, no log directory, no engine object, no network.
+        if (args.WantsHelp || command == "help")
+        {
+            var topic = command == "help" ? args.Positionals.FirstOrDefault() : command;
+            if (topic is null)
+            {
+                stdout.Write(CliHelp.General());
+                return ExitOk;
+            }
+            if (!CliHelp.IsCommand(topic))
+                return Unknown(topic, stderr);
+            stdout.Write(CliHelp.ForCommand(topic));
+            return ExitOk;
+        }
+
+        if (!CliHelp.IsCommand(command))
+            return Unknown(command, stderr);
+
+        var json = args.HasFlag("json");
         var layout = ResolveLayout(args);
         WireLogging(layout);
+        EngineLog.Write($"[Program] RunAsync: {args} root={layout.LocalRoot}");
 
         try
         {
-            return args.Command.ToLowerInvariant() switch
+            var exit = command switch
             {
                 "components" => Commands.Components(args, layout, json),
                 "status" => Commands.Status(args, layout, json),
@@ -33,18 +74,19 @@ public static class Program
                 "update" => await Commands.UpdateAsync(args, layout, json, installMode: false),
                 "install" => await Commands.UpdateAsync(args, layout, json, installMode: true),
                 "uninstall" => Commands.Uninstall(args, layout, json),
-                "help" or "--help" => Help(),
-                _ => Unknown(args.Command),
+                _ => throw new InvalidOperationException($"'{command}' is listed in CliHelp.Commands but has no dispatch."),
             };
+            EngineLog.Write($"[Program] RunAsync: command={command} exit={exit}");
+            return exit;
         }
         catch (UsageException ux)
         {
-            Console.Error.WriteLine($"usage error: {ux.Message}");
-            return ExitUsage;
+            EngineLog.Write($"[Program] RunAsync usage error: {ux.Message}");
+            return UsageError(ux, stderr);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"error: {ex.Message}");
+            stderr.WriteLine($"error: {ex.Message}");
             EngineLog.Write($"[Program] FAILED: {ex}");
             return ExitError;
         }
@@ -71,38 +113,17 @@ public static class Program
         catch { /* logging setup must never block the command */ }
     }
 
-    private static int Help()
+    /// <summary>The one shape every exit-2 message has: the problem, then where help is.</summary>
+    private static int UsageError(UsageException ux, TextWriter stderr)
     {
-        Console.WriteLine(
-            """
-            agenteyes-setup - install, update, and uninstall AgentEyes
-
-            Commands:
-              components                 List known components and their assets/paths
-              status                     Show installed components and their versions
-              plan                       Show what an update/install would change
-              install                    Install or update all components, then finalize
-                                         (PATH, Start Menu shortcut, Add/Remove Programs)
-              update                     Download, verify, and apply updates only
-              uninstall                  Remove install-owned files (your data is preserved)
-
-            Options:
-              --manifest <path|latest>   Release source (default latest = GitHub Releases)
-              --release-dir <dir>        Use a local directory as the release (offline)
-              --component <id|all>       Limit update to one component (default all)
-              --autostart <on|off>       install only: set run-at-login (default: keep as-is)
-              --desktop-shortcut         install only: also create a desktop shortcut
-              --root <dir>               Override the per-user root %LOCALAPPDATA%\AgentEyes (testing)
-              --no-finalize              Skip PATH/shortcut/registry finalization (testing)
-              --dry-run                  Plan only; do not download or apply
-              --json                     Machine-readable output
-            """);
-        return ExitOk;
+        stderr.WriteLine($"usage error: {ux.Message}");
+        stderr.WriteLine(CliHelp.UsageHint);
+        return ExitUsage;
     }
 
-    private static int Unknown(string command)
+    private static int Unknown(string command, TextWriter stderr)
     {
-        Console.Error.WriteLine($"unknown command: {command}. Run 'help'.");
+        stderr.WriteLine($"unknown command: {command}. {CliHelp.UsageHint}");
         return ExitUsage;
     }
 

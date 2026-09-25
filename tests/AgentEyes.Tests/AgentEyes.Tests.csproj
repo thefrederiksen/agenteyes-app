@@ -31,6 +31,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj" />
     <ProjectReference Include="..\..\tools\AgentEyes.Setup.Engine\AgentEyes.Setup.Engine.csproj" />
+    <!-- The setup CLI is referenced so SetupCliHelpTests (issue #83) can run its REAL entry point
+         (Program.RunAsync) in-process: "install" with the help switch must print help and reach neither
+         the release channel nor the install root, and that is only provable through the dispatch the
+         exe runs. -->
+    <ProjectReference Include="..\..\tools\AgentEyes.Setup.Cli\AgentEyes.Setup.Cli.csproj" />
     <!-- AgentEyes.App is referenced ONLY so MSBuild builds it first and drops AgentEyesApp.dll next
          to the tests. The WPF app is never loaded or started - ManifestWriterIlTests reads its IL as
          bytes (issue #155, criterion 4), and the reference is what makes that a FRESH binary instead

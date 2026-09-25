@@ -57,6 +57,10 @@ namespace AgentEyes.Tests
     /// repositories will not exist, so the attempt 404s - and it is recorded in the issue #184
     /// handoff, not asserted here.
     /// </summary>
+    // Shares a serial collection with SetupCliHelpTests (issue #83): both substitute the process-wide
+    // ReleaseSource.DefaultTransport, and two classes swapping one static in parallel would let a
+    // request land on the OTHER class's transport - a false pass for the class asserting "no request".
+    [Collection(ReleaseTransportSeamCollection.Name)]
     public sealed class UpdateChannelTests : IDisposable
     {
         /// <summary>The one channel this build is allowed to read releases from.</summary>
