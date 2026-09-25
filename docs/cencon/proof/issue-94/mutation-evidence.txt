@@ -85,3 +85,8 @@ Honesty note on the full-suite runs: the FIRST full run after the review fixes r
 2095 whose name was not captured (the summary line only); the immediately following three full runs on
 the same binaries were all 2095/0, and the launcher class alone is 16/16 on every run. The developer
 cannot name that test and does not claim it was unrelated; QA's own `dotnet test` runs are the arbiter.
+
+Resolution of the honesty note (second review pass, note 6): a NAMED full run on the final binaries,
+`dotnet test AgentEyes.sln -c Release --logger "console;verbosity=normal"` -> `Total tests: 2095`,
+`Passed: 2095`, zero `Failed` lines, exit 0. Five consecutive full runs green after the one-off; no test
+is named because none failed in the named run.

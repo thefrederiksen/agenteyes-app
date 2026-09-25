@@ -37,16 +37,30 @@ public sealed class ProcessAppLauncher : IAppLauncher
 
     public int Launch(string exePath, IReadOnlyList<string> arguments)
     {
-        if (string.IsNullOrWhiteSpace(exePath)) throw new ArgumentException("exePath must not be empty.", nameof(exePath));
-        ArgumentNullException.ThrowIfNull(arguments);
-        if (!File.Exists(exePath)) throw new FileNotFoundException("The app exe to start again is not there.", exePath);
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            EngineLog.Write("[ProcessAppLauncher] Launch FAILED: exePath is empty");
+            throw new ArgumentException("exePath must not be empty.", nameof(exePath));
+        }
+        if (arguments is null)
+        {
+            EngineLog.Write($"[ProcessAppLauncher] Launch FAILED: arguments is null for {exePath}");
+            throw new ArgumentNullException(nameof(arguments));
+        }
+        if (!File.Exists(exePath))
+        {
+            EngineLog.Write($"[ProcessAppLauncher] Launch FAILED: the exe to start is not there: {exePath}");
+            throw new FileNotFoundException("The app exe to start again is not there.", exePath);
+        }
 
         string commandLine = BuildCommandLine(exePath, arguments);
-        // The exe's own directory. Resolved to a full path first: Path.GetDirectoryName of a bare
-        // "AgentEyesApp.exe" is "" (not null), and CreateProcessW rejects "" as a directory (review of PR #95).
-        string? exeDir = Path.GetDirectoryName(Path.GetFullPath(exePath));
-        string workingDirectory = string.IsNullOrEmpty(exeDir) ? _layout.AppDir : exeDir;
-        EngineLog.Write($"[ProcessAppLauncher] Launch: starting detached (no inherited handles, own console): {commandLine}");
+        // The exe's own directory, from its full path: Path.GetDirectoryName of a bare "AgentEyesApp.exe"
+        // is "" (not null), and CreateProcessW rejects "" as a directory (review of PR #95). Of a full
+        // path it is null only for a drive root, which no file can be - so that is an error, not a case.
+        string fullExePath = Path.GetFullPath(exePath);
+        string workingDirectory = Path.GetDirectoryName(fullExePath)
+                                  ?? throw new InvalidOperationException($"{fullExePath} has no parent directory to start the app in.");
+        EngineLog.Write($"[ProcessAppLauncher] Launch: starting detached (no inherited handles, own console) in {workingDirectory}: {commandLine}");
 
         var environment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (System.Collections.DictionaryEntry e in Environment.GetEnvironmentVariables())

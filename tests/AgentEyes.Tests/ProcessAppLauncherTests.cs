@@ -13,17 +13,6 @@ using Xunit;
 namespace AgentEyes.Tests
 {
     /// <summary>
-    /// Issue #94: the app that "agenteyes-setup update" started again inherited the updater's standard
-    /// handles, so a script that captured the updater's output ("$o = &amp; agenteyes-setup update 2>&amp;1")
-    /// hung until the app was quit. The real <see cref="ProcessAppLauncher"/> is exercised here on a
-    /// harmless long-lived child (cmd.exe waiting on pause, hidden) - never on AgentEyesApp.exe - and
-    /// every child is killed on the way out.
-    ///
-    /// Each check fails closed: the pipe tests wait for a specific event (end-of-stream on the read end)
-    /// within a bound and assert that the child is STILL RUNNING at that moment, so a launcher that
-    /// hands the child a copy of the pipe (the pre-#94 Process.Start) times out instead of passing.
-    /// </summary>
-    /// <summary>
     /// Issue #94 (review of PR #95): the launcher tests run ALONE, after every parallel collection. Two of
     /// them touch process-wide state that other classes' children would otherwise pick up: an INHERITABLE
     /// pipe end is held in this process for the length of a launch (any concurrent Process.Start elsewhere
@@ -37,6 +26,17 @@ namespace AgentEyes.Tests
         public const string Name = "process-spawning (not parallel)";
     }
 
+    /// <summary>
+    /// Issue #94: the app that "agenteyes-setup update" started again inherited the updater's standard
+    /// handles, so a script that captured the updater's output ("$o = &amp; agenteyes-setup update 2>&amp;1")
+    /// hung until the app was quit. The real <see cref="ProcessAppLauncher"/> is exercised here on a
+    /// harmless long-lived child (cmd.exe waiting on pause, hidden) - never on AgentEyesApp.exe - and
+    /// every child is killed on the way out.
+    ///
+    /// Each check fails closed: the pipe tests wait for a specific event (end-of-stream on the read end)
+    /// within a bound and assert that the child is STILL RUNNING at that moment, so a launcher that
+    /// hands the child a copy of the pipe (the pre-#94 Process.Start) times out instead of passing.
+    /// </summary>
     [Collection(ProcessSpawningCollection.Name)]
     public sealed class ProcessAppLauncherTests : IDisposable
     {
@@ -116,13 +116,19 @@ namespace AgentEyes.Tests
             // The pid line arrives while the probe runs; it is what lets the child be killed even when
             // the pipe then never closes (the failure this test exists to catch).
             var firstLine = probe.StandardOutput.ReadLineAsync();
-            Assert.True(await Task.WhenAny(firstLine, Task.Delay(Bound)) == firstLine, "the probe printed no pid line within the bound");
+            if (await Task.WhenAny(firstLine, Task.Delay(Bound)) != firstLine)
+            {
+                // The probe hung before printing anything: it is killed here, not merely disposed, so a
+                // hang never leaves a dotnet process behind; its stderr (complete once it is dead) is the report.
+                KillProcess(probe);
+                Assert.Fail($"the probe printed no pid line within {Bound} and was killed; stderr: {await stderr}");
+            }
             string? pidLine = await firstLine;
             if (pidLine is null || !pidLine.StartsWith("pid=", StringComparison.Ordinal))
             {
                 // The probe failed before it could start anything: its stderr carries the reason
                 // (LaunchProbe's failure line plus the engine log it routed there).
-                probe.WaitForExit((int)Bound.TotalMilliseconds);
+                if (!probe.WaitForExit((int)Bound.TotalMilliseconds)) KillProcess(probe);
                 Assert.Fail($"the probe printed '{pidLine ?? "<nothing>"}' instead of a pid line (exit {probe.ExitCode}); stderr: {await stderr}");
             }
             int pid = int.Parse(pidLine!.Substring("pid=".Length));
@@ -289,11 +295,24 @@ namespace AgentEyes.Tests
             try
             {
                 using var p = Process.GetProcessById(pid);
-                if (!p.HasExited) p.Kill(entireProcessTree: true);
+                KillProcess(p);
             }
             catch (ArgumentException)
             {
                 // already gone
+            }
+            catch (InvalidOperationException)
+            {
+                // exited between the check and the kill
+            }
+        }
+
+        private static void KillProcess(Process p)
+        {
+            try
+            {
+                if (!p.HasExited) p.Kill(entireProcessTree: true);
+                p.WaitForExit((int)Bound.TotalMilliseconds);
             }
             catch (InvalidOperationException)
             {

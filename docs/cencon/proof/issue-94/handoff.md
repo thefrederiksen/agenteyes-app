@@ -17,9 +17,10 @@ Files in this folder:
 
 Gate on the final tree (after the review fix pass, section 8): `dotnet build AgentEyes.sln -c Release` ->
 `Build succeeded.`, `0 Error(s)`; `dotnet test AgentEyes.sln -c Release` ->
-`Passed! - Failed: 0, Passed: 2095, Skipped: 0, Total: 2095` (2079 on `main`, +16; three consecutive
-full runs green - see the honesty note in section 5). The new class alone
-(`--filter FullyQualifiedName~ProcessAppLauncherTests`): `Passed: 16, Failed: 0, Duration: 869 ms`.
+`Passed! - Failed: 0, Passed: 2095, Skipped: 0, Total: 2095` (2079 on `main`, +16), including one full
+run at `--logger "console;verbosity=normal"` on the final binaries: 2095 `Passed` lines, zero `Failed`
+lines, exit 0 (section 5). The new class alone (`--filter FullyQualifiedName~ProcessAppLauncherTests`):
+`Passed: 16, Failed: 0, Duration: 859 ms`.
 
 ---
 
@@ -53,14 +54,16 @@ its own environment; an app inheriting that would unpack native DLLs into %TEMP%
      `layout.BundleExtractDir` (unchanged intent from #86/#120);
   3. calls `CreateProcessW` with `bInheritHandles = FALSE`, a `STARTUPINFOW` with `dwFlags = 0` (no
      `STARTF_USESTDHANDLES`, no std handles), `CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW`, and the
-     exe's directory as the working directory (the exe resolved with `Path.GetFullPath` first: for a bare
-     name `GetDirectoryName` is `""`, which CreateProcessW rejects - review finding, section 8). `CREATE_NO_WINDOW` gives a console child a hidden console
+     exe's directory as the working directory (from the exe's FULL path: for a bare name `GetDirectoryName`
+     is `""`, which CreateProcessW rejects - review finding, section 8; of a full path it is null only for a
+     drive root, which no file can be, so that throws `InvalidOperationException` - no fallback, section 9). `CREATE_NO_WINDOW` gives a console child a hidden console
      of its own instead of the updater's; it is ignored for a GUI exe such as AgentEyesApp.exe. Both
      returned handles are closed at once; the pid is returned.
   On failure `CreateProcess`'s error is thrown as a `Win32Exception` whose message names the command
   line and the Windows reason; `UpdateRestartCycle.Relaunch` wraps it in `AppRelaunchFailedException` as
-  before. Entry, the exact command line, the pid and every failure are logged through `EngineLog`
-  (`BuildCommandLine` logs its result and each of its throw paths too).
+  before. Entry, the exact command line with the working directory, the pid and every failure are logged
+  through `EngineLog`; each validation throw in `Launch` (empty path, null arguments, missing exe) and in
+  `BuildCommandLine` writes its reason before throwing.
 - `UpdateRestartCycle.cs`: unchanged - it still hands the launcher the stopped instance's own argument
   list (`--tray` comes back as `--tray`, pinned by the existing `UpdateRestartCycleTests`).
 
@@ -125,10 +128,12 @@ restored in place -> `Launch_BareExeNameInTheCurrentDirectory_StartsIt` FAILED w
 `Win32Exception: CreateProcess failed for cmd.exe /c pause: The filename, directory name, or volume label
 syntax is incorrect.`; restored -> passes; full suite `Passed: 2095, Failed: 0`.
 
-Honesty note: the FIRST full-suite run after the review fixes reported `Failed: 1, Passed: 2094` and the
-failing test's name was not captured; the next three full runs on the same binaries were `2095/0` each,
-and the launcher class is 16/16 on every run. I cannot name that test and do not claim it was unrelated -
-QA's own runs are the arbiter.
+On the unnamed failure: the FIRST full-suite run after the first review fixes reported `Failed: 1,
+Passed: 2094` with only the summary line captured. The reviewer (section 9, note 6) asked for a NAMED
+run: `dotnet test AgentEyes.sln -c Release --logger "console;verbosity=normal"` on the final binaries
+lists every test - 2095 `Passed` lines, no `Failed` line, exit 0 - and the four full runs before it were
+green too. The failure did not recur in five runs and no test is named because none failed in the named
+run; the raw one-off is recorded in `mutation-evidence.txt` so it is not silently dropped.
 
 ## 6. Areas worth a smoke (QA decides)
 
@@ -161,5 +166,16 @@ arguments, so a windowed app comes back windowed).
 | Dead stopwatch assertion duplicating the bound | removed |
 | `BuildCommandLine` (public) had no logging | logs its result and every throw path |
 | Criterion 5 marked pending tester | recorded in the issue comment: an OWNER CONSTRAINT on this developer session (no AgentEyes binary may be launched from it); criterion 5 is the tester session's gate, not a skipped step |
+
+## 9. Second review pass (independent reviewer's non-blocking notes on PR #95, all addressed)
+
+| Note | What was done |
+|------|---------------|
+| PR description stale (15 tests / 2094) | PR #95 body rewritten to the branch's facts (16 / 2095, collection, M4, probe kill) |
+| The three validation throws in `Launch` did not log | each writes an `EngineLog` line before throwing |
+| `?? _layout.AppDir` fallback was dead after `GetFullPath` | removed; a null `GetDirectoryName` (a drive root - impossible for a file) throws `InvalidOperationException` with the path |
+| Two stacked `<summary>` blocks on the collection, none on the test class | each class has its own summary |
+| A probe hanging before `pid=` was disposed, not killed | the timeout path kills the probe tree (`KillProcess`, waits for exit) and reports its stderr; the malformed-line path kills it too if it has not exited |
+| One unnamed test failure in the record | a named (`verbosity=normal`) full run: 2095 passed, none failed (section 5) |
 
 I believe this is finished, apart from criterion 5 which is pending the tester session by owner constraint.
