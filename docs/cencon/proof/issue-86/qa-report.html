@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue #86 / PR #92</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1, h2, h3 { color: #123; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; font-size: 14px; }
+  th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef; }
+  code, pre { font-family: Consolas, monospace; font-size: 13px; }
+  pre { background: #f6f6f6; border: 1px solid #ddd; padding: 8px; overflow-x: auto; }
+  .pass { color: #060; font-weight: bold; }
+  .pending { color: #850; font-weight: bold; }
+  .verdict { border: 2px solid #060; padding: 10px; background: #efe; }
+</style>
+</head>
+<body>
+
+<h1>QA report - issue #86 / PR #92</h1>
+<p><b>Issue:</b> [Setup] Update replaces the files but leaves the running app on the old build (thefrederiksen/agenteyes-app #86)<br>
+<b>PR:</b> #92, branch <code>issue-86-update-restarts-app</code>, HEAD <code>9a70466</code> (verified in the git worktree <code>agenteyes-app-wt-86</code>, tree clean, up to date with origin)<br>
+<b>QA date:</b> 2026-09-24<br>
+<b>Method:</b> independent REVIEW of the PR diff against every acceptance criterion in the issue and the tester's comment; QA ran <code>dotnet build</code> and <code>dotnet test</code> itself; three QA-authored mutations fired the checks at known-bad code (<code>qa-mutation-evidence.txt</code>). <b>No built binary was run</b> (no AgentEyesApp.exe, agenteyes.exe, setup CLI or wizard; no smoke, selftest, install, update, release, tag, or network call other than <code>gh</code>), by the owner's rule for this run.</p>
+
+<div class="verdict">
+<p><b>VERIFIED - all reviewable acceptance criteria met.</b> 7 of 8 criteria verified from the code and QA's own test runs; the eighth (the live update 1.11.x -&gt; next release on the owner's laptop, pid change, version endpoint, and clip continuity across a second update between two listening builds) is <span class="pending">PENDING TESTER</span> by the owner's rule - recorded as such, neither a pass nor a fail. The procedure is section 7 of <code>handoff.md</code>.</p>
+</div>
+
+<h2>1. The gate, run by QA</h2>
+<pre>dotnet build AgentEyes.sln -c Release
+  Build succeeded.
+    21 Warning(s)
+    0 Error(s)
+
+dotnet test AgentEyes.sln -c Release           (first run, before the mutations)
+  Passed!  - Failed:     0, Passed:  2079, Skipped:     0, Total:  2079, Duration: 41 s - AgentEyes.Tests.dll (net8.0)
+
+dotnet test AgentEyes.sln -c Release --no-build --filter (the six issue-86 classes)
+  Passed!  - Failed:     0, Passed:    95, Skipped:     0, Total:    95, Duration: 4 s
+
+dotnet build AgentEyes.sln -c Release          (final, on the restored tree after the QA mutations)
+  Build succeeded.
+    0 Error(s)
+dotnet test AgentEyes.sln -c Release           (final)
+  Passed!  - Failed:     0, Passed:  2079, Skipped:     0, Total:  2079, Duration: 46 s - AgentEyes.Tests.dll (net8.0)</pre>
+<p>Baseline on <code>main</code> per the handoff: 1984. This branch: 2079 (+95, all six issue-86 classes). Neither of the known pre-existing flakes (shared-log lock races, PreviewTapTests fixture Dispose) showed in either full run. The only compiler warning in changed files is <code>CS8602</code> at <code>AlwaysOnEngine.cs:901</code>, which <code>git blame</code> attributes to <code>f3da8d62</code> (2026-09-23, before this branch) - pre-existing, not this PR.</p>
+
+<h2>2. Acceptance criteria - Expected vs what the code does</h2>
+<table>
+<tr><th>#</th><th>Criterion (the contract)</th><th>Expected</th><th>What the code does (file:line)</th><th>QA evidence</th><th>Result</th></tr>
+
+<tr><td>1</td>
+<td>When the app is running, <code>update</code> stops it (graceful then bounded force, existing <code>RunningApp</code>), replaces files, relaunches it; output says <code>restarted the running app (pid A -&gt; pid B)</code></td>
+<td>Exactly that order, and the exact console line</td>
+<td><code>UpdateRestartCycle.RunAsync</code> (<code>tools/AgentEyes.Setup.Engine/UpdateRestartCycle.cs:154-207</code>): <code>Find</code> :154, <code>prepare</code> :161, <code>StopAsync</code> :172, <code>swap</code> :183, <code>Relaunch</code> :203 with <code>_launcher.Launch(_installedAppExe, running.Arguments)</code> :223. <code>Describe()</code> :52-54 is the line. <code>RunningApp.StopAndWait</code>: quit request + <code>CloseMainWindow</code>, <code>GracePeriod</code>, force <code>Kill</code>, confirming re-query (<code>RunningApp.cs</code> diff). <code>Commands.PrintRun</code> prints <code>restart.Describe()</code> (<code>Commands.cs</code>, PrintRun tail).</td>
+<td><code>UpdateRestartCycleTests.RunAsync_AppRunning_StagesWithItRunning_...</code> :30-52 pins journal <code>find, stage, stop 4242, swap staged, launch</code> and the exact line; <code>SetupCliRestartTests.Update_AppRunning_PrintsRestartedTheRunningAppWithBothPids_...</code> :57-74 reads the line from the CLI's real stdout in-process; <code>StopAndWait_QuitRequestDeliveredButIgnored_StillForceStopsAndConfirms</code> :366-394 (a real <code>cmd /c pause</code> child - not an AgentEyes binary). QA mutation B fired 3 tests on the argument arm.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>2</td>
+<td>When the app was not running, it is not started</td>
+<td>No launcher call; report says so</td>
+<td><code>UpdateRestartCycle.cs:164-169</code>: <code>running == null</code> -&gt; swap only, <code>AppRestartReport(null, null)</code>, no <code>Relaunch</code>. Dry-run / nothing-to-do never construct the cycle (<code>Commands.cs</code>, <code>if (plan.HasWork || innoTakeover)</code>).</td>
+<td><code>RunAsync_AppNotRunning_StagesAndSwaps_AndStartsNothing</code> :55-70; <code>SetupCliRestartTests.Update_AppNotRunning_SaysSoAndStartsNothing</code> :93-106, <code>Update_DryRun_NeverLooksForTheRunningApp</code> :221-232, <code>Update_NothingToDo_LeavesTheRunningAppAlone</code> :235-252. <b>QA mutation C</b> (launch added to the not-running branch) failed both tests, control passed.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>3</td>
+<td>If the app cannot be stopped, the update fails with a clear error and leaves the old version intact - no half state</td>
+<td>Throw before any replace; exit 1; old bytes unchanged; no <code>.old</code></td>
+<td><code>UpdateRestartCycle.cs:173-177</code>: <code>!stopped</code> -&gt; <code>throw new AppStopFailedException(running)</code> BEFORE <code>swap</code>; message :72-73 "Nothing was replaced - the installed version is unchanged". <code>Commands.cs</code> catch: marker written (stage <code>stop</code>), <code>ERROR:</code> on stderr, exit 1. Staging disposed in <code>finally</code> :209-212.</td>
+<td><code>RunAsync_AppCannotBeStopped_ThrowsBeforeTheSwapStep_AndStartsNothing</code> :95-113; <code>..._TheInstalledFileIsByteForByteUnchanged</code> :143-172 (real file + real <code>InstallSwapper</code>: bytes equal, no <code>.old</code>, staged file not consumed); <code>SetupCliRestartTests.Update_AppCannotBeStopped_FailsWithTheReason_AndTheOldBuildIsUntouched</code> :109-140 (exit 1, stderr text, bytes, marker). Developer M1 reviewed.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>4</td>
+<td>Always-on that was on before the update is on after it (restore-on-start already exists)</td>
+<td>The exit path never turns the config flag off; <code>RestoreOnStartup</code> unchanged</td>
+<td><code>AlwaysOnController.ShutdownForExit</code> (diff) calls <code>_engine.StopForRestart(...)</code> and never touches <code>Config.AlwaysOnEnabled</code>; <code>App.xaml.cs</code> still calls <code>RestoreOnStartup()</code> (unchanged line). <code>StopForRestart</code> sets the engine <code>Off</code> without writing config (<code>AlwaysOnEngine.cs</code> diff, StopForRestart).</td>
+<td><code>UpdateHandoverTests.ShutdownForExit_HandsTheClipOverAndLeavesAlwaysOnEnabled_SoRestoreOnStartupBringsItBack</code> :312-331 (flag still true, engine Off, handover file written, history line); <code>RestoreOnStartup_AlwaysOnWasOff_DoesNotStartIt</code> :334-345. The "on" arm of <code>RestoreOnStartup</code> resolves the real recording setup and is the live check in criterion 8 (<code>GET /always-on</code> after the relaunch).</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>5</td>
+<td>AutoUpdate inside the app follows the same path</td>
+<td>The app never replaces its own files; it hands over to the setup CLI, whose <code>update</code> IS the cycle; a failed attempt is not retried by itself</td>
+<td><code>UpdateChecker.HandOverToSetup</code> (<code>src/AgentEyes.App/UpdateChecker.cs:274-286</code>) starts the INSTALLED <code>agenteyes-setup.exe update</code>; missing CLI throws :278-281 (no in-process fallback). <code>CheckAsync</code> :129-197: reads <code>UpdateAttemptMarker</code> :154 (unreadable -&gt; throws, never "no failure"); same target + automatic -&gt; log + balloon, return :177-188; newer target clears :169-175; up to date clears :156-167; manual retries :189. Defer while a session is active :212-227; <code>OnSessionEnded</code>/<code>InstallNow</code> hand over later. <code>RequestRestart</code>/<code>StartPendingRestart</code>/in-process swap removed (<code>App.xaml.cs</code>, <code>TrayHost.cs</code> diffs).</td>
+<td><code>UpdateHandoverTests</code>: <code>CheckAsync_UpdateAvailable_NoSession_HandsOverToTheSetupCliAtOnce</code> :69-81; <code>..._SessionActive_DefersWithTheBalloon_ThenInstallNowHandsOver</code> :84-104; <code>..._ThenTheSessionEnds_HandsOver</code> :107-124; <code>CheckAsync_LastAttemptFailedForTheSameVersion_AutomaticCheckDoesNotHandOverAgain_AndShowsTheReason</code> :127-145; <code>..._ThePersonsOwnCheckTriesAgain</code> :148-157; <code>..._ANewTargetClearsTheBlock_AndHandsOver</code> :160-170; <code>CheckAsync_UpToDate_ClearsAStaleFailedAttempt</code> :173-185; <code>CheckAsync_UnreadableAttemptRecord_Throws</code> :188-200; <code>UpdateChecker_CallsTheEnginesPlannerAndLayout_ButNeverAFileReplacer</code> :291-307 (IL scan of the built AgentEyesApp.dll, presence arm + absence arm). Developer M4 reviewed.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>6</td>
+<td>Unit tests for the stop/replace/relaunch decision; <code>dotnet build</code> clean, <code>dotnet test</code> green</td>
+<td>QA's own runs green</td>
+<td>Six test classes, 95 tests: <code>UpdateRestartCycleTests</code>, <code>UpdateStageSwapTests</code>, <code>WizardInstallRunnerTests</code>, <code>SetupCliRestartTests</code>, <code>UpdateHandoverTests</code>, <code>AlwaysOnRestartTests</code>.</td>
+<td>Section 1: <code>0 Error(s)</code>; <code>Passed: 2079, Failed: 0</code> twice; the six classes <code>Passed: 95</code>. QA mutations B, C, D each fired the intended tests with a passing control.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>7</td>
+<td>Tester's addition: on a planned stop (update/exit) the engine persists the sound log for the open clip and the last piece; after the restart the recovered clip is kept whole and continued if sound resumes within the silence gap; a planned restart never deletes a piece; unit test for stop -&gt; start continuity</td>
+<td>A handover written at the planned stop; the next start restores it, joins nothing that was carried, deletes nothing for want of a sound log</td>
+<td><code>AlwaysOnEngine.StopForRestart</code> (diff): stop recorder, ORDINARY keeper pass (not final), <code>WriteHandover</code> even when the pass throws. <code>WriteHandover</code>: open clip + <code>ClosedSoundUtc</code> + <code>NextClip</code> + <code>SoundLog.Export(horizon)</code>, atomic save. <code>Recover</code>: <code>AlwaysOnHandover.Load</code>; <code>RestoreHandover</code> restores <code>_open</code>, dirs, marks, imports the sound log; the carried folder is skipped in the join loop (<code>continue</code>); loose pieces are NOT deleted when a handover exists; the file is consumed. Corrupt -&gt; <code>.bad</code> + history Problem; locked -&gt; <code>InvalidOperationException</code> with the fix (<code>AlwaysOnHandover.cs:54-82</code>); <code>Start</code> records "Always-on could not start" (<code>AlwaysOnEngine.cs:366</code>). <code>App.OnExit</code> -&gt; <code>ShutdownForExit</code> -&gt; <code>StopForRestart</code>; the setup engine's quit request reaches <code>TrayHost.QuitRequested</code> via <code>QuitRequest.Listen</code> (<code>App.xaml.cs</code> diff).</td>
+<td><code>AlwaysOnRestartTests.StopForRestart_ThenStart_SoundResumesWithinTheGap_OneClipAcrossTheRestart_AndNoPieceIsDeleted</code> :48-96 - two ENGINE INSTANCES, seven real 2 s MP4 pieces, ONE clip of 14 s asserted by <code>MediaProbe.DurationSeconds</code>, zero <code>DELETE</code> history events, <code>RestartsToday</code> 0, the #81 bridge line present. <code>..._AfterLongerThanTheGap_...</code> :99-131 (two clips, 8 s and 6 s, no DELETE). <code>StopForRestart_NoClipOpen_LoosePiecesWaitForTheKeeper_AndAreJudgedByTheRuleNotByRecover</code> :159-200 (deleted later by "no sound within", never "earlier run"). <code>Start_LockedHandover_FailsWithTheFileAndTheFixStep_AndTouchesNothing</code> :248-275 (a real <code>FileShare.None</code> lock). <code>StopForRestart_KeeperPassFails_TheHandoverIsStillWritten</code> :319-347. <b>QA mutation D</b> (the carried clip joined at start) failed both continuity tests, control passed. Developer M2 and M7 reviewed.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>8</td>
+<td>Live (tester): update from 1.11.x to the next release while the app runs; the running pid changes and the version endpoint reports the new version; clip continuity across a second update between two listening builds</td>
+<td>Console <code>restarted the running app (pid A -&gt; pid B)</code>; one new process; <code>/version</code> new; setup-cli.log lines; second update carries the clip</td>
+<td>Needs a published release and the owner's laptop. By the owner's rule for this run QA ran no binary.</td>
+<td>Procedure: <code>handoff.md</code> section 7 steps 1-9 (updated for the marker and N5).</td>
+<td class="pending">PENDING TESTER</td></tr>
+</table>
+
+<h2>3. The review fix pass - each fix confirmed in the diff (not re-litigated: notes 8-9 accepted)</h2>
+<table>
+<tr><th>Finding</th><th>Confirmed in the code</th><th>Test that pins it</th></tr>
+<tr><td><b>B1a</b> download + verify ran after the stop</td><td><code>UpdateRunner.StageAsync</code> (<code>UpdateRunner.cs:151-195</code>) downloads and SHA-256 verifies EVERY actionable item, deletes what it staged on the first failure, throws <code>UpdateStageException</code> ("Nothing was replaced and the running AgentEyes was not stopped"), reads or writes no installed file. <code>UpdateRestartCycle.RunAsync</code> awaits <code>prepare</code> at :161 OUTSIDE the try, before any <code>StopAsync</code>; the exception propagates as itself. CLI and wizard pass <code>runner.StageAsync</code> as <code>prepare</code> and <code>runner.Swap</code> as <code>swap</code>.</td><td><code>RunAsync_PrepareFails_TheAppIsNeverStopped_NothingIsSwapped_NothingIsStarted</code> :73-92; <code>UpdateStageSwapTests.StageAsync_*</code> :43-107; <code>SetupCliRestartTests.Update_DownloadFailsVerification_AppRunning_NeverStopsIt_TouchesNoFile_ExitsOne_AndRecordsTheAttempt</code> :143-174 (0 stop calls, bytes equal, exit 1, marker <code>download</code>); <code>WizardInstallRunnerTests.ApplyAsync_DownloadFailsVerification_TheAppIsNeverStopped_AndTheErrorSaysSo</code> :101-119. Developer M3 reviewed.</td></tr>
+<tr><td><b>B1b</b> mixed-version install after a swap failure</td><td><code>UpdateRunner.Swap</code> :204-246 records every placed file (<code>ArchiveInstaller.Place</code> now returns its placements) and on a failure calls <code>RollBack</code> :253-282 in reverse (<code>.old</code> restored, fresh file removed), then throws <code>UpdateSwapException</code> whose message names the rolled-back components or, when a rollback fails, the exact MIXED state and the fix (:93-107). Installed versions recorded only after every item is in place (:242).</td><td><code>UpdateStageSwapTests.Swap_SecondItemCannotBePlaced_TheFirstIsRolledBack_AndTheFailureSaysSo</code> :135-158; <code>..._AFreshlyInstalledFirstItemIsRemovedAgain</code> :161-173; <code>Swap_ArchiveComponent_ReportsEveryFileItPlaced</code> :176-199; <code>SwapException_RollbackFailed_NamesTheMixedStateAndTheFix</code> :202-215 (the test states its own limit: the rollback-failure branch is read, not run). Developer M5 reviewed.</td></tr>
+<tr><td><b>B1c</b> no marker, no back-off (the restart loop - the one BLOCKING finding)</td><td><code>UpdateAttemptMarker</code> (<code>UpdateAttemptMarker.cs</code>): <code>WriteFailed</code> atomic :67-86, <code>Read</code> throws on an unreadable file :90-108, <code>Clear</code> :111-119, <code>StageOf</code> maps every cycle exception :52-64. <code>InstallLayout.UpdateAttemptMarkerPath</code> = <code>config\setup\last-update-attempt.json</code>. CLI: written in the cycle's catch for any non-usage exception, cleared on success (<code>Commands.cs</code>). Wizard: <code>RecordFailedAttempt</code> in the catch, <code>Clear</code> on success (<code>EngineInstallRunner.cs:173,191</code>). App: <code>UpdateChecker.CheckAsync</code> :154-190 honours it (see criterion 5).</td><td><code>UpdateStageSwapTests.Marker_*</code> :220-279 (5); <code>SetupCliRestartTests.Update_Succeeds_ClearsTheFailedAttemptRecord</code> :177-187 plus the marker asserts in the stop-failure and download-failure tests; <code>UpdateHandoverTests</code> :127-200 (4 arms). Developer M4 reviewed.</td></tr>
+<tr><td><b>N1</b> wizard hang when <code>Find()</code> throws</td><td><code>EngineInstallRunner.ApplyAsync</code> :158-194: <code>catch (Exception ex)</code> at the wizard's service boundary -&gt; <code>LastError</code>, pending items marked <code>Skipped</code> with a reason, marker written, <code>OnStatus("ERROR: ...")</code>, returns <code>(0, all)</code>. <code>MainWindow</code>: <code>RunInstallAsync</code>/<code>RunRepairAsync</code> wrap their cores in try/catch -&gt; <code>ShowApplyError</code> (status "ERROR: ...", Next becomes Retry); <code>RunEngineApplyAsync</code> checks <code>runner.LastError</code> before saying "Done".</td><td><code>WizardInstallRunnerTests.ApplyAsync_FindThrows_IsOneErrorState_NotAHang</code> :50-76 (marker stage <code>unknown</code>, by <code>wizard</code>); <code>ApplyAsync_AppCannotBeStopped_IsTheSameErrorState_AndNothingIsReplaced</code> :79-98. Developer M6 reviewed. Only failure paths run (the success path would finalize for real) - stated in the test.</td></tr>
+<tr><td><b>N2</b> relaunch used the stopped process's path</td><td><code>UpdateRestartCycle(app, launcher, installedAppExe)</code> :130-136; <code>Relaunch</code> always launches <code>_installedAppExe</code> :223; <code>AppRestartReport.StoppedExeDiffers</code>/<code>Note</code> :46-62; CLI prints the note as a second line and in JSON (<code>Commands.cs</code> PrintRun). CLI and wizard pass <code>layout.PathFor(ComponentRegistry.App)</code>.</td><td><code>RunAsync_StoppedProcessRanFromElsewhere_TheInstalledAppIsStarted_AndTheReportSaysSo</code> :266-286; <code>..._InAnotherCasing_NoNote</code> :289-301; <code>SetupCliRestartTests.Update_StoppedProcessRanFromElsewhere_StartsTheInstalledExe_AndPrintsTheNote</code> :190-206; <code>..._PrintsNoNote</code> :209-218.</td></tr>
+<tr><td><b>N4</b> relaunch exception masked the swap exception</td><td><code>UpdateRestartCycle.cs:185-201</code>: swap failure -&gt; relaunch anyway; a relaunch failure becomes <code>AggregateException(swapEx, relaunchEx)</code> naming both; otherwise the swap exception is rethrown. <code>AppRelaunchFailedException</code> :85-95 ("Start it by hand"). <code>StageOf</code> maps the aggregate to <code>relaunch</code>.</td><td><code>RunAsync_SwapStepThrows_AndTheRelaunchFailsToo_BothFailuresTravel</code> :224-244; <code>RunAsync_LaunchThrows_TheFailureNamesTheExeToStartByHand_AfterTheSwapStepRan</code> :247-261; <code>Marker_StageOf_MapsEachCycleFailure</code> :269-279.</td></tr>
+<tr><td><b>N5</b> the keeper pass at the planned stop may delete a silent piece by the rule</td><td>No code change (correct by the rule). Stated for the tester in <code>handoff.md</code> section 7 step 9 and 8.1: never the piece that ends the open clip, never a piece inside the keep window, never for want of a sound log.</td><td><code>StopForRestart_NoClipOpen_LoosePiecesWaitForTheKeeper_AndAreJudgedByTheRuleNotByRecover</code> :159-200.</td></tr>
+<tr><td><b>N6</b> no test through <code>UpdateChecker</code> for defer / InstallNow</td><td>Seams <code>FetchLatest</code>, <code>Layout</code>, <code>Dispatch</code>, <code>CheckAsync(userInitiated)</code>, <code>DeferredVersion</code>, <code>ResetForTests</code> (<code>UpdateChecker.cs:65-87,129</code>).</td><td><code>CheckAsync_UpdateAvailable_SessionActive_DefersWithTheBalloon_ThenInstallNowHandsOver</code> :84-104 and its two siblings.</td></tr>
+<tr><td><b>N7</b> locked <code>handover.json</code> -&gt; null then an unrelated exception</td><td><code>AlwaysOnHandover.Load</code> :54-82: absent -&gt; null; cannot be READ -&gt; <code>InvalidOperationException</code> naming the file and the fix; reads but is not a handover -&gt; <code>InvalidDataException</code>, which <code>Recover</code> catches deliberately (warning + history Problem, moved to <code>.bad</code>, crash-style recovery). No null-for-unreadable path remains.</td><td><code>Start_LockedHandover_FailsWithTheFileAndTheFixStep_AndTouchesNothing</code> :248-275; <code>Start_CorruptHandover_*</code> :278-306. Developer M7 reviewed.</td></tr>
+<tr><td><b>N3, N8</b> (accepted notes)</td><td>Not re-litigated. N3 (the relaunched app inherits the CLI's token) and N9/N8 (live proof is the tester's) are recorded in the PR body and the handoff assumptions.</td><td>-</td></tr>
+</table>
+
+<h2>4. QA mutation evidence (QA's own, independent of the developer's M1-M7)</h2>
+<p>Full quoted output in <code>qa-mutation-evidence.txt</code>. Summary - each applied to the committed tree at 9a70466, built with the gate's command, run filtered with a control, restored with <code>git checkout --</code>, <code>git status</code> clean after each:</p>
+<table>
+<tr><th>Mutation</th><th>What it restores</th><th>Result</th></tr>
+<tr><td><b>B</b> <code>UpdateRestartCycle.Relaunch</code> passes <code>Array.Empty&lt;string&gt;()</code> instead of <code>running.Arguments</code></td><td>A relaunch that loses the <code>--tray</code> state (the developer stated this criterion was not mutated separately)</td><td><code>Failed: 3, Passed: 1</code> - <code>RunAsync_EveryArgumentIsCarriedVerbatim_NotJustTheTrayFlag</code>, <code>SetupCliRestartTests.Update_AppRunning_PrintsRestarted...</code>, <code>Install_AppRunning_TakesTheSamePath...</code> (Expected <code>["--tray"]</code>, Actual <code>[]</code>); control <code>RunAsync_AppNotRunning_StagesAndSwaps_AndStartsNothing</code> passed</td></tr>
+<tr><td><b>C</b> a launch added to the <code>running == null</code> branch</td><td>Not running -&gt; started anyway</td><td><code>Failed: 2, Passed: 1</code> - journal Expected <code>["find","stage","swap"]</code>, Actual <code>[..., "launch"]</code>; CLI <code>Assert.Empty() Failure: Collection was not empty</code>; control <code>RunAsync_AppRunning_StagesWithItRunning...</code> passed</td></tr>
+<tr><td><b>D</b> <code>AlwaysOnEngine.Recover</code> no longer skips the carried clip's holding folder</td><td>The open clip joined whole and closed at start - the split the tester saw on 2026-09-24</td><td><code>Failed: 2, Passed: 1</code> - both continuity tests (<code>..._OneClipAcrossTheRestart_AndNoPieceIsDeleted</code>, <code>..._TheCarriedClipIsWrittenWithItsSpan_...</code>) failed; control <code>StopForRestart_WritesTheOpenClipAndTheSoundHeard</code> passed</td></tr>
+</table>
+
+<h2>5. Method and standards checks</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Handoff note present and linked repo-relative (<code>docs/cencon/proof/issue-86/handoff.md</code>, issue comment 2026-09-25)</td><td class="pass">PASS</td></tr>
+<tr><td>ASCII only: <code>git diff main...HEAD</code> added lines scanned with <code>LC_ALL=C grep '[^ -~]'</code> -&gt; 0 hits; <code>handoff.md</code> and <code>mutation-evidence.txt</code> -&gt; 0 hits</td><td class="pass">PASS</td></tr>
+<tr><td>Banned attribution strings in the diff and in the four branch commit messages -&gt; 0 hits</td><td class="pass">PASS</td></tr>
+<tr><td>No <code>nul</code> file in the tree</td><td class="pass">PASS</td></tr>
+<tr><td>Enterprise logging: every new public method logs entry/exit/failure through <code>EngineLog</code>/<code>Log</code>/<code>SetupLog</code> (cycle, runner, marker, handle, launcher, quit request, StopForRestart, WriteHandover, RestoreHandover, HandOverToSetup, QuitRequested)</td><td class="pass">PASS</td></tr>
+<tr><td>No fallback programming: unreadable command line throws (<code>RunningAppHandle.Describe</code>); missing setup CLI throws (<code>HandOverToSetup</code>); unreadable marker throws (<code>UpdateAttemptMarker.Read</code>); unreadable handover throws (<code>AlwaysOnHandover.Load</code>); stop failure throws before the swap</td><td class="pass">PASS</td></tr>
+<tr><td>Try-catch at entry points: <code>UpdateChecker.RunAsync</code>, <code>OnSessionEnded</code>/<code>InstallNow</code> (event handlers), <code>EngineInstallRunner.ApplyAsync</code> (the wizard's service boundary), <code>MainWindow</code> fire-and-forget wrappers, <code>TrayHost.QuitRequested</code> task body, <code>QuitRequest</code> listener thread, <code>Commands.UpdateAsync</code> (the CLI command). The cycle's own catch around <code>swap</code> rethrows and exists to relaunch, not to hide.</td><td class="pass">PASS</td></tr>
+<tr><td>Responsive UI: the wizard's stop runs on a worker (<code>RunningAppHandle.StopAsync</code> -&gt; <code>Task.Run</code>); status line updated at download/stop/replace; the tray quit request stops the recording on a task and dispatches <code>ShutdownNow</code> to the UI thread</td><td class="pass">PASS</td></tr>
+<tr><td>Privacy posture (visible, controllable): unchanged. The app is stopped and started again with the arguments it had; the update says so (console/JSON/wizard Complete page); AutoUpdate defers while a session is active and shows a balloon; the failed-attempt state is shown in the tray balloon.</td><td class="pass">PASS</td></tr>
+<tr><td>CenCon docs: <code>docs/installer-spec.md</code> updated for the cycle, the quit request, the marker and the handover; no <code>docs/cencon/</code> component-map file affected</td><td class="pass">PASS</td></tr>
+<tr><td><code>ManifestWriterIlTests</code> pinned inventory updated for the handover's writes (<code>Recover</code> Delete x2 / Move x1, <code>AlwaysOnHandover::Save</code> Move x1 / WriteAllText x1) - a real inventory change, reviewed, not a loosening</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>6. QA observations (not defects; recorded for honesty)</h2>
+<ul>
+<li><code>App.OnExit</code> disposes the quit listener inside <code>try { ... } catch { }</code> - an empty catch, matching the two pre-existing lines beside it (<code>_captureRegionHook</code>, <code>_captureFullHook</code>). Consistent with its surroundings; a log line there would be better. Not this issue's scope.</li>
+<li><code>UpdateRunner.RecordInstalledVersions</code> logs and swallows a bookkeeping failure ("best-effort") - pre-existing design, carried over unchanged.</li>
+<li><code>RunningAppHandle.Find</code> with more than one AgentEyesApp process relaunches the first and stops all; logged. The single-instance lock makes this the rare case.</li>
+<li><code>WizardInstallRunnerTests</code> write one setup log file per run under <code>%LOCALAPPDATA%\AgentEyes\logs\setup\</code> (disclosed in the handoff); <code>AlwaysOnRestartTests</code> encode one 2 s template MP4 with ffmpeg per run. Both run inside <code>dotnet test</code>; no AgentEyes binary is started. The full suite takes ~45 s, not the ~2 s the project instructions quote - pre-existing growth (1984 tests on main), not this PR.</li>
+<li>The first update FROM a 1.11.x build is force-stopped after the legacy 3 s (no listener) and its clip is recovered as from a crash that one time; the developer flags this as assumption 7 and the tester's step 3 expects it.</li>
+<li>Process note: <code>DEVELOPMENT_METHOD.md</code> section 3.3 (D7) routes a QA pass to <code>flow:ready-gate</code>; the owner's brief for this run and the qa-agent skill v0.3 route it to <code>flow:done</code> + squash-merge, and an independent review verdict is already on PR #92. QA followed the owner's brief.</li>
+</ul>
+
+<h2>7. What this QA cannot see</h2>
+<ul>
+<li>Anything that needs a running process: the quit request reaching a real tray app, WMI returning the real command line of AgentEyesApp.exe, the relaunched app taking the single-instance mutex, the setup CLI's temp copy surviving the app's stop (handoff assumption 4), <code>/version</code> after the swap. These are criterion 8, PENDING TESTER.</li>
+<li>The rollback-failure branch of <code>UpdateRunner.RollBack</code> (read, not run - the test says so).</li>
+<li>The wizard's success path in the running WPF wizard (only failure paths are unit-tested; the same cycle's success is tested at the engine and the CLI).</li>
+</ul>
+
+<p><b>Files in this folder:</b> <code>handoff.md</code> (developer), <code>mutation-evidence.txt</code> (developer M1-M7), <code>qa-report.html</code> (this report), <code>qa-mutation-evidence.txt</code> (QA B-D, quoted output).</p>
+</body>
+</html>

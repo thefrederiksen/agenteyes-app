@@ -1,0 +1,103 @@
+Issue #86 / PR #92 - QA mutation evidence (independent of the developer's M1-M7)
+==============================================================================
+
+Rule (DEVELOPMENT_METHOD.md 6c): a check only ever run against the state you hope passes has
+demonstrated nothing. QA applied three mutations of its own to the COMMITTED tree at 9a70466,
+each chosen so it does NOT repeat a developer mutation: the developer stated that the
+"same arguments" criterion was not mutated separately, and no developer mutation touched the
+not-running branch. Each mutation was built with `dotnet build AgentEyes.sln -c Release`
+(Build succeeded, 0 Error(s) every time), run with
+`dotnet test AgentEyes.sln -c Release --no-build --filter ...`, quoted below, and restored with
+`git checkout -- <file>` (git status empty after each; `grep -c "QA MUTATION"` over the file = 0).
+Every filter includes at least one CONTROL test that must keep passing.
+
+
+QA MUTATION B - the relaunch drops the arguments (the "same --tray state" criterion)
+-----------------------------------------------------------------------------------
+tools/AgentEyes.Setup.Engine/UpdateRestartCycle.cs, Relaunch (line 223):
+  pid = _launcher.Launch(_installedAppExe, running.Arguments);
+  -> pid = _launcher.Launch(_installedAppExe, Array.Empty<string>());
+
+Filter: RunAsync_EveryArgumentIsCarriedVerbatim | Update_AppRunning_PrintsRestartedTheRunningAppWithBothPids
+        | Install_AppRunning_TakesTheSamePath | RunAsync_AppNotRunning_StagesAndSwaps (control)
+
+Output (quoted):
+
+  Failed AgentEyes.Tests.UpdateRestartCycleTests.RunAsync_EveryArgumentIsCarriedVerbatim_NotJustTheTrayFlag [12 ms]
+   Assert.Equal() Failure: Collections differ
+  Expected: string[]     ["--tray", "--extra", "with space"]
+  Actual:   List<string> []
+  Failed AgentEyes.Tests.SetupCliRestartTests.Install_AppRunning_TakesTheSamePath_AndPrintsTheSameLine [140 ms]
+   Assert.Equal() Failure: Collections differ
+  Expected: string[]     ["--tray"]
+  Actual:   List<string> []
+  Failed AgentEyes.Tests.SetupCliRestartTests.Update_AppRunning_PrintsRestartedTheRunningAppWithBothPids_AndRelaunchesWithTheSameArguments [21 ms]
+   Assert.Equal() Failure: Collections differ
+  Expected: string[]     ["--tray"]
+  Actual:   List<string> []
+  Failed!  - Failed:     3, Passed:     1, Skipped:     0, Total:     4, Duration: 163 ms - AgentEyes.Tests.dll (net8.0)
+
+Reading: the --tray criterion is pinned at the cycle AND at the CLI's real entry point (update and
+install); the not-running control passed. Restored: 0 changed files.
+
+
+QA MUTATION C - not running -> started anyway (the "not running -> not started" criterion)
+-------------------------------------------------------------------------------------------
+tools/AgentEyes.Setup.Engine/UpdateRestartCycle.cs, RunAsync, the running == null branch (line 167):
+  var only = await swap(prepared, ct);
+  -> var only = await swap(prepared, ct); _launcher.Launch(_installedAppExe, Array.Empty<string>());
+
+Filter: RunAsync_AppNotRunning_StagesAndSwaps | Update_AppNotRunning_SaysSoAndStartsNothing
+        | RunAsync_AppRunning_StagesWithItRunning (control)
+
+Output (quoted):
+
+  Failed AgentEyes.Tests.UpdateRestartCycleTests.RunAsync_AppNotRunning_StagesAndSwaps_AndStartsNothing [21 ms]
+   Assert.Equal() Failure: Collections differ
+  Expected: string[]     ["find", "stage", "swap"]
+  Actual:   List<string> ["find", "stage", "swap", "launch"]
+  Failed AgentEyes.Tests.SetupCliRestartTests.Update_AppNotRunning_SaysSoAndStartsNothing [136 ms]
+   Assert.Empty() Failure: Collection was not empty
+  Failed!  - Failed:     2, Passed:     1, Skipped:     0, Total:     3, Duration: 136 ms - AgentEyes.Tests.dll (net8.0)
+
+Reading: a launch with no running app is caught by the journal at the cycle and by the launcher
+double at the CLI entry point; the running-app control passed. Restored: 0 changed files.
+
+
+QA MUTATION D - Recover joins the carried clip's folder at start (the split the tester saw)
+--------------------------------------------------------------------------------------------
+src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs, Recover (line 1439): the
+  if (carried != null && string.Equals(dir, carried, StringComparison.OrdinalIgnoreCase)) continue;
+  that keeps the handed-over clip out of the crash-style join was removed, so the open clip's
+  holding folder is joined whole and closed at start - the 2026-09-24 behaviour.
+
+Filter: StopForRestart_ThenStart_SoundResumesWithinTheGap | StopForRestart_ThenStartAfterLongerThanTheGap
+        | StopForRestart_WritesTheOpenClipAndTheSoundHeard (control)
+
+Output (quoted):
+
+  Failed AgentEyes.Tests.AlwaysOnRestartTests.StopForRestart_ThenStartAfterLongerThanTheGap_TheCarriedClipIsWrittenWithItsSpan_AndNewSpeechStartsANewClip [908 ms]
+  Failed AgentEyes.Tests.AlwaysOnRestartTests.StopForRestart_ThenStart_SoundResumesWithinTheGap_OneClipAcrossTheRestart_AndNoPieceIsDeleted [699 ms]
+  Failed!  - Failed:     2, Passed:     1, Skipped:     0, Total:     3, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+
+Reading: both behavioural continuity tests fail when the carried clip is joined at start (the
+QA filter kept only the test names and the summary line, so the assertion text is not quoted
+here; the tests pass on the restored tree - see the final gate). The handover-contents control
+passed. Restored: 0 changed files.
+
+
+Not mutated by QA, stated honestly
+----------------------------------
+- The developer's M1 (stop failure -> carry on), M3 (stop before download), M4 (AutoUpdate
+  hands over despite the marker), M5 (no rollback), M6 (wizard catches only the stop failure)
+  and M7 (locked handover reads as null) were reviewed in mutation-evidence.txt and confirmed
+  against the committed code, not re-run by QA.
+- The UpdateChecker IL scan (no call from the app assembly into a file replacer) has its
+  presence arm inside the test and was not mutated.
+
+
+Final gate on the restored tree (9a70466, git status clean)
+-----------------------------------------------------------
+  dotnet build AgentEyes.sln -c Release  -> Build succeeded.  0 Error(s)
+  dotnet test  AgentEyes.sln -c Release  -> Passed!  - Failed:     0, Passed:  2079, Skipped:     0, Total:  2079, Duration: 46 s
+  The six issue-86 classes (--no-build, filtered) -> Passed!  - Failed: 0, Passed: 95, Total: 95
