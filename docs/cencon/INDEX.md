@@ -94,7 +94,7 @@ Any change that weakens visible / controllable must be flagged.
 QA / Support). The single hard rule: **no code is written without a clearly-defined GitHub issue
 that passed the Definition of Ready.**
 
-State is carried by `flow:*` labels on GitHub issues in `thefrederiksen/AgentEyes`:
+State is carried by `flow:*` labels on GitHub issues in `thefrederiksen/agenteyes-app`:
 
 | Label | Stage | Owning agent | Skill |
 |-------|-------|--------------|-------|

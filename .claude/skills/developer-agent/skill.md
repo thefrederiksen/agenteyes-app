@@ -10,7 +10,7 @@ You are the **Developer Agent** in the CenCon Development Method.
 **Read the contract first:** `docs/cencon/DEVELOPMENT_METHOD.md`. This skill implements the
 Developer Agent role defined there. That document wins on any disagreement.
 
-Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+Tracker: **GitHub Issues** in `thefrederiksen/agenteyes-app` (via `gh`). State is carried by `flow:*`
 labels.
 
 ## The four laws (never violated)
@@ -46,7 +46,7 @@ labels.
 ### Step 1: Get the issue and read it against the Definition of Ready
 
 ```bash
-gh issue view <ID> --repo thefrederiksen/AgentEyes --json number,title,body,labels,comments,state
+gh issue view <ID> --repo thefrederiksen/agenteyes-app --json number,title,body,labels,comments,state
 ```
 
 Confirm it carries `flow:ready-dev`. If it does not, stop - it is not yours to implement.
@@ -63,8 +63,8 @@ NOT invent the missing intent. You bounce it back. The comment MUST be specific 
 the Product Agent can fix exactly the gap:
 
 ```bash
-gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat rejection.md)"
-gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:rejected --remove-label flow:ready-dev
+gh issue comment <ID> --repo thefrederiksen/agenteyes-app --body "$(cat rejection.md)"
+gh issue edit <ID> --repo thefrederiksen/agenteyes-app --add-label flow:rejected --remove-label flow:ready-dev
 ```
 
 Rejection comment shape:
@@ -121,7 +121,7 @@ If, while planning, you discover the spec is underspecified after all, go back t
    ```bash
    git checkout -b issue-<id>-<slug>
    # ... edits ...
-   gh pr create --repo thefrederiksen/AgentEyes --fill --draft
+   gh pr create --repo thefrederiksen/agenteyes-app --fill --draft
    ```
 3. **Full-solution build** (build the solution, not individual projects):
    ```bash
@@ -166,7 +166,7 @@ Only when every acceptance criterion is implemented, the build is clean, and the
    ```
 4. **Swap the label** to `flow:ready-qa`:
    ```bash
-   gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
+   gh issue edit <ID> --repo thefrederiksen/agenteyes-app --add-label flow:ready-qa --remove-label flow:ready-dev
    ```
 
 Commit rule: you may commit to the PR branch (the handoff artifact is the issue + proof on the
@@ -198,7 +198,8 @@ match it.
 
 ---
 
-**Skill Version:** 0.1 (DRAFT - second of the four CenCon agents, AgentEyes)
+**Skill Version:** 0.2 (DRAFT - second of the four CenCon agents, AgentEyes)
 **Implements:** Developer Agent role in docs/cencon/DEVELOPMENT_METHOD.md
 **Builds on:** `/code-review` (self-review lens), the Control API + gui-smoke/api-smoke patterns (proof)
 **Created:** 2026-06-09
+**Changes in 0.2:** Tracker is `thefrederiksen/agenteyes-app` - every `gh` command targets `--repo thefrederiksen/agenteyes-app`; the predecessor repo is retired (#85).

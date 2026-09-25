@@ -13,7 +13,7 @@ back the label. The Developer Agent and the QA Agent do the actual work; you rou
 Definition of Done, Section 6b Definition of Verified, Section 7/7a the loop + QA-bounce guard).
 That document wins on any disagreement.
 
-Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is the `flow:*` label.
+Tracker: **GitHub Issues** in `thefrederiksen/agenteyes-app` (via `gh`). State is the `flow:*` label.
 
 ## What you guarantee
 
@@ -54,12 +54,12 @@ Instead, do exactly what cc-director's loop does:
 DEV spawn prompt (template):
 
 ```
-You are the Developer Agent for the AgentEyes repo (D:\ReposFred\AgentEyes).
+You are the Developer Agent for the AgentEyes repo (C:\ReposFred\agenteyes-app).
 Read these files and follow them exactly, in order:
   1. CLAUDE.md
   2. docs/cencon/DEVELOPMENT_METHOD.md
   3. .claude/skills/developer-agent/skill.md   <- this skill file IS your role; obey it
-Then implement issue #<N> in thefrederiksen/AgentEyes (currently flow:ready-dev or
+Then implement issue #<N> in thefrederiksen/agenteyes-app (currently flow:ready-dev or
 flow:qa-failed). Do ALL work in your own context. When done, your final message must be ONLY
 this block, nothing else:
 
@@ -83,7 +83,7 @@ You read only the RESULT block to decide the next step and write your one-line l
 - An issue number whose current label is `flow:ready-dev` (fresh) or `flow:qa-failed` (resume).
   If the user did not name one, pick the oldest `flow:ready-dev`:
   ```bash
-  gh issue list --repo thefrederiksen/AgentEyes --label flow:ready-dev --state open \
+  gh issue list --repo thefrederiksen/agenteyes-app --label flow:ready-dev --state open \
     --json number,title,updatedAt --jq 'sort_by(.updatedAt) | .[0]'
   ```
   If none, report "no flow:ready-dev issues" and stop.
@@ -110,7 +110,7 @@ git rev-parse --abbrev-ref HEAD # expected: main (the base the Developer branche
 
 ### Step 1: Confirm the starting state
 ```bash
-gh issue view N --repo thefrederiksen/AgentEyes --json number,title,labels,comments
+gh issue view N --repo thefrederiksen/agenteyes-app --json number,title,labels,comments
 ```
 Proceed only if the label is `flow:ready-dev` or `flow:qa-failed`. Anything else (e.g. already
 `flow:ready-qa` or `flow:done`) - report the actual state and stop; do not double-drive it.
@@ -130,7 +130,7 @@ tests - the human never runs tests. Heavy smokes only when the change touches th
 
 Then re-read the label to confirm the handback matches reality:
 ```bash
-gh issue view N --repo thefrederiksen/AgentEyes --json labels --jq '[.labels[].name]'
+gh issue view N --repo thefrederiksen/agenteyes-app --json labels --jq '[.labels[].name]'
 ```
 - `flow:rejected` (RESULT `outcome: rejected`) -> terminal. Report the rejection reason and stop.
   (Product/human owns it.)
@@ -169,8 +169,8 @@ Then re-read the label to confirm the handback:
   summary (the recurring defect across the three QA fails + what the Developer tried each time), and
   report the escalation:
   ```bash
-  gh issue edit N --repo thefrederiksen/AgentEyes --add-label flow:needs-human --remove-label flow:qa-failed
-  gh issue comment N --repo thefrederiksen/AgentEyes --body "$(cat escalation.md)"
+  gh issue edit N --repo thefrederiksen/agenteyes-app --add-label flow:needs-human --remove-label flow:qa-failed
+  gh issue comment N --repo thefrederiksen/agenteyes-app --body "$(cat escalation.md)"
   ```
 - Otherwise loop back to **Step 2** - the Developer Agent picks up `flow:qa-failed`, fixes it
   (re-running its build + unit gate + updating the handoff note), and re-labels `flow:ready-qa`. Each Developer/QA pass is a
@@ -186,7 +186,7 @@ git status --porcelain            # (a) working tree MUST be empty
 git branch --list "issue-*"       # (b) on a DONE outcome MUST be empty - no orphaned feature branch
 ```
 - (a) empty AND (b) empty: good. On a DONE outcome also confirm the PR is gone (`gh pr list --repo
-  thefrederiksen/AgentEyes --state open` must not show it).
+  thefrederiksen/agenteyes-app --state open` must not show it).
 - (a) NOT empty: a sub-agent left WIP behind. Do NOT auto-stash or discard (that could swallow real
   work). STOP, report exactly which files are dirty, and ask the human.
 - (b) NOT empty on a DONE outcome: the QA sub-agent merged but did not delete its LOCAL branch
@@ -229,7 +229,7 @@ run nothing yourself; the sub-agents run their own gates.
 
 ---
 
-**Skill Version:** 0.3 (DRAFT - the autonomous Dev<->QA loop driver, AgentEyes)
+**Skill Version:** 0.4 (DRAFT - the autonomous Dev<->QA loop driver, AgentEyes)
 **Implements:** the loop + QA-bounce guard in docs/cencon/DEVELOPMENT_METHOD.md Sections 7/7a (D2)
 **Builds on:** the Agent tool (default `general-purpose` sub-agent reading a role skill.md file),
 `.claude/skills/developer-agent`, `.claude/skills/qa-agent`
@@ -243,3 +243,4 @@ the Skill tool inside the sub-agent). Added the structured RESULT handback block
 DONE outcome (a stale local branch does not appear in `git status`, so the working-tree check alone
 missed it - the #75 run left issue-75-python-client behind). Backstops the primary fix in qa-agent
 skill v0.2 Step 3a (force-delete the local branch after a squash merge).
+**Changes in 0.4:** Tracker is `thefrederiksen/agenteyes-app` - every `gh` command targets `--repo thefrederiksen/agenteyes-app`, and the DEV spawn prompt names the checkout `C:\ReposFred\agenteyes-app`; the predecessor repo is retired (#85).

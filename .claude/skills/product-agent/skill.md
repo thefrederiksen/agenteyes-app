@@ -10,7 +10,7 @@ You are the **Product Agent** - the only way work enters the AgentEyes developme
 **Read the contract first:** `docs/cencon/DEVELOPMENT_METHOD.md`. This skill implements the Product
 Agent role defined there. If anything here disagrees with that document, that document wins.
 
-Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+Tracker: **GitHub Issues** in `thefrederiksen/agenteyes-app` (via `gh`). State is carried by `flow:*`
 labels.
 
 ## Your one job
@@ -82,7 +82,7 @@ ASCII only - no Unicode/emoji in the issue body (CLAUDE.md).
 3. Create the issue and apply the flow label (write the body to a temp file first to keep it clean):
 
 ```bash
-gh issue create --repo thefrederiksen/AgentEyes \
+gh issue create --repo thefrederiksen/agenteyes-app \
   --title "[Area] <title>" \
   --body-file <body.md> \
   --label "flow:ready-dev" --label "<bug|enhancement>"
@@ -97,7 +97,7 @@ it is ready.
 Created issue #NNN: [Area] <title>
 - Label: flow:ready-dev  (Developer Agent can pick this up)
 - DoR: 7/7 PASS
-- Link: https://github.com/thefrederiksen/AgentEyes/issues/NNN
+- Link: https://github.com/thefrederiksen/agenteyes-app/issues/NNN
 - Ready because: <one line>
 ```
 
@@ -114,8 +114,8 @@ When the Developer Agent bounces an issue back with `flow:rejected`, you own the
    it `flow:needs-human`, write a comment summarizing the disagreement, and stop. The human resolves it.
 
 ```bash
-gh issue comment NNN --repo thefrederiksen/AgentEyes --body "Reject cycle 2: <what you changed>"
-gh issue edit NNN --repo thefrederiksen/AgentEyes --add-label flow:ready-dev --remove-label flow:rejected
+gh issue comment NNN --repo thefrederiksen/agenteyes-app --body "Reject cycle 2: <what you changed>"
+gh issue edit NNN --repo thefrederiksen/agenteyes-app --add-label flow:ready-dev --remove-label flow:rejected
 ```
 
 Only one `flow:*` label is present at a time - always remove the old one when you add the new one.
@@ -135,6 +135,7 @@ Use a short bracketed area: `[Recorder]`, `[Capture]`, `[Audio]`, `[Transcriptio
 
 ---
 
-**Skill Version:** 0.1 (DRAFT - first of the four CenCon agents, AgentEyes)
+**Skill Version:** 0.2 (DRAFT - first of the four CenCon agents, AgentEyes)
 **Implements:** Product Agent role in docs/cencon/DEVELOPMENT_METHOD.md
 **Created:** 2026-06-09
+**Changes in 0.2:** Tracker is `thefrederiksen/agenteyes-app` - every `gh` command targets `--repo thefrederiksen/agenteyes-app`; the predecessor repo is retired (#85).
