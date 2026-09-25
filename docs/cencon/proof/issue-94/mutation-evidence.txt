@@ -1,0 +1,92 @@
+Issue #94 - mutation evidence: the new checks fired at the known-bad launcher
+=============================================================================
+
+Method: with the fix committed (190f1f5), the ONE call in ProcessAppLauncher.Launch that starts the
+process was replaced in the working tree by the pre-#94 code - Process.Start(ProcessStartInfo) with
+UseShellExecute=false, ArgumentList and the bundle variable in psi.Environment, i.e. the launcher that
+issue #94 was filed against (CreateProcess with bInheritHandles=TRUE). The solution was rebuilt with the
+gate's command and the six Launch_* tests were run:
+
+  dotnet build AgentEyes.sln -c Release          -> Build succeeded. 0 Error(s)
+  dotnet test AgentEyes.sln -c Release --no-build --filter "FullyQualifiedName~ProcessAppLauncherTests.Launch_" --logger "console;verbosity=normal"
+
+The mutant was then discarded with `git checkout -- tools/AgentEyes.Setup.Engine/ProcessAppLauncher.cs`
+(git status clean) and the solution rebuilt and fully re-tested on the restored tree (handoff.md, section 5).
+
+Mutant diff (the six lines that stood in for `int pid = StartDetached(commandLine, workingDirectory, environment);`):
+
+    var psi = new ProcessStartInfo(exePath) { UseShellExecute = false, WorkingDirectory = workingDirectory };
+    foreach (var a in arguments) psi.ArgumentList.Add(a);
+    psi.Environment[InstallFinalizer.BundleExtractBaseDirVariable] = _layout.BundleExtractDir;
+    using var mutant = Process.Start(psi) ?? throw new InvalidOperationException("Process.Start returned no process");
+    int pid = mutant.Id;
+
+Result against the mutant - the two pipe checks FIRE, each after its full 15 s bound with the child alive:
+
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning [15 s]
+   the probe's stdout/stderr pipes did not close within 00:00:15: the child (pid 23792) holds a copy of them
+[xUnit.net 00:00:16.53]       Assert.Contains() Failure: Sub-string not found
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ExeMissing_ThrowsFileNotFound_BeforeAnythingIsStarted [2 ms]
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_NotAnExecutable_ThrowsWithTheWindowsReason [28 ms]
+   Assert.Contains() Failure: Sub-string not found
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildSeesTheParentEnvironmentPlusTheBundleVariable [242 ms]
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns [15 s]
+   the read end did not reach end-of-stream within 00:00:15: the child (pid 4024) holds a copy of the pipe
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded [289 ms]
+Total tests: 6
+
+Reading:
+  M1  Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning
+      FAILED [15 s]: "the probe's stdout/stderr pipes did not close within 00:00:15: the child (pid 23792)
+      holds a copy of them" - the literal #94 hang, reproduced: the probe (the updater stand-in) had
+      exited, its pipes stayed open because the child held them.
+  M2  Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns
+      FAILED [15 s]: "the read end did not reach end-of-stream within 00:00:15: the child (pid 4024)
+      holds a copy of the pipe".
+  M3  Launch_NotAnExecutable_ThrowsWithTheWindowsReason FAILED (Assert.Contains: the mutant throws
+      .NET's Win32Exception without the "CreateProcess failed for <file>" text) - a message-shape
+      difference, not a #94 fact; listed for completeness.
+  --  Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded, Launch_ChildSeesTheParentEnvironmentPlusTheBundleVariable,
+      Launch_ExeMissing_ThrowsFileNotFound_BeforeAnythingIsStarted PASSED on the mutant too: they pin
+      what the fix must PRESERVE (arguments, environment, the missing-exe check), so they are expected
+      not to discriminate. They are regression guards, not #94 detectors.
+
+What this evidence cannot see: the tests start cmd.exe (a console exe, which gets its own hidden
+console under CREATE_NO_WINDOW) and never AgentEyesApp.exe (a GUI exe, for which the flag is ignored).
+The handle-inheritance behaviour under test is CreateProcess's bInheritHandles, which does not depend on
+the child's subsystem; the live criterion on the real app is the tester's (handoff.md, criterion 5).
+
+-----------------------------------------------------------------------------------------------
+Review fix pass (PR #95 self-review findings) - M4: the working-directory regression test
+-----------------------------------------------------------------------------------------------
+
+The review found that the first version's `Path.GetDirectoryName(exePath) ?? _layout.AppDir` could never
+fall back: for a bare "AgentEyesApp.exe", GetDirectoryName returns "" (not null), and CreateProcessW
+rejects "" as lpCurrentDirectory. The fix resolves the exe with Path.GetFullPath first; the regression
+test Launch_BareExeNameInTheCurrentDirectory_StartsIt starts "cmd.exe" by bare name with the process's
+current directory set to System32 (safe: the class now runs in a non-parallel collection).
+
+Mutant M4 (the first version's line restored in place of the fix), built with the gate command and run:
+
+  dotnet test AgentEyes.sln -c Release --no-build --filter "FullyQualifiedName~ProcessAppLauncherTests.Launch_BareExeName" --logger "console;verbosity=normal"
+
+[xUnit.net 00:00:00.96]       System.ComponentModel.Win32Exception : CreateProcess failed for cmd.exe /c pause: The filename, directory name, or volume label syntax is incorrect.
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_BareExeNameInTheCurrentDirectory_StartsIt [8 ms]
+   System.ComponentModel.Win32Exception : CreateProcess failed for cmd.exe /c pause: The filename, directory name, or volume label syntax is incorrect.
+Total tests: 1
+
+Reading: M4 FIRES - Win32Exception "CreateProcess failed for cmd.exe /c pause: The filename, directory
+name, or volume label syntax is incorrect." (Windows reports error 123 for the empty directory string,
+the review predicted 267; either way the launch fails and the test catches it). With the fix restored the
+test passes (Launch_BareExeNameInTheCurrentDirectory_StartsIt [38 ms]) and the full suite is green:
+Passed: 2095, Failed: 0 (three consecutive full runs).
+
+Honesty note on the full-suite runs: the FIRST full run after the review fixes reported 1 failure out of
+2095 whose name was not captured (the summary line only); the immediately following three full runs on
+the same binaries were all 2095/0, and the launcher class alone is 16/16 on every run. The developer
+cannot name that test and does not claim it was unrelated; QA's own `dotnet test` runs are the arbiter.
+
+Resolution of the honesty note (second review pass, note 6): a NAMED full run on the final binaries,
+`dotnet test AgentEyes.sln -c Release --logger "console;verbosity=normal"` -> `Total tests: 2095`,
+`Passed: 2095`, zero `Failed` lines, exit 0. Five consecutive full runs green after the one-off; no test
+is named because none failed in the named run.

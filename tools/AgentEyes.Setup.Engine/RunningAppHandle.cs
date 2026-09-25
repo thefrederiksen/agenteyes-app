@@ -126,39 +126,3 @@ public sealed class RunningAppHandle : IRunningAppHandle
     private static extern IntPtr LocalFree(IntPtr hMem);
 }
 
-/// <summary>
-/// The real <see cref="IAppLauncher"/>: starts the app exe with the given arguments. The single-file
-/// host's native-extraction variable is set explicitly from the layout because the setup CLI runs its
-/// update from a temp copy that deliberately DROPS that variable from its own environment (see
-/// the CLI's relaunch-from-temp); an app inheriting that environment would unpack its native DLLs into
-/// %TEMP% and break the way issue #120 describes.
-/// </summary>
-public sealed class ProcessAppLauncher : IAppLauncher
-{
-    private readonly InstallLayout _layout;
-
-    public ProcessAppLauncher(InstallLayout layout)
-    {
-        _layout = layout ?? throw new ArgumentNullException(nameof(layout));
-    }
-
-    public int Launch(string exePath, IReadOnlyList<string> arguments)
-    {
-        if (string.IsNullOrWhiteSpace(exePath)) throw new ArgumentException("exePath must not be empty.", nameof(exePath));
-        ArgumentNullException.ThrowIfNull(arguments);
-        if (!File.Exists(exePath)) throw new FileNotFoundException("The app exe to start again is not there.", exePath);
-
-        var psi = new ProcessStartInfo(exePath)
-        {
-            UseShellExecute = false,
-            WorkingDirectory = Path.GetDirectoryName(exePath) ?? _layout.AppDir,
-        };
-        foreach (var a in arguments) psi.ArgumentList.Add(a);
-        psi.Environment[InstallFinalizer.BundleExtractBaseDirVariable] = _layout.BundleExtractDir;
-
-        using var p = Process.Start(psi)
-                      ?? throw new InvalidOperationException($"Process.Start returned no process for {exePath}");
-        EngineLog.Write($"[ProcessAppLauncher] Launch: started {exePath} as pid {p.Id}");
-        return p.Id;
-    }
-}
