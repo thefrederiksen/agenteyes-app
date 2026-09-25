@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue #83</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #222; background: #fff; line-height: 1.45; }
+  h1, h2 { border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eee; }
+  code, pre { font-family: Consolas, monospace; font-size: 13px; }
+  pre { background: #f4f4f4; border: 1px solid #ddd; padding: 8px; overflow-x: auto; }
+  .pass { color: #0a6b0a; font-weight: bold; }
+  .verdict { font-size: 18px; font-weight: bold; border: 2px solid #0a6b0a; padding: 10px; background: #eefaee; }
+</style>
+</head>
+<body>
+
+<h1>QA report - issue #83 / PR #90</h1>
+
+<p><b>Issue:</b> [Setup] 'install --help' runs a real install instead of printing help<br>
+<b>PR:</b> #90, branch <code>issue-83-setup-help</code>, HEAD <code>572433d</code> (verified equal to <code>origin/issue-83-setup-help</code>, tree clean)<br>
+<b>Tracker:</b> thefrederiksen/agenteyes-app<br>
+<b>QA date:</b> 2026-09-24<br>
+<b>Method:</b> independent REVIEW of <code>gh pr diff 90</code> against each acceptance criterion, plus the gate run by QA itself, plus one QA-authored mutation on the committed tree. QA ran <b>no binary</b> (no agenteyes-setup in any form, no AgentEyesApp.exe, no agenteyes.exe, no smoke, no selftest, no install, no network call). The issue's "install --help console output" proof target is covered by the developer's captured <code>install-help-console.txt</code> and by the unit tests that assert the help text, both reviewed here, not reproduced live.</p>
+
+<div class="verdict">VERIFIED - all acceptance criteria met. 4 / 4 criteria PASS; 0 pending tester.</div>
+
+<h2>1. The gate, run by QA</h2>
+<pre>dotnet build AgentEyes.sln -c Release   ->  Build succeeded.  0 Error(s)
+dotnet test  AgentEyes.sln -c Release   ->  Passed!  - Failed: 0, Passed: 1984, Skipped: 0, Total: 1984, Duration: 46 s
+(final re-run on the restored tree after the mutation below: Passed: 1984, Failed: 0, Duration: 52 s)</pre>
+<p>Per-test listing of the 67 <code>SetupCliHelpTests</code> and the full quoted runs: <code>qa-evidence.txt</code> in this folder.</p>
+
+<h2>2. Acceptance criteria - Expected vs what the code does</h2>
+<table>
+<tr><th>#</th><th>Criterion (the contract)</th><th>Expected</th><th>What the code does (file:line)</th><th>Tests (QA ran them)</th><th>Result</th></tr>
+<tr>
+<td>1</td>
+<td><code>install --help</code>, <code>update --help</code>, <code>uninstall --help</code>, <code>plan --help</code> print command help, exit 0, perform no install/update/uninstall/network call (unit test with a transport that fails the test if called)</td>
+<td>Help is decided before any layout, logging, engine or transport, for every command; the transport double throws if reached</td>
+<td><code>Program.cs:30-57</code>: <code>RunAsync</code> parses (33-40), then the help block (45-57) returns <code>ExitOk</code> with <code>CliHelp.ForCommand</code>/<code>General</code> BEFORE <code>ResolveLayout</code> (63), <code>WireLogging</code> (64) and the dispatch switch (69-78). Same path for all six commands. <code>CliArgs.cs:81-85</code> (<code>-h</code>, OrdinalIgnoreCase) and <code>91-94</code> (<code>--help</code> via <code>KnownFlags</code>, OrdinalIgnoreCase set) set the flag from ANY position; <code>WantsHelp</code> at <code>CliArgs.cs:28</code>. <code>CliHelp.cs</code> is pure text (string constants, <code>StringBuilder</code>); no static initializer in the three files has a side effect (<code>CliArgs.cs:37-48</code> two HashSets, <code>CliHelp.cs:19-38</code> array and constants, <code>Program.cs:19-21</code> ints). Transport seam confirmed on the production path: <code>ReleaseSource.cs:64-78</code> <code>new ReleaseSource()</code> -> <code>NewDefaultClient()</code> -> <code>DefaultTransport ?? new HttpClientHandler()</code>, <code>InternalsVisibleTo("AgentEyes.Tests")</code> at line 8; <code>Commands.cs:256-265</code> <code>ResolveReleaseAsync</code> calls <code>new ReleaseSource().FetchLatestAsync</code> for <code>latest</code>.</td>
+<td><code>Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing</code> (17 rows: all six commands with <code>--help</code> and <code>-h</code>, switch after other options, <code>help install</code>, <code>--help uninstall</code>) - each asserts exit 0, stdout equals the page, stderr empty, <code>Requests</code> empty, root never created (<code>SetupCliHelpTests.cs:197-224</code>, <code>428-432</code>). Known-bad arm <code>Run_PlanWithoutHelp_ReachesTheTransportAndOpensTheLog_SoBothInstrumentsAreLive</code> (<code>318-336</code>): exit 1, <code>Requests == [LatestReleaseUrl]</code>, <code>&lt;root&gt;\logs</code> exists - shows both instruments fire. <code>ForbiddenTransport</code> (<code>438-450</code>) records then THROWS. QA mutation (section 3): 13 of 17 rows FAIL when help-anywhere is disabled.</td>
+<td class="pass">PASS</td>
+</tr>
+<tr>
+<td>2</td>
+<td>An unknown option (e.g. <code>install --bogus</code>) exits with the usage exit code and does nothing</td>
+<td>Exit 2 from the parser, before any action; stray positionals likewise</td>
+<td><code>CliArgs.cs:87-88</code> (single-dash unknown), <code>101-104</code> (double-dash unknown) and <code>97-98</code> (value option with no value) throw <code>UsageException</code>; <code>110-112</code> rejects any positional for every command but <code>help</code> (which takes one). <code>Program.cs:33-40</code> catches the parse-time <code>UsageException</code> and returns <code>UsageError</code> = exit 2 (<code>117-122</code>) before line 63. Unknown command: <code>Program.cs:59-60</code> -> <code>Unknown</code> = exit 2 (<code>124-128</code>), also before line 63. A malformed line with <code>--help</code> is rejected too (parse throws first) - the developer's flagged assumption, fail-closed.</td>
+<td><code>Run_InstallWithAnUnknownOption_ExitsWithTheUsageCode_AndDoesNothing</code> (270-279), <code>Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing</code> (282-292), <code>Run_UnknownCommand_ExitsWithTheUsageCode_BeforeTheInstallRootIsTouched</code> (295-303), <code>Run_HelpForAnUnknownCommand_ExitsWithTheUsageCode</code> (306-313); parser: <code>Parse_UnknownOption_ThrowsUsageException_NamingTheOption</code> (6 rows), <code>Parse_ValueOptionWithoutAValue_ThrowsUsageException</code> (3), <code>Parse_PositionalNoCommandTakes_ThrowsUsageException</code> (6, real en-dash row). Developer mutations M2/M3/M-B in <code>mutation-evidence.txt</code> show these fail when the rule is removed.</td>
+<td class="pass">PASS</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Regression test for this exact report</td>
+<td>A test with argv exactly <code>install --help</code> through the real entry point</td>
+<td><code>SetupCliHelpTests.cs:226-245</code> <code>InstallHelp_Issue83_PrintsHelpInsteadOfDownloadingTheLatestReleaseAndReplacingTheInstalledApp</code>: <code>Run("install", "--help")</code> via <code>CliProgram.RunAsync</code> (413), DEFAULT install root as in the report, asserts exit 0, the install page, stderr empty, <code>_transport.Requests</code> empty, and the real <code>setup-cli.log</code> unchanged (existence + length) around the run.</td>
+<td>Passed in QA's run. Its code path is the <code>install --help</code> theory row, which QA's mutation FAILED (<code>Expected: 0 / Actual: 1</code>); the developer's M1 record shows this test itself failing the same way under the original dispatch. QA did not run this specific test under mutation, so the real log would not be written by QA (stated limit).</td>
+<td class="pass">PASS</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>dotnet build</code> clean, <code>dotnet test</code> green</td>
+<td>0 errors; Failed: 0</td>
+<td>Section 1 - QA's own runs, twice (before and after the mutation/restore).</td>
+<td>1984 passed, 0 failed, 0 skipped.</td>
+<td class="pass">PASS</td>
+</tr>
+</table>
+
+<h2>3. QA mutation - the help tests shown to fail closed</h2>
+<p>One line on the committed tree (<code>Program.cs:45</code>), the original defect shape except that <code>uninstall</code> keeps help so no row can dispatch <code>Uninstall</code> (it touches per-user PATH / Start Menu / Add/Remove Programs state), and the default-root regression test left outside the filter so QA never writes the real log:</p>
+<pre>-        if (args.WantsHelp || command == "help")
++        if ((args.WantsHelp &amp;&amp; command == "uninstall") || command == "help")</pre>
+<pre>dotnet build AgentEyes.sln -c Release (mutated) -> Build succeeded. 0 Error(s)
+dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage
+  -> 13 FAILED / 4 PASSED of 17
+  FAILED  Expected: 0 / Actual: 1        install --help, install -h, install --no-finalize --json --help,
+                                         update --help, update -h, update --component app -h,
+                                         plan --help, plan -h, plan --manifest latest --help
+          (dispatched; WireLogging created &lt;root&gt;\logs; ResolveReleaseAsync hit ForbiddenTransport, which threw)
+  FAILED  stdout Expected page / Actual ""  components --help, components -h, status --help, status -h
+  PASSED  uninstall --help, uninstall -h (spared on purpose), help install, --help uninstall (command == help)
+restore: git checkout -- tools/AgentEyes.Setup.Cli/Program.cs ; git status --porcelain -> empty
+rebuild -> 0 Error(s); SetupCliHelpTests 67 passed / 0 failed; full suite Passed: 1984, Failed: 0</pre>
+<p>Three arms: expected (13 fail on the restored defect) = the checks are live; a green mutated run would have been a defect in the tests; an empty result would have been a broken instrument. The full per-row output is in <code>qa-evidence.txt</code>.</p>
+
+<h2>4. Additional review checks (from the QA brief)</h2>
+<table>
+<tr><th>Check</th><th>Finding</th></tr>
+<tr><td>Help/usage decided before layout, logging, engine, transport for EVERY command</td><td>Yes. One entry point <code>RunAsync</code>; the first statement that touches anything is <code>ResolveLayout</code> at <code>Program.cs:63</code>, reached only after parse OK, no help, known command. There is no per-command early path.</td></tr>
+<tr><td><code>-h</code> / <code>--help</code> anywhere on the line -> exit 0, no side effect</td><td>Yes, any case (<code>CliArgs.cs:81</code> OrdinalIgnoreCase; <code>KnownFlags</code> OrdinalIgnoreCase). Exception, flagged by the developer as an assumption: a line that is ALSO malformed (<code>install --help --bogus</code>) exits 2 - still no side effect.</td></tr>
+<tr><td>Unknown options and stray positionals -> usage exit code before any action</td><td>Yes, <code>CliArgs.cs:87-112</code> throws at parse; <code>Program.cs:33-40</code> returns 2 before line 63.</td></tr>
+<tr><td>The tests' transport/installer double fails the test if touched</td><td>Yes: <code>ForbiddenTransport.SendAsync</code> records and throws (<code>SetupCliHelpTests.cs:444-449</code>); a dispatched command ends exit 1, and <code>AssertNothingWasTouched</code> also checks the never-created root. Liveness proven by the committed negative control and by QA's mutation.</td></tr>
+<tr><td>Regression test for the exact report exists</td><td>Yes, <code>SetupCliHelpTests.cs:226-245</code>.</td></tr>
+<tr><td>Real callers still inside the closed vocabulary</td><td><code>.github/workflows/release.yml:108</code> <code>install --release-dir ... --root ... --no-finalize --json</code>; <code>InstallFinalizer.cs:238-239</code> <code>uninstall</code> / <code>uninstall --json</code>; <code>Commands.cs:241</code> <code>--relaunched</code>; README / installer-spec / build-release.ps1 examples <code>install --release-dir</code>, <code>update</code>. All known flags/options; pinned by <code>Parse_TheReleaseWorkflowInvocation_StillParses</code> and <code>Parse_TheRelaunchedReExecShape_StillParses</code>.</td></tr>
+<tr><td>Review verdict notes 1-3 fixed in <code>13e5618</code></td><td>Confirmed in <code>git show 13e5618</code>: en-dash row is <code>"install" + U+2013 + "help"</code> (the backslash-u escape, source ASCII); <code>Assert.Contains("-h")</code> replaced by <code>Assert.Matches(^\s+--help, -h\s, Multiline)</code>; rows <code>components --help/-h</code>, <code>status --help/-h</code> and parser row <code>components --bogus</code> added. <code>572433d</code> is handoff/evidence text only. Notes 4-8 accepted as stated; not re-litigated.</td></tr>
+<tr><td>ASCII only</td><td>Product files, test file, proof files and every ADDED line of the diff: no non-ASCII bytes. Observation: the commit MESSAGE body of <code>13e5618</code> contains one literal en-dash where the <code>U+2013</code> escape was meant; it is squashed away at merge and the squash message is ASCII. Not a code defect.</td></tr>
+<tr><td>Attribution strings</td><td>None in the five commits, the diff, or the proof files.</td></tr>
+<tr><td>Coding standards (project instructions)</td><td>Logging: <code>Program</code> logs the parse summary and exit once the sink exists (<code>Program.cs:65,79,84,90</code>); <code>Parse</code>/<code>CliHelp</code> log nothing by design (documented; the sink cannot exist before the layout). Try-catch only at the entry point <code>RunAsync</code>. No fallback added; the pre-existing catch-all in <code>WireLogging</code> is out of scope (noted by the review). Tests named Method_Scenario_Result, AAA. One analyzer nit: xUnit2029 at <code>SetupCliHelpTests.cs:408</code> (<code>Assert.Empty(x.Where(...))</code>), warning only.</td></tr>
+<tr><td>CenCon / privacy posture</td><td>No component-map change, no posture change; the CLI gains help pages and a closed vocabulary only.</td></tr>
+</table>
+
+<h2>5. Disclosed process incident (not a defect of the code under review)</h2>
+<p>Handoff section 5 and the PR body disclose that during the DEVELOPER pass a <code>git checkout</code> restored a pre-review parser while review fixes were uncommitted, and a console-capture line <code>install /?</code> then dispatched a real <code>install</code> against the default root on this machine (one release-channel query, plan 0 install / 0 update, no binary replaced, Start Menu shortcut and the identical v1.11.4 Add/Remove Programs entry re-written, seven lines in the real <code>setup-cli.log</code> at 19:48:45-47). QA confirmed the real log's last line is that 19:48:47 line and that QA's own session wrote nothing to it. Already reported to the tester; recorded here as disclosed.</p>
+
+<h2>6. Stated limits of this verification</h2>
+<ul>
+<li>QA ran no binary; the console-output proof target is verified through the developer's capture (<code>install-help-console.txt</code>, from a <code>6ea1218</code> build) and through the tests that assert the same pages (<code>Run_CommandHelp</code> asserts stdout equals <code>CliHelp.ForCommand</code>). The single-file publish/apphost layer is out of frame; the dispatch code is the same assembly.</li>
+<li>"No install" is shown through its two mandatory prerequisites (release fetch, log dir), not a hook inside <code>UpdateRunner</code>.</li>
+<li>QA's mutation excluded the default-root regression test and the <code>uninstall</code> rows by design (side effects on the real log / per-user state); the developer's M1 record covers those rows.</li>
+</ul>
+
+<p><b>Result:</b> <span class="pass">PASS</span> - flow:done. Merge authorized by this QA pass per the owner's brief for this issue.</p>
+
+</body>
+</html>

@@ -1,0 +1,156 @@
+Issue #83 / PR #90 - QA evidence, quoted from the QA session's own runs (2026-09-24, worktree agenteyes-app-wt-83, HEAD 572433d)
+QA ran: git, gh, dotnet build AgentEyes.sln -c Release, dotnet test AgentEyes.sln -c Release. QA ran NO binary: no agenteyes-setup, no AgentEyesApp.exe, no agenteyes.exe, no smoke, no selftest, no install, no network call.
+
+=== 1. Gate on the committed tree (572433d), QA's own run ===
+dotnet build AgentEyes.sln -c Release  -> Build succeeded.  0 Error(s)  (21 warnings, analyzer-level; one new: xUnit2029 at SetupCliHelpTests.cs(408))
+dotnet test  AgentEyes.sln -c Release  -> Passed!  - Failed: 0, Passed: 1984, Skipped: 0, Total: 1984, Duration: 46 s
+
+=== 2. Mutation (QA's own): help-anywhere disabled for every command except uninstall, one line on the committed tree ===
+Purpose: prove Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing fails closed when the issue #83 defect is restored.
+Shape: the original defect (help acted on only via the 'help' command), except that 'uninstall' keeps help so that no row can dispatch Uninstall
+(Uninstall touches per-user state: PATH, Start Menu, Add/Remove Programs). The regression test on the DEFAULT root is deliberately outside the filter
+so the real setup-cli.log is never written by QA; its code path is the 'install --help' theory row, which is in the filter and fails below.
+
+--- git diff -U1 (the mutation) ---
+diff --git a/tools/AgentEyes.Setup.Cli/Program.cs b/tools/AgentEyes.Setup.Cli/Program.cs
+index 18789a8..8ff241f 100644
+--- a/tools/AgentEyes.Setup.Cli/Program.cs
++++ b/tools/AgentEyes.Setup.Cli/Program.cs
+@@ -44,3 +44,3 @@ public static class Program
+         // Help exits here: no layout, no log directory, no engine object, no network.
+-        if (args.WantsHelp || command == "help")
++        if ((args.WantsHelp && command == "uninstall") || command == "help")
+         {
+
+--- dotnet build AgentEyes.sln -c Release (mutated tree) -> Build succeeded. 0 Error(s) ---
+--- dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage --logger console;verbosity=normal ---
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall -h", command: "uninstall") [208 ms]
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "status --help", command: "status") [11 ms]
+Expected: "Usage: agenteyes-setup status [options]\r\n"...
+Actual:   ""
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall --help", command: "uninstall") [< 1 ms]
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "components -h", command: "components") [5 ms]
+Expected: "Usage: agenteyes-setup components [option"...
+Actual:   ""
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --manifest latest --help", command: "plan") [22 ms]
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update -h", command: "update") [6 ms]
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --help", command: "update") [4 ms]
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --help", command: "plan") [4 ms]
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install -h", command: "install") [4 ms]
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "components --help", command: "components") [2 ms]
+Expected: "Usage: agenteyes-setup components [option"...
+Actual:   ""
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --no-finalize --json --help", command: "install") [5 ms]
+Expected: 0
+Actual:   1
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "--help uninstall", command: "uninstall") [< 1 ms]
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --component app -h", command: "update") [4 ms]
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --help", command: "install") [4 ms]
+Expected: 0
+Actual:   1
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "status -h", command: "status") [3 ms]
+Expected: "Usage: agenteyes-setup status [options]\r\n"...
+Actual:   ""
+  Failed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan -h", command: "plan") [11 ms]
+Expected: 0
+Actual:   1
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "help install", command: "install") [< 1 ms]
+
+Result: 13 rows FAILED, 4 rows PASSED (of 17).
+  FAILED Expected: 0 / Actual: 1  -> install --help, install -h, install --no-finalize --json --help, update --help, update -h, update --component app -h, plan --help, plan -h, plan --manifest latest --help
+                                     (the command DISPATCHED, WireLogging created <root>\logs, ResolveReleaseAsync hit ForbiddenTransport, which threw -> exit 1)
+  FAILED stdout Expected page / Actual "" -> components --help, components -h, status --help, status -h (the read-only command ran and wrote to Console, not the injected writer)
+  PASSED -> uninstall --help, uninstall -h (spared by the mutation on purpose), help install, --help uninstall (command == help, the path the original defect left intact)
+
+--- restore: git checkout -- tools/AgentEyes.Setup.Cli/Program.cs ; git status --porcelain -> (empty) ; git diff --stat -> (empty) ---
+
+=== 3. Restored tree rebuilt: dotnet build AgentEyes.sln -c Release -> Build succeeded. 0 Error(s) ===
+--- dotnet test AgentEyes.sln -c Release --no-build --filter FullyQualifiedName~SetupCliHelpTests --logger console;verbosity=normal ---
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_InstallWithAnUnknownOption_ExitsWithTheUsageCode_AndDoesNothing [186 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall -h", command: "uninstall") [1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "status --help", command: "status") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "uninstall --help", command: "uninstall") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "components -h", command: "components") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --manifest latest --help", command: "plan") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update -h", command: "update") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --help", command: "update") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan --help", command: "plan") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install -h", command: "install") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "components --help", command: "components") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --no-finalize --json --help", command: "install") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "--help uninstall", command: "uninstall") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "update --component app -h", command: "update") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "install --help", command: "install") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "status -h", command: "status") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "plan -h", command: "plan") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_CommandHelp_PrintsThatCommandsPage_ExitsZero_AndTouchesNothing(line: "help install", command: "install") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "install --bogus", offender: "--bogus") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "--bogus", offender: "--bogus") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "status --json=true", offender: "--json=true") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "components --bogus", offender: "--bogus") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "install -x", offender: "-x") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_UnknownOption_ThrowsUsageException_NamingTheOption(line: "install --help --bogus", offender: "--bogus") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_UnknownCommand_ExitsWithTheUsageCode_BeforeTheInstallRootIsTouched [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_TheRelaunchedReExecShape_StillParses(command: "uninstall") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_TheRelaunchedReExecShape_StillParses(command: "update") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install --help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install --root C:\\x --no-finalize --help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "-h") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "--help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "update --help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install -H") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "plan --help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install -h") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "uninstall -h") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "--help install") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_HelpSwitchAnywhereOnTheLine_SetsWantsHelp(line: "install --release-dir dist --json -h --no-finalize") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_TheReleaseWorkflowInvocation_StillParses [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "frobnicate", expected: False) [2 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "INSTALL", expected: True) [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "", expected: False) [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "install", expected: True) [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "help", expected: False) [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.IsCommand_KnowsExactlyTheDispatchedCommands(name: "plan", expected: True) [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_NoArguments_PrintsTheGeneralPage [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_ValueOptionWithoutAValue_ThrowsUsageException(line: "install --root") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_ValueOptionWithoutAValue_ThrowsUsageException(line: "install --root --json") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_ValueOptionWithoutAValue_ThrowsUsageException(line: "plan --manifest -h") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.ForCommand_EveryCommand_ReturnsAPageHeadedByItsUsageLine [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_PlanWithoutHelp_ReachesTheTransportAndOpensTheLog_SoBothInstrumentsAreLive [51 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_HelpForAnUnknownCommand_ExitsWithTheUsageCode [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_ToString_SummarizesTheLineForTheLog [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.HelpPages_DocumentOnlyOptionsTheParserAccepts [3 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.ForCommand_IsCaseInsensitive [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install extra --json", offender: "extra") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "help install extra", offender: "extra") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install help", offender: "help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install <en-dash>help", offender: "<en-dash>help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /help", offender: "/help") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_PositionalNoCommandTakes_ThrowsUsageException(line: "install /?", offender: "/?") [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_InstallWithAWindowsStyleHelpToken_ExitsWithTheUsageCode_AndDoesNothing [1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Parse_WithoutTheSwitch_DoesNotWantHelp [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.Run_HelpCommand_PrintsTheGeneralPage [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.ForCommand_UnknownCommand_ThrowsUsageException [< 1 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.General_ListsEveryCommandAndEveryOptionTheParserAccepts [2 ms]
+  Passed AgentEyes.Tests.SetupCliHelpTests.InstallHelp_Issue83_PrintsHelpInsteadOfDownloadingTheLatestReleaseAndReplacingTheInstalledApp [3 ms]
+
+Count: 67 passed, 0 failed (67 tests in the class).
+
+=== 4. FINAL full suite on the restored tree ===
+dotnet test AgentEyes.sln -c Release --no-build -> Passed!  - Failed:     0, Passed:  1984, Skipped:     0, Total:  1984, Duration: 52 s - AgentEyes.Tests.dll (net8.0)
+
+=== 5. Side-effect check after all QA runs ===
+Real %LOCALAPPDATA%\AgentEyes\logs\setup-cli.log: last line '2026-09-24 19:48:47 [Program] RunAsync: command=install exit=0' (the developer's disclosed incident), mtime 19:48:47; QA session time 20:29. Not written by QA.
+Temp roots left under %TEMP% (agenteyes-cli-help-*): 0.
