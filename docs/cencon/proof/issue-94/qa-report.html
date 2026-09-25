@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA Report - Issue #94</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #222; background: #fff; line-height: 1.45; }
+  h1 { font-size: 1.6em; border-bottom: 2px solid #444; padding-bottom: 6px; }
+  h2 { font-size: 1.25em; margin-top: 28px; border-bottom: 1px solid #bbb; padding-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.93em; }
+  th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eee; }
+  code, pre { font-family: Consolas, monospace; font-size: 0.92em; }
+  pre { background: #f5f5f5; border: 1px solid #ddd; padding: 8px; overflow-x: auto; white-space: pre-wrap; }
+  .pass { color: #0a6b0a; font-weight: bold; }
+  .fail { color: #a00; font-weight: bold; }
+  .pending { color: #8a5a00; font-weight: bold; }
+  .verdict { font-size: 1.2em; padding: 10px 12px; border: 2px solid #0a6b0a; background: #eef9ee; margin: 16px 0; }
+  .note { border-left: 4px solid #8a5a00; background: #fff8e6; padding: 6px 10px; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<h1>QA Report - Issue #94: The app relaunched by update inherits the updater's output handles</h1>
+
+<p>
+Repo: thefrederiksen/agenteyes-app. PR #95, branch <code>issue-94-detached-relaunch</code>, HEAD <code>2c184e0</code>
+(diff base <code>main</code> at <code>8dd30e3</code>, v1.11.6). QA session: independent of the developer session;
+worked in the git worktree <code>C:\ReposFred\agenteyes-wt-94</code>. Date: 2026-09-25.
+</p>
+
+<div class="verdict">VERIFIED - acceptance criteria 1-4 met with proof from this session's own build, test runs, code review and mutation check.
+Criterion 5 (live update) is <span class="pending">PENDING TESTER</span> by owner constraint on this run (no AgentEyes binary may be launched from it); it is the tester session's gate after merge and does not count as a fail.</div>
+
+<p>Quoted tool output for every number below is in <code>docs/cencon/proof/issue-94/qa-evidence.txt</code> (same folder). The developer's
+handoff (<code>handoff.md</code>) and mutation record (<code>mutation-evidence.txt</code>) were read as context only; nothing below rests on them.</p>
+
+<h2>1. Gate: build and tests, run by QA</h2>
+
+<table>
+<tr><th>Check</th><th>Command</th><th>Actual (quoted)</th><th>Result</th></tr>
+<tr><td>Build</td><td><code>dotnet build AgentEyes.sln -c Release</code></td><td><code>Build succeeded.</code> / <code>0 Error(s)</code> (evidence A)</td><td class="pass">PASS</td></tr>
+<tr><td>Tests, run 1 (gate run, named)</td><td><code>dotnet test AgentEyes.sln -c Release --logger "console;verbosity=normal"</code></td><td><code>Total tests: 2095 / Passed: 2095</code>; 2095 named <code>Passed</code> lines, 0 <code>Failed</code>, 0 <code>Skipped</code>; exit 0 (evidence B)</td><td class="pass">PASS</td></tr>
+<tr><td>Tests, run 2 (named, restored tree)</td><td>same, <code>--no-build</code></td><td><code>Passed: 2094 / Failed: 1</code> - the one failure is named: <code>PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn</code>, thrown from the test class's own <code>Dispose()</code> teardown (evidence C). See section 4.</td><td class="pass">PASS for #94 (pre-existing flake in an untouched file; filed separately)</td></tr>
+<tr><td>Tests, run 3 (named, restored tree)</td><td>same, <code>--no-build</code></td><td><code>Total tests: 2095 / Passed: 2095</code>; 0 <code>Failed</code> lines; exit 0 (evidence D)</td><td class="pass">PASS</td></tr>
+<tr><td>Reviewer note 2 (no unnamed failure accepted)</td><td>every run above at <code>verbosity=normal</code></td><td>Every result line is named in all three runs; the only failure anywhere is named and diagnosed (section 4)</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>2. Acceptance criteria, judged independently from the diff</h2>
+
+<table>
+<tr><th>#</th><th>Criterion (the contract)</th><th>Expected</th><th>What the code does (file:line evidence)</th><th>Result</th></tr>
+
+<tr><td>1</td>
+<td>The relaunched app is started with no inherited stdio handles (e.g. <code>UseShellExecute=true</code>, or <code>CreateProcess</code> with <code>bInheritHandles=false</code> / redirected to null), detached from the updater's console.</td>
+<td><code>CreateProcess</code> with <code>bInheritHandles=FALSE</code>, no <code>STARTF_USESTDHANDLES</code>, and a console of its own (or none) for the child.</td>
+<td>
+<code>tools/AgentEyes.Setup.Engine/ProcessAppLauncher.cs</code>:
+<ul>
+<li>:174-175 <code>CreateProcessW(null, mutableCommandLine, IntPtr.Zero, IntPtr.Zero, bInheritHandles: false, CreateUnicodeEnvironment | CreateNoWindow, env, workingDirectory, ref startup, out info)</code></li>
+<li>:168 <code>STARTUPINFOW</code> is initialised with only <code>cb</code>, so <code>dwFlags = 0</code> (no <code>STARTF_USESTDHANDLES</code>) and <code>hStdInput/Output/Error</code> are zero (:222-224).</li>
+<li>:28-29 constants <code>0x00000400</code> (CREATE_UNICODE_ENVIRONMENT) and <code>0x08000000</code> (CREATE_NO_WINDOW) are the documented Win32 values; :236-247 the P/Invoke signature is <code>CharSet.Unicode</code>, <code>SetLastError</code>, <code>bool bInheritHandles</code>.</li>
+<li>:183-184 both returned handles are closed; :176-182 a failed <code>CreateProcess</code> is logged and thrown as <code>Win32Exception</code> with the Windows reason (no fallback).</li>
+<li>The old launcher (<code>Process.Start</code> with <code>UseShellExecute=false</code>, which always passes <code>bInheritHandles=TRUE</code>) is removed from <code>RunningAppHandle.cs</code> (36 lines deleted, nothing else in that file changed). Every production caller resolves to the new class: <code>UpdateRestartCycle.cs:223</code>, <code>Setup.Cli/Commands.cs:23</code> (<code>AppLauncherFactory</code>), <code>Setup/Services/EngineInstallRunner.cs:42</code>.</li>
+<li>Why not <code>UseShellExecute=true</code>: the launcher must set <code>DOTNET_BUNDLE_EXTRACT_BASE_DIR</code> (:71) and .NET refuses a custom environment with shell execute - the issue's "e.g." allows the <code>CreateProcess</code> form.</li>
+</ul>
+Test: <code>Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns</code> (<code>ProcessAppLauncherTests.cs:65-84</code>) holds an inheritable pipe end during a launch, drops its copy, and requires end-of-stream within 15 s <b>and</b> the child still alive - passed [64 ms] (evidence B). Against the QA mutant it FAILED (evidence F).
+</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>2</td>
+<td>A test starts the launcher from a process whose stdout is a pipe and asserts the pipe closes when the updater exits while the relaunched child keeps running.</td>
+<td>An out-of-process check with the updater stand-in's stdout piped; the pipe must close after it exits while the child is still running; a specific presence, not an absence.</td>
+<td>
+<code>tests/AgentEyes.Tests/ProcessAppLauncherTests.cs:86-145</code> <code>Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning</code>:
+runs <code>dotnet AgentEyes.Tests.dll --launch-probe ...</code> with <code>RedirectStandardOutput</code> AND <code>RedirectStandardError</code> (:98-104, the <code>2&gt;&amp;1</code> shape); the probe (<code>LaunchProbe.cs:25-50</code>, the assembly's own <code>Main</code>, enabled by <code>&lt;GenerateProgramFile&gt;false&lt;/GenerateProgramFile&gt;</code> in the csproj) runs the REAL <code>ProcessAppLauncher</code>, prints <code>pid=N</code>, exits 0.
+The test then requires both pipes to reach end-of-stream within 15 s (:137-141), the probe to have exited 0 (:142-143), and <code>Process.GetProcessById(pid).HasExited == false</code> at that moment (:144). All three arms are stated: closed = pass; timeout = "the child (pid N) holds a copy of them"; a probe that never prints a pid is killed (not merely disposed) and its stderr reported (:119-125, reviewer note 7).
+Passed [273 ms] in QA's run 1 (evidence B). Against the QA mutant it FAILED at the liveness arm (evidence F).
+</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>3</td>
+<td>The relaunched app still gets its original arguments (e.g. <code>--tray</code>).</td>
+<td>The argument list the stopped instance ran with reaches the new process verbatim.</td>
+<td>
+<ul>
+<li>Cycle level: <code>UpdateRestartCycle.cs:223</code> <code>_launcher.Launch(_installedAppExe, running.Arguments)</code> is unchanged; <code>UpdateRestartCycleTests.cs:30-47</code> asserts <code>launch.Arguments == ["--tray"]</code> and :306-313 asserts <code>["--tray", "--extra", "with space"]</code> round-trips.</li>
+<li>Launcher level: <code>ProcessAppLauncher.cs:84-109</code> <code>BuildCommandLine</code> quotes each argument by the C runtime rules (:111-160: 2n backslashes before the closing quote, 2n+1 before an embedded quote, empty argument -&gt; <code>""</code>); the line is what <code>CreateProcessW</code> receives (:173-175).</li>
+<li>Tests: <code>Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded</code> (:149-164) reads the child's real command line back through WMI and <code>CommandLineToArgvW</code> and asserts argv == [cmd.exe, "/c", "pause", "--tray"] - passed [203 ms]; <code>BuildCommandLine_RoundTripsThroughTheChildsArgvSplit</code> (8 cases incl. <code>--tray</code>, empty, spaces, embedded quotes, trailing backslash, tab) and <code>BuildCommandLine_NoArguments_IsTheQuotedExeAlone</code> - all passed (evidence B).</li>
+</ul>
+</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>4</td>
+<td><code>dotnet build</code> clean, <code>dotnet test</code> green.</td>
+<td><code>Build succeeded.</code>, <code>0 Error(s)</code>; <code>Failed: 0</code>.</td>
+<td>Section 1: build clean; the gate run (run 1) 2095/0 named; run 3 2095/0 named. Run 2's single failure is a pre-existing teardown race in <code>PreviewTapTests</code>, a file this PR does not touch (section 4) - recorded, not hidden, and filed as its own bug.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>5</td>
+<td>Live (tester): <code>$o = &amp; agenteyes-setup update 2&gt;&amp;1</code> returns within seconds of "exit=0" while the app keeps running.</td>
+<td>The capturing assignment returns shortly after the update logs exit=0; the app is running as the new pid.</td>
+<td>Not executed in this session: owner constraint forbids launching any AgentEyes binary here. Code path read for the tester: the installed CLI continues <code>update</code> from a temp copy (<code>Setup.Cli/Commands.cs:256-275</code>, plain <code>Process.Start</code> so the temp copy keeps writing to the caller's pipe on purpose); the temp copy runs <code>UpdateRestartCycle</code> with the fixed launcher, so the app it starts holds no copy of that pipe, and the pipe closes when the temp copy exits. Expected live result: return within seconds of the <code>exit=0</code> line in setup-cli.log, <code>/health</code> on 127.0.0.1:7882 answering from the new pid, the app still a tray app.</td>
+<td class="pending">PENDING TESTER</td></tr>
+</table>
+
+<h2>3. Reviewer notes (PR #95 comment) - independently confirmed on the branch</h2>
+
+<table>
+<tr><th>Note</th><th>Confirmed at</th></tr>
+<tr><td>2. Named test run, no unnamed failure</td><td>Section 1: three named runs; the only failure is named and diagnosed.</td></tr>
+<tr><td>3. PR description stale (15 / 2094)</td><td>PR #95 body now reads 16 tests / 2095 and describes the collection, M4 and the probe kill.</td></tr>
+<tr><td>4. Validation throws in <code>Launch</code> did not log</td><td><code>ProcessAppLauncher.cs:40-54</code>: each of the three throws writes an <code>EngineLog</code> line first.</td></tr>
+<tr><td>5. Dead <code>?? _layout.AppDir</code> fallback</td><td><code>ProcessAppLauncher.cs:60-62</code>: <code>GetFullPath</code> then <code>GetDirectoryName ?? throw InvalidOperationException</code> - no fallback (CLAUDE.md rule 3).</td></tr>
+<tr><td>6. Two stacked summaries on the collection, none on the class</td><td><code>ProcessAppLauncherTests.cs:15-22</code> (collection) and :29-39 (class): one summary each.</td></tr>
+<tr><td>7. Probe hang before <code>pid=</code> only disposed</td><td><code>ProcessAppLauncherTests.cs:119-125</code>: <code>KillProcess(probe)</code> (tree kill + wait) then <code>Assert.Fail</code> with stderr; :131 the malformed-line path kills too.</td></tr>
+</table>
+
+<h2>4. The one failure seen (not a #94 defect) - stated, not dropped</h2>
+
+<pre>Failed AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [3 s]
+  System.UnauthorizedAccessException : Access to the path 'screen.jpg' is denied.
+     at System.IO.FileSystem.RemoveDirectory(String fullPath, Boolean recursive)
+     at AgentEyes.Tests.PreviewTapTests.Dispose() in tests\AgentEyes.Tests\PreviewTapTests.cs:line 35
+     at ReflectionAbstractionExtensions.DisposeTestClass(...)</pre>
+
+<p>Diagnosis from the code: the test releases its wedged publisher (<code>stalled.Set()</code>) as its LAST statement, so the publisher thread can still be inside a write of <code>screen.jpg</code> when xunit runs the class <code>Dispose()</code>, which deletes the directory recursively (:35). That teardown catches only <code>IOException</code> (:36); an open file makes Windows throw <code>UnauthorizedAccessException</code>, which escapes and fails the test. <code>PreviewTapTests.cs</code> is untouched by PR #95 (<code>git diff main...HEAD --stat</code> on it is empty; last changed in #75/#33), the class passes 24/24 alone in five runs, and the race showed once in three full runs here and once in the developer's runs (their unnamed one-off, now named). Filed as issue #96 so it is not lost. It does not change the #94 verdict: the criterion is the change's gate, and the change's gate run (run 1) and run 3 are green and named.</p>
+
+<h2>5. QA mutation check (the tests fire on the known-bad launcher)</h2>
+
+<p>The QA session restored the pre-#94 <code>Process.Start(UseShellExecute=false)</code> body in place of <code>StartDetached</code>, rebuilt (clean), ran the <code>Launch_*</code> tests, then reverted (<code>git status</code> empty, <code>git diff --quiet</code> clean) and rebuilt. Result on the mutant (evidence F): 4 failed / 3 passed - both pipe tests FAILED, <code>Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded</code> FAILED (WMI: the child was already gone), <code>Launch_NotAnExecutable_ThrowsWithTheWindowsReason</code> FAILED (message shape). Under this session's test host the mutant's child inherited a non-console stdin, <code>pause</code> hit EOF and the child exited at once - so the pipes closed for the wrong reason, and the tests' liveness arm ("the child must still be running when the pipe closes") is what caught it. The developer's environment hit the other arm (the 15 s timeout). Both arms fail closed; the check cannot pass by doing nothing.</p>
+
+<h2>6. Method and standards review</h2>
+
+<table>
+<tr><th>Check</th><th>Finding</th><th>Result</th></tr>
+<tr><td>ASCII only</td><td>Instrument proven on a known-bad line (1 hit), then 0 hits over the whole <code>git diff main...HEAD</code> (evidence G).</td><td class="pass">PASS</td></tr>
+<tr><td>Enterprise logging</td><td><code>Launch</code>, <code>BuildCommandLine</code> and <code>StartDetached</code> log entry, result and every failure through <code>EngineLog</code> (:42-107, :180).</td><td class="pass">PASS</td></tr>
+<tr><td>No fallback programming</td><td>No fallback remains: bad directory, failed <code>CreateProcess</code>, missing exe all throw with the reason.</td><td class="pass">PASS</td></tr>
+<tr><td>Try-catch at entry points only</td><td>Product code has no try-catch except the <code>finally</code> freeing the environment block (:170-190); the probe's catch is in its <code>Main</code> (an entry point).</td><td class="pass">PASS</td></tr>
+<tr><td>Tests fail closed</td><td>Every launcher test asserts a presence (end-of-stream, argv equality, file contents, a thrown type with a named message); the pipe tests add a liveness arm; a silent WMI answer fails loudly (:160).</td><td class="pass">PASS</td></tr>
+<tr><td>Test hygiene</td><td>Non-parallel collection (:23-27) so the inheritable pipe end and the environment snapshot cannot be picked up by other classes' children; all children killed in <code>Dispose</code>; no test child left behind after either run (evidence G); no AgentEyes binary started by any test.</td><td class="pass">PASS</td></tr>
+<tr><td>Privacy posture / CenCon drift</td><td>No App/Core change; the launcher stays in <code>AgentEyes.Setup.Engine</code>; the relaunch honours the original arguments so a windowed app comes back windowed; CREATE_NO_WINDOW is a no-op for the GUI app. Handoff note present and linked repo-relative on the issue.</td><td class="pass">PASS</td></tr>
+<tr><td>Housekeeping</td><td>No <code>nul</code> files in the worktree.</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>7. What this verification cannot see</h2>
+<ul>
+<li>The tests start <code>cmd.exe</code> / <code>powershell.exe</code>, never <code>AgentEyesApp.exe</code>. Handle inheritance is decided by <code>bInheritHandles</code> regardless of the child's subsystem, but the real app under a real <code>agenteyes-setup update</code> is only proven by criterion 5 - the tester's gate.</li>
+<li>The temp-copy hop in the CLI (<code>Commands.cs:256-275</code>) is out of #94's scope and unchanged; it is what carries the updater's output back to the caller, and it exits after the relaunch. If the live check still hangs, look there first.</li>
+</ul>
+
+<p><b>Result: VERIFIED - all acceptance criteria within this session's remit (1-4) met with proof. Criterion 5 pending the tester session after merge.</b></p>
+
+</body>
+</html>

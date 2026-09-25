@@ -1,0 +1,116 @@
+Issue #94 / PR #95 - QA evidence (quoted tool output, produced by the QA Agent session, 2026-09-25)
+======================================================================================================
+Worktree: C:\ReposFred\agenteyes-wt-94  branch: issue-94-detached-relaunch  HEAD: 2c184e0
+Diff base: main (8dd30e3)
+
+---- A. Build (gate command, restored tree after the mutant was reverted) ----
+$ dotnet build AgentEyes.sln -c Release
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+Time Elapsed 00:00:05.66
+
+---- B. Full suite, run 1 (named, verbosity=normal) - the gate run on the PR tree ----
+$ dotnet test AgentEyes.sln -c Release --logger "console;verbosity=normal"   (exit 0)
+Total tests: 2095
+     Passed: 2095
+Named result lines counted in the log: Passed=2095 Failed=0 Skipped=0
+ProcessAppLauncherTests (all 16, from the same log):
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning [273 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "C:\\dir with spaces\\") [2 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "has \"quotes\" inside") [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "ends with backslash\\") [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "--tray") [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "has spaces") [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "tab\there") [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "back\\\\slash \"then quote") [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_RoundTripsThroughTheChildsArgvSplit(argument: "") [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.BuildCommandLine_NoArguments_IsTheQuotedExeAlone [< 1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ExeMissing_ThrowsFileNotFound_BeforeAnythingIsStarted [1 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_NotAnExecutable_ThrowsWithTheWindowsReason [28 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildSeesTheParentEnvironmentPlusTheBundleVariable [453 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns [64 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded [203 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_BareExeNameInTheCurrentDirectory_StartsIt [49 ms]
+
+---- C. Full suite, run 2 (named) - restored tree after the mutant; ONE pre-existing flaky teardown ----
+$ dotnet test AgentEyes.sln -c Release --no-build --logger "console;verbosity=normal"   (exit 1)
+Total tests: 2095
+     Passed: 2094
+     Failed: 1
+Named result lines counted in the log: Passed=2094 Failed=1 Skipped=0
+ProcessAppLauncherTests passed lines in this run: 16 of 16
+The one failure, verbatim:
+  Failed AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [3 s]
+  Error Message:
+   System.UnauthorizedAccessException : Access to the path 'screen.jpg' is denied.
+  Stack Trace:
+     at System.IO.FileSystem.RemoveDirectoryRecursive(String fullPath, WIN32_FIND_DATA& findData, Boolean topLevel)
+   at System.IO.FileSystem.RemoveDirectory(String fullPath, Boolean recursive)
+   at AgentEyes.Tests.PreviewTapTests.Dispose() in C:\ReposFred\agenteyes-wt-94\tests\AgentEyes.Tests\PreviewTapTests.cs:line 35
+   at ReflectionAbstractionExtensions.DisposeTestClass(ITest test, Object testClass, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 79
+
+---- D. Full suite, run 3 (named) - same restored binaries ----
+$ dotnet test AgentEyes.sln -c Release --no-build --logger "console;verbosity=normal"   (exit 0)
+Total tests: 2095
+     Passed: 2095
+Named result lines counted in the log: Passed=2095 Failed=0 Skipped=0
+
+---- E. PreviewTapTests alone, five runs (the flaky class from run 2; PR #95 does not touch it) ----
+run 1: Passed! - Failed: 0, Passed: 24, Skipped: 0, Total: 24, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+run 2: Passed! - Failed: 0, Passed: 24, Skipped: 0, Total: 24, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+run 3: Passed! - Failed: 0, Passed: 24, Skipped: 0, Total: 24, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+run 4: Passed! - Failed: 0, Passed: 24, Skipped: 0, Total: 24, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+run 5: Passed! - Failed: 0, Passed: 24, Skipped: 0, Total: 24, Duration: 4 s - AgentEyes.Tests.dll (net8.0)
+git diff main...HEAD --stat -- tests/AgentEyes.Tests/PreviewTapTests.cs -> (empty: untouched by this PR)
+git log --oneline -2 -- tests/AgentEyes.Tests/PreviewTapTests.cs ->
+901c9f8 [Tests] Resolve delegate handoffs in the reachability walk so the HUD/preview guards pass again (#75) (#76)
+67ed62d Live preview in the recording HUD - screen, camera, or both (#33)
+
+---- F. QA mutation: the pre-#94 Process.Start launcher restored in place of StartDetached ----
+Mutant applied in the working tree (tools/AgentEyes.Setup.Engine/ProcessAppLauncher.cs, the one line
+  'int pid = StartDetached(commandLine, workingDirectory, environment);' replaced by):
+    var psi = new ProcessStartInfo(exePath) { UseShellExecute = false, WorkingDirectory = workingDirectory };
+    foreach (var a in arguments) psi.ArgumentList.Add(a);
+    psi.Environment[InstallFinalizer.BundleExtractBaseDirVariable] = _layout.BundleExtractDir;
+    using var mutant = Process.Start(psi) ?? throw new InvalidOperationException("Process.Start returned no process");
+    int pid = mutant.Id;
+$ dotnet build AgentEyes.sln -c Release ->
+Build succeeded.
+    0 Error(s)
+$ dotnet test AgentEyes.sln -c Release --no-build --filter "FullyQualifiedName~ProcessAppLauncherTests.Launch_" --logger "console;verbosity=normal"   (exit 1)
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning [179 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ExeMissing_ThrowsFileNotFound_BeforeAnythingIsStarted [2 ms]
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_NotAnExecutable_ThrowsWithTheWindowsReason [13 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildSeesTheParentEnvironmentPlusTheBundleVariable [256 ms]
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns [45 ms]
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded [215 ms]
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_BareExeNameInTheCurrentDirectory_StartsIt [40 ms]
+Total tests: 7
+     Passed: 3
+     Failed: 4
+Failure messages on the mutant:
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning [179 ms]
+  Error Message:
+   System.ArgumentException : Process with an Id of 21088 is not running.
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_NotAnExecutable_ThrowsWithTheWindowsReason [13 ms]
+  Error Message:
+   Assert.Contains() Failure: Sub-string not found
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns [45 ms]
+  Error Message:
+   System.ArgumentException : Process with an Id of 23536 is not running.
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded [215 ms]
+  Error Message:
+   WMI returned no command line for the child
+Reading: under this QA session's test host the mutant's child (cmd.exe /c pause, started with the
+  updater's console and a non-console stdin) hit EOF on 'pause' and exited at once, so the pipe closed
+  for the WRONG reason - and the liveness arm of each pipe test ('the child must still be running when
+  the pipe closes') caught it. The developer's environment kept the child alive and hit the 15 s timeout
+  arm instead (mutation-evidence.txt M1/M2). Both arms fail closed; on the fixed code the child gets its
+  own hidden console (CREATE_NO_WINDOW), lives, and the pipes close with it alive (section B).
+Revert: git checkout -- tools/AgentEyes.Setup.Engine/ProcessAppLauncher.cs ; git status --short -> (empty) ; git diff --quiet -> clean
+
+---- G. Instrument checks ----
+Non-ASCII scan of 'git diff main...HEAD' (perl /[^\x09\x0a\x0d\x20-\x7e]/): known-bad input (a U+2713 line) -> 1 hit (instrument fires); the PR diff -> 0 hits
+nul files in the worktree (find . -iname nul, excluding .git): 0
+Leftover test children after run 1 and after the mutant run (Get-CimInstance Win32_Process, cmd.exe *pause* or *launch-probe*): leftover-children=0 both times
