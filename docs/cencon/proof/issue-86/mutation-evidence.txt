@@ -1,0 +1,79 @@
+Issue #86 - mutation evidence: the new checks fired at the known-bad behaviours
+==============================================================================
+
+Rule (DEVELOPMENT_METHOD.md 6c): a check only ever run against the state you hope passes has
+demonstrated nothing. Each mutation below restores one of the two defects this issue is about,
+is built with the gate's exact command (dotnet build AgentEyes.sln -c Release), run with
+dotnet test AgentEyes.sln -c Release --no-build --filter ..., quoted, and reverted. The
+reverted tree was then rebuilt and the FULL suite re-run (see handoff.md, section 6).
+
+Note on the revert: the first attempt used `git checkout -- <file>` for both files in one
+chained command; it failed on the first path because UpdateRestartCycle.cs is a NEW (untracked)
+file, so git touched nothing and the chain stopped. Both mutations were then reverted with
+exact text edits and the tree was checked for the marker string "MUTATION" (zero hits) before
+the final clean build and run. The full-suite run made while the mutations were still in the
+tree (6 failed / 2035 passed) is recorded here for honesty; it is NOT the gate run.
+
+
+M1 - the forbidden fallback: "try to stop, carry on anyway"
+-----------------------------------------------------------
+tools/AgentEyes.Setup.Engine/UpdateRestartCycle.cs, RunAsync: the `throw new AppStopFailedException(running)`
+after a failed stop replaced by a log line, so the replace step runs with the app still running.
+
+Filter: UpdateRestartCycleTests.RunAsync_AppCannotBeStopped* | SetupCliRestartTests.Update_AppCannotBeStopped*
+        | UpdateRestartCycleTests.RunAsync_AppRunning_StopsIt* (a control that must keep passing)
+
+Output (quoted):
+
+  Failed AgentEyes.Tests.UpdateRestartCycleTests.RunAsync_AppCannotBeStopped_TheInstalledFileIsByteForByteUnchanged [21 ms]
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Engine.AppStopFailedException)
+  Failed AgentEyes.Tests.UpdateRestartCycleTests.RunAsync_AppCannotBeStopped_ThrowsBeforeTheReplaceStep_AndStartsNothing [1 ms]
+   Assert.Throws() Failure: No exception was thrown
+Expected: typeof(AgentEyes.Setup.Engine.AppStopFailedException)
+  Failed AgentEyes.Tests.SetupCliRestartTests.Update_AppCannotBeStopped_FailsWithTheReason_AndTheOldBuildIsUntouched [117 ms]
+   Assert.Equal() Failure: Values differ
+Expected: 1
+Actual:   0
+Failed!  - Failed:     3, Passed:     1, Skipped:     0, Total:    4, Duration: 117 ms - AgentEyes.Tests.dll (net8.0)
+
+Reading: with the fallback in place the cycle no longer throws, and the CLI's `update` exits 0
+instead of 1 - exactly the "half state" the criterion forbids. The control (the happy path)
+still passed, so the failures are the mutation's, not the harness's.
+
+
+M2 - the pre-#86 Recover: join every holding folder, delete every loose piece
+-----------------------------------------------------------------------------
+src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs, Recover: the `continue` that skips the carried
+clip's holding folder removed, and the `if (handover != null)` guard around the loose-piece
+deletion replaced by `if (false)` - i.e. the handover is read but ignored, which is what the
+tester saw on 2026-09-24 after a manual kill + start.
+
+Filter: AlwaysOnRestartTests (all 13)
+
+Output (quoted):
+
+  Failed AgentEyes.Tests.AlwaysOnRestartTests.StopForRestart_ThenStartAfterLongerThanTheGap_TheCarriedClipIsWrittenWithItsSpan_AndNewSpeechStartsANewClip [637 ms]
+  Failed AgentEyes.Tests.AlwaysOnRestartTests.StopForRestart_ThenStart_SoundResumesWithinTheGap_OneClipAcrossTheRestart_AndNoPieceIsDeleted [593 ms]
+  Failed AgentEyes.Tests.AlwaysOnRestartTests.StopForRestart_NoClipOpen_LoosePiecesWaitForTheKeeper_AndAreJudgedByTheRuleNotByRecover [253 ms]
+   Assert.Equal() Failure: Values differ
+Expected: 2
+Actual:   0
+Failed!  - Failed:     3, Passed:    10, Skipped:     0, Total:   13, Duration: 2 s - AgentEyes.Tests.dll (net8.0)
+
+Reading: the continuity test fails (the carried clip is joined and closed at start, so the
+speech after the restart becomes a second clip), the long-gap test fails (the clip is joined
+whole and untrimmed instead of closed with its span), and the no-clip-open test fails because
+the two waiting pieces were deleted at start (Expected 2, Actual 0) - the tester's
+"deleting piece_20260924-175612.mp4" replayed. The ten tests that still pass are the ones
+whose subject the mutation does not touch (the handover file's contents, the sound log's
+export/import, the corrupt/missing-folder handling, the no-op, the keeper-throws case).
+
+
+Not mutated, stated honestly
+----------------------------
+- The relaunch-with-the-same-arguments criterion is asserted directly (the fake launcher records
+  the exe and the argument list, and the CLI test reads them back); it was not mutated separately.
+- The app-side guard (UpdateChecker never reaches a file replacer) has its presence arm inside the
+  test itself (it must SEE the updater's planner/layout/policy calls, else it fails); it was not
+  mutated separately.
