@@ -23,6 +23,21 @@ namespace AgentEyes.Tests
     /// within a bound and assert that the child is STILL RUNNING at that moment, so a launcher that
     /// hands the child a copy of the pipe (the pre-#94 Process.Start) times out instead of passing.
     /// </summary>
+    /// <summary>
+    /// Issue #94 (review of PR #95): the launcher tests run ALONE, after every parallel collection. Two of
+    /// them touch process-wide state that other classes' children would otherwise pick up: an INHERITABLE
+    /// pipe end is held in this process for the length of a launch (any concurrent Process.Start elsewhere
+    /// in the suite passes bInheritHandles=TRUE and would hand it to ITS child - a false "the child holds a
+    /// copy"), and the environment test snapshots the whole process environment into a PowerShell child
+    /// while PluginRegistryChannelTests may be poisoning PSModulePath for its own packaging run.
+    /// </summary>
+    [CollectionDefinition(Name, DisableParallelization = true)]
+    public sealed class ProcessSpawningCollection
+    {
+        public const string Name = "process-spawning (not parallel)";
+    }
+
+    [Collection(ProcessSpawningCollection.Name)]
     public sealed class ProcessAppLauncherTests : IDisposable
     {
         private static readonly TimeSpan Bound = TimeSpan.FromSeconds(15);
@@ -39,7 +54,10 @@ namespace AgentEyes.Tests
         public void Dispose()
         {
             foreach (int pid in _children) Kill(pid);
-            try { Directory.Delete(_root, recursive: true); } catch (DirectoryNotFoundException) { }
+            // Best-effort temp cleanup: a teardown error must never replace the test's own verdict.
+            try { Directory.Delete(_root, recursive: true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
 
         // ---- criterion: no inherited stdio handles, detached from the updater's console ----------
@@ -100,22 +118,24 @@ namespace AgentEyes.Tests
             var firstLine = probe.StandardOutput.ReadLineAsync();
             Assert.True(await Task.WhenAny(firstLine, Task.Delay(Bound)) == firstLine, "the probe printed no pid line within the bound");
             string? pidLine = await firstLine;
-            Assert.NotNull(pidLine);
-            Assert.StartsWith("pid=", pidLine, StringComparison.Ordinal);
+            if (pidLine is null || !pidLine.StartsWith("pid=", StringComparison.Ordinal))
+            {
+                // The probe failed before it could start anything: its stderr carries the reason
+                // (LaunchProbe's failure line plus the engine log it routed there).
+                probe.WaitForExit((int)Bound.TotalMilliseconds);
+                Assert.Fail($"the probe printed '{pidLine ?? "<nothing>"}' instead of a pid line (exit {probe.ExitCode}); stderr: {await stderr}");
+            }
             int pid = int.Parse(pidLine!.Substring("pid=".Length));
             _children.Add(pid);
 
-            var sw = Stopwatch.StartNew();
             var rest = probe.StandardOutput.ReadToEndAsync();
             var bothClosed = Task.WhenAll(rest, stderr);
             bool closed = await Task.WhenAny(bothClosed, Task.Delay(Bound)) == bothClosed;
-            sw.Stop();
 
             Assert.True(closed, $"the probe's stdout/stderr pipes did not close within {Bound}: the child (pid {pid}) holds a copy of them");
             Assert.True(probe.WaitForExit((int)Bound.TotalMilliseconds), "the probe did not exit");
             Assert.True(probe.ExitCode == 0, $"the probe exited {probe.ExitCode}: {await stderr}");
             Assert.False(Process.GetProcessById(pid).HasExited, "the child must still be running when the pipes close - otherwise the close proves nothing");
-            Assert.True(sw.Elapsed < Bound, $"pipes closed after {sw.Elapsed}");
         }
 
         // ---- criterion: the relaunched app still gets its original arguments ----------------------
@@ -191,6 +211,29 @@ namespace AgentEyes.Tests
         public void BuildCommandLine_NoArguments_IsTheQuotedExeAlone()
         {
             Assert.Equal("\"C:\\a b\\x.exe\"", ProcessAppLauncher.BuildCommandLine(@"C:\a b\x.exe", Array.Empty<string>()));
+        }
+
+        [Fact]
+        public void Launch_BareExeNameInTheCurrentDirectory_StartsIt()
+        {
+            // Review of PR #95: Path.GetDirectoryName("cmd.exe") is "" (not null), and CreateProcessW
+            // rejects "" as a working directory (error 267, "The directory name is invalid"), so the
+            // first version's `?? _layout.AppDir` fallback could never fire. The exe is resolved to a
+            // full path first. Changing the process's current directory is safe here: this class runs
+            // in a non-parallel collection, after every parallel one.
+            string previous = Directory.GetCurrentDirectory();
+            Directory.SetCurrentDirectory(Environment.SystemDirectory);
+            try
+            {
+                int pid = new ProcessAppLauncher(Layout).Launch("cmd.exe", new[] { "/c", "pause" });
+                _children.Add(pid);
+
+                Assert.False(Process.GetProcessById(pid).HasExited, "the child started from a bare exe name must be running");
+            }
+            finally
+            {
+                Directory.SetCurrentDirectory(previous);
+            }
         }
 
         // ---- failure shape --------------------------------------------------------------------------

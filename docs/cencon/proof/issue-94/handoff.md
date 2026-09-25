@@ -13,12 +13,13 @@ Files in this folder:
 | File | What it is |
 |------|-----------|
 | `handoff.md` | this note |
-| `mutation-evidence.txt` | the six `Launch_*` tests run against the pre-#94 `Process.Start` launcher restored in place: the two pipe checks FAIL after their full bound with the child alive; quoted output, then the mutant reverted and the tree re-gated |
+| `mutation-evidence.txt` | the `Launch_*` tests run against the pre-#94 `Process.Start` launcher restored in place: the two pipe checks FAIL after their full bound with the child alive (M1, M2); then M4, the working-directory regression test fired at the first version's line; quoted output, each mutant reverted and the tree re-gated |
 
-Gate on the final tree: `dotnet build AgentEyes.sln -c Release` -> `Build succeeded.`, `0 Error(s)`;
-`dotnet test AgentEyes.sln -c Release` -> `Passed! - Failed: 0, Passed: 2094, Skipped: 0, Total: 2094`
-(2079 on `main`, +15). The new class alone (`--filter FullyQualifiedName~ProcessAppLauncherTests`):
-`Total tests: 15`, all passed, `Total time: 1.6832 Seconds`.
+Gate on the final tree (after the review fix pass, section 8): `dotnet build AgentEyes.sln -c Release` ->
+`Build succeeded.`, `0 Error(s)`; `dotnet test AgentEyes.sln -c Release` ->
+`Passed! - Failed: 0, Passed: 2095, Skipped: 0, Total: 2095` (2079 on `main`, +16; three consecutive
+full runs green - see the honesty note in section 5). The new class alone
+(`--filter FullyQualifiedName~ProcessAppLauncherTests`): `Passed: 16, Failed: 0, Duration: 869 ms`.
 
 ---
 
@@ -52,18 +53,25 @@ its own environment; an app inheriting that would unpack native DLLs into %TEMP%
      `layout.BundleExtractDir` (unchanged intent from #86/#120);
   3. calls `CreateProcessW` with `bInheritHandles = FALSE`, a `STARTUPINFOW` with `dwFlags = 0` (no
      `STARTF_USESTDHANDLES`, no std handles), `CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW`, and the
-     exe's directory as the working directory. `CREATE_NO_WINDOW` gives a console child a hidden console
+     exe's directory as the working directory (the exe resolved with `Path.GetFullPath` first: for a bare
+     name `GetDirectoryName` is `""`, which CreateProcessW rejects - review finding, section 8). `CREATE_NO_WINDOW` gives a console child a hidden console
      of its own instead of the updater's; it is ignored for a GUI exe such as AgentEyesApp.exe. Both
      returned handles are closed at once; the pid is returned.
   On failure `CreateProcess`'s error is thrown as a `Win32Exception` whose message names the command
   line and the Windows reason; `UpdateRestartCycle.Relaunch` wraps it in `AppRelaunchFailedException` as
-  before. Entry, the exact command line, the pid and every failure are logged through `EngineLog`.
+  before. Entry, the exact command line, the pid and every failure are logged through `EngineLog`
+  (`BuildCommandLine` logs its result and each of its throw paths too).
 - `UpdateRestartCycle.cs`: unchanged - it still hands the launcher the stopped instance's own argument
   list (`--tray` comes back as `--tray`, pinned by the existing `UpdateRestartCycleTests`).
 
 ### 2.2 `AgentEyes.Tests` (tests/AgentEyes.Tests)
 
-- `ProcessAppLauncherTests.cs` (new, 15 tests, section 3). Every child is `cmd.exe /c pause --tray`
+- `ProcessAppLauncherTests.cs` (new, 16 tests, section 3), in a NON-PARALLEL xunit collection
+  (`ProcessSpawningCollection`, `DisableParallelization = true`) so it runs alone after every parallel
+  collection: one test holds an INHERITABLE pipe end in the process during a launch, which any concurrent
+  `Process.Start` elsewhere in the suite (bInheritHandles=TRUE) would hand to ITS child - a false failure;
+  and the environment test snapshots the whole process environment while `PluginRegistryChannelTests`
+  may be poisoning `PSModulePath` (that class's "no other test spawns a PowerShell" comment is updated). Every child is `cmd.exe /c pause --tray`
   started HIDDEN through the real launcher (it blocks on its own hidden console's stdin, so it lives
   until killed), or a one-shot `powershell.exe` that writes a file and exits. Each test records its
   children and `Dispose` kills them (`Kill(entireProcessTree: true)`); no AgentEyes binary is involved.
@@ -86,7 +94,8 @@ its own environment; an app inheriting that would unpack native DLLs into %TEMP%
 
 Failure-shape tests, both new: `Launch_ExeMissing_ThrowsFileNotFound_BeforeAnythingIsStarted`,
 `Launch_NotAnExecutable_ThrowsWithTheWindowsReason` (`Win32Exception` whose message contains
-`CreateProcess failed` and the file name).
+`CreateProcess failed` and the file name). Regression test from the review:
+`Launch_BareExeNameInTheCurrentDirectory_StartsIt` (fails on the first version with error 123, M4).
 
 ## 4. What the tests can and cannot see (fail-closed statement)
 
@@ -110,8 +119,16 @@ M1 (probe/pipe) FAILED [15 s] "the probe's stdout/stderr pipes did not close wit
 end-of-stream within 00:00:15: the child (pid 4024) holds a copy of the pipe". The argument/environment
 tests passed on the mutant too, as regression guards must (they pin what the fix preserves). The mutant
 was then discarded (`git checkout --`, `git status` clean), the solution rebuilt and the whole suite
-re-run: `Passed: 2094, Failed: 0`. No `cmd.exe /c pause` or probe process was left running after either
-run (checked with `Get-CimInstance Win32_Process`).
+re-run. No `cmd.exe /c pause` or probe process was left running after either run (checked with
+`Get-CimInstance Win32_Process`). M4 (review fix pass): the first version's working-directory line
+restored in place -> `Launch_BareExeNameInTheCurrentDirectory_StartsIt` FAILED with
+`Win32Exception: CreateProcess failed for cmd.exe /c pause: The filename, directory name, or volume label
+syntax is incorrect.`; restored -> passes; full suite `Passed: 2095, Failed: 0`.
+
+Honesty note: the FIRST full-suite run after the review fixes reported `Failed: 1, Passed: 2094` and the
+failing test's name was not captured; the next three full runs on the same binaries were `2095/0` each,
+and the launcher class is 16/16 on every run. I cannot name that test and do not claim it was unrelated -
+QA's own runs are the arbiter.
 
 ## 6. Areas worth a smoke (QA decides)
 
@@ -132,4 +149,17 @@ started by this launcher gets a HIDDEN console; the only production child is the
 the flag is a no-op, and the app remains as visible as before (the relaunch honours its original
 arguments, so a windowed app comes back windowed).
 
-I believe this is finished, apart from criterion 5 which is pending the tester session.
+## 8. Review fix pass (self-review of PR #95, all addressed on the branch)
+
+| Finding | What was done |
+|---------|---------------|
+| In-process pipe test could flake under xunit parallelism (another class's `Process.Start` child inherits the test's inheritable pipe end) | the class runs in a non-parallel collection after all parallel ones |
+| Environment test spawns PowerShell while `PluginRegistryChannelTests` poisons `PSModulePath`; that class's invariant comment was false | same non-parallel collection; the comment now names this class and why it cannot collide |
+| `Path.GetDirectoryName(exePath) ?? AppDir` never fell back for a bare exe name; CreateProcessW rejects `""` | exe resolved with `GetFullPath` first; regression test + M4 |
+| Teardown `Directory.Delete` could mask the test's own verdict | best-effort cleanup catches `IOException` / `UnauthorizedAccessException` |
+| Probe failure before the pid line hid the probe's stderr | the pid-line guard now fails with the probe's exit code and stderr |
+| Dead stopwatch assertion duplicating the bound | removed |
+| `BuildCommandLine` (public) had no logging | logs its result and every throw path |
+| Criterion 5 marked pending tester | recorded in the issue comment: an OWNER CONSTRAINT on this developer session (no AgentEyes binary may be launched from it); criterion 5 is the tester session's gate, not a skipped step |
+
+I believe this is finished, apart from criterion 5 which is pending the tester session by owner constraint.

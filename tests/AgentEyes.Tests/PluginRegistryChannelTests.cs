@@ -471,9 +471,10 @@ NestedModules = @('Microsoft.PowerShell.Commands.Utility.dll')
             Assert.True(ChildResolvesGetFileHash(WindowsPowerShellModulePath()));
 
             // Poisoning THIS process's environment is what makes the run below inherit the CI value -
-            // ProcessStartInfo copies the environment at construction. No other test in the suite
-            // spawns a PowerShell, and this class's tests do not run concurrently with each other, so
-            // the window is confined to the run below; it is restored in the finally either way.
+            // ProcessStartInfo copies the environment at construction. The only other test that spawns
+            // a PowerShell (ProcessAppLauncherTests, issue #94) sits in a non-parallel collection that
+            // runs after every parallel one, and this class's tests do not run concurrently with each
+            // other, so the window is confined to the run below; it is restored in the finally either way.
             string? restore = Environment.GetEnvironmentVariable("PSModulePath");
             try
             {

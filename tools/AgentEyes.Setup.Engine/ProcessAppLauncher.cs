@@ -42,7 +42,10 @@ public sealed class ProcessAppLauncher : IAppLauncher
         if (!File.Exists(exePath)) throw new FileNotFoundException("The app exe to start again is not there.", exePath);
 
         string commandLine = BuildCommandLine(exePath, arguments);
-        string workingDirectory = Path.GetDirectoryName(exePath) ?? _layout.AppDir;
+        // The exe's own directory. Resolved to a full path first: Path.GetDirectoryName of a bare
+        // "AgentEyesApp.exe" is "" (not null), and CreateProcessW rejects "" as a directory (review of PR #95).
+        string? exeDir = Path.GetDirectoryName(Path.GetFullPath(exePath));
+        string workingDirectory = string.IsNullOrEmpty(exeDir) ? _layout.AppDir : exeDir;
         EngineLog.Write($"[ProcessAppLauncher] Launch: starting detached (no inherited handles, own console): {commandLine}");
 
         var environment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -66,12 +69,28 @@ public sealed class ProcessAppLauncher : IAppLauncher
     /// </summary>
     public static string BuildCommandLine(string exePath, IReadOnlyList<string> arguments)
     {
-        if (string.IsNullOrWhiteSpace(exePath)) throw new ArgumentException("exePath must not be empty.", nameof(exePath));
-        ArgumentNullException.ThrowIfNull(arguments);
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            EngineLog.Write("[ProcessAppLauncher] BuildCommandLine FAILED: exePath is empty");
+            throw new ArgumentException("exePath must not be empty.", nameof(exePath));
+        }
+        if (arguments is null)
+        {
+            EngineLog.Write($"[ProcessAppLauncher] BuildCommandLine FAILED: arguments is null for {exePath}");
+            throw new ArgumentNullException(nameof(arguments));
+        }
         var sb = new StringBuilder();
         AppendArgument(sb, exePath);
-        foreach (var a in arguments)
-            AppendArgument(sb, a ?? throw new ArgumentException("an argument must not be null.", nameof(arguments)));
+        for (int i = 0; i < arguments.Count; i++)
+        {
+            if (arguments[i] is null)
+            {
+                EngineLog.Write($"[ProcessAppLauncher] BuildCommandLine FAILED: argument {i} is null for {exePath}");
+                throw new ArgumentException($"argument {i} must not be null.", nameof(arguments));
+            }
+            AppendArgument(sb, arguments[i]);
+        }
+        EngineLog.Write($"[ProcessAppLauncher] BuildCommandLine: {arguments.Count} argument(s) -> {sb}");
         return sb.ToString();
     }
 
