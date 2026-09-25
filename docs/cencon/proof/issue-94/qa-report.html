@@ -111,7 +111,7 @@ Passed [273 ms] in QA's run 1 (evidence B). Against the QA mutant it FAILED at t
 <tr><td>2. Named test run, no unnamed failure</td><td>Section 1: three named runs; the only failure is named and diagnosed.</td></tr>
 <tr><td>3. PR description stale (15 / 2094)</td><td>PR #95 body now reads 16 tests / 2095 and describes the collection, M4 and the probe kill.</td></tr>
 <tr><td>4. Validation throws in <code>Launch</code> did not log</td><td><code>ProcessAppLauncher.cs:40-54</code>: each of the three throws writes an <code>EngineLog</code> line first.</td></tr>
-<tr><td>5. Dead <code>?? _layout.AppDir</code> fallback</td><td><code>ProcessAppLauncher.cs:60-62</code>: <code>GetFullPath</code> then <code>GetDirectoryName ?? throw InvalidOperationException</code> - no fallback (CLAUDE.md rule 3).</td></tr>
+<tr><td>5. Dead <code>?? _layout.AppDir</code> fallback</td><td><code>ProcessAppLauncher.cs:60-62</code>: <code>GetFullPath</code> then <code>GetDirectoryName ?? throw InvalidOperationException</code> - no fallback (coding standard 3, no fallback programming).</td></tr>
 <tr><td>6. Two stacked summaries on the collection, none on the class</td><td><code>ProcessAppLauncherTests.cs:15-22</code> (collection) and :29-39 (class): one summary each.</td></tr>
 <tr><td>7. Probe hang before <code>pid=</code> only disposed</td><td><code>ProcessAppLauncherTests.cs:119-125</code>: <code>KillProcess(probe)</code> (tree kill + wait) then <code>Assert.Fail</code> with stderr; :131 the malformed-line path kills too.</td></tr>
 </table>
