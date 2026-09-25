@@ -1,0 +1,57 @@
+Issue #94 - mutation evidence: the new checks fired at the known-bad launcher
+=============================================================================
+
+Method: with the fix committed (190f1f5), the ONE call in ProcessAppLauncher.Launch that starts the
+process was replaced in the working tree by the pre-#94 code - Process.Start(ProcessStartInfo) with
+UseShellExecute=false, ArgumentList and the bundle variable in psi.Environment, i.e. the launcher that
+issue #94 was filed against (CreateProcess with bInheritHandles=TRUE). The solution was rebuilt with the
+gate's command and the six Launch_* tests were run:
+
+  dotnet build AgentEyes.sln -c Release          -> Build succeeded. 0 Error(s)
+  dotnet test AgentEyes.sln -c Release --no-build --filter "FullyQualifiedName~ProcessAppLauncherTests.Launch_" --logger "console;verbosity=normal"
+
+The mutant was then discarded with `git checkout -- tools/AgentEyes.Setup.Engine/ProcessAppLauncher.cs`
+(git status clean) and the solution rebuilt and fully re-tested on the restored tree (handoff.md, section 5).
+
+Mutant diff (the six lines that stood in for `int pid = StartDetached(commandLine, workingDirectory, environment);`):
+
+    var psi = new ProcessStartInfo(exePath) { UseShellExecute = false, WorkingDirectory = workingDirectory };
+    foreach (var a in arguments) psi.ArgumentList.Add(a);
+    psi.Environment[InstallFinalizer.BundleExtractBaseDirVariable] = _layout.BundleExtractDir;
+    using var mutant = Process.Start(psi) ?? throw new InvalidOperationException("Process.Start returned no process");
+    int pid = mutant.Id;
+
+Result against the mutant - the two pipe checks FIRE, each after its full 15 s bound with the child alive:
+
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning [15 s]
+   the probe's stdout/stderr pipes did not close within 00:00:15: the child (pid 23792) holds a copy of them
+[xUnit.net 00:00:16.53]       Assert.Contains() Failure: Sub-string not found
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ExeMissing_ThrowsFileNotFound_BeforeAnythingIsStarted [2 ms]
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_NotAnExecutable_ThrowsWithTheWindowsReason [28 ms]
+   Assert.Contains() Failure: Sub-string not found
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildSeesTheParentEnvironmentPlusTheBundleVariable [242 ms]
+  Failed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns [15 s]
+   the read end did not reach end-of-stream within 00:00:15: the child (pid 4024) holds a copy of the pipe
+  Passed AgentEyes.Tests.ProcessAppLauncherTests.Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded [289 ms]
+Total tests: 6
+
+Reading:
+  M1  Launch_FromAProcessWhoseStdoutIsAPipe_ThePipeClosesWhenThatProcessExits_WhileTheChildKeepsRunning
+      FAILED [15 s]: "the probe's stdout/stderr pipes did not close within 00:00:15: the child (pid 23792)
+      holds a copy of them" - the literal #94 hang, reproduced: the probe (the updater stand-in) had
+      exited, its pipes stayed open because the child held them.
+  M2  Launch_ChildHoldsNoCopyOfAnInheritableHandle_ReadEndSeesEofWhileChildStillRuns
+      FAILED [15 s]: "the read end did not reach end-of-stream within 00:00:15: the child (pid 4024)
+      holds a copy of the pipe".
+  M3  Launch_NotAnExecutable_ThrowsWithTheWindowsReason FAILED (Assert.Contains: the mutant throws
+      .NET's Win32Exception without the "CreateProcess failed for <file>" text) - a message-shape
+      difference, not a #94 fact; listed for completeness.
+  --  Launch_ChildRunsWithExactlyTheArgumentsGiven_TrayIncluded, Launch_ChildSeesTheParentEnvironmentPlusTheBundleVariable,
+      Launch_ExeMissing_ThrowsFileNotFound_BeforeAnythingIsStarted PASSED on the mutant too: they pin
+      what the fix must PRESERVE (arguments, environment, the missing-exe check), so they are expected
+      not to discriminate. They are regression guards, not #94 detectors.
+
+What this evidence cannot see: the tests start cmd.exe (a console exe, which gets its own hidden
+console under CREATE_NO_WINDOW) and never AgentEyesApp.exe (a GUI exe, for which the flag is ignored).
+The handle-inheritance behaviour under test is CreateProcess's bInheritHandles, which does not depend on
+the child's subsystem; the live criterion on the real app is the tester's (handoff.md, criterion 5).
