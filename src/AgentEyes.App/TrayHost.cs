@@ -34,8 +34,9 @@ namespace AgentEyes.App
 
         private WinForms.ToolStripMenuItem _statusItem = null!;
         private WinForms.ToolStripMenuItem _recordItem = null!;
-        private WinForms.ToolStripMenuItem _restartItem = null!;
-        private string? _stagedExe;
+        private WinForms.ToolStripMenuItem _installUpdateItem = null!;
+        /// <summary>The version waiting to be installed (issue #86), or null when none waits.</summary>
+        private string? _waitingVersion;
 
         /// <summary>Quit was clicked while a recording was in progress and the post-recording
         /// sequence is still finishing. UI thread only.</summary>
@@ -69,7 +70,7 @@ namespace AgentEyes.App
             // Single left-click opens the window (issue #12); DoubleClick kept for users who still double-click.
             _icon.MouseClick += (_, e) => { if (e.Button == WinForms.MouseButtons.Left) _showWindow(); };
             _icon.DoubleClick += (_, _) => _showWindow();
-            _icon.BalloonTipClicked += (_, _) => RestartForUpdate();
+            _icon.BalloonTipClicked += (_, _) => InstallUpdateNow();
             _menu.Opening += (_, _) => RefreshMenu();
 
             if (_alwaysOn != null)
@@ -134,16 +135,17 @@ namespace AgentEyes.App
             _icon.Visible = true;
         }
 
-        /// <summary>A background update has been downloaded and applied to disk. Show a single
-        /// non-blocking balloon and reveal a tray item; the new exe runs on the next restart
-        /// (click the balloon or the item to restart now). Must run on the UI thread.</summary>
-        public void NotifyUpdateStaged(string version, string exePath)
+        /// <summary>A newer release is available but a recording session is in progress, so the update
+        /// waits (issue #107). Show a single non-blocking balloon and reveal a tray item; the update is
+        /// installed when the session ends, or now when the balloon or the item is clicked (issue #86:
+        /// the setup engine stops this app, replaces the files and starts it again). UI thread.</summary>
+        public void NotifyUpdateWaiting(string version)
         {
-            _stagedExe = exePath;
-            _restartItem.Text = $"Restart to finish update (v{version})";
-            _restartItem.Visible = true;
-            _icon.ShowBalloonTip(8000, "AgentEyes updated",
-                $"v{version} is ready and will run the next time you open AgentEyes. Click here to restart now.",
+            _waitingVersion = version;
+            _installUpdateItem.Text = $"Install update v{version} now (restarts AgentEyes)";
+            _installUpdateItem.Visible = true;
+            _icon.ShowBalloonTip(8000, "AgentEyes update ready",
+                $"v{version} will be installed when the current recording finishes. Click here to install it now - AgentEyes restarts.",
                 WinForms.ToolTipIcon.Info);
         }
 
@@ -151,10 +153,13 @@ namespace AgentEyes.App
         public void ShowInfo(string title, string text) =>
             _icon.ShowBalloonTip(6000, title, text, WinForms.ToolTipIcon.Info);
 
-        private void RestartForUpdate()
+        private void InstallUpdateNow()
         {
-            if (_stagedExe == null) return;
-            UpdateChecker.RequestRestart(_stagedExe);
+            if (_waitingVersion == null) return;
+            Log.Info($"[TrayHost] InstallUpdateNow: v{_waitingVersion}");
+            _waitingVersion = null;
+            _installUpdateItem.Visible = false;
+            UpdateChecker.InstallNow();
         }
 
         /// <summary>The exe's embedded icon (the product icon); generic app icon if extraction fails.</summary>
@@ -195,8 +200,8 @@ namespace AgentEyes.App
             menu.Items.Add(new WinForms.ToolStripMenuItem("Open recordings folder", null, (_, _) => OpenFolder()));
             menu.Items.Add(new WinForms.ToolStripMenuItem("Check for updates", null, (_, _) => UpdateChecker.CheckAndPrompt()));
 
-            _restartItem = new WinForms.ToolStripMenuItem("Restart to finish update", null, (_, _) => RestartForUpdate()) { Visible = false };
-            menu.Items.Add(_restartItem);
+            _installUpdateItem = new WinForms.ToolStripMenuItem("Install update now", null, (_, _) => InstallUpdateNow()) { Visible = false };
+            menu.Items.Add(_installUpdateItem);
 
             var login = new WinForms.ToolStripMenuItem("Run at login") { Checked = Autostart.IsEnabled(), CheckOnClick = true };
             login.CheckedChanged += (_, _) => Safe(() => { Autostart.Set(login.Checked); _cfg.RunAtLogin = login.Checked; _cfg.Save(); });
@@ -357,6 +362,52 @@ namespace AgentEyes.App
                     var app = System.Windows.Application.Current;
                     if (app != null) app.Dispatcher.BeginInvoke(new Action(ShutdownNow));
                     else Log.Info("[TrayHost] Quit: the app had already shut down");
+                }
+            });
+        }
+
+        /// <summary>
+        /// A planned stop asked for from outside (issue #86): the setup engine is about to replace the
+        /// files and start the app again, and asked this process to leave through <see cref="QuitRequest"/>
+        /// instead of being killed. The engine waits a bounded time and then force-stops whatever is left,
+        /// so the exit must be quick: a recording in progress is stopped and KEPT (its raw files and
+        /// manifest are on disk within seconds), but the post-recording work that follows - mux,
+        /// transcript, title - is not awaited here as the tray's own Quit does; App.OnExit logs it as
+        /// in flight and the recovery pass finishes it on the very next start, which the engine's relaunch
+        /// triggers (issue #152). Always-on then hands its open clip over in App.OnExit. UI thread.
+        /// </summary>
+        internal void QuitRequested(string why)
+        {
+            Log.Info($"[TrayHost] QuitRequested: {why}");
+            if (_shuttingDown)
+            {
+                Log.Info("[TrayHost] QuitRequested: shutdown is already under way");
+                return;
+            }
+            if (!_svc.IsRecording) { ShutdownNow(); return; }
+
+            _quitting = true;
+            string? dir = _svc.Status().Dir;
+            Log.Info($"[TrayHost] QuitRequested: a recording is in progress (dir={dir ?? "(unknown)"}); keeping it, then exiting - "
+                     + "its post-recording work resumes at the next start");
+            _statusItem.Text = "Stopping the recording for a restart...";
+            _icon.Text = "AgentEyes - stopping the recording for a restart";
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    var stopped = RecordingStop.Keep(_svc);
+                    Log.Info($"[TrayHost] QuitRequested: recording kept ({stopped.Result.Dir}); its post-recording work is left to the next start");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"[TrayHost] QuitRequested: stopping the recording FAILED (dir={dir ?? "(unknown)"})", ex);
+                }
+                finally
+                {
+                    var app = System.Windows.Application.Current;
+                    if (app != null) app.Dispatcher.BeginInvoke(new Action(ShutdownNow));
+                    else Log.Info("[TrayHost] QuitRequested: the app had already shut down");
                 }
             });
         }

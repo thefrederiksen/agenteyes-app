@@ -326,9 +326,14 @@ namespace AgentEyes.Tests
                 new Dictionary<string, InstalledComponent>(), release.Manifest);
             var runner = new UpdateRunner(layout, new[] { ComponentRegistry.App },
                 (item, ct) => source.DownloadAssetAsync(item.AssetName, release.DownloadUrls, ct));
-            var run = await runner.ApplyAsync(plan);
 
-            Assert.Equal(1, run.Failed);
+            // Since the review of PR #92 (issue #86, B1a) a rejected download is a failure of the whole
+            // update - thrown, so no caller can stop the app or touch a file on the strength of a
+            // half-verified plan - rather than a per-component "Failed" row.
+            var ex = await Assert.ThrowsAsync<UpdateStageException>(() => runner.ApplyAsync(plan));
+
+            Assert.Equal("app", ex.ComponentId);
+            Assert.Contains("SHA-256 mismatch", ex.Reason);
             Assert.False(File.Exists(layout.PathFor(ComponentRegistry.App)));
         }
 

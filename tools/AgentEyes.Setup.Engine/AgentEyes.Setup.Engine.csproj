@@ -11,4 +11,10 @@
     <RootNamespace>AgentEyes.Setup.Engine</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Issue #86: the update reads the running app's command line (Win32_Process.CommandLine) so
+         it can start the app again exactly as it was running. -->
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
 </Project>

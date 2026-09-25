@@ -45,6 +45,11 @@ public sealed class InstallLayout
     /// <summary>The installed-version manifest: component id -> the version actually placed on disk.</summary>
     public string InstalledManifestPath => Path.Combine(SetupStateDir, "installed.json");
 
+    /// <summary>The last FAILED update attempt (issue #86 review, B1c): written by the setup CLI or the
+    /// wizard when an update fails, read by the app's AutoUpdate so it does not hand over again for the
+    /// same target version, removed by a successful update. See <see cref="UpdateAttemptMarker"/>.</summary>
+    public string UpdateAttemptMarkerPath => Path.Combine(SetupStateDir, "last-update-attempt.json");
+
     /// <summary>Setup/engine log directory.</summary>
     public string LogsDir => Path.Combine(LocalRoot, "logs");
 

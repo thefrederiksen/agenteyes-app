@@ -17,13 +17,30 @@ public sealed class EngineInstallRunner
 {
     /// <summary>
     /// Optional progress hook so the host can surface a status line while the runner
-    /// stops a running instance before installing (issue #95). No prompting: the
-    /// running app is stopped automatically, never by asking the user to quit it.
+    /// downloads, stops a running instance and replaces the files (issue #95). No prompting:
+    /// the running app is stopped automatically, never by asking the user to quit it.
     /// </summary>
     public Action<string>? OnStatus { get; set; }
 
-    private readonly InstallLayout _layout = InstallLayout.Default();
-    private readonly ReleaseSource _source = new();
+    private readonly InstallLayout _layout;
+    private readonly ReleaseSource _source;
+    private readonly IRunningAppHandle _app;
+    private readonly IAppLauncher _launcher;
+
+    public EngineInstallRunner() : this(InstallLayout.Default(), new ReleaseSource(), null, null) { }
+
+    /// <summary>
+    /// Testable seams (issue #86 review, N1): the install root, the release source, and the running-app
+    /// handle and launcher the update cycle uses. Null for the handle or launcher = the real ones for
+    /// the layout. A test passes a handle that throws or a fake app, and no AgentEyes is ever touched.
+    /// </summary>
+    public EngineInstallRunner(InstallLayout layout, ReleaseSource source, IRunningAppHandle? app, IAppLauncher? launcher)
+    {
+        _layout = layout ?? throw new ArgumentNullException(nameof(layout));
+        _source = source ?? throw new ArgumentNullException(nameof(source));
+        _app = app ?? new RunningAppHandle(_layout);
+        _launcher = launcher ?? new ProcessAppLauncher(_layout);
+    }
 
     /// <summary>The install dir (also what goes on PATH).</summary>
     public string AppDir => _layout.AppDir;
@@ -54,6 +71,14 @@ public sealed class EngineInstallRunner
     {
         SetupLog.Write("[EngineInstallRunner] PrepareAsync: resolving release");
         var release = await ResolveReleaseAsync(ct);
+        return Prepare(release);
+    }
+
+    /// <summary>The item list and up-to-date state for an already resolved release (the pure part of
+    /// <see cref="PrepareAsync"/>; a test hands in a local release dir).</summary>
+    public Prep Prepare(ResolvedRelease release)
+    {
+        ArgumentNullException.ThrowIfNull(release);
         var version = release.Manifest.Version;
 
         var items = new List<ComponentItem>();
@@ -78,31 +103,30 @@ public sealed class EngineInstallRunner
             // The Inno install reports the same app version but must still migrate.
             && !InnoMigration.IsInnoInstall(_layout);
 
-        SetupLog.Write($"[EngineInstallRunner] PrepareAsync: version={version}, installedApp={installedApp}, upToDate={upToDate}");
+        SetupLog.Write($"[EngineInstallRunner] Prepare: version={version}, installedApp={installedApp}, upToDate={upToDate}");
         return new Prep(version, release, items, byId, installedApp, upToDate);
     }
 
-    /// <summary>Install/refresh every component, then finalize. Returns (installed, skipped).</summary>
+    /// <summary>What the last <see cref="ApplyAsync"/> did about the running app (issue #86): the pids
+    /// when it was stopped and started again. Null until it ran, and when it failed.</summary>
+    public AppRestartReport? LastRestart { get; private set; }
+
+    /// <summary>Why the last <see cref="ApplyAsync"/> failed, or null when it did not (issue #86 review,
+    /// N1). Every exception the update cycle raises - a download that fails its SHA-256, a running app
+    /// that cannot be stopped or whose command line cannot be read, a swap that was rolled back, a
+    /// relaunch that failed - lands here as one clear message, so the window shows an error state
+    /// instead of hanging at "Installing...".</summary>
+    public string? LastError { get; private set; }
+
+    /// <summary>Install/refresh every component, then finalize. Returns (installed, skipped); on a
+    /// failure (0, all) with <see cref="LastError"/> set.</summary>
     public async Task<(int installed, int skipped)> ApplyAsync(Prep prep, Options options, CancellationToken ct = default)
     {
-        // The Inno takeover deletes the whole app dir; a plain reinstall swaps exes.
-        // Either way the app must not be running. Stop it automatically (issue #95) -
-        // no "please quit it and retry" prompt. The stop is bounded + confirmed, and
-        // runs off the UI thread so the wizard stays responsive.
-        if (!await StopRunningAppAsync())
-        {
-            foreach (var item in prep.Items)
-                if (item.Status == "Pending") { item.Status = "Skipped"; item.StatusDetail = "Could not stop the running AgentEyes"; }
-            SetupLog.Write("[EngineInstallRunner] ApplyAsync aborted: could not stop the running app");
-            return (0, prep.Items.Count);
-        }
-
-        if (InnoMigration.IsInnoInstall(_layout))
-        {
-            SetupLog.Write("[EngineInstallRunner] taking over the Inno v0.1 install");
-            InnoMigration.RemoveInnoInstall(_layout);
-        }
-
+        ArgumentNullException.ThrowIfNull(prep);
+        ArgumentNullException.ThrowIfNull(options);
+        LastRestart = null;
+        LastError = null;
+        SetupLog.Write($"[EngineInstallRunner] ApplyAsync: v{prep.Version}");
         var planItems = new List<PlanItem>();
         foreach (var c in ComponentRegistry.All)
         {
@@ -121,7 +145,58 @@ public sealed class EngineInstallRunner
             return _source.DownloadAssetAsync(item.AssetName, prep.Release.DownloadUrls, innerCt);
         });
 
-        var result = await runner.ApplyAsync(new UpdatePlan { Items = planItems }, ct);
+        // Issue #86, revised after the review of PR #92: the same find -> download+verify -> stop -> swap
+        // -> relaunch cycle as the setup CLI. Every component is downloaded and verified with the app
+        // still running; only then is the running app stopped (automatically, issue #95 - no "please
+        // quit it" prompt), and NOTHING is replaced when it cannot be stopped; the Inno takeover (it
+        // deletes the whole app dir) and the all-or-nothing swap follow; then the installed app is
+        // started again with the arguments it was running with. The stop runs off the UI thread.
+        if (RunningApp.IsRunning(_layout))
+            OnStatus?.Invoke("Downloading (AgentEyes keeps running until everything is verified)...");
+        var cycle = new UpdateRestartCycle(new StatusReportingHandle(_app, OnStatus), _launcher, _layout.PathFor(ComponentRegistry.App));
+        UpdateRestartOutcome<UpdateRunResult> outcome;
+        try
+        {
+            outcome = await cycle.RunAsync(
+                innerCt => runner.StageAsync(new UpdatePlan { Items = planItems }, innerCt),
+                (staged, _) =>
+                {
+                    foreach (var item in planItems) Set(prep, item.ComponentId, "Verified", null);
+                    OnStatus?.Invoke("Replacing the files...");
+                    if (InnoMigration.IsInnoInstall(_layout))
+                    {
+                        SetupLog.Write("[EngineInstallRunner] taking over the Inno v0.1 install");
+                        InnoMigration.RemoveInnoInstall(_layout);
+                    }
+                    return Task.FromResult(runner.Swap(staged));
+                }, ct);
+            UpdateAttemptMarker.Clear(_layout);
+        }
+        catch (Exception ex)
+        {
+            // The wizard's service boundary (issue #86 review, N1): every failure of the cycle becomes ONE
+            // error state the window shows - never an unobserved exception behind "Installing...". The
+            // cycle's own message says what was and was not touched.
+            LastError = ex.Message;
+            string stage = UpdateAttemptMarker.StageOf(ex);
+            foreach (var item in prep.Items)
+            {
+                if (item.Status is "Pending" or "Downloading" or "Verified")
+                {
+                    item.Status = "Skipped";
+                    item.StatusDetail = ex is AppStopFailedException ? "Could not stop the running AgentEyes" : "Not installed - see the error";
+                }
+            }
+            SetupLog.Write($"[EngineInstallRunner] ApplyAsync FAILED ({stage}): {ex}");
+            RecordFailedAttempt(prep.Version, stage, ex.Message);
+            OnStatus?.Invoke("ERROR: " + ex.Message);
+            return (0, prep.Items.Count);
+        }
+
+        var result = outcome.Result;
+        LastRestart = outcome.Restart;
+        SetupLog.Write($"[EngineInstallRunner] ApplyAsync: {LastRestart.Describe()}");
+        if (LastRestart.Note != null) SetupLog.Write($"[EngineInstallRunner] ApplyAsync: {LastRestart.Note}");
 
         foreach (var r in result.Results)
         {
@@ -141,6 +216,20 @@ public sealed class EngineInstallRunner
         return (installed, skipped);
     }
 
+    /// <summary>The failed attempt goes on record for the app's AutoUpdate (issue #86 review, B1c). A
+    /// record that cannot be written is logged and must not hide the failure being recorded.</summary>
+    private void RecordFailedAttempt(string version, string stage, string reason)
+    {
+        try
+        {
+            UpdateAttemptMarker.WriteFailed(_layout, version, stage, reason, "wizard");
+        }
+        catch (Exception ex)
+        {
+            SetupLog.Write($"[EngineInstallRunner] RecordFailedAttempt FAILED: {ex.Message}");
+        }
+    }
+
     private void Finalize(Prep prep, Options options)
     {
         if (options.AddToPath)
@@ -158,24 +247,6 @@ public sealed class EngineInstallRunner
         SetupLog.Write($"[EngineInstallRunner] finalized (path={options.AddToPath}, autostart={options.Autostart}, desktop={options.DesktopShortcut}, bundle={_layout.BundleExtractDir})");
     }
 
-    /// <summary>
-    /// Ensure the tray app is not running before we swap its files: if it is running,
-    /// stop it automatically (bounded graceful-then-force, confirmed gone) via the shared
-    /// engine helper. Returns true when the app is confirmed not running. Runs the blocking
-    /// stop on a background thread so the wizard UI stays responsive.
-    /// </summary>
-    private async Task<bool> StopRunningAppAsync()
-    {
-        if (!RunningApp.IsRunning(_layout))
-            return true;
-
-        SetupLog.Write("[EngineInstallRunner] AgentEyes is running - stopping it automatically before install");
-        OnStatus?.Invoke("Closing the running AgentEyes...");
-        bool stopped = await Task.Run(() => RunningApp.StopAndWait(_layout));
-        SetupLog.Write($"[EngineInstallRunner] StopRunningAppAsync: stopped={stopped}");
-        return stopped;
-    }
-
     private static void Set(Prep prep, string componentId, string status, string? detail)
     {
         if (!prep.ItemsByComponentId.TryGetValue(componentId, out var item)) return;
@@ -187,4 +258,26 @@ public sealed class EngineInstallRunner
         bytes < 1024 ? $"{bytes} B" :
         bytes < 1024 * 1024 ? $"{bytes / 1024.0:F1} KB" :
         $"{bytes / (1024.0 * 1024.0):F1} MB";
+
+    /// <summary>Tells the status line when the cycle reaches the stop - the one step that can take up
+    /// to the engine's bound - and otherwise passes straight through to the real handle.</summary>
+    private sealed class StatusReportingHandle : IRunningAppHandle
+    {
+        private readonly IRunningAppHandle _inner;
+        private readonly Action<string>? _status;
+
+        public StatusReportingHandle(IRunningAppHandle inner, Action<string>? status)
+        {
+            _inner = inner;
+            _status = status;
+        }
+
+        public RunningAppInstance? Find() => _inner.Find();
+
+        public Task<bool> StopAsync(RunningAppInstance instance, CancellationToken ct)
+        {
+            _status?.Invoke("Everything is verified - closing the running AgentEyes...");
+            return _inner.StopAsync(instance, ct);
+        }
+    }
 }

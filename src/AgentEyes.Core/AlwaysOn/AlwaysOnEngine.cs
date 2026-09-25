@@ -202,6 +202,14 @@ namespace AgentEyes.AlwaysOn
     /// crash or a power cut loses no kept video: the next start joins every holding folder it finds.
     /// Loose pieces found at start have no sound log any more and are deleted, and that is logged.
     ///
+    /// PLANNED STOPS (issue #86). An app exit or an update's restart is not a crash:
+    /// <see cref="StopForRestart"/> decides what it can with an ordinary (not a final) pass, like a
+    /// capture restart (issue #81), and writes a HANDOVER (<see cref="AlwaysOnHandover"/>) - the clip
+    /// left open and the sound log behind the pieces still waiting. The next start reads it: the clip
+    /// stays open and continues if sound resumes within the silence gap (the restart bridge), the
+    /// waiting pieces are judged on the sound that was actually heard, and nothing is deleted for want
+    /// of a sound log.
+    ///
     /// Every public method is serialised on one lock. Start, Stop, Pause and Resume talk to ffmpeg and
     /// can take seconds - callers keep them off the UI thread.
     /// </summary>
@@ -462,6 +470,69 @@ namespace AgentEyes.AlwaysOn
                 }
             }
             Log.Info("[AlwaysOnEngine] Stop: always-on is off");
+            RaiseChanged();
+        }
+
+        /// <summary>
+        /// Turn always-on off for a PLANNED stop - the app is exiting, or an update is restarting it
+        /// (issue #86) - and leave the next start what it needs to carry on where this run left off.
+        ///
+        /// A capture restart (issue #81) already keeps the open clip: the failed capture's pieces are
+        /// decided with an ordinary pass and the new capture's pieces continue the clip across the hole.
+        /// A planned stop is the same event with the process boundary in the middle, so it does the same
+        /// pass - the clip stays open, a piece past its tail waits for sound that may still come, and a
+        /// silent piece whose keep window has fully passed is deleted by the rule as on any pass - and
+        /// then writes the handover: the open clip and the sound heard. The next start's
+        /// <see cref="Recover"/> restores both, so the clip is continued if sound resumes within the
+        /// silence gap and closed with its proper span otherwise, and the waiting pieces are judged on
+        /// their own sound log - never deleted for want of one, which is what the manual kill + start in
+        /// the 2026-09-24 report did to piece_20260924-175612.
+        ///
+        /// Compare <see cref="Stop"/>, which is the person switching always-on OFF: it closes and writes
+        /// the clip at once, because nothing is coming back.
+        /// </summary>
+        /// <param name="why">Who or what stopped it, for the history.</param>
+        public void StopForRestart(string why = "restart")
+        {
+            lock (_lock)
+            {
+                if (_state == AlwaysOnState.Off) return;
+                var o = _options!;
+                Log.Info($"[AlwaysOnEngine] StopForRestart: stopping always-on for a restart ({why})");
+                _timer?.Dispose();
+                _timer = null;
+                try
+                {
+                    StopRecorder("restart");
+                    // NOT final (issue #81's restart pass): the open clip stays open, a piece past its tail
+                    // waits. A pass that throws - a piece held open by a scanner - leaves what it did not
+                    // decide on disk for the next start, which has the handover below to decide it with;
+                    // the handover is written whatever the pass did, or the restart would lose the clip
+                    // to the very failure the handover exists to survive. Logged, never hidden.
+                    try
+                    {
+                        RunKeeper(o, _utcNow(), final: false, recorderRunning: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _lastError = "the keeper failed at the planned stop: " + ex.Message;
+                        Log.Error("[AlwaysOnEngine] StopForRestart: the keeper pass failed; the pieces it did not decide wait for the next start", ex);
+                        Record(HistoryKind.Problem, HistorySeverity.Error,
+                            $"The keeper pass at the planned stop failed: {ex.Message}. The pieces it did not decide wait for the next start with their sound log");
+                    }
+                    WriteHandover(o, why);
+                }
+                finally
+                {
+                    _state = AlwaysOnState.Off;
+                    _pausedReason = null;
+                    _sinceUtc = null;
+                    _silentMic = null;
+                    ResetKeeper();
+                    Publish();
+                }
+            }
+            Log.Info("[AlwaysOnEngine] StopForRestart: always-on is off until the next start");
             RaiseChanged();
         }
 
@@ -940,13 +1011,7 @@ namespace AgentEyes.AlwaysOn
 
         private void StopRecorderAndFinish(string why)
         {
-            if (_recorder != null)
-            {
-                try { _recorder.Stop(); }
-                catch (Exception ex) { Log.Error($"[AlwaysOnEngine] {why}: stopping the capture failed", ex); }
-                _recorder.Dispose();
-                _recorder = null;
-            }
+            StopRecorder(why);
             try
             {
                 if (_options != null) RunKeeper(_options, _utcNow(), final: true, recorderRunning: false);
@@ -955,6 +1020,61 @@ namespace AgentEyes.AlwaysOn
             {
                 ResetKeeper();
             }
+        }
+
+        /// <summary>Stop the capture, if one runs, so its current piece is finished and closed. Caller holds the lock.</summary>
+        private void StopRecorder(string why)
+        {
+            if (_recorder == null) return;
+            try { _recorder.Stop(); }
+            catch (Exception ex) { Log.Error($"[AlwaysOnEngine] {why}: stopping the capture failed", ex); }
+            _recorder.Dispose();
+            _recorder = null;
+        }
+
+        /// <summary>Write what the next start needs to carry on (issue #86). Caller holds the lock.</summary>
+        private void WriteHandover(AlwaysOnOptions o, string why)
+        {
+            var now = _utcNow();
+            HandoverClip? open = null;
+            if (_open != null)
+            {
+                if (_clipDirs.TryGetValue(_open.Id, out var dir) && _clipStartsUtc.TryGetValue(_open.Id, out var start))
+                {
+                    open = new HandoverClip
+                    {
+                        Id = _open.Id, FirstSoundUtc = _open.FirstSoundUtc, LastSoundUtc = _open.LastSoundUtc,
+                        LastPieceEndUtc = _open.LastPieceEndUtc, Dir = dir, StartUtc = start,
+                    };
+                }
+                else
+                {
+                    Log.Warn($"[AlwaysOnEngine] WriteHandover: clip {_open.Id} is open but has no holding folder on record; it is not carried over");
+                }
+            }
+            // The same horizon the keeper prunes to: nothing still undecided can reach further back.
+            var horizon = now - o.KeepBefore - o.KeepAfter - o.SilenceGap - TimeSpan.FromSeconds(o.PieceSeconds * 3);
+            var handover = new AlwaysOnHandover
+            {
+                StoppedUtc = now,
+                Why = why,
+                Open = open,
+                ClosedSoundUtc = _closedSoundUtc,
+                NextClip = _nextClip,
+                Sound = _sound!.Export(horizon),
+            };
+            handover.Save(o.HandoverFile);
+            int waiting = PieceFiles(o.PieceFolder).Count;
+            string clipNote = open == null
+                ? "no clip in progress"
+                : $"the clip in progress ({Path.GetFileName(open.Dir)}, sound {open.FirstSoundUtc.ToLocalTime():HH:mm:ss} to "
+                  + $"{open.LastSoundUtc.ToLocalTime():HH:mm:ss}) stays open";
+            Log.Info($"[AlwaysOnEngine] WriteHandover: {o.HandoverFile} - {clipNote}; {waiting} piece(s) wait for the next start "
+                     + $"with {handover.Sound.SoundSeconds.Length}s of sound on record");
+            Record(HistoryKind.State, HistorySeverity.Info,
+                $"Always-on stopped for a restart ({why}) - {clipNote}"
+                + (open != null ? " and continues at the next start if sound resumes within the silence gap" : "")
+                + (waiting > 0 ? $"; {waiting} piece(s) wait with their sound log" : ""));
         }
 
         private void ResetKeeper()
@@ -1283,28 +1403,101 @@ namespace AgentEyes.AlwaysOn
         }
 
         /// <summary>
-        /// At start: join every holding folder a previous run left (a crash or a power cut between
-        /// keeping and joining), and delete loose pieces - their sound log died with that run, so
-        /// nothing can say whether they were worth keeping.
+        /// At start: take the handover a planned stop left (issue #86) - the clip it left open stays
+        /// open and its sound log is restored, so the pieces it left are judged on what was heard - then
+        /// join every OTHER holding folder a previous run left (a crash or a power cut between keeping
+        /// and joining), and delete loose pieces ONLY when there is no handover: their sound log died
+        /// with that run, so nothing can say whether they were worth keeping.
         /// </summary>
         private void Recover(AlwaysOnOptions o)
         {
             RestoreEvictHolds(o.ClipsFolder);
+            AlwaysOnHandover? handover;
+            try
+            {
+                handover = AlwaysOnHandover.Load(o.HandoverFile);
+            }
+            catch (InvalidDataException ex)
+            {
+                // The file is there and readable but is not a handover: set it aside for a look and
+                // recover as from a crash - said in the log AND the history, so nobody wonders why the
+                // clip was not continued. A file that cannot be READ is a different matter: Load throws
+                // with the file and the fix, and so does this start (issue #86 review, N7).
+                Log.Warn($"[AlwaysOnEngine] Recover: {ex.Message}; set aside as handover.json.bad - the clip the planned stop "
+                         + "left open is not continued and this start recovers as from a crash");
+                Record(HistoryKind.Problem, HistorySeverity.Warning,
+                    $"The handover left by the planned stop could not be used ({ex.Message}); it was set aside and the start "
+                    + "recovered as from a crash - the clip in progress was not continued");
+                File.Move(o.HandoverFile, o.HandoverFile + ".bad", overwrite: true);
+                handover = null;
+            }
+            string? carried = handover == null ? null : RestoreHandover(o, handover);
+            // Consumed: a later start must not replay a handover this one has already taken.
+            if (handover != null) File.Delete(o.HandoverFile);
             foreach (var dir in Directory.GetDirectories(o.PendingFolder, "clip_*").OrderBy(d => d, StringComparer.Ordinal))
             {
+                if (carried != null && string.Equals(dir, carried, StringComparison.OrdinalIgnoreCase)) continue;
                 Log.Info($"[AlwaysOnEngine] Recover: joining {Path.GetFileName(dir)}, left by an earlier run");
                 JoinClip(o, dir, _utcNow(), span: null);
             }
             var loose = PieceFiles(o.PieceFolder);
-            foreach (var (path, _) in loose)
+            if (handover != null)
             {
-                Log.Warn($"[AlwaysOnEngine] Recover: deleting {Path.GetFileName(path)} - left by an earlier run that "
-                         + "ended before deciding it, and its sound log went with that run");
-                File.Delete(path);
-                Record(HistoryKind.Decision, HistorySeverity.Warning,
-                    $"DELETE {Path.GetFileName(path)} - left by an earlier run that ended before deciding it; nothing says whether it had sound");
+                if (loose.Count > 0)
+                    Log.Info($"[AlwaysOnEngine] Recover: {loose.Count} piece(s) left by the planned stop wait for the keeper, "
+                             + "which has their sound log; none is deleted here");
+            }
+            else
+            {
+                foreach (var (path, _) in loose)
+                {
+                    Log.Warn($"[AlwaysOnEngine] Recover: deleting {Path.GetFileName(path)} - left by an earlier run that "
+                             + "ended before deciding it, and its sound log went with that run");
+                    File.Delete(path);
+                    Record(HistoryKind.Decision, HistorySeverity.Warning,
+                        $"DELETE {Path.GetFileName(path)} - left by an earlier run that ended before deciding it; nothing says whether it had sound");
+                }
             }
             _day.Save(o.StatsFile);
+        }
+
+        /// <summary>
+        /// Restore what a planned stop handed over (issue #86): the open clip (when its holding folder is
+        /// still there), the closed-sound mark, the clip numbering and the sound log. Returns the holding
+        /// folder of the clip carried over, or null when none is. Caller holds the lock.
+        /// </summary>
+        private string? RestoreHandover(AlwaysOnOptions o, AlwaysOnHandover h)
+        {
+            string? carried = null;
+            if (h.Open != null)
+            {
+                if (Directory.Exists(h.Open.Dir))
+                {
+                    _open = new OpenClip(h.Open.Id, h.Open.FirstSoundUtc, h.Open.LastSoundUtc, h.Open.LastPieceEndUtc);
+                    _clipDirs[h.Open.Id] = h.Open.Dir;
+                    _clipStartsUtc[h.Open.Id] = h.Open.StartUtc;
+                    carried = h.Open.Dir;
+                }
+                else
+                {
+                    Log.Warn($"[AlwaysOnEngine] RestoreHandover: the handover names {h.Open.Dir} as the open clip, but it is not there; "
+                             + "no clip is carried over");
+                    Record(HistoryKind.Problem, HistorySeverity.Warning,
+                        $"The clip the planned stop left open ({Path.GetFileName(h.Open.Dir)}) is not there; it is not continued");
+                }
+            }
+            _closedSoundUtc = h.ClosedSoundUtc;
+            if (h.NextClip > _nextClip) _nextClip = h.NextClip;
+            _sound!.Import(h.Sound);
+            string clipNote = carried == null
+                ? "no clip in progress"
+                : $"the clip in progress ({Path.GetFileName(carried)}) stays open and continues if sound resumes within "
+                  + AlwaysOnKeepSettings.Describe(o.SilenceGap);
+            Log.Info($"[AlwaysOnEngine] RestoreHandover: continuing after the planned stop at {h.StoppedUtc.ToLocalTime():HH:mm:ss} "
+                     + $"({h.Why}) - {clipNote}; {h.Sound.SoundSeconds.Length}s of sound restored");
+            Record(HistoryKind.State, HistorySeverity.Info,
+                $"Always-on continues after the planned stop at {h.StoppedUtc.ToLocalTime():HH:mm:ss} ({h.Why}) - {clipNote}");
+            return carried;
         }
 
         private void EnforceCap(AlwaysOnOptions o)

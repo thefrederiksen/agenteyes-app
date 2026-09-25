@@ -15,6 +15,8 @@ public partial class MainWindow : Window
     private bool _alreadyUpToDate;
     private string? _latestVersion;
     private EngineInstallRunner.Prep? _cachedPrep;
+    /// <summary>What the last apply did about the running app (issue #86), for the Complete step.</summary>
+    private AppRestartReport? _restart;
 
     private readonly InstallLayout _layout = InstallLayout.Default();
     private readonly bool _isUpdate;
@@ -97,7 +99,7 @@ public partial class MainWindow : Window
             2 => _optionsStep ??= new OptionsStep(),
             3 => _installStep ??= new InstallStep(),
             4 => _completeStep ??= new CompleteStep(_installedCount, _skippedCount, _layout.AppDir,
-                     _layout.PathFor(ComponentRegistry.App), _isUpdate, _alreadyUpToDate),
+                     _layout.PathFor(ComponentRegistry.App), _isUpdate, _alreadyUpToDate, _restart),
             _ => null
         };
 
@@ -168,7 +170,22 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>The fire-and-forget entry point of the Install step: every failure ends in an error
+    /// state with a Retry button (issue #86 review, N1), never an unobserved exception behind
+    /// "Installing...".</summary>
     private async Task RunInstallAsync()
+    {
+        try
+        {
+            await RunInstallCoreAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowApplyError("RunInstallAsync", ex.Message);
+        }
+    }
+
+    private async Task RunInstallCoreAsync()
     {
         SetupLog.Write("[MainWindow] RunInstallAsync: starting");
 
@@ -229,6 +246,18 @@ public partial class MainWindow : Window
 
     private async Task RunRepairAsync()
     {
+        try
+        {
+            await RunRepairCoreAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowApplyError("RunRepairAsync", ex.Message);
+        }
+    }
+
+    private async Task RunRepairCoreAsync()
+    {
         NextButton.Content = _isUpdate ? "Updating..." : "Installing...";
         NextButton.IsEnabled = false;
 
@@ -251,12 +280,34 @@ public partial class MainWindow : Window
         var (installed, skipped) = await runner.ApplyAsync(prep, options);
         _installedCount = installed;
         _skippedCount = skipped;
+        _restart = runner.LastRestart;
+
+        // Issue #86 review, N1: a cycle that failed (download/verify, stop, swap, relaunch - the runner
+        // says which) is an ERROR state with a Retry, not a "Done - 0 installed" line.
+        if (runner.LastError != null)
+        {
+            ShowApplyError("RunEngineApplyAsync", runner.LastError);
+            return;
+        }
 
         var verb = repair ? "Repair complete" : "Done";
-        _installStep?.SetStatus($"{verb} - {installed} installed, {skipped} skipped");
-        SetupLog.Write($"[MainWindow] RunEngineApplyAsync: repair={repair}, installed={installed}, skipped={skipped}");
+        // Issue #86: say what happened to the running app, in the same words the CLI prints.
+        var restartNote = _restart?.Restarted == true ? $"; {_restart.Describe()}" : "";
+        _installStep?.SetStatus($"{verb} - {installed} installed, {skipped} skipped{restartNote}");
+        SetupLog.Write($"[MainWindow] RunEngineApplyAsync: repair={repair}, installed={installed}, skipped={skipped}, "
+                       + $"restart={_restart?.Describe() ?? "(not run)"}");
 
         NextButton.Content = "Next";
+        NextButton.IsEnabled = true;
+    }
+
+    /// <summary>The one error state of the Install step: the message on the status line (red, by
+    /// InstallStep's convention for "ERROR") and the Next button turned into Retry.</summary>
+    private void ShowApplyError(string where, string message)
+    {
+        SetupLog.Write($"[MainWindow] {where} FAILED: {message}");
+        _installStep?.SetStatus("ERROR: " + message);
+        NextButton.Content = "Retry";
         NextButton.IsEnabled = true;
     }
 
