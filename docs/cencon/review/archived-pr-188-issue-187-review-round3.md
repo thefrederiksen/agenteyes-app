@@ -1,4 +1,4 @@
-<!-- Carried from the archived private predecessor repo (retired - see docs/cencon/DEVELOPMENT_METHOD.md Section 2), where it was written
+<!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written
      against PR #188 (issue #187, the private-to-public sync tool) and never committed before
      that repo was archived. The tool itself is obsolete - there is no longer a private source
      to sync from - but two findings here are not: two legal binary paths could collapse to one

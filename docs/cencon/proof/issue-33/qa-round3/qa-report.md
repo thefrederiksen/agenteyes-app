@@ -6,7 +6,7 @@ Verdict: **FAIL. The round-3 fix closes the round-2 regression on the path QA re
 leaves the SAME defect class live on the other path: a HUD that is CONSTRUCTED with the preview
 already visible records a size nobody chose and writes it to `config.json`.**
 
-- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill files is ARCHIVED)
+- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
 - Issue: #33 - PR: #34 - Branch: `issue-33-hud-live-preview` at `849ac58`
 - Round-2 tip (the code QA failed on 2026-08-28): `081598b`
 - Verified: 2026-08-28. Displays: DISPLAY3 primary 0,0 1920x1080; DISPLAY1 1920,-5 1920x1080;

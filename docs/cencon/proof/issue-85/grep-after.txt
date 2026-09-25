@@ -1,5 +1,25 @@
-# AFTER - issue #85 - acceptance grep on branch issue-85-tracker-name, proof directory present
-# Command: grep -rn "thefrederiksen/Agent[E]yes\b" CLAUDE.md .claude docs/cencon
-# Total matches: 1 (expected exactly 1: the retired-repo sentence). Same [RETIRED] marker and Agent[E]yes
-# spelling as grep-before.txt; re-run the command above for the raw output.
-docs/cencon/DEVELOPMENT_METHOD.md:32:The predecessor repo `thefrederiksen/[RETIRED]AgentEyes` is retired - no issue is created, moved, or read there.
+# AFTER - issue #85 - acceptance grep at the tip of branch issue-85-tracker-name (review fix pass).
+# Raw output. Two forms; the commands used are exactly the lines marked "$".
+# docs/cencon/proof/issue-85 is excluded BY PATH (--exclude-dir=issue-85) in form (b): this proof directory quotes the
+# grep pattern and the raw matches, so it would otherwise match the instrument that it records. Nothing in it is a live pointer.
+#
+# (a) LIVE method files only - CLAUDE.md, .claude, docs/cencon/DEVELOPMENT_METHOD.md, docs/cencon/INDEX.md
+$ grep -rn "thefrederiksen/AgentEyes\b" CLAUDE.md .claude docs/cencon/DEVELOPMENT_METHOD.md docs/cencon/INDEX.md
+# matches: 1 - the retired sentence (expected exactly 1; 0 would mean the sentence is missing, i.e. a broken instrument)
+docs/cencon/DEVELOPMENT_METHOD.md:32:The predecessor repo `thefrederiksen/AgentEyes` is retired - no issue is created, moved, or read there.
+#
+# (b) FULL set as the issue wrote it - CLAUDE.md, .claude, docs/cencon - minus this proof directory
+$ grep -rn --exclude-dir=issue-85 "thefrederiksen/AgentEyes\b" CLAUDE.md .claude docs/cencon
+# matches: 11 = the retired sentence + 10 historical records (8 under docs/cencon/proof/issue-33/, 2 under docs/cencon/review/),
+# all byte-identical to origin/main. Their text already says the old repo is archived; they are the audit trail and were not edited.
+docs/cencon/DEVELOPMENT_METHOD.md:32:The predecessor repo `thefrederiksen/AgentEyes` is retired - no issue is created, moved, or read there.
+docs/cencon/proof/issue-33/handoff-round2.md:5:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` named in the skill files
+docs/cencon/proof/issue-33/qa-report.md:7:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` repo named in the skill
+docs/cencon/proof/issue-33/qa-round2/qa-report.md:8:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/qa-round3/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/qa-round4/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/qa-round5/qa-report.md:10:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/round3/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/proof/issue-33/round4/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+docs/cencon/review/archived-pr-188-issue-187-review-round3.md:1:<!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written
+docs/cencon/review/archived-pr-189-issue-186-review-round2.md:1:<!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written

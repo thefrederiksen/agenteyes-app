@@ -5,7 +5,7 @@
 Verdict: **FAIL. AC7 is still unmet, and the round-2 change REGRESSES AC1 - the preview panel now
 opens at the pill's 367x52 with a zero-sized picture, where the parent commit opened it at 520x400.**
 
-- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill files is ARCHIVED)
+- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
 - Issue: #33  -  PR: #34  -  Branch: `issue-33-hud-live-preview` at `843e221`
 - Parent (round-1 tip, the code QA failed on 2026-08-28): `46367a7`
 - Verified: 2026-08-28, `HD Webcam eMeet C960`, monitor 1 = DISPLAY1 at (1920,-5)

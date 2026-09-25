@@ -1,50 +1,90 @@
-# BEFORE - issue #85 - acceptance grep at base commit 096c642 (main before this branch)
-# Command: git grep -n "thefrederiksen/Agent[E]yes\b" 096c642 -- CLAUDE.md .claude docs/cencon
-# Total matches: 45. In this record the retired token is written thefrederiksen/[RETIRED]AgentEyes and the
-# pattern is spelled Agent[E]yes (grep self-exclusion idiom, same matches) so this file does not match the
-# acceptance grep itself; re-run the command above for the raw output.
-.claude/skills/developer-agent/skill.md:13:Tracker: **GitHub Issues** in `thefrederiksen/[RETIRED]AgentEyes` (via `gh`). State is carried by `flow:*`
-.claude/skills/developer-agent/skill.md:49:gh issue view <ID> --repo thefrederiksen/[RETIRED]AgentEyes --json number,title,body,labels,comments,state
-.claude/skills/developer-agent/skill.md:66:gh issue comment <ID> --repo thefrederiksen/[RETIRED]AgentEyes --body "$(cat rejection.md)"
-.claude/skills/developer-agent/skill.md:67:gh issue edit <ID> --repo thefrederiksen/[RETIRED]AgentEyes --add-label flow:rejected --remove-label flow:ready-dev
-.claude/skills/developer-agent/skill.md:124:   gh pr create --repo thefrederiksen/[RETIRED]AgentEyes --fill --draft
-.claude/skills/developer-agent/skill.md:169:   gh issue edit <ID> --repo thefrederiksen/[RETIRED]AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
-.claude/skills/implementation-loop/skill.md:16:Tracker: **GitHub Issues** in `thefrederiksen/[RETIRED]AgentEyes` (via `gh`). State is the `flow:*` label.
-.claude/skills/implementation-loop/skill.md:62:Then implement issue #<N> in thefrederiksen/[RETIRED]AgentEyes (currently flow:ready-dev or
-.claude/skills/implementation-loop/skill.md:86:  gh issue list --repo thefrederiksen/[RETIRED]AgentEyes --label flow:ready-dev --state open \
-.claude/skills/implementation-loop/skill.md:113:gh issue view N --repo thefrederiksen/[RETIRED]AgentEyes --json number,title,labels,comments
-.claude/skills/implementation-loop/skill.md:133:gh issue view N --repo thefrederiksen/[RETIRED]AgentEyes --json labels --jq '[.labels[].name]'
-.claude/skills/implementation-loop/skill.md:172:  gh issue edit N --repo thefrederiksen/[RETIRED]AgentEyes --add-label flow:needs-human --remove-label flow:qa-failed
-.claude/skills/implementation-loop/skill.md:173:  gh issue comment N --repo thefrederiksen/[RETIRED]AgentEyes --body "$(cat escalation.md)"
-.claude/skills/implementation-loop/skill.md:189:  thefrederiksen/[RETIRED]AgentEyes --state open` must not show it).
-.claude/skills/product-agent/skill.md:13:Tracker: **GitHub Issues** in `thefrederiksen/[RETIRED]AgentEyes` (via `gh`). State is carried by `flow:*`
-.claude/skills/product-agent/skill.md:85:gh issue create --repo thefrederiksen/[RETIRED]AgentEyes \
-.claude/skills/product-agent/skill.md:100:- Link: https://github.com/thefrederiksen/[RETIRED]AgentEyes/issues/NNN
-.claude/skills/product-agent/skill.md:117:gh issue comment NNN --repo thefrederiksen/[RETIRED]AgentEyes --body "Reject cycle 2: <what you changed>"
-.claude/skills/product-agent/skill.md:118:gh issue edit NNN --repo thefrederiksen/[RETIRED]AgentEyes --add-label flow:ready-dev --remove-label flow:rejected
-.claude/skills/qa-agent/skill.md:14:Tracker: **GitHub Issues** in `thefrederiksen/[RETIRED]AgentEyes` (via `gh`). State is carried by `flow:*`
-.claude/skills/qa-agent/skill.md:49:gh issue list --repo thefrederiksen/[RETIRED]AgentEyes --label flow:ready-qa --state open \
-.claude/skills/qa-agent/skill.md:57:gh issue view <ID> --repo thefrederiksen/[RETIRED]AgentEyes --json number,title,body,labels,comments
-.claude/skills/qa-agent/skill.md:97:gh issue comment <ID> --repo thefrederiksen/[RETIRED]AgentEyes --body "$(cat qa-summary.md)"
-.claude/skills/qa-agent/skill.md:98:gh issue edit <ID> --repo thefrederiksen/[RETIRED]AgentEyes --add-label flow:done --remove-label flow:ready-qa
-.claude/skills/qa-agent/skill.md:99:gh issue close <ID> --repo thefrederiksen/[RETIRED]AgentEyes
-.claude/skills/qa-agent/skill.md:100:gh pr ready <PR> --repo thefrederiksen/[RETIRED]AgentEyes   # if the PR is still draft
-.claude/skills/qa-agent/skill.md:101:gh pr merge <PR> --repo thefrederiksen/[RETIRED]AgentEyes --squash --delete-branch
-.claude/skills/qa-agent/skill.md:130:gh issue comment <ID> --repo thefrederiksen/[RETIRED]AgentEyes --body "$(cat defect.md)"
-.claude/skills/qa-agent/skill.md:131:gh issue edit <ID> --repo thefrederiksen/[RETIRED]AgentEyes --add-label flow:qa-failed --remove-label flow:ready-qa
-.claude/skills/support-agent/skill.md:15:Tracker: **GitHub Issues** in `thefrederiksen/[RETIRED]AgentEyes` (via `gh`). State is carried by `flow:*`
-.claude/skills/support-agent/skill.md:54:gh issue list --repo thefrederiksen/[RETIRED]AgentEyes --state open \
-CLAUDE.md:21:(`thefrederiksen/[RETIRED]AgentEyes`):
-docs/cencon/DEVELOPMENT_METHOD.md:30:Every code change traces back to exactly one **GitHub issue** (in `thefrederiksen/[RETIRED]AgentEyes`)
-docs/cencon/DEVELOPMENT_METHOD.md:187:gh issue edit <N> --repo thefrederiksen/[RETIRED]AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
-docs/cencon/INDEX.md:97:State is carried by `flow:*` labels on GitHub issues in `thefrederiksen/[RETIRED]AgentEyes`:
-docs/cencon/proof/issue-33/handoff-round2.md:5:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/[RETIRED]AgentEyes` named in the skill files
-docs/cencon/proof/issue-33/qa-report.md:7:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/[RETIRED]AgentEyes` repo named in the skill
-docs/cencon/proof/issue-33/qa-round2/qa-report.md:8:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/[RETIRED]AgentEyes` in the skill files is ARCHIVED)
-docs/cencon/proof/issue-33/qa-round3/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/[RETIRED]AgentEyes` in the skill files is ARCHIVED)
-docs/cencon/proof/issue-33/qa-round4/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/[RETIRED]AgentEyes` in the skill files is ARCHIVED)
-docs/cencon/proof/issue-33/qa-round5/qa-report.md:10:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/[RETIRED]AgentEyes` in the skill files is ARCHIVED)
-docs/cencon/proof/issue-33/round3/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/[RETIRED]AgentEyes` in the skill files is ARCHIVED)
-docs/cencon/proof/issue-33/round4/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/[RETIRED]AgentEyes` in the skill files is ARCHIVED)
-docs/cencon/review/archived-pr-188-issue-187-review-round3.md:1:<!-- Carried from the archived private repo thefrederiksen/[RETIRED]AgentEyes, where it was written
-docs/cencon/review/archived-pr-189-issue-186-review-round2.md:1:<!-- Carried from the archived private repo thefrederiksen/[RETIRED]AgentEyes, where it was written
+# BEFORE - issue #85 - acceptance grep at origin/main (096c642), the base of branch issue-85-tracker-name.
+# Raw output. Two forms; the commands used are exactly the lines marked "$".
+#
+# (a) LIVE method files only - CLAUDE.md, .claude, docs/cencon/DEVELOPMENT_METHOD.md, docs/cencon/INDEX.md
+$ git grep -n "thefrederiksen/AgentEyes\b" origin/main -- CLAUDE.md .claude docs/cencon/DEVELOPMENT_METHOD.md docs/cencon/INDEX.md
+# matches: 35
+origin/main:.claude/skills/developer-agent/skill.md:13:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/developer-agent/skill.md:49:gh issue view <ID> --repo thefrederiksen/AgentEyes --json number,title,body,labels,comments,state
+origin/main:.claude/skills/developer-agent/skill.md:66:gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat rejection.md)"
+origin/main:.claude/skills/developer-agent/skill.md:67:gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:rejected --remove-label flow:ready-dev
+origin/main:.claude/skills/developer-agent/skill.md:124:   gh pr create --repo thefrederiksen/AgentEyes --fill --draft
+origin/main:.claude/skills/developer-agent/skill.md:169:   gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
+origin/main:.claude/skills/implementation-loop/skill.md:16:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is the `flow:*` label.
+origin/main:.claude/skills/implementation-loop/skill.md:62:Then implement issue #<N> in thefrederiksen/AgentEyes (currently flow:ready-dev or
+origin/main:.claude/skills/implementation-loop/skill.md:86:  gh issue list --repo thefrederiksen/AgentEyes --label flow:ready-dev --state open \
+origin/main:.claude/skills/implementation-loop/skill.md:113:gh issue view N --repo thefrederiksen/AgentEyes --json number,title,labels,comments
+origin/main:.claude/skills/implementation-loop/skill.md:133:gh issue view N --repo thefrederiksen/AgentEyes --json labels --jq '[.labels[].name]'
+origin/main:.claude/skills/implementation-loop/skill.md:172:  gh issue edit N --repo thefrederiksen/AgentEyes --add-label flow:needs-human --remove-label flow:qa-failed
+origin/main:.claude/skills/implementation-loop/skill.md:173:  gh issue comment N --repo thefrederiksen/AgentEyes --body "$(cat escalation.md)"
+origin/main:.claude/skills/implementation-loop/skill.md:189:  thefrederiksen/AgentEyes --state open` must not show it).
+origin/main:.claude/skills/product-agent/skill.md:13:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/product-agent/skill.md:85:gh issue create --repo thefrederiksen/AgentEyes \
+origin/main:.claude/skills/product-agent/skill.md:100:- Link: https://github.com/thefrederiksen/AgentEyes/issues/NNN
+origin/main:.claude/skills/product-agent/skill.md:117:gh issue comment NNN --repo thefrederiksen/AgentEyes --body "Reject cycle 2: <what you changed>"
+origin/main:.claude/skills/product-agent/skill.md:118:gh issue edit NNN --repo thefrederiksen/AgentEyes --add-label flow:ready-dev --remove-label flow:rejected
+origin/main:.claude/skills/qa-agent/skill.md:14:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/qa-agent/skill.md:49:gh issue list --repo thefrederiksen/AgentEyes --label flow:ready-qa --state open \
+origin/main:.claude/skills/qa-agent/skill.md:57:gh issue view <ID> --repo thefrederiksen/AgentEyes --json number,title,body,labels,comments
+origin/main:.claude/skills/qa-agent/skill.md:97:gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat qa-summary.md)"
+origin/main:.claude/skills/qa-agent/skill.md:98:gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:done --remove-label flow:ready-qa
+origin/main:.claude/skills/qa-agent/skill.md:99:gh issue close <ID> --repo thefrederiksen/AgentEyes
+origin/main:.claude/skills/qa-agent/skill.md:100:gh pr ready <PR> --repo thefrederiksen/AgentEyes   # if the PR is still draft
+origin/main:.claude/skills/qa-agent/skill.md:101:gh pr merge <PR> --repo thefrederiksen/AgentEyes --squash --delete-branch
+origin/main:.claude/skills/qa-agent/skill.md:130:gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat defect.md)"
+origin/main:.claude/skills/qa-agent/skill.md:131:gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:qa-failed --remove-label flow:ready-qa
+origin/main:.claude/skills/support-agent/skill.md:15:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/support-agent/skill.md:54:gh issue list --repo thefrederiksen/AgentEyes --state open \
+origin/main:CLAUDE.md:21:(`thefrederiksen/AgentEyes`):
+origin/main:docs/cencon/DEVELOPMENT_METHOD.md:30:Every code change traces back to exactly one **GitHub issue** (in `thefrederiksen/AgentEyes`)
+origin/main:docs/cencon/DEVELOPMENT_METHOD.md:187:gh issue edit <N> --repo thefrederiksen/AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
+origin/main:docs/cencon/INDEX.md:97:State is carried by `flow:*` labels on GitHub issues in `thefrederiksen/AgentEyes`:
+#
+# (b) FULL set as the issue wrote it - CLAUDE.md, .claude, docs/cencon (includes the historical proof/ and review/ records)
+$ git grep -n "thefrederiksen/AgentEyes\b" origin/main -- CLAUDE.md .claude docs/cencon
+# matches: 45 (35 live + 10 historical: 8 under docs/cencon/proof/issue-33/, 2 under docs/cencon/review/)
+origin/main:.claude/skills/developer-agent/skill.md:13:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/developer-agent/skill.md:49:gh issue view <ID> --repo thefrederiksen/AgentEyes --json number,title,body,labels,comments,state
+origin/main:.claude/skills/developer-agent/skill.md:66:gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat rejection.md)"
+origin/main:.claude/skills/developer-agent/skill.md:67:gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:rejected --remove-label flow:ready-dev
+origin/main:.claude/skills/developer-agent/skill.md:124:   gh pr create --repo thefrederiksen/AgentEyes --fill --draft
+origin/main:.claude/skills/developer-agent/skill.md:169:   gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
+origin/main:.claude/skills/implementation-loop/skill.md:16:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is the `flow:*` label.
+origin/main:.claude/skills/implementation-loop/skill.md:62:Then implement issue #<N> in thefrederiksen/AgentEyes (currently flow:ready-dev or
+origin/main:.claude/skills/implementation-loop/skill.md:86:  gh issue list --repo thefrederiksen/AgentEyes --label flow:ready-dev --state open \
+origin/main:.claude/skills/implementation-loop/skill.md:113:gh issue view N --repo thefrederiksen/AgentEyes --json number,title,labels,comments
+origin/main:.claude/skills/implementation-loop/skill.md:133:gh issue view N --repo thefrederiksen/AgentEyes --json labels --jq '[.labels[].name]'
+origin/main:.claude/skills/implementation-loop/skill.md:172:  gh issue edit N --repo thefrederiksen/AgentEyes --add-label flow:needs-human --remove-label flow:qa-failed
+origin/main:.claude/skills/implementation-loop/skill.md:173:  gh issue comment N --repo thefrederiksen/AgentEyes --body "$(cat escalation.md)"
+origin/main:.claude/skills/implementation-loop/skill.md:189:  thefrederiksen/AgentEyes --state open` must not show it).
+origin/main:.claude/skills/product-agent/skill.md:13:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/product-agent/skill.md:85:gh issue create --repo thefrederiksen/AgentEyes \
+origin/main:.claude/skills/product-agent/skill.md:100:- Link: https://github.com/thefrederiksen/AgentEyes/issues/NNN
+origin/main:.claude/skills/product-agent/skill.md:117:gh issue comment NNN --repo thefrederiksen/AgentEyes --body "Reject cycle 2: <what you changed>"
+origin/main:.claude/skills/product-agent/skill.md:118:gh issue edit NNN --repo thefrederiksen/AgentEyes --add-label flow:ready-dev --remove-label flow:rejected
+origin/main:.claude/skills/qa-agent/skill.md:14:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/qa-agent/skill.md:49:gh issue list --repo thefrederiksen/AgentEyes --label flow:ready-qa --state open \
+origin/main:.claude/skills/qa-agent/skill.md:57:gh issue view <ID> --repo thefrederiksen/AgentEyes --json number,title,body,labels,comments
+origin/main:.claude/skills/qa-agent/skill.md:97:gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat qa-summary.md)"
+origin/main:.claude/skills/qa-agent/skill.md:98:gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:done --remove-label flow:ready-qa
+origin/main:.claude/skills/qa-agent/skill.md:99:gh issue close <ID> --repo thefrederiksen/AgentEyes
+origin/main:.claude/skills/qa-agent/skill.md:100:gh pr ready <PR> --repo thefrederiksen/AgentEyes   # if the PR is still draft
+origin/main:.claude/skills/qa-agent/skill.md:101:gh pr merge <PR> --repo thefrederiksen/AgentEyes --squash --delete-branch
+origin/main:.claude/skills/qa-agent/skill.md:130:gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat defect.md)"
+origin/main:.claude/skills/qa-agent/skill.md:131:gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:qa-failed --remove-label flow:ready-qa
+origin/main:.claude/skills/support-agent/skill.md:15:Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+origin/main:.claude/skills/support-agent/skill.md:54:gh issue list --repo thefrederiksen/AgentEyes --state open \
+origin/main:CLAUDE.md:21:(`thefrederiksen/AgentEyes`):
+origin/main:docs/cencon/DEVELOPMENT_METHOD.md:30:Every code change traces back to exactly one **GitHub issue** (in `thefrederiksen/AgentEyes`)
+origin/main:docs/cencon/DEVELOPMENT_METHOD.md:187:gh issue edit <N> --repo thefrederiksen/AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
+origin/main:docs/cencon/INDEX.md:97:State is carried by `flow:*` labels on GitHub issues in `thefrederiksen/AgentEyes`:
+origin/main:docs/cencon/proof/issue-33/handoff-round2.md:5:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` named in the skill files
+origin/main:docs/cencon/proof/issue-33/qa-report.md:7:- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` repo named in the skill
+origin/main:docs/cencon/proof/issue-33/qa-round2/qa-report.md:8:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+origin/main:docs/cencon/proof/issue-33/qa-round3/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+origin/main:docs/cencon/proof/issue-33/qa-round4/qa-report.md:9:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+origin/main:docs/cencon/proof/issue-33/qa-round5/qa-report.md:10:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+origin/main:docs/cencon/proof/issue-33/round3/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+origin/main:docs/cencon/proof/issue-33/round4/handoff.md:5:- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+origin/main:docs/cencon/review/archived-pr-188-issue-187-review-round3.md:1:<!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written
+origin/main:docs/cencon/review/archived-pr-189-issue-186-review-round2.md:1:<!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written
