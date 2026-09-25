@@ -17,14 +17,17 @@ public static class ArchiveInstaller
     /// <paramref name="targetDir"/>. Nested directories inside the zip are
     /// flattened deliberately: the bundle contract is "loose exes next to ours".
     /// Throws on the first failure - a half-placed archive must surface, not pass.
+    /// Returns every file placed, with its ".old" backup path (null for a file that
+    /// was new), so an all-or-nothing update can roll it back (issue #86 review, B1b).
     /// </summary>
-    public static void Place(string targetDir, string stagedZip)
+    public static IReadOnlyList<(string Target, string? Backup)> Place(string targetDir, string stagedZip)
     {
         if (string.IsNullOrWhiteSpace(targetDir)) throw new ArgumentException("targetDir required", nameof(targetDir));
         if (!File.Exists(stagedZip)) throw new FileNotFoundException("Staged archive not found.", stagedZip);
 
         var extractDir = Path.Combine(Path.GetTempPath(), $"agenteyes-setup-extract-{Guid.NewGuid():N}");
         Directory.CreateDirectory(extractDir);
+        var placed = new List<(string Target, string? Backup)>();
         try
         {
             ZipFile.ExtractToDirectory(stagedZip, extractDir);
@@ -36,9 +39,10 @@ public static class ArchiveInstaller
             foreach (var file in files)
             {
                 var target = Path.Combine(targetDir, Path.GetFileName(file));
-                InstallSwapper.Place(target, file);
+                placed.Add((target, InstallSwapper.Place(target, file)));
             }
             EngineLog.Write($"[ArchiveInstaller] placed {files.Length} file(s) into {targetDir}");
+            return placed;
         }
         finally
         {

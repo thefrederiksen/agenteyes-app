@@ -36,6 +36,11 @@
          the release channel nor the install root, and that is only provable through the dispatch the
          exe runs. -->
     <ProjectReference Include="..\..\tools\AgentEyes.Setup.Cli\AgentEyes.Setup.Cli.csproj" />
+    <!-- The setup wizard is referenced so WizardInstallRunnerTests (issue #86 review, N1) can drive its
+         EngineInstallRunner in-process with a fake running-app handle: every failure of the update cycle
+         must become one error state the window shows, never a hang at "Installing...". The WPF wizard is
+         never started; only the runner class is used. -->
+    <ProjectReference Include="..\..\tools\AgentEyes.Setup\AgentEyes.Setup.csproj" />
     <!-- AgentEyes.App is referenced ONLY so MSBuild builds it first and drops AgentEyesApp.dll next
          to the tests. The WPF app is never loaded or started - ManifestWriterIlTests reads its IL as
          bytes (issue #155, criterion 4), and the reference is what makes that a FRESH binary instead

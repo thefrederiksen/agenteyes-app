@@ -1412,12 +1412,28 @@ namespace AgentEyes.AlwaysOn
         private void Recover(AlwaysOnOptions o)
         {
             RestoreEvictHolds(o.ClipsFolder);
-            var handover = AlwaysOnHandover.Load(o.HandoverFile);
+            AlwaysOnHandover? handover;
+            try
+            {
+                handover = AlwaysOnHandover.Load(o.HandoverFile);
+            }
+            catch (InvalidDataException ex)
+            {
+                // The file is there and readable but is not a handover: set it aside for a look and
+                // recover as from a crash - said in the log AND the history, so nobody wonders why the
+                // clip was not continued. A file that cannot be READ is a different matter: Load throws
+                // with the file and the fix, and so does this start (issue #86 review, N7).
+                Log.Warn($"[AlwaysOnEngine] Recover: {ex.Message}; set aside as handover.json.bad - the clip the planned stop "
+                         + "left open is not continued and this start recovers as from a crash");
+                Record(HistoryKind.Problem, HistorySeverity.Warning,
+                    $"The handover left by the planned stop could not be used ({ex.Message}); it was set aside and the start "
+                    + "recovered as from a crash - the clip in progress was not continued");
+                File.Move(o.HandoverFile, o.HandoverFile + ".bad", overwrite: true);
+                handover = null;
+            }
             string? carried = handover == null ? null : RestoreHandover(o, handover);
-            // Consumed: a later start must not replay a handover this one has already taken. One that
-            // could not be read (Load said so in the log) is set aside under .bad for a look, not replayed.
+            // Consumed: a later start must not replay a handover this one has already taken.
             if (handover != null) File.Delete(o.HandoverFile);
-            else if (File.Exists(o.HandoverFile)) File.Move(o.HandoverFile, o.HandoverFile + ".bad", overwrite: true);
             foreach (var dir in Directory.GetDirectories(o.PendingFolder, "clip_*").OrderBy(d => d, StringComparer.Ordinal))
             {
                 if (carried != null && string.Equals(dir, carried, StringComparison.OrdinalIgnoreCase)) continue;

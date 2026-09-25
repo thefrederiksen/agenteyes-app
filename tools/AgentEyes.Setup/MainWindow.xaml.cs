@@ -170,7 +170,22 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>The fire-and-forget entry point of the Install step: every failure ends in an error
+    /// state with a Retry button (issue #86 review, N1), never an unobserved exception behind
+    /// "Installing...".</summary>
     private async Task RunInstallAsync()
+    {
+        try
+        {
+            await RunInstallCoreAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowApplyError("RunInstallAsync", ex.Message);
+        }
+    }
+
+    private async Task RunInstallCoreAsync()
     {
         SetupLog.Write("[MainWindow] RunInstallAsync: starting");
 
@@ -231,6 +246,18 @@ public partial class MainWindow : Window
 
     private async Task RunRepairAsync()
     {
+        try
+        {
+            await RunRepairCoreAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowApplyError("RunRepairAsync", ex.Message);
+        }
+    }
+
+    private async Task RunRepairCoreAsync()
+    {
         NextButton.Content = _isUpdate ? "Updating..." : "Installing...";
         NextButton.IsEnabled = false;
 
@@ -255,6 +282,14 @@ public partial class MainWindow : Window
         _skippedCount = skipped;
         _restart = runner.LastRestart;
 
+        // Issue #86 review, N1: a cycle that failed (download/verify, stop, swap, relaunch - the runner
+        // says which) is an ERROR state with a Retry, not a "Done - 0 installed" line.
+        if (runner.LastError != null)
+        {
+            ShowApplyError("RunEngineApplyAsync", runner.LastError);
+            return;
+        }
+
         var verb = repair ? "Repair complete" : "Done";
         // Issue #86: say what happened to the running app, in the same words the CLI prints.
         var restartNote = _restart?.Restarted == true ? $"; {_restart.Describe()}" : "";
@@ -263,6 +298,16 @@ public partial class MainWindow : Window
                        + $"restart={_restart?.Describe() ?? "(not run)"}");
 
         NextButton.Content = "Next";
+        NextButton.IsEnabled = true;
+    }
+
+    /// <summary>The one error state of the Install step: the message on the status line (red, by
+    /// InstallStep's convention for "ERROR") and the Next button turned into Retry.</summary>
+    private void ShowApplyError(string where, string message)
+    {
+        SetupLog.Write($"[MainWindow] {where} FAILED: {message}");
+        _installStep?.SetStatus("ERROR: " + message);
+        NextButton.Content = "Retry";
         NextButton.IsEnabled = true;
     }
 

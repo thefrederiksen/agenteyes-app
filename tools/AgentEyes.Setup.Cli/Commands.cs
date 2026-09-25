@@ -104,40 +104,49 @@ internal static class Commands
             return Ok;
         }
 
-        // Issue #86: everything that replaces a file runs inside the ONE stop -> replace -> relaunch
-        // cycle. A running AgentEyes is stopped first - and when it cannot be stopped, nothing is
-        // replaced and the command fails with the reason - then the files are replaced, then the
-        // app is started again with the arguments it was running with. Before this the files were
-        // replaced under the running process, which stayed on the old build until somebody happened
-        // to restart it. The Inno v0.1 takeover wipes the app dir, so it is part of the replace step
-        // (it used to stop the app on its own, issue #95). With nothing to replace, the app is left alone.
+        // Issue #86 (revised after the review of PR #92): everything that touches an installed file runs
+        // inside the ONE find -> download+verify -> stop -> swap -> relaunch cycle. Every component is
+        // downloaded and verified FIRST, with the app still running; only then is a running AgentEyes
+        // stopped - and when it cannot be stopped, nothing is replaced and the command fails with the
+        // reason; then the verified files are swapped in all-or-nothing (a failure rolls the ones already
+        // swapped back); then the INSTALLED app is started again with the arguments the stopped one was
+        // running with. A failed attempt is recorded (UpdateAttemptMarker) so the relaunched app's
+        // AutoUpdate does not hand over again for the same version; a successful one clears it. The
+        // Inno v0.1 takeover wipes the app dir, so it is the first part of the swap step and every
+        // component the release ships is installed fresh. With nothing to replace, the app is left alone.
         bool innoTakeover = installMode && InnoMigration.IsInnoInstall(layout);
         var source = new ReleaseSource();
         var result = new UpdateRunResult { Results = Array.Empty<ApplyResult>() };
         if (plan.HasWork || innoTakeover)
         {
-            var cycle = new UpdateRestartCycle(RunningAppHandleFactory(layout), AppLauncherFactory(layout));
+            string targetVersion = release.Manifest.Version;
+            var cycle = new UpdateRestartCycle(RunningAppHandleFactory(layout), AppLauncherFactory(layout), layout.PathFor(ComponentRegistry.App));
+            var runner = new UpdateRunner(layout, ComponentRegistry.All,
+                (item, innerCt) => source.DownloadAssetAsync(item.AssetName, release.DownloadUrls, innerCt));
+            var stagePlan = innoTakeover ? TakeoverPlan(release) : plan;
             UpdateRestartOutcome<UpdateRunResult> outcome;
             try
             {
-                outcome = await cycle.RunAsync(async ct =>
-                {
-                    if (innoTakeover)
+                outcome = await cycle.RunAsync(
+                    ct => runner.StageAsync(stagePlan, ct),
+                    (staged, _) =>
                     {
-                        InnoMigration.RemoveInnoInstall(layout);
-                        (plan, release) = await ComputePlanAsync(args, layout);
-                        if (!json) Console.WriteLine("Removed the previous Inno-based install (taking over in place).");
-                    }
-                    if (!plan.HasWork) return new UpdateRunResult { Results = Array.Empty<ApplyResult>() };
-                    var runner = new UpdateRunner(layout, ComponentRegistry.All,
-                        (item, innerCt) => source.DownloadAssetAsync(item.AssetName, release.DownloadUrls, innerCt));
-                    return await runner.ApplyAsync(plan, ct);
-                });
+                        if (innoTakeover)
+                        {
+                            InnoMigration.RemoveInnoInstall(layout);
+                            if (!json) Console.WriteLine("Removed the previous Inno-based install (taking over in place).");
+                        }
+                        return Task.FromResult(runner.Swap(staged));
+                    });
+                UpdateAttemptMarker.Clear(layout);
             }
-            catch (AppStopFailedException ex)
+            catch (Exception ex) when (ex is not UsageException)
             {
-                // Nothing was replaced (the cycle throws before its replace step). Say so and stop.
-                if (json) Program.WriteJson(new { failed = ex.Message });
+                // The cycle's message says exactly what was and was not touched. Record the attempt for
+                // the app (it must not retry this version by itself), say it, and stop.
+                string stage = UpdateAttemptMarker.StageOf(ex);
+                UpdateAttemptMarker.WriteFailed(layout, targetVersion, stage, ex.Message, "cli");
+                if (json) Program.WriteJson(new { failed = ex.Message, stage });
                 else Console.Error.WriteLine("ERROR: " + ex.Message);
                 return Error;
             }
@@ -265,6 +274,22 @@ internal static class Commands
         return true;
     }
 
+    /// <summary>The Inno v0.1 takeover wipes the whole app dir (inside the swap step, with the app stopped), so
+    /// every component the release ships is staged and installed fresh - planned BEFORE the wipe, because the
+    /// files are downloaded and verified while the old install is still there.</summary>
+    private static UpdatePlan TakeoverPlan(ResolvedRelease release)
+    {
+        var items = new List<PlanItem>();
+        foreach (var c in ComponentRegistry.All)
+        {
+            var asset = release.Manifest.TryGetAsset(c.Asset);
+            items.Add(asset is null
+                ? new PlanItem(c.Id, PlanItemKind.MissingAsset, c.Asset, null, null, "")
+                : new PlanItem(c.Id, PlanItemKind.Install, asset.Name, null, asset.Version, asset.Sha256));
+        }
+        return new UpdatePlan { Items = items };
+    }
+
     private static async Task<(UpdatePlan plan, ResolvedRelease release)> ComputePlanAsync(CliArgs args, InstallLayout layout)
     {
         var release = await ResolveReleaseAsync(args);
@@ -342,7 +367,10 @@ internal static class Commands
                     oldPid = restart.Stopped?.Pid,
                     newPid = restart.NewPid,
                     arguments = restart.Stopped?.Arguments,
+                    stoppedExe = restart.Stopped?.ExePath,
+                    startedExe = restart.StartedExe,
                     message = restart.Describe(),
+                    note = restart.Note,
                 },
             });
             return;
@@ -356,7 +384,9 @@ internal static class Commands
             Console.WriteLine(line);
         }
         Console.WriteLine($"installed={result.Installed} updated={result.Updated} failed={result.Failed}");
-        // Issue #86: the pids when the running app was stopped and started again, or that it was not running.
+        // Issue #86: the pids when the running app was stopped and started again, or that it was not running;
+        // and a second line when the stopped process was not running from the installed exe (review N2).
         Console.WriteLine(restart.Describe());
+        if (restart.Note != null) Console.WriteLine(restart.Note);
     }
 }

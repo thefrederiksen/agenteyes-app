@@ -11,10 +11,11 @@ namespace AgentEyes.App
 {
     /// <summary>
     /// Background updater. When a newer release exists it HANDS THE UPDATE OVER to the installed setup
-    /// CLI (<c>agenteyes-setup update</c>), which takes the one stop -> replace -> relaunch path every
-    /// update takes (<see cref="UpdateRestartCycle"/>, issue #86): it asks this process to quit through
+    /// CLI (<c>agenteyes-setup update</c>), which takes the one download+verify -> stop -> swap -> relaunch
+    /// path every update takes (<see cref="UpdateRestartCycle"/>, issue #86): it downloads and verifies
+    /// the new build with this process still running, asks this process to quit through
     /// <see cref="QuitRequest"/>, waits for it to leave - always-on hands its open clip over on the way
-    /// out - replaces the files, and starts the app again with this process's own arguments (a
+    /// out - swaps the files in, and starts the installed app again with this process's own arguments (a
     /// <c>--tray</c> app comes back as a <c>--tray</c> app, issue #61).
     ///
     /// This process therefore never replaces its own files. It used to: it downloaded and swapped the
@@ -25,6 +26,13 @@ namespace AgentEyes.App
     /// stop/replace/relaunch decision as the CLI and the wizard. The only decision left to this class is
     /// the pure <see cref="UpdateRestartPolicy"/>: hand over NOW, or DEFER while a recording session is
     /// active (then hand over when the session ends, or when the person asks from the tray).
+    ///
+    /// A FAILED attempt is not retried by itself (issue #86 review, B1c): the setup CLI records it in
+    /// <see cref="UpdateAttemptMarker"/> under the install root, and the relaunched app reads that record
+    /// here. For the same target version the automatic check logs and shows the reason instead of
+    /// handing over again - otherwise a download that keeps failing would become a stop -> fail ->
+    /// relaunch -> stop loop, every round a planned always-on stop. A newer target clears the block; a
+    /// successful update clears the record; the person's own "Check for updates" may try again.
     ///
     /// There are NO modal dialogs. An "up to date" result is silent on auto-checks so it never nags;
     /// the manual "Check for updates" menu item reports the outcome via a balloon. When the handover is
@@ -56,11 +64,33 @@ namespace AgentEyes.App
         /// </summary>
         internal static Func<string, IReadOnlyList<string>, int> StartSetup { get; set; } = StartProcess;
 
+        /// <summary>Testable seam: where the latest release comes from. Production asks the GitHub
+        /// release channel; a test hands in a local release dir.</summary>
+        internal static Func<CancellationToken, Task<ResolvedRelease>> FetchLatest { get; set; } =
+            ct => new ReleaseSource().FetchLatestAsync(ct);
+
+        /// <summary>Testable seam: the install root. Production is the real per-user layout.</summary>
+        internal static Func<InstallLayout> Layout { get; set; } = InstallLayout.Default;
+
+        /// <summary>Testable seam: how a UI callback reaches the UI thread. Production posts to the
+        /// WPF dispatcher; a test runs it inline.</summary>
+        internal static Action<Action> Dispatch { get; set; } = a => Application.Current?.Dispatcher.BeginInvoke(a);
+
+        /// <summary>The version whose handover waits for the session to end, or null.</summary>
+        internal static string? DeferredVersion => _deferredVersion;
+
+        /// <summary>Forget a deferred handover and the busy flag (tests only).</summary>
+        internal static void ResetForTests()
+        {
+            _deferredVersion = null;
+            Interlocked.Exchange(ref _busy, 0);
+        }
+
         /// <summary>Manual check from the tray menu: reports the outcome (incl. "up to date") via a balloon.</summary>
         public static void CheckAndPrompt()
         {
             if (Interlocked.Exchange(ref _busy, 1) == 1) return;
-            _ = RunAsync(userInitiated: true);
+            _ = RunAsync(userInitiated: true, TimeSpan.Zero);
         }
 
         /// <summary>Automatic check on startup (Config.AutoUpdate): silent when up to date or offline.
@@ -68,46 +98,16 @@ namespace AgentEyes.App
         public static void AutoCheckOnStartup()
         {
             if (Interlocked.Exchange(ref _busy, 1) == 1) return;
-            _ = RunAsync(userInitiated: false);
+            _ = RunAsync(userInitiated: false, TimeSpan.FromSeconds(4));
         }
 
-        private static async Task RunAsync(bool userInitiated)
+        /// <summary>The entry point of a check: the one place its failures are caught and told.</summary>
+        private static async Task RunAsync(bool userInitiated, TimeSpan delay)
         {
             try
             {
-                if (!userInitiated) await Task.Delay(TimeSpan.FromSeconds(4));
-                EngineLog.Sink ??= line => AgentEyes.Log.Info($"[setup-engine] {line}");
-                var layout = InstallLayout.Default();
-
-                // The Inno v0.1 install must migrate through the new setup (it wipes the old multi-file
-                // layout); the setup CLI's update would leave stale DLLs behind.
-                if (InnoMigration.IsInnoInstall(layout))
-                {
-                    AgentEyes.Log.Info("update: old v0.1 (Inno) install - in-app update skipped; run the setup once to migrate");
-                    if (userInitiated)
-                        Notify(() => InfoNotice?.Invoke("AgentEyes",
-                            "This copy needs a one-time setup re-run to migrate before in-app updates work."));
-                    return;
-                }
-
-                var release = await new ReleaseSource().FetchLatestAsync(CancellationToken.None);
-                string version = $"{release.Manifest.Version}";
-                var reader = new InstalledStateReader(layout);
-                var installed = reader.ReadAll(ComponentRegistry.All);
-                var plan = UpdatePlanner.Plan(ComponentRegistry.All, installed, release.Manifest);
-
-                if (!plan.HasWork)
-                {
-                    AgentEyes.Log.Info($"update: already up to date (v{version})");
-                    if (userInitiated)
-                        Notify(() => InfoNotice?.Invoke("AgentEyes", $"You are on the latest version (v{version})."));
-                    return;
-                }
-
-                // No "install now?" gate - AutoUpdate being on IS the consent. Nothing is downloaded or
-                // replaced by this process: the setup CLI does that, with this process stopped.
-                AgentEyes.Log.Info($"update: v{version} available ({plan.Actionable.Count} component(s) behind)");
-                ApplyDecision(version, layout);
+                if (delay > TimeSpan.Zero) await Task.Delay(delay);
+                await CheckAsync(userInitiated);
             }
             catch (Exception ex)
             {
@@ -119,6 +119,88 @@ namespace AgentEyes.App
             {
                 Interlocked.Exchange(ref _busy, 0);
             }
+        }
+
+        /// <summary>
+        /// One check, no delay, failures propagate to <see cref="RunAsync"/>. Internal so a test runs the
+        /// real decision - the plan, the failed-attempt record, the policy and the handover - against a
+        /// local release and a temp install root.
+        /// </summary>
+        internal static async Task CheckAsync(bool userInitiated)
+        {
+            EngineLog.Sink ??= line => AgentEyes.Log.Info($"[setup-engine] {line}");
+            var layout = Layout();
+            AgentEyes.Log.Info($"update: checking ({(userInitiated ? "asked from the tray" : "automatic")}, root {layout.LocalRoot})");
+
+            // The Inno v0.1 install must migrate through the new setup (it wipes the old multi-file
+            // layout); the setup CLI's update would leave stale DLLs behind.
+            if (InnoMigration.IsInnoInstall(layout))
+            {
+                AgentEyes.Log.Info("update: old v0.1 (Inno) install - in-app update skipped; run the setup once to migrate");
+                if (userInitiated)
+                    Notify(() => InfoNotice?.Invoke("AgentEyes",
+                        "This copy needs a one-time setup re-run to migrate before in-app updates work."));
+                return;
+            }
+
+            var release = await FetchLatest(CancellationToken.None);
+            string version = $"{release.Manifest.Version}";
+            var reader = new InstalledStateReader(layout);
+            var installed = reader.ReadAll(ComponentRegistry.All);
+            var plan = UpdatePlanner.Plan(ComponentRegistry.All, installed, release.Manifest);
+
+            // The last FAILED attempt, if any. An unreadable record throws with the path and the fix;
+            // it is never read as "no failure".
+            var lastAttempt = UpdateAttemptMarker.Read(layout);
+
+            if (!plan.HasWork)
+            {
+                if (lastAttempt != null)
+                {
+                    AgentEyes.Log.Info($"update: {lastAttempt.Describe()}, but this is v{version} and nothing is behind - the record is cleared");
+                    UpdateAttemptMarker.Clear(layout);
+                }
+                AgentEyes.Log.Info($"update: already up to date (v{version})");
+                if (userInitiated)
+                    Notify(() => InfoNotice?.Invoke("AgentEyes", $"You are on the latest version (v{version})."));
+                return;
+            }
+
+            if (lastAttempt != null && !SameVersion(lastAttempt.TargetVersion, version))
+            {
+                // A NEW target clears the block: what failed was the attempt at the old one.
+                AgentEyes.Log.Info($"update: {lastAttempt.Describe()}; v{version} is a newer target, so that record is cleared");
+                UpdateAttemptMarker.Clear(layout);
+                lastAttempt = null;
+            }
+
+            if (lastAttempt != null)
+            {
+                if (!userInitiated)
+                {
+                    // No silent retry loop (issue #86 review, B1c): say it, show it, stop.
+                    AgentEyes.Log.Info($"update: v{version} is available but {lastAttempt.Describe()} - it is NOT handed over again by itself. "
+                                       + "Fix the cause, then use 'Check for updates' from the tray or run 'agenteyes-setup update'.");
+                    Notify(() => InfoNotice?.Invoke($"AgentEyes update v{version} needs your attention",
+                        $"The update to v{version} failed ({lastAttempt.Stage}: {lastAttempt.Reason}) and is not retried by itself. "
+                        + "Fix the cause, then use Check for updates or run agenteyes-setup update."));
+                    return;
+                }
+                AgentEyes.Log.Info($"update: {lastAttempt.Describe()}; trying again because the person asked");
+            }
+
+            // No "install now?" gate - AutoUpdate being on IS the consent. Nothing is downloaded or
+            // replaced by this process: the setup CLI does that, and it stops this process only once
+            // everything is downloaded and verified.
+            AgentEyes.Log.Info($"update: v{version} available ({plan.Actionable.Count} component(s) behind)");
+            ApplyDecision(version, layout);
+        }
+
+        /// <summary>Two release versions name the same target (a "v" prefix or a build suffix aside).</summary>
+        private static bool SameVersion(string a, string b)
+        {
+            if (VersionUtil.TryParse(a) is { } va && VersionUtil.TryParse(b) is { } vb) return va == vb;
+            return string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -161,7 +243,7 @@ namespace AgentEyes.App
             _deferredVersion = null;
             AgentEyes.Log.Info($"update: session ended - handing v{version} over to the setup engine now (deferred update).");
             // An event handler is an entry point: a failure here is logged and told, never thrown into the recorder.
-            try { HandOverToSetup(InstallLayout.Default(), version); }
+            try { HandOverToSetup(Layout(), version); }
             catch (Exception ex) { ReportHandoverFailure(version, ex); }
         }
 
@@ -177,16 +259,17 @@ namespace AgentEyes.App
             }
             _deferredVersion = null;
             AgentEyes.Log.Info($"update: install now asked from the tray - handing v{version} over to the setup engine.");
-            try { HandOverToSetup(InstallLayout.Default(), version); }
+            try { HandOverToSetup(Layout(), version); }
             catch (Exception ex) { ReportHandoverFailure(version, ex); }
         }
 
         /// <summary>
-        /// Hand the update to the installed setup CLI (issue #86): <c>agenteyes-setup update</c> stops this
-        /// app (asking first through <see cref="QuitRequest"/>, force after the bound), replaces the
-        /// files, and starts the app again with the arguments this process was started with. Returns the
-        /// setup CLI's pid. Throws when the CLI is not installed - there is no in-process swap to fall
-        /// back to (issue #107 is why), and the message says what to do.
+        /// Hand the update to the installed setup CLI (issue #86): <c>agenteyes-setup update</c> downloads
+        /// and verifies the new build, stops this app (asking first through <see cref="QuitRequest"/>,
+        /// force after the bound), swaps the files in, and starts the installed app again with the
+        /// arguments this process was started with. Returns the setup CLI's pid. Throws when the CLI is
+        /// not installed - there is no in-process swap to fall back to (issue #107 is why), and the
+        /// message says what to do.
         /// </summary>
         internal static int HandOverToSetup(InstallLayout layout, string version)
         {
@@ -197,8 +280,8 @@ namespace AgentEyes.App
                     "the in-app update needs the setup CLI (agenteyes-setup.exe), which is not installed. "
                     + "Run the AgentEyes setup once to install it, then check for updates again.", setupExe);
             int pid = StartSetup(setupExe, new[] { "update" });
-            AgentEyes.Log.Info($"update: v{version} handed over to \"{setupExe}\" update (pid {pid}); it stops this app, "
-                               + "replaces the files and starts it again with the same arguments");
+            AgentEyes.Log.Info($"update: v{version} handed over to \"{setupExe}\" update (pid {pid}); it downloads and verifies the "
+                               + "new build, stops this app, swaps the files in and starts the app again with the same arguments");
             return pid;
         }
 
@@ -222,7 +305,6 @@ namespace AgentEyes.App
             return p.Id;
         }
 
-        private static void Notify(Action a) =>
-            Application.Current?.Dispatcher.BeginInvoke(a);
+        private static void Notify(Action a) => Dispatch(a);
     }
 }

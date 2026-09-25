@@ -107,8 +107,11 @@ public static class CliHelp
                 {
                     "Install or update ALL components from the release, then finalize the per-user install:",
                     "PATH, Start Menu shortcut, Add/Remove Programs entry. Repair semantics - always finalizes.",
-                    "A running AgentEyes is stopped before any file is replaced and started again afterwards",
-                    "with the arguments it was running with; if it cannot be stopped, nothing is replaced.",
+                    "Every component is downloaded and verified first, with AgentEyes still running. Only then",
+                    "is a running AgentEyes stopped, the files swapped in (all or nothing - a failure rolls the",
+                    "swapped ones back) and the installed app started again with the arguments it was running",
+                    "with. If it cannot be stopped, nothing is replaced. A failed attempt is recorded so the",
+                    "app's AutoUpdate does not retry that version by itself; a successful one clears the record.",
                 },
                 OptManifest, OptReleaseDir, OptComponent, OptAutostart, OptDesktopShortcut,
                 OptNoFinalize, OptDryRun, OptRoot, OptJson),
@@ -117,8 +120,11 @@ public static class CliHelp
                 new[]
                 {
                     "Download, verify, and apply updates only. Finalizes only when something was replaced.",
-                    "A running AgentEyes is stopped before any file is replaced and started again afterwards",
-                    "with the arguments it was running with; if it cannot be stopped, nothing is replaced.",
+                    "Every component is downloaded and verified first, with AgentEyes still running. Only then",
+                    "is a running AgentEyes stopped, the files swapped in (all or nothing - a failure rolls the",
+                    "swapped ones back) and the installed app started again with the arguments it was running",
+                    "with. If it cannot be stopped, nothing is replaced. A failed attempt is recorded so the",
+                    "app's AutoUpdate does not retry that version by itself; a successful one clears the record.",
                 },
                 OptManifest, OptReleaseDir, OptComponent, OptNoFinalize, OptDryRun, OptRoot, OptJson),
 

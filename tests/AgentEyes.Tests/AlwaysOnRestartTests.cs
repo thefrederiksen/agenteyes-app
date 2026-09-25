@@ -245,6 +245,50 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void Start_LockedHandover_FailsWithTheFileAndTheFixStep_AndTouchesNothing()
+        {
+            // Issue #86 review, N7: a handover that is THERE but cannot be read (held open by another
+            // process) is ONE clear error path - not a null from Load followed by an unrelated exception
+            // from the move to .bad. The start fails naming the file and the fix, the file stays where it
+            // is (not set aside, not consumed), the loose piece is not deleted, and the engine stays off.
+            var o = Options();
+            Directory.CreateDirectory(o.WorkFolder);
+            File.WriteAllText(o.HandoverFile, "{}");
+            WritePiece(o.PieceFolder, T0.AddMinutes(-3), null);
+            using var engine = Engine();
+
+            using (new FileStream(o.HandoverFile, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => engine.Start(o));
+                Assert.Contains(o.HandoverFile, ex.Message);
+                Assert.Contains("Close whatever holds the file open", ex.Message);
+                Assert.IsAssignableFrom<IOException>(ex.InnerException);
+            }
+
+            Assert.Equal(AlwaysOnState.Off, engine.State);
+            Assert.True(File.Exists(o.HandoverFile), "the unreadable handover must be left in place, not consumed");
+            Assert.False(File.Exists(o.HandoverFile + ".bad"), "a file that could not be read must not be set aside as corrupt");
+            Assert.Single(Directory.GetFiles(o.PieceFolder));                       // nothing deleted
+            var events = _history.Events(null, HistoryFilter.All);
+            Assert.Contains(events, e => e.Text.Contains("could not start") && e.Text.Contains(Path.GetFileName(o.HandoverFile)));
+            Assert.DoesNotContain(events, e => e.Text.StartsWith("DELETE", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public void Start_CorruptHandover_SaysInTheHistoryWhyTheClipWasNotContinued()
+        {
+            var o = Options();
+            Directory.CreateDirectory(o.WorkFolder);
+            File.WriteAllText(o.HandoverFile, "{ this is not a handover");
+
+            using var engine = Engine();
+            engine.Start(o);
+
+            Assert.Contains(_history.Events(null, HistoryFilter.All),
+                e => e.Text.Contains("could not be used") && e.Text.Contains("set aside") && e.Text.Contains("not continued"));
+        }
+
+        [Fact]
         public void Start_CorruptHandover_IsSetAsideAndTheStartRecoversAsFromACrash()
         {
             var o = Options();

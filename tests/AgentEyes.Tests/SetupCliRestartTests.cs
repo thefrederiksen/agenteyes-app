@@ -131,6 +131,90 @@ namespace AgentEyes.Tests
             Assert.Equal(before, File.ReadAllBytes(exe));
             Assert.False(File.Exists(InstallSwapper.BackupPathFor(exe)));
             Assert.Empty(_launcher.Launches);
+            // Review B1c: the failed attempt is on record for the app, with where it failed.
+            var marker = UpdateAttemptMarker.Read(_layout)!;
+            Assert.Equal("9.9.9", marker.TargetVersion);
+            Assert.Equal("stop", marker.Stage);
+            Assert.Contains("could not be stopped", marker.Reason);
+            Assert.Equal("cli", marker.By);
+        }
+
+        [Fact]
+        public async Task Update_DownloadFailsVerification_AppRunning_NeverStopsIt_TouchesNoFile_ExitsOne_AndRecordsTheAttempt()
+        {
+            // Review B1a: the download and its SHA-256 check happen BEFORE the running app is stopped.
+            // A bad release leaves the app running, the old build byte-for-byte intact, starts nothing,
+            // fails with the reason - and records the attempt so the app does not retry it by itself.
+            string exe = _layout.PathFor(ComponentRegistry.App);
+            Directory.CreateDirectory(Path.GetDirectoryName(exe)!);
+            File.WriteAllText(exe, "old build 1.11.2");
+            var installed = InstalledManifest.Load(_layout);
+            installed.Set(ComponentRegistry.App.Id, "1.11.2");
+            installed.Save(_layout);
+            var before = File.ReadAllBytes(exe);
+            WriteReleaseWithBadHash("9.9.9", "app build 9.9.9");
+            _app.Instance = new RunningAppInstance(13680, exe, new[] { "--tray" });
+            _app.StopSucceeds = true;
+
+            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+
+            Assert.Equal(1, exit);
+            Assert.Contains("ERROR: app could not be downloaded and verified (SHA-256 mismatch", stderr);
+            Assert.Contains("the running AgentEyes was not stopped", stderr);
+            Assert.DoesNotContain("Update complete", stdout);
+            Assert.Equal(1, _app.FindCalls);
+            Assert.Equal(0, _app.StopCalls);                                    // never stopped
+            Assert.Empty(_launcher.Launches);                                    // never started
+            Assert.Equal(before, File.ReadAllBytes(exe));                        // never touched
+            Assert.False(File.Exists(InstallSwapper.BackupPathFor(exe)));
+            var marker = UpdateAttemptMarker.Read(_layout)!;
+            Assert.Equal("9.9.9", marker.TargetVersion);
+            Assert.Equal("download", marker.Stage);
+            Assert.Contains("SHA-256 mismatch", marker.Reason);
+        }
+
+        [Fact]
+        public async Task Update_Succeeds_ClearsTheFailedAttemptRecord()
+        {
+            UpdateAttemptMarker.WriteFailed(_layout, "9.9.9", UpdateAttemptMarker.StageDownload, "an earlier try", "cli");
+            _app.Instance = null;
+
+            var (exit, _, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+
+            Assert.Equal(0, exit);
+            Assert.Null(UpdateAttemptMarker.Read(_layout));
+            Assert.False(File.Exists(_layout.UpdateAttemptMarkerPath));
+        }
+
+        [Fact]
+        public async Task Update_StoppedProcessRanFromElsewhere_StartsTheInstalledExe_AndPrintsTheNote()
+        {
+            // Review N2: a dev build running from a bin folder is stopped; the INSTALLED app is what is
+            // started, and the output says the two differ.
+            const string devExe = @"D:\dev\AgentEyes\bin\x64\Release\AgentEyesApp.exe";
+            _app.Instance = new RunningAppInstance(13680, devExe, new[] { "--tray" });
+            _app.StopSucceeds = true;
+            _launcher.NewPid = 22104;
+
+            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+
+            Assert.Equal(0, exit);
+            Assert.Contains("restarted the running app (pid 13680 -> pid 22104)", stdout);
+            Assert.Contains("note: the stopped process (pid 13680) was running from " + devExe, stdout);
+            Assert.Contains(_layout.PathFor(ComponentRegistry.App), stdout);
+            Assert.Equal(_layout.PathFor(ComponentRegistry.App), Assert.Single(_launcher.Launches).Exe);
+        }
+
+        [Fact]
+        public async Task Update_StoppedProcessRanFromTheInstalledExe_PrintsNoNote()
+        {
+            _app.Instance = new RunningAppInstance(13680, _layout.PathFor(ComponentRegistry.App), new[] { "--tray" });
+            _app.StopSucceeds = true;
+
+            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+
+            Assert.Equal(0, exit);
+            Assert.DoesNotContain("note: the stopped process", stdout);
         }
 
         [Fact]
@@ -223,6 +307,21 @@ namespace AgentEyes.Tests
                   "version": "{{version}}",
                   "assets": {
                     "{{ComponentRegistry.App.Asset}}": { "version": "{{version}}", "sha256": "{{sha}}" }
+                  }
+                }
+                """);
+        }
+
+        /// <summary>The same release with a manifest hash that cannot match: the download must be rejected.</summary>
+        private void WriteReleaseWithBadHash(string version, string appContent)
+        {
+            string asset = Path.Combine(_releaseDir, ComponentRegistry.App.Asset);
+            File.WriteAllText(asset, appContent);
+            File.WriteAllText(Path.Combine(_releaseDir, "release-manifest.json"), $$"""
+                {
+                  "version": "{{version}}",
+                  "assets": {
+                    "{{ComponentRegistry.App.Asset}}": { "version": "{{version}}", "sha256": "DEADBEEF" }
                   }
                 }
                 """);

@@ -15,9 +15,9 @@ namespace AgentEyes.AlwaysOn
     /// Once an update restarts the app on purpose, every update would do that.
     ///
     /// The file lives in the work folder beside the pieces and is CONSUMED by the start that reads it:
-    /// loaded, restored, deleted - so a later start never replays a stale handover. A file that cannot
-    /// be read is logged and ignored (the start then recovers as from a crash); the recording never
-    /// waits on it.
+    /// loaded, restored, deleted - so a later start never replays a stale handover. A file that reads
+    /// but is not a handover is set aside as .bad and said (the start then recovers as from a crash);
+    /// a file that cannot be read at all fails the start with the file and the fix (issue #86 review, N7).
     /// </summary>
     internal sealed class AlwaysOnHandover
     {
@@ -42,24 +42,42 @@ namespace AgentEyes.AlwaysOn
         /// <summary>The seconds the sound log knew that anything still undecided could reach.</summary>
         public SoundLogState Sound { get; set; } = new(Array.Empty<long>(), Array.Empty<long>(), null);
 
-        /// <summary>Read the handover at <paramref name="path"/>: null when there is none, or when the file
-        /// cannot be read (logged as a warning - the start then recovers as from a crash).</summary>
+        /// <summary>
+        /// Read the handover at <paramref name="path"/>: null when there is none. There is no "could not
+        /// read it, so none" (issue #86 review, N7): a file that is there but cannot be READ - locked by
+        /// another process, no access - throws <see cref="InvalidOperationException"/> naming the file and
+        /// the fix, because a start that shrugged it off would then trip over the same file a line later,
+        /// or leave it to be replayed by the next start; a file that reads but does not hold a handover
+        /// throws <see cref="InvalidDataException"/>, which the caller sets aside deliberately (.bad) and
+        /// says so.
+        /// </summary>
         public static AlwaysOnHandover? Load(string path)
         {
             if (!File.Exists(path)) return null;
+            string text;
             try
             {
-                var h = JsonSerializer.Deserialize<AlwaysOnHandover>(File.ReadAllText(path));
+                text = File.ReadAllText(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log.Error($"[AlwaysOnHandover] Load: {path} cannot be read", ex);
+                throw new InvalidOperationException(
+                    $"always-on cannot start: the handover left by the last planned stop, {path}, cannot be read ({ex.Message}). "
+                    + "Close whatever holds the file open - or delete it to recover the pieces as from a crash - and switch always-on on again.", ex);
+            }
+            try
+            {
+                var h = JsonSerializer.Deserialize<AlwaysOnHandover>(text);
                 if (h == null) throw new JsonException("the file holds no handover");
                 h.Sound ??= new SoundLogState(Array.Empty<long>(), Array.Empty<long>(), null);
                 Log.Info($"[AlwaysOnHandover] Load: {path} -> stopped {h.StoppedUtc.ToLocalTime():HH:mm:ss} ({h.Why}), "
                          + $"open clip {(h.Open == null ? "none" : Path.GetFileName(h.Open.Dir))}, {h.Sound.SoundSeconds.Length}s of sound");
                 return h;
             }
-            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+            catch (JsonException ex)
             {
-                Log.Warn($"[AlwaysOnHandover] Load: {path} could not be read ({ex.Message}); the start recovers as from a crash");
-                return null;
+                throw new InvalidDataException($"{path} does not hold a handover ({ex.Message})", ex);
             }
         }
 
