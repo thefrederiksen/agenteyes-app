@@ -4,7 +4,7 @@
 
 Verdict: **FAIL - 11 of 12 acceptance criteria verified, AC7 FAILED.**
 
-- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` repo named in the skill
+- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill
   files is ARCHIVED)
 - Issue: #33  -  PR: #34  -  Branch: `issue-33-hud-live-preview` at `178cf2a`
 - Base: `issue-28-camera-failure-boundaries` at `0558585`; the whole feature is one commit on top of it

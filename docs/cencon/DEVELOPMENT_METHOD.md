@@ -2,7 +2,7 @@
 
 **Schema:** CenCon Method v1.0 (Development Governance)
 **Status:** DRAFT v0.1
-**Last Updated:** 2026-08-12
+**Last Updated:** 2026-09-24
 **Owner:** Support Agent (maintains this document)
 **Adapted from:** cc-director `docs/cencon/DEVELOPMENT_METHOD.md` (same method, same GitHub-Issues tracker, .NET desktop stack)
 
@@ -27,8 +27,9 @@ directly; they hand work down the line by changing one `flow:*` label on a GitHu
 
 ## 2. The Hard Gate
 
-Every code change traces back to exactly one **GitHub issue** (in `thefrederiksen/AgentEyes`)
+Every code change traces back to exactly one **GitHub issue** (in `thefrederiksen/agenteyes-app`)
 that has passed the **Definition of Ready** (Section 5). There are no exceptions for "small" changes.
+The predecessor repo `thefrederiksen/AgentEyes` is retired - no issue is created, moved, or read there.
 
 Rationale:
 
@@ -184,7 +185,7 @@ Label vocabulary (single source of truth - these labels exist in the repo):
 Only one `flow:*` label is present at a time. Changing the label IS the handoff:
 
 ```bash
-gh issue edit <N> --repo thefrederiksen/AgentEyes --add-label flow:ready-qa --remove-label flow:ready-dev
+gh issue edit <N> --repo thefrederiksen/agenteyes-app --add-label flow:ready-qa --remove-label flow:ready-dev
 ```
 
 DECIDED (D1): the `flow:*` labels are authoritative. GitHub's open/closed state is cosmetic and is

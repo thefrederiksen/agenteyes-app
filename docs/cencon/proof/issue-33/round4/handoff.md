@@ -2,7 +2,7 @@
 
 **[Tray] Live preview in the recording HUD - screen, camera, or both with a corner overlay**
 
-- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill files is ARCHIVED)
 - Issue #33 - PR #34 - branch `issue-33-hud-live-preview`
 - Round-3 tip QA failed: `849ac58`; QA's report: `docs/cencon/proof/issue-33/qa-round3/qa-report.md`
 - Gate: `dotnet build AgentEyes.sln -c Release` clean, `dotnet test AgentEyes.sln -c Release`

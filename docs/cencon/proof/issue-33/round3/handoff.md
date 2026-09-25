@@ -2,7 +2,7 @@
 
 **[Tray] Live preview in the recording HUD - screen, camera, or both with a corner overlay**
 
-- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill files is ARCHIVED)
 - Issue #33 - PR #34 - branch `issue-33-hud-live-preview`
 - Fixes QA round 2's FAIL: `docs/cencon/proof/issue-33/qa-round2/qa-report.md`
 - Rounds 1 and 2 are still on the branch (`handoff.md`, `handoff-round2.md`); this note supersedes

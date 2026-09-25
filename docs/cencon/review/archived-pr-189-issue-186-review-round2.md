@@ -1,4 +1,4 @@
-<!-- Carried from the archived private repo thefrederiksen/AgentEyes, where it was written
+<!-- Carried from the archived private predecessor repo (retired - see docs/cencon/DEVELOPMENT_METHOD.md Section 2), where it was written
      against PR #189 (issue #186) and never committed before that repo was archived.
      Preserved here because its findings shaped how the consolidation was executed:
      notably that pushing a branch and a tag together can leave the tag accepted while

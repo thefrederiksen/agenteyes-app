@@ -7,7 +7,7 @@ defects from `docs/cencon/review/pr34-issue33-gate-round1.md` are closed - each 
 against a KNOWN-BAD build that reproduces the defect, so every check in this report has been shown
 to fire.**
 
-- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill files is ARCHIVED)
 - Issue: #33 - **PR #39** (PR #34 was auto-closed when issue #28's branch was deleted by its merge)
 - Branch `issue-33-hud-live-preview` at `e2bdd60`, **rebased onto `main` `e57d828`**
 - Gate verdict answered: `docs/cencon/review/pr34-issue33-gate-round1.md` (REJECT, three blocking defects)

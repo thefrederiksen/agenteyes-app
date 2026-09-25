@@ -2,7 +2,7 @@
 
 **[Tray] Live preview in the recording HUD - screen, camera, or both with a corner overlay**
 
-- Repository: `thefrederiksen/agenteyes-app` (the `thefrederiksen/AgentEyes` named in the skill files
+- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill files
   is ARCHIVED and read-only)
 - Issue: #33  -  PR: #34  -  Branch: `issue-33-hud-live-preview`
 - Round 1 QA verdict: FAIL, 11 of 12 criteria verified, **AC7's persistence half unmet**

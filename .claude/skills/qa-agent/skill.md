@@ -11,7 +11,7 @@ gate before an issue is done.
 **Read the contract first:** `docs/cencon/DEVELOPMENT_METHOD.md`. This skill implements the QA Agent
 role defined there. That document wins on any disagreement.
 
-Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+Tracker: **GitHub Issues** in `thefrederiksen/agenteyes-app` (via `gh`). State is carried by `flow:*`
 labels.
 
 ## The four laws (never violated)
@@ -46,7 +46,7 @@ This skill is a loop, not a one-shot. One pass = one issue.
 
 Find the oldest `flow:ready-qa` issue:
 ```bash
-gh issue list --repo thefrederiksen/AgentEyes --label flow:ready-qa --state open \
+gh issue list --repo thefrederiksen/agenteyes-app --label flow:ready-qa --state open \
   --json number,title,updatedAt --jq 'sort_by(.updatedAt) | .[0]'
 ```
 If none, report "QA queue empty" and stop. Otherwise take that one.
@@ -54,7 +54,7 @@ If none, report "QA queue empty" and stop. Otherwise take that one.
 ### Step 1: Read the contract and the claim
 
 ```bash
-gh issue view <ID> --repo thefrederiksen/AgentEyes --json number,title,body,labels,comments
+gh issue view <ID> --repo thefrederiksen/agenteyes-app --json number,title,body,labels,comments
 ```
 Extract: the acceptance criteria (the contract you verify against), the affected projects, the
 proof target, the linked PR, and the Developer Agent's "How to Test" and proof (context, NOT proof).
@@ -94,11 +94,11 @@ Only if EVERY acceptance criterion is PASS and the method checks pass:
 3. Post a comment linking the proof repo-relative, then label `flow:done`, close the issue, and
    **merge the PR to `main`** (squash + delete branch) - the QA pass is the merge authorization (D5):
 ```bash
-gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat qa-summary.md)"
-gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:done --remove-label flow:ready-qa
-gh issue close <ID> --repo thefrederiksen/AgentEyes
-gh pr ready <PR> --repo thefrederiksen/AgentEyes   # if the PR is still draft
-gh pr merge <PR> --repo thefrederiksen/AgentEyes --squash --delete-branch
+gh issue comment <ID> --repo thefrederiksen/agenteyes-app --body "$(cat qa-summary.md)"
+gh issue edit <ID> --repo thefrederiksen/agenteyes-app --add-label flow:done --remove-label flow:ready-qa
+gh issue close <ID> --repo thefrederiksen/agenteyes-app
+gh pr ready <PR> --repo thefrederiksen/agenteyes-app   # if the PR is still draft
+gh pr merge <PR> --repo thefrederiksen/agenteyes-app --squash --delete-branch
 ```
 4. **Delete the LOCAL branch too (mandatory - `--delete-branch` does NOT do this on a squash).**
    `gh pr merge --squash --delete-branch` force-deletes the REMOTE branch, but for the local branch
@@ -127,8 +127,8 @@ If ANY criterion fails or a regression/method violation is found:
 2. Commit the failure screenshot(s) under `docs/cencon/proof/issue-<n>/` and reference them.
 3. Comment, then label `flow:qa-failed`:
 ```bash
-gh issue comment <ID> --repo thefrederiksen/AgentEyes --body "$(cat defect.md)"
-gh issue edit <ID> --repo thefrederiksen/AgentEyes --add-label flow:qa-failed --remove-label flow:ready-qa
+gh issue comment <ID> --repo thefrederiksen/agenteyes-app --body "$(cat defect.md)"
+gh issue edit <ID> --repo thefrederiksen/agenteyes-app --add-label flow:qa-failed --remove-label flow:ready-qa
 ```
 The Developer Agent owns it now. Do not fix the code yourself - QA reports defects, it does not
 implement (the adversarial separation is the point).
@@ -166,7 +166,7 @@ between items. (Mechanism is OPEN DECISION D2 in DEVELOPMENT_METHOD.md.)
 
 ---
 
-**Skill Version:** 0.2 (DRAFT - third of the four CenCon agents, AgentEyes)
+**Skill Version:** 0.3 (DRAFT - third of the four CenCon agents, AgentEyes)
 **Implements:** QA Agent role in docs/cencon/DEVELOPMENT_METHOD.md
 **Builds on:** Control API + gui-smoke/api-smoke patterns (proof), `/code-review` (method lens)
 **Created:** 2026-06-09
@@ -175,3 +175,4 @@ between items. (Mechanism is OPEN DECISION D2 in DEVELOPMENT_METHOD.md.)
 `gh pr merge --delete-branch` only force-deletes the REMOTE branch; on a squash the local tip is not
 an ancestor of the squashed commit so the safe delete is refused, leaving the branch in the shared
 working tree. Found after the #75 run left issue-75-python-client behind for manual cleanup.
+**Changes in 0.3:** Tracker is `thefrederiksen/agenteyes-app` - every `gh` command targets `--repo thefrederiksen/agenteyes-app`; the predecessor repo is retired (#85).

@@ -18,7 +18,7 @@ This repository is governed by the **CenCon Development Method**. Read the contr
 > **No code is written without a clearly-defined GitHub issue that passed the Definition of Ready.**
 
 Four single-purpose agents carry work down a `flow:*` label state machine on GitHub issues
-(`thefrederiksen/AgentEyes`):
+(`thefrederiksen/agenteyes-app`):
 
 | Label | Stage | Owning agent | Skill |
 |-------|-------|--------------|-------|

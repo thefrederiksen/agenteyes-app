@@ -12,7 +12,7 @@ three agents are doing.
 **Read the contract:** `docs/cencon/DEVELOPMENT_METHOD.md`. This skill implements the Support Agent
 role defined there. That document wins on any disagreement.
 
-Tracker: **GitHub Issues** in `thefrederiksen/AgentEyes` (via `gh`). State is carried by `flow:*`
+Tracker: **GitHub Issues** in `thefrederiksen/agenteyes-app` (via `gh`). State is carried by `flow:*`
 labels.
 
 ## What you are for
@@ -51,7 +51,7 @@ Read-only queries only:
 
 ```bash
 # Everything currently in flight, with its flow label
-gh issue list --repo thefrederiksen/AgentEyes --state open \
+gh issue list --repo thefrederiksen/agenteyes-app --state open \
   --json number,title,labels --jq '[.[] | select(.labels[].name | startswith("flow:"))]'
 ```
 
@@ -88,7 +88,8 @@ When the architecture or the method changes:
 
 ---
 
-**Skill Version:** 0.1 (DRAFT - fourth of the four CenCon agents, AgentEyes)
+**Skill Version:** 0.2 (DRAFT - fourth of the four CenCon agents, AgentEyes)
 **Implements:** Support Agent role in docs/cencon/DEVELOPMENT_METHOD.md
 **Builds on:** read-only gh queries for pipeline status; CenCon doc maintenance
 **Created:** 2026-06-09
+**Changes in 0.2:** Tracker is `thefrederiksen/agenteyes-app` - every `gh` command targets `--repo thefrederiksen/agenteyes-app`; the predecessor repo is retired (#85).

@@ -6,7 +6,7 @@ Verdict: **PASS. 12 of 12 acceptance criteria verified, each with running-app ev
 this QA session. The defect class that survived three rounds is closed, and QA attacked it on nine
 routes rather than on the three known instances.**
 
-- Repository: `thefrederiksen/agenteyes-app` (`thefrederiksen/AgentEyes` in the skill files is ARCHIVED)
+- Repository: `thefrederiksen/agenteyes-app` (the predecessor repo then named in the skill files is ARCHIVED)
 - Issue: #33 - PR: #34 - Branch: `issue-33-hud-live-preview` at `4b9cb39`
 - Round-3 tip QA failed: `849ac58` (report: `../qa-round3/qa-report.md`)
 - Verified: 2026-08-29. Displays: DISPLAY3 primary 0,0 1920x1080; DISPLAY1 1920,-5 1920x1080;
