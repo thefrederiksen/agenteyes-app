@@ -77,3 +77,106 @@ Not mutated, stated honestly
 - The app-side guard (UpdateChecker never reaches a file replacer) has its presence arm inside the
   test itself (it must SEE the updater's planner/layout/policy calls, else it fails); it was not
   mutated separately.
+
+
+==============================================================================
+Review fix pass (2026-09-24, after the independent review of PR #92)
+==============================================================================
+
+Five more mutations, one per reviewed defect, each applied to the COMMITTED tree at da82021,
+built with `dotnet build AgentEyes.sln -c Release` (0 Error(s) every time), run with
+`dotnet test AgentEyes.sln -c Release --no-build --filter ...`, quoted, and restored with
+`git checkout -- <file>` (git status empty after every one; `git grep "MUTATION M"` over the
+tree afterwards finds hits only in the older evidence files of issues #28 and #78). Each
+filter includes at least one CONTROL test that must keep passing.
+
+
+M3 - B1a: the reviewed order - stop the app BEFORE the download
+---------------------------------------------------------------
+tools/AgentEyes.Setup.Engine/UpdateRestartCycle.cs, RunAsync: a stop inserted in front of
+`TPrepared prepared = await prepare(ct);`.
+
+Filter: RunAsync_AppRunning_StagesWithItRunning* | RunAsync_PrepareFails* | Update_DownloadFailsVerification*
+        | ApplyAsync_DownloadFailsVerification* | RunAsync_AppNotRunning_StagesAndSwaps* (control)
+
+  Failed UpdateRestartCycleTests.RunAsync_AppRunning_StagesWithItRunning_ThenStopsIt_ThenSwaps_ThenStartsTheInstalledAppWithTheSameArguments
+   Expected: ["find", "stage", "stop 4242", "swap staged", "launch"]
+   Actual:   ["find", "stop 4242", "stage", "stop 4242", "swap staged", ...]
+  Failed UpdateRestartCycleTests.RunAsync_PrepareFails_TheAppIsNeverStopped_NothingIsSwapped_NothingIsStarted
+   Expected: ["find", "stage"]      Actual: ["find", "stop 4242", "stage"]
+  Failed WizardInstallRunnerTests.ApplyAsync_DownloadFailsVerification_TheAppIsNeverStopped_AndTheErrorSaysSo
+   Expected: 0 (stop calls)         Actual: 1
+  Failed SetupCliRestartTests.Update_DownloadFailsVerification_AppRunning_NeverStopsIt_TouchesNoFile_ExitsOne_AndRecordsTheAttempt
+   Expected: 0 (stop calls)         Actual: 1
+  Failed!  - Failed:     4, Passed:     1, Skipped:     0, Total:     5
+
+Reading: with the stop in front of the download, every check that pins "the app is never
+stopped for a download that fails" fires at three levels (the cycle, the CLI's real entry
+point, the wizard's runner); the not-running control passes.
+
+
+M4 - B1c: AutoUpdate hands over again despite the failed-attempt record
+-----------------------------------------------------------------------
+src/AgentEyes.App/UpdateChecker.cs, CheckAsync: the `if (!userInitiated)` block that stops the
+automatic check made unreachable (`!userInitiated && userInitiated`).
+
+Filter: CheckAsync_LastAttemptFailedForTheSameVersion* (2 tests; the manual-check one is the control)
+
+  Failed UpdateHandoverTests.CheckAsync_LastAttemptFailedForTheSameVersion_AutomaticCheckDoesNotHandOverAgain_AndShowsTheReason
+   Assert.Empty() Failure: Collection was not empty          (the setup CLI WAS started again)
+  Failed!  - Failed:     1, Passed:     1, Skipped:     0, Total:     2
+
+Reading: this is the reviewed loop - the relaunched app handing over again for the version
+that just failed. The check sees the handover and fails; the person's own retry still passes.
+
+
+M5 - B1b: no rollback after a failed swap (the mixed-version half state)
+-----------------------------------------------------------------------
+tools/AgentEyes.Setup.Engine/UpdateRunner.cs, Swap: the `RollBack(placed, ...)` call replaced by
+empty lists.
+
+Filter: Swap_SecondItemCannotBePlaced* | Swap_EveryItemPlaced* (control)
+
+  Failed UpdateStageSwapTests.Swap_SecondItemCannotBePlaced_TheFirstIsRolledBack_AndTheFailureSaysSo
+   Expected: ["app"]     Actual: []                            (and the app file stayed on the new build)
+  Failed UpdateStageSwapTests.Swap_SecondItemCannotBePlaced_AFreshlyInstalledFirstItemIsRemovedAgain
+  Failed!  - Failed:     2, Passed:     1, Skipped:     0, Total:     3
+
+
+M6 - N1: the wizard runner catches only the stop failure again
+--------------------------------------------------------------
+tools/AgentEyes.Setup/Services/EngineInstallRunner.cs, ApplyAsync: `catch (Exception ex)` ->
+`catch (Exception ex) when (ex is AppStopFailedException)` (the pre-fix behaviour).
+
+Filter: WizardInstallRunnerTests (4 tests; the cannot-be-stopped and constructor ones are controls)
+
+  Failed WizardInstallRunnerTests.ApplyAsync_FindThrows_IsOneErrorState_NotAHang
+   System.InvalidOperationException : the command line of the running AgentEyes (pid 5) could not be read ...
+  Failed WizardInstallRunnerTests.ApplyAsync_DownloadFailsVerification_TheAppIsNeverStopped_AndTheErrorSaysSo
+   AgentEyes.Setup.Engine.UpdateStageException : app could not be downloaded and verified (SHA-256 mismatch; download rejected) ...
+  Failed!  - Failed:     2, Passed:     2, Skipped:     0, Total:     4
+
+Reading: the exceptions ESCAPE the runner - exactly what left the wizard hanging behind a
+fire-and-forget "Installing...". With the fix they come out as LastError.
+
+
+M7 - N7: an unreadable handover reads as null again
+---------------------------------------------------
+src/AgentEyes.Core/AlwaysOn/AlwaysOnHandover.cs, Load: `return null` in front of the throw for
+a file that cannot be read (the pre-fix behaviour).
+
+Filter: Start_LockedHandover* | Start_CorruptHandover* (2 controls)
+
+  Failed AlwaysOnRestartTests.Start_LockedHandover_FailsWithTheFileAndTheFixStep_AndTouchesNothing
+   Assert.Throws() Failure: No exception was thrown   Expected: typeof(System.InvalidOperationException)
+  Failed!  - Failed:     1, Passed:     2, Skipped:     0, Total:     3
+
+Reading: with the null back, the locked file is read as "no handover" and the start goes on
+(here it happened to get past the move; on the owner's machine the move to .bad is where the
+unrelated IOException came from). The two corrupt-file controls keep passing.
+
+
+Gate on the restored tree after all five: `dotnet build AgentEyes.sln -c Release` -> 0 Error(s);
+`dotnet test AgentEyes.sln -c Release --no-build` -> Passed: 2079, Failed: 0 (see handoff.md,
+section 8).
+

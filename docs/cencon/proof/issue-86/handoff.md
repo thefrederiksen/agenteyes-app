@@ -15,11 +15,13 @@ Files in this folder:
 | File | What it is |
 |------|-----------|
 | `handoff.md` | this note |
-| `mutation-evidence.txt` | the new tests fired at the two known-bad behaviours (M1: carry on replacing after a failed stop; M2: the pre-#86 Recover that ignores the handover), each built with the gate's command, run, quoted, reverted |
+| `mutation-evidence.txt` | the new tests fired at the known-bad behaviours (M1: carry on replacing after a failed stop; M2: the pre-#86 Recover that ignores the handover; M3-M7: the five reviewed defects of PR #92, section 8), each built with the gate's command, run, quoted, reverted |
 
-Gate on the final tree: `dotnet build AgentEyes.sln -c Release` -> `Build succeeded.`, `0 Error(s)`;
-`dotnet test AgentEyes.sln -c Release` -> `Passed! - Failed: 0, Passed: 2041, Skipped: 0, Total: 2041`
-(1984 on `main`, +57 in this change). The four new test classes alone: `Passed: 57, Failed: 0`.
+Gate on the final tree (after the review fix pass, section 8): `dotnet build AgentEyes.sln -c Release` -> `Build succeeded.`, `0 Error(s)`;
+`dotnet test AgentEyes.sln -c Release` -> `Passed! - Failed: 0, Passed: 2079, Skipped: 0, Total: 2079`
+(1984 on `main`, 2041 before the review, +38 in the fix pass). The six issue-86 test classes alone
+(`UpdateRestartCycleTests`, `UpdateStageSwapTests`, `WizardInstallRunnerTests`, `SetupCliRestartTests`,
+`UpdateHandoverTests`, `AlwaysOnRestartTests`): `Passed: 95, Failed: 0`.
 
 ---
 
@@ -162,7 +164,7 @@ the app on purpose, every update would do that.
 
 | Criterion | How the change satisfies it | Test(s) | How QA verifies |
 |-----------|-----------------------------|---------|-----------------|
-| App running -> `update` stops it (graceful then bounded force, existing `RunningApp`), replaces files, relaunches it; output says `restarted the running app (pid A -> pid B)` | `UpdateRestartCycle.RunAsync` order find -> stop -> replace -> launch; `RunningApp.StopAndWait` (quit request + `CloseMainWindow`, then `Kill(entireProcessTree)`, confirmed); `Commands.PrintRun` prints `AppRestartReport.Describe()` | `UpdateRestartCycleTests.RunAsync_AppRunning_StopsIt_ThenReplaces_ThenStartsItAgainWithTheSameArguments` (journal is exactly `find, stop 4242, replace, launch`; `Describe()` is the exact line), `RunAsync_StopSucceeds_TheRealSwapperReplacesTheFile_AndTheAppIsStartedFromTheSamePath`; the CLI's REAL entry point in-process: `SetupCliRestartTests.Update_AppRunning_PrintsRestartedTheRunningAppWithBothPids_AndRelaunchesWithTheSameArguments` (stdout contains `restarted the running app (pid 13680 -> pid 22104)`, the file is the new build, the launcher got the same exe and `--tray`), `Update_AppRunning_JsonCarriesTheRestart`, `Install_AppRunning_TakesTheSamePath_AndPrintsTheSameLine`; the force phase: `StopAndWait_QuitRequestDeliveredButIgnored_StillForceStopsAndConfirms` (a real `cmd /c pause` child) | `dotnet test --filter "FullyQualifiedName~UpdateRestartCycleTests\|FullyQualifiedName~SetupCliRestartTests"`; read `Commands.UpdateAsync` + `UpdateRestartCycle.RunAsync`; M1 in `mutation-evidence.txt` |
+| App running -> `update` stops it (graceful then bounded force, existing `RunningApp`), replaces files, relaunches it; output says `restarted the running app (pid A -> pid B)` | `UpdateRestartCycle.RunAsync` order find -> download+verify -> stop -> swap -> launch (section 8); `RunningApp.StopAndWait` (quit request + `CloseMainWindow`, then `Kill(entireProcessTree)`, confirmed); `Commands.PrintRun` prints `AppRestartReport.Describe()` | `UpdateRestartCycleTests.RunAsync_AppRunning_StopsIt_ThenReplaces_ThenStartsItAgainWithTheSameArguments` (journal is exactly `find, stage, stop 4242, swap staged, launch`; `Describe()` is the exact line), `RunAsync_StopSucceeds_TheRealSwapperReplacesTheFile_AndTheAppIsStartedFromTheSamePath`; the CLI's REAL entry point in-process: `SetupCliRestartTests.Update_AppRunning_PrintsRestartedTheRunningAppWithBothPids_AndRelaunchesWithTheSameArguments` (stdout contains `restarted the running app (pid 13680 -> pid 22104)`, the file is the new build, the launcher got the same exe and `--tray`), `Update_AppRunning_JsonCarriesTheRestart`, `Install_AppRunning_TakesTheSamePath_AndPrintsTheSameLine`; the force phase: `StopAndWait_QuitRequestDeliveredButIgnored_StillForceStopsAndConfirms` (a real `cmd /c pause` child) | `dotnet test --filter "FullyQualifiedName~UpdateRestartCycleTests\|FullyQualifiedName~SetupCliRestartTests"`; read `Commands.UpdateAsync` + `UpdateRestartCycle.RunAsync`; M1 in `mutation-evidence.txt` |
 | Same `--tray` state after the relaunch | the instance's argument list is read from the running process (WMI + `CommandLineToArgvW` + `ToCarryAcrossRestart`) and handed to the launcher verbatim | `Describe_TrayApp_CarriesTheTrayFlagAndDropsTheExePath`, `Describe_WindowedApp_CarriesNoArguments`, `SplitCommandLine_FollowsTheWindowsRules` (3 lines), `RunAsync_EveryArgumentIsCarriedVerbatim_NotJustTheTrayFlag`, `WmiCommandLine_ThisProcess_ReturnsItsOwnCommandLine` (the live WMI read, against the test host itself), `Describe_CommandLineUnreadable_ThrowsNamingThePid_SoNothingIsGuessed` (null / "" / "  " - no fallback) | same filter; live: section 7 step 5 |
 | App not running -> not started | `Find()` null -> replace only, launcher never called; report says so | `RunAsync_AppNotRunning_ReplacesAndStartsNothing`, `SetupCliRestartTests.Update_AppNotRunning_SaysSoAndStartsNothing`; also `Update_DryRun_NeverLooksForTheRunningApp`, `Update_NothingToDo_LeavesTheRunningAppAlone` | same filter |
 | App cannot be stopped -> the update FAILS with a clear error BEFORE any file is replaced; old version intact | `StopAsync` false -> `AppStopFailedException` thrown before `replace` runs; the CLI prints `ERROR: AgentEyes (pid N) is running and could not be stopped. Nothing was replaced - ...` and exits 1 | `RunAsync_AppCannotBeStopped_ThrowsBeforeTheReplaceStep_AndStartsNothing`, `RunAsync_AppCannotBeStopped_TheInstalledFileIsByteForByteUnchanged` (real file + real `InstallSwapper`: bytes equal, no `.old`, staged file untouched), `SetupCliRestartTests.Update_AppCannotBeStopped_FailsWithTheReason_AndTheOldBuildIsUntouched` (exit 1, stderr text, bytes equal, no `.old`, nothing launched) | same filter; M1 shows all three FAIL when the throw is removed |
@@ -219,7 +221,7 @@ so. `docs/installer-spec.md` updated (section 2.6). No `docs/cencon/` file chang
 - Mutation evidence: `mutation-evidence.txt` (M1: 3 fail / 1 control passes; M2: 3 fail / 10 pass).
 - One trap hit and recorded: rebuilding `AgentEyes.Tests.csproj` on its own lands in `bin\Release\`
   (not the solution's `bin\x64\Release\`), so a `dotnet test --no-build` afterwards ran a STALE binary
-  and reported three failures that did not exist. CLAUDE.md warns about exactly this. The stray
+  and reported three failures that did not exist. The project instructions warn about exactly this. The stray
   `bin\Release` was deleted and every gate run here was a full `dotnet build AgentEyes.sln`.
 - Scans over every changed file: zero non-ASCII characters; zero hits for the banned attribution words.
 
@@ -243,6 +245,11 @@ update itself the old way at its next start.
    does not listen), so `%LOCALAPPDATA%\AgentEyes\logs\setup-cli.log` shows
    `[RunningApp] StopAndWait: quit request delivered=False; waiting up to 3s for a clean exit` then
    `force-killing pid=<old>`, then `[UpdateRestartCycle] RunAsync: restarted the running app (pid <old> -> pid <new>)`.
+   If the download or its SHA-256 check FAILS (a bad connection, a bad release): the console says
+   `ERROR: <component> could not be downloaded and verified (...). Nothing was replaced and the running
+   AgentEyes was not stopped`, exit 1, the OLD pid is still running, and
+   `%LOCALAPPDATA%\AgentEyes\config\setup\last-update-attempt.json` exists with `"Stage": "download"`
+   (section 8.3). A successful update REMOVES that file.
 4. `Get-Process AgentEyesApp` -> exactly one process, Id = `<new>`; `curl http://127.0.0.1:7882/version`
    -> the new version. `/health` -> `ok: true`.
 5. Same `--tray` state: the relaunched app shows no window if the old one was started with `--tray`
@@ -268,9 +275,108 @@ update itself the old way at its next start.
    `QuitRequested` and comes back on the new build (steps 3-6 apply). With a recording in progress instead:
    the balloon "AgentEyes update ready" and the tray item "Install update vX now (restarts AgentEyes)";
    stopping the recording (and its post-processing finishing) triggers the handover.
+   The no-loop check (section 8.3): with `last-update-attempt.json` present for the SAME target version
+   (leave a failed one from step 3, or write one by hand: `{"Version":1,"AttemptedUtc":"2026-09-24T20:00:00Z",
+   "TargetVersion":"<vX>","Outcome":"failed","Stage":"download","Reason":"test","By":"cli"}`), start the
+   app: ~4 s later the log says `update: vX is available but the update to vX failed at ... - it is NOT
+   handed over again by itself`, the balloon "AgentEyes update vX needs your attention" shows the reason,
+   the pid does NOT change and `agenteyes-setup` is not started. Tray -> "Check for updates" (the person's
+   own ask) DOES hand over. Delete the file (or publish a newer release) and the automatic path is back.
+9. The keeper at the planned stop (review N5, no code change): a `[AlwaysOnEngine] RunKeeper: ... DELETE
+   piece_...` line AT the stop is the ordinary rule deleting a fully silent piece whose keep window had
+   already passed - the same decision a capture restart makes (#81), never the piece that ends the open
+   clip and never a piece still inside the keep window. It is not `Recover: deleting`, and it is not the
+   defect the tester reported (a piece deleted for want of its sound log).
 
 Reminders for QA: the focus-free layers are REST (`127.0.0.1:7882`), UIA and PrintWindow; never
 force-foreground the app and synthesize input without warning the human; the recording HUD is
 capture-excluded, so HUD/recording state is asserted via UIA or `/status`, not a screen grab. The
 update itself is audible-free but it DOES stop and restart the running app - run it when the owner is
 not recording.
+
+---
+
+## 8. Review fix pass (2026-09-24 - the independent review of PR #92)
+
+Code commit `da82021` on the PR branch (this note and the M3-M7 evidence follow in the next commit).
+Gate on the final tree: `dotnet build AgentEyes.sln -c Release` -> `0 Error(s)`;
+`dotnet test AgentEyes.sln -c Release` -> `Passed: 2079, Failed: 0` (2041 before the fix pass, +38);
+the six issue-86 classes -> `Passed: 95, Failed: 0`. Mutation evidence M3-M7 in `mutation-evidence.txt`
+(each mutation fired the checks meant for it, with a passing control; every file restored with
+`git checkout --`, `git status` clean after each). Still no binary run by the developer.
+
+### 8.1 Findings -> what changed
+
+| Finding | What changed | Test(s) |
+|---------|--------------|---------|
+| **B1a** download + verify ran AFTER the stop; a failure relaunched the old build and the app re-handed over 4 s later - a stop -> fail -> relaunch loop | `UpdateRunner` is two steps: `StageAsync(plan)` downloads and SHA-256 verifies EVERY actionable item with the app still running and throws `UpdateStageException` (component, reason; the message says "Nothing was replaced and the running AgentEyes was not stopped") on the first failure after deleting what it staged; `Swap(staged)` places them. `UpdateRestartCycle.RunAsync(prepare, swap)` runs **find -> prepare -> stop -> swap -> relaunch**; a prepare failure propagates before any stop. `ApplyAsync` = stage then swap, for the Orchestrator's offline test. A rejected download is now a thrown failure, not a per-component `Failed` row (`SetupEngineTests.Runner_RejectsSha256Mismatch` updated). The Inno takeover plan is built BEFORE the wipe (every shipped component as Install) so it can be staged first | `UpdateRestartCycleTests.RunAsync_AppRunning_StagesWithItRunning_ThenStopsIt_ThenSwaps_...` (journal `find, stage, stop 4242, swap staged, launch`), `RunAsync_PrepareFails_TheAppIsNeverStopped_NothingIsSwapped_NothingIsStarted`, `RunAsync_AppCannotBeStopped_ThePreparedStagingIsDisposed`, `UpdateStageSwapTests.StageAsync_*` (4), `SetupCliRestartTests.Update_DownloadFailsVerification_AppRunning_NeverStopsIt_TouchesNoFile_ExitsOne_AndRecordsTheAttempt` (real entry point: exit 1, 0 stop calls, bytes equal, marker `download`), `WizardInstallRunnerTests.ApplyAsync_DownloadFailsVerification_TheAppIsNeverStopped_AndTheErrorSaysSo`; M3 |
+| **B1b** a swap failure after the stop left a mixed-version install | **Rollback, all or nothing** (the preferred option): `Swap` records every placed file (`ArchiveInstaller.Place` now returns the files it placed with their `.old` backups) and, when one item fails, undoes them in reverse - `.old` restored, a fresh file removed - then throws `UpdateSwapException` (component, reason, `RolledBack`, `RollbackFailures`, `InstallIsMixed`). Installed versions are recorded only when everything is in place. When a rollback itself fails the message names the exact mixed state and the fix (`agenteyes-setup install` = repair, or `<file>.old` over `<file>` by hand) | `UpdateStageSwapTests.Swap_SecondItemCannotBePlaced_TheFirstIsRolledBack_AndTheFailureSaysSo`, `..._AFreshlyInstalledFirstItemIsRemovedAgain`, `Swap_ArchiveComponent_ReportsEveryFileItPlaced_...`, `SwapException_RollbackFailed_NamesTheMixedStateAndTheFix` (pure message - the limit is stated in the test), `Swap_EveryItemPlaced_RecordsTheVersions_...`; M5 |
+| **B1c** no marker, no back-off, the app never learns the outcome | `UpdateAttemptMarker` (engine, section 8.3). The CLI writes it on ANY failure of the cycle (`UpdateAttemptMarker.StageOf(ex)` -> `download` / `stop` / `swap` / `relaunch` / `unknown`) and clears it on success; the wizard does the same. `UpdateChecker.CheckAsync` reads it: up to date -> a stale record is cleared; a record for a DIFFERENT target -> cleared, hand over; a record for the SAME target -> the automatic check logs `... it is NOT handed over again by itself` and shows the balloon "AgentEyes update vX needs your attention" with stage + reason (the tray balloon is where the update state is already shown), and returns; the person's own "Check for updates" tries again. An unreadable record throws with the path and the fix - never read as "no failure" | `UpdateHandoverTests.CheckAsync_LastAttemptFailedForTheSameVersion_AutomaticCheckDoesNotHandOverAgain_AndShowsTheReason`, `..._ThePersonsOwnCheckTriesAgain`, `CheckAsync_LastAttemptFailedForAnOlderVersion_ANewTargetClearsTheBlock_AndHandsOver`, `CheckAsync_UpToDate_ClearsAStaleFailedAttempt_...`, `CheckAsync_UnreadableAttemptRecord_Throws_...`; `SetupCliRestartTests.Update_Succeeds_ClearsTheFailedAttemptRecord`, the marker asserts in `Update_AppCannotBeStopped_...` (stage `stop`) and `Update_DownloadFailsVerification_...` (stage `download`); `UpdateStageSwapTests.Marker_*` (5); M4 |
+| **N1** wizard hangs at "Installing..." when `Find()` throws | `EngineInstallRunner.ApplyAsync` catches every exception of the cycle at the wizard's service boundary: `LastError` set, the pending items marked `Skipped` ("Could not stop the running AgentEyes" / "Not installed - see the error"), the attempt recorded, `OnStatus("ERROR: ...")`, returns (0, all). `MainWindow.RunEngineApplyAsync` shows `ERROR: <LastError>` with a **Retry** button (`ShowApplyError`); `RunInstallAsync` / `RunRepairAsync` are wrapped the same way so no fire-and-forget exception is ever unobserved. Seams: `EngineInstallRunner(layout, source, app, launcher)` and `Prepare(release)`; the test project now references the wizard project (the WPF app is never started). The status line also says when the download runs with the app still running and when the stop begins (`StatusReportingHandle`) | `WizardInstallRunnerTests.ApplyAsync_FindThrows_IsOneErrorState_NotAHang`, `ApplyAsync_AppCannotBeStopped_IsTheSameErrorState_AndNothingIsReplaced`, `ApplyAsync_DownloadFailsVerification_...`; M6. Only failure paths run in tests - the success path would write the real Start Menu shortcut / Run key / ARP entry |
+| **N2** relaunch used the stopped process's `MainModule` path | `UpdateRestartCycle(app, launcher, installedAppExe)`; `Relaunch` always starts `layout.PathFor(ComponentRegistry.App)` with the stopped instance's arguments. `AppRestartReport` gains `StartedExe`, `StoppedExeDiffers` and `Note`; the CLI prints the note as a second line after `restarted the running app (pid A -> pid B)` (`note: the stopped process (pid A) was running from <exe>, not from the installed <exe>; the installed build was started. If that other build is started again it will not report this update's version.`) and the JSON `restart` object gains `stoppedExe`, `startedExe`, `note` | `UpdateRestartCycleTests.RunAsync_StoppedProcessRanFromElsewhere_TheInstalledAppIsStarted_AndTheReportSaysSo`, `RunAsync_StoppedProcessRanFromTheInstalledExe_InAnotherCasing_NoNote`, `SetupCliRestartTests.Update_StoppedProcessRanFromElsewhere_StartsTheInstalledExe_AndPrintsTheNote`, `Update_StoppedProcessRanFromTheInstalledExe_PrintsNoNote` |
+| **N4** a relaunch that throws masked the swap exception | `Relaunch` wraps a launcher failure in `AppRelaunchFailedException(exe, inner)` ("Start it by hand"); in the swap-failed catch a relaunch failure becomes `AggregateException(swapEx, relaunchEx)` whose message names both. `StageOf` maps it to `relaunch` | `RunAsync_SwapStepThrows_AndTheRelaunchFailsToo_BothFailuresTravel`, `RunAsync_LaunchThrows_TheFailureNamesTheExeToStartByHand_AfterTheSwapStepRan`, `Marker_StageOf_MapsEachCycleFailure` |
+| **N5** the ordinary keeper pass at `StopForRestart` may delete a silent piece | No code change (the reviewer agrees it is correct). Stated for the tester in section 7 step 9: the planned stop runs the SAME pass a capture restart runs, so a piece whose keep window has fully passed with no sound in it is deleted by the rule at the stop, exactly as it would have been a minute later - never the piece that ends the open clip, never a piece still inside the keep window, and never FOR WANT OF ITS SOUND LOG (the reported defect) | `StopForRestart_NoClipOpen_LoosePiecesWaitForTheKeeper_AndAreJudgedByTheRuleNotByRecover` (unchanged) |
+| **N6** no test of the defer / InstallNow arm through `UpdateChecker` | `UpdateChecker` seams: `FetchLatest`, `Layout`, `Dispatch`, `CheckAsync(userInitiated)` (the real check without the 4 s delay), `DeferredVersion`, `ResetForTests`. The tests run the whole decision against a local release dir and a temp root | `UpdateHandoverTests.CheckAsync_UpdateAvailable_SessionActive_DefersWithTheBalloon_ThenInstallNowHandsOver`, `CheckAsync_UpdateAvailable_SessionActive_ThenTheSessionEnds_HandsOver`, `CheckAsync_UpdateAvailable_NoSession_HandsOverToTheSetupCliAtOnce` |
+| **N7** a locked `handover.json`: `Load` returned null, then the move to `.bad` threw | `AlwaysOnHandover.Load` distinguishes: absent -> null; cannot be READ (IO / access) -> `InvalidOperationException` "always-on cannot start: the handover left by the last planned stop, <path>, cannot be read (<reason>). Close whatever holds the file open - or delete it to recover the pieces as from a crash - and switch always-on on again." (logged; `Start` records it in the history and rethrows - the deliberate no-fallback path: the file stays, nothing is consumed or deleted, the engine stays off); reads but is not a handover -> `InvalidDataException`, which `Recover` handles deliberately: warning in the log AND a Problem event in the history ("could not be used ... set aside ... the clip in progress was not continued"), file moved to `.bad`, crash recovery. The IL inventory (`ManifestWriterIlTests`) is unchanged: `Recover` still `Delete x2`, `Move x1` | `AlwaysOnRestartTests.Start_LockedHandover_FailsWithTheFileAndTheFixStep_AndTouchesNothing` (a real `FileShare.None` lock), `Start_CorruptHandover_SaysInTheHistoryWhyTheClipWasNotContinued`, `Start_CorruptHandover_IsSetAsideAndTheStartRecoversAsFromACrash` (unchanged); M7 |
+| **N3** (accepted, no change) the relaunched app inherits the CLI's token - an elevated update leaves an elevated app | Noted in the PR. The setup is per-user and never asks for elevation; an operator who runs `agenteyes-setup update` from an elevated prompt gets an elevated app until the next normal start | - |
+| **N8** (accepted, no change) the live proof is the tester's by the owner's rule for this run | Section 7 (updated for the marker and N5) | - |
+
+### 8.2 The step order, in one place
+
+`UpdateRestartCycle.RunAsync(prepare, swap)`:
+
+1. `IRunningAppHandle.Find()` - an unreadable command line throws HERE, before anything is downloaded.
+2. `prepare(ct)` = `UpdateRunner.StageAsync(plan)` - download + SHA-256 verify EVERY component into temp
+   staging files, with the app still running. Any failure -> `UpdateStageException`, staged files
+   deleted, nothing installed touched, nothing stopped, nothing started.
+3. If running: `StopAsync` (quit request, then `CloseMainWindow`, then the bounded force stop, confirmed).
+   Not stopped -> `AppStopFailedException`; the staging is disposed.
+4. `swap(staged, ct)` = (Inno takeover if due) + `UpdateRunner.Swap(staged)` - all or nothing with rollback.
+5. If the app was running: start the INSTALLED exe with the stopped instance's arguments. A swap failure
+   still relaunches (the old build, after the rollback) and propagates; a relaunch failure on top travels
+   as an `AggregateException`.
+
+The CLI records the outcome (8.3) around the whole cycle: any exception -> `WriteFailed`, `ERROR:` on
+stderr, exit 1; success -> `Clear`. The wizard does the same in `EngineInstallRunner.ApplyAsync`.
+
+### 8.3 The update attempt marker
+
+Location: `<install root>\config\setup\last-update-attempt.json` (`InstallLayout.UpdateAttemptMarkerPath`,
+i.e. `%LOCALAPPDATA%\AgentEyes\config\setup\last-update-attempt.json` for the default root; the test roots
+use `--root`). Written atomically (`.tmp` then rename). EXISTS ONLY AFTER A FAILURE; a successful update
+deletes it.
+
+```json
+{
+  "Version": 1,
+  "AttemptedUtc": "2026-09-24T20:14:03.1234567Z",
+  "TargetVersion": "1.11.5",
+  "Outcome": "failed",
+  "Stage": "download",
+  "Reason": "app could not be downloaded and verified (SHA-256 mismatch; download rejected). Nothing was replaced and the running AgentEyes was not stopped - ...",
+  "By": "cli"
+}
+```
+
+`Stage` is one of `download` (UpdateStageException), `stop` (AppStopFailedException), `swap`
+(UpdateSwapException), `relaunch` (AppRelaunchFailedException, also inside an AggregateException),
+`unknown` (anything else, e.g. the unreadable command line). `By` is `cli` or `wizard`.
+
+Who reads it: `UpdateChecker.CheckAsync` at every check. Same `TargetVersion` as the latest release and
+an automatic check -> no handover, log + balloon; a manual check -> hands over (and the CLI overwrites
+or clears the record). Different `TargetVersion` -> the record is cleared and the update proceeds.
+Nothing behind (the swap succeeded, only the relaunch failed and the person started the app by hand)
+-> the record is cleared. A record that cannot be read -> `InvalidDataException` naming the file and
+the fix (delete it, or run `agenteyes-setup update` by hand).
+
+### 8.4 Notes for QA
+
+- The wizard runner tests write one setup log file per test class run under
+  `%LOCALAPPDATA%\AgentEyes\logs\setup\` (`SetupLog` has no root override); nothing else outside the
+  temp roots is touched, and no test runs the success path of the wizard (it would finalize for real).
+- `ArchiveInstaller.Place` changed its return type (void -> the placed files); the only caller is
+  `UpdateRunner.Swap`.
+- `UpdateRunResult.Failed` / `ApplyStatus.Failed` remain in the model for the JSON shape but are no
+  longer produced: a failure is thrown, not tabulated.
+- The CLI's JSON on failure is `{ "failed": "<message>", "stage": "<stage>" }` (stage is new).
+- Scans over every changed file: zero non-ASCII bytes; zero hits for the banned attribution words.
