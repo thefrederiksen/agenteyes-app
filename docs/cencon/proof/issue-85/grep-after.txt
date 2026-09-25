@@ -1,0 +1,5 @@
+# AFTER - issue #85 - acceptance grep on branch issue-85-tracker-name, proof directory present
+# Command: grep -rn "thefrederiksen/Agent[E]yes\b" CLAUDE.md .claude docs/cencon
+# Total matches: 1 (expected exactly 1: the retired-repo sentence). Same [RETIRED] marker and Agent[E]yes
+# spelling as grep-before.txt; re-run the command above for the raw output.
+docs/cencon/DEVELOPMENT_METHOD.md:32:The predecessor repo `thefrederiksen/[RETIRED]AgentEyes` is retired - no issue is created, moved, or read there.
