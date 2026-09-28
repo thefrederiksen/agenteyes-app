@@ -43,8 +43,6 @@ namespace AgentEyes.App
         private MonitorHighlight? _highlight;
         private CapturePreset? _selectedPreset;   // active preset (issue #21: dropdown, not a list)
 
-        private const long LowCreditWarningThresholdMicros = 1_000_000;
-
         internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair,
             AlwaysOnController? alwaysOn = null)
         {
@@ -113,11 +111,11 @@ namespace AgentEyes.App
                 LoadRecent();
                 UpdateLibraryTotal();   // a repaired recording may have brought its AI cost with it
             });
-            _repair.CreditsExhausted = () => Dispatcher.BeginInvoke(ShowDevThrottleCreditsWarning);
+            _repair.HostedAiRefused = refused => Dispatcher.BeginInvoke(() => ShowHostedAiRefused(refused));
 
             // Issue #151: the post-recording sequence runs on whichever path stopped the recording
             // (window, HUD, tray, tray Quit, REST) and lives in PostRecording. While this window is
-            // open it lends the sequence a voice for failures - the "out of credits" toast used to
+            // open it lends the sequence a voice for failures - the hosted-AI refusal toast used to
             // exist only on the window's own private copy of the pipeline.
             PostRecording.Failed += OnPostRecordingFailed;
 
@@ -127,7 +125,7 @@ namespace AgentEyes.App
                 PostRecording.Failed -= OnPostRecordingFailed;
                 _repair.Status = null;
                 _repair.LibraryChanged = null;
-                _repair.CreditsExhausted = null;
+                _repair.HostedAiRefused = null;
             };
 
             // Repair anything a previous session left unfinished (issues #132/#152). Opening the
@@ -1251,7 +1249,7 @@ namespace AgentEyes.App
                 _library.Refresh(row);
             }
             UpdateLibraryTotal();   // the cost tag was just filled in by packaging
-            await RefreshDevThrottleCreditsAfterHostedWorkAsync();
+            await RefreshDevThrottleCreditsDisplayAsync();
         }
 
         /// <summary>
@@ -1280,7 +1278,7 @@ namespace AgentEyes.App
             Dispatcher.BeginInvoke(() =>
             {
                 StatusText.Text = "Transcribe error: " + ex.Message;
-                if (IsDevThrottleCreditsFailure(ex)) ShowDevThrottleCreditsWarning();
+                if (DevThrottleClient.RefusalIn(ex) is { } refused) ShowHostedAiRefused(refused);
             });
         }
 
@@ -1688,9 +1686,8 @@ namespace AgentEyes.App
             StatusText.Text = "Building walkthrough (first run downloads the Whisper model)...";
             try
             {
-                await DevThrottleClient.EnsureCreditsForHostedWorkAsync();
                 await Task.Run(() => Package.Run(dir, 5.0, null));
-                await RefreshDevThrottleCreditsAfterHostedWorkAsync();
+                await RefreshDevThrottleCreditsDisplayAsync();
                 // The row was resolved before the awaits above, so it goes back through the model
                 // rather than being written on directly (issue #3, failure mode 5).
                 if (item != null) _library.Refresh(item);
@@ -1701,7 +1698,7 @@ namespace AgentEyes.App
             catch (Exception ex)
             {
                 StatusText.Text = "Package error: " + ex.Message;
-                if (IsDevThrottleCreditsFailure(ex)) ShowDevThrottleCreditsWarning();
+                if (DevThrottleClient.RefusalIn(ex) is { } refused) ShowHostedAiRefused(refused);
             }
             finally
             {
@@ -1710,26 +1707,41 @@ namespace AgentEyes.App
             }
         }
 
-        /// <summary>The predicate itself lives in Core (issue #142) because the automatic repair
-        /// passes run with no window at all and must stop on an empty wallet the same way.</summary>
-        private static bool IsDevThrottleCreditsFailure(Exception ex) =>
-            DevThrottleClient.IsCreditsFailure(ex);
-
-        private static void ShowDevThrottleCreditsWarning()
+        /// <summary>
+        /// DevThrottle refused hosted AI with HTTP 402. Shows the proxy's OWN words, and a button only
+        /// when one can fix it: no subscription or trial -> the plans; paid usage out of credits or over
+        /// the member's own monthly limit -> Billing. The fair-use limit resets on its own, so it gets
+        /// no button. Transcription, titles and translation are INCLUDED (owner, 2026-09-27), so an
+        /// empty wallet alone never lands here from background work.
+        /// </summary>
+        private static void ShowHostedAiRefused(DevThrottleException refused)
         {
-            NoticeToast.ShowAction(
-                "DevThrottle credits are empty. Hosted transcription and AI are paused until you add credits.",
-                "Add credits",
-                OpenDevThrottleCredits,
-                null);
+            switch (refused.Code)
+            {
+                case "subscription_required":
+                    NoticeToast.ShowAction(refused.Message, "View plans", () => OpenUrl(DevThrottleAccount.PricingUrl), null);
+                    break;
+                case "insufficient_credits":
+                case "monthly_limit_reached":
+                    NoticeToast.ShowAction(refused.Message, "Open Billing", () => OpenUrl(DevThrottleAccount.CreditsUrl), null);
+                    break;
+                default:
+                    NoticeToast.Show(refused.Message, null);
+                    break;
+            }
         }
 
-        private static void OpenDevThrottleCredits()
+        private static void OpenUrl(string url)
         {
-            Process.Start(new ProcessStartInfo(DevThrottleAccount.CreditsUrl) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
 
-        private async Task RefreshDevThrottleCreditsAfterHostedWorkAsync()
+        /// <summary>
+        /// Refresh the balance shown in any open Settings window after hosted work. It only UPDATES
+        /// the display: background work never spends credits, so a zero or low balance after it is no
+        /// reason to warn anyone (that warning was the toast the owner saw every fifteen minutes).
+        /// </summary>
+        private async Task RefreshDevThrottleCreditsDisplayAsync()
         {
             DevThrottleCredits credits;
             try
@@ -1744,21 +1756,6 @@ namespace AgentEyes.App
 
             foreach (var settings in Application.Current.Windows.OfType<SettingsDialog>())
                 settings.RefreshDevThrottleCredits(credits);
-
-            if (credits.BalanceMicros <= 0)
-            {
-                ShowDevThrottleCreditsWarning();
-                return;
-            }
-
-            if (credits.BalanceMicros < LowCreditWarningThresholdMicros)
-            {
-                NoticeToast.ShowActionBottomRight(
-                    "DevThrottle credits are below $1. Add credits to avoid hosted transcription and AI pausing.",
-                    "Add credits",
-                    OpenDevThrottleCredits,
-                    null);
-            }
         }
 
         // ---- recent: rename / delete (context menu) ------------------------
@@ -1917,9 +1914,8 @@ namespace AgentEyes.App
             StatusText.Text = $"Importing \"{Path.GetFileName(path)}\"...";
             try
             {
-                await DevThrottleClient.EnsureCreditsForHostedWorkAsync();
                 var result = await Task.Run(() => VideoImport.Run(path));
-                await RefreshDevThrottleCreditsAfterHostedWorkAsync();
+                await RefreshDevThrottleCreditsDisplayAsync();
                 StatusText.Text = $"Imported \"{Path.GetFileName(path)}\".";
                 RailLibrary.IsChecked = true;
                 LoadRecent();   // show the newly imported recording
@@ -1928,7 +1924,7 @@ namespace AgentEyes.App
             {
                 Log.Error("import video " + path, ex);
                 StatusText.Text = "Import error: " + ex.Message;
-                if (IsDevThrottleCreditsFailure(ex)) ShowDevThrottleCreditsWarning();
+                if (DevThrottleClient.RefusalIn(ex) is { } refused) ShowHostedAiRefused(refused);
             }
             finally { ImportVideoButton.IsEnabled = true; }
         }

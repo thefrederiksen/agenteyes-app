@@ -12,11 +12,17 @@ using System.Threading.Tasks;
 
 namespace AgentEyes.DevThrottle
 {
-    /// <summary>Raised for any non-2xx from the DevThrottle proxy; carries the HTTP status.</summary>
+    /// <summary>Raised for any non-2xx from the DevThrottle proxy; carries the HTTP status and the
+    /// proxy's own error code (for example <c>subscription_required</c>) when it sent one.</summary>
     internal sealed class DevThrottleException : Exception
     {
         public int Status { get; }
-        public DevThrottleException(string message, int status = 0) : base(message) => Status = status;
+        public string? Code { get; }
+        public DevThrottleException(string message, int status = 0, string? code = null) : base(message)
+        {
+            Status = status;
+            Code = code;
+        }
     }
 
     /// <summary>
@@ -36,7 +42,6 @@ namespace AgentEyes.DevThrottle
     {
         public long BalanceMicros { get; set; }
         public long LowBalanceThresholdMicros { get; set; }
-        public bool HasCredits => BalanceMicros > 0;
     }
 
     /// <summary>
@@ -47,9 +52,14 @@ namespace AgentEyes.DevThrottle
     internal static class DevThrottleClient
     {
         public const string TranscriptionModel = "whisper-large-v3";
-        // Curated chat models on the DevThrottle catalog (models-catalog.js). Small/fast for cheap
-        // hot-path tasks like titling; the stronger driver for plugin deliverable generation.
-        public const string ChatModel = "zai-org/GLM-4.7-Flash";
+        // Background work - naming a recording, translating a transcript - is INCLUDED with the
+        // DevThrottle subscription, never paid from credits (owner, 2026-09-27). The included id is
+        // the same GLM-4.7-Flash upstream behind devthrottle_internal's included-service gate. It was
+        // the catalog id zai-org/GLM-4.7-Flash, which billed every title to the wallet, so an empty
+        // wallet stopped titling and raised the "credits are empty" toast every fifteen minutes.
+        public const string ChatModel = "devthrottle/agenteyes";
+        // Plugin deliverables stay PAID catalog usage. The plugins name this id in their own run
+        // scripts; it is kept here as the record of which model they drive.
         public const string ChatModelStrong = "zai-org/GLM-4.7";
 
         private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(5) };
@@ -110,43 +120,20 @@ namespace AgentEyes.DevThrottle
         }
 
         /// <summary>
-        /// Fail early when a fresh sign-in token shows an empty wallet. If the account token is
-        /// missing/expired, the proxy's own 402 pre-flight remains the hard gate.
-        /// </summary>
-        public static async Task EnsureCreditsForHostedWorkAsync(CancellationToken ct = default)
-        {
-            var cred = DevThrottleAccount.Load();
-            if (cred?.AccessToken is not { Length: > 0 }) return;
-            DevThrottleCredits credits;
-            try
-            {
-                credits = await GetCreditsAsync(ct);
-            }
-            catch (DevThrottleException ex) when (ex.Status == 401)
-            {
-                Log.Info("[DevThrottleClient] EnsureCreditsForHostedWorkAsync: account token unavailable; proxy will enforce credits");
-                return;
-            }
-            if (!credits.HasCredits)
-                throw new DevThrottleException(
-                    "Out of DevThrottle credits. Add credits (from $5) at devthrottle.com to keep transcribing.", 402);
-        }
-
-        /// <summary>
-        /// True when <paramref name="ex"/> (or anything it wraps) means "the wallet is empty".
+        /// True when <paramref name="ex"/> (or anything it wraps) is the proxy refusing hosted AI with
+        /// HTTP 402: no active subscription or trial, the fair-use limit, or (paid usage only) an empty
+        /// wallet. Every remaining recording would be refused the same way, so a repair pass stops.
         /// Lives here rather than in the window because the automatic repair passes run with no
         /// window at all (tray mode) and must stop the same way the UI does (issue #142).
         /// </summary>
-        public static bool IsCreditsFailure(Exception ex)
+        public static bool IsHostedAiRefused(Exception ex) => RefusalIn(ex) != null;
+
+        /// <summary>The 402 refusal inside <paramref name="ex"/>, or null when there is none.</summary>
+        public static DevThrottleException? RefusalIn(Exception ex)
         {
             for (Exception? cur = ex; cur != null; cur = cur.InnerException)
-            {
-                if (cur is DevThrottleException { Status: 402 }) return true;
-                if (cur.Message.Contains("Out of DevThrottle credits", StringComparison.OrdinalIgnoreCase)) return true;
-                if (cur.Message.Contains("credit balance is empty", StringComparison.OrdinalIgnoreCase)) return true;
-                if (cur.Message.Contains("insufficient_credits", StringComparison.OrdinalIgnoreCase)) return true;
-            }
-            return false;
+                if (cur is DevThrottleException { Status: 402 } refused) return refused;
+            return null;
         }
 
         /// <summary>
@@ -285,15 +272,13 @@ namespace AgentEyes.DevThrottle
         /// <summary>
         /// Transcribe a 16 kHz mono WAV through DevThrottle-hosted Whisper. Requires a
         /// signed-in account; throws DevThrottleException(401) when not signed in and
-        /// DevThrottleException(402) when the credit balance is empty.
+        /// DevThrottleException(402) when the account is not entitled to included AI.
         /// </summary>
         public static async Task<DevThrottleTranscript> TranscribeAsync(string wavPath, CancellationToken ct = default)
         {
             Log.Info($"[DevThrottleClient] TranscribeAsync: wavPath={wavPath}");
             if (!File.Exists(wavPath))
                 throw new UsageException($"audio file not found for transcription: {wavPath}");
-
-            await EnsureCreditsForHostedWorkAsync(ct);
 
             string key = DevThrottleAccount.RequireApiKey();
             string url = DevThrottleAccount.ApiBaseUrl.TrimEnd('/') + "/audio/transcriptions";
@@ -457,22 +442,27 @@ namespace AgentEyes.DevThrottle
         {
             int code = (int)status;
             string? proxyMsg = null;
+            string? proxyCode = null;
             try
             {
                 using var doc = JsonDocument.Parse(body);
-                if (doc.RootElement.TryGetProperty("error", out var e) && e.TryGetProperty("message", out var m))
-                    proxyMsg = m.GetString();
+                if (doc.RootElement.TryGetProperty("error", out var e))
+                {
+                    if (e.TryGetProperty("message", out var m)) proxyMsg = m.GetString();
+                    if (e.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String) proxyCode = c.GetString();
+                }
             }
             catch { /* non-JSON error body */ }
 
             string message = code switch
             {
                 401 => "DevThrottle rejected the sign-in key. Open Settings > DevThrottle Account and reconnect.",
-                402 => "Out of DevThrottle credits. Add credits (from $5) at devthrottle.com to keep transcribing.",
+                // The proxy's OWN words. A 402 is no longer always "out of credits": background work
+                // is included, so its refusals are "no active subscription" or the fair-use limit.
                 413 => "That audio clip is too large for DevThrottle transcription.",
                 _   => proxyMsg ?? $"DevThrottle request failed (HTTP {code}).",
             };
-            Log.Info($"[DevThrottleClient] ErrorFrom: status={code}, msg={message}");
+            Log.Info($"[DevThrottleClient] ErrorFrom: status={code}, code={proxyCode ?? "(none)"}, msg={message}");
 
             // NOT hooked here on purpose. This helper is shared by TWO different credentials: the
             // dt_ inference key AND the short-lived Supabase access token used only to read the
@@ -480,7 +470,7 @@ namespace AgentEyes.DevThrottle
             // reported "Not signed in" while the dt_ key was perfectly good and transcription was
             // succeeding (observed 2026-08-10 14:05). AccountState.NoteUnauthorized() is called at
             // the specific dt_-key call sites instead, and only once recovery has failed.
-            return new DevThrottleException(message, code);
+            return new DevThrottleException(message, code, proxyCode);
         }
     }
 }

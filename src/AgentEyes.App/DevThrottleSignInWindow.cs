@@ -37,8 +37,8 @@ namespace AgentEyes.App
             });
             root.Children.Add(new TextBlock
             {
-                Text = "AgentEyes runs on your DevThrottle account - it powers transcription and AI, billed "
-                     + "to your DevThrottle credits. Your browser opens to approve this device; no password "
+                Text = "AgentEyes runs on your DevThrottle account - transcription, titles and translation are "
+                     + "included with your subscription. Your browser opens to approve this device; no password "
                      + "is ever typed into AgentEyes.",
                 Foreground = dim, FontSize = 12, TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 14),

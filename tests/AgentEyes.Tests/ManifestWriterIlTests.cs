@@ -289,6 +289,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Thumbnails::NoteThumbAttempt -> AgentEyes.ManifestStore::Update x1",      // the thumbnail attempt counter
             "agenteyes.dll!AgentEyes.TranscriptionBacklog::NoteAttempt -> AgentEyes.ManifestStore::Update x1", // the transcribe attempt counter
             "agenteyes.dll!AgentEyes.TranscriptionBacklog::NoteTitleAttempt -> AgentEyes.ManifestStore::Update x1", // the title attempt stamp
+            "agenteyes.dll!AgentEyes.TranscriptionBacklog::ReturnAttempt -> AgentEyes.ManifestStore::Update x1", // an attempt given back after a DevThrottle refusal
             "agenteyes.dll!AgentEyes.Translator::WriteTranslatedVtt -> AgentEyes.ManifestStore::Update x1",    // a translated language, and the AI cost added to the total
             "agenteyes.dll!AgentEyes.VideoImport::RunAsync -> AgentEyes.ManifestStore::Replace x1",            // the imported recording's new record
             "agenteyes.dll!AgentEyes.VideoImport::WriteArtifacts -> AgentEyes.ManifestStore::Update x1",       // its transcript artifacts

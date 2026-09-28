@@ -128,28 +128,43 @@ namespace AgentEyes
         };
 
         /// <summary>
-        /// Stage 3 - transcription, title, walkthrough. The wallet is checked FIRST so an empty
-        /// wallet fails clearly here instead of deep inside transcription, and so it does not spend
-        /// one of this recording's three transcription attempts on a certainty.
+        /// Stage 3 - transcription, title, walkthrough. Included with the subscription, so there is
+        /// no wallet check: an empty wallet never stops it (owner, 2026-09-27).
         /// </summary>
-        internal static Action<string> PackageStep = dir =>
+        internal static Action<string> PackageStep = DefaultPackageStep;
+
+        /// <summary>
+        /// The attempt is counted BEFORE the work (a crash must still use a try), but a DevThrottle
+        /// refusal (HTTP 402: no subscription or trial, or the fair-use limit) is not this recording's
+        /// fault and fails identically every time. It gives the attempt back, so three refused passes
+        /// cannot strand a recording that would transcribe the moment the account is entitled again.
+        /// The old client-side wallet check threw before the count, which is what kept this true.
+        /// </summary>
+        private static void DefaultPackageStep(string dir) =>
+            RunCountingAttempt(dir, d => Package.Run(d, 5.0, null));
+
+        /// <summary><see cref="DefaultPackageStep"/> with the packaging passed in, so the attempt
+        /// accounting is testable without a hosted call.</summary>
+        internal static void RunCountingAttempt(string dir, Action<string> package)
         {
-            DevThrottleClient.EnsureCreditsForHostedWorkAsync().GetAwaiter().GetResult();
             TranscriptionBacklog.NoteAttempt(dir);
-            Package.Run(dir, 5.0, null);
-        };
+            try
+            {
+                package(dir);
+            }
+            catch (Exception ex) when (DevThrottleClient.IsHostedAiRefused(ex))
+            {
+                TranscriptionBacklog.ReturnAttempt(dir);
+                throw;
+            }
+        }
 
         /// <summary>Puts the production steps back. For tests that inject a failing stage.</summary>
         internal static void RestoreDefaultSteps()
         {
             MuxStep = RecordingService.FinalizePending;
             ThumbnailStep = dir => { Thumbnails.NoteThumbAttempt(dir); Thumbnails.Ensure(dir); };
-            PackageStep = dir =>
-            {
-                DevThrottleClient.EnsureCreditsForHostedWorkAsync().GetAwaiter().GetResult();
-                TranscriptionBacklog.NoteAttempt(dir);
-                Package.Run(dir, 5.0, null);
-            };
+            PackageStep = DefaultPackageStep;
         }
 
         // ---- work in flight --------------------------------------------------

@@ -17,9 +17,11 @@ recording audio to:
 POST https://devthrottle.com/api/v1/audio/transcriptions
 ```
 
-The request is authorized with the locally stored `dt_` key, and DevThrottle
-draws from the user's prepaid credit balance. If the balance is empty,
-DevThrottle returns HTTP 402 before running the hosted transcription.
+The request is authorized with the locally stored `dt_` key. Transcription is
+included with the DevThrottle subscription and never draws on the credit
+balance, and it is not subject to the fair-use limit. DevThrottle returns HTTP
+402 only when the account has no active subscription or trial; AgentEyes shows
+the proxy's own message and does not count that as a failed attempt.
 
 AgentEyes records usage metadata returned by DevThrottle where available, but it
 does not compute a client-side dollar estimate. The DevThrottle account and
@@ -29,8 +31,9 @@ billing pages are the source of truth for credit balance, rate card, and spend.
 
 - No alternate transcription provider path exists in AgentEyes.
 - Settings > Account shows DevThrottle account and credits.
-- Hosted transcription pauses when credits run out.
-- Add credits opens `https://devthrottle.com/account/billing`.
+- Transcription, titles and translation keep running at a zero credit balance.
+- Companion deliverables are paid usage; Add credits opens
+  `https://devthrottle.com/account/billing`.
 
 ## 24/7 note
 
