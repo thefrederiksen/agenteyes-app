@@ -260,6 +260,22 @@ namespace AgentEyes
             Log.Info($"[TranscriptionBacklog] NoteAttempt: {Path.GetFileName(dir)} attempt {manifest.TranscribeAttempts}/{MaxTranscribeAttempts}");
         }
 
+        /// <summary>
+        /// Gives back the attempt <see cref="NoteAttempt"/> just counted, for a failure that is not
+        /// the recording's: DevThrottle refusing hosted AI (HTTP 402). Never goes below zero.
+        /// </summary>
+        public static void ReturnAttempt(string dir)
+        {
+            if (TryLoad(dir) is null)
+            {
+                Log.Info($"[TranscriptionBacklog] ReturnAttempt: no manifest at {dir}; nothing to return");
+                return;
+            }
+
+            var manifest = ManifestStore.Update(dir, m => m.TranscribeAttempts = Math.Max(0, m.TranscribeAttempts - 1));
+            Log.Info($"[TranscriptionBacklog] ReturnAttempt: {Path.GetFileName(dir)} back to {manifest.TranscribeAttempts}/{MaxTranscribeAttempts} (refused by DevThrottle, not the recording's fault)");
+        }
+
         private static Manifest? TryLoad(string dir)
         {
             // A directory with no readable manifest is still transcribable - it just cannot carry

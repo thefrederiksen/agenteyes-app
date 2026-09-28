@@ -111,8 +111,8 @@ namespace AgentEyes.Tests
                 "Update: registers the burned-in output file"),
             new("src/AgentEyes.Core/Thumbnails.cs", Updates: 1, Replaces: 0,
                 "Update: the thumbnail attempt counter"),
-            new("src/AgentEyes.Core/TranscriptionBacklog.cs", Updates: 2, Replaces: 0,
-                "Update x2: the title attempt stamp, and the transcribe attempt counter"),
+            new("src/AgentEyes.Core/TranscriptionBacklog.cs", Updates: 3, Replaces: 0,
+                "Update x3: the title attempt stamp, the transcribe attempt counter, and giving an attempt back after a DevThrottle refusal"),
             new("src/AgentEyes.Core/Translator.cs", Updates: 1, Replaces: 0,
                 "Update: registers a translated language and adds the AI cost to the running total"),
             new("src/AgentEyes.Core/VideoImport.cs", Updates: 1, Replaces: 1,
@@ -274,9 +274,9 @@ namespace AgentEyes.Tests
             var found = CountWriters(ProductionSources(), CodeOf);
 
             Assert.Equal(17, found.Count);                                  // files
-            Assert.Equal(21, found.Values.Sum(v => v.Updates));             // read-modify-write
+            Assert.Equal(22, found.Values.Sum(v => v.Updates));             // read-modify-write
             Assert.Equal(9, found.Values.Sum(v => v.Replaces));             // whole-content
-            Assert.Equal(30, found.Values.Sum(v => v.Updates + v.Replaces));
+            Assert.Equal(31, found.Values.Sum(v => v.Updates + v.Replaces));
         }
 
         [Fact]

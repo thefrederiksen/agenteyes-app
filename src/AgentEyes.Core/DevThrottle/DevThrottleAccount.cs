@@ -33,6 +33,7 @@ namespace AgentEyes.DevThrottle
         // The website root: sign-in and key minting hang off this.
         public const string AuthBaseUrl = "https://devthrottle.com";
         public const string CreditsUrl = "https://devthrottle.com/account/billing";
+        public const string PricingUrl = "https://devthrottle.com/pricing";
 
         // DevThrottle's Supabase project, used ONLY to exchange a stored refresh token for a fresh
         // session when the dt_ key has been revoked (issue #131). The anon key is public - it ships

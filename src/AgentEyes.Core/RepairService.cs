@@ -116,9 +116,10 @@ namespace AgentEyes
         /// reload. Raised on a background thread.</summary>
         public Action? LibraryChanged { get; set; }
 
-        /// <summary>Optional notification that the pass stopped because the DevThrottle wallet is
-        /// empty, so a UI can surface it. Raised on a background thread.</summary>
-        public Action? CreditsExhausted { get; set; }
+        /// <summary>Optional notification that the pass stopped because DevThrottle refused hosted AI
+        /// (HTTP 402), carrying the refusal so a UI can show the proxy's own words. Raised on a
+        /// background thread.</summary>
+        public Action<DevThrottleException>? HostedAiRefused { get; set; }
 
         /// <summary>
         /// What the housekeeping stage is allowed to do (issues #55, #56). Read FRESH on every pass,
@@ -391,11 +392,11 @@ namespace AgentEyes
                 var outcome = resumed!;   // Admitted means the step ran and returned its outcome
                 any |= outcome.Completed.Count > 0;
 
-                if (outcome.Error != null && DevThrottleClient.IsCreditsFailure(outcome.Error))
+                if (outcome.Error != null && DevThrottleClient.RefusalIn(outcome.Error) is { } refused)
                 {
-                    // An empty wallet fails identically on every remaining recording.
-                    CreditsExhausted?.Invoke();
-                    Log.Info("[RepairService] ResumeAsync: out of credits - stopping");
+                    // A refusal fails identically on every remaining recording.
+                    HostedAiRefused?.Invoke(refused);
+                    Log.Info($"[RepairService] ResumeAsync: hosted AI refused ({refused.Code ?? "no code"}) - stopping");
                     break;
                 }
             }
@@ -503,10 +504,10 @@ namespace AgentEyes
                 catch (Exception ex)
                 {
                     Log.Error("[RepairService] title backfill " + dir, ex);
-                    if (DevThrottleClient.IsCreditsFailure(ex))
+                    if (DevThrottleClient.RefusalIn(ex) is { } refused)
                     {
-                        CreditsExhausted?.Invoke();
-                        Log.Info("[RepairService] TitleAsync: out of credits - stopping");
+                        HostedAiRefused?.Invoke(refused);
+                        Log.Info($"[RepairService] TitleAsync: hosted AI refused ({refused.Code ?? "no code"}) - stopping");
                         Status?.Invoke("");
                         if (any) LibraryChanged?.Invoke();
                         return;

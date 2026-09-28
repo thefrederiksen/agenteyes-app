@@ -73,9 +73,10 @@ namespace AgentEyes.App
             var account = new StackPanel();
             account.Children.Add(new TextBlock
             {
-                Text = "AgentEyes runs on your DevThrottle account. Recording transcription and AI run on "
-                     + "DevThrottle-hosted models and draw down your DevThrottle credits. There is no other "
-                     + "provider - one account, one path.",
+                Text = "AgentEyes runs on your DevThrottle account. Transcription, titles and translation run on "
+                     + "DevThrottle-hosted models and are included with your DevThrottle subscription. "
+                     + "Companion deliverables are paid usage and draw down your DevThrottle credits. There is "
+                     + "no other provider - one account, one path.",
                 Foreground = Res<Brush>("DkDim"), FontSize = 12, TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 16),
             });
