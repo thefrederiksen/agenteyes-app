@@ -55,7 +55,12 @@ namespace AgentEyes.App
         private readonly ProgressBar _sys;
         private readonly Button _stopButton;
         private readonly Button _discardButton;
+        private readonly Button _hideButton;
         private bool _busy;
+
+        /// <summary>The Hide button was clicked (issue #98). The owner hides the window through
+        /// <see cref="RecordingIndicator"/> so the tray knows to offer it back.</summary>
+        internal event Action? HideRequested;
         private bool _finishing;   // showing a "Saving..."/processing label; the stop flow owns the close
 
         // ---- live preview (issue #33) --------------------------------------
@@ -175,6 +180,22 @@ namespace AgentEyes.App
             AutomationName(_previewToggle, "Show preview");
             _previewToggle.Click += (_, _) => TogglePreview();
             row.Children.Add(_previewToggle);
+
+            // Issue #98: take the HUD off the screen (a one-screen person sharing it in a meeting)
+            // while the recording carries on. Grey and apart from the red STOP so it is never hit
+            // when stopping was meant. The tray's "Show recording indicator" brings it back.
+            _hideButton = new Button
+            {
+                Style = Res<Style>("DkMini"),
+                Height = 30, FontSize = 12,
+                Margin = new Thickness(0, 0, 6, 0),
+                Content = "Hide",
+                ToolTip = "Hide this indicator - recording continues. Show it again from the AgentEyes tray menu.",
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            AutomationName(_hideButton, "HUD hide");
+            _hideButton.Click += (_, _) => HideRequested?.Invoke();
+            row.Children.Add(_hideButton);
 
             _stopButton = new Button
             {
@@ -421,6 +442,7 @@ namespace AgentEyes.App
             _stopButton.Visibility = Visibility.Collapsed;
             _discardButton.Visibility = Visibility.Collapsed;
             _previewToggle.Visibility = Visibility.Collapsed;
+            _hideButton.Visibility = Visibility.Collapsed;
             // The recording is over, so there is nothing live left to preview. Taking the panel down
             // here also means the HUD is back to its pill size for the save, and the person is not
             // watching a picture that has stopped moving (AC10 in miniature).

@@ -40,16 +40,20 @@ namespace AgentEyes.App
         // recordings are driven through the REST Control API just as often as through this UI.
         private readonly RepairService _repair;
 
+        // Issue #98: shown/hidden state of the recording HUD, shared with the tray.
+        private readonly RecordingIndicator _indicator;
+
         private MonitorHighlight? _highlight;
         private CapturePreset? _selectedPreset;   // active preset (issue #21: dropdown, not a list)
 
         internal MainWindow(RecordingService svc, Config cfg, Action showTests, RepairService repair,
-            AlwaysOnController? alwaysOn = null)
+            AlwaysOnController? alwaysOn = null, RecordingIndicator? indicator = null)
         {
             _svc = svc;
             _cfg = cfg;
             _showTests = showTests;
             _repair = repair;
+            _indicator = indicator ?? new RecordingIndicator();
             InitializeComponent();
             InitAlwaysOn(alwaysOn);
             SourceInitialized += (_, _) => DarkTitleBar.Apply(this);
@@ -1308,8 +1312,17 @@ namespace AgentEyes.App
             _hud = new HudWindow(_svc, _cfg,
                 stop: () => Dispatcher.Invoke(StopAsync),
                 discard: () => Dispatcher.Invoke(DiscardAsync));
-            _hud.Closed += (_, _) => _hud = null;
-            _hud.Show();
+            var hud = _hud;
+            hud.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_hud, hud)) _hud = null;
+                _indicator.Detach(hud);
+            };
+            // Issue #98: Hide takes the HUD off the screen; the tray's "Show recording indicator"
+            // puts it back. Every new HUD starts shown - Attach resets the hidden flag.
+            hud.HideRequested += _indicator.Hide;
+            _indicator.Attach(hud, hide: hud.Hide, show: hud.Show);
+            hud.Show();
         }
 
         private void CloseHud()

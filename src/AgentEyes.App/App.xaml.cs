@@ -21,6 +21,8 @@ namespace AgentEyes.App
         private RepairService? _repair;
         private TrayHost? _tray;
         private AlwaysOnController? _alwaysOn;
+        /// <summary>Issue #98: the recording HUD's shown/hidden state, shared by the window and the tray.</summary>
+        private readonly RecordingIndicator _indicator = new();
         private MainWindow? _window;
         private TestPanel? _tests;
         private KeyboardHook? _captureRegionHook;
@@ -140,7 +142,7 @@ namespace AgentEyes.App
                 _alwaysOn = new AlwaysOnController(_service, _cfg);
                 if (_rest != null) _rest.AlwaysOn = _alwaysOn;
 
-                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests, _alwaysOn, ShowAlwaysOn);
+                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests, _alwaysOn, ShowAlwaysOn, _indicator);
                 InstallCaptureHooks();
 
                 // Issue #86: the setup engine (an update from the CLI, the wizard or this app's own
@@ -299,7 +301,7 @@ namespace AgentEyes.App
         {
             if (_window == null)
             {
-                _window = new MainWindow(_service!, _cfg!, ShowTests, _repair!, _alwaysOn);
+                _window = new MainWindow(_service!, _cfg!, ShowTests, _repair!, _alwaysOn, _indicator);
                 _window.Closing += (_, ev) => { ev.Cancel = true; _window!.Hide(); };  // close = hide to tray
             }
             _window.Show();

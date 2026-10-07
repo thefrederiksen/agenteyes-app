@@ -23,6 +23,15 @@ namespace AgentEyes.App
         private readonly Action _showTests;
         private readonly AlwaysOnController? _alwaysOn;
         private readonly Action _showAlwaysOn;
+        private readonly RecordingIndicator _indicator;
+
+        /// <summary>Issue #98: the dot follows a normal recording from ANY start path (window, tray,
+        /// REST API). RecordingService raises nothing on start and nothing on a failed stop, so the
+        /// tray reads IsRecording once a second - the dot never claims a recording that has ended.</summary>
+        private readonly System.Windows.Threading.DispatcherTimer _recordingPoll =
+            new() { Interval = TimeSpan.FromSeconds(1) };
+        private bool _lastRecording;
+        private WinForms.ToolStripMenuItem _showIndicatorItem = null!;
 
         // Issue #66: the tray icon carries always-on's state as a dot on its corner. Built once.
         private readonly Drawing.Icon _iconOff;
@@ -48,10 +57,11 @@ namespace AgentEyes.App
         private string? _shownStartError;
 
         public TrayHost(RecordingService svc, Config cfg, Action showWindow, Action showTests,
-            AlwaysOnController? alwaysOn = null, Action? showAlwaysOn = null)
+            AlwaysOnController? alwaysOn = null, Action? showAlwaysOn = null, RecordingIndicator? indicator = null)
         {
             _svc = svc; _cfg = cfg; _showWindow = showWindow; _showTests = showTests;
             _alwaysOn = alwaysOn;
+            _indicator = indicator ?? new RecordingIndicator();
             _showAlwaysOn = showAlwaysOn ?? showWindow;
 
             _iconOff = AppIcon();
@@ -77,31 +87,51 @@ namespace AgentEyes.App
             {
                 // Changed arrives on a background thread; the icon belongs to the UI thread.
                 _alwaysOn.Changed += () =>
-                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(RefreshAlwaysOn));
-                RefreshAlwaysOn();
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(RefreshIcon));
             }
+            // Issue #98: the indicator's Changed is raised on the UI thread (a HUD click or this menu).
+            _indicator.Changed += RefreshIcon;
+            _recordingPoll.Tick += (_, _) => RefreshIcon();
+            _recordingPoll.Start();
+            RefreshIcon();
         }
 
         /// <summary>
-        /// Issue #66: put always-on's state on the tray icon and its tooltip. Solid red = listening,
-        /// red with a white centre = keeping a clip, grey = paused (or retrying a failed capture - the
-        /// dot never claims a recording that is not happening), no dot = off. UI thread.
+        /// Put the recording state on the tray icon and its tooltip. Issue #98: a normal recording in
+        /// progress = solid red dot, whatever always-on is doing, and the tooltip says so (and whether
+        /// its indicator is hidden). Otherwise issue #66's always-on dot: solid red = listening, red
+        /// with a white centre = keeping a clip, grey = paused (or retrying a failed capture - the dot
+        /// never claims a recording that is not happening), no dot = off. UI thread.
         /// </summary>
-        private void RefreshAlwaysOn()
+        private void RefreshIcon()
         {
             // Once exit has begun the icon says "writing the clip, then quitting"; nothing overwrites it.
-            if (_alwaysOn == null || _quitting || _shuttingDown || _exitWait) return;
-            var s = _alwaysOn.Status();
-            var icon = s.State switch
+            if (_quitting || _shuttingDown || _exitWait) return;
+            bool recording = _svc.IsRecording;
+            var s = _alwaysOn?.Status();
+            var kind = TrayDot.Choose(recording, s?.State);
+            var icon = kind switch
             {
-                AlwaysOnState.Listening => _iconListening,
-                AlwaysOnState.Keeping => _iconKeeping,
-                AlwaysOnState.Paused or AlwaysOnState.Retrying => _iconPaused,
+                // A normal recording reuses always-on's solid red: red means "recording" on this icon.
+                TrayIconKind.Recording or TrayIconKind.Listening => _iconListening,
+                TrayIconKind.Keeping => _iconKeeping,
+                TrayIconKind.Paused => _iconPaused,
                 _ => _iconOff,
             };
-            if (!ReferenceEquals(icon, _icon.Icon))
-                Log.Info($"[TrayHost] RefreshAlwaysOn: tray dot -> {s.State}");
+            if (!ReferenceEquals(icon, _icon.Icon) || recording != _lastRecording)
+                Log.Info($"[TrayHost] RefreshIcon: tray dot -> {kind} (recording={recording}, indicatorHidden={_indicator.IsHidden})");
+            _lastRecording = recording;
             _icon.Icon = icon;
+            if (recording)
+            {
+                _icon.Text = TrayDot.RecordingTooltip(_svc.Status().ElapsedSeconds, _indicator.IsHidden);
+                return;
+            }
+            if (_alwaysOn == null || s == null)
+            {
+                _icon.Text = "AgentEyes";
+                return;
+            }
             string text = TrayDot.Tooltip(s);
             // A start that failed - above all a restore at app start, where nobody is looking at the
             // page - is said on the tray, once per reason, not only in the log (review of PR 69).
@@ -113,7 +143,7 @@ namespace AgentEyes.App
                 if (err != _shownStartError)
                 {
                     _shownStartError = err;
-                    Log.Warn($"[TrayHost] RefreshAlwaysOn: telling the user always-on did not start: {err}");
+                    Log.Warn($"[TrayHost] RefreshIcon: telling the user always-on did not start: {err}");
                     _icon.ShowBalloonTip(10000, "Always-on did not start", err, WinForms.ToolTipIcon.Warning);
                 }
             }
@@ -181,6 +211,11 @@ namespace AgentEyes.App
             menu.Items.Add(_statusItem);
             menu.Items.Add(new WinForms.ToolStripSeparator());
 
+            // Issue #98: offered only while a recording's HUD is hidden by the person.
+            _showIndicatorItem = new WinForms.ToolStripMenuItem("Show recording indicator", null,
+                (_, _) => Safe(_indicator.Show)) { Visible = false };
+            menu.Items.Add(_showIndicatorItem);
+
             menu.Items.Add(new WinForms.ToolStripMenuItem("Show window", null, (_, _) => _showWindow()));
             menu.Items.Add(new WinForms.ToolStripMenuItem("Tests...", null, (_, _) => _showTests()));
             menu.Items.Add(new WinForms.ToolStripMenuItem("Quick screenshot", null, (_, _) => Safe(() => _svc.Screenshot(PrimaryScreen(), null))));
@@ -222,6 +257,8 @@ namespace AgentEyes.App
                 _recordItem.Enabled = false;
                 return;
             }
+
+            _showIndicatorItem.Visible = _indicator.CanShow;
 
             var s = _svc.Status();
             _statusItem.Text = s.State == "recording"
@@ -427,6 +464,7 @@ namespace AgentEyes.App
 
         public void Dispose()
         {
+            _recordingPoll.Stop();
             _icon.Visible = false;
             _icon.Dispose();
             _menu.Dispose();

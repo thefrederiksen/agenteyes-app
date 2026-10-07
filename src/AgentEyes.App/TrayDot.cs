@@ -10,6 +10,9 @@ namespace AgentEyes.App
     /// The always-on dot on the tray icon, and the tooltip beside it (issue #66). Kept out of
     /// <see cref="TrayHost"/> so the tooltip wording is testable without a tray.
     /// </summary>
+    /// <summary>The icon the tray shows (issue #98).</summary>
+    internal enum TrayIconKind { Off, Recording, Listening, Keeping, Paused }
+
     internal static class TrayDot
     {
         public static readonly Drawing.Color Red = Drawing.Color.FromArgb(0xE5, 0x48, 0x4D);
@@ -81,6 +84,33 @@ namespace AgentEyes.App
                 AlwaysOnState.Retrying => $"AgentEyes - Always-on NOT recording\n{s.LastError ?? "the capture failed"} - retrying",
                 _ => "AgentEyes",
             };
+            return Fit(text);
+        }
+
+        /// <summary>
+        /// Issue #98: which dot the tray icon carries. A normal recording in progress beats every
+        /// always-on state - always-on is paused (grey) while one runs, and grey would tell a person
+        /// whose HUD is hidden that nothing is being recorded, which is exactly backwards.
+        /// </summary>
+        public static TrayIconKind Choose(bool recording, string? alwaysOnState)
+        {
+            if (recording) return TrayIconKind.Recording;
+            return alwaysOnState switch
+            {
+                AlwaysOnState.Listening => TrayIconKind.Listening,
+                AlwaysOnState.Keeping => TrayIconKind.Keeping,
+                AlwaysOnState.Paused or AlwaysOnState.Retrying => TrayIconKind.Paused,
+                _ => TrayIconKind.Off,
+            };
+        }
+
+        /// <summary>Issue #98: the tray tooltip while a normal recording runs. It says so even when
+        /// the HUD is hidden - the dot and this tooltip are what is left on screen.</summary>
+        public static string RecordingTooltip(double elapsedSeconds, bool indicatorHidden)
+        {
+            int s = Math.Max(0, (int)elapsedSeconds);
+            string text = $"AgentEyes - Recording {s / 60:D2}:{s % 60:D2}";
+            if (indicatorHidden) text += "\nIndicator hidden - right-click to show it";
             return Fit(text);
         }
 
