@@ -123,10 +123,15 @@ namespace AgentEyes.App
             // exist only on the window's own private copy of the pipeline.
             PostRecording.Failed += OnPostRecordingFailed;
 
+            // Issue #100: a recording stopped from the tray, REST or anywhere else but this window's
+            // own button used to leave the button on STOP. Hear every clean stop and reset.
+            _svc.RecordingStopped += OnRecordingStopped;
+
             Closed += (_, _) =>
             {
                 AccountState.Changed -= OnAccountStateChanged;
                 PostRecording.Failed -= OnPostRecordingFailed;
+                _svc.RecordingStopped -= OnRecordingStopped;
                 _repair.Status = null;
                 _repair.LibraryChanged = null;
                 _repair.HostedAiRefused = null;
@@ -1181,6 +1186,44 @@ namespace AgentEyes.App
         }
 
         /// <summary>
+        /// True while this window's own Stop or Discard is running. That path resets the window
+        /// itself when it is done, so <see cref="ResetAfterOutsideStop"/> leaves it alone (issue #100).
+        /// Cleared in a finally, so a throw can never leave it stuck and silently bring the bug back.
+        /// </summary>
+        private bool _stoppingHere;
+
+        /// <summary>
+        /// A recording stopped cleanly, on any path (issue #100). Raised on the stopping thread, so
+        /// marshal. The fast path only: a FAILED stop raises nothing, and <see cref="OnTick"/> is what
+        /// guarantees the reset for that case.
+        /// </summary>
+        private void OnRecordingStopped()
+        {
+            Dispatcher.BeginInvoke(() => ResetAfterOutsideStop("recording stopped event"));
+        }
+
+        /// <summary>
+        /// Issue #100: the engine is idle but this window may still show STOP, because the recording
+        /// was stopped from the tray, REST or quit - cleanly or not. Put the window back to REC. Does
+        /// nothing while this window's own stop is running or once a new recording has started.
+        /// UI thread.
+        /// </summary>
+        private void ResetAfterOutsideStop(string trigger)
+        {
+            if (_stoppingHere || _svc.IsRecording) return;
+            // The timer runs exactly while this window shows a recording it started (REC -> STOP);
+            // off means the window is already at REC, and a reset would only overwrite its status.
+            if (!_timer.IsEnabled) return;
+            Log.Info($"[MainWindow] ResetAfterOutsideStop: stopped outside this window ({trigger}) - resetting the record button");
+            _timer.Stop();
+            CloseHud();
+            RecordButton.IsEnabled = true;
+            SetRecordingUi(false);
+            UpdateSummary();
+            StatusText.Text = "Recording stopped.";
+        }
+
+        /// <summary>
         /// The window's Stop button and the HUD's Stop. Issue #151: this used to run a PRIVATE
         /// staged copy of the post-recording sequence, which is how the tray, tray Quit and the REST
         /// API each ended up with a different (or missing) pipeline. The sequence now lives in one
@@ -1189,6 +1232,7 @@ namespace AgentEyes.App
         /// </summary>
         private async Task StopAsync()
         {
+            _stoppingHere = true;
             _timer.Stop();
             RecordButton.IsEnabled = false;
 
@@ -1225,19 +1269,28 @@ namespace AgentEyes.App
 
             StoppedRecording? stopped = null;
             string? error = null;
-            try { stopped = await Ui.Run(() => RecordingStop.Keep(_svc, progress)); }
-            catch (Exception ex) { error = LogStopFailure("stopping the recording", ex); }
+            try
+            {
+                try { stopped = await Ui.Run(() => RecordingStop.Keep(_svc, progress)); }
+                catch (Exception ex) { error = LogStopFailure("stopping the recording", ex); }
 
-            // The recording file is finalized (or stop errored): the HUD has done its job.
-            // Close it now so the overlay disappears immediately and the app is ready to
-            // record again. Transcription runs in the background and reports on the Recent
-            // row (issues #7/#8) - the HUD is never coupled to the transcription pass, so a
-            // slow or stalled Whisper run can no longer strand the overlay (issue #62).
-            CloseHud();
+                // The recording file is finalized (or stop errored): the HUD has done its job.
+                // Close it now so the overlay disappears immediately and the app is ready to
+                // record again. Transcription runs in the background and reports on the Recent
+                // row (issues #7/#8) - the HUD is never coupled to the transcription pass, so a
+                // slow or stalled Whisper run can no longer strand the overlay (issue #62).
+                CloseHud();
 
-            RecordButton.IsEnabled = true;
-            SetRecordingUi(false);
-            UpdateSummary();
+                RecordButton.IsEnabled = true;
+                SetRecordingUi(false);
+                UpdateSummary();
+            }
+            finally
+            {
+                // Cleared here, not after post-processing: a later recording stopped from the tray
+                // while this one is still transcribing must still be reset (issue #100).
+                _stoppingHere = false;
+            }
 
             if (error != null) { StatusText.Text = "Stop error (logged): " + error; return; }
             StatusText.Text = "Saved: " + (stopped!.Result.File ?? stopped.Result.Dir);
@@ -1338,18 +1391,23 @@ namespace AgentEyes.App
         /// post-processing here" is a decision the log records rather than an omission.</summary>
         private async Task DiscardAsync()
         {
+            _stoppingHere = true;
             _timer.Stop();
             RecordButton.IsEnabled = false;
             StatusText.Text = "Discarding...";
 
             string? error = null;
-            try { await Task.Run(() => RecordingStop.Discard(_svc)); }
-            catch (Exception ex) { error = LogStopFailure("discarding the recording", ex); }
+            try
+            {
+                try { await Task.Run(() => RecordingStop.Discard(_svc)); }
+                catch (Exception ex) { error = LogStopFailure("discarding the recording", ex); }
 
-            RecordButton.IsEnabled = true;
-            SetRecordingUi(false);
-            UpdateSummary();
-            CloseHud();
+                RecordButton.IsEnabled = true;
+                SetRecordingUi(false);
+                UpdateSummary();
+                CloseHud();
+            }
+            finally { _stoppingHere = false; }
 
             StatusText.Text = error != null ? "Discard error (logged): " + error : "Recording discarded.";
         }
@@ -1381,7 +1439,9 @@ namespace AgentEyes.App
 
         private void OnTick(object? sender, EventArgs e)
         {
-            if (!_svc.IsRecording) return;
+            // Issue #100: the guarantee. A failed stop from the tray or REST raises no event, so the
+            // tick notices the idle engine itself - the same way the recording indicator closes.
+            if (!_svc.IsRecording) { ResetAfterOutsideStop("tick"); return; }
             ElapsedText.Text = "REC " + Timecodes.Label(_svc.Elapsed);
             MicLevelBar.Value = Math.Min(100, _svc.MicLevel * 180);
             SysLevelBar.Value = Math.Min(100, _svc.SystemLevel * 180);
