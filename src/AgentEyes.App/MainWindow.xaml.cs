@@ -123,10 +123,15 @@ namespace AgentEyes.App
             // exist only on the window's own private copy of the pipeline.
             PostRecording.Failed += OnPostRecordingFailed;
 
+            // Issue #100: a recording stopped from the tray, REST or anywhere else but this window's
+            // own button used to leave the button on STOP. Hear every clean stop and reset.
+            _svc.RecordingStopped += OnRecordingStopped;
+
             Closed += (_, _) =>
             {
                 AccountState.Changed -= OnAccountStateChanged;
                 PostRecording.Failed -= OnPostRecordingFailed;
+                _svc.RecordingStopped -= OnRecordingStopped;
                 _repair.Status = null;
                 _repair.LibraryChanged = null;
                 _repair.HostedAiRefused = null;
@@ -1187,8 +1192,35 @@ namespace AgentEyes.App
         /// place - <see cref="RecordingStop.Keep"/> -> <see cref="PostRecording.Run"/> - and this
         /// window only DISPLAYS it, through the progress sinks below.
         /// </summary>
+        /// <summary>
+        /// True while this window's own Stop or Discard is running. That path resets the window
+        /// itself when it is done, so <see cref="OnRecordingStopped"/> leaves it alone (issue #100).
+        /// </summary>
+        private bool _stoppingHere;
+
+        /// <summary>
+        /// A recording stopped cleanly, on any path (issue #100). Raised on the stopping thread, so
+        /// marshal. A stop this window started is reset by StopAsync/DiscardAsync; anything else (tray,
+        /// REST, quit) is reset here, so the button never says STOP over an idle engine.
+        /// </summary>
+        private void OnRecordingStopped()
+        {
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (_stoppingHere || _svc.IsRecording) return;
+                Log.Info("[MainWindow] OnRecordingStopped: stopped outside this window - resetting the record button");
+                _timer.Stop();
+                CloseHud();
+                RecordButton.IsEnabled = true;
+                SetRecordingUi(false);
+                UpdateSummary();
+                StatusText.Text = "Recording stopped.";
+            });
+        }
+
         private async Task StopAsync()
         {
+            _stoppingHere = true;
             _timer.Stop();
             RecordButton.IsEnabled = false;
 
@@ -1238,6 +1270,9 @@ namespace AgentEyes.App
             RecordButton.IsEnabled = true;
             SetRecordingUi(false);
             UpdateSummary();
+            // Cleared here, not after post-processing: a later recording stopped from the tray while
+            // this one is still transcribing must be reset by OnRecordingStopped (issue #100).
+            _stoppingHere = false;
 
             if (error != null) { StatusText.Text = "Stop error (logged): " + error; return; }
             StatusText.Text = "Saved: " + (stopped!.Result.File ?? stopped.Result.Dir);
@@ -1338,6 +1373,7 @@ namespace AgentEyes.App
         /// post-processing here" is a decision the log records rather than an omission.</summary>
         private async Task DiscardAsync()
         {
+            _stoppingHere = true;
             _timer.Stop();
             RecordButton.IsEnabled = false;
             StatusText.Text = "Discarding...";
@@ -1350,6 +1386,7 @@ namespace AgentEyes.App
             SetRecordingUi(false);
             UpdateSummary();
             CloseHud();
+            _stoppingHere = false;
 
             StatusText.Text = error != null ? "Discard error (logged): " + error : "Recording discarded.";
         }
