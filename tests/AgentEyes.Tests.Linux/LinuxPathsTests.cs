@@ -21,7 +21,8 @@ namespace AgentEyes.Tests.Linux
         [Fact]
         public void ScreenshotsKnownFolder_OnLinux_IsPicturesScreenshots()
         {
-            string pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+            string pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures, Environment.SpecialFolderOption.DoNotVerify);
+            Assert.False(string.IsNullOrEmpty(pictures));
             Assert.Equal(Path.Combine(pictures, "Screenshots"), CaptureService.ScreenshotsKnownFolder());
         }
 
