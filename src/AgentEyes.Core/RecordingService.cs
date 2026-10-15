@@ -18,6 +18,8 @@ namespace AgentEyes
         public string? Source { get; set; }            // mic | system | mixed | none
         public double ElapsedSeconds { get; set; }
         public double Level { get; set; }              // 0..1 (peak)
+        public double MicLevel { get; set; }           // 0..1 (peak) - the microphone alone
+        public double SystemLevel { get; set; }        // 0..1 (peak) - system sound alone
         public string? Dir { get; set; }
 
         // The camera being recorded to camera.mp4 alongside the screen (issue #28), by its exact
@@ -338,6 +340,8 @@ namespace AgentEyes
                 Source = _state == "idle" ? null : _src.ToString().ToLowerInvariant(),
                 ElapsedSeconds = Math.Round(_sw.Elapsed.TotalSeconds, 2),
                 Level = Math.Round(Math.Max(_peakMic, _peakSys), 3),
+                MicLevel = Math.Round(_peakMic, 3),
+                SystemLevel = Math.Round(_peakSys, 3),
                 Dir = _dir,
                 Camera = _state == "idle" ? null : _cameraName,
                 SignedIn = DevThrottle.AccountState.IsSignedIn,

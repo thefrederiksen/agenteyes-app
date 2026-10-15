@@ -114,6 +114,12 @@ namespace AgentEyes.Headless
                     case ("GET", "/status"): Json(ctx, _svc.Status()); return;
                     case ("GET", "/devices"): Json(ctx, Devices()); return;
                     case ("GET", "/account"): Json(ctx, Account()); return;
+                    case ("POST", "/account/refresh"):
+                        // A desktop client signed in or out in its own process (issue #107): re-read
+                        // the stored credential so /status and the next transcription agree with it.
+                        DevThrottle.AccountState.Refresh();
+                        Json(ctx, Account());
+                        return;
                     case ("GET", "/recordings"): Json(ctx, Recordings(ctx)); return;
                     case ("POST", "/record/start"):
                         StartFrom(ControlApiRequest.Parse(ReadBody(ctx)));
@@ -128,6 +134,7 @@ namespace AgentEyes.Headless
                 }
 
                 if (method == "GET" && path.StartsWith("/recordings/", StringComparison.Ordinal) && RecordingSubroute(ctx, path)) return;
+                if (method is "POST" or "DELETE" && path.StartsWith("/recordings/", StringComparison.Ordinal) && RecordingChange(ctx, method, path)) return;
 
                 Error(ctx, 404, "no such endpoint: " + path, "not_found");
             }
@@ -141,6 +148,95 @@ namespace AgentEyes.Headless
             {
                 Error(ctx, 501, px.Message, "not_supported");
             }
+            catch (RecordingBusyException bx)
+            {
+                Error(ctx, 409, bx.Message, "busy");
+            }
+            catch (RecordingNotFoundException nx)
+            {
+                Error(ctx, 404, nx.Message, "not_found");
+            }
+        }
+
+        /// <summary>
+        /// The library changes a desktop client makes (issue #107): rename, delete, export with
+        /// subtitles, build walkthrough. Subtitles and walkthrough run ffmpeg for up to minutes, so they
+        /// are answered from a worker and the request loop keeps serving /status meanwhile.
+        /// </summary>
+        private bool RecordingChange(HttpListenerContext ctx, string method, string path)
+        {
+            string[] seg = path.Substring("/recordings/".Length).Split('/');
+            string id = Uri.UnescapeDataString(seg[0]);
+            if (string.IsNullOrEmpty(id)) return false;
+
+            if (method == "DELETE" && seg.Length == 1)
+            {
+                string dir = RecordingActions.Delete(id);
+                Json(ctx, new { id, dir, deleted = true });
+                return true;
+            }
+            if (method != "POST" || seg.Length != 2) return false;
+
+            switch (seg[1])
+            {
+                case "rename":
+                {
+                    var body = ControlApiRequest.Parse(ReadBody(ctx));
+                    string name = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("name", out var n)
+                        && n.ValueKind == JsonValueKind.String ? n.GetString() ?? "" : "";
+                    string dir = RecordingActions.Rename(id, name);
+                    Json(ctx, new { id, dir, title = name.Trim() });
+                    return true;
+                }
+                case "subtitles":
+                {
+                    var body = ControlApiRequest.Parse(ReadBody(ctx));
+                    string lang = body.ValueKind == JsonValueKind.Object && body.TryGetProperty("language", out var l)
+                        && l.ValueKind == JsonValueKind.String ? l.GetString() ?? "" : "";
+                    if (lang.Length == 0) throw new UsageException("language is required, e.g. {\"language\":\"en\"}");
+                    RecordingActions.RequireDir(id);
+                    AnswerFromWorker(ctx, "subtitles " + id, () =>
+                    {
+                        var r = SubtitleBurner.Run(id, lang);
+                        return new { id = r.Id, dir = r.Dir, language = r.Language, file = r.OutputFile };
+                    });
+                    return true;
+                }
+                case "walkthrough":
+                {
+                    string dir = RecordingActions.RequireDir(id);
+                    AnswerFromWorker(ctx, "walkthrough " + id, () =>
+                    {
+                        Package.Run(dir, 5.0, null);
+                        string file = Path.Combine(dir, "walkthrough.html");
+                        if (!File.Exists(file)) throw new InvalidOperationException("packaging finished but wrote no walkthrough.html in " + dir);
+                        return new { id, dir, file };
+                    });
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static void AnswerFromWorker(HttpListenerContext ctx, string what, Func<object> work)
+        {
+            Log.Info($"[HeadlessControlServer] AnswerFromWorker: {what} started");
+            Task.Run(() =>
+            {
+                try
+                {
+                    var result = work();
+                    Log.Info($"[HeadlessControlServer] AnswerFromWorker: {what} done");
+                    Json(ctx, result);
+                }
+                catch (UsageException ux) { Log.Warn($"[HeadlessControlServer] {what}: {ux.Message}"); Error(ctx, 400, ux.Message, "bad_request"); }
+                catch (RecordingBusyException bx) { Error(ctx, 409, bx.Message, "busy"); }
+                catch (Exception ex)
+                {
+                    Log.Error($"[HeadlessControlServer] AnswerFromWorker: {what} FAILED", ex);
+                    Error(ctx, 500, ex.Message, "internal");
+                }
+            });
         }
 
         private void StartFrom(JsonElement body)
@@ -243,11 +339,13 @@ namespace AgentEyes.Headless
             host = "headless",
             endpoints = new[]
             {
-                "GET /version", "GET /health", "GET /status", "GET /devices", "GET /account",
+                "GET /version", "GET /health", "GET /status", "GET /devices", "GET /account", "POST /account/refresh",
                 "GET /recordings {limit?, offset?}", "GET /recordings/{id}", "GET /recordings/{id}/transcript",
                 "GET /recordings/{id}/frame/{offset}",
                 "POST /record/start {mode?:video|audio, screen?, source?:mic|system|mixed|none, mic?, camera?, cameraFps?, region?, denoise?, gate?, level?, micVol?, sysVol?, fps?}",
                 "POST /record/shot", "POST /record/stop",
+                "POST /recordings/{id}/rename {name}", "DELETE /recordings/{id}",
+                "POST /recordings/{id}/subtitles {language}", "POST /recordings/{id}/walkthrough",
             },
         };
 

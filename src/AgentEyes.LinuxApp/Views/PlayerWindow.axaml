@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
+        x:Class="AgentEyes.LinuxApp.Views.PlayerWindow"
+        Title="AgentEyes - Preview" Width="1000" Height="640" MinWidth="480" MinHeight="320"
+        Icon="/Assets/agenteyes.png" WindowStartupLocation="CenterOwner">
+  <!-- Issue #107: the Windows PreviewWindow - plays the recording inside the app. -->
+  <Grid RowDefinitions="*,Auto">
+    <Panel Background="Black">
+      <vlc:VideoView Name="Video" IsVisible="False"/>
+      <StackPanel Name="AudioGlyph" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False">
+        <Path Data="M0,4 H3 L7,0 V12 L3,8 H0 Z M9,3 C10.5,4.5 10.5,7.5 9,9" Stroke="{StaticResource RdDim}" Fill="{StaticResource RdDim}"
+              StrokeThickness="0.6" Width="120" Height="120" Stretch="Uniform"/>
+        <TextBlock Name="AudioTitle" Classes="dim" FontSize="14" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+      </StackPanel>
+      <Image Name="Picture" Stretch="Uniform" IsVisible="False"/>
+      <TextBlock Name="LoadingText" Text="Loading..." Classes="dim" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Panel>
+    <Border Name="Transport" Grid.Row="1" Background="{StaticResource RdSurface}" BorderBrush="{StaticResource RdStroke}" BorderThickness="0,1,0,0" Padding="14,8">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <Button Name="PlayButton" Classes="icon" Width="34" Height="30" ToolTip.Tip="Play / pause (Space)" Click="PlayPause_Click">
+          <Path Name="PlayIcon" Data="M0,0 H3.5 V12 H0 Z M6.5,0 H10 V12 H6.5 Z" Fill="{StaticResource RdText}" Width="11" Height="12" Stretch="Uniform"/>
+        </Button>
+        <Button Grid.Column="1" Classes="icon" Width="34" Height="30" Margin="6,0,0,0" ToolTip.Tip="Restart" Click="Restart_Click">
+          <Path Data="M0,0 H2.5 V12 H0 Z M12,0 V12 L3,6 Z" Fill="{StaticResource RdText}" Width="11" Height="12" Stretch="Uniform"/>
+        </Button>
+        <Slider Name="Seek" Grid.Column="2" Minimum="0" Maximum="1" Margin="14,0" VerticalAlignment="Center"/>
+        <TextBlock Name="TimeText" Grid.Column="3" FontFamily="{StaticResource Mono}" FontSize="12" Classes="dim" VerticalAlignment="Center" Text="0:00 / 0:00"/>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

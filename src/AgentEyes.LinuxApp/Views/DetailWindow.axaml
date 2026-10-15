@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AgentEyes.LinuxApp.Views.DetailWindow"
+        Title="Recording details" Width="680" Height="640" MinWidth="480" MinHeight="420"
+        Icon="/Assets/agenteyes.png" WindowStartupLocation="CenterOwner">
+  <!-- Issue #107: the Windows RecordingDetailWindow - editable title, summary, transcript, actions. -->
+  <DockPanel Margin="22,18,22,16">
+    <StackPanel DockPanel.Dock="Top">
+      <TextBox Name="TitleBox" FontSize="18" FontWeight="SemiBold" Padding="8,6" ToolTip.Tip="Edit the title - Enter saves"/>
+      <TextBlock Name="MetaText" Classes="dim" FontSize="12" Margin="0,8,0,0" TextTrimming="CharacterEllipsis"/>
+      <Border Name="AiOffBanner" Background="{StaticResource RdAmberSurface}" BorderBrush="{StaticResource RdAmber}" BorderThickness="1"
+              CornerRadius="6" Padding="12,8" Margin="0,12,0,0" IsVisible="False">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Classes="mini" Content="Sign in" Click="SignIn_Click" Margin="10,0,0,0" VerticalAlignment="Center"/>
+          <TextBlock Text="AI titles and summaries are off - sign in to DevThrottle to have recordings transcribed, titled and summarized."
+                     TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource RdAmber}" VerticalAlignment="Center"/>
+        </DockPanel>
+      </Border>
+      <TextBlock Name="SummaryText" TextWrapping="Wrap" FontSize="13" LineHeight="21" Margin="0,12,0,0"/>
+      <TextBlock Name="TranscriptCaption" FontSize="11" FontStyle="Italic" Classes="muted" Margin="0,8,0,0" IsVisible="False"/>
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+      <WrapPanel>
+        <Button Name="PlayButton" Classes="mini" Content="Play" Click="Play_Click" Margin="0,0,8,6"/>
+        <Button Name="WalkthroughButton" Classes="mini" Content="Open walkthrough" Click="Walkthrough_Click" Margin="0,0,8,6"/>
+        <Button Name="CopyButton" Classes="mini" Content="Copy transcript" Click="Copy_Click" Margin="0,0,8,6"/>
+        <Button Classes="mini" Content="Open folder" Click="OpenFolder_Click" Margin="0,0,8,6"/>
+        <Button Classes="mini" Content="Delete" Click="Delete_Click" Margin="0,0,8,6"/>
+      </WrapPanel>
+      <TextBlock Name="StatusText" Classes="dim" FontSize="12" TextWrapping="Wrap"/>
+    </StackPanel>
+    <Panel>
+      <TextBox Name="TranscriptBox" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" FontSize="13" Margin="0,12,0,0" Padding="12,10"
+               ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+      <TextBlock Name="LoadingText" Text="Loading..." Classes="dim" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Panel>
+  </DockPanel>
+</Window>

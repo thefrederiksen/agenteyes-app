@@ -27,6 +27,7 @@
          failing to compile against Platform/Mac. -->
     <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"
                       AdditionalProperties="AgentEyesUnixPlatform=linux" />
+    <ProjectReference Include="..\..\src\AgentEyes.LinuxApp\AgentEyes.LinuxApp.csproj" />
   </ItemGroup>
 
 </Project>

@@ -109,6 +109,7 @@
     <InternalsVisibleTo Include="AgentEyes.Tests.Linux" />
     <InternalsVisibleTo Include="AgentEyes.Tests.Mac" />
     <InternalsVisibleTo Include="AgentEyesApp" />
+    <InternalsVisibleTo Include="AgentEyesLinux" />
   </ItemGroup>
 
   <ItemGroup>

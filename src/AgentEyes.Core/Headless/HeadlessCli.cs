@@ -55,9 +55,9 @@ namespace AgentEyes.Headless
                     var s = Call(HttpMethod.Get, "status", null);
                     Console.WriteLine($"state={Str(s, "state")} elapsed={Num(s, "elapsedSeconds"):0.0}s level={Num(s, "level"):0.000}");
                     if (Str(s, "dir") is { Length: > 0 } dir) Console.WriteLine($"dir={dir}");
-                    Console.WriteLine($"signedIn={(s.TryGetProperty("signedIn", out var si) && si.ValueKind == JsonValueKind.True)} "
+                    Console.WriteLine($"signedIn={IsTrue(s, "signedIn")} "
                         + $"pendingTranscriptions={Num(s, "pendingTranscriptions"):0}");
-                    if (s.TryGetProperty("lastStopFailed", out var lf) && lf.ValueKind == JsonValueKind.True)
+                    if (IsTrue(s, "lastStopFailed"))
                         Console.WriteLine($"LAST STOP FAILED: {Str(s, "lastStopError")} (dir={Str(s, "lastStopDir")})");
                     return 0;
                 }
@@ -166,10 +166,29 @@ namespace AgentEyes.Headless
 #endif
         }
 
-        private static string Str(JsonElement e, string key) =>
-            e.ValueKind == JsonValueKind.Object && e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
 
-        private static double Num(JsonElement e, string key) =>
-            e.ValueKind == JsonValueKind.Object && e.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+        // The service serializes its records with their C# names (State, Dir, ElapsedSeconds) and its
+        // anonymous objects in camelCase (dir, durationSeconds), so keys are matched ignoring case.
+        internal static bool TryProp(JsonElement e, string key, out JsonElement value)
+        {
+            value = default;
+            if (e.ValueKind != JsonValueKind.Object) return false;
+            foreach (var p in e.EnumerateObject())
+            {
+                if (!string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase)) continue;
+                value = p.Value;
+                return true;
+            }
+            return false;
+        }
+
+        internal static string Str(JsonElement e, string key) =>
+            TryProp(e, key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+
+        internal static double Num(JsonElement e, string key) =>
+            TryProp(e, key, out var v) && v.ValueKind == JsonValueKind.Number ? v.GetDouble() : 0;
+
+        private static bool IsTrue(JsonElement e, string key) =>
+            TryProp(e, key, out var v) && v.ValueKind == JsonValueKind.True;
     }
 }
