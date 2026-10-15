@@ -107,7 +107,7 @@ namespace AgentEyes.App
                 // every stop path - including this process's normal shape, which is --tray with no
                 // MainWindow at all. Every caller that stops a kept recording goes through
                 // RecordingStop.Keep; nothing re-implements the sequence.
-                RecordingStop.Configure(_cfg);
+                PostRecordingPlugins.Configure(_cfg);
 
                 if (_cfg.ApiEnabled)
                 {

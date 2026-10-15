@@ -62,8 +62,17 @@ namespace AgentEyes.Video
             string exe = FfmpegLocator.Ffmpeg();
             // Pass the virtual-desktop bounds so an oversized social-format region is grabbed clamped
             // and padded back to its exact size instead of failing gdigrab (issue #69).
+#if WINDOWS
             var args = FfmpegArgs.VideoCapture(
                 capture, dshowMicName, fps, crf, outPath, Monitors.VirtualBounds(), previewStream: preview != null);
+#else
+            // Issue #102: x11grab + pulse. The microphone arrives by its listed description (what
+            // DeviceResolver matched) and is opened by its pulse source name.
+            string? pulseMic = dshowMicName == null ? null : Platform.Linux.PulseDevices.RequireSourceName(dshowMicName);
+            var args = FfmpegArgs.X11VideoCapture(
+                capture, Platform.Linux.LinuxDisplay.Require(), pulseMic, fps, crf, outPath,
+                Monitors.VirtualBounds(), previewStream: preview != null);
+#endif
             string cmd = FfmpegArgs.ToCommandLine(exe, args);
 
             var psi = new ProcessStartInfo

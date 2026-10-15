@@ -70,6 +70,7 @@ namespace AgentEyes.Video
             return names;
         }
 
+#if WINDOWS
         public static IReadOnlyList<string> ListAudio() => ParseDshowAudio(RunDeviceListing());
 
         /// <summary>
@@ -78,6 +79,13 @@ namespace AgentEyes.Video
         /// An empty list means the machine has no camera - it is NOT an error.
         /// </summary>
         public static IReadOnlyList<string> ListVideo() => ParseDshowVideo(RunDeviceListing());
+#else
+        /// <summary>Issue #102: the Linux microphones - the pulse sources, by description.</summary>
+        public static IReadOnlyList<string> ListAudio() => Platform.Linux.PulseDevices.MicrophoneNames();
+
+        /// <summary>Issue #102: the Linux cameras - the V4L2 capture nodes, as "Name [/dev/videoN]".</summary>
+        public static IReadOnlyList<string> ListVideo() => Platform.Linux.V4l2Devices.CameraNames();
+#endif
 
         /// <summary>
         /// Run ffmpeg's device listing once and return its stderr (where ffmpeg prints the list).

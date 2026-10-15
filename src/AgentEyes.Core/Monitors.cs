@@ -4,20 +4,6 @@ using WinForms = System.Windows.Forms;
 
 namespace AgentEyes
 {
-    /// <summary>One connected display.</summary>
-    internal sealed class MonitorInfo
-    {
-        public int Index { get; init; }            // 1-based, stable for --screen
-        public string Name { get; init; } = "";
-        public int X { get; init; }
-        public int Y { get; init; }
-        public int Width { get; init; }
-        public int Height { get; init; }
-        public bool Primary { get; init; }
-
-        public System.Drawing.Rectangle Bounds => new(X, Y, Width, Height);
-    }
-
     /// <summary>
     /// Multi-monitor enumeration via System.Windows.Forms.Screen (Win32 EnumDisplayMonitors).
     /// TODO Phase 1: surface per-monitor DPI scale explicitly for mixed-DPI correctness.

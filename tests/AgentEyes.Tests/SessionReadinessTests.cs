@@ -73,7 +73,7 @@ namespace AgentEyes.Tests
             // RecordingService.Stop raises RecordingStopped inside the call, and a deferred restart
             // listens to it. The ticket has to be taken BEFORE that, or the app answers "idle" in the
             // gap between the capture ending and the background sequence starting.
-            string stop = RepoSource.Read(@"src\AgentEyes.App\RecordingStop.cs");
+            string stop = RepoSource.Read(@"src\AgentEyes.Core\RecordingStop.cs");
             string keep = RepoSource.MethodBody(stop, "public static StoppedRecording Keep(");
 
             int ticket = keep.IndexOf("PostRecording.TrackWork(", StringComparison.Ordinal);

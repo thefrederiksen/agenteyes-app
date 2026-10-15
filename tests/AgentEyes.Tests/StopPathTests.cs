@@ -80,7 +80,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void StopOwner_OffersTheNamedOperations_SoSkippingIsNeverByOmission()
         {
-            string text = ReadRepoFile(@"src\AgentEyes.App\RecordingStop.cs");
+            string text = ReadRepoFile(@"src\AgentEyes.Core\RecordingStop.cs");
             foreach (string signature in RequiredOperations)
                 Assert.Contains(signature, text, StringComparison.Ordinal);
         }

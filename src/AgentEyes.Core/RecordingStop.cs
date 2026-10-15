@@ -1,9 +1,8 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using AgentEyes;
 
-namespace AgentEyes.App
+namespace AgentEyes
 {
     /// <summary>
     /// Progress sinks for <see cref="RecordingStop.Keep"/>. Every callback arrives on a BACKGROUND
@@ -46,7 +45,9 @@ namespace AgentEyes.App
     }
 
     /// <summary>
-    /// The ONE way the app stops a recording (issue #151).
+    /// The ONE way the app stops a recording (issue #151) - and, since issue #102, the one way the
+    /// headless Linux service stops one too. It lives in Core so both hosts share it; the app-only
+    /// wiring (the plugin step) is <c>AgentEyes.App.PostRecordingPlugins.Configure</c>.
     ///
     /// Before this existed, "stop" was written five times: the window's Stop button, the REST API,
     /// the tray menu, tray Quit, and the guided test panel. Each was a bare
@@ -68,25 +69,6 @@ namespace AgentEyes.App
     /// </summary>
     internal static class RecordingStop
     {
-        /// <summary>
-        /// Wire the app-level parts of the post-recording sequence ONCE, at startup, so they apply
-        /// on every stop path including a process that never builds a window. Called from
-        /// App.OnStartup.
-        /// </summary>
-        public static void Configure(Config cfg)
-        {
-            if (cfg == null) throw new ArgumentNullException(nameof(cfg));
-            Log.Info("[RecordingStop] Configure: registering the post-packaging plugin step");
-
-            // Post-recording plugins (issue #13). Registered here rather than passed in per stop:
-            // a caller that can forget to pass it is the bug this class exists to prevent.
-            PostRecording.AfterPackaging = (dir, progress) =>
-            {
-                if (cfg.EnabledPlugins.Count == 0) return;
-                Plugins.RunEnabledAsync(dir, cfg, progress).GetAwaiter().GetResult();
-            };
-        }
-
         /// <summary>
         /// Stop a recording the user KEEPS, and run the post-recording sequence for it. This is the
         /// only stop entry point that keeps a recording - the window Stop button, the HUD, the tray

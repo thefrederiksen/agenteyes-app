@@ -1,0 +1,57 @@
+# CI (issue #102): proves both builds on every pull request and branch push.
+#   windows - the existing agent gate, unchanged: build + test AgentEyes.sln (Release).
+#   linux   - the Linux build of AgentEyes.Core (net8.0) and its tests (tests/AgentEyes.Tests.Linux).
+# Releases are still built only by release.yml on a v* tag.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Download ffmpeg (essentials build)
+        # The suite exercises the real encoder and refuses to skip (see release.yml).
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP/ffmpeg-essentials.zip"
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP/ffmpeg"
+          $bin = Get-ChildItem "$env:RUNNER_TEMP/ffmpeg" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $bin) { throw "ffmpeg.exe not found in the essentials zip" }
+          "QA_RECORD_FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build AgentEyes.sln
+        run: dotnet build AgentEyes.sln -c Release
+
+      - name: Test AgentEyes.sln
+        run: dotnet test AgentEyes.sln -c Release --no-build
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build AgentEyes.Core (net8.0)
+        run: dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -f net8.0
+
+      - name: Test the Linux build
+        run: dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release

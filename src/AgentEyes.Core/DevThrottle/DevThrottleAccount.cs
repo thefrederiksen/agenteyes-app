@@ -57,7 +57,7 @@ namespace AgentEyes.DevThrottle
             {
                 if (!File.Exists(CredPath)) return null;
                 byte[] protectedBytes = File.ReadAllBytes(CredPath);
-                byte[] json = ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.CurrentUser);
+                byte[] json = Unprotect(protectedBytes);
                 var cred = JsonSerializer.Deserialize<DevThrottleCredential>(Encoding.UTF8.GetString(json));
                 if (cred?.ApiKey is not { Length: > 0 })
                 {
@@ -83,8 +83,24 @@ namespace AgentEyes.DevThrottle
             Log.Info($"[DevThrottleAccount] Save: email={cred.Email ?? "(none)"}");
             Directory.CreateDirectory(Path.GetDirectoryName(CredPath)!);
             byte[] json = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(cred));
+#if WINDOWS
             byte[] protectedBytes = ProtectedData.Protect(json, null, DataProtectionScope.CurrentUser);
             File.WriteAllBytes(CredPath, protectedBytes);
+#else
+            Platform.Linux.CredentialFile.Write(CredPath, json);
+#endif
+        }
+
+        /// <summary>The stored bytes back to the credential JSON: DPAPI on Windows; on Linux the
+        /// 0600 file is the protection (issue #102), and a file anyone else can read is refused.</summary>
+        private static byte[] Unprotect(byte[] stored)
+        {
+#if WINDOWS
+            return ProtectedData.Unprotect(stored, null, DataProtectionScope.CurrentUser);
+#else
+            Platform.Linux.CredentialFile.RequirePrivate(CredPath);
+            return stored;
+#endif
         }
 
         /// <summary>Removes the stored credential (sign out).</summary>

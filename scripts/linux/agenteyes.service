@@ -1,0 +1,26 @@
+# AgentEyes headless recorder - systemd USER service (issue #102).
+#
+# Installed by scripts/linux/install.sh to ~/.config/systemd/user/agenteyes.service.
+# Starts with the graphical session (it records the X display, so it needs one) and serves the
+# Control API on http://127.0.0.1:7882. Logs: journalctl --user -u agenteyes, and the AgentEyes log
+# under ~/.local/share/AgentEyes/logs.
+[Unit]
+Description=AgentEyes headless recorder (Control API on 127.0.0.1:7882)
+Documentation=https://github.com/thefrederiksen/agenteyes-app/blob/main/docs/linux.md
+PartOf=graphical-session.target
+After=graphical-session.target pipewire-pulse.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/lib/agenteyes/agenteyes serve
+Restart=on-failure
+RestartSec=10
+# SIGTERM goes to AgentEyes ONLY (KillMode=mixed): it stops and KEEPS a running recording, which
+# needs its ffmpeg children alive to finalize the files. They are killed only if it has not exited
+# by TimeoutStopSec, which is above the host's 60s post-processing grace.
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=120
+
+[Install]
+WantedBy=graphical-session.target

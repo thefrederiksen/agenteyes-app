@@ -20,7 +20,7 @@ namespace AgentEyes
     /// "one place for every stop path" and then wired only the REST caller to it, leaving the window
     /// running a private staged duplicate. That duplicate is gone: <see cref="Run"/> is now the only
     /// implementation of the sequence, and the app funnels every stop of a kept recording into it
-    /// through <c>AgentEyes.App.RecordingStop.Keep</c>.
+    /// through <c>AgentEyes.RecordingStop.Keep</c>.
     ///
     /// Issue #152 made the sequence SURVIVABLE, which is a different property from being shared:
     ///  - Each stage is individually failure-isolated. The stages used to sit in one try block, so a
@@ -99,7 +99,7 @@ namespace AgentEyes
 
         /// <summary>
         /// The app's post-packaging step (recording plugins - issue #13), registered ONCE at startup
-        /// by <c>AgentEyes.App.RecordingStop.Configure</c>. Arguments are (recording directory,
+        /// by <c>AgentEyes.App.PostRecordingPlugins.Configure</c>. Arguments are (recording directory,
         /// progress). Null in the CLI, which has no plugin system. It is registered at app level and
         /// not passed in per stop, because a caller that can forget to pass it is exactly the bug
         /// issue #151 fixed.
