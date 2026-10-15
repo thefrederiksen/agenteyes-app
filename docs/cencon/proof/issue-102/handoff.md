@@ -24,8 +24,8 @@ machine has run any of this code.**
 | AC4 | `POST /record/stop` yields mp4, transcript, thumbnail, manifest title | **NOT VERIFIED** |
 | AC5 | Runs as `systemd --user` unit, enabled at login, no terminal | **NOT VERIFIED** |
 | AC6 | Credential file is mode 0600 | **NOT VERIFIED** |
-| AC7 | Windows build and test green in CI | **NOT VERIFIED** - no CI run linked |
-| AC8 | New pure logic has unit tests that run on Linux | **PARTIAL** - they pass, but on macOS |
+| AC7 | Windows build and test green in CI | **VERIFIED** - run 38791305765, 2135 tests |
+| AC8 | New pure logic has unit tests that run on Linux | **VERIFIED** - run 38791305765, on ubuntu-latest |
 
 ### What IS evidenced
 
@@ -106,3 +106,31 @@ binary comparison above confirms.
 5. `stat -c '%a' <credential file>` returns 600.
 6. Link a green Windows CI run for AC7.
 7. Confirm the Linux-only test runs rather than skips on Linux.
+
+---
+
+## Added after the merge: continuous integration evidence (AC7 and AC8 now met)
+
+The two criteria above were marked unverified when this note was first written, because no CI run
+existed yet. Run **38791305765**, against commit `b0cb221` - exactly the content merged to main -
+settles both:
+
+| Job | Runner | Result |
+|---|---|---|
+| windows | `windows-latest` | **Failed: 0, Passed: 2135** |
+| linux | `ubuntu-latest` | **Failed: 0, Passed: 48, Skipped: 0** |
+| macos | `macos-latest` | Failed: 0, Passed: 55; platform guard `[OK]` |
+
+**AC7 is met.** The Windows build and the full Windows suite are green after the multi-targeting
+change, on a real Windows machine. (The suite is 2135 tests, not the 288 the project instructions
+still quote - that figure is stale.)
+
+**AC8 is met.** The Linux suite runs on an actual Linux host there, and reports 48 passed with
+ZERO skipped - against 47 passed and 1 skipped on macOS. That difference is the point: the
+Linux-only path test genuinely executes on Linux rather than skipping, which is what this note
+previously asked QA to confirm.
+
+What this does NOT change: `ubuntu-latest` is a headless runner with no X display, no sound
+server and no v4l2 device. AC1's listing half and AC2 through AC6 still need a real Linux desktop,
+and the issue's proof target - a real recording made on devlinux through the service - still does
+not exist.

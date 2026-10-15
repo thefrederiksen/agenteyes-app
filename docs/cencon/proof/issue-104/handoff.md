@@ -188,3 +188,25 @@ NOTHING about whether a real recording is correct. A green suite here is not evi
    build and test above ran on .NET 10 by roll-forward (`DOTNET_ROLL_FORWARD=LatestMajor`). This
    is NOT the runtime the product ships on.
 7. **Nothing here has been reviewed by anyone else.**
+
+---
+
+## Added after the merge: continuous integration evidence
+
+Run **38791305765** against commit `b0cb221`, the content merged to main:
+
+| Job | Runner | Result |
+|---|---|---|
+| macos | `macos-latest` | Failed: 0, Passed: 55; guard reports `[OK] macOS build carries AVFoundation and no Linux capture code` |
+| linux | `ubuntu-latest` | Failed: 0, Passed: 48, Skipped: 0 |
+| windows | `windows-latest` | Failed: 0, Passed: 2135 |
+
+This upgrades AC10 from a local compile check to a real result: the Windows suite does not merely
+compile after the platform split, it passes in full on a Windows machine. It also means the
+macOS platform guard now runs on every pull request and branch push, on a hosted macOS runner
+that has no granted Screen Recording permission and no audio device - which is exactly why the
+macOS tests were written as pure logic.
+
+Still unchanged: a hosted runner cannot grant a screen-recording permission either, so CI being
+green remains silent on whether AgentEyes records anything. Every limitation in the section above
+stands.
