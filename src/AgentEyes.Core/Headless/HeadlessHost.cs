@@ -35,7 +35,14 @@ namespace AgentEyes.Headless
             // "active" but cannot record is the worst state to be in.
             string ffmpeg = FfmpegLocator.Ffmpeg();
             Log.Info($"[HeadlessHost] Run: ffmpeg={ffmpeg}");
-#if !WINDOWS
+#if MACOS
+            // macOS has no DISPLAY variable: the window server is always there. What CAN be missing
+            // is the Screen Recording permission, and enumerating the displays is what surfaces that -
+            // so the service still refuses to start when it could not record, which is the point.
+            var monitors = Monitors.All();
+            Log.Info($"[HeadlessHost] Run: {monitors.Count} display(s): "
+                     + string.Join(", ", monitors.Select(m => $"{m.Name} {m.Width}x{m.Height}")));
+#elif !WINDOWS
             string display = Platform.Linux.LinuxDisplay.Require();
             var monitors = Monitors.All();
             Log.Info($"[HeadlessHost] Run: DISPLAY={display}, {monitors.Count} monitor(s): "

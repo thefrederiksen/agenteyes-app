@@ -6,7 +6,7 @@ namespace AgentEyes.Tests.Linux
 {
     public sealed class LinuxPathsTests
     {
-        [Fact]
+        [LinuxOnlyFact]
         public void MachineLocalAppData_OnLinux_IsTheXdgDataHome()
         {
             // AppDataPaths' %LOCALAPPDATA% is .NET's LocalApplicationData, which on Linux is

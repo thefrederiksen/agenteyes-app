@@ -133,7 +133,7 @@ namespace AgentEyes.Headless
                 Log.Error($"[HeadlessCli] Call FAILED: {url}", ex);
                 throw new UsageException(
                     $"the AgentEyes service is not answering on {LocalAppConfig.Base} ({ex.Message}). "
-                    + "Start it: systemctl --user start agenteyes   (logs: journalctl --user -u agenteyes)", ex);
+                    + StartItHint(), ex);
             }
             using (resp)
             {
@@ -147,6 +147,23 @@ namespace AgentEyes.Headless
                 }
                 return json;
             }
+        }
+
+        /// <summary>
+        /// How to start the service, in the words of the service manager this platform actually has.
+        /// Telling a Mac to run systemctl, or Windows to read a journal, is how a correct diagnosis
+        /// turns into a wasted afternoon.
+        /// </summary>
+        private static string StartItHint()
+        {
+#if MACOS
+            return "Start it: launchctl kickstart -k gui/$UID/com.agenteyes.recorder"
+                + "   (logs: ~/Library/Application Support/AgentEyes/logs)";
+#elif WINDOWS
+            return "Start it: run AgentEyesApp.exe --tray, or 'agenteyes serve' in a terminal.";
+#else
+            return "Start it: systemctl --user start agenteyes   (logs: journalctl --user -u agenteyes)";
+#endif
         }
 
         private static string Str(JsonElement e, string key) =>

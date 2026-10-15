@@ -33,7 +33,9 @@ namespace AgentEyes
 
         public static int Screens()
         {
-#if !WINDOWS
+#if MACOS
+            return Platform.Mac.MacScreens.Print();
+#elif !WINDOWS
             return Platform.Linux.LinuxScreens.Print();
 #else
             Console.WriteLine("MONITORS (EnumDisplayMonitors)");
@@ -376,7 +378,7 @@ namespace AgentEyes
                     }
                 }
 
-                using var recorder = FfmpegRecorder.Start(capture, dshowMic, fps, crf, ffOut);
+                using var recorder = FfmpegRecorder.Start(capture, dshowMic, fps, crf, ffOut, screenNumber: monitor.Index);
                 manifest.FfmpegCommand = recorder.CommandLine;
                 if (cameraRec != null)
                 {

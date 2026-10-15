@@ -66,6 +66,10 @@ namespace AgentEyes.Video
             throw new UsageException(
                 $"{tool}.exe not found. Install ffmpeg (winget install Gyan.FFmpeg) or set " +
                 $"QA_RECORD_FFMPEG_DIR to the folder containing {tool}.exe.");
+#elif MACOS
+            throw new UsageException(
+                $"{tool} not found on PATH. Install it with 'brew install ffmpeg', or set " +
+                $"QA_RECORD_FFMPEG_DIR to the folder containing {tool}.");
 #else
             throw new UsageException(
                 $"{tool} not found on PATH. Install it with 'sudo apt install -y ffmpeg', or set " +

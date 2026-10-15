@@ -75,7 +75,9 @@ namespace AgentEyes
                         return SelfTest.Run();
 
                     case "always-on":
-#if !WINDOWS
+#if MACOS
+                        throw Platform.Mac.NotOnMac.Feature("Always-on recording");
+#elif !WINDOWS
                         throw Platform.Linux.NotOnLinux.Feature("Always-on recording");
 #else
                         return AlwaysOn.AlwaysOnCli.Run(opts);
