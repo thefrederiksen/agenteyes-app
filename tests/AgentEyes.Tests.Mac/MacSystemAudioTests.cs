@@ -61,5 +61,37 @@ namespace AgentEyes.Tests.Mac
 
             Assert.Equal("BlackHole 2ch", hit!.Value.Name);
         }
+
+        /// <summary>
+        /// Regression test for issue 108, defect 2. "Aggregate" used to be in KnownDrivers. An
+        /// Aggregate Device is a generic macOS facility for combining audio interfaces - it is not
+        /// a loopback driver. Matching it would pick a user's aggregate of two MICROPHONES as the
+        /// system-audio source and record the room while claiming to record the machine.
+        /// </summary>
+        [Fact]
+        public void Find_AnAggregateDeviceThatIsNotALoopback_IsNotChosen()
+        {
+            var hit = MacSystemAudio.Find(
+                Audio("MacBook Pro Microphone", "Aggregate Device", "USB Audio CODEC"), out string why);
+
+            Assert.Null(hit);
+            Assert.Contains("loopback", why);
+        }
+
+        /// <summary>
+        /// The other half of the same fix: dropping "Aggregate" must not stop a REAL loopback being
+        /// found just because it happens to sit inside an aggregate's name.
+        /// </summary>
+        [Fact]
+        public void Find_AnAggregateWrappingBlackHole_StillFindsTheLoopback()
+        {
+            var hit = MacSystemAudio.Find(
+                Audio("Aggregate Device", "BlackHole 16ch"), out string why);
+
+            Assert.NotNull(hit);
+            Assert.Equal("BlackHole 16ch", hit!.Value.Name);
+            Assert.Equal("", why);
+        }
+
     }
 }

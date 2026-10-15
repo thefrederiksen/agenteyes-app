@@ -40,6 +40,35 @@ namespace AgentEyes
                 + "it - macOS only accepts that from the person at the keyboard.";
         }
 
+        /// <summary>
+        /// Remove anything already sitting at the capture target.
+        ///
+        /// WHY THIS EXISTS. CaptureRect proves a capture happened by asking whether the file is
+        /// there afterwards, because screencapture can exit ZERO and write nothing when the Screen
+        /// Recording permission is refused. That proof only holds if the file could not have been
+        /// there already - otherwise an earlier run's image satisfies the check and yesterday's
+        /// screenshot is handed back as today's, with no error. After this returns, the file's
+        /// presence means exactly one thing: this run wrote it.
+        /// </summary>
+        internal static void ClearStaleTarget(string outputPath)
+        {
+            if (!File.Exists(outputPath)) return;
+
+            Log.Info($"[Screenshot] ClearStaleTarget: removing an older file at {outputPath}");
+            File.Delete(outputPath);
+
+            // Deleting is not assumed to have worked: if the old file survives, the check that
+            // follows the capture is already invalid, so stop here rather than report a result
+            // that cannot be trusted.
+            if (File.Exists(outputPath))
+            {
+                throw new UsageException(
+                    $"an older file at {outputPath} could not be removed, so a new screenshot "
+                    + "cannot be told apart from it. Remove that file, or write to another path "
+                    + "with --out.");
+            }
+        }
+
         public static string CaptureMonitor(MonitorInfo monitor, string outputPath, bool copyToClipboard = true) =>
             CaptureRect(monitor.Bounds, outputPath, copyToClipboard);
 
@@ -49,6 +78,7 @@ namespace AgentEyes
                 throw new UsageException($"capture rectangle is empty ({rect.Width}x{rect.Height}).");
             Log.Info($"[Screenshot] CaptureRect: {rect.Width}x{rect.Height} at ({rect.X},{rect.Y}) -> {outputPath}");
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputPath))!);
+            ClearStaleTarget(outputPath);
 
             var args = FfmpegArgs.ScreencaptureStill(rect, outputPath);
             var r = ToolRunner.Run(Tool, args, TimeSpan.FromSeconds(30));
