@@ -270,6 +270,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Commands::Audio -> AgentEyes.ManifestStore::Replace x1",                  // a CLI audio session's own record
             "agenteyes.dll!AgentEyes.Commands::Shot -> AgentEyes.ManifestStore::Replace x1",                   // a CLI screenshot's own record
             "agenteyes.dll!AgentEyes.Commands::Video -> AgentEyes.ManifestStore::Replace x1",                  // a CLI video session's own record
+            "agenteyes.dll!AgentEyes.Headless.RecordingActions::Rename -> AgentEyes.ManifestStore::Update x1", // issue #107: the Control API rename sets DisplayName
             "agenteyes.dll!AgentEyes.Housekeeping.FrameConversion::UpdateManifest -> AgentEyes.ManifestStore::Update x1", // converted frames are repointed in Shots and Files
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::Apply -> AgentEyes.ManifestStore::Update x2",           // a deleted preserved original or composition input is struck from the manifest
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::ApplyExpiry -> AgentEyes.ManifestStore::Update x2",      // an expired recording records its intent, then clears it once the deletes are done (issue #59)

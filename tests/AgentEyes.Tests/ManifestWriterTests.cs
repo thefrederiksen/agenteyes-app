@@ -75,7 +75,7 @@ namespace AgentEyes.Tests
         /// recovery record); everything that changes SOME fields of an existing recording must be an
         /// Update, or it erases whatever it never read.
         ///
-        /// 30 call sites in 17 files: 21 Update, 9 Replace.
+        /// 32 call sites in 18 files: 23 Update, 9 Replace.
         /// </summary>
         private static readonly WriterFile[] ExpectedWriters =
         {
@@ -87,6 +87,8 @@ namespace AgentEyes.Tests
                 "Update: issue #47 - the composed-camera flag and the preserved screen-only cut"),
             new("src/AgentEyes.Core/Commands.cs", Updates: 0, Replaces: 3,
                 "Replace x3: a CLI capture session's own record (shot, audio, video)"),
+            new("src/AgentEyes.Core/Headless/RecordingActions.cs", Updates: 1, Replaces: 0,
+                "Update: issue #107 - the headless Control API rename (the Linux app's Library) sets DisplayName"),
             new("src/AgentEyes.Core/Housekeeping/FrameConversion.cs", Updates: 1, Replaces: 0,
                 "Update: issues #55, #56 - converted frames are repointed in Shots and Files"),
             new("src/AgentEyes.Core/Housekeeping/Housekeeper.cs", Updates: 6, Replaces: 0,
@@ -138,6 +140,9 @@ namespace AgentEyes.Tests
         {
             ("src/AgentEyes.App/LibrarySnapshot.cs",             "a directory is a Library row when it holds one (issue #178)"),
             ("src/AgentEyes.Core/Commands.cs",                   "CLI: resolves a recording directory by the file's presence"),
+            ("src/AgentEyes.Core/Headless/RecordingActions.cs",  "Control API (issue #107): a recording id is a directory holding one"),
+            ("src/AgentEyes.LinuxApp/Model/LibraryEntry.cs",     "Linux app Library (issue #107): a directory is a row when it holds one"),
+            ("src/AgentEyes.LinuxApp/Views/MainWindow.axaml.cs", "Linux app Library (issue #107): a manifest change re-reads the row"),
             (ManifestPath,                                       "defines the file name and loads it"),
             (StorePath,                                          "THE writer"),
             ("src/AgentEyes.Core/Housekeeping/Housekeeper.cs",   "housekeeping: a directory is a recording when it holds one"),
@@ -273,10 +278,10 @@ namespace AgentEyes.Tests
         {
             var found = CountWriters(ProductionSources(), CodeOf);
 
-            Assert.Equal(17, found.Count);                                  // files
-            Assert.Equal(22, found.Values.Sum(v => v.Updates));             // read-modify-write
+            Assert.Equal(18, found.Count);                                  // files
+            Assert.Equal(23, found.Values.Sum(v => v.Updates));             // read-modify-write
             Assert.Equal(9, found.Values.Sum(v => v.Replaces));             // whole-content
-            Assert.Equal(31, found.Values.Sum(v => v.Updates + v.Replaces));
+            Assert.Equal(32, found.Values.Sum(v => v.Updates + v.Replaces));
         }
 
         [Fact]
