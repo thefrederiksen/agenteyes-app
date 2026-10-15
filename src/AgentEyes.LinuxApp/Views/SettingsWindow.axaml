@@ -1,0 +1,48 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AgentEyes.LinuxApp.Views.SettingsWindow"
+        Title="Settings" Width="560" Height="480" CanResize="False"
+        Icon="/Assets/agenteyes.png" WindowStartupLocation="CenterOwner">
+  <!-- Issue #107: the Windows SettingsDialog - General and Account. -->
+  <DockPanel Margin="18">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button Classes="primary" Content="Close" IsDefault="True" IsCancel="True" Click="Close_Click" MinWidth="90"/>
+    </StackPanel>
+    <TabControl Name="Tabs">
+      <TabItem Header="General" Name="GeneralTab">
+        <StackPanel Margin="4,14,4,0" Spacing="10">
+          <CheckBox Name="RunAtLogin" Content="Run at login (AgentEyes starts in the tray when you log in)" IsCheckedChanged="RunAtLogin_Changed"/>
+          <TextBlock Text="The recorder service runs in the background and records even when this window is closed."
+                     TextWrapping="Wrap" Classes="dim" FontSize="12"/>
+          <Border Background="{StaticResource RdSurface}" BorderBrush="{StaticResource RdStroke}" BorderThickness="1" CornerRadius="6" Padding="12,10">
+            <StackPanel Spacing="4">
+              <TextBlock Name="ServiceLine" FontSize="12"/>
+              <TextBlock Name="RecordingsLine" FontSize="12" Classes="dim" TextWrapping="Wrap"/>
+              <TextBlock Name="DataLine" FontSize="12" Classes="dim" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="mini" Content="Open recordings folder" Click="OpenRecordings_Click"/>
+            <Button Classes="mini" Content="Open logs folder" Click="OpenLogs_Click"/>
+          </StackPanel>
+        </StackPanel>
+      </TabItem>
+      <TabItem Header="Account" Name="AccountTab">
+        <StackPanel Margin="4,14,4,0" Spacing="6">
+          <TextBlock Text="DevThrottle transcribes, titles and summarizes your recordings." TextWrapping="Wrap" Classes="dim" FontSize="12"/>
+          <TextBlock Name="AccountLine" FontSize="15" FontWeight="SemiBold" Margin="0,10,0,0"/>
+          <TextBlock Name="KeyLine" FontSize="12" Classes="dim" FontFamily="{StaticResource Mono}"/>
+          <TextBlock Name="CreditsLine" FontSize="13" Classes="dim" Margin="0,0,0,10"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Name="SignInButton" Classes="primary" Content="Sign in" Click="SignIn_Click"/>
+            <Button Name="AddCreditsButton" Classes="mini" Content="Add credits" Click="AddCredits_Click"/>
+            <Button Name="SignOutButton" Classes="mini" Content="Sign out" Click="SignOut_Click"/>
+          </StackPanel>
+          <TextBlock Name="AccountStatus" FontSize="12" Classes="dim" TextWrapping="Wrap" Margin="0,8,0,0"/>
+          <TextBlock Text="The key is stored for your user only (a 0600 file in the AgentEyes data folder)." TextWrapping="Wrap"
+                     Classes="muted" FontSize="11" Margin="0,10,0,0"/>
+        </StackPanel>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

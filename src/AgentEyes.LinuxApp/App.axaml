@@ -1,0 +1,231 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AgentEyes.LinuxApp.App"
+             RequestedThemeVariant="Dark">
+  <!-- Issue #107: the Windows app's dark palette (AgentEyes.App/App.xaml, Rd* brushes). -->
+  <Application.Resources>
+    <SolidColorBrush x:Key="RdWindow" Color="#1C1E22"/>
+    <SolidColorBrush x:Key="RdSurface" Color="#24262B"/>
+    <SolidColorBrush x:Key="RdSurfaceHover" Color="#2C2F35"/>
+    <SolidColorBrush x:Key="RdStroke" Color="#33363D"/>
+    <SolidColorBrush x:Key="RdText" Color="#ECEEF1"/>
+    <SolidColorBrush x:Key="RdDim" Color="#9AA0AA"/>
+    <SolidColorBrush x:Key="RdMuted" Color="#6B7178"/>
+    <SolidColorBrush x:Key="RdAccent" Color="#4CC2FF"/>
+    <SolidColorBrush x:Key="RdRecord" Color="#E5484D"/>
+    <SolidColorBrush x:Key="RdGreen" Color="#22C55E"/>
+    <SolidColorBrush x:Key="RdAmber" Color="#F5A623"/>
+    <SolidColorBrush x:Key="RdAmberSurface" Color="#332A14"/>
+    <FontFamily x:Key="Mono">monospace</FontFamily>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme/>
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{StaticResource RdWindow}"/>
+      <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+    </Style>
+
+    <!-- Left rail items: icon over label, accent bar on the left edge when selected -->
+    <Style Selector="TextBlock.railLabel">
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+    </Style>
+    <Style Selector="RadioButton.rail:checked TextBlock.railLabel">
+      <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+    </Style>
+    <Style Selector="RadioButton.railRecord:checked TextBlock.railLabel">
+      <Setter Property="Foreground" Value="{StaticResource RdRecord}"/>
+    </Style>
+    <Style Selector="RadioButton.rail">
+      <Setter Property="Width" Value="72"/>
+      <Setter Property="Height" Value="56"/>
+      <Setter Property="Margin" Value="0,1"/>
+      <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Name="bg" Background="Transparent">
+            <Grid>
+              <Border Name="mark" Width="3" Height="26" CornerRadius="0,2,2,0" HorizontalAlignment="Left"
+                      Background="{StaticResource RdAccent}" IsVisible="False"/>
+              <ContentPresenter Name="PART_ContentPresenter" Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.rail:pointerover /template/ Border#bg">
+      <Setter Property="Background" Value="{StaticResource RdSurfaceHover}"/>
+    </Style>
+    <Style Selector="RadioButton.rail:checked">
+      <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+    </Style>
+    <Style Selector="RadioButton.rail:checked /template/ Border#mark">
+      <Setter Property="IsVisible" Value="True"/>
+    </Style>
+    <Style Selector="RadioButton.railRecord:checked">
+      <Setter Property="Foreground" Value="{StaticResource RdRecord}"/>
+    </Style>
+    <Style Selector="RadioButton.railRecord:checked /template/ Border#mark">
+      <Setter Property="Background" Value="{StaticResource RdRecord}"/>
+    </Style>
+
+    <Style Selector="Button.railAction">
+      <Setter Property="Width" Value="72"/>
+      <Setter Property="Height" Value="54"/>
+      <Setter Property="Margin" Value="0,1"/>
+      <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="CornerRadius" Value="0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.railAction:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource RdSurfaceHover}"/>
+      <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+    </Style>
+
+    <!-- Small square icon button (DkIcon) -->
+    <Style Selector="Button.icon">
+      <Setter Property="Background" Value="{StaticResource RdSurface}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource RdStroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="7"/>
+      <Setter Property="MinWidth" Value="30"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.icon:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource RdSurfaceHover}"/>
+    </Style>
+
+    <!-- Small text button (DkMini) -->
+    <Style Selector="Button.mini">
+      <Setter Property="Background" Value="{StaticResource RdSurface}"/>
+      <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource RdStroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Padding" Value="12,5"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.mini:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource RdSurfaceHover}"/>
+      <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+    </Style>
+
+    <!-- Primary (DkPrimary) -->
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{StaticResource RdAccent}"/>
+      <Setter Property="Foreground" Value="#0B1B24"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="16,7"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#6FD0FF"/>
+      <Setter Property="Foreground" Value="#0B1B24"/>
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="#3A1F22"/>
+      <Setter Property="Foreground" Value="#FF8A8D"/>
+      <Setter Property="BorderBrush" Value="#5A2A2E"/>
+    </Style>
+
+    <!-- Card chips (Transcript / Walkthrough) -->
+    <Style Selector="Button.chip">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="{StaticResource RdStroke}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="7,1"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+      <Setter Property="Margin" Value="0,0,6,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.chip:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource RdSurfaceHover}"/>
+    </Style>
+    <Style Selector="Button.chip.chipAccent">
+      <Setter Property="BorderBrush" Value="{StaticResource RdAccent}"/>
+      <Setter Property="Foreground" Value="{StaticResource RdAccent}"/>
+    </Style>
+
+    <!-- Hero REC button (DkRecordHero) -->
+    <Style Selector="Button.recHero">
+      <Setter Property="Width" Value="132"/>
+      <Setter Property="Height" Value="132"/>
+      <Setter Property="CornerRadius" Value="66"/>
+      <Setter Property="Background" Value="{StaticResource RdRecord}"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="FontSize" Value="22"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="BorderBrush" Value="#55E5484D"/>
+      <Setter Property="BorderThickness" Value="6"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.recHero:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#F25F63"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="BorderBrush" Value="#77E5484D"/>
+    </Style>
+    <Style Selector="Button.recHero.stop /template/ ContentPresenter">
+      <Setter Property="Background" Value="#2C2F35"/>
+      <Setter Property="BorderBrush" Value="{StaticResource RdRecord}"/>
+    </Style>
+
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="{StaticResource RdSurface}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource RdStroke}"/>
+      <Setter Property="Foreground" Value="{StaticResource RdText}"/>
+    </Style>
+
+    <Style Selector="ListBox.library">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
+    <Style Selector="ListBox.library ListBoxItem">
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="CornerRadius" Value="8"/>
+    </Style>
+    <Style Selector="ListBox.grid ListBoxItem">
+      <Setter Property="Margin" Value="0,0,18,22"/>
+      <Setter Property="Padding" Value="6"/>
+    </Style>
+    <Style Selector="ListBox.list ListBoxItem">
+      <Setter Property="Padding" Value="10,8"/>
+      <Setter Property="Margin" Value="0,0,0,2"/>
+    </Style>
+
+    <Style Selector="TabItem">
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="MinHeight" Value="36"/>
+      <Setter Property="Padding" Value="10,0"/>
+    </Style>
+
+    <Style Selector="TextBlock.h1">
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="TextBlock.dim">
+      <Setter Property="Foreground" Value="{StaticResource RdDim}"/>
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{StaticResource RdMuted}"/>
+    </Style>
+  </Application.Styles>
+</Application>

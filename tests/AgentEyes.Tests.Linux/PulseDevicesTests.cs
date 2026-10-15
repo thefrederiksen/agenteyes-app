@@ -31,6 +31,22 @@ namespace AgentEyes.Tests.Linux
         }
 
         [Fact]
+        public void ParseListing_Ffmpeg61MediaTypesSuffix_ReadsEveryLine()
+        {
+            // ffmpeg 6.1 (Ubuntu 24.04) ends each line with the media types; the parser read none.
+            var list = PulseDevices.ParseListing(
+                "Auto-detected sinks for pulse:\n" +
+                "  alsa_output.pci-0000_08_00.3.iec958-stereo [Family 17h HD Audio Controller Digital Stereo (IEC958)] (none)\n" +
+                "* alsa_output.usb-Yealink_UH36-00.analog-stereo [Yealink UH36 Analog Stereo] (none)\n");
+
+            Assert.Equal(2, list.Count);
+            Assert.Equal("Family 17h HD Audio Controller Digital Stereo (IEC958)", list[0].Description);
+            Assert.Equal("alsa_output.usb-Yealink_UH36-00.analog-stereo", list[1].Name);
+            Assert.Equal("Yealink UH36 Analog Stereo", list[1].Description);
+            Assert.True(list[1].IsDefault);
+        }
+
+        [Fact]
         public void ParseListing_HeaderAndBlankLines_AreIgnored()
         {
             Assert.Empty(PulseDevices.ParseListing("Auto-detected sources for pulse:\n\n"));

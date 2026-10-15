@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Issue #107: the AgentEyes desktop app for Linux (Avalonia). The same window as the Windows
+       app (AgentEyes.App, WPF): library, in-app player, details, record, dictionary, settings and
+       the tray icon. Recording is done by the agenteyes service (Control API on 127.0.0.1:7882);
+       this app reads the library from disk and sends every change through that API.
+       Deliberately NOT in AgentEyes.sln: the Windows gate (build + test the .sln) is unchanged.
+         dotnet build src/AgentEyes.LinuxApp -c Release -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+    <RootNamespace>AgentEyes.LinuxApp</RootNamespace>
+    <AssemblyName>AgentEyesLinux</AssemblyName>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The engine's LINUX configuration, the same pin the Linux test suite uses. -->
+    <ProjectReference Include="..\AgentEyes.Core\AgentEyes.Core.csproj" AdditionalProperties="AgentEyesUnixPlatform=linux" />
+    <!-- Toolkit-free and shared verbatim with the Windows app: how a recording's transcript is shown. -->
+    <Compile Include="..\AgentEyes.App\TranscriptPresentation.cs" Link="Shared\TranscriptPresentation.cs" />
+    <AvaloniaResource Include="Assets\**" />
+    <InternalsVisibleTo Include="AgentEyes.Tests.Linux" />
+  </ItemGroup>
+
+</Project>

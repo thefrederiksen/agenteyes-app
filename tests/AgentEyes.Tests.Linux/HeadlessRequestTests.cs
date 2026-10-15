@@ -78,5 +78,16 @@ namespace AgentEyes.Tests.Linux
         {
             Assert.Throws<UsageException>(() => HeadlessCli.StartBody(CliArgs.Parse(new[] { "start", "--mix", "--loopback", "--mic", "x" })));
         }
+        [Fact]
+        public void Str_PascalCaseStatusFromService_ReadsCamelCaseKey()
+        {
+            // GET /status serializes the C# record names (State, Dir); the CLI asked for "state" and printed blanks.
+            var status = System.Text.Json.JsonDocument.Parse("{\"State\":\"recording\",\"Dir\":\"/v/a\",\"ElapsedSeconds\":4.5}").RootElement;
+
+            Assert.Equal("recording", HeadlessCli.Str(status, "state"));
+            Assert.Equal("/v/a", HeadlessCli.Str(status, "dir"));
+            Assert.Equal(4.5, HeadlessCli.Num(status, "elapsedSeconds"), 6);
+            Assert.Equal("", HeadlessCli.Str(status, "missing"));
+        }
     }
 }

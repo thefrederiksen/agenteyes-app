@@ -28,8 +28,9 @@ namespace AgentEyes.Platform.Linux
     internal static class PulseDevices
     {
         // "* alsa_input.usb-Yealink-00.analog-stereo [Yealink UH36 Analog Stereo]"
+        // ffmpeg 6.1+ appends the media types: "... [Yealink UH36 Analog Stereo] (none)".
         private static readonly Regex EndpointLine = new(
-            @"^(?<def>[* ])\s(?<name>\S+)\s\[(?<desc>.*)\]\s*$", RegexOptions.Compiled);
+            @"^(?<def>[* ])\s(?<name>\S+)\s\[(?<desc>.*)\](?:\s+\([^()]*\))?\s*$", RegexOptions.Compiled);
 
         /// <summary>Parse ffmpeg's "-sources pulse" / "-sinks pulse" listing. Pure, unit-tested.</summary>
         internal static List<PulseEndpoint> ParseListing(string output)
