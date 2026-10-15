@@ -31,8 +31,14 @@ namespace AgentEyes.Platform.Mac
             "Loopback",       // Rogue Amoeba Loopback
             "Soundflower",    // older, still in use
             "Existential",    // Existential Audio's own naming on some builds
-            "Aggregate",      // a user-made aggregate device wrapping one of the above
         };
+
+        // DELIBERATELY NOT HERE: "Aggregate". An Aggregate Device is a generic macOS facility for
+        // combining audio interfaces - it is not a loopback driver and says nothing about whether
+        // the system output is in it. Matching it would pick up a user's aggregate of two
+        // MICROPHONES and record the room while claiming to record the machine, which is exactly
+        // the substitution this class promises never to make. An aggregate that genuinely wraps a
+        // loopback driver can still be chosen explicitly with --mic, by its own name.
 
         /// <summary>
         /// Pick the system-audio input out of a listing. Pure, so the choice and the refusal are both
