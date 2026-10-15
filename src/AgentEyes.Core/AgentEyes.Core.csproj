@@ -59,14 +59,55 @@
   <ItemGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows'))">
     <Compile Remove="@(WindowsOnlyCompile)" />
   </ItemGroup>
+
+  <!-- NOT-WINDOWS IS TWO PLATFORMS, NOT ONE. The net8.0 target is selected on Linux AND on macOS,
+       so "not Windows" cannot mean "Linux": a Mac that compiles Platform/Linux gets an engine that
+       asks for an X display, xrandr and PulseAudio, none of which a Mac has. AgentEyesUnixPlatform
+       names which Unix this build is for - the build host by default, and settable by hand so either
+       can be built or cross-checked from the other machine:
+
+         dotnet build src/AgentEyes.Core -c Release                                  (this host)
+         dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=linux   (force Linux)
+         dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=mac     (force macOS)
+
+       The Linux build is byte-for-byte the one it was before this split: it keeps every
+       Platform/Linux file and defines no extra constant.
+
+       ONE CONFIGURATION AT A TIME. Both configurations build to the SAME bin\Release\net8.0 path,
+       so building one after the other in the same tree replaces the other's binary. That is fine for
+       a single build or a single 'dotnet test', which is how CI runs them (separate jobs) and how the
+       two test projects pin themselves (AdditionalProperties on their ProjectReference). It is worth
+       knowing before reading a binary out of that folder by hand: check which configuration put it
+       there, the same care the project instructions ask for over bin\Release vs bin\x64\Release. -->
+  <PropertyGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows'))">
+    <AgentEyesUnixPlatform Condition="'$(AgentEyesUnixPlatform)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">mac</AgentEyesUnixPlatform>
+    <AgentEyesUnixPlatform Condition="'$(AgentEyesUnixPlatform)' == ''">linux</AgentEyesUnixPlatform>
+    <DefineConstants Condition="'$(AgentEyesUnixPlatform)' == 'mac'">$(DefineConstants);MACOS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Unix-generic, despite living under Platform/Linux: running a short tool, writing a streaming
+         WAV header, and owner-only file modes have nothing to do with X or pulse. The macOS build
+         compiles these three as they are rather than duplicating them. -->
+    <UnixSharedCompile Include="Platform\Linux\ToolRunner.cs;Platform\Linux\WavStreamWriter.cs;Platform\Linux\CredentialFile.cs" />
+  </ItemGroup>
   <ItemGroup Condition="$(TargetFramework.StartsWith('net8.0-windows'))">
     <Compile Remove="Platform\Linux\**" />
+    <Compile Remove="Platform\Mac\**" />
+  </ItemGroup>
+  <ItemGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows')) And '$(AgentEyesUnixPlatform)' != 'mac'">
+    <Compile Remove="Platform\Mac\**" />
+  </ItemGroup>
+  <ItemGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows')) And '$(AgentEyesUnixPlatform)' == 'mac'">
+    <Compile Remove="Platform\Linux\**" />
+    <Compile Include="@(UnixSharedCompile)" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Let the test project and the WPF app see internal (engine) types. -->
     <InternalsVisibleTo Include="AgentEyes.Tests" />
     <InternalsVisibleTo Include="AgentEyes.Tests.Linux" />
+    <InternalsVisibleTo Include="AgentEyes.Tests.Mac" />
     <InternalsVisibleTo Include="AgentEyesApp" />
   </ItemGroup>
 

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The tests for the macOS build of AgentEyes.Core (net8.0):
+         dotnet test tests/AgentEyes.Tests.Mac -c Release
+       Like AgentEyes.Tests.Linux, this project is deliberately NOT in AgentEyes.sln - the Windows
+       gate (build + test the .sln) is unchanged, and these tests exercise macOS-only code
+       (Platform/Mac). The referenced Core is forced to its macOS configuration so the suite is the
+       same whichever machine runs it.
+
+       EVERY TEST IN HERE IS A PURE-LOGIC TEST: argument lists, parsers and arithmetic. None of them
+       captures a screen, opens a microphone or needs the Screen Recording permission, which is both
+       why they run anywhere and the limit of what they prove. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <Platforms>x64</Platforms>
+    <RootNamespace>AgentEyes.Tests.Mac</RootNamespace>
+    <AssemblyName>AgentEyes.Tests.Mac</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Pin the engine to its macOS configuration, for the same reason the Linux suite pins itself
+         to Linux: the suite must test the same engine whichever machine runs it. -->
+    <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"
+                      AdditionalProperties="AgentEyesUnixPlatform=mac" />
+  </ItemGroup>
+
+</Project>

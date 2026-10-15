@@ -22,7 +22,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj" />
+    <!-- Pin the engine to its LINUX configuration. On Linux this changes nothing; on a Mac, where
+         the macOS configuration is the default, it is what keeps this suite testing Linux instead of
+         failing to compile against Platform/Mac. -->
+    <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"
+                      AdditionalProperties="AgentEyesUnixPlatform=linux" />
   </ItemGroup>
 
 </Project>

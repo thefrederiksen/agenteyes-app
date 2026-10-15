@@ -269,6 +269,14 @@ namespace AgentEyes.Headless
         {
 #if WINDOWS
             return "(WASAPI loopback of the default output)";
+#elif MACOS
+            // macOS has no system-audio input of its own; it needs a virtual device the user
+            // installed. Reported either way, because /devices answers "what is here", and on a Mac
+            // "nothing carries the system output" is the common and correct answer.
+            var device = Platform.Mac.MacSystemAudio.Find(Platform.Mac.AvfDevices.Read().Audio, out string why);
+            return device != null
+                ? $"{device.Value.Name} (AVFoundation :{device.Value.Index})"
+                : "(unavailable: " + why + " macOS needs a virtual audio device such as BlackHole)";
 #else
             var monitor = Platform.Linux.PulseDevices.RequireSystemAudioSource();
             return $"{monitor.Description} ({monitor.Name})";
@@ -299,7 +307,11 @@ namespace AgentEyes.Headless
             };
         }
 
-        internal static string PlatformName() => OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsLinux() ? "linux" : "other";
+        internal static string PlatformName() =>
+            OperatingSystem.IsWindows() ? "windows"
+            : OperatingSystem.IsLinux() ? "linux"
+            : OperatingSystem.IsMacOS() ? "macos"
+            : "other";
 
         private static string AppVersion() =>
             typeof(HeadlessControlServer).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";

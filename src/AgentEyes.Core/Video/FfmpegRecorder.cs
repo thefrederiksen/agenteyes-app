@@ -55,9 +55,13 @@ namespace AgentEyes.Video
         /// that pipe. The tap drains it unconditionally for the life of the process - an anonymous
         /// pipe nobody reads fills, and a full pipe would block the ffmpeg writing the recording, so
         /// the preview output is added ONLY when there is a tap to drain it.</param>
+        /// <param name="screenNumber">The one-based monitor this region belongs to. Windows and Linux
+        /// address a region by its position in one virtual desktop and ignore this; macOS opens ONE
+        /// display by index and crops inside it, so there it is the display being recorded. It
+        /// defaults to the main display so the Windows and Linux call sites are unchanged.</param>
         public static FfmpegRecorder Start(
             Drawing.Rectangle capture, string? dshowMicName, int fps, int crf, string outPath,
-            Preview.PreviewTap? preview = null)
+            Preview.PreviewTap? preview = null, int screenNumber = 1)
         {
             string exe = FfmpegLocator.Ffmpeg();
             // Pass the virtual-desktop bounds so an oversized social-format region is grabbed clamped
@@ -65,6 +69,18 @@ namespace AgentEyes.Video
 #if WINDOWS
             var args = FfmpegArgs.VideoCapture(
                 capture, dshowMicName, fps, crf, outPath, Monitors.VirtualBounds(), previewStream: preview != null);
+#elif MACOS
+            // AVFoundation opens ONE display by index and the region is a crop inside it, so the
+            // capture needs that display's index and size rather than a desktop offset. The screen is
+            // resolved from the region: a Mac region is display-local, and RequireScreen pairs the
+            // index ffmpeg wants with the size the crop is clamped into.
+            int? avfMic = dshowMicName == null
+                ? null
+                : Platform.Mac.AvfDevices.RequireMicrophoneIndex(dshowMicName);
+            var (avfScreen, macScreen) = Platform.Mac.MacDisplay.RequireScreen(screenNumber);
+            var args = FfmpegArgs.AvfVideoCapture(
+                capture, avfScreen, new Drawing.Size(macScreen.Width, macScreen.Height), avfMic,
+                fps, crf, outPath, previewStream: preview != null);
 #else
             // Issue #102: x11grab + pulse. The microphone arrives by its listed description (what
             // DeviceResolver matched) and is opened by its pulse source name.

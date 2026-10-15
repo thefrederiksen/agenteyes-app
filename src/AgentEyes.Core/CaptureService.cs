@@ -86,9 +86,11 @@ namespace AgentEyes
             // reads from user-dirs.dirs) + "Screenshots" is where GNOME's own tool saves. DoNotVerify
             // for the same reason the Windows lookup passes KF_FLAG_DONT_VERIFY: a fresh account may
             // not have the folder yet, and SaveRect creates it at save time.
+            // On macOS the same call returns ~/Pictures, and "Screenshots" under it is where a
+            // person would look for these, so the one expression is correct for both.
             string pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures, Environment.SpecialFolderOption.DoNotVerify);
             if (string.IsNullOrWhiteSpace(pictures))
-                throw new InvalidOperationException("The XDG Pictures folder could not be resolved (HOME unset?).");
+                throw new InvalidOperationException("The Pictures folder could not be resolved (HOME unset?).");
             return Path.Combine(pictures, "Screenshots");
 #endif
         }
