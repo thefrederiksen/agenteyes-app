@@ -22,7 +22,14 @@ fail() { echo "[FAIL] $*" >&2; exit 1; }
 ok()   { echo "[OK] $*"; }
 
 command -v dotnet >/dev/null  || fail "dotnet is not installed (sudo apt install -y dotnet-sdk-8.0)"
-command -v ffmpeg >/dev/null  || fail "ffmpeg is not installed (sudo apt install -y ffmpeg)"
+# First run: ffmpeg does all the capturing. It needs root to install, so this asks for your
+# password once (sudo) rather than leaving it as a manual step.
+if ! command -v ffmpeg >/dev/null; then
+    command -v apt-get >/dev/null || fail "ffmpeg is not installed and this is not an apt system - install ffmpeg with your package manager"
+    echo "ffmpeg is not installed - AgentEyes records through it. Installing it now (sudo asks for your password) ..."
+    sudo apt-get install -y ffmpeg || fail "installing ffmpeg failed - run: sudo apt install -y ffmpeg"
+    ok "ffmpeg installed"
+fi
 command -v xrandr >/dev/null  || fail "xrandr is not installed (sudo apt install -y x11-xserver-utils)"
 ffmpeg -hide_banner -devices 2>/dev/null | grep -q x11grab || fail "this ffmpeg has no x11grab input"
 ffmpeg -hide_banner -devices 2>/dev/null | grep -q pulse   || fail "this ffmpeg has no pulse input"
@@ -69,6 +76,16 @@ if [[ $start -eq 1 ]]; then
         || fail "the service did not answer on 127.0.0.1:7882 - see: journalctl --user -u agenteyes -n 50"
 fi
 
-"$bin/agenteyes" account
+# First run: sign in to DevThrottle, which transcribes and titles the recordings. The service
+# cannot ask (it has no window), so the installer does, once. Already signed in = nothing to do.
+if "$bin/agenteyes" account | grep -q '^signed in as'; then
+    ok "$("$bin/agenteyes" account)"
+else
+    echo "Not signed in to DevThrottle - recordings would not be transcribed or titled. Signing in now ..."
+    "$bin/agenteyes" signin || fail "sign-in did not complete - run it again any time: agenteyes signin"
+fi
+
 echo
-echo "Next: agenteyes signin (once), then: agenteyes record start --mix --mic \"<mic>\" / agenteyes record stop"
+echo "Ready. Record with:  agenteyes record start --mix --mic \"<part of your mic name>\""
+echo "            stop:   agenteyes record stop"
+echo "  list mics with:   agenteyes screens"
