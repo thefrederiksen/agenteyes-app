@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+#if WINDOWS
 using Drawing = System.Drawing;
+#endif
 using Imaging = System.Drawing.Imaging;
 
 namespace AgentEyes.Housekeeping
@@ -218,6 +220,21 @@ namespace AgentEyes.Housekeeping
         private static void EncodeJpeg(string pngPath, string jpgPath, int quality)
         {
             quality = Math.Clamp(quality, 1, 100);
+#if !WINDOWS
+            // Issue #102: Linux has no GDI+ encoder. ffmpeg encodes it instead - slower per frame, but
+            // the same atomic temp-then-rename contract. -q:v is mjpeg's 2 (best) .. 31 scale.
+            string tmp = jpgPath + ".tmp";
+            try
+            {
+                int q = Math.Clamp(31 - (int)Math.Round(quality * 29 / 100.0), 2, 31);
+                AgentEyes.Video.Ffmpeg.Run(new[] { "-y", "-i", pngPath, "-q:v", q.ToString(), "-f", "image2", "-c:v", "mjpeg", tmp }, "png to jpeg");
+                File.Move(tmp, jpgPath, overwrite: true);
+            }
+            finally
+            {
+                TryDelete(tmp);
+            }
+#else
 
             var codec = Imaging.ImageCodecInfo.GetImageEncoders()
                 .FirstOrDefault(c => c.FormatID == Imaging.ImageFormat.Jpeg.Guid)
@@ -239,6 +256,7 @@ namespace AgentEyes.Housekeeping
                 // Debris only when the rename never happened; after a completed move there is no temp.
                 TryDelete(temp);
             }
+#endif
         }
 
         private static string Relative(string fileName) =>

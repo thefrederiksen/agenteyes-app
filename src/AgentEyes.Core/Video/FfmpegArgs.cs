@@ -8,7 +8,7 @@ namespace AgentEyes.Video
     /// Pure ffmpeg argument builders. Kept side-effect free so they can be unit tested
     /// without launching ffmpeg.
     /// </summary>
-    internal static class FfmpegArgs
+    internal static partial class FfmpegArgs
     {
         /// <summary>
         /// Capture a screen region (gdigrab) plus a microphone (dshow), muxed to MP4 (H.264 + AAC).

@@ -70,6 +70,7 @@ namespace AgentEyes.Video
             return names;
         }
 
+#if WINDOWS
         public static IReadOnlyList<string> ListAudio() => ParseDshowAudio(RunDeviceListing());
 
         /// <summary>
@@ -78,6 +79,27 @@ namespace AgentEyes.Video
         /// An empty list means the machine has no camera - it is NOT an error.
         /// </summary>
         public static IReadOnlyList<string> ListVideo() => ParseDshowVideo(RunDeviceListing());
+#elif MACOS
+        /// <summary>The macOS microphones - the AVFoundation audio inputs, by name.</summary>
+        public static IReadOnlyList<string> ListAudio() => Platform.Mac.AvfDevices.MicrophoneNames();
+
+        /// <summary>
+        /// The macOS cameras - every AVFoundation video input that is not a display. The name is
+        /// ffmpeg's own, which is what RequireCameraIndex turns back into the index it opens.
+        /// </summary>
+        public static IReadOnlyList<string> ListVideo()
+        {
+            var names = new List<string>();
+            foreach (var c in Platform.Mac.AvfDevices.Cameras()) names.Add(c.Name);
+            return names;
+        }
+#else
+        /// <summary>Issue #102: the Linux microphones - the pulse sources, by description.</summary>
+        public static IReadOnlyList<string> ListAudio() => Platform.Linux.PulseDevices.MicrophoneNames();
+
+        /// <summary>Issue #102: the Linux cameras - the V4L2 capture nodes, as "Name [/dev/videoN]".</summary>
+        public static IReadOnlyList<string> ListVideo() => Platform.Linux.V4l2Devices.CameraNames();
+#endif
 
         /// <summary>
         /// Run ffmpeg's device listing once and return its stderr (where ffmpeg prints the list).

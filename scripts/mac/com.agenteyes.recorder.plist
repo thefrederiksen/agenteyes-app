@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AgentEyes headless recorder - launchd USER AGENT, the macOS counterpart of the systemd user
+  service in scripts/linux/agenteyes.service.
+
+  Installed by scripts/mac/install.sh to ~/Library/LaunchAgents/com.agenteyes.recorder.plist.
+  Serves the Control API on http://127.0.0.1:7882. Logs: the AgentEyes log under
+  ~/Library/Application Support/AgentEyes/logs, plus this agent's own stdout and stderr files below.
+
+  WHY THIS IS A USER AGENT AND NOT A DAEMON, AND IT IS NOT A STYLE CHOICE: a system daemon runs
+  outside the logged-in user's graphical session, and macOS will not let anything outside that
+  session capture the screen. LimitLoadToSessionType=Aqua puts this in the user's own graphical
+  session, which is the only place a recording can happen. ThePATH is set because a user agent does
+  not inherit the shell's, and AgentEyes shells out to ffmpeg.
+
+  SCREEN RECORDING PERMISSION IS STILL REQUIRED and this file cannot grant it. macOS attributes the
+  permission to the application responsible for the process; for an agent started by launchd that is
+  the agenteyes binary itself, so it appears in System Settings > Privacy and Security > Screen and
+  System Audio Recording after its first capture attempt, and the user must switch it on there.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.agenteyes.recorder</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__LIB__/agenteyes</string>
+        <string>serve</string>
+    </array>
+
+    <!-- Only in the logged-in user's graphical session: see the comment above. -->
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart only when it exits unsuccessfully - the systemd unit's Restart=on-failure. A clean
+         exit is a deliberate stop and must stay stopped. -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- SIGTERM goes to AgentEyes, which stops and KEEPS a running recording - that needs its ffmpeg
+         children alive long enough to finalize the files. 120 seconds is above the host's 60-second
+         post-processing grace, and matches TimeoutStopSec in the systemd unit. launchd sends SIGKILL
+         only after this. -->
+    <key>ExitTimeOut</key>
+    <integer>120</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- A user agent inherits no shell PATH, and the engine shells out to ffmpeg. Homebrew on
+             Apple silicon is /opt/homebrew/bin; on Intel it is /usr/local/bin. Both are listed so
+             one file serves both, and the installer has already checked that ffmpeg is on it. -->
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__LOGS__/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__LOGS__/launchd.err.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__LIB__</string>
+</dict>
+</plist>

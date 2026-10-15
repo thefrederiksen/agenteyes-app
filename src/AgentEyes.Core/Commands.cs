@@ -33,6 +33,11 @@ namespace AgentEyes
 
         public static int Screens()
         {
+#if MACOS
+            return Platform.Mac.MacScreens.Print();
+#elif !WINDOWS
+            return Platform.Linux.LinuxScreens.Print();
+#else
             Console.WriteLine("MONITORS (EnumDisplayMonitors)");
             Console.WriteLine("  #  Resolution      Position        Primary  Name");
             foreach (var m in Monitors.All())
@@ -76,6 +81,7 @@ namespace AgentEyes
                 Console.WriteLine("  (unavailable: " + ex.Message + ")");
             }
             return 0;
+#endif
         }
 
         // ---- shot (Mode C) -------------------------------------------------
@@ -372,7 +378,7 @@ namespace AgentEyes
                     }
                 }
 
-                using var recorder = FfmpegRecorder.Start(capture, dshowMic, fps, crf, ffOut);
+                using var recorder = FfmpegRecorder.Start(capture, dshowMic, fps, crf, ffOut, screenNumber: monitor.Index);
                 manifest.FfmpegCommand = recorder.CommandLine;
                 if (cameraRec != null)
                 {

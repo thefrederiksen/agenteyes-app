@@ -75,7 +75,29 @@ namespace AgentEyes
                         return SelfTest.Run();
 
                     case "always-on":
+#if MACOS
+                        throw Platform.Mac.NotOnMac.Feature("Always-on recording");
+#elif !WINDOWS
+                        throw Platform.Linux.NotOnLinux.Feature("Always-on recording");
+#else
                         return AlwaysOn.AlwaysOnCli.Run(opts);
+#endif
+
+                    // Issue #102: the headless service and its clients.
+                    case "serve":
+                        return Headless.HeadlessHost.Run(opts);
+
+                    case "record":
+                        return Headless.HeadlessCli.Record(opts);
+
+                    case "signin":
+                        return Headless.HeadlessCli.SignIn();
+
+                    case "signout":
+                        return Headless.HeadlessCli.SignOut();
+
+                    case "account":
+                        return Headless.HeadlessCli.Account();
 
                     case "-h":
                     case "--help":
@@ -94,6 +116,14 @@ namespace AgentEyes
                 Console.Error.WriteLine("[error] " + ux.Message);
                 return 1;
             }
+#if !WINDOWS
+            catch (PlatformNotSupportedException px)
+            {
+                // Issue #102: a Windows-only feature reached on Linux - said plainly, its own exit code.
+                Console.Error.WriteLine("[not-on-this-platform] " + px.Message);
+                return 4;
+            }
+#endif
             catch (NotYetBuiltException nb)
             {
                 // Honest scaffold boundary - no silent fallback, clear next step.
@@ -127,6 +157,7 @@ namespace AgentEyes
             Console.WriteLine("  agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved");
             Console.WriteLine("  agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)");
             Console.WriteLine("  agenteyes selftest                        # headless end-to-end self-test");
+            Console.WriteLine(Headless.HeadlessCli.Usage);
             Console.WriteLine();
             Console.WriteLine("SESSION HOTKEYS (audio/video)");
             Console.WriteLine("  S = screenshot   P = pause/resume   Q = stop");

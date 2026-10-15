@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Issue #102: the tests for the Linux build of AgentEyes.Core (net8.0). They run on Linux:
+         dotnet test tests/AgentEyes.Tests.Linux -c Release
+       This project is deliberately NOT in AgentEyes.sln - the Windows gate (build + test the .sln)
+       is unchanged, and these tests exercise Linux-only code (Platform/Linux) and Unix file modes.
+       CI runs them on ubuntu-latest (.github/workflows/ci.yml). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <Platforms>x64</Platforms>
+    <RootNamespace>AgentEyes.Tests.Linux</RootNamespace>
+    <AssemblyName>AgentEyes.Tests.Linux</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Pin the engine to its LINUX configuration. On Linux this changes nothing; on a Mac, where
+         the macOS configuration is the default, it is what keeps this suite testing Linux instead of
+         failing to compile against Platform/Mac. -->
+    <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"
+                      AdditionalProperties="AgentEyesUnixPlatform=linux" />
+  </ItemGroup>
+
+</Project>

@@ -5,7 +5,13 @@
     <!-- 10.0.19041.0 enables the Windows.Graphics.Capture WinRT projection used by the
          Phase 3 video engine. WinForms + WPF are both on for monitor enumeration,
          screenshots, the region overlay, and the (future) HUD. -->
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- Issue #102: the engine also builds for Linux (net8.0): x11grab/pulse/v4l2 capture, XDG
+         paths, a headless Control API (agenteyes serve) and a systemd user service. The Windows
+         target is unchanged and is the only one the App and the tests consume. The Windows target
+         needs the WindowsDesktop SDK, which a Linux SDK does not ship, so off Windows only net8.0 is
+         built (EnableWindowsTargeting=true brings the Windows target back for an SDK that has it). -->
+    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT' Or '$(EnableWindowsTargeting)' == 'true'">net8.0-windows10.0.19041.0;net8.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' != 'Windows_NT' And '$(EnableWindowsTargeting)' != 'true'">net8.0</TargetFrameworks>
     <RootNamespace>AgentEyes</RootNamespace>
     <!-- The CLI ships as agenteyes.exe (short to type; a bare shadow.exe would collide with the
          Windows RDP "shadow" concept). The WPF app owns the AgentEyesApp.exe name. -->
@@ -15,22 +21,24 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <UseWindowsForms>true</UseWindowsForms>
-    <UseWPF>true</UseWPF>
+    <UseWindowsForms Condition="$(TargetFramework.StartsWith('net8.0-windows'))">true</UseWindowsForms>
+    <UseWPF Condition="$(TargetFramework.StartsWith('net8.0-windows'))">true</UseWPF>
     <Platforms>x64</Platforms>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationManifest Condition="$(TargetFramework.StartsWith('net8.0-windows'))">app.manifest</ApplicationManifest>
     <!-- DPI awareness is declared in app.manifest (correct for our WPF + console hybrid).
          WFAC010 is the WinForms-only analyzer nudging toward Application.SetHighDpiMode; N/A here. -->
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Microphone capture (Mode A) -->
-    <PackageReference Include="NAudio" Version="2.2.1" />
-
     <!-- In-process transcription (Phase 4). Replaces the Python cc-whisper. Model downloaded once. -->
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net8.0-windows'))">
+    <!-- Microphone capture (Mode A) -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
 
     <!-- Windows TTS - used only by the self-test harness to inject known spoken words. -->
     <PackageReference Include="System.Speech" Version="8.0.0" />
@@ -39,9 +47,67 @@
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 
+  <!-- Issue #102: the Linux build. The Windows-only engine files (GDI/WinForms/WPF screen work,
+       NAudio WASAPI capture, DPAPI, System.Speech, the user32/shell32/kernel32 P/Invokes) are left
+       out, and Platform/Linux supplies the same engine types over ffmpeg x11grab/pulse/v4l2 and the
+       X server. The Windows build never compiles Platform/Linux, so nothing on Windows changes. -->
+  <ItemGroup>
+    <WindowsOnlyCompile Include="Screenshot.cs;RegionOverlay.cs;MonitorHighlight.cs;Monitors.cs;SelfTest.cs" />
+    <WindowsOnlyCompile Include="Packaging\SpeechGen.cs;AlwaysOn\KillOnCloseJob.cs;AlwaysOn\ContinuousRecorder.cs" />
+    <WindowsOnlyCompile Include="Audio\TonePlayer.cs;Audio\DefaultMic.cs;Audio\AudioCapture.cs;Audio\MicEndpoint.cs;Audio\LoopbackCapture.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows'))">
+    <Compile Remove="@(WindowsOnlyCompile)" />
+  </ItemGroup>
+
+  <!-- NOT-WINDOWS IS TWO PLATFORMS, NOT ONE. The net8.0 target is selected on Linux AND on macOS,
+       so "not Windows" cannot mean "Linux": a Mac that compiles Platform/Linux gets an engine that
+       asks for an X display, xrandr and PulseAudio, none of which a Mac has. AgentEyesUnixPlatform
+       names which Unix this build is for - the build host by default, and settable by hand so either
+       can be built or cross-checked from the other machine:
+
+         dotnet build src/AgentEyes.Core -c Release                                  (this host)
+         dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=linux   (force Linux)
+         dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=mac     (force macOS)
+
+       The Linux build is byte-for-byte the one it was before this split: it keeps every
+       Platform/Linux file and defines no extra constant.
+
+       ONE CONFIGURATION AT A TIME. Both configurations build to the SAME bin\Release\net8.0 path,
+       so building one after the other in the same tree replaces the other's binary. That is fine for
+       a single build or a single 'dotnet test', which is how CI runs them (separate jobs) and how the
+       two test projects pin themselves (AdditionalProperties on their ProjectReference). It is worth
+       knowing before reading a binary out of that folder by hand: check which configuration put it
+       there, the same care the project instructions ask for over bin\Release vs bin\x64\Release. -->
+  <PropertyGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows'))">
+    <AgentEyesUnixPlatform Condition="'$(AgentEyesUnixPlatform)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">mac</AgentEyesUnixPlatform>
+    <AgentEyesUnixPlatform Condition="'$(AgentEyesUnixPlatform)' == ''">linux</AgentEyesUnixPlatform>
+    <DefineConstants Condition="'$(AgentEyesUnixPlatform)' == 'mac'">$(DefineConstants);MACOS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Unix-generic, despite living under Platform/Linux: running a short tool, writing a streaming
+         WAV header, and owner-only file modes have nothing to do with X or pulse. The macOS build
+         compiles these three as they are rather than duplicating them. -->
+    <UnixSharedCompile Include="Platform\Linux\ToolRunner.cs;Platform\Linux\WavStreamWriter.cs;Platform\Linux\CredentialFile.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net8.0-windows'))">
+    <Compile Remove="Platform\Linux\**" />
+    <Compile Remove="Platform\Mac\**" />
+  </ItemGroup>
+  <ItemGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows')) And '$(AgentEyesUnixPlatform)' != 'mac'">
+    <Compile Remove="Platform\Mac\**" />
+  </ItemGroup>
+  <ItemGroup Condition="!$(TargetFramework.StartsWith('net8.0-windows')) And '$(AgentEyesUnixPlatform)' == 'mac'">
+    <Compile Remove="Platform\Linux\**" />
+    <Compile Include="@(UnixSharedCompile)" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Let the test project and the WPF app see internal (engine) types. -->
     <InternalsVisibleTo Include="AgentEyes.Tests" />
+    <InternalsVisibleTo Include="AgentEyes.Tests.Linux" />
+    <InternalsVisibleTo Include="AgentEyes.Tests.Mac" />
     <InternalsVisibleTo Include="AgentEyesApp" />
   </ItemGroup>
 

@@ -653,7 +653,8 @@ namespace AgentEyes
                 steps.Add(new RecordingStartStep("video", () =>
                 {
                     _video = FfmpegRecorder.Start(
-                        capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut, _screenTap);
+                        capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut, _screenTap,
+                        screenNumber: _monitor!.Index);
                     _manifest!.FfmpegCommand = _video.CommandLine;
 
                     // The alignment hint (assumption A5): how far the camera start sits from the

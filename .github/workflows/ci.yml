@@ -1,0 +1,108 @@
+# CI (issue #102): proves both builds on every pull request and branch push.
+#   windows - the existing agent gate, unchanged: build + test AgentEyes.sln (Release).
+#   linux   - the Linux build of AgentEyes.Core (net8.0) and its tests (tests/AgentEyes.Tests.Linux).
+# Releases are still built only by release.yml on a v* tag.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Download ffmpeg (essentials build)
+        # The suite exercises the real encoder and refuses to skip (see release.yml).
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP/ffmpeg-essentials.zip"
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zip
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP/ffmpeg"
+          $bin = Get-ChildItem "$env:RUNNER_TEMP/ffmpeg" -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $bin) { throw "ffmpeg.exe not found in the essentials zip" }
+          "QA_RECORD_FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build AgentEyes.sln
+        run: dotnet build AgentEyes.sln -c Release
+
+      - name: Test AgentEyes.sln
+        run: dotnet test AgentEyes.sln -c Release --no-build
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build AgentEyes.Core (net8.0)
+        run: dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -f net8.0
+
+      - name: Test the Linux build
+        run: dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release
+
+      # The Linux job also builds the macOS configuration, because the thing most likely to break it
+      # is a change made on Linux that forgets the third platform exists. This is a COMPILE check
+      # only - it proves the macOS engine still builds, not that it records.
+      - name: Build the macOS configuration (compile check)
+        run: dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -f net8.0 -p:AgentEyesUnixPlatform=mac
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build AgentEyes.Core (net8.0, macOS configuration)
+        run: dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -f net8.0
+
+      # Every test in this suite is pure logic - argument lists, parsers, arithmetic. None of them
+      # captures a screen or opens a microphone, which is why they can run on a hosted runner that
+      # has neither a granted Screen Recording permission nor any audio device.
+      - name: Test the macOS build
+        run: dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release
+
+      # The macOS build must not contain the Linux capture backend. This is the regression that
+      # started the whole piece of work: "not Windows" was read as "Linux", so a Mac build compiled
+      # x11grab and PulseAudio and then asked the user to run systemctl.
+      - name: The macOS build must carry no Linux capture code
+        shell: bash
+        run: |
+          dll=src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll
+          test -f "$dll" || { echo "[FAIL] $dll was not built"; exit 1; }
+          # The literals are UTF-16 in a .NET assembly, so grep for the encoded form.
+          fail=0
+          for word in x11grab pulse v4l2 xrandr; do
+            if python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('$word'.encode('utf-16-le')) else 1)"; then
+              echo "[FAIL] the macOS build contains '$word'"
+              fail=1
+            fi
+          done
+          # And the inverse, so this check cannot pass by finding nothing at all (an absent
+          # assembly, a renamed path): what SHOULD be there must be there.
+          for word in avfoundation screencapture; do
+            if ! python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('$word'.encode('utf-16-le')) else 1)"; then
+              echo "[FAIL] the macOS build does NOT contain '$word' - this check is not looking at a real macOS build"
+              fail=1
+            fi
+          done
+          test $fail -eq 0 && echo "[OK] macOS build carries AVFoundation and no Linux capture code"
+          exit $fail

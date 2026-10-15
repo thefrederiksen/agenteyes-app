@@ -568,7 +568,18 @@ namespace AgentEyes.Video
             CameraDeviceArbiter.ReleaseForRecording(dshowCameraName);
 
             string exe = FfmpegLocator.Ffmpeg();
+#if WINDOWS
             var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath, previewStream: preview != null);
+#elif MACOS
+            // On macOS a camera is an AVFoundation index, and the index is re-read now because
+            // plugging in a display renumbers the video inputs.
+            var args = FfmpegArgs.AvfCameraCapture(
+                Platform.Mac.AvfDevices.RequireCameraIndex(dshowCameraName), fps, crf, outPath, previewStream: preview != null);
+#else
+            // Issue #102: on Linux the listed camera name carries its /dev/video node.
+            var args = FfmpegArgs.V4l2CameraCapture(
+                Platform.Linux.V4l2Devices.DevicePath(dshowCameraName), fps, crf, outPath, previewStream: preview != null);
+#endif
             string cmd = FfmpegArgs.ToCommandLine(exe, args);
 
             var psi = new ProcessStartInfo
@@ -739,7 +750,15 @@ namespace AgentEyes.Video
         internal static bool IsInputOpenReport(string? line) =>
             line != null
             && line.StartsWith("Input #0", StringComparison.Ordinal)
+#if WINDOWS
             && line.Contains(", dshow,", StringComparison.Ordinal);
+#elif MACOS
+            // The AVFoundation input's header reads "Input #0, avfoundation, from '0:none':".
+            && line.Contains(", avfoundation,", StringComparison.Ordinal);
+#else
+            // Issue #102: the v4l2 input's header reads "Input #0, video4linux2,v4l2, from '/dev/video0':".
+            && line.Contains(", video4linux2,", StringComparison.Ordinal);
+#endif
 
         /// <summary>
         /// ffmpeg's report that it OPENED the output file for writing: the output header it dumps

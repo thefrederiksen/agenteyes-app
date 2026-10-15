@@ -1,3 +1,7 @@
 # RNNoise model weights: byte-for-byte as downloaded, no line-ending conversion
 # (the embedded-resource size check in RnnoiseModel.cs depends on a stable file).
 assets/models/*.rnnn -text
+
+# Linux service files (issue #102): run by bash and systemd, which reject CRLF.
+*.sh text eol=lf
+scripts/linux/*.service text eol=lf

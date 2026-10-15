@@ -1,7 +1,9 @@
 using System;
+#if WINDOWS
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+#endif
 
 namespace AgentEyes.Video
 {
@@ -26,6 +28,17 @@ namespace AgentEyes.Video
 
             Log.Info($"[CircleMask] Write: path={path} size={size}");
 
+#if !WINDOWS
+            // Issue #102: Linux has no GDI+. ffmpeg draws the same white disc on black (geq picks
+            // every pixel whose centre lies inside the circle), written as PNG.
+            string r = (size / 2.0).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Ffmpeg.Run(new[]
+            {
+                "-y", "-f", "lavfi", "-i", $"color=c=black:s={size}x{size}",
+                "-vf", $"format=gray,geq=lum='if(lte(pow(X+0.5-{r},2)+pow(Y+0.5-{r},2),pow({r}-0.5,2)),255,0)'",
+                "-frames:v", "1", path,
+            }, "circle mask");
+#else
             using var bmp = new Bitmap(size, size, PixelFormat.Format24bppRgb);
             using (var g = Graphics.FromImage(bmp))
             {
@@ -37,6 +50,7 @@ namespace AgentEyes.Video
                 g.FillEllipse(brush, 0.5f, 0.5f, size - 1f, size - 1f);
             }
             bmp.Save(path, ImageFormat.Png);
+#endif
         }
     }
 }

@@ -16,18 +16,24 @@ namespace AgentEyes.Video
 
         public static string Ffprobe() => _ffprobeCache ??= Find("ffprobe");
 
+#if WINDOWS
+        private const string ExeSuffix = ".exe";
+#else
+        private const string ExeSuffix = "";
+#endif
+
         private static string Find(string tool)
         {
             // 0) bundled next to our own executable - the installed product ships its own ffmpeg
             //    so a fresh machine needs nothing preinstalled.
-            string bundled = Path.Combine(AppContext.BaseDirectory, tool + ".exe");
+            string bundled = Path.Combine(AppContext.BaseDirectory, tool + ExeSuffix);
             if (File.Exists(bundled)) return bundled;
 
             // 1) explicit override
             string? env = Environment.GetEnvironmentVariable("QA_RECORD_FFMPEG_DIR");
             if (!string.IsNullOrWhiteSpace(env))
             {
-                string p = Path.Combine(env, tool + ".exe");
+                string p = Path.Combine(env, tool + ExeSuffix);
                 if (File.Exists(p)) return p;
             }
 
@@ -39,18 +45,19 @@ namespace AgentEyes.Video
                 {
                     if (string.IsNullOrWhiteSpace(dir)) continue;
                     string p;
-                    try { p = Path.Combine(dir.Trim(), tool + ".exe"); }
+                    try { p = Path.Combine(dir.Trim(), tool + ExeSuffix); }
                     catch { continue; }
                     if (File.Exists(p)) return p;
                 }
             }
 
+#if WINDOWS
             // 3) common winget install location
             //    (a tool location, not AgentEyes state - so the machine's real folder, never redirected)
             string winget = Path.Combine(AppDataPaths.MachineLocalAppData, "Microsoft", "WinGet", "Packages");
             if (Directory.Exists(winget))
             {
-                foreach (string match in Directory.GetFiles(winget, tool + ".exe", SearchOption.AllDirectories))
+                foreach (string match in Directory.GetFiles(winget, tool + ExeSuffix, SearchOption.AllDirectories))
                 {
                     return match;
                 }
@@ -59,6 +66,15 @@ namespace AgentEyes.Video
             throw new UsageException(
                 $"{tool}.exe not found. Install ffmpeg (winget install Gyan.FFmpeg) or set " +
                 $"QA_RECORD_FFMPEG_DIR to the folder containing {tool}.exe.");
+#elif MACOS
+            throw new UsageException(
+                $"{tool} not found on PATH. Install it with 'brew install ffmpeg', or set " +
+                $"QA_RECORD_FFMPEG_DIR to the folder containing {tool}.");
+#else
+            throw new UsageException(
+                $"{tool} not found on PATH. Install it with 'sudo apt install -y ffmpeg', or set " +
+                $"QA_RECORD_FFMPEG_DIR to the folder containing {tool}.");
+#endif
         }
     }
 }

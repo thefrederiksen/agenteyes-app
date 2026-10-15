@@ -49,9 +49,11 @@ namespace AgentEyes
         // later, at save time, by Directory.CreateDirectory in SaveRect.
         private const uint KF_FLAG_DONT_VERIFY = 0x00004000;
 
+#if WINDOWS
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         private static extern int SHGetKnownFolderPath(
             [MarshalAs(UnmanagedType.LPStruct)] Guid rfid, uint dwFlags, IntPtr hToken, out IntPtr ppszPath);
+#endif
 
         /// <summary>
         /// The Windows Screenshots known folder (FOLDERID_Screenshots), resolved via the shell so
@@ -62,6 +64,7 @@ namespace AgentEyes
         /// </summary>
         public static string ScreenshotsKnownFolder()
         {
+#if WINDOWS
             IntPtr ptr = IntPtr.Zero;
             try
             {
@@ -78,6 +81,18 @@ namespace AgentEyes
             {
                 if (ptr != IntPtr.Zero) Marshal.FreeCoTaskMem(ptr);
             }
+#else
+            // Issue #102: Linux has no known-folder API. The XDG Pictures directory (which .NET
+            // reads from user-dirs.dirs) + "Screenshots" is where GNOME's own tool saves. DoNotVerify
+            // for the same reason the Windows lookup passes KF_FLAG_DONT_VERIFY: a fresh account may
+            // not have the folder yet, and SaveRect creates it at save time.
+            // On macOS the same call returns ~/Pictures, and "Screenshots" under it is where a
+            // person would look for these, so the one expression is correct for both.
+            string pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures, Environment.SpecialFolderOption.DoNotVerify);
+            if (string.IsNullOrWhiteSpace(pictures))
+                throw new InvalidOperationException("The Pictures folder could not be resolved (HOME unset?).");
+            return Path.Combine(pictures, "Screenshots");
+#endif
         }
 
         /// <summary>

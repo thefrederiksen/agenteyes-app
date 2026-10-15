@@ -33,7 +33,8 @@ namespace AgentEyes.DevThrottle
         /// Runs the sign-in handshake, saves the credential, and returns it. <paramref name="status"/>
         /// receives human-readable progress for the UI. Throws DevThrottleException on failure/timeout.
         /// </summary>
-        public static async Task<DevThrottleCredential> SignInAsync(Action<string>? status = null, CancellationToken ct = default)
+        public static async Task<DevThrottleCredential> SignInAsync(Action<string>? status = null, CancellationToken ct = default,
+            Action<string>? urlReady = null)
         {
             Log.Info("[DevThrottleSignIn] SignInAsync: starting");
             string authBase = DevThrottleAccount.AuthBaseUrl.TrimEnd('/');
@@ -47,6 +48,9 @@ namespace AgentEyes.DevThrottle
 
             string url = $"{authBase}/signin?redirect_uri={Uri.EscapeDataString(redirect)}&state={state}";
             status?.Invoke("Opening your browser to sign in to DevThrottle...");
+            // Issue #102: a terminal sign-in (agenteyes signin) prints the address too, for a session
+            // where no browser can be opened for it. The app's window passes nothing here.
+            urlReady?.Invoke(url);
             OpenBrowser(url);
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);

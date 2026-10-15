@@ -59,7 +59,8 @@ function Publish-SingleFile($csproj, $producedExe, $assetName, $extraProps) {
 }
 
 Publish-SingleFile 'src\AgentEyes.App\AgentEyes.App.csproj' 'AgentEyesApp.exe' 'AgentEyesApp-win-x64.exe' @()
-Publish-SingleFile 'src\AgentEyes.Core\AgentEyes.Core.csproj' 'agenteyes.exe' 'agenteyes-win-x64.exe' @()
+# Core also targets net8.0 for Linux (issue #102); the Windows release publishes the Windows target.
+Publish-SingleFile 'src\AgentEyes.Core\AgentEyes.Core.csproj' 'agenteyes.exe' 'agenteyes-win-x64.exe' @('-f', 'net8.0-windows10.0.19041.0')
 Publish-SingleFile 'tools\AgentEyes.Setup.Cli\AgentEyes.Setup.Cli.csproj' 'agenteyes-setup.exe' 'agenteyes-setup-cli-win-x64.exe' @()
 Publish-SingleFile 'tools\AgentEyes.Setup\AgentEyes.Setup.csproj' 'AgentEyes.Setup.exe' 'AgentEyes-Setup-win-x64.exe' @()
 
