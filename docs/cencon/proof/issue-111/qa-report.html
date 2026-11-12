@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue #111</title>
+<style>
+ body{font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem;line-height:1.5;color:#111}
+ h1,h2,h3{line-height:1.25} h1{border-bottom:3px solid #333;padding-bottom:.3rem}
+ h2{margin-top:2.2rem;border-bottom:1px solid #ccc;padding-bottom:.2rem}
+ pre{background:#f4f4f4;border:1px solid #ddd;padding:.7rem;overflow-x:auto;font-size:.82rem}
+ code{background:#f4f4f4;padding:.1rem .25rem;font-size:.9em}
+ table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}
+ th,td{border:1px solid #bbb;padding:.4rem .55rem;text-align:left;vertical-align:top}
+ th{background:#eee}
+ .pass{color:#0a6b1e;font-weight:bold}
+ .partial{color:#8a5a00;font-weight:bold}
+ .fail{color:#a11;font-weight:bold}
+ .box{border-left:5px solid #8a5a00;background:#fff8e8;padding:.7rem 1rem;margin:1rem 0}
+ .box.ok{border-left-color:#0a6b1e;background:#f0f8f1}
+ .box.bad{border-left-color:#a11;background:#fdf0f0}
+</style>
+</head>
+<body>
+
+<h1>QA report - issue #111</h1>
+<p><strong>Issue:</strong> [macOS] Every capture with audio fails instantly: two AVFoundation inputs
+carry the DirectShow-only -audio_buffer_size flag<br>
+<strong>PR:</strong> #112 &nbsp; <strong>Branch:</strong> issue-111-mac-avfoundation-audio-buffer-size
+&nbsp; <strong>Commit verified:</strong> a86d5920c57ccdf1f162e78b12de3f97ec119be5<br>
+<strong>Verified on:</strong> Mac mini, Apple silicon (arm64), Darwin 25.5.0, 2026-11-12<br>
+<strong>ffmpeg:</strong> <code>ffmpeg version 9.0.2</code> (/opt/homebrew/bin/ffmpeg, built with Apple
+clang 21.0.0)<br>
+<strong>.NET SDK:</strong> 10.0.403 (no .NET 8 SDK on this machine; the net8.0 target builds on it)</p>
+
+<div class="box">
+<strong>VERDICT: 7 of 8 acceptance criteria fully proven here. NOT merged. NOT closed.</strong>
+Criterion 4 passed in 2 of 3 runs; the third run left a truncated <code>recording.mp4</code> because
+of an ffmpeg audio-filter-chain hang that reproduces with plain ffmpeg on a file, outside AgentEyes,
+in code this PR does not touch. Details in section AC4 and in "Two findings for the owner". The label
+stays <code>flow:ready-qa</code> and the merge decision is the owner's.
+</div>
+
+<h2>How this verification was made independent</h2>
+<ul>
+<li>The developer's handoff note was read only to learn how to drive each check. Every result below
+was reproduced by this session; none is copied.</li>
+<li>The <code>agenteyes</code> CLI on PATH is a symlink into the installed service, so a
+<code>dotnet build</code> of the branch does not change what it runs. Every CLI result below came from
+the freshly built branch binary invoked by its explicit path
+(<code>./src/AgentEyes.Core/bin/Release/net8.0/agenteyes</code>, rebuilt with
+<code>-p:AgentEyesUnixPlatform=mac -t:Rebuild</code>), and every Control API result came after
+<code>scripts/mac/install.sh</code> was re-run from this branch. The installed assembly's
+informational version was read back to confirm it:
+<code>1.11.11+a86d5920c57ccdf1f162e78b12de3f97ec119be5</code>. (Before the re-install it read
+<code>1.11.11+b0b2f1c...</code>, the branch's FIRST fix commit, not HEAD - so the service was not
+running the code under test until this session reinstalled it.)</li>
+<li>A <strong>pre-fix binary</strong> was built from the merge base <code>0702c9f</code> in a separate
+git worktree and run on this same machine, so every "it works now" claim has a matching "it failed
+before" from the same hardware, same ffmpeg, same mic.</li>
+<li>Every instrument below was calibrated against a known-BAD input before its result was believed.
+One instrument was found broken this way and replaced (see "A broken instrument, caught").</li>
+</ul>
+
+<h2>Criteria</h2>
+<table>
+<tr><th>#</th><th>Criterion</th><th>Result</th><th>Evidence</th></tr>
+<tr><td>1</td><td><code>grep -rn "audio_buffer_size" src/AgentEyes.Core/Platform/Mac/</code> returns nothing</td>
+<td class="pass">PASS</td><td>grep prints nothing, exit 1. Both sites fixed, not one.</td></tr>
+<tr><td>2</td><td>Both Windows dshow uses still present</td>
+<td class="pass">PASS</td><td>FfmpegArgs.cs:64, AlwaysOnArgs.cs:98; both files byte-identical to the merge base.</td></tr>
+<tr><td>3</td><td><code>agenteyes audio --screen 1 --mic ... --seconds 5</code> exits 0, ~5 s file, mean volume not <code>-inf</code></td>
+<td class="pass">PASS</td><td>exit 0, 00:00:04.99, mean_volume -60.0 dB. A second run with sound reaching the mic: mean -33.5 dB, max -8.7 dB.</td></tr>
+<tr><td>4</td><td><code>POST /record/start</code> 200, <code>/status</code> recording with non-zero MicLevel, <code>/record/stop</code> leaves a playable file with an audio stream</td>
+<td class="partial">PASS in 2 of 3 runs</td><td>Runs 1 and 3 fully pass. Run 2's post-processing hung - cause reproduced outside AgentEyes, see below.</td></tr>
+<tr><td>5</td><td>The recording's <code>raw.mp4.ffmpeg.log</code> contains no <code>Unrecognized option</code> line</td>
+<td class="pass">PASS</td><td>714-byte and 6578-byte logs, grep -c = 0. Pre-fix binary's log on the same machine: grep -c = 1.</td></tr>
+<tr><td>6</td><td>A failed <code>--mic</code> match on a Mac names AVFoundation; the Windows wording is unchanged on Windows</td>
+<td class="pass">PASS</td><td>Three live macOS messages name AVFoundation. All six DeviceResolver messages reconstruct byte-identically on Windows (IL string-heap diff). One other Windows message was reworded - disclosed below.</td></tr>
+<tr><td>7</td><td>A regression test fails if a DirectShow-only option name is put back in any Mac argument list</td>
+<td class="pass">PASS</td><td>Mutation-tested by this session at EACH site separately, plus a new file in a new subfolder. The guard fired every time.</td></tr>
+<tr><td>8</td><td><code>dotnet build</code> and <code>dotnet test</code> both pass</td>
+<td class="pass">PASS</td><td>macOS 72/72, Linux 94/94 here; Windows <code>build AgentEyes.sln</code> + <code>test AgentEyes.sln</code> 2143/2143 on CI run 43256168013 for this exact commit.</td></tr>
+</table>
+
+<h2>AC1, AC2 - the two Mac sites gone, Windows and Linux untouched</h2>
+<pre>$ grep -rn "audio_buffer_size" src/AgentEyes.Core/Platform/Mac/
+exit=1  (no match)
+
+$ grep -rn "audio_buffer_size" src/AgentEyes.Core/Video/FfmpegArgs.cs src/AgentEyes.Core/AlwaysOn/AlwaysOnArgs.cs
+src/AgentEyes.Core/AlwaysOn/AlwaysOnArgs.cs:98:                    "-audio_buffer_size", "80",
+src/AgentEyes.Core/Video/FfmpegArgs.cs:64:                a.Add("-audio_buffer_size");
+
+$ grep -rn "fragment_size" src/AgentEyes.Core/Platform/Linux/
+src/AgentEyes.Core/Platform/Linux/FfmpegArgs.Linux.cs:76:            "-fragment_size", "3840",
+src/AgentEyes.Core/Platform/Linux/PulseStream.cs:50:            "-fragment_size", ((sampleRate * channels * 2) / 50).ToString(),
+
+$ git diff 0702c9f..HEAD --stat -- src/AgentEyes.Core/Platform/Linux/ \
+      src/AgentEyes.Core/Video/FfmpegArgs.cs src/AgentEyes.Core/AlwaysOn/AlwaysOnArgs.cs
+(empty - the Windows and Linux argument builders are byte-identical to the merge base)</pre>
+
+<p>Both sites named in the issue are fixed, and BOTH comments that asserted AVFoundation has a
+buffer option are corrected rather than merely stripped - each now states in full that the option
+belongs to DirectShow alone, that AVFoundation has no buffer option of any name, and that macOS
+therefore does not get the issue #125 mitigation. The false belief that would invite the flag back
+does not survive anywhere in the diff.</p>
+
+<p>The macOS build of Core still contains exactly ONE <code>audio_buffer_size</code> string literal.
+It is the shared Windows dshow builder at <code>FfmpegArgs.cs:64</code>, which every platform
+compiles and only Windows reaches - i.e. the mitigation that must stay. Confirmed by searching the
+compiled assembly, not the source.</p>
+
+<h2>AC7 - the regression guard, mutation-tested by this session</h2>
+<p>A guard nobody watched fail is not a guard. Four mutations were applied to the working tree, the
+suite run against each, and each mutation reverted afterwards.</p>
+
+<table>
+<tr><th>Mutation</th><th>Suite result</th><th>Which guards fired</th></tr>
+<tr><td><strong>A.</strong> <code>-audio_buffer_size 20</code> back in <code>FfmpegArgs.Mac.AvfAudioInput</code> ONLY</td>
+<td class="pass">Failed: 4, Passed: 68</td>
+<td><code>NoForeignFfmpegOptionInAnyAvfoundationArgumentList</code> (named <code>FfmpegArgs.AvfAudioInput</code> AND <code>FfmpegArgs.AvfVideoCapture</code>, which composes it), <code>TheGuardFires_OnTheExactFlagThatShipped</code>, <code>NoForeignOptionInAnyMacSourceFile</code> (FfmpegArgs.Mac.cs:157), plus the exact-command-line test</td></tr>
+<tr><td><strong>B.</strong> the flag back in <code>AvfStream.Arguments</code> ONLY</td>
+<td class="pass">Failed: 3, Passed: 69</td>
+<td><code>NoForeignFfmpegOptionInAnyAvfoundationArgumentList</code> -&gt; <code>AvfStream.Arguments emits -audio_buffer_size</code>; <code>NoForeignOptionInAnyMacSourceFile</code> (AvfStream.cs:62); the exact-command-line test</td></tr>
+<tr><td><strong>C.</strong> a brand-new builder carrying the flag in a brand-new <code>Platform/Mac/Sub/</code> folder - a list built outside the two swept types</td>
+<td class="pass">Failed: 1, Passed: 71</td>
+<td><code>NoForeignOptionInAnyMacSourceFile</code> -&gt; <code>QaMutation.cs:10</code>. The recursive source scan is a real backstop, not decoration.</td></tr>
+<tr><td><strong>D.</strong> rename <code>AvfAudioInput</code> (and its caller) to try to empty the sweep silently</td>
+<td class="pass">compile error in the guard</td>
+<td>The guard will not build against a renamed builder, so the sweep cannot be quietly shrunk.</td></tr>
+</table>
+
+<pre>Mutation A, verbatim:
+  an option from another platform's demuxer is back in an AVFoundation command line
+  (issue #111 - ffmpeg rejects the whole command line and exits before it opens a device):
+    FfmpegArgs.AvfVideoCapture emits -audio_buffer_size (-y -f avfoundation ... -audio_buffer_size 20 -i :0 ...)
+    FfmpegArgs.AvfAudioInput emits -audio_buffer_size (-f avfoundation -thread_queue_size 1024 -audio_buffer_size 20 -i :30)
+
+Mutation B, verbatim:
+    AvfStream.Arguments emits -audio_buffer_size (-hide_banner -nostats -loglevel warning
+    -f avfoundation -audio_buffer_size 20 -i :30 -ac 30 -ar 30 -f s16le pipe:1)
+
+After reverting all mutations:
+  Passed!  - Failed:     0, Passed:    72, Skipped:     0, Total:    72</pre>
+
+<p>The guard is not trivially satisfiable: it reflects over the real builders and inspects the
+argument values they actually emit, it asserts the four AVFoundation builders are present by name, a
+builder it cannot invoke is a FAILURE rather than a skip, and <code>MacFfmpegArgsTests</code> no
+longer asserts the broken flag at either of the two places it used to (lines 23 and 189).</p>
+
+<h2>AC3 - the primary runtime proof, and its known-BAD calibration</h2>
+
+<p><strong>Post-fix, branch binary, this machine:</strong></p>
+<pre>$ ./src/AgentEyes.Core/bin/Release/net8.0/agenteyes audio --screen 1 --mic "HD Pro Webcam" --seconds 5
+[ok] recording mic [0] HD Pro Webcam C920  -> .../recordings/2026-11-12_112011_audio
+[ok] audio.wav (00m05s), 0 screenshot(s)
+[ok] manifest.json written
+EXIT CODE = 0
+
+$ ffmpeg -i audio.wav -af volumedetect -f null -
+  Duration: 00:00:04.99, bitrate: 768 kb/s
+  Stream #0:0: Audio: pcm_s16le, 48000 Hz, mono, s16
+  mean_volume: -60.0 dB
+  max_volume:  -45.1 dB            <- NOT -inf dB
+  (479276 bytes of PCM on disk)</pre>
+
+<p><strong>Pre-fix binary built from the merge base 0702c9f, same machine, same mic, same ffmpeg:</strong></p>
+<pre>$ $BASE_WORKTREE/src/AgentEyes.Core/bin/Release/net8.0/agenteyes audio --screen 1 --mic "HD Pro Webcam" --seconds 5
+[error] mic: ffmpeg could not open AVFoundation audio input :0 (exit 8):
+        Unrecognized option 'audio_buffer_size'.
+        Error splitting the argument list: Option not found.
+
+$ ls -la .../audio.wav
+-rw-r--r--  44 bytes          <- a WAV header and nothing else
+
+$ ffmpeg -i audio.wav -af volumedetect -f null -
+  Duration: N/A
+  [out#0/null] Output file is empty, nothing was encoded
+  (NO mean_volume line at all)</pre>
+
+<div class="box ok">
+<strong>The AC3 instrument is calibrated.</strong> On the known-BAD input, <code>volumedetect</code>
+emits no <code>mean_volume</code> line at all - so a finite mean volume on the post-fix file is a
+positive answer, not an absence that doing nothing would satisfy.
+</div>
+
+<p><strong>Is -60.0 dB real audio or a dead device?</strong> It is real: a mean of -60.0 dB with a max
+of -45.1 dB is a 15 dB dynamic range, not a constant. Two further captures settled it. The Mac's
+default OUTPUT device is the Yealink headset, so sound played with <code>afplay</code> never reached
+the room microphone - a quiet-room capture (-60.3 dB) and a sound-playing capture (-60.1 dB) on the
+C920 were indistinguishable, which is honest and proves only that the device is open. Recording the
+<strong>Yealink</strong> microphone, which sits beside the speakers that the sound is actually playing
+into, gives the decisive answer:</p>
+<pre>$ agenteyes audio --screen 1 --mic "Yealink" --seconds 5   (afplay running throughout)
+  Duration: 00:00:05.06
+  mean_volume: -33.5 dB
+  max_volume:   -8.7 dB      <- 27 dB above the quiet-room floor: real sound, really captured</pre>
+
+<h2>AC5 - no rejected option in the capture log</h2>
+<pre>$ cat recordings/2026-11-12_112213_video/raw.mp4.ffmpeg.log        (714 bytes, non-empty)
+objc[95399]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application   (x3)
+[AVFoundation indev] Configuration of video device failed, falling back to default.
+[in#0] Selected pixel format (yuv420p) is not supported by the input device.
+[in#0] Supported pixel formats: uyvy422 yuyv422 nv12 0rgb bgr0
+[in#0] Overriding selected pixel format to use uyvy422 instead.
+
+grep -c 'Unrecognized option' = 0
+grep -c 'Option not found'    = 0</pre>
+<p>Calibration, same grep against the pre-fix binary's log from this machine:</p>
+<pre>$ cat $BASE_WORKTREE/recordings/2026-11-12_112248_video/raw.mp4.ffmpeg.log   (93 bytes)
+Unrecognized option 'audio_buffer_size'.
+Error splitting the argument list: Option not found
+
+grep -c 'Unrecognized option' = 1       <- the instrument fires on a known-BAD input</pre>
+<p>Both logs are non-empty, so the zero is an answer rather than a missing instrument. The same zero
+holds on the 6578-byte and 6099-byte logs from the two Control API recordings that completed.</p>
+
+<p>The service log carries the same before/after in one file. Today's log has exactly two
+<code>audio_buffer_size</code> lines, and both belong to the pre-fix binary run at 11:21:</p>
+<pre>11:21:16.580 [AvfStream] Start mic: "ffmpeg" ... -f avfoundation -audio_buffer_size 20 -i :0 ...
+11:21:16.898 [AvfStream] Start mic FAILED: ffmpeg exited (code 8): Unrecognized option 'audio_buffer_size'.
+
+11:25:28.386 [AvfStream] Start mic: "ffmpeg" -hide_banner -nostats -loglevel warning -f avfoundation -i :1 -ac 1 -ar 48000 -f s16le pipe:1
+11:25:37.497 [AvfStream] Stop mic: done (ffmpeg exit=0)          <- the running service, post-fix</pre>
+
+<h2>AC6 - AVFoundation on macOS, DirectShow still on Windows</h2>
+
+<p><strong>macOS half, live from the branch binary:</strong></p>
+<pre>$ agenteyes video --screen 1 --mic "no-such-microphone-xyz" --seconds 2
+[error] no AVFoundation microphone matches "no-such-microphone-xyz". Run 'agenteyes screens'.
+
+$ agenteyes video --screen 1 --mic "o" --seconds 2
+[error] "o" matches 2 AVFoundation devices. Use a more specific --mic name.
+
+$ agenteyes video --screen 1 --camera "no-such-camera-xyz" --seconds 2
+[error] no AVFoundation camera matches "no-such-camera-xyz". Run 'agenteyes screens' to list cameras.</pre>
+<p>For comparison, the pre-fix binary's immediate-exit diagnosis, reproduced on this machine, is the
+wrong-platform message the issue quotes: <code>the microphone "HD Pro Webcam C920" may not match a
+DirectShow device.</code></p>
+
+<p><strong>Windows half.</strong> The Windows suite cannot run on this Mac (no
+<code>Microsoft.WindowsDesktop.App</code> for osx-arm64), so this was proven two ways instead of
+taken on trust. First, the Windows target of Core was compiled HERE at both the merge base and at
+HEAD, and the two assemblies' UTF-16 string literals were diffed. Every one of the six
+<code>DeviceResolver</code> messages the issue names, plus the camera-unplugged message, reconstructs
+<em>byte-for-byte identically</em> on Windows - the literals were only split apart because the API
+name is now an interpolation hole fed by a <code>const</code> that reads "DirectShow" under
+<code>#if WINDOWS</code>:</p>
+<pre>base assembly                                 HEAD assembly
+"no DirectShow microphone matches \""    ->   "no " + "DirectShow" + " microphone matches \""
+" DirectShow devices. Use a more ..."    ->   "DirectShow" + " devices. Use a more ..."
+"no DirectShow camera matches \""        ->   "no " + "DirectShow" + " camera matches \""
+" DirectShow cameras. Use a more ..."    ->   "DirectShow" + " cameras. Use a more ..."
+"no DirectShow device is named \""       ->   "no " + "DirectShow" + " device is named \""
+"no DirectShow audio devices found (is ffmpeg present?)."  (unchanged, fully folded - not in the diff at all)
+
+Whole-assembly counts:  Windows build - DirectShow 7, AVFoundation 0, PulseAudio 0, V4L2 0
+                        macOS   build - AVFoundation 18, PulseAudio 0, V4L2 0, DirectShow 2</pre>
+<p>Second, the Windows suite was run on Windows by CI on this exact commit (below). Note a limit of
+the developer's new Windows assertions: they use <code>Assert.Contains("DirectShow", ...)</code>, so
+they would not catch a reword that kept the word. The string-heap diff above is the check that
+would, and it is this report's evidence, not theirs.</p>
+
+<p>The two remaining <code>DirectShow</code> literals in the macOS build are the pre-existing
+programming-error guards <code>"a camera preview needs an exact DirectShow device name."</code> and
+<code>"a camera capture needs an exact DirectShow device name."</code>
+(<code>FfmpegCameraPreview.cs:148,180</code>, <code>FfmpegArgs.cs:224,275</code>). They are outside
+this issue's IN list, the developer disclosed them, and they are not messages a Mac user meets on a
+normal failure. Worth their own issue; not a defect here.</p>
+
+<h2>AC4 - the Control API, screen + microphone</h2>
+
+<div class="box ok">
+<strong>The macOS Screen Recording permission IS granted on this machine now</strong> - so unlike the
+developer's run, this criterion could be attempted. The proof is not an absent error: a frame
+extracted from the recorded file shows the real desktop, and the capture log shows 276 encoded frames
+of 1920x1080 with 150 KB I-frames. The log still prints
+<code>Configuration of video device failed, falling back to default.</code>, but ffmpeg captures the
+display anyway, so that line is not the blocker it was.
+</div>
+
+<p><strong>Run 1 - full pass.</strong></p>
+<pre>$ curl -X POST http://127.0.0.1:7882/record/start -d '{"mode":"video","screen":1,"source":"mic","mic":"HD Pro Webcam"}'
+  HTTP 200   "State": "recording", "Mode": "video", "Source": "mic", "MicLevel": 0.003,
+             "Dir": "/Users/.../Movies/AgentEyes/2026-11-12_112333_video"
+
+$ GET /status  (every 2 s)
+  State=recording Elapsed=2.05 MicLevel=0.003
+  State=recording Elapsed=4.12 MicLevel=0.003
+  State=recording Elapsed=6.17 MicLevel=0.003
+  State=recording Elapsed=8.22 MicLevel=0.003
+
+$ curl -X POST http://127.0.0.1:7882/record/stop -d '{}'
+  HTTP 200   { "File": ".../recording.mp4", "DurationSeconds": 8.27 }
+
+$ ffprobe recording.mp4
+  index=0 codec_name=h264 codec_type=video duration=12.066667
+  index=1 codec_name=aac  codec_type=audio duration=11.138000 channels=2
+  size=390153          raw.mp4 cleaned up, thumb.jpg written
+  grep -c 'Unrecognized option' raw.mp4.ffmpeg.log = 0   (6578-byte log)</pre>
+
+<p><strong>Run 3 - full pass, repeating the same configuration.</strong></p>
+<pre>  start HTTP=200
+  State=recording Elapsed=2.02 MicLevel=0.005
+  State=recording Elapsed=4.05 MicLevel=0.004
+  State=recording Elapsed=6.09 MicLevel=0.012
+  stop  HTTP=200   { "File": ".../recording.mp4", "DurationSeconds": 6.11 }
+  ffprobe: h264 9.600000 / aac 8.704000, size=173445, thumb.jpg written
+  grep -c 'Unrecognized option' = 0   (6099-byte log)</pre>
+
+<p><strong>Is MicLevel a live reading or a hardcoded constant?</strong> Calibrated: it varies within a
+run (0.005 / 0.004 / 0.012), it differs per device (0.003 on the C920, 0 on the Yealink), and it is 0
+when idle. It is a live reading. The values are small because the C920 is reading its own noise floor
+- see the AC3 note on why sound does not reach it.</p>
+
+<p><strong>Run 2 - the one that did not complete.</strong> Start returned 200, status reported
+<code>recording</code> for 8 s, stop returned 200 with a filename - but the deferred post-processing
+mux never finished, leaving a 262192-byte <code>recording.mp4</code> with no moov atom and
+<code>raw.mp4</code> still on disk. The mux ffmpeg had burned 4 min 22 s of CPU on an 8-second clip
+when it was killed. See the next section: this is not in the code this PR changes.</p>
+
+<h2>Two findings for the owner</h2>
+
+<div class="box bad">
+<p><strong>Finding 1 - a macOS post-recording mux hang, newly REACHABLE because of this fix, but not
+caused by it. Deserves its own issue.</strong></p>
+<p>Reproduced with plain ffmpeg, no AgentEyes process involved, on the <code>raw.mp4</code> that run 2
+left behind. The command is the one the untouched post-recording code builds:</p>
+<pre>ffmpeg -y -i raw.mp4 -filter_complex "[0:a]arnndn=m='.../bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];
+                                      [m]alimiter=limit=0.95:level=false[a]"
+       -map 0:v -c:v copy -map [a] -c:a aac -b:a 160k recording.mp4
+  -> never terminates; output stops at 262192 bytes, no moov atom
+
+Narrowed:
+  arnndn alone        on the same input -> OK in &lt;=10 s
+  speechnorm alone    on the same input -> OK in &lt;=10 s
+  alimiter alone      on the same input -> OK in &lt;=10 s
+  the full chain, audio only, no video  -> HUNG  (so it is not the video copy)
+  the full chain on a captured .wav     -> OK    (so it is not the audio content)</pre>
+<p>So the trigger is the chained filter graph over the AAC audio stream that the AVFoundation capture
+writes into <code>raw.mp4</code> - that stream carries only 39 packets for 10.976 s. Why this report
+calls it out but does not call it a defect of #111: the mux path, the filter chain and
+<code>AudioMixOptions</code> are not in this PR's diff at all, it reproduces outside the application,
+and it is shared with Windows and Linux. Before this fix macOS never produced a <code>raw.mp4</code>,
+so nobody could reach it. It is a real macOS gap in "stop leaves a playable file" and it should be
+filed and fixed on its own terms, not folded into a ticket scoped to removing one argument.</p>
+<p>Also observed in run 2: with the Yealink selected, <code>/status</code> reported
+<code>MicLevel 0</code> for the whole recording while a CLI capture of that same device with the same
+sound playing gave -33.5 dB. In video mode the service opens a SECOND AvfStream on the device that
+ffmpeg already holds, purely to drive the meter. That is the developer's own flagged open question,
+and this run is evidence for it. Also its own issue.</p>
+</div>
+
+<div class="box">
+<p><strong>Finding 2 - one Windows-visible message outside the issue's IN list was reworded. The
+developer disclosed it and invited a bounce; this report surfaces it rather than deciding it.</strong></p>
+<pre>FfmpegRecorder.DiagnoseImmediateExit, Windows wording:
+  before:  the microphone "X" may not match a DirectShow device.
+  after:   the microphone "X" may not match any DirectShow input device.</pre>
+<p>The issue's Scope IN list names <code>DeviceResolver.cs</code> lines 55, 76, 81, 105, 123, 128 and
+nothing else, and all six of those are byte-identical on Windows (section AC6). This seventh message
+lives in <code>FfmpegRecorder.cs</code>. Against it: the issue's own problem statement calls this
+exact message out ("the error message blames the wrong platform"), it still says DirectShow on
+Windows so no Windows reader is misled, the article fix is needed because "a AVFoundation device" is
+not English, and the issue flags the wording scope as "the negotiable part of this issue". This
+report does not treat it as a criterion failure - the criterion's subject is the failed
+<code>--mic</code> match, which is unchanged - but it is the owner's call, not QA's, so it is stated
+here plainly rather than buried.</p>
+</div>
+
+<h2>A broken instrument, caught</h2>
+<p>The first attempt to read the compiled Windows assembly used
+<code>strings -a -el agenteyes.dll | grep -i DirectShow</code>, which returned nothing. That looked
+like a clean result and was not one: macOS <code>strings</code> does not support <code>-el</code>, and
+a calibration search for a literal known to be in the file (<code>agenteyes screens</code>) also
+returned zero. The instrument was replaced with a UTF-16LE scan that finds that literal 8 times, and
+every assembly result in this report comes from the calibrated one. Recorded because an empty result
+is a broken instrument until proven otherwise.</p>
+
+<h2>AC8 - build and test, and what this machine cannot do</h2>
+<pre>$ dotnet build AgentEyes.sln -c Release
+  error NETSDK1100 x3 (AgentEyes.App, AgentEyes.Tests, AgentEyes.Setup target Windows)
+  -- environmental, not a defect of this change: macOS cannot build a Windows TFM unopted.
+
+$ dotnet build AgentEyes.sln -c Release -p:EnableWindowsTargeting=true
+  22 Warning(s), 0 Error(s)          <- the WHOLE solution compiles, WPF app included
+
+$ dotnet build src/AgentEyes.Core -c Release -f net8.0 -p:AgentEyesUnixPlatform=mac -t:Rebuild   -> 0 Error(s)
+$ dotnet test  tests/AgentEyes.Tests.Mac   -c Release
+  Passed!  - Failed: 0, Passed: 72, Skipped: 0, Total: 72
+
+$ dotnet build src/AgentEyes.Core -c Release -f net8.0 -p:AgentEyesUnixPlatform=linux -t:Rebuild  -> 0 Error(s)
+$ dotnet test  tests/AgentEyes.Tests.Linux -c Release
+  Passed!  - Failed: 0, Passed: 93, Skipped: 1, Total: 94      <- no Linux collateral damage
+
+$ dotnet build src/AgentEyes.Core -c Release -f net8.0-windows10.0.19041.0 -p:EnableWindowsTargeting=true -t:Rebuild
+  0 Error(s)</pre>
+<p><strong>Not runnable here:</strong> <code>dotnet test AgentEyes.sln -c Release</code>. The Windows
+test project needs the WindowsDesktop runtime, which does not exist for osx-arm64. It was run on
+Windows by CI on this exact commit, and that run was read rather than taken on the developer's word
+(the developer cited the earlier commit's run):</p>
+<pre>Run 43256168013, head a86d592 (this branch's HEAD) - macos success, linux success, windows success
+  windows  Build AgentEyes.sln  -> Build succeeded.
+  windows  Test  AgentEyes.sln  -> Passed!  - Failed: 0, Passed: 2143, Total: 2143, Duration: 36 s
+  macos    Test the macOS build -> Passed!  - Failed: 0, Passed: 72
+  linux    Test the Linux build -> Passed!  - Failed: 0, Passed: 94</pre>
+<p>A green Windows CI job proves nothing about the macOS defect this issue is about - that is why
+every runtime result above was produced on this machine. It is cited only for the one thing this
+machine cannot do: run the Windows suite on Windows.</p>
+
+<h2>Method checks</h2>
+<ul>
+<li><strong>ASCII only:</strong> every file the PR adds or changes was scanned for non-ASCII bytes. Clean.</li>
+<li><strong>No attribution leakage:</strong> the branch's commit messages and the PR text were grepped
+for the banned strings. Zero hits.</li>
+<li><strong>No <code>nul</code> files</strong> anywhere in the tree.</li>
+<li><strong>Privacy posture:</strong> unchanged. This removes an argument that prevented capture;
+nothing about "visible / controllable" moves. No component-map change, so no CenCon doc drift.</li>
+<li><strong>Working tree:</strong> left clean. All four mutations reverted; the scratch git worktree
+used for the pre-fix build is outside the repo and was not committed.</li>
+</ul>
+
+<h2>Disposition</h2>
+<p>No defect was found <em>in this change</em>. Seven of eight acceptance criteria are proven by
+evidence produced in this session, each with its instrument calibrated against a known-bad input.
+Criterion 4 passed twice and failed once, for a cause reproduced outside AgentEyes in code this PR
+does not touch.</p>
+<p>The label stays <code>flow:ready-qa</code>. QA has not set <code>flow:done</code>, has not closed
+the issue, and has not merged PR #112 - the owner has reserved that decision, and Finding 1 and
+Finding 2 are the two things that decision should turn on.</p>
+
+</body>
+</html>

@@ -1,0 +1,130 @@
+QA mutation evidence - issue #111 - produced by the QA session on 2026-11-12
+Machine: Mac mini arm64, Darwin 25.5.0. Commit under test: a86d5920c57ccdf1f162e78b12de3f97ec119be5
+Suite: dotnet test tests/AgentEyes.Tests.Mac -c Release   (baseline green: Failed 0, Passed 72)
+
+Each mutation was applied to the working tree, the suite run, then the mutation reverted.
+A guard nobody watched fail is not a guard.
+
+================================================================================
+MUTATION A - '-audio_buffer_size 20' put back in FfmpegArgs.Mac.AvfAudioInput ONLY
+================================================================================
+  AgentEyes.Tests.Mac -> /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll
+Test run for /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignFfmpegOptionInAnyAvfoundationArgumentList [FAIL]
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfVideoCapture_WholeScreenAndMic_ExactCommandLine [FAIL]
+  Failed AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignFfmpegOptionInAnyAvfoundationArgumentList [10 ms]
+  Error Message:
+   an option from another platform's demuxer is back in an AVFoundation command line (issue #111 - ffmpeg rejects the whole command line and exits before it opens a device):
+  FfmpegArgs.AvfVideoCapture emits -audio_buffer_size (-y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -framerate 30 -i 30:none -f avfoundation -thread_queue_size 1024 -audio_buffer_size 20 -i :0 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 30 -c:a aac -b:a 128k fixture.mp4)
+  FfmpegArgs.AvfVideoCapture emits -audio_buffer_size (-y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -framerate 30 -i 30:none -f avfoundation -thread_queue_size 1024 -audio_buffer_size 20 -i :0 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 30 -c:a aac -b:a 128k fixture.mp4 -map 0:v -vf fps=10,scale=-2:270:flags=neighbor -q:v 8 -pix_fmt yuvj420p -an -f mjpeg -flush_packets 1 pipe:1)
+  FfmpegArgs.AvfAudioInput emits -audio_buffer_size (-f avfoundation -thread_queue_size 1024 -audio_buffer_size 20 -i :30)
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignFfmpegOptionInAnyAvfoundationArgumentList() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacForeignFfmpegOptionTests.cs:line 121
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfVideoCapture_WholeScreenAndMic_ExactCommandLine [4 ms]
+  Error Message:
+   Assert.Equal() Failure: Collections differ
+                                                           v (pos 15)
+Expected: string[]     [..., "-thread_queue_size", "1024", "-i", ":0", "-c:v", ...]
+Actual:   List<string> [..., "-thread_queue_size", "1024", "-audio_buffer_size", "20", "-i", ...]
+                                                           ^ (pos 15)
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfVideoCapture_WholeScreenAndMic_ExactCommandLine() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacFfmpegArgsTests.cs:line 19
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.TheGuardFires_OnTheExactFlagThatShipped [FAIL]
+  Failed AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.TheGuardFires_OnTheExactFlagThatShipped [< 1 ms]
+  Error Message:
+   Assert.Empty() Failure: Collection was not empty
+Collection: ["audio_buffer_size"]
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.TheGuardFires_OnTheExactFlagThatShipped() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacForeignFfmpegOptionTests.cs:line 142
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile [FAIL]
+  Failed AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile [9 ms]
+  Error Message:
+   an option from another platform's demuxer is in the macOS source (issue #111):
+  FfmpegArgs.Mac.cs:157 -> "-audio_buffer_size", "20",
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacForeignFfmpegOptionTests.cs:line 164
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Failed!  - Failed:     4, Passed:    68, Skipped:     0, Total:    72, Duration: 24 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+================================================================================
+MUTATION B - '-audio_buffer_size 20' put back in AvfStream.Arguments ONLY
+================================================================================
+  AgentEyes.Core -> /Users/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll
+  AgentEyes.Tests.Mac -> /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll
+Test run for /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.06]     AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfStreamArguments_AreRawMonoPcmOnStdout [FAIL]
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignFfmpegOptionInAnyAvfoundationArgumentList [FAIL]
+  Failed AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfStreamArguments_AreRawMonoPcmOnStdout [1 ms]
+  Error Message:
+   Assert.Equal() Failure: Collections differ
+                                      v (pos 6)
+Expected: [..., "-f", "avfoundation", "-i", ":1", "-ac", ...]
+Actual:   [..., "-f", "avfoundation", "-audio_buffer_size", "20", "-i", ...]
+                                      ^ (pos 6)
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfStreamArguments_AreRawMonoPcmOnStdout() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacFfmpegArgsTests.cs:line 189
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignFfmpegOptionInAnyAvfoundationArgumentList [4 ms]
+  Error Message:
+   an option from another platform's demuxer is back in an AVFoundation command line (issue #111 - ffmpeg rejects the whole command line and exits before it opens a device):
+  AvfStream.Arguments emits -audio_buffer_size (-hide_banner -nostats -loglevel warning -f avfoundation -audio_buffer_size 20 -i :30 -ac 30 -ar 30 -f s16le pipe:1)
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignFfmpegOptionInAnyAvfoundationArgumentList() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacForeignFfmpegOptionTests.cs:line 121
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile [FAIL]
+  Failed AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile [9 ms]
+  Error Message:
+   an option from another platform's demuxer is in the macOS source (issue #111):
+  AvfStream.cs:62 -> "-audio_buffer_size", "20",
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacForeignFfmpegOptionTests.cs:line 164
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Failed!  - Failed:     3, Passed:    69, Skipped:     0, Total:    72, Duration: 23 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+================================================================================
+MUTATION C - a NEW builder carrying the flag in a NEW Platform/Mac/Sub/ folder
+            (an argument list built outside the two types the sweep reflects over)
+================================================================================
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+/Users/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [/Users/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+  AgentEyes.Core -> /Users/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll
+  AgentEyes.Tests.Mac -> /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll
+Test run for /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile [FAIL]
+  Failed AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile [10 ms]
+  Error Message:
+   an option from another platform's demuxer is in the macOS source (issue #111):
+  QaMutation.cs:10 -> "-audio_buffer_size", "20",
+  Stack Trace:
+     at AgentEyes.Tests.Mac.MacForeignFfmpegOptionTests.NoForeignOptionInAnyMacSourceFile() in /Users/soren/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/MacForeignFfmpegOptionTests.cs:line 164
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Failed!  - Failed:     1, Passed:    71, Skipped:     0, Total:    72, Duration: 24 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+================================================================================
+MUTATION D - rename AvfAudioInput (and its caller) to try to empty the sweep
+================================================================================
+The guard does not compile against a renamed builder, so the sweep cannot shrink silently:
+  MacForeignFfmpegOptionTests.cs(142,48): error CS0117:
+  'FfmpegArgs' does not contain a definition for 'AvfAudioInput'
+
+================================================================================
+ALL MUTATIONS REVERTED - suite green again
+================================================================================
+Passed!  - Failed:     0, Passed:    72, Skipped:     0, Total:    72
+Linux suite, same session: Passed!  - Failed: 0, Passed: 93, Skipped: 1, Total: 94
+git status --short: (empty)
