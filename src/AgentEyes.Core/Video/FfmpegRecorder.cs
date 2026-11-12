@@ -256,7 +256,9 @@ namespace AgentEyes.Video
                 return "ffmpeg rejected an option in the capture command line - see the log, "
                     + "the device is not the problem.";
             if (!string.IsNullOrWhiteSpace(dshowMicName))
-                return $"the microphone \"{dshowMicName}\" may not match a {PlatformApiNames.Audio} device.";
+                // "any <API> input device" rather than "a <API> device": the article was only ever
+                // right for the one hardcoded word, and "a AVFoundation device" is not English.
+                return $"the microphone \"{dshowMicName}\" may not match any {PlatformApiNames.Audio} input device.";
             return "see the log for the ffmpeg error.";
         }
 

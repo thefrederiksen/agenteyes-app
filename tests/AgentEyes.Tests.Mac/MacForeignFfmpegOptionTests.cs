@@ -164,7 +164,11 @@ namespace AgentEyes.Tests.Mac
             string dir = Path.Combine(RepoRoot, "src", "AgentEyes.Core", "Platform", "Mac");
             Assert.True(Directory.Exists(dir), "the Platform/Mac source directory is gone: " + dir);
 
-            var files = Directory.GetFiles(dir, "*.cs");
+            // RECURSIVE on purpose: a non-recursive scan would still find files, so the
+            // broken-instrument guard below would not fire while a new Platform/Mac subfolder went
+            // unscanned. This scan is also the only detector that reaches an argument list built
+            // inline rather than by a swept builder - AvfDevices' device listing is one.
+            var files = Directory.GetFiles(dir, "*.cs", SearchOption.AllDirectories);
             Assert.True(files.Length > 0, "no Mac source files were scanned - broken instrument.");
 
             var violations = new List<string>();

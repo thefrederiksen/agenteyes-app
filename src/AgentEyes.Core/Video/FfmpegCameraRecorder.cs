@@ -1216,7 +1216,11 @@ namespace AgentEyes.Video
                 return $"the camera \"{dshowCameraName}\" is already in use by another application.";
             if (stderr.Contains("Could not find video device", StringComparison.OrdinalIgnoreCase)
                 || stderr.Contains("no device found", StringComparison.OrdinalIgnoreCase))
-                return $"no DirectShow device is named \"{dshowCameraName}\" any more (was it unplugged?).";
+                // Issue #111: this path is reached on macOS too (the open above branches to
+                // AvfCameraCapture under MACOS), so it names the API this build really uses - a Mac
+                // owner told to look for a DirectShow device is being sent after a device class
+                // their machine has never had.
+                return $"no {PlatformApiNames.Camera} device is named \"{dshowCameraName}\" any more (was it unplugged?).";
             if (stderr.Contains("Could not set video options", StringComparison.OrdinalIgnoreCase))
                 return $"the camera \"{dshowCameraName}\" rejected the requested frame rate.";
             return $"see the application log for the ffmpeg error from \"{dshowCameraName}\".";

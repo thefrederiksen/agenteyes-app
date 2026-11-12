@@ -170,3 +170,18 @@ never delivers a sample, while a terminal child gets real audio. That is a macOS
 permission for the service, and like Screen Recording only the owner can grant it. It is NOT
 something this issue's code can fix, and it is why the /status MicLevel half of AC4 is also
 recorded as blocked rather than passed.
+
+
+8. THE INSTALLED BUILD, AFTER THE REVIEW FIXES
+-----------------------------------------------
+scripts/mac/install.sh was re-run at the end so the launchd service and the ~/.local/bin/agenteyes
+symlink are this branch's FINAL code (a plain `dotnet build` would not have changed either):
+
+  $ curl -s http://127.0.0.1:7882/health
+  { "ok": true, "app": "AgentEyes", "host": "headless", "platform": "macos" }
+
+  $ ~/.local/bin/agenteyes video --screen 1 --mic "no-such-mic"
+  [error] no AVFoundation microphone matches "no-such-mic". Run 'agenteyes screens'.
+
+The second line is the INSTALLED CLI, not the build tree - the wording fix is in what the machine
+actually runs.

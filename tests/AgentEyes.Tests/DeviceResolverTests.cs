@@ -64,6 +64,69 @@ namespace AgentEyes.Tests
             Assert.Throws<UsageException>(() => DeviceResolver.ResolveName(names, "Mic"));
         }
 
+        // ---- the API a Windows failure names (issue #111) --------------------
+        //
+        // The resolver is shared by all three platforms and used to hardcode "DirectShow", which on
+        // a Mac sent its owner after a device class macOS has never had. The word now comes from
+        // PlatformApiNames, and these are the assertions that the WINDOWS branch of it still says
+        // DirectShow: without them, editing that branch - or a TFM change that stopped defining
+        // WINDOWS, which would compile the PulseAudio/V4L2 branch into the Windows build - would
+        // silently reword every Windows microphone and camera error with the whole gate green. The
+        // macOS half is MacDeviceWordingTests, which only a macOS build compiles.
+
+        [Fact]
+        public void Windows_wording_no_mic_match_names_DirectShow()
+        {
+            var names = new List<string> { "Microphone (Yeti Stereo Microphone)" };
+
+            var ex = Assert.Throws<UsageException>(() => DeviceResolver.ResolveName(names, "no-such-mic"));
+
+            Assert.Contains("DirectShow", ex.Message);
+            Assert.Contains("no-such-mic", ex.Message);
+        }
+
+        [Fact]
+        public void Windows_wording_ambiguous_mic_names_DirectShow()
+        {
+            var ex = Assert.Throws<UsageException>(
+                () => DeviceResolver.ResolveName(new List<string> { "Mic A", "Mic B" }, "Mic"));
+
+            Assert.Contains("DirectShow", ex.Message);
+        }
+
+        [Fact]
+        public void Windows_wording_no_audio_devices_at_all_names_DirectShow()
+        {
+            var ex = Assert.Throws<UsageException>(() => DeviceResolver.ResolveName(new List<string>(), "any"));
+
+            Assert.Contains("DirectShow", ex.Message);
+        }
+
+        [Fact]
+        public void Windows_wording_no_camera_match_names_DirectShow()
+        {
+            var ex = Assert.Throws<UsageException>(() => DeviceResolver.ResolveCameraName(Cameras(), "no-such-camera"));
+
+            Assert.Contains("DirectShow", ex.Message);
+        }
+
+        [Fact]
+        public void Windows_wording_no_cameras_at_all_names_DirectShow()
+        {
+            var ex = Assert.Throws<UsageException>(
+                () => DeviceResolver.ResolveCameraName(new List<string>(), "any"));
+
+            Assert.Contains("DirectShow", ex.Message);
+        }
+
+        [Fact]
+        public void Windows_wording_ambiguous_camera_names_DirectShow()
+        {
+            var ex = Assert.Throws<UsageException>(() => DeviceResolver.ResolveCameraName(Cameras(), "Logitech"));
+
+            Assert.Contains("DirectShow", ex.Message);
+        }
+
         // ---- camera resolution (issue #28) -----------------------------------
 
         private static List<string> Cameras() => new()

@@ -25,10 +25,12 @@ Evidence in this folder:
 | `src/AgentEyes.Core/Platform/Mac/AvfStream.cs` | `Arguments` no longer emits it either. Same correction to the comment that called it "the AVFoundation form of the issue #125 lesson". This is the one that powers `AudioCapture` (the mic level meter) and `LoopbackCapture`. |
 | `src/AgentEyes.Core/PlatformApiNames.cs` (new) | Two compile-time constants naming the capture API this build talks to: `DirectShow` under `WINDOWS`, `AVFoundation` under `MACOS`, `PulseAudio`/`V4L2` otherwise. |
 | `src/AgentEyes.Core/DeviceResolver.cs` | The six hardcoded "DirectShow" failure messages (lines 55, 76, 81, 105, 123, 128 of the old file) now name `PlatformApiNames.Audio` / `.Camera`. The Windows text is byte-for-byte what it was, by construction. Two stale doc comments corrected. |
-| `src/AgentEyes.Core/Video/FfmpegRecorder.cs` | `DiagnoseImmediateExit`: a new first branch for `Unrecognized option` / `Option not found` says ffmpeg rejected an option in OUR command line and the device is not the problem; the mic branch names `PlatformApiNames.Audio`. This is the message the issue quotes as blaming the wrong platform. |
+| `src/AgentEyes.Core/Video/FfmpegRecorder.cs` | `DiagnoseImmediateExit`: a new first branch for `Unrecognized option` / `Option not found` says ffmpeg rejected an option in OUR command line and the device is not the problem; the mic branch names `PlatformApiNames.Audio` and reads "may not match any X input device" (the old article was only right for the one hardcoded word - "a AVFoundation device" is not English). This is the message the issue quotes as blaming the wrong platform. |
+| `src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs` | `DiagnoseOpenFailure`'s unplugged-camera message said "no DirectShow device is named ..." and is reached on macOS too (the open branches to `AvfCameraCapture` under `MACOS`), so it now names `PlatformApiNames.Camera`. Found by `/code-review`, not by me. |
 | `tests/AgentEyes.Tests.Mac/MacFfmpegArgsTests.cs` | The two expected argument lists that ASSERTED the bug (lines 23 and 189) no longer contain it. |
 | `tests/AgentEyes.Tests.Mac/MacForeignFfmpegOptionTests.cs` (new) | The regression guard - see below. |
-| `tests/AgentEyes.Tests.Mac/MacDeviceWordingTests.cs` (new) | The macOS wording: a failed/ambiguous mic match, a failed camera match, and the two `DiagnoseImmediateExit` cases. |
+| `tests/AgentEyes.Tests.Mac/MacDeviceWordingTests.cs` (new) | The macOS wording: a failed/ambiguous mic match, a failed camera match, the unplugged-camera diagnosis, and the two `DiagnoseImmediateExit` cases. |
+| `tests/AgentEyes.Tests/DeviceResolverTests.cs`, `FfmpegRecorderTests.cs`, `CameraTrackTests.cs` | The WINDOWS half, which did not exist before: six `Windows_wording_*` assertions that the shared messages still say DirectShow on Windows, plus the rejected-option branch and the unplugged-camera wording. Without these, editing `PlatformApiNames`' `WINDOWS` branch - or a TFM change that stopped defining `WINDOWS`, which would compile the PulseAudio/V4L2 branch into the Windows build - would silently reword every Windows device error with the whole gate green. |
 | `tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj` | Stamps `RepoRoot` into the assembly, as `tests/AgentEyes.Tests` does, so the guard's source backstop cannot silently scan nothing. |
 
 Untouched, deliberately: `src/AgentEyes.Core/Video/FfmpegArgs.cs:64` and
@@ -57,9 +59,12 @@ It fails closed:
 
 Blind spots, stated rather than left to be found: the reflection sweep cannot see an argument list
 built somewhere other than those two types, which is why `NoForeignOptionInAnyMacSourceFile` also
-scans every `Platform/Mac/*.cs` for the same option names with comments stripped; that source scan
-in turn is defeated by an alias or a computed string. Neither sees whether ffmpeg accepts the REST
-of the list - only a real capture does, which is section 2 of `runtime-macos.txt`.
+scans `Platform/Mac` RECURSIVELY (`SearchOption.AllDirectories` - a non-recursive scan would still
+find files, so the broken-instrument guard would not fire while a new subfolder went unscanned) for
+the same option names with comments stripped. That scan is the only detector that reaches a list
+built inline rather than by a swept builder, such as `AvfDevices`' device listing; it is in turn
+defeated by an alias or a computed string. Neither sees whether ffmpeg accepts the REST of the list
+- only a real capture does, which is section 2 of `runtime-macos.txt`.
 
 ## Acceptance criteria
 
@@ -70,7 +75,7 @@ of the list - only a real capture does, which is section 2 of `runtime-macos.txt
 | 3 | `agenteyes audio --screen 1 --mic "<real mic>" --seconds 5` exits 0, ~5 s file, mean volume not `-inf` | PASS | `runtime-macos.txt` section 2: exit 0, `Duration: 00:00:05.09`, `mean_volume: -58.8 dB`, `max_volume: -39.3 dB`, and the log line showing ffmpeg exit=0 with 488448 bytes of PCM. |
 | 4 | `POST /record/start` video+mic -> 200, `/status` recording with non-zero `MicLevel`, `/record/stop` leaves a playable file with an audio stream | **BLOCKED - NOT PASSED** | `runtime-macos.txt` sections 6 and 7. Start DOES return 200 with `State: recording` now (pre-fix: 400, exit 8), but the screen input delivers no frames without the Screen Recording permission, so no `raw.mp4` and no `recording.mp4` exists, and `MicLevel` reads 0.000 because a detached/service process on this Mac gets a microphone that delivers no samples. Both are owner-granted permissions. |
 | 5 | The recording's `raw.mp4.ffmpeg.log` contains no `Unrecognized option` line | PASS | `runtime-macos.txt` section 5: the 714-byte log quoted in full, `grep -c` = 0. The file is non-empty, so the zero is an answer and not a missing instrument. |
-| 6 | A failed `--mic` match on a Mac names AVFoundation; the Windows wording unchanged on Windows | PASS on macOS; Windows half by construction + compile only | `runtime-macos.txt` section 4 (three real CLI messages) and `MacDeviceWordingTests`. The Windows half: `PlatformApiNames.Audio` is the literal `"DirectShow"` under `#if WINDOWS` and the format strings are otherwise unchanged, and the Windows TFM compiles here (0 errors) - but the Windows suite CANNOT RUN on this Mac (no `Microsoft.WindowsDesktop.App` runtime for osx-arm64), so `DeviceResolverTests` / `FfmpegRecorderTests` are unrun by me. CI's windows job runs them. |
+| 6 | A failed `--mic` match on a Mac names AVFoundation; the Windows wording unchanged on Windows | PASS both halves | macOS: `runtime-macos.txt` section 4 (three real CLI messages) and `MacDeviceWordingTests`. Windows: six new `Windows_wording_*` assertions plus the two diagnose ones, and the **windows CI job on this PR passed** (`build + test AgentEyes.sln` on windows-latest, run 43253629280, 2m22s) - that is the Windows suite actually RUN, which this Mac cannot do (no `Microsoft.WindowsDesktop.App` for osx-arm64). The second push re-runs it. |
 | 7 | A regression test fails if a DirectShow-only option name reappears in any `FfmpegArgs.Mac` / `AvfStream.Arguments` list | PASS | `MacForeignFfmpegOptionTests` + `guard-mutation.txt` (3 of 4 fire on the reintroduced flag). |
 | 8 | `dotnet build AgentEyes.sln -c Release` and `dotnet test AgentEyes.sln -c Release` both pass | PARTIAL ON THIS MACHINE - see below | |
 
@@ -82,15 +87,17 @@ Windows target without being told to. What I ran instead, all from this branch:
 
     dotnet build AgentEyes.sln -c Release -p:EnableWindowsTargeting=true   -> 0 Error(s)  (22 warnings, pre-existing)
     dotnet build src/AgentEyes.Core -c Release -f net8.0 -p:AgentEyesUnixPlatform=mac -t:Rebuild    -> 0 Error(s)
-    dotnet test  tests/AgentEyes.Tests.Mac   -c Release   -> Passed!  Failed: 0, Passed: 71
+    dotnet test  tests/AgentEyes.Tests.Mac   -c Release   -> Passed!  Failed: 0, Passed: 72
     dotnet build src/AgentEyes.Core -c Release -f net8.0 -p:AgentEyesUnixPlatform=linux -t:Rebuild  -> 0 Error(s)
     dotnet test  tests/AgentEyes.Tests.Linux -c Release   -> Passed!  Failed: 0, Passed: 93, Skipped: 1
     dotnet build src/AgentEyes.Core -c Release -f net8.0-windows10.0.19041.0 -p:EnableWindowsTargeting=true -t:Rebuild -> 0 Error(s)
 
 So: the WHOLE SOLUTION compiles (including the WPF app and the Windows test project), the macOS and
 Linux suites are green, and `dotnet test AgentEyes.sln` is NOT RUNNABLE on macOS because the
-Windows suite needs the WindowsDesktop runtime. The Mac suite was 60 tests before this change and
-is 71 now (+11: 4 guard, 7 wording). Environment notes for anyone repeating this: `dotnet` is not
+Windows suite needs the WindowsDesktop runtime - so the WINDOWS CI JOB ON THIS PR is the run of it,
+and it passed. The Mac suite was 60 tests before this change and is 72 now (+12: 4 guard, 8
+wording), and the Windows suite gained 8 (6 resolver wording, 1 rejected-option branch, 1
+unplugged-camera wording). Environment notes for anyone repeating this: `dotnet` is not
 on PATH in an agent shell (`export DOTNET_ROOT=$HOME/.dotnet; export PATH=$HOME/.dotnet:$PATH`),
 there is no .NET 8 SDK or runtime here, so `DOTNET_ROLL_FORWARD=LatestMajor` is needed to run the
 net8.0 test assemblies on the 10.x runtime. `-t:Rebuild` matters: the mac and linux configurations
@@ -110,28 +117,35 @@ of Core build to the SAME path, so switching between them without it can leave a
    `-t 3` capture with no file (`runtime-macos.txt` section 7). A terminal child of the same build
    writes 488448 bytes of real audio. If QA wants the meter proven, grant Microphone to `agenteyes`
    in System Settings, or drive the CLI from a terminal session rather than the launchd agent.
-3. **The Windows suite is unrun by me** (see AC6 row). Please let CI's windows job, or a Windows
-   machine, confirm `DeviceResolverTests` and `FfmpegRecorderTests` - `DiagnoseImmediateExit` gained
-   a branch, and `DiagnoseImmediateExit_with_mic_and_no_region_error_points_at_the_mic` (stderr
-   `"could not run graph"`, asserts `Contains("DirectShow")`) is the one to look at first. It passes
-   by construction: that stderr contains neither `Unrecognized option` nor `Option not found`, so
-   the new branch does not take it, and `PlatformApiNames.Audio` is `"DirectShow"` on Windows.
+3. **The Windows suite is not run BY ME** - this Mac cannot host it. It is run by the windows CI
+   job on this PR, which passed on the first commit; the review-fix commit re-runs it and QA should
+   read the final status rather than my word. The three Windows files I added assertions to are the
+   ones to look at if it ever goes red.
+4. **The meter reading 0 in VIDEO mode has a second possible cause I could not separate out.** In
+   video mode ffmpeg owns the mic and the service opens a SECOND AvfStream on the same device purely
+   to drive the meter (`RecordingService.cs:679`). On this machine that second stream also had to be
+   killed at stop (`ffmpeg did not finish within 5s`), which is consistent with the permission
+   finding above but would ALSO be consistent with AVFoundation not giving two readers the same
+   input. Worth its own issue if a Mac with the Microphone permission still reads 0 there. I am
+   recording it rather than guessing.
 
-## Two judgment calls to review as drift
+## Three judgment calls to review as drift
 
 * **`FfmpegRecorder.DiagnoseImmediateExit`** is not in the issue's IN list, which names
   `DeviceResolver.cs` only. I changed it because the issue's own problem statement calls it out
   ("the error message blames the wrong platform, sending a reader after the device name instead of
   the argument list") and because it is the exact message in the bug report. Bounce it if you
   disagree; nothing else depends on it.
+* **`FfmpegCameraRecorder.DiagnoseOpenFailure`** likewise: `/code-review` found that its
+  unplugged-camera message still said DirectShow and that the macOS camera path reaches it, which is
+  the same defect the issue is about, one file further on. Changed for the same reason.
 * **`PlatformApiNames` also changes Linux wording** ("no PulseAudio microphone matches", "no V4L2
   camera matches") because the resolver is shared and the alternative was a macOS-only special
   case. The issue flagged this as the negotiable part of the fix.
 
-Not fixed, and worth their own issues: `src/AgentEyes.Core/Video/FfmpegCameraRecorder.cs:1219` still
-says "no DirectShow device is named ... any more" on a Mac, and `FfmpegCameraPreview` has two
-"needs an exact DirectShow device name" guards. They are camera-stranding diagnostics, outside this
-issue's scope. Also, a hung `ffmpeg -f avfoundation -i 1:none` from the ORIGINAL repro (10:02, 50
+Not fixed, and worth their own issues: `FfmpegCameraPreview` has two "needs an exact DirectShow
+device name" guards and `FfmpegArgs.CameraCapture` one more. They are programming-error guards on a
+Windows-shaped API rather than messages a Mac user meets on a normal failure, so I left them. Also, a hung `ffmpeg -f avfoundation -i 1:none` from the ORIGINAL repro (10:02, 50
 minutes before my first run) was still alive on this machine when I finished; I left it alone.
 
 ## How QA can re-run what I ran

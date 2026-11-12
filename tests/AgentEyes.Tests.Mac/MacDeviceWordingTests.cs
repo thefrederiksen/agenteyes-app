@@ -12,11 +12,14 @@ namespace AgentEyes.Tests.Mac
     /// The resolver is shared by all three platforms and hardcoded the word "DirectShow", so a Mac
     /// that could not match "--mic Yealink" told its owner the name "may not match a DirectShow
     /// device" - a device class macOS has never had, pointing every reader at the device name while
-    /// the real fault was in our own argument list. These assertions are the macOS half of that
-    /// wording; the Windows half (the same messages still saying DirectShow) is asserted by
-    /// DeviceResolverTests and FfmpegRecorderTests in the Windows suite, which is where a Windows
-    /// build is compiled. This file CANNOT see the Windows wording, by construction - it runs against
-    /// the macOS configuration of the engine.
+    /// the real fault was in our own argument list.
+    ///
+    /// These assertions are the macOS half of that wording only. This file CANNOT see the Windows
+    /// wording, by construction - it runs against the macOS configuration of the engine. The Windows
+    /// half (the same messages still saying DirectShow, so a change to PlatformApiNames' WINDOWS
+    /// branch cannot pass unnoticed) is asserted by DeviceResolverTests.Windows_wording_* and
+    /// FfmpegRecorderTests in the Windows suite, which only a Windows build compiles and only the
+    /// Windows CI job runs.
     /// </summary>
     public sealed class MacDeviceWordingTests
     {
@@ -79,6 +82,20 @@ namespace AgentEyes.Tests.Mac
         {
             string cause = FfmpegRecorder.DiagnoseImmediateExit("could not open input", "Yealink UH36");
 
+            Assert.Contains("AVFoundation", cause);
+            Assert.DoesNotContain("DirectShow", cause);
+        }
+
+        [Fact]
+        public void DiagnoseOpenFailure_CameraGoneOnMac_NamesAvFoundationNotDirectShow()
+        {
+            // Reached on a Mac: FfmpegCameraRecorder opens the camera through AvfCameraCapture under
+            // MACOS, and this diagnosis is platform-neutral.
+            string cause = FfmpegCameraRecorder.DiagnoseOpenFailure(
+                "[in#0 @ 0x1] Could not find video device with name [HD Pro Webcam C920]",
+                "HD Pro Webcam C920");
+
+            Assert.Contains("unplugged", cause);
             Assert.Contains("AVFoundation", cause);
             Assert.DoesNotContain("DirectShow", cause);
         }

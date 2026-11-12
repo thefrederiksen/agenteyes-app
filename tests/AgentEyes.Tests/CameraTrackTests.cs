@@ -313,6 +313,18 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void DiagnoseOpenFailure_MissingDevice_NamesDirectShowOnWindows()
+        {
+            // Issue #111: this message is shared with the macOS camera path, where it now says
+            // AVFoundation (MacDeviceWordingTests). On Windows it must still say DirectShow - this
+            // is the assertion that catches a change to PlatformApiNames' WINDOWS branch.
+            string cause = FfmpegCameraRecorder.DiagnoseOpenFailure(
+                "[dshow @ 0001] Could not find video device with name [HD Webcam]", "HD Webcam");
+
+            Assert.Contains("DirectShow", cause);
+        }
+
+        [Fact]
         public void DiagnoseOpenFailure_UnrecognizedError_PointsAtTheLogAndDoesNotInvent()
         {
             // The honest arm: when the stderr says nothing this method recognizes, it must NOT guess
