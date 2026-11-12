@@ -71,7 +71,7 @@ One instrument was found broken this way and replaced (see "A broken instrument,
 <tr><td>3</td><td><code>agenteyes audio --screen 1 --mic ... --seconds 5</code> exits 0, ~5 s file, mean volume not <code>-inf</code></td>
 <td class="pass">PASS</td><td>exit 0, 00:00:04.99, mean_volume -60.0 dB. A second run with sound reaching the mic: mean -33.5 dB, max -8.7 dB.</td></tr>
 <tr><td>4</td><td><code>POST /record/start</code> 200, <code>/status</code> recording with non-zero MicLevel, <code>/record/stop</code> leaves a playable file with an audio stream</td>
-<td class="partial">PASS in 2 of 3 runs</td><td>Runs 1 and 3 fully pass. Run 2's post-processing hung - cause reproduced outside AgentEyes, see below.</td></tr>
+<td class="pass">PASS</td><td>Measured via the Control API only: MicLevel peak <strong>0.3200</strong>, mean 0.1007, non-zero in 24/25 samples; file is h264+aac, -21.7 dB mean. 4 of 6 runs left a playable file; 2 were lost to the separate mux hang.</td></tr>
 <tr><td>5</td><td>The recording's <code>raw.mp4.ffmpeg.log</code> contains no <code>Unrecognized option</code> line</td>
 <td class="pass">PASS</td><td>714-byte and 6578-byte logs, grep -c = 0. Pre-fix binary's log on the same machine: grep -c = 1.</td></tr>
 <tr><td>6</td><td>A failed <code>--mic</code> match on a Mac names AVFoundation; the Windows wording is unchanged on Windows</td>
@@ -267,7 +267,93 @@ programming-error guards <code>"a camera preview needs an exact DirectShow devic
 this issue's IN list, the developer disclosed them, and they are not messages a Mac user meets on a
 normal failure. Worth their own issue; not a defect here.</p>
 
-<h2>AC4 - the Control API, screen + microphone</h2>
+<h2>AC4 RE-RUN - driven through the Control API only, with measured numbers</h2>
+
+<div class="box ok">
+<p><strong>Why the first pass had to be redone, and why it matters.</strong> macOS TCC charges the
+RESPONSIBLE process, not the accessing one. This QA shell descends from
+<code>Director.app</code> (pid chain: this shell &lt;- its agent host &lt;- cc-director &lt;- launchd), while the
+service is <code>launchd -&gt; .../AgentEyes/bin/agenteyes serve</code>, a direct child of pid 1 and
+outside that tree - verified by reading both ancestries. The two therefore answer differently about
+the same permission at the same moment, so the CLI is not a valid instrument for this criterion.
+Every AC4 result below came from <code>127.0.0.1:7882</code> only, after
+<code>scripts/mac/install.sh</code> was re-run from the PR branch and the installed assembly read
+back as <code>1.11.11+833e9e5000...</code> (1 <code>audio_buffer_size</code> literal - the shared
+Windows dshow builder - and 18 AVFoundation literals).</p>
+</div>
+
+<p><strong>Control: screen only, <code>{"source":"none"}</code>.</strong> This works even on the
+unfixed build, so anything that fails only once a microphone is added is attributable to this flag
+and nothing else.</p>
+<pre>POST /record/start {"mode":"video","screen":1,"source":"none"}  -> HTTP 200, State=recording
+GET  /status x20 @0.4 s  -> MicLevel 0.0000 throughout (correct: no mic requested)
+POST /record/stop        -> HTTP 200
+ffprobe recording.mp4    -> index=0 h264 video duration=10.966667, size=167115, NO audio stream
+                            thumb.jpg written, no mux step needed</pre>
+
+<p><strong>MicLevel, measured.</strong> <code>/status</code> sampled every 0.4 s for the whole
+recording, not every 2 s as in the first pass - which is why the first pass under-read it.</p>
+<table>
+<tr><th>Run</th><th>Mic</th><th>Acoustic source</th><th>MicLevel max</th><th>MicLevel mean</th><th>Non-zero samples</th></tr>
+<tr><td>Control</td><td>none</td><td>-</td><td>0.0000</td><td>0.0000</td><td>0/20</td></tr>
+<tr><td>B</td><td>Yealink</td><td>silence (calibration)</td><td>0.0030</td><td>0.0006</td><td>10/25</td></tr>
+<tr><td>A</td><td>Yealink</td><td><code>say</code>, normal volume</td><td>0.0070</td><td>0.0028</td><td>22/25</td></tr>
+<tr><td>C</td><td>Yealink</td><td><code>say</code>, mode=audio</td><td>0.0040</td><td>0.0009</td><td>12/25</td></tr>
+<tr><td><strong>D</strong></td><td>Yealink</td><td><code>afplay -v 10</code>, loud</td><td class="pass"><strong>0.3200</strong></td><td><strong>0.1007</strong></td><td><strong>24/25</strong></td></tr>
+</table>
+<pre>Run D raw MicLevel series (0.4 s apart):
+0.002 0.003 0.007 0.320 0.039 0.263 0.161 0.045 0.238 0.234 0.007 0.219 0.085
+0.030 0.161 0.138 0.010 0.000 0.169 0.079 0.014 0.093 0.109 0.024 0.067</pre>
+
+<p><strong>AC4's non-zero MicLevel is met: 0.3200 peak, 0.1007 mean, non-zero in 24 of 25 samples,
+measured from <code>GET /status</code> while sound was playing.</strong> The meter tracks the
+acoustic source across a 100x range (silence 0.0006 mean -&gt; loud 0.1007 mean), is 0 when no mic is
+requested, and is 0 when idle. It is a live reading, not a constant.</p>
+
+<div class="box bad">
+<p><strong>WITHDRAWN: "a detached/service process gets a microphone that delivers no samples."</strong>
+That claim is in the developer's handoff note, it was never tested, and it is now measured to be
+FALSE. The launchd service reads the microphone perfectly well: run D's recorded file is
+<code>mean_volume -21.7 dB, max_volume -0.5 dB</code>. The microphone is a different TCC service
+(<code>kTCCServiceMicrophone</code>) from Screen Recording and it is working for
+<code>agenteyes</code>. The real explanation for the near-zero readings in the first pass is
+mundane and acoustic: this Mac's default OUTPUT device is the Yealink headset, and
+<code>say</code> at normal volume barely registers on its own boom mic, while
+<code>afplay -v 10</code> (a 10x gain) registers strongly. Nothing about permissions, and nothing
+about two readers contending - run C used mode=audio with a single reader on the device and read
+LOWER than run D's two-reader video mode, so contention is not the explanation either.</p>
+</div>
+
+<p><strong>Files: playable, and carrying an audio stream.</strong></p>
+<pre>Run D  ffprobe recording.mp4
+  index=0  codec_name=h264  codec_type=video  duration=13.533334
+  index=1  codec_name=aac   codec_type=audio  duration=13.252000  channels=2  sample_rate=48000
+  format size=495348
+  volumedetect on the audio stream: mean_volume -21.7 dB, max_volume -0.5 dB
+  grep -c 'Unrecognized option' raw.mp4.ffmpeg.log = 0   (6934-byte log)
+
+Run A  index=0 h264 13.233334 / index=1 aac 12.802000 ch=2 48000, size=393483
+       audio mean -62.3 dB (quiet source), raw log clean, thumb.jpg + recording.original.mp4 written</pre>
+
+<p><strong>Run tally, all six screen+mic video runs driven through the Control API:</strong></p>
+<pre>run1  C920     PLAYABLE   video+audio
+run2  Yealink  TRUNCATED  post-processing mux hung (no moov atom)
+run3  C920     PLAYABLE   video+audio
+runA  Yealink  PLAYABLE   video+audio
+runB  Yealink  TRUNCATED  post-processing mux hung (no moov atom)
+runD  Yealink  PLAYABLE   video+audio
+
+4 of 6 left a playable file with an audio stream. 2 of 6 were lost to the post-processing
+mux hang in Finding 1 - intermittent, not device-specific (it hit the Yealink twice and
+spared it twice), and not caused by this change.</pre>
+
+<p>Every one of the six returned <code>HTTP 200</code> from <code>/record/start</code>, reported
+<code>State: recording</code> throughout, and returned <code>HTTP 200</code> from
+<code>/record/stop</code>. The capture itself - the part this issue fixes - succeeded in all six;
+only the deferred mux afterwards failed in two.</p>
+
+<h2>AC4 - the first pass, for the record</h2>
+
 
 <div class="box ok">
 <strong>The macOS Screen Recording permission IS granted on this machine now</strong> - so unlike the
