@@ -92,6 +92,13 @@ Windows target without being told to. What I ran instead, all from this branch:
     dotnet test  tests/AgentEyes.Tests.Linux -c Release   -> Passed!  Failed: 0, Passed: 93, Skipped: 1
     dotnet build src/AgentEyes.Core -c Release -f net8.0-windows10.0.19041.0 -p:EnableWindowsTargeting=true -t:Rebuild -> 0 Error(s)
 
+AND THE GATE ITSELF RAN, ON CI, ON THE CODE AS COMMITTED. Run 43255590900 for `5051f5a` - this
+branch's last CODE commit, the one after it touching only this note: windows
+success (`dotnet build AgentEyes.sln -c Release` + `dotnet test AgentEyes.sln -c Release` on
+windows-latest, 2m22s), linux success, macos success (`dotnet test tests/AgentEyes.Tests.Mac`
+on macos-latest, 47s). That is the Section 6 gate, executed, on the two platforms this Mac cannot
+host.
+
 So: the WHOLE SOLUTION compiles (including the WPF app and the Windows test project), the macOS and
 Linux suites are green, and `dotnet test AgentEyes.sln` is NOT RUNNABLE on macOS because the
 Windows suite needs the WindowsDesktop runtime - so the WINDOWS CI JOB ON THIS PR is the run of it,
@@ -118,8 +125,8 @@ of Core build to the SAME path, so switching between them without it can leave a
    writes 488448 bytes of real audio. If QA wants the meter proven, grant Microphone to `agenteyes`
    in System Settings, or drive the CLI from a terminal session rather than the launchd agent.
 3. **The Windows suite is not run BY ME** - this Mac cannot host it. It is run by the windows CI
-   job on this PR, which passed on the first commit; the review-fix commit re-runs it and QA should
-   read the final status rather than my word. The three Windows files I added assertions to are the
+   job on this PR, which passed on the final commit `5051f5a` (run 43255590900) - QA should read
+   that run rather than take my word. The three Windows files I added assertions to are the
    ones to look at if it ever goes red.
 4. **The meter reading 0 in VIDEO mode has a second possible cause I could not separate out.** In
    video mode ffmpeg owns the mic and the service opens a SECOND AvfStream on the same device purely
