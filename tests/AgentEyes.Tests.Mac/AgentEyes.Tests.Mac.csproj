@@ -27,6 +27,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Issue #111: MacForeignFfmpegOptionTests also scans the Platform/Mac SOURCE as the backstop to
+         its reflection sweep, so the repo root is stamped in at build time rather than guessed from
+         the working directory - a scan that looked at nothing would pass while proving nothing. The
+         Windows suite stamps the same key (see RepoSource). -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>RepoRoot</_Parameter1>
+      <_Parameter2>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Pin the engine to its macOS configuration, for the same reason the Linux suite pins itself
          to Linux: the suite must test the same engine whichever machine runs it. -->
     <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"

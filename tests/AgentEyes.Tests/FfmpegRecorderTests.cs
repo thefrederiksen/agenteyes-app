@@ -85,5 +85,23 @@ namespace AgentEyes.Tests
             Assert.Contains("Bad Mic Name", cause);
             Assert.Contains("DirectShow", cause);
         }
+
+        [Fact]
+        public void DiagnoseImmediateExit_rejected_option_blames_the_command_line_not_the_device()
+        {
+            // Issue #111: ffmpeg refusing an option is OUR argument list being wrong, not the user's
+            // microphone. The macOS build carried a DirectShow-only option and this method answered
+            // that the mic "may not match a DirectShow device", sending every reader after the device
+            // name on a machine with no DirectShow at all. A rejected option must not blame a device
+            // on ANY platform.
+            const string stderr = "Unrecognized option 'audio_buffer_size'.\n"
+                + "Error splitting the argument list: Option not found\n";
+
+            string cause = FfmpegRecorder.DiagnoseImmediateExit(stderr, "Microphone (Yeti)");
+
+            Assert.Contains("option", cause);
+            Assert.DoesNotContain("microphone", cause);
+            Assert.DoesNotContain("Yeti", cause);
+        }
     }
 }
