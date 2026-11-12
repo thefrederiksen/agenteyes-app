@@ -134,14 +134,26 @@ namespace AgentEyes.Video
 
         /// <summary>
         /// An AVFoundation audio input. ":index" is audio with no video. The macOS twin of PulseInput
-        /// and of the dshow -audio_buffer_size guard (issue #125): a short device buffer means a stop
-        /// loses at most a fragment of the last words.
+        /// and of the dshow audio input.
+        ///
+        /// AVFOUNDATION HAS NO DEVICE-BUFFER OPTION, OF ANY NAME (issue #111). This input used to
+        /// pass dshow's buffer-length option as if it were the macOS form of the issue #125 guard,
+        /// and it is not: that option belongs to DIRECTSHOW alone. ffmpeg answered "Unrecognized
+        /// option" and exited 8 before it opened a device, so every macOS capture with audio failed
+        /// instantly. The whole AVFoundation option set is audio_device_index, video_device_index,
+        /// pixel_format, framerate, video_size, capture_cursor, capture_mouse_clicks,
+        /// capture_raw_data, drop_late_frames and list_devices - there is no buffer length among
+        /// them, in any ffmpeg release. So macOS does NOT get the issue #125 short-buffer
+        /// mitigation; whether it needs some other end-of-recording guard is its own question, not
+        /// something to invent here. Do not put a buffer option back: the guard in
+        /// MacForeignFfmpegOptionTests fails if one reappears. (The option is not spelled out here
+        /// on purpose - issue #111's first acceptance criterion is that grepping this folder for
+        /// its name finds nothing at all.)
         /// </summary>
         internal static List<string> AvfAudioInput(int avfMicIndex) => new()
         {
             "-f", "avfoundation",
             "-thread_queue_size", "1024",
-            "-audio_buffer_size", "20",   // milliseconds
             "-i", ":" + avfMicIndex.ToString(CultureInfo.InvariantCulture),
         };
 

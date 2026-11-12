@@ -237,14 +237,26 @@ namespace AgentEyes.Video
         /// region-out-of-bounds case is NOT the mic - the region-clamp/pad path (issue #69) normally
         /// prevents it, but if gdigrab still reports it we say so; the mic is only blamed when a mic
         /// was actually requested. Pure string inspection - safe to unit test.
+        ///
+        /// A REJECTED OPTION IS NOT A MISSING DEVICE (issue #111). ffmpeg prints "Unrecognized option
+        /// 'x'." / "Option not found" and exits before it opens anything, which is OUR argument list
+        /// being wrong, not the user's device: when a macOS build carried the DirectShow-only
+        /// -audio_buffer_size, this method answered that the microphone "may not match a DirectShow
+        /// device" and sent every reader after the device name on a machine that has no DirectShow at
+        /// all. That case now says what the log says. The device cause also names the API this build
+        /// actually uses (<see cref="PlatformApiNames"/>) rather than always DirectShow.
         /// </summary>
         internal static string DiagnoseImmediateExit(string stderr, string? dshowMicName)
         {
             stderr ??= "";
             if (stderr.Contains("extends outside window area", StringComparison.OrdinalIgnoreCase))
                 return "the capture region extends past the desktop bounds.";
+            if (stderr.Contains("Unrecognized option", StringComparison.OrdinalIgnoreCase)
+                || stderr.Contains("Option not found", StringComparison.OrdinalIgnoreCase))
+                return "ffmpeg rejected an option in the capture command line - see the log, "
+                    + "the device is not the problem.";
             if (!string.IsNullOrWhiteSpace(dshowMicName))
-                return $"the microphone \"{dshowMicName}\" may not match a DirectShow device.";
+                return $"the microphone \"{dshowMicName}\" may not match a {PlatformApiNames.Audio} device.";
             return "see the log for the ffmpeg error.";
         }
 

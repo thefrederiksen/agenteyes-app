@@ -1,0 +1,172 @@
+ISSUE 111 - RUNTIME TRANSCRIPTS FROM THE MAC (Developer Agent)
+==============================================================
+
+Machine:  Mac mini, Apple M4 (arm64), macOS 26.5.2 (Darwin 25.5.0)
+ffmpeg:   ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers  (/opt/homebrew/bin/ffmpeg)
+Audio in: [0] HD Pro Webcam C920   [1] Yealink UH36   [2] Microsoft Teams Audio
+Displays: two, both 1920x1080
+Build:    src/AgentEyes.Core/bin/Release/net8.0/agenteyes, built -p:AgentEyesUnixPlatform=mac from
+          this branch; the installed service (launchd com.agenteyes.recorder) was reinstalled from
+          this branch with scripts/mac/install.sh.
+Sound:    the room is quiet, so every microphone capture below was taken WHILE
+          /System/Library/Sounds/Sosumi.aiff was played in a loop (afplay -v 10). That is the only
+          way this machine has to put signal into the microphone.
+
+
+1. THE FLAG, ISOLATED - the pre-fix command line against the post-fix one
+-------------------------------------------------------------------------
+Same ffmpeg, same device, only the option differs.
+
+  $ ffmpeg -hide_banner -nostats -loglevel warning -f avfoundation -audio_buffer_size 20 \
+        -i ":1" -ac 1 -ar 48000 -t 1 -y /tmp/old.wav
+  Unrecognized option 'audio_buffer_size'.
+  Error splitting the argument list: Option not found
+  EXIT=8                                     <- no file produced
+
+  $ ffmpeg -hide_banner -f avfoundation -i ":1" -t 2 -y base_mic.wav
+  ... 128078 bytes
+  mean_volume: -87.3 dB    max_volume: -73.4 dB      (silent room, no sound playing)
+
+
+2. AC3 - agenteyes audio, exit 0, real sound in the file (PASS)
+---------------------------------------------------------------
+  $ ./src/AgentEyes.Core/bin/Release/net8.0/agenteyes audio --screen 1 --mic "Yealink" --seconds 5
+  [ok] recording mic [1] Yealink UH36  -> .../recordings/2026-11-12_104702_audio
+       hotkeys: S=screenshot  P=pause/resume  Q=stop
+  REC 00m00s  mic [--------------------] ... REC 00m04s  mic [--------------------]
+  [ok] audio.wav (00m05s), 0 screenshot(s)
+  [ok] manifest.json written to .../recordings/2026-11-12_104702_audio
+  EXIT=0
+
+  $ ffmpeg -i recordings/2026-11-12_104702_audio/audio.wav -af volumedetect -f null -
+    Duration: 00:00:05.09, bitrate: 768 kb/s
+    mean_volume: -58.8 dB
+    max_volume: -39.3 dB            <- NOT -inf dB: the file carries real sound
+
+  The same run, a second take (2026-11-12_104632_audio): Duration 00:00:05.09,
+  48000 Hz mono s16, mean_volume -59.6 dB, max_volume -39.4 dB.
+
+  The meter printed as empty dashes throughout. That is the scale, not a dead meter: the loudest
+  block in the file peaks at -39 dB (about 0.011 of full scale) and the bar's first segment needs
+  far more than that. /status rounds the same number to 3 decimals (RecordingService.cs:343).
+
+
+3. THE COMMAND LINE AGENTEYES REALLY RAN, AND WHAT IT GOT
+----------------------------------------------------------
+From ~/Library/Application Support/AgentEyes/logs/AgentEyes-20261112.log - the PRESENCE proof that
+the option is gone from the live command line, not just from the source:
+
+  10:47:02.564 [INFO] [AudioCapture] Start: .../2026-11-12_104702_audio/audio.wav
+  10:47:02.565 [INFO] [AvfStream] Start mic: "/opt/homebrew/bin/ffmpeg" -hide_banner -nostats \
+                      -loglevel warning -f avfoundation -i :1 -ac 1 -ar 48000 -f s16le pipe:1
+  10:47:07.634 [INFO] [AudioCapture] Stop
+  10:47:07.949 [INFO] [AvfStream] Stop mic: done (ffmpeg exit=0)
+  10:47:07.950 [INFO] [AudioCapture] Stop: wrote 488448 bytes of PCM
+
+  ffmpeg exit=0 and 488448 bytes of PCM. Before this fix the same line carried
+  "-audio_buffer_size 20" and AvfStream.Start threw at its 300 ms exit check.
+
+
+4. AC6 - a failed match names AVFoundation, not DirectShow (PASS)
+------------------------------------------------------------------
+  $ agenteyes video --screen 1 --mic "no-such-mic"
+  [error] no AVFoundation microphone matches "no-such-mic". Run 'agenteyes screens'.
+
+  $ agenteyes video --screen 1 --camera "no-such-cam"
+  [error] no AVFoundation camera matches "no-such-cam". Run 'agenteyes screens' to list cameras.
+
+  $ agenteyes video --screen 1 --mic "o"
+  [error] "o" matches 2 AVFoundation devices. Use a more specific --mic name.
+
+
+5. AC5 - the recording's raw.mp4.ffmpeg.log has no "Unrecognized option" line (PASS)
+------------------------------------------------------------------------------------
+From the video recording started through the Control API (section 6):
+
+  $ cat ~/Movies/AgentEyes/2026-11-12_104751_video/raw.mp4.ffmpeg.log
+  objc[78749]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+  objc[78749]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+  objc[78749]: class `NSKVONotifying_AVCaptureScreenInput' not linked into application
+  [AVFoundation indev @ 0x8ff028140] Configuration of video device failed, falling back to default.
+  [in#0 @ 0x8fec0c000] Selected pixel format (yuv420p) is not supported by the input device.
+  [in#0 @ 0x8fec0c000] Supported pixel formats:
+  [in#0 @ 0x8fec0c000]   uyvy422
+  [in#0 @ 0x8fec0c000]   yuyv422
+  [in#0 @ 0x8fec0c000]   nv12
+  [in#0 @ 0x8fec0c000]   0rgb
+  [in#0 @ 0x8fec0c000]   bgr0
+  [in#0 @ 0x8fec0c000] Overriding selected pixel format to use uyvy422 instead.
+
+  $ grep -c "Unrecognized option" ~/Movies/AgentEyes/2026-11-12_104751_video/raw.mp4.ffmpeg.log
+  0
+
+  The file is NOT empty (714 bytes, 11 lines quoted above), so the zero is an answer and not a
+  missing instrument. The log's own content is the screen-permission failure of section 6.
+
+
+6. AC4 - BLOCKED ON THE OWNER, NOT PASSED
+------------------------------------------
+  $ curl -X POST http://127.0.0.1:7882/record/start -H 'Content-Type: application/json' \
+      -d '{"mode":"video","screen":1,"source":"mic","mic":"Yealink"}'
+  { "State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 0,
+    "MicLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-12_104751_video", ... }
+
+  200 and State=recording - the start no longer dies on the first frame (pre-fix this call answered
+  400 "ffmpeg exited immediately (code 8) ... may not match a DirectShow device"). But:
+
+  $ curl http://127.0.0.1:7882/status        (x6, while sound played)
+  State=recording Elapsed=7.34 MicLevel=0
+  State=recording Elapsed=7.38 MicLevel=0
+  State=recording Elapsed=7.40 MicLevel=0
+  State=recording Elapsed=7.42 MicLevel=0
+  State=recording Elapsed=7.44 MicLevel=0
+  State=recording Elapsed=7.45 MicLevel=0
+
+  ... and the stop produced NO media file:
+
+  $ ls -l ~/Movies/AgentEyes/2026-11-12_104751_video/
+  manifest.json            1633
+  raw.mp4.ffmpeg.log        714
+  shots/                                   <- no raw.mp4 and no recording.mp4
+
+  log: [WARN] [FfmpegRecorder] Stop: pipeline did not reach 13788ms within 5s (reached 0ms)
+       [ERROR] Error opening input file .../raw.mp4.          (the mux had nothing to mux)
+
+  WHY: the macOS Screen Recording permission is not granted to agenteyes, so the AVFoundation
+  screen input delivers no frames ("Configuration of video device failed", pipeline reached 0ms).
+  Only the person at the keyboard can grant it (System Settings > Privacy and Security > Screen and
+  System Audio Recording). AC4 is therefore NOT PROVEN and is NOT passed here.
+
+  MicLevel stayed 0.000 for a second, independent reason - see section 7.
+
+
+7. WHAT A MIC READING THROUGH /status NEEDS, AND WHY IT IS 0 HERE
+-----------------------------------------------------------------
+The AvfStream fix is what lets the level meter OPEN at all, and it does now open. It still reads
+nothing in a SERVICE process on this machine:
+
+  (installed launchd service, mode=audio, the service owns the samples)
+  $ curl -X POST .../record/start -d '{"mode":"audio","screen":1,"source":"mic","mic":"Yealink"}'
+  { "State": "recording", "Mode": "audio", "Source": "mic", "MicLevel": 0, ... }
+  10 x /status over 6.6 s while sound played:  MicLevel=0  Level=0 every time
+  $ curl -X POST .../record/stop -d '{}'
+  { "DurationSeconds": 6.62, "File": ".../2026-11-12_104903_audio/audio.wav" }
+  $ ls -l ~/Movies/AgentEyes/2026-11-12_104903_audio/audio.wav     ->  44 bytes (header only)
+  log: [AvfStream] Start mic: ... -f avfoundation -i :1 ...        (the corrected command line)
+       [WARN] [AvfStream] Stop mic: ffmpeg did not finish within 5s - killing it
+       [INFO] [AudioCapture] Stop: wrote 0 bytes of PCM
+
+The same build, same device, same command line, run as a CHILD OF THE TERMINAL, writes 488448
+bytes of real audio (section 2). The difference is the microphone privacy grant, not the argument
+list. Proven by running ffmpeg itself orphaned from the shell, with nothing of AgentEyes involved:
+
+  $ nohup sh -c 'sleep 10; ffmpeg -f avfoundation -i ":1" -t 3 -y orphan_mic.wav' &
+  (the shell exits; the capture runs with launchd as its parent)
+  ... 2 minutes later: no orphan_mic.wav at all, empty stderr, and the ffmpeg process still alive
+      and hung on a -t 3 capture. Killed with SIGKILL.
+
+So on this Mac a detached process (the launchd agent, or anything orphaned) gets a microphone that
+never delivers a sample, while a terminal child gets real audio. That is a macOS Microphone
+permission for the service, and like Screen Recording only the owner can grant it. It is NOT
+something this issue's code can fix, and it is why the /status MicLevel half of AC4 is also
+recorded as blocked rather than passed.

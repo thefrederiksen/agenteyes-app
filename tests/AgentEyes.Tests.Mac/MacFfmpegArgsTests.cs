@@ -20,7 +20,10 @@ namespace AgentEyes.Tests.Mac
             {
                 "-y", "-f", "avfoundation", "-thread_queue_size", "1024", "-capture_cursor", "1",
                 "-framerate", "30", "-i", "1:none",
-                "-f", "avfoundation", "-thread_queue_size", "1024", "-audio_buffer_size", "20", "-i", ":0",
+                // No buffer option on the microphone input: AVFoundation has none, and the
+                // DirectShow-only -audio_buffer_size this used to carry made ffmpeg exit 8 before it
+                // opened a device (issue #111).
+                "-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":0",
                 "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-crf", "23",
                 "-c:a", "aac", "-b:a", "128k",
                 "/r/raw.mp4",
@@ -186,7 +189,9 @@ namespace AgentEyes.Tests.Mac
             Assert.Equal(new[]
             {
                 "-hide_banner", "-nostats", "-loglevel", "warning",
-                "-f", "avfoundation", "-audio_buffer_size", "20", "-i", ":1",
+                // Same as the recording's own audio input: no buffer option, because AVFoundation
+                // has no such option and ffmpeg refuses the whole command line for it (issue #111).
+                "-f", "avfoundation", "-i", ":1",
                 "-ac", "1", "-ar", "48000", "-f", "s16le", "pipe:1",
             }, args);
         }

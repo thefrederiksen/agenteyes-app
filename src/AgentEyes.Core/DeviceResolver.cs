@@ -6,6 +6,11 @@ namespace AgentEyes
     /// <summary>
     /// Pure resolver: map a user-supplied microphone name fragment to a single device.
     /// No silent fallback to a default device - absent or ambiguous both throw.
+    ///
+    /// SHARED BY ALL THREE PLATFORMS, so the API it names in a failure is the one this build talks
+    /// to - DirectShow on Windows, AVFoundation on macOS, PulseAudio/V4L2 on Linux (issue #111).
+    /// Hardcoding "DirectShow" here sent a Mac owner looking for a device class their machine has
+    /// never had; see <see cref="PlatformApiNames"/>.
     /// </summary>
     internal static class DeviceResolver
     {
@@ -45,14 +50,17 @@ namespace AgentEyes
         }
 
         /// <summary>
-        /// Resolve to the matching device NAME (used by the ffmpeg dshow engine, which addresses
-        /// microphones by exact name rather than index).
+        /// Resolve to the matching device NAME (used by the video engines, which carry a microphone
+        /// by name through the recording service rather than by index - dshow addresses it by name
+        /// directly, and the macOS and Linux builders turn the name back into the index or source
+        /// their demuxer wants).
         /// </summary>
         public static string ResolveName(IReadOnlyList<string> deviceNames, string fragment)
         {
             if (deviceNames.Count == 0)
             {
-                throw new UsageException("no DirectShow audio devices found (is ffmpeg present?).");
+                throw new UsageException(
+                    $"no {PlatformApiNames.Audio} audio devices found (is ffmpeg present?).");
             }
             if (string.IsNullOrWhiteSpace(fragment))
             {
@@ -73,19 +81,20 @@ namespace AgentEyes
             if (matchCount == 0)
             {
                 throw new UsageException(
-                    $"no DirectShow microphone matches \"{fragment}\". Run 'agenteyes screens'.");
+                    $"no {PlatformApiNames.Audio} microphone matches \"{fragment}\". Run 'agenteyes screens'.");
             }
             if (matchCount > 1)
             {
                 throw new UsageException(
-                    $"\"{fragment}\" matches {matchCount} DirectShow devices. Use a more specific --mic name.");
+                    $"\"{fragment}\" matches {matchCount} {PlatformApiNames.Audio} devices. Use a more specific --mic name.");
             }
             return match!;
         }
 
         /// <summary>
-        /// Resolve a CAMERA name fragment to the one exact DirectShow video device it names
-        /// (issue #28). Same no-silent-fallback contract as <see cref="ResolveName"/>: absent throws,
+        /// Resolve a CAMERA name fragment to the one exact video device it names - a DirectShow
+        /// device on Windows, an AVFoundation input on macOS, a V4L2 node on Linux (issue #28).
+        /// Same no-silent-fallback contract as <see cref="ResolveName"/>: absent throws,
         /// ambiguous throws, and there is deliberately no "just take the first camera" path - a
         /// recording that quietly filmed the wrong lens, or quietly filmed nothing, is worse than one
         /// that refused to start (issue #28, decision 3).
@@ -102,7 +111,7 @@ namespace AgentEyes
             if (deviceNames.Count == 0)
             {
                 throw new UsageException(
-                    $"no DirectShow camera matches \"{fragment}\" - this machine reports no cameras at all. " +
+                    $"no {PlatformApiNames.Camera} camera matches \"{fragment}\" - this machine reports no cameras at all. " +
                     "Run 'agenteyes screens' to list devices.");
             }
 
@@ -120,12 +129,12 @@ namespace AgentEyes
             if (matchCount == 0)
             {
                 throw new UsageException(
-                    $"no DirectShow camera matches \"{fragment}\". Run 'agenteyes screens' to list cameras.");
+                    $"no {PlatformApiNames.Camera} camera matches \"{fragment}\". Run 'agenteyes screens' to list cameras.");
             }
             if (matchCount > 1)
             {
                 throw new UsageException(
-                    $"\"{fragment}\" matches {matchCount} DirectShow cameras. Use a more specific --camera name.");
+                    $"\"{fragment}\" matches {matchCount} {PlatformApiNames.Camera} cameras. Use a more specific --camera name.");
             }
             return match!;
         }

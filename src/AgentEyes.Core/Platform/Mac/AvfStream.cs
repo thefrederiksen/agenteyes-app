@@ -42,14 +42,23 @@ namespace AgentEyes.Platform.Mac
             _label = label;
         }
 
-        /// <summary>The ffmpeg arguments for this capture. Pure, unit-tested.</summary>
+        /// <summary>
+        /// The ffmpeg arguments for this capture. Pure, unit-tested.
+        ///
+        /// NO DEVICE-BUFFER OPTION, BECAUSE AVFOUNDATION HAS NONE (issue #111). This list used to
+        /// carry dshow's buffer-length option, described here as "the AVFoundation form of the issue
+        /// #125 lesson". That belief was wrong: the option belongs to DIRECTSHOW alone, AVFoundation
+        /// has never had a buffer-length option under that or any other name, and ffmpeg therefore
+        /// answered "Unrecognized option" and exited before opening the device - so the mic level
+        /// meter and the system-audio pipe never opened on a Mac at all. pulse's -fragment_size on
+        /// Linux is real; this had no macOS counterpart to keep. Do not put one back: the guard in
+        /// MacForeignFfmpegOptionTests fails if a foreign option reappears. (The name is left
+        /// unspelled on purpose - see the same note on FfmpegArgs.AvfAudioInput.)
+        /// </summary>
         internal static string[] Arguments(int avfAudioIndex, int sampleRate, int channels) => new[]
         {
             "-hide_banner", "-nostats", "-loglevel", "warning",
             "-f", "avfoundation",
-            // A short device buffer so a stop loses at most a fragment - the AVFoundation form of the
-            // issue #125 lesson, in milliseconds rather than pulse's fragment bytes.
-            "-audio_buffer_size", "20",
             "-i", ":" + avfAudioIndex.ToString(CultureInfo.InvariantCulture),
             "-ac", channels.ToString(CultureInfo.InvariantCulture),
             "-ar", sampleRate.ToString(CultureInfo.InvariantCulture),
