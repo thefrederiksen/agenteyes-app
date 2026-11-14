@@ -323,6 +323,43 @@ threw `IOException: The process cannot access the file ...recording.mp4 because 
 That replaced the stall error, and the manifest recorded the IOException instead of the stall.
 A cleanup failure must not discard the original exception.
 
+## The 2164 vs 2318 test-count gap: explained, and the solution gate is sound
+
+Requested by the Implementation Lead. Checked by measurement, not inferred.
+- `af0ddb1` (#122, on main, NOT on this branch) adds `tests/Shared/CliDispatcherTests.cs` and
+  links it into all three test csproj files.
+- Main plus this branch, merged locally in a throwaway worktree (not pushed):
+  `dotnet build` gives `0 Error(s)`; `dotnet test AgentEyes.sln -c Release` gives
+  `Passed!  - Failed: 0, Passed: 2318, Total: 2318`.
+- In that same merge, `--filter FullyQualifiedName~CliDispatcherTests` gives
+  `Passed!  - Failed: 0, Passed: 154, Total: 154`.
+- So 2164 (branch) + 154 (shared file from main) = 2318 (CI, which tests the PR merge ref).
+  `dotnet test AgentEyes.sln` does run the shared suite locally whenever the shared suite is in
+  the tree. The gap is only that the branch has not been rebased.
+
+## Coverage of this pass: nothing in scope was left unexamined
+
+Every in-scope criterion (1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13) was examined and has a verdict
+above. The two failures did not cut the pass short. One partial: criterion 5 is shown on
+controlled speech only, because the live mic picked up nothing.
+
+## Reproduction kit for the next round
+
+The crafted directories were deleted, because the installed app has no watchdog and would have
+hung on them indefinitely. Both can be rebuilt exactly as follows (shipped ffmpeg 9.0.2):
+```
+# NaN trigger (needs mutation A to stall; completes on the fixed build)
+ffmpeg -y -f lavfi -i "testsrc2=size=1280x720:rate=15:duration=90" -f lavfi -i "aevalsrc=exprs='if(eq(n,48000*30),0/0,0.2*sin(2*PI*220*t)*sin(2*PI*3*t))':s=48000:d=90" -map 0:v -map 1:a -c:v libx264 -preset ultrafast -c:a pcm_f32le -f mov <Videos\AgentEyes\2026-11-14_130000_qa128>\raw.mp4
+# Finite s16 trigger for D3 (stalls on the FIXED build)
+ffmpeg -y -f lavfi -i "testsrc2=size=1280x720:rate=15:duration=91" -f lavfi -i "sine=f=300:r=48000" -filter_complex "[1:a]atrim=end_sample=4320500,volume=0.5[a]" -map 0:v -map "[a]" -c:v libx264 -preset ultrafast -c:a pcm_s16le -shortest -f mov <dir>\raw.mp4
+```
+- Manifest: `qa-windows/qa128-crafted-manifest-template.json` (PendingMux with the shipped
+  defaults). Set `RawDurationSeconds` to 90.01 for the finite case.
+- Launch: stop the installed app, set `QA_RECORD_FFMPEG_DIR` to the shipped ffmpeg folder, run
+  `bin\x64\Release\...\AgentEyesApp.exe --tray`. The first pass comes 20 s after start.
+- D1: while the app's mux runs, run `agenteyes.exe package <dir>`.
+- D2: `Stop-Process -Force` on the app during the mux, three times, then start it again.
+
 ## Left behind on this machine
 - Recording `C:\Users\soren\Videos\AgentEyes\2026-11-14_130010_video` (the 10-minute criterion 4
   run, a silent room) is kept as evidence.
