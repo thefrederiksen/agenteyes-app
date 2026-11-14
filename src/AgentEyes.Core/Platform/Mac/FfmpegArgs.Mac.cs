@@ -184,25 +184,89 @@ namespace AgentEyes.Video
         }
 
         /// <summary>
-        /// One still of a region, through macOS' own screencapture tool rather than through ffmpeg.
-        ///
-        /// WHY THIS ONE DIVERGES from the Linux still (which deliberately uses the same grabber as the
-        /// recording): an AVFoundation still costs a capture-session warm-up of a second or more and,
-        /// asked for a single frame, can sit waiting for one that never arrives. screencapture is the
-        /// system's own screenshot tool, it is immediate, and it reads the SAME Screen Recording
-        /// permission - so a marker shot still shows what a recording would show.
+        /// The frame rate a still asks the display for. One frame is taken, so the number only has
+        /// to be a rate the display accepts; this is the rate the recorder itself asks for, which
+        /// keeps a marker shot on the same input configuration as the recording around it.
         /// </summary>
-        public static List<string> ScreencaptureStill(Drawing.Rectangle rect, string outPath)
+        internal const int StillFramerate = 30;
+
+        /// <summary>
+        /// One still of a region, through the SAME AVFoundation grabber the recording uses - the
+        /// macOS twin of X11Still, and now built the same way for the same reason (issue #115).
+        ///
+        /// WHAT THIS REPLACED, AND WHY THE OLD REASONING WAS WRONG. Until #115 the macOS still shelled
+        /// out to Apple's own /usr/sbin/screencapture, on the stated grounds that it was immediate and
+        /// read "the SAME Screen Recording permission" as the recording. THAT LAST CLAUSE IS FALSE,
+        /// and it was the whole basis of the divergence. TCC attributes a grant to the RESPONSIBLE
+        /// process, and screencapture spawned by the launchd agent is not covered by the agent's
+        /// grant. Measured on devthrottle-mac-mini 2026-11-14: with a recording running and this
+        /// builder's ffmpeg writing frames of the screen successfully in that same process, at that
+        /// same moment, screencapture exited 1 with "could not create image from rect" - so every
+        /// marker shot on macOS failed, always, and the error blamed a permission that was granted
+        /// and working. A still taken through ffmpeg uses the grabber that demonstrably has the grant.
+        ///
+        /// THE WARM-UP COST IS REAL AND WAS MEASURED, NOT DISMISSED. The old comment's other claim -
+        /// that an AVFoundation still costs a capture-session warm-up of a second or more - stands:
+        /// see docs/cencon/proof/issue-115/handoff.md for the per-call figures from the running
+        /// service. It is a cost a working still pays and a broken one does not.
+        ///
+        /// THE "FRAME THAT NEVER ARRIVES" IS A REAL FAILURE MODE AND IS BOUNDED BY THE CALLER, not by
+        /// this list. An AVFoundation screen capture started by a process WITHOUT the Screen Recording
+        /// grant does not fail - it hangs forever, with no frame, no file and nothing on stderr but
+        /// "Configuration of video device failed, falling back to default" (measured the same day from
+        /// an unentitled shell: 15 s, no output, killed). Screenshot.CaptureRect therefore runs this
+        /// under a hard timeout and treats expiry as the one condition that names the permission.
+        ///
+        /// THE REGION IS A CROP, as everywhere else on macOS: AVFoundation opens a whole display, so
+        /// CropAndPad narrows the filter chain rather than the input - the same arithmetic, and the
+        /// same pad of an oversized region, that AvfVideoCapture uses, so a marker shot frames the
+        /// region exactly as the video does.
+        /// </summary>
+        /// <param name="capture">The wanted region, in display-local pixels.</param>
+        /// <param name="avfScreenIndex">The AVFoundation video index of the display (see AvfDevices).</param>
+        /// <param name="screen">That display's full pixel size, which the region is cropped inside.</param>
+        public static List<string> AvfStill(
+            Drawing.Rectangle capture, int avfScreenIndex, Drawing.Size screen, string outPath)
         {
-            var r = RegionMath.Evenize(rect);
-            return new List<string>
+            if (avfScreenIndex < 0)
+                throw new ArgumentOutOfRangeException(nameof(avfScreenIndex), "an AVFoundation index is zero or above");
+
+            var (cropFilter, padFilter) = CropAndPad(capture, screen);
+
+            var a = new List<string>
             {
-                "-x",                                     // silent: no camera shutter sound
-                "-t", "png",
-                "-R", string.Format(
-                    CultureInfo.InvariantCulture, "{0},{1},{2},{3}", r.X, r.Y, r.Width, r.Height),
-                outPath,
+                "-y",
+                "-f", "avfoundation",
+                // The pointer is part of what a recording is for, and a marker shot is a frame of
+                // that recording - AvfVideoCapture draws it too.
+                "-capture_cursor", "1",
+                // Same reason as AvfVideoCapture: the demuxer's own default is yuv420p, which no
+                // display supports, so without this every still logs an override to uyvy422 and then
+                // resamples. nv12 is 4:2:0 already.
+                "-pixel_format", "nv12",
+                "-framerate", StillFramerate.ToString(CultureInfo.InvariantCulture),
+                // Video only. There is no audio in a PNG, and a second AVFoundation input in this
+                // process is exactly what issue #114 removed from the recorder.
+                "-i", avfScreenIndex.ToString(CultureInfo.InvariantCulture) + ":none",
             };
+
+            string? chain = FilterChain(cropFilter, padFilter);
+            if (chain != null)
+            {
+                a.Add("-vf");
+                a.Add(chain);
+            }
+
+            a.AddRange(new[]
+            {
+                // One frame, written over the single output file rather than as a numbered sequence -
+                // the same pair X11Still uses, so both platforms' stills are one PNG of one frame.
+                "-frames:v", "1",
+                "-update", "1",
+            });
+
+            a.Add(outPath);
+            return a;
         }
     }
 }

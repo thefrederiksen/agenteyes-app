@@ -121,6 +121,49 @@ namespace AgentEyes.Platform.Mac
         /// </summary>
         public static (int AvfIndex, MacScreen Screen) RequireScreen(int oneBasedIndex)
         {
+            var (avf, sizes) = PairedScreens();
+            if (oneBasedIndex < 1 || oneBasedIndex > avf.Count)
+            {
+                throw new UsageException(
+                    $"--screen {oneBasedIndex} out of range. There are {avf.Count} screen(s). "
+                    + "Run 'agenteyes screens'.");
+            }
+            return (avf[oneBasedIndex - 1].Index, sizes[oneBasedIndex - 1]);
+        }
+
+        /// <summary>
+        /// The AVFoundation index and size of the MAIN display.
+        ///
+        /// WHY A STILL NEEDS THIS (issue #115). A macOS still is handed a rectangle and no display
+        /// number, and on macOS every monitor's bounds START AT (0,0) - a region is a crop inside ONE
+        /// display, see the Monitors class comment - so a rectangle on its own cannot name a display.
+        /// The main display is the only honest reading of such a rectangle, and it is already the
+        /// space <see cref="Monitors.VirtualBounds"/> declares a macOS capture is clamped into. A
+        /// caller that DOES know its display (Screenshot.CaptureMonitor) goes through
+        /// <see cref="RequireScreen"/> instead and is correct on every monitor.
+        /// </summary>
+        public static (int AvfIndex, MacScreen Screen) RequireMainScreen()
+        {
+            var (avf, sizes) = PairedScreens();
+            for (int i = 0; i < sizes.Count; i++)
+            {
+                if (sizes[i].Primary) return (avf[i].Index, sizes[i]);
+            }
+
+            // No display marked as the main one is not something to paper over with a guess - the
+            // same refusal Monitors.VirtualBounds makes, for the same reason.
+            throw new UsageException(
+                "macOS reported displays but marked none of them as the main display, so AgentEyes "
+                + "cannot tell which one a capture is clamped into. Run 'agenteyes screens'.");
+        }
+
+        /// <summary>
+        /// The AVFoundation screens and the system_profiler displays, correlated BY ORDER, with a
+        /// disagreement about how many displays exist reported rather than guessed around - a wrong
+        /// correlation would capture the wrong monitor.
+        /// </summary>
+        private static (IReadOnlyList<AvfDevice> Avf, IReadOnlyList<MacScreen> Sizes) PairedScreens()
+        {
             var avf = AvfDevices.Screens();
             var sizes = Screens();
 
@@ -132,13 +175,7 @@ namespace AgentEyes.Platform.Mac
                     + "and report this, because recording the wrong monitor is worse than not "
                     + "recording.");
             }
-            if (oneBasedIndex < 1 || oneBasedIndex > avf.Count)
-            {
-                throw new UsageException(
-                    $"--screen {oneBasedIndex} out of range. There are {avf.Count} screen(s). "
-                    + "Run 'agenteyes screens'.");
-            }
-            return (avf[oneBasedIndex - 1].Index, sizes[oneBasedIndex - 1]);
+            return (avf, sizes);
         }
     }
 }
