@@ -1,0 +1,13 @@
+diff --git a/src/AgentEyes.Core/RecordingService.cs b/src/AgentEyes.Core/RecordingService.cs
+index 5a50a8c..6effa1a 100644
+--- a/src/AgentEyes.Core/RecordingService.cs
++++ b/src/AgentEyes.Core/RecordingService.cs
+@@ -727,6 +727,8 @@ namespace AgentEyes
+                     }));
+                 }
+ 
++                // MUTANT-M2b: a direct capture start, bypassing the seam and the sequence
++                using (FfmpegRecorder.Start(capture, null, fps, 23, ffOut)) { }
+                 steps.Add(new RecordingStartStep("video", () =>
+                 {
+                     _video = _seams.StartScreen(

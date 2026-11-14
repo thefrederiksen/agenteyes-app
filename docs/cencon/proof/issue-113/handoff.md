@@ -4,6 +4,97 @@ Branch `issue-113-capture-watchdog`, cut from `main` at `af0ddb1`. Developer sea
 2026-11-14. Platform exercised at runtime: **Linux only** (x11grab + PulseAudio). macOS and Windows
 are covered by the shared unit tests and the argument tests only - see "What is NOT covered".
 
+## ROUND THREE (2026-11-14) - the two Windows guard tests, test-only
+
+QA round two (`qa-report-round2.md`) passed checks 1-5 at runtime and failed check 6: Windows CI on
+`89e1593` was 2 failed / 2328 passed / 2330. Both failures were guard tests that worked. Each one is
+brought up to date below, and is still exactly as strict as it was or stricter. **No product code
+changed** in this pass: `git diff 9fb65d9 843605f --name-only` lists only the two test files.
+Commit `843605f`. Evidence: `runs/round3/`.
+
+### Guard 1 - `ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite`
+
+- **What it protects against:** a file-write call site in the compiled product that nobody
+  reviewed. In particular it catches a direct `manifest.json` writer that bypasses `ManifestStore`.
+- **Is the new write intended? Yes, but it is not a manifest write.** The brief for this pass said
+  `Abandon` writes the manifest at detection. The code does not do that.
+  `FfmpegRecorder.cs:334` is `File.WriteAllText(_logPath, _stderr.ToString())`. It writes the ffmpeg
+  stderr log, which is the same file `Stop` writes at line 202 and failed starts write at line 138.
+  Round two's `Abandon` no longer calls `Stop()`, so it writes that log itself. The fault reaches
+  `/status` in memory, through `PublishVerdict`. It goes to disk through `RecordingService::Stop ->
+  ManifestStore::Update`, which is already pinned. The second IL guard
+  (`EveryCallOfTheCanonicalManifestPath_IsPinned`) did not move, and it is green.
+- **The update:** one exact entry with an exact count, next to `Start` and `Stop`:
+  `agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Abandon -> System.IO.File::WriteAllText x1`.
+  The comment says which file it writes. Nothing else in the pin changed. A second write in `Abandon`
+  (x2) or a write anywhere else still fails.
+- **It still bites (mutant M1, `runs/round3/mutant-m1.diff`):** this adds a new method that writes
+  `manifest.json` directly with `File.WriteAllText`. On Windows CI run 43629840734 it **FAILED by
+  name**:
+  `Failed AgentEyes.Tests.ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite`,
+  with `FOUND: agenteyes.dll!AgentEyes.Video.FfmpegRecorder::MutantWriteManifest -> System.IO.File::WriteAllText x1`.
+  The two source-scan guards fired as well (`ManifestWriterTests.NoStatementAnywhere_WritesTheManifestFileDirectly`
+  and `OnlyPinnedFiles_NameManifestJsonInCode`). Result: 3 failed / 2327 passed / 2330
+  (`runs/round3/ci-mutant-m1-3b0f48e.txt`).
+
+### Guard 2 - `SessionManifestTests.StartVideo_StartsEveryWriterInsideTheSequence`
+
+- **What it protects against:** a capture writer in `StartVideo` that starts outside a
+  `RecordingStartStep`. Such a writer runs before the manifest is on disk, and outside the rollback
+  that stops writers already started (issue #155).
+- **Is the new call path intended? Yes.** Round two starts the screen writer with
+  `_seams.StartScreen(` (`RecordingService.cs:732`), inside the `"video"` `RecordingStartStep`
+  (line 730). The production seam is `FfmpegRecorder.Start(...)` (`RecordingServiceSeams.cs:55-57`).
+  The order is unchanged. Only the spelling the needle looked for changed.
+- **The update:** an exact needle replaced by another exact needle, with two checks added:
+  1. Needle `FfmpegRecorder.Start(` -> `_seams.StartScreen(`. It is still checked by
+     `EveryOccurrenceIsAStartStep`, so it **must be found**, and every occurrence must be inside a step.
+  2. The old spelling is still watched. A `FfmpegRecorder.Start(` in `StartVideo` that is outside a
+     step fails (`NoOccurrenceOutsideAStartStep`). That check allows zero occurrences, so it only
+     runs next to check 1, which requires a presence.
+  3. The seam's production default must still be
+     `FfmpegRecorder.Start(capture, mic, fps, crf, outPath, preview, screenNumber)`. This keeps the
+     new needle tied to the real screen writer.
+- **It still bites (mutant M2a, `runs/round3/mutant-m2a.diff`):** this moves the
+  `_video = _seams.StartScreen(...)` call out of the `"video"` step to just before it. Windows CI run
+  43629843142 **FAILED by name**:
+  `Failed AgentEyes.Tests.SessionManifestTests.StartVideo_StartsEveryWriterInsideTheSequence`, with
+  `StartVideo calls _seams.StartScreen( outside a RecordingStartStep`. Result: 1 failed / 2329 passed
+  / 2330 (`runs/round3/ci-mutant-m2a-7db814f.txt`).
+- **The added check bites too (mutant M2b, `runs/round3/mutant-m2b.diff`):** this leaves the seam
+  call in its step and adds a direct `FfmpegRecorder.Start(...)` in `StartVideo` outside any step.
+  Windows CI run 43629845209 **FAILED by name**:
+  `Failed AgentEyes.Tests.SessionManifestTests.StartVideo_StartsEveryWriterInsideTheSequence`, with
+  `StartVideo calls FfmpegRecorder.Start( outside a RecordingStartStep`. Two side effects of this
+  mutant, both expected: it starts a real ffmpeg inside the wiring tests, so the Linux and macOS jobs
+  failed the `CaptureWatchdogWiringTests`, and on Windows `PreviewTapTests.Dispose_WhileThePublisherIsWedged_...`
+  failed with `Access to the path 'screen.jpg' is denied`. Windows: 2 failed / 2328 passed / 2330
+  (`runs/round3/ci-mutant-m2b-6707a72.txt`). Neither failure shows up on the fixed commit.
+
+The mutants ran on throwaway branches (`qa-mutant-113-m1`, `-m2a`, `-m2b`) cut from `843605f`. Each
+branch held one commit, and all three were deleted after their runs. The diffs are committed in
+`runs/round3/` so the mutations can be rebuilt.
+
+### CI on the fixed commit `843605f` - green on all three jobs
+
+| Job | Run 43629772758 (pull_request) | Run 43629765564 (push) |
+|---|---|---|
+| windows | 2330 passed / 0 failed / 2330 | 2330 / 0 / 2330 |
+| linux | 302 / 0 / 302 | 302 / 0 / 302 |
+| macos | 260 / 0 / 260 | 260 / 0 / 260 |
+
+Before, on `89e1593`, Windows was 2328 / 2 / 2330. The total is the same 2330 because no test was
+added or removed (the counts are in `runs/round3/ci-fix-843605f-*.txt`). Local gate on devlinux:
+Core `net8.0` build 0 errors, Linux suite 302 / 0, macOS-configuration build 0 errors.
+
+### What is NOT covered by this pass
+
+- No runtime re-run. Product code did not change, as QA's round-two report allows.
+- The Windows suite cannot build on Linux (the WindowsDesktop SDK is missing), so every Windows
+  result above comes from CI, not from a local run.
+- Guard 2 is still a source-text guard. It sees spellings, not behaviour. The behavioural proof
+  of the start order is `RecordingStartSequenceTests`, and this pass did not touch it.
+
 ## ROUND TWO (2026-11-14) - what changed after QA failed criterion 1
 
 QA round one (`qa-report.md`, gate ruling on the issue): a frozen capture was **detected at 46 s but

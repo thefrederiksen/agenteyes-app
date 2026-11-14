@@ -1,0 +1,41 @@
+gh run view 43629845209 --log (excerpt); run https://github.com/thefrederiksen/agenteyes-app/actions/runs/43629845209
+job macos: failure
+job windows: failure
+job linux: failure
+macos |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict [26 ms]
+macos |   Error Message:
+macos |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_TakesTheWatchdogDownBeforeTheWritersStop [1 ms]
+macos |   Error Message:
+macos |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.StartVideo_StartsTheWatchdog_OnTheCaptureFile [1 ms]
+macos |   Error Message:
+macos |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict [1 ms]
+macos |   Error Message:
+macos |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields [3 ms]
+macos |   Error Message:
+macos |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck [1 ms]
+macos |   Error Message:
+macos |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns [2 ms]
+macos |   Error Message:
+macos | Failed!  - Failed:     7, Passed:   253, Skipped:     0, Total:   260, Duration: 309 ms - AgentEyes.Tests.Mac.dll (net8.0)
+windows |   Failed AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [3 s]
+windows |   Error Message:
+windows |    System.UnauthorizedAccessException : Access to the path 'screen.jpg' is denied.
+windows |   Failed AgentEyes.Tests.SessionManifestTests.StartVideo_StartsEveryWriterInsideTheSequence [1 ms]
+windows |   Error Message:
+windows |    StartVideo calls FfmpegRecorder.Start( outside a RecordingStartStep: it would run before the manifest reaches disk, and outside the rollback that stops writers already started
+windows | Failed!  - Failed:     2, Passed:  2328, Skipped:     0, Total:  2330, Duration: 43 s - AgentEyes.Tests.dll (net8.0)
+linux |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck [25 ms]
+linux |   Error Message:
+linux |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns [1 ms]
+linux |   Error Message:
+linux |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields [< 1 ms]
+linux |   Error Message:
+linux |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict [< 1 ms]
+linux |   Error Message:
+linux |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_TakesTheWatchdogDownBeforeTheWritersStop [< 1 ms]
+linux |   Error Message:
+linux |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.StartVideo_StartsTheWatchdog_OnTheCaptureFile [< 1 ms]
+linux |   Error Message:
+linux |   Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict [< 1 ms]
+linux |   Error Message:
+linux | Failed!  - Failed:     7, Passed:   295, Skipped:     0, Total:   302, Duration: 343 ms - AgentEyes.Tests.Linux.dll (net8.0)

@@ -1,0 +1,20 @@
+diff --git a/src/AgentEyes.Core/RecordingService.cs b/src/AgentEyes.Core/RecordingService.cs
+index 5a50a8c..92e3e8c 100644
+--- a/src/AgentEyes.Core/RecordingService.cs
++++ b/src/AgentEyes.Core/RecordingService.cs
+@@ -727,11 +727,12 @@ namespace AgentEyes
+                     }));
+                 }
+ 
+-                steps.Add(new RecordingStartStep("video", () =>
+-                {
+-                    _video = _seams.StartScreen(
++                // MUTANT-M2a: the screen writer started outside the sequence
++                _video = _seams.StartScreen(
+                         capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut, _screenTap,
+                         _monitor!.Index);
++                steps.Add(new RecordingStartStep("video", () =>
++                {
+                     _manifest!.FfmpegCommand = _video.CommandLine;
+ 
+                     // The alignment hint (assumption A5): how far the camera start sits from the

@@ -1,0 +1,16 @@
+gh run view 43629840734 --log (excerpt); run https://github.com/thefrederiksen/agenteyes-app/actions/runs/43629840734
+job linux: success
+job windows: failure
+job macos: success
+linux | Passed!  - Failed:     0, Passed:   302, Skipped:     0, Total:   302, Duration: 756 ms - AgentEyes.Tests.Linux.dll (net8.0)
+windows |   Failed AgentEyes.Tests.ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite [46 ms]
+windows |   Error Message:
+windows | PINNED:
+windows | FOUND:
+windows | agenteyes.dll!AgentEyes.Video.FfmpegRecorder::MutantWriteManifest -> System.IO.File::WriteAllText x1
+windows |   Failed AgentEyes.Tests.ManifestWriterTests.NoStatementAnywhere_WritesTheManifestFileDirectly [42 ms]
+windows |   Error Message:
+windows |   Failed AgentEyes.Tests.ManifestWriterTests.OnlyPinnedFiles_NameManifestJsonInCode [44 ms]
+windows |   Error Message:
+windows | Failed!  - Failed:     3, Passed:  2327, Skipped:     0, Total:  2330, Duration: 31 s - AgentEyes.Tests.dll (net8.0)
+macos | Passed!  - Failed:     0, Passed:   260, Skipped:     0, Total:   260, Duration: 473 ms - AgentEyes.Tests.Mac.dll (net8.0)

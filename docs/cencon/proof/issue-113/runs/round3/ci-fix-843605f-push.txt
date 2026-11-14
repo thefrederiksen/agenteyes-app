@@ -1,0 +1,7 @@
+gh run view 43629765564 --log (excerpt); run https://github.com/thefrederiksen/agenteyes-app/actions/runs/43629765564
+job windows: success
+job macos: success
+job linux: success
+windows | Passed!  - Failed:     0, Passed:  2330, Skipped:     0, Total:  2330, Duration: 34 s - AgentEyes.Tests.dll (net8.0)
+macos | Passed!  - Failed:     0, Passed:   260, Skipped:     0, Total:   260, Duration: 348 ms - AgentEyes.Tests.Mac.dll (net8.0)
+linux | Passed!  - Failed:     0, Passed:   302, Skipped:     0, Total:   302, Duration: 348 ms - AgentEyes.Tests.Linux.dll (net8.0)
