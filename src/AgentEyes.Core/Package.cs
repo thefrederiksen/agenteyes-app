@@ -80,12 +80,36 @@ namespace AgentEyes
             VideoFile = "../" + videoFileName,
         };
 
+        /// <summary>
+        /// Issue #128: throws when the recording still has a pending mux whose automatic attempts
+        /// are used up, naming the count and the last recorded error. A no-op otherwise.
+        /// </summary>
+        internal static void RefuseExhaustedMux(string dir)
+        {
+            var m = Manifest.Load(dir);
+            if (m.PendingMux == null || PostRecordingPlan.NeedsMux(m)) return;
+
+            int attempts = PostRecordingState.Attempts(m, PostStage.Mux);
+            string last = PostRecordingState.Get(m, PostStage.Mux)?.Error ?? "(no error recorded)";
+            string msg = $"the audio mux for {Path.GetFileName(dir)} failed {attempts} time(s) and is not retried " +
+                         $"automatically (limit {PostRecordingState.MaxMuxAttempts}); there is no final media to package. " +
+                         $"Last error: {last}";
+            Log.Error($"[Package] RefuseExhaustedMux: {msg}");
+            throw new UsageException(msg);
+        }
+
         private static async Task<int> RunAsync(string dir, double intervalSeconds, double? sceneThreshold,
             bool? extractFrames)
         {
             // Issue #77: the recording stop now defers the audio mux to the background. Complete
             // any pending mux first so the final mixed file exists before we transcribe/extract
             // frames from it. Idempotent: a no-op when nothing was deferred.
+            //
+            // Issue #128: but never past the mux's own retry ceiling. This call used to re-run a mux
+            // that had already failed MaxMuxAttempts times - an uncounted fourth (fifth, sixth...)
+            // attempt on every packaging try, which is how a stalling mux kept coming back. A mux
+            // that has used its attempts is reported, not re-run.
+            RefuseExhaustedMux(dir);
             RecordingService.FinalizePending(dir);
 
             var manifest = Manifest.Load(dir);

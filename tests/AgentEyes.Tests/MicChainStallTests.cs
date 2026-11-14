@@ -268,5 +268,58 @@ namespace AgentEyes.Tests
             return m.Groups[1].Value == "-inf" ? double.NegativeInfinity
                 : double.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
         }
+
+        // ---- criterion 11: a failed pass leaves no fragment, and the mux ceiling is not bypassed ----
+
+        [Fact]
+        public void RunStage_FailedPass_RemovesThePartialOutput()
+        {
+            // A fragment at the final path (what a killed mux leaves) and a pass that fails.
+            string outPath = Path.Combine(_root, "recording.mp4");
+            File.WriteAllText(outPath, "truncated mux output with no moov atom");
+            string missing = Path.Combine(_root, "no-such-input.mp4");
+
+            Assert.Throws<UsageException>(() =>
+                AudioMix.RunStage(new[] { "-y", "-i", missing, "-c", "copy", outPath }, outPath, "test failing pass"));
+
+            Assert.False(File.Exists(outPath), "the failed pass left its partial output at the final path");
+        }
+
+        private string PendingMuxRecording(int muxAttempts)
+        {
+            string dir = Path.Combine(_root, "rec-" + muxAttempts);
+            Directory.CreateDirectory(dir);
+            var m = new Manifest
+            {
+                Mode = "video",
+                CreatedUtc = "2026-11-14T17:00:00Z",
+                VideoFile = "recording.mp4",
+                PendingMux = new Manifest.PendingMuxInfo { Mode = "video", Source = "mic", RawVideo = "raw.mp4", FinalFile = "recording.mp4" },
+            };
+            if (muxAttempts > 0)
+                m.PostProcessing[PostStage.Mux] = new Manifest.PostStageRecord
+                {
+                    State = PostStageState.Failed, Attempts = muxAttempts,
+                    Error = "ffmpeg stalled during process mic audio: output stopped advancing",
+                };
+            ManifestStore.Replace(dir, m);
+            return dir;
+        }
+
+        [Fact]
+        public void RefuseExhaustedMux_AttemptsUsedUp_ThrowsWithCountAndLastError()
+        {
+            string dir = PendingMuxRecording(PostRecordingState.MaxMuxAttempts);
+            var ex = Assert.Throws<UsageException>(() => Package.RefuseExhaustedMux(dir));
+            Assert.Contains($"failed {PostRecordingState.MaxMuxAttempts} time(s)", ex.Message);
+            Assert.Contains("ffmpeg stalled during process mic audio", ex.Message);
+        }
+
+        [Fact]
+        public void RefuseExhaustedMux_AttemptsRemaining_DoesNotThrow()
+        {
+            Package.RefuseExhaustedMux(PendingMuxRecording(PostRecordingState.MaxMuxAttempts - 1));
+            Package.RefuseExhaustedMux(PendingMuxRecording(0));
+        }
     }
 }

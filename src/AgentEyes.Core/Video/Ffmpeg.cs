@@ -78,7 +78,19 @@ namespace AgentEyes.Video
             }
             else
             {
-                WaitWatched(p, label, stallTimeout.Value, clock, err);
+                // Issue #128: a watched (post-processing) child must not outlive this process. On
+                // Windows the kill-on-close job ends it the moment AgentEyes ends, however it ends;
+                // on every platform the registry lets the next start reap it if that did not happen.
+                if (OperatingSystem.IsWindows()) AgentEyes.AlwaysOn.KillOnCloseJob.Assign(p);
+                FfmpegChildRegistry.Register(p, label);
+                try
+                {
+                    WaitWatched(p, label, stallTimeout.Value, clock, err);
+                }
+                finally
+                {
+                    FfmpegChildRegistry.Unregister(p.Id);
+                }
             }
 
             if (p.ExitCode != 0)

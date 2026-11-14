@@ -246,6 +246,10 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Transcription.DictionaryStore::Save -> System.IO.File::WriteAllText x1",// the transcription dictionary
             "agenteyes.dll!AgentEyes.Translator::WriteTranslatedVtt -> System.IO.File::WriteAllText x1",     // transcript.<lang>.vtt
             "agenteyes.dll!AgentEyes.Video.FfmpegCameraRecorder::WriteFfmpegLog -> System.IO.File::WriteAllText x1",   // the camera ffmpeg stderr log (issue #28; the FAILED-open path deliberately writes nothing into the recording directory)
+            "agenteyes.dll!AgentEyes.Audio.AudioMix::RunStage -> System.IO.File::Delete x1",               // the partial output of a failed/stalled mix pass (issue #128)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::ReapOrphans -> System.IO.File::Delete x2",  // run\ffmpeg\<pid>.json records of reaped/exited children (issue #128)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Register -> System.IO.File::WriteAllText x1",// run\ffmpeg\<pid>.json: a running post-processing child (issue #128)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Unregister -> System.IO.File::Delete x1",   // run\ffmpeg\<pid>.json of a child that exited (issue #128)
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Start -> System.IO.File::WriteAllText x1",        // the ffmpeg stderr log of a failed start
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Stop -> System.IO.File::WriteAllText x1",         // the ffmpeg stderr log
             "agenteyes.dll!AgentEyes.VideoImport::RunAsync -> System.IO.File::Copy x1",                      // the imported video file

@@ -141,11 +141,30 @@ namespace AgentEyes
         /// timer.</summary>
         public void Start()
         {
+            // Issue #128: before any pass can re-run a mux, kill post-processing ffmpeg children a
+            // previous AgentEyes left running (a hung mux survives its owner on macOS/Linux). Runs
+            // here, synchronously, because this is the one start hook both hosts share and the
+            // first pass must not race a still-spinning orphan for the same recording. It is a
+            // directory listing plus one process lookup per record - milliseconds.
+            try
+            {
+                FfmpegChildRegistryReap();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RepairService] Start: orphan ffmpeg reap FAILED: {ex.Message}");
+            }
             PostRecording.Completed += OnRecordingCompleted;
             AccountState.Changed += OnAccountStateChanged;
             _timer = new Timer(OnTimerTick, null, StartupDelay, RepairSchedule.Interval);
             Log.Info($"[RepairService] Start: first pass in {StartupDelay.TotalSeconds:0}s, "
                 + $"then every {RepairSchedule.Interval.TotalMinutes:0} minute(s)");
+        }
+
+        private static void FfmpegChildRegistryReap()
+        {
+            var report = AgentEyes.Video.FfmpegChildRegistry.ReapOrphans();
+            Log.Info($"[RepairService] Start: orphan ffmpeg reap examined {report.Count} record(s)");
         }
 
         /// <summary>
