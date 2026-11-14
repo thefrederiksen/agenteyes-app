@@ -148,8 +148,9 @@ filters - the same bytes, in this branch's shape. See "#114" below; the shape gu
 **Independent corroboration, found while measuring and not created by me:** the installed
 `main`-based service hit this defect live on this machine during the session. `ffmpeg` pid 94897,
 started 12:29:30 for `~/Movies/AgentEyes/2026-11-14_120937_video` (a **13.4-second** recording),
-was still running at 100% CPU 31 minutes later. I left it alone - it is the installed app's child
-and it is evidence. It also means every timing below was taken with one of this machine's ten cores
+was still running at 100% CPU **55 minutes later**, the last time I looked. I left it alone - it is
+the installed app's child and it is evidence. Thirteen seconds of audio, and the shipped mux cannot
+finish it; that is the defect, in the field, on the machine, while I measured the fix for it. It also means every timing below was taken with one of this machine's ten cores
 already pinned, so the numbers are conservative.
 
 ### 2. Ten minutes, default settings, macOS - amended to the mux level
