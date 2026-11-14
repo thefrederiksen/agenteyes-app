@@ -141,6 +141,114 @@ namespace AgentEyes.Tests
             Assert.Equal("aac", StreamCodec(final, "a"));
         }
 
+        // ---- the final path is only ever created by the rename (issue #136) ----
+
+        [Fact]
+        public void MuxingTempPath_SitsBesideTheOutputAndIsNotTheOutput()
+        {
+            string temp = AudioMix.MuxingTempPath("/recordings/rec/recording.mp4");
+            Assert.NotEqual("/recordings/rec/recording.mp4", temp);
+            // Same directory, so File.Move into place is a rename and not a copy - which is the
+            // whole reason the publish is atomic.
+            Assert.Equal(Path.GetDirectoryName("/recordings/rec/recording.mp4"), Path.GetDirectoryName(temp));
+            Assert.EndsWith(".muxing.tmp", temp);
+        }
+
+        [Fact]
+        public void PassTwo_ReallyWritesTheMuxingTemp_AndNotTheFinalPath()
+        {
+            // THE TEST FOR THE RENAME, and it took three attempts to write one that can fail.
+            //
+            // The obvious versions cannot. Asserting "the final file exists and is valid, and no temp
+            // is left" passes whether pass 2 writes the temp or the final path, because the finally
+            // cleans up either way. Asserting a planted temp is gone passes too, for the same reason.
+            // I checked by reverting the rename and watching all four of my new tests stay green,
+            // which is the defect class this repo keeps paying for.
+            //
+            // What distinguishes the two implementations is ONE thing: where pass 2's ffmpeg opens
+            // its output. So make the temp path IMPOSSIBLE to open as a file - a directory cannot be
+            // opened for writing on any platform - and the mux must fail. If pass 2 were writing the
+            // final path, the directory in the way would be irrelevant and the mux would succeed.
+            // Deterministic, no timing, and it fails the moment the rename is taken out.
+            string raw = VideoWithMicTrack("raw.mp4", 5);
+            string final = Path.Combine(_root, "recording.mp4");
+            string muxing = AudioMix.MuxingTempPath(final);
+            Directory.CreateDirectory(muxing);
+
+            AssertPassFailed(() => AudioMix.ProcessVideoMic(raw, final, Defaults()));
+
+            Assert.False(File.Exists(final),
+                "pass 2 wrote the FINAL path - the atomic publish is gone, and a process death can "
+                + "leave a moov-less recording.mp4 again (issue #136 / #128 defect 2)");
+            Directory.Delete(muxing, recursive: true);
+        }
+
+        [Fact]
+        public void ProcessVideoMic_PublishesOverAFragmentFromAnEarlierAttempt()
+        {
+            // A fragment at the final path from an older binary is replaced by a complete recording,
+            // not appended to or left half-overwritten - the publish is a whole-file replacement.
+            string raw = VideoWithMicTrack("raw.mp4", 5);
+            string final = Path.Combine(_root, "recording.mp4");
+            File.WriteAllText(final, "a fragment from an earlier attempt, with no moov atom");
+
+            AudioMix.ProcessVideoMic(raw, final, Defaults());
+
+            Assert.True(File.Exists(final));
+            Assert.Equal("h264", StreamCodec(final, "v"));
+            Assert.Equal("aac", StreamCodec(final, "a"));
+            Assert.False(File.Exists(AudioMix.MuxingTempPath(final)),
+                "the muxing temp was left in the recording directory");
+        }
+
+        [Fact]
+        public void MuxInTwoPasses_MuxPassFails_LeavesNothingAtTheTempEither()
+        {
+            // A pass 2 that cannot succeed must clean up the temp it was writing, not just the final
+            // path. Plant a sentinel AT THE TEMP so this cannot pass by the temp never existing.
+            string final = Path.Combine(_root, "recording.mp4");
+            string muxing = AudioMix.MuxingTempPath(final);
+            File.WriteAllText(muxing, "a half-written mux from an attempt that died");
+            string tone = Tone("audio.wav", 1);
+
+            AssertPassFailed(() => AudioMix.MuxInTwoPasses(
+                Path.Combine(_root, "no-such-video.mp4"), final, "test mux pass fails",
+                wav => new[] { "-y", "-i", tone, "-c:a", "pcm_f32le", wav }));
+
+            Assert.False(File.Exists(muxing), "the failed mux left its temp behind");
+            Assert.False(File.Exists(final), "the failed mux put something at the final path");
+        }
+
+        [Fact]
+        public void MuxInTwoPasses_StaleTempsFromAKilledAttempt_DoNotSurviveAndDoNotCorruptTheOutput()
+        {
+            // NAMED FOR WHAT IT ACTUALLY PROVES. An earlier draft of this called itself
+            // "...AreClearedAtTheStart" and claimed to cover MuxInTwoPasses' start-of-run
+            // RemoveStaleTemp calls. It did not: disabling those two lines leaves this test green,
+            // because ffmpeg's "-y" overwrites both temps and the finally removes them anyway. The
+            // start-of-run removal exists for its WARN message, which no test here can fail on, and
+            // the handoff says so rather than counting it as covered.
+            //
+            // What this DOES prove, and it is worth proving: a mux that finds litter from a killed
+            // attempt still produces a correct recording and leaves nothing behind - the stale bytes
+            // are not read as input, and they do not survive.
+            string raw = VideoWithMicTrack("raw.mp4", 5);
+            string final = Path.Combine(_root, "recording.mp4");
+            string muxing = AudioMix.MuxingTempPath(final);
+            File.WriteAllText(Intermediate, new string('x', 4096));   // a half-written pass-1 WAV
+            File.WriteAllText(muxing, new string('y', 4096));         // a half-written pass-2 mp4
+
+            AudioMix.ProcessVideoMic(raw, final, Defaults());
+
+            Assert.False(File.Exists(Intermediate), "a stale intermediate survived the next attempt");
+            Assert.False(File.Exists(muxing), "a stale muxing temp survived the next attempt");
+            Assert.True(File.Exists(final));
+            Assert.Equal("h264", StreamCodec(final, "v"));
+            Assert.Equal("aac", StreamCodec(final, "a"));
+            // The stale 4 KB of 'x' and 'y' are nowhere in the result: a real recording, right length.
+            Assert.InRange(MediaProbe.DurationSeconds(final), 4.0, 6.5);
+        }
+
         // ---- a pass that fails leaves no fragment and no intermediate -----
 
         [Fact]

@@ -265,6 +265,8 @@ namespace AgentEyes.Tests.Shared
             Assert.DoesNotContain("speechnorm", pass2);
             Assert.DoesNotContain("alimiter", pass2);
             Assert.Contains("-map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k", pass2);
+            // The container is named rather than guessed, because pass 2 writes a temp path.
+            Assert.Contains("-f mp4", pass2);
         }
 
         [Fact]

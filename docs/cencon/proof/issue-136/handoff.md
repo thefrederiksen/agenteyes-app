@@ -122,6 +122,15 @@ exactly where they were, in a method I did not edit. The new code sits in `MuxIn
 - `ProcessedAudioFileName = "audio_processed.wav"`, in the recording's own directory - beside
   `sys_native.wav`, on the same volume as the output, so a ten-minute intermediate cannot land on a
   smaller system temp disk.
+- `MuxingTempPath(outMp4)` = `<final>.muxing.tmp`, where **pass 2 writes**. The final path is created
+  by one `File.Move` once pass 2 has completed, so it is never written incrementally by ffmpeg and a
+  process death cannot leave a moov-less file there. Authorized by the Implementation Lead after I
+  measured that the split alone did NOT close #128's defect (2) - the whole exchange, with the
+  before-and-after kill measurements, is its own section below.
+- Both temps are removed at the **start** of a mux as well as in the `finally`, because a process
+  death runs no `finally` and the next attempt is the only code that can clear the last one's litter.
+  It logs what it removed at WARN rather than silently overwriting: a stale temp means a mux died
+  here.
 
 **The defect my own regression test found in my first cut, worth reading because it is the #128
 interaction.** `RunStage` deletes the partial output of *the pass that failed*. In a two-pass mux a
@@ -336,9 +345,12 @@ Two new files plus retargeted existing ones.
 - `TheAlwaysOnBuildersCarryNoFilterGraphBesideACopiedVideo`, plus the two pass-content tests - which
   also pin the intermediate's `pcm_f32le` and its `-rf64 auto`.
 
-`tests/AgentEyes.Tests/MuxTwoPassTests.cs` - 6 tests, real ffmpeg: both passes run, the
-intermediate is cleaned up, a failure in either pass leaves neither a fragment at the final path nor
-an intermediate, and the intermediate goes beside the output rather than into the system temp.
+`tests/AgentEyes.Tests/MuxTwoPassTests.cs` - 11 tests, real ffmpeg: both passes run, the temps are
+cleaned up, a failure in either pass leaves neither a fragment at the final path nor a temp, the
+intermediate goes beside the output rather than into the system temp, and - for the atomic publish -
+`PassTwo_ReallyWritesTheMuxingTemp_AndNotTheFinalPath` (the one that actually catches the rename
+being removed), a fragment from an earlier attempt is replaced wholesale, a failed pass 2 clears a
+planted temp, and litter from a killed attempt neither survives nor corrupts the output.
 
 Retargeted (same assertions, now against the pass-1 builders that carry the chain): 4 tests in
 `MicChainStallTests` (#128's chain-order guards), 5 call sites in `GateCalibrationTests`, and the
@@ -354,17 +366,39 @@ name:**
 | re-added a single-pass `-c:v copy` + filter-graph builder | `FfmpegMuxShapeTests.NoArgumentListPairsACopiedVideoStreamWithAFilterGraph` - mac suite (Failed 1, Passed 78) **and** linux suite (Failed 1, Passed 119) |
 | `ProcessedAudioCodec` back to `pcm_s16le` | `FfmpegMuxShapeTests.TheTwoPassesTogetherStillCarryTheWholeCleanVoiceChain` |
 | the final-path cleanup (`if (!ok ...)`) | `MuxTwoPassTests.MuxInTwoPasses_AudioPassFails_RemovesTheIntermediateAndThePartialOutput` |
-| the intermediate deletion | `MuxTwoPassTests.MuxVideoSystemOnly_RunsBothPassesAndLeavesNoIntermediate`, `MuxTwoPassTests.MuxInTwoPasses_MuxPassFails_RemovesTheIntermediateAndThePartialOutput`, `MuxTwoPassTests.MuxVideoMixed_RunsBothPassesAndLeavesNoIntermediate`, `MuxTwoPassTests.ProcessVideoMic_RunsBothPassesAndLeavesNoIntermediate`, `MuxTwoPassTests.MuxInTwoPasses_TheIntermediateGoesBesideTheOutput_NotIntoTheSystemTemp` (5 of 6) |
+| the intermediate deletion from the `finally` | 6 of 11 `MuxTwoPassTests` fail: `MuxVideoSystemOnly_RunsBothPassesAndLeavesNoIntermediate`, `MuxVideoMixed_...`, `ProcessVideoMic_...`, `MuxInTwoPasses_MuxPassFails_RemovesTheIntermediateAndThePartialOutput`, `MuxInTwoPasses_TheIntermediateGoesBesideTheOutput_NotIntoTheSystemTemp`, `MuxInTwoPasses_StaleTempsFromAKilledAttempt_DoNotSurviveAndDoNotCorruptTheOutput` |
+| **the atomic rename** - pass 2 writes the final path directly again | `MuxTwoPassTests.PassTwo_ReallyWritesTheMuxingTemp_AndNotTheFinalPath` |
 | `-rf64 auto` removed from all three pass-1 builders | `FfmpegMuxShapeTests.EveryPassOneBuilderWritesTheIntermediateAndNothingElse` |
+| `-f mp4` removed from pass 2 | `FfmpegArgsTests.MuxVideoWithProcessedAudio_copies_the_video_and_carries_no_filter_graph`, `FfmpegMuxShapeTests.TheTwoPassesTogetherStillCarryTheWholeCleanVoiceChain`, and every real-ffmpeg mux test (ffmpeg exits 234 on the temp's extension) |
 | added a builder name to `RequiredBuilders` that the sweep cannot find | `FfmpegMuxShapeTests.NoArgumentListPairsACopiedVideoStreamWithAFilterGraph` - the broken-instrument assertion is live |
 
 All patches reverted; the tree is the committed state.
 
-One honest limit in that table:
+**Three things in my own tests that could NOT fail, found by running this exercise rather than by
+assuming it, and all three are stated here instead of being quietly counted as coverage.**
+
+1. **The rename had no test that caught its removal** - the thing this commit is for. My first four
+   attempts at one all stayed green when I reverted the rename, because every obvious assertion
+   ("the output exists and is valid", "no temp is left", "a planted temp is gone") is satisfied
+   whether pass 2 writes the temp or the final path: the `finally` cleans up either way. The test
+   that works makes the temp path a **directory**, which cannot be opened for writing on any
+   platform, so the mux must fail - and it only fails if pass 2 really writes there.
+   `PassTwo_ReallyWritesTheMuxingTemp_AndNotTheFinalPath` is in the table above because I checked it.
+2. **The start-of-run stale-temp removal has no test that can fail on it**, so it is not in the
+   table. Disabling it leaves all 11 green, because ffmpeg's `-y` overwrites both temps and the
+   `finally` removes them. It exists for its WARN message - the only signal that distinguishes "a
+   previous mux was killed here" from routine cleanup - and the code comment and the test both say
+   so. A test I had named `...AreClearedAtTheStart` was renamed to
+   `...DoNotSurviveAndDoNotCorruptTheOutput`, which is what it actually proves.
+3. **The muxing-temp deletion in the `finally` has no test that can fail on it either.** Disabling it
+   leaves all 11 green, because a successful mux's `File.Move` consumes the temp and a failed pass 2
+   has already had it removed by `RunStage`. It covers exactly one case - `File.Move` itself throwing
+   - which I did not find a way to force deterministically. Belt and braces, declared as such.
+
+And the one limit I noted earlier still stands:
 `MuxTwoPassTests.MuxInTwoPasses_MuxPassFails_RemovesTheIntermediateAndThePartialOutput` passes with
-or without my `if (!ok)` block, because `RunStage` already removes the final path when it is pass 2
-that fails. The test that proves the new block is the `AudioPassFails` one. The `MuxPassFails` test
-earns its place on the intermediate, not on the final path.
+or without the `if (!ok)` final-path block, because `RunStage` already removes pass 2's output when
+pass 2 fails. The test that proves that block is the `AudioPassFails` one.
 
 ### 8. Gates
 
@@ -454,53 +488,90 @@ registry and the retry-ceiling fix are all as they were on `issue-128-mic-chain-
 
 ---
 
-## The Implementation Lead's question: does the split make #128's defect (2) impossible?
+## #128's defect (2): asked, measured, answered NO - then fixed on the Lead's say-so
 
-**She asked whether the two-pass structure makes #128's QA defect (2) - a process death leaving a
-moov-less `recording.mp4` at the FINAL path - structurally unreachable, and said plainly: do not
-stretch the claim to be helpful. The answer is NO. It does not.**
+The Implementation Lead asked whether the two-pass structure made #128's QA defect (2) - a process
+death leaving a moov-less `recording.mp4` at the FINAL path - structurally unreachable, and said
+plainly: do not stretch the claim to be helpful.
 
-I measured it rather than reasoned about it, because the honest answer depended on whether pass 2
-writes the final path incrementally. It does. The method: run `FinalizePending` in a child process,
-`SIGKILL` the managed host **first** so no `finally` can run (which is what process death means),
-then its ffmpeg, then look at the directory. Fixture: the 601.9 s / 323 MB video with 111731's
-75.5 s mic track.
+**I measured it, the answer was NO, I reported that, and she then told me to go and make it true.**
+Both halves are below, because the second only means anything with the first beside it.
 
-| killed | at the instant of death | after the death |
+### What I measured, and the answer
+
+Method: run `FinalizePending` in a child process, `SIGKILL` the managed host **first** so no
+`finally` can run (which is what process death means), then its ffmpeg, then look at the directory.
+Fixture: the 601.9 s / 323 MB video with 111731's 75.5 s mic track, which muxes reliably.
+
+**Before the fix below**, pass 2 wrote the final path directly and ffmpeg puts the `moov` atom in
+last, so:
+
+| killed | left at the final path |
+|---|---|
+| 0.4 s in | `recording.mp4` 9,699,376 B - `ffprobe`: **moov atom not found** |
+| 1.1 s in | `recording.mp4` 35,913,776 B - `ffprobe`: **moov atom not found** |
+
+So defect (2) was reachable on this path exactly as #128's QA described. The split narrowed the
+window - a death during pass 1 left nothing at the final path - but pass 2 is a third to a half of
+the wall clock, and the split also **added** an orphan, `audio_processed.wav`. Narrowed, not closed.
+
+One thing worth recording about the method, because it nearly cost me the answer: **my first attempt
+came back clean, and in the direction I wanted.** I had killed ffmpeg before the host, so the managed
+`finally` ran and the directory looked immaculate. A convenient result from a flawed method is the
+hardest kind to catch, because nothing prompts you to look again. I noticed, fixed the order, and got
+the real answer.
+
+### The fix, authorized by the Implementation Lead after that answer
+
+Pass 2 now writes `<final>.muxing.tmp` (`AudioMix.MuxingTempPath`) and the final path is created by
+one `File.Move` - an atomic rename on the same volume - only once pass 2 has completed. A process
+death at **any** point therefore leaves the final path either absent or holding a complete file,
+never a fragment. Same harness, same fixture, same kill points:
+
+| killed | before | after |
 |---|---|---|
-| 0.4 s in | `audio_processed.wav` complete (14,494,208 B), `recording.mp4` growing (9,437,232 B) | **`recording.mp4` left at the final path, 9,699,376 B, `ffprobe`: "moov atom not found"**; `audio_processed.wav` orphaned |
-| 1.1 s in | same, `recording.mp4` at 35,913,776 B | **`recording.mp4` left at the final path, 35,913,776 B, `ffprobe`: "moov atom not found"**; `audio_processed.wav` orphaned |
+| 0.4 s in | `recording.mp4`, 9,699,376 B, moov atom not found | **NOT PRESENT at the final path** |
+| 1.1 s in | `recording.mp4`, 35,913,776 B, moov atom not found | **NOT PRESENT at the final path** |
 
-So defect (2) is reachable on this path exactly as #128's QA described it. The split does **not**
-remove it, and I am not going to claim otherwise.
+And the fragment is not merely absent, it is accounted for - the directories after those kills held
+`recording.mp4.muxing.tmp` at 1,048,624 B and 64,487,472 B, which is how I know ffmpeg really was
+writing mid-flight and the check is not vacuous.
 
-What the split does and does not change, precisely:
+**The orphans are cleared by the next attempt**, which is the only code that can run after a process
+death. `MuxInTwoPasses` removes both temps at the start and says so at WARN rather than silently
+overwriting, because a stale temp means an earlier mux died here. Demonstrated on the real orphans
+the kill above left:
 
-- **A death during pass 1 leaves NOTHING at the final path**, because pass 1 writes only the
-  intermediate. That window is genuinely immune.
-- **A death during pass 2 leaves the moov-less file**, because ffmpeg streams the `mdat` and writes
-  the `moov` atom at the end. Unchanged from the single-pass behaviour.
-- So the exposed window narrows from "the whole mux" to "pass 2 only" - and that is a smaller
-  improvement than it sounds, because pass 2 is a large share of the time: of 1.17 s on the 76 s
-  fixture about 0.4 s is pass 2, and of 6.71 s on the 602 s fixture about 2.9 s is. Call it a third
-  to a half. **Narrowed, not closed.**
-- And the split **adds** an orphan: `audio_processed.wav` survives a process death too, as both runs
-  above show. That is the limitation already listed under "What this does NOT cover", now measured
-  rather than inferred.
+```
+[WARN] [AudioMix] MuxInTwoPasses: process mic audio removed a stale temp from an attempt that did
+       not finish: .../death/p2/audio_processed.wav (14494208 bytes)
+[WARN] [AudioMix] MuxInTwoPasses: process mic audio removed a stale temp from an attempt that did
+       not finish: .../death/p2/recording.mp4.muxing.tmp (64487472 bytes)
+```
 
-**It could be closed, cheaply, and in my code rather than #128's** - which is worth saying because
-the "you will collide with #128 round two" reason for leaving it alone does not apply to this
-particular remedy. If pass 2 wrote to a temp path beside the output and `File.Move`d it into place
-on success - an atomic rename on the same volume - then a death at *any* point in the mux would
-leave nothing at the final path, and (2) would be unreachable on this path by construction rather
-than guarded against. That is a few lines inside `AudioMix.MuxInTwoPasses`
-(`src/AgentEyes.Core/Audio/AudioMix.cs`), touches no part of `RunStage`, and would not conflict with
-#128's round two.
+after which that mux completed and the directory held only `recording.mp4` (322,805,390 B), its
+`.original` backup and the manifest.
 
-**I have not done it**, because the instruction was explicit that (2) belongs to #128 round two, and
-an instruction is not something to reinterpret just because I found a conclusion I like better. The
-measurement and the offer are with the Implementation Lead; if she wants it, it is a short commit on
-this branch and the test for it writes itself from the harness above.
+### What this does and does not replace
+
+It does **not** replace #128's `RunStage` work and is not a duplicate of it. `RunStage`'s `finally`
+not running on process death affects **every** post-processing stage, not just the mux, and that
+general fix is #128 round two's. This makes the mux path unreachable by construction - there is no
+window to guard rather than a guard over a window - and the two are complementary. `RunStage` itself
+is still byte-for-byte unchanged.
+
+One self-inflicted bug worth recording, because the tests caught it rather than QA: ffmpeg infers the
+container from the output's extension, so writing to `.muxing.tmp` made it refuse the output with
+"Unable to choose an output format ...; use a standard extension for the filename or specify the
+format manually" and exit 234. Pass 2 now passes `-f mp4` explicitly, which also removes the guess
+from the normal case. `FfmpegArgsTests` and `FfmpegMuxShapeTests` pin it.
+
+**What the repo tests cover and what they cannot.** Four deterministic tests cover the temp path's
+shape, that a successful mux publishes through the temp and leaves none behind, that a failed pass 2
+cleans a planted temp, and that stale temps from a killed attempt are cleared at the start of the
+next one. They do **not** reproduce a process death: a unit test would have to win a race against
+ffmpeg, and the one timing-dependent test I wrote today is the one that broke CI. The mid-flight
+guarantee rests on the kill measurements above, which is why they are quoted with byte counts.
 
 ---
 
@@ -770,14 +841,17 @@ None of those are needed for this issue.
   4 GB intermediate. Separately, `MixTwoWav` - the audio-only recording's own final `.wav`, which
   this change does not touch - has the same latent 4 GB RIFF limit at about 6 hours and no `-rf64`.
   That is pre-existing and out of scope here; it is worth its own issue.
-- **A process death leaves BOTH the intermediate and a moov-less final file behind - measured, not
-  assumed.** See "The Implementation Lead's question" above for the numbers. The `finally` covers a
-  failure and an exception, not a `SIGKILL` or a power cut. `audio_processed.wav` then stays in the
-  recording directory, where `RecoveryManifest.FilesOnDisk` would list it as capture bytes; the next
-  mux attempt overwrites it (`-y`) and deletes it, so it persists only for a recording that is
-  abandoned entirely, and `sys_native.wav` has always had the same property. The moov-less
-  `recording.mp4` is #128's QA defect (2) and is unchanged by this fix on the pass-2 window, which
-  that section states plainly rather than claiming otherwise.
+- **A process death still orphans the two temps, and that part is not fixable from inside the
+  process.** The `finally` covers a failure and an exception, not a `SIGKILL` or a power cut, so
+  `audio_processed.wav` and `<final>.muxing.tmp` stay in the recording directory, where
+  `RecoveryManifest.FilesOnDisk` would list them as capture bytes. What IS fixed is that they are
+  cleared, loudly, at the start of the next attempt, and that nothing lands at the final path - see
+  the defect (2) section for the measurements. They persist only for a recording nothing ever
+  packages again; `sys_native.wav` has always had the same property.
+- **No unit test reproduces a process death.** The four new tests cover the temp path, the publish,
+  the cleanup of a planted temp and the clearing of stale temps - all deterministic. The mid-flight
+  guarantee rests on the kill harness, because a unit test would have to win a race against ffmpeg,
+  and the one timing-dependent test I wrote today is the one that broke CI.
 - **The 602 s timing is one run on one machine with one core already pinned** by the stuck installed
   mux. 6.71 s against a 60 s stall bound is not a close call, but it is one sample - and the only
   other run of that fixture did not complete, for the separate reason above. I ran each fixture

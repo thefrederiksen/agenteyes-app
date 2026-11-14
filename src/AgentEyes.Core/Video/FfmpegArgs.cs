@@ -570,12 +570,21 @@ namespace AgentEyes.Video
         /// audio from <paramref name="processedWav"/>, and mux them. There is deliberately no
         /// -filter_complex here: the audio arrives finished, so the only work beside the stream copy
         /// is the AAC encode, and the muxing queue has nothing to deadlock over.
+        ///
+        /// "-f mp4" is explicit rather than inferred from the output's extension, because this pass
+        /// writes to a TEMP path that is renamed into place afterwards
+        /// (<c>AudioMix.MuxingTempPath</c>, issue #136) and ffmpeg guesses the container from the
+        /// file name: without it, ffmpeg refused the temp with "Unable to choose an output format
+        /// ...; use a standard extension for the filename or specify the format manually" and exited
+        /// 234. Measured, by the test that now covers the rename. Naming the format also takes the
+        /// guess out of the normal case, where it happened to guess right.
         /// </summary>
         public static List<string> MuxVideoWithProcessedAudio(
             string rawMp4, string processedWav, string outMp4) => new()
         {
             "-y", "-i", rawMp4, "-i", processedWav,
-            "-map", "0:v", "-c:v", "copy", "-map", "1:a", "-c:a", "aac", "-b:a", "160k", outMp4,
+            "-map", "0:v", "-c:v", "copy", "-map", "1:a", "-c:a", "aac", "-b:a", "160k",
+            "-f", "mp4", outMp4,
         };
 
         // ---- subtitle burn-in (issue #102) --------------------------------

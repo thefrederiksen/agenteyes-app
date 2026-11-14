@@ -324,6 +324,9 @@ namespace AgentEyes.Tests
             Assert.DoesNotContain("-filter_complex", s);
             Assert.DoesNotContain("arnndn", s);
             Assert.DoesNotContain("speechnorm", s);
+            // The container is named, not guessed from the extension - this pass writes a temp path
+            // that is renamed into place, and ffmpeg refuses an extension it does not know (#136).
+            Assert.Contains("-f mp4", s);
             Assert.EndsWith("final.mp4", s);
         }
 
