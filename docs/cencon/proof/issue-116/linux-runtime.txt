@@ -1,0 +1,34 @@
+devlinux - Linux runtime evidence for issue #116 (Ubuntu, GNOME on Xorg, DISPLAY=:0). Captured 2026-11-14T16:35:25-05:00.
+Build: branch issue-116-desktop-app at 09fd207, installed by scripts/linux/install.sh (see linux-install-transcript.txt).
+
+== Criterion 3/6: launched FROM THE DESKTOP ENTRY (gtk-launch agenteyes -> ~/.local/share/applications/agenteyes.desktop)
+16:34:10.262 [pid 2451234] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=2451234)
+16:34:10.265 [pid 2451234] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+16:34:10.286 [pid 2451234] [INFO] [SingleInstance] TryAcquire: stale socket /run/user/1000/agenteyes-app.sock (ConnectionRefused) - taking it over
+16:34:10.286 [pid 2451234] [INFO] [SingleInstance] TryAcquire: listening on /run/user/1000/agenteyes-app.sock
+16:34:11.590 [pid 2451234] [INFO] [MainWindow] Opened
+
+== X11 window class (xprop), must match StartupWMClass in the desktop entry
+WM_CLASS(STRING) = "AgentEyesDesktop", "AgentEyesDesktop"   _NET_WM_NAME = "AgentEyes"   geometry 1280x720
+
+== Criterion 9: GET /health at 2026-11-14T16:34:22-05:00, the moment linux-window.png was taken
+{"ok": true, "app": "AgentEyes", "host": "headless", "platform": "linux"}
+
+== Criterion 10: tray (StatusNotifierItem, shown by Ubuntu's AppIndicator extension) - linux-tray-topbar.png
+RegisteredStatusNotifierItems includes: org.kde.StatusNotifierItem-2451234-0 (pid 2451234 = the app)
+Id='AgentEyes' Title='AgentEyes' ItemIsMenu=false Menu=/net/avaloniaui/dbusmenu/...
+Menu, read with com.canonical.dbusmenu.GetLayout:
+  'Ready to record' (disabled - live status from the Control API) | separator | 'Start recording' | 'Show AgentEyes' | 'Open recordings folder' | separator | 'Quit AgentEyes (the recorder keeps running)'
+Window closed with wmctrl -ic (WM close request) -> Map State: IsUnMapped; then org.kde.StatusNotifierItem.Activate(0,0) (what the shell sends on activation) -> Map State: IsViewable
+16:34:53.059 [pid 2451234] [INFO] [App] window closed to the tray
+16:34:54.579 [pid 2451234] [INFO] [App] ShowWindow
+16:34:54.581 [pid 2451234] [INFO] [MainWindow] Opened
+
+== Criterion 11: second launch from the desktop entry hands off and exits
+16:35:04.070 [pid 2453867] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=2453867)
+16:35:04.074 [pid 2453867] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+16:35:04.085 [pid 2453867] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+16:35:04.085 [pid 2451234] [INFO] [SingleInstance] Accept: 'show'
+16:35:04.086 [pid 2451234] [INFO] [App] Run: show
+16:35:04.086 [pid 2451234] [INFO] [App] ShowWindow
+afterwards only pid 2451234 runs (pgrep): the second process exited.
