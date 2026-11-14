@@ -1,0 +1,30 @@
+{
+ "Title": "Linux Screen and Audio Quality Check",
+ "Description": "A test recording verifying that system audio and screen capture stay synchronized on a Linux machine.",
+ "DurationSeconds": 100.83,
+ "Mode": "video",
+ "Microphone": "Family 17h (Models 00h-0fh) HD Audio Controller Analog Stereo + (system)",
+ "MonitorName": "HDMI-0",
+ "VideoFile": "recording.mp4",
+ "Transcript": "transcript.json",
+ "Transcripts": {
+  "en": "transcript.en.vtt"
+ },
+ "PostProcessing": {
+  "mux": {
+   "State": "done",
+   "Attempts": 1,
+   "LastAttemptUtc": "2026-11-14T14:29:20.8259869Z"
+  },
+  "thumbnail": {
+   "State": "done",
+   "Attempts": 1,
+   "LastAttemptUtc": "2026-11-14T14:29:30.8118749Z"
+  },
+  "package": {
+   "State": "done",
+   "Attempts": 1,
+   "LastAttemptUtc": "2026-11-14T14:29:37.0114415Z"
+  }
+ }
+}
