@@ -1,0 +1,48 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "qa128fin",
+  "CreatedUtc": "2026-11-14T18:00:00Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "issue 128 QA finite s16, 4320500 samples, no NaN",
+  "DurationSeconds": 90,
+  "VideoFile": "recording.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 0,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 0,
+  "Shots": [],
+  "Files": [
+    "raw.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [],
+  "PendingMux": {
+    "Mode": "video",
+    "Source": "mic",
+    "RawVideo": "raw.mp4",
+    "FinalFile": "recording.mp4",
+    "RawDurationSeconds": 90.01,
+    "Options": {
+      "MicGain": 1,
+      "SystemGain": 0.7,
+      "NoiseSuppression": true,
+      "NoiseGate": false,
+      "GateCalibrated": true,
+      "VoiceLeveling": true,
+      "MicProcessing": true,
+      "GateApplies": false
+    }
+  },
+  "PostProcessing": {
+    "mux": {
+      "State": "failed",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-14T18:12:35.6201754Z",
+      "Error": "ffmpeg stalled during process mic audio: output stopped advancing at 89.9s of output for 60s (limit 60s) after 63s - process killed"
+    }
+  }
+}
