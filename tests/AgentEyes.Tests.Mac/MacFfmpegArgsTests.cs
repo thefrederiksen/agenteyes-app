@@ -26,8 +26,19 @@ namespace AgentEyes.Tests.Mac
                 "-f", "avfoundation", "-thread_queue_size", "1024", "-i", ":0",
                 "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-crf", "23",
                 "-c:a", "aac", "-b:a", "128k",
+                // Issue #113: fragmented, flushed MP4 - playable after an unclean end.
+                "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-frag_duration", "2000000",
+                "-flush_packets", "1",
                 "/r/raw.mp4",
             }, args);
+        }
+
+        [Fact]
+        public void AvfVideoCapture_WithPreview_FragmentsTheRecordingNotThePreview()
+        {
+            // Issue #113: the fragment options bind to the MP4 output, which the preview output follows.
+            var args = FfmpegArgs.AvfVideoCapture(FullScreen, 0, Screen, 0, 30, 23, "/r/raw.mp4", previewStream: true);
+            AgentEyes.Tests.Shared.CaptureWatchdogTests.AssertFragmentedBefore(args, "/r/raw.mp4");
         }
 
         [Fact]

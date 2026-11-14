@@ -21,8 +21,19 @@ namespace AgentEyes.Tests.Linux
                 "-f", "pulse", "-thread_queue_size", "1024", "-fragment_size", "3840", "-i", "alsa_input.mic",
                 "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-crf", "23",
                 "-c:a", "aac", "-b:a", "128k",
+                // Issue #113: fragmented, flushed MP4 - playable after an unclean end.
+                "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-frag_duration", "2000000",
+                "-flush_packets", "1",
                 "/r/raw.mp4",
             }, args);
+        }
+
+        [Fact]
+        public void X11VideoCapture_WithPreview_FragmentsTheRecordingNotThePreview()
+        {
+            // Issue #113: the fragment options bind to the MP4 output, which the preview output follows.
+            var args = FfmpegArgs.X11VideoCapture(Desktop, ":0", "alsa_input.mic", 30, 23, "/o.mp4", Desktop, previewStream: true);
+            AgentEyes.Tests.Shared.CaptureWatchdogTests.AssertFragmentedBefore(args, "/o.mp4");
         }
 
         [Fact]

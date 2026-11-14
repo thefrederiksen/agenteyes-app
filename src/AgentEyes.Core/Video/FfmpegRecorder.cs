@@ -264,6 +264,39 @@ namespace AgentEyes.Video
 
         public bool HasExited => _proc.HasExited;
 
+        // ---- issue #113: what the capture watchdog reads ------------------------------------
+        //
+        // Additive only. The drain, the stop and the media clock are deliberately untouched here:
+        // issue #114 reworks them, and the watchdog needs nothing from inside them.
+
+        /// <summary>
+        /// The capture process's exit code once it has ended, or null while it is still running.
+        /// Read by <see cref="CaptureWatchdog"/> as positive evidence of a dead capture.
+        /// </summary>
+        public int? ExitCode => _proc.HasExited ? _proc.ExitCode : null;
+
+        /// <summary>
+        /// Seconds of output ffmpeg last reported writing (its "time=" field). After <see cref="Stop"/>
+        /// it is ffmpeg's own account of what it muxed - the honest length of a capture that fell
+        /// behind, where wall time is not.
+        /// </summary>
+        public double MediaSeconds => System.Threading.Interlocked.Read(ref _mediaMs) / 1000.0;
+
+        /// <summary>
+        /// Stop a capture the <see cref="CaptureWatchdog"/> has judged dead. The ordinary
+        /// <see cref="Stop"/> - its drain gives up on a process that is not advancing, the quit goes
+        /// unanswered by a frozen one, and the kill ends it; fragmented output
+        /// (<see cref="FfmpegArgs.FragmentedOutput"/>) is what keeps the file playable through that.
+        /// Logged on both sides so the log shows the abandon and how it ended.
+        /// </summary>
+        public void Abandon(string reason)
+        {
+            Log.Warn($"[FfmpegRecorder] Abandon: {OutputPath} - {reason}");
+            Stop();
+            Log.Info($"[FfmpegRecorder] Abandon: {OutputPath} ended (exit {ExitCode?.ToString() ?? "unknown"}, "
+                     + $"last reported position {MediaSeconds:F2}s)");
+        }
+
         public void Dispose()
         {
             if (!_stopped)
