@@ -1,0 +1,108 @@
+Real-binary run (correct invocations) for issue #122 on devlinux, 2026-11-14T11:01:18-05:00
+################################################################
+$ agenteyes record start --screen 1 --mic Family 17h
+--- before: 47 entries; newest 3:
+    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
+    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+--- output (stdout+stderr):
+    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+         source=mic mode=video
+         stop with: agenteyes record stop
+--- exit code: 0
+--- after:  48 entries; newest 3:
+    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:19.265380927 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+--- GET /status: "State": "recording" "Dir": "/home/soren/Videos/AgentEyes/2026-11-14_110118_video" 
+################################################################
+$ agenteyes record stop
+--- before: 48 entries; newest 3:
+    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:19.265380927 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+--- output (stdout+stderr):
+    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_110118_video (4.4s)
+         mixing, thumbnail, transcription and title continue in the service;
+         watch with: agenteyes record status   (or GET /recordings)
+--- exit code: 0
+--- after:  48 entries; newest 3:
+    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:26.781491812 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+--- GET /status: "State": "idle" "Dir": null 
+--- newest dir: /home/soren/Videos/AgentEyes/2026-11-14_110118_video/
+--- manifest.json: "Mode": "video"
+################################################################
+$ agenteyes record start --audio-only --mic Family 17h
+--- before: 48 entries; newest 3:
+    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:29.759535748 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+--- output (stdout+stderr):
+    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+         source=mic mode=audio
+         stop with: agenteyes record stop
+--- exit code: 0
+--- after:  49 entries; newest 3:
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:30.651548908 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+--- GET /status: "State": "recording" "Dir": "/home/soren/Videos/AgentEyes/2026-11-14_110130_audio" 
+################################################################
+$ agenteyes record stop
+--- before: 49 entries; newest 3:
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:30.651548908 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+--- output (stdout+stderr):
+    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_110130_audio (4.3s)
+         mixing, thumbnail, transcription and title continue in the service;
+         watch with: agenteyes record status   (or GET /recordings)
+--- exit code: 0
+--- after:  49 entries; newest 3:
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:35.417619225 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+--- GET /status: "State": "idle" "Dir": null 
+--- newest dir: /home/soren/Videos/AgentEyes/2026-11-14_110130_audio/
+--- manifest.json: "Mode": "audio"
+################################################################
+$ agenteyes record status
+--- before: 49 entries; newest 3:
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+--- output (stdout+stderr):
+    state=idle elapsed=4.3s level=0.000
+    signedIn=True pendingTranscriptions=0
+--- exit code: 0
+--- after:  49 entries; newest 3:
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+--- GET /status: "State": "idle" "Dir": null 
+
+The criterion's bare form, through this binary - the service refuses it (no source):
+################################################################
+$ agenteyes record start --audio-only
+--- before: 49 entries; newest 3:
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+--- output (stdout+stderr):
+    [error] the service refused: audio requires source mic, system, or mixed (HTTP 400)
+--- exit code: 1
+--- after:  49 entries; newest 3:
+    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+--- GET /status: "State": "idle" "Dir": null 
+
+BASELINE: the same bare form through main's binary (built from a clean worktree of main, df81375):
+$ <main>/agenteyes record start --audio-only
+--- before: 49 entries
+    [error] the service refused: audio requires source mic, system, or mixed (HTTP 400)
+--- exit code: 1
+--- after:  49 entries
+--- GET /status: "State": "idle" "Dir": null 

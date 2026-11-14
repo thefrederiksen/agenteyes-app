@@ -1,0 +1,807 @@
+################################################################
+$ agenteyes record start --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record stop --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record stop                     # stop and save the service's recording
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record stop --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record status --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record status                   # what the service is doing
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record status --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes screens --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes screens                         # list monitors and microphones
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes screens --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes shot --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes shot    --screen N [--region] [--out DIR] [--label NAME]
+    
+    OPTIONS
+      --screen N                 monitor number (see 'agenteyes screens')
+      --region                   drag a region to capture instead of the whole monitor
+      --label NAME               label used in the session folder name and manifest
+      --out DIR                  session folder (default: ./recordings/<stamp>_<label>)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes shot --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes audio --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes audio   --screen N (--mic "NAME" | --loopback | --mix --mic "NAME") [--seconds N] [--out DIR] [--label NAME]
+           mic options:  --no-denoise  --gate  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT
+    
+    OPTIONS
+      --screen N                 monitor number (see 'agenteyes screens')
+      --mic NAME                 microphone name fragment
+      --loopback                 record system audio only
+      --mix                      record the mic AND system audio (needs --mic)
+      --seconds N                stop by itself after N seconds
+      --no-denoise               switch off mic noise suppression
+      --gate                     force the noise gate on
+      --no-gate                  force the noise gate off
+      --no-level                 switch off voice leveling
+      --mic-vol PCT              microphone volume, percent
+      --sys-vol PCT              system-audio volume, percent
+      --label NAME               label used in the session folder name and manifest
+      --out DIR                  session folder (default: ./recordings/<stamp>_<label>)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes audio --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes video --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes video   --screen N [--mic "NAME"] [--mix | --loopback] [--region] [--seconds N] [--fps N] [--crf N] [--out DIR] [--label NAME]
+           mic options:  --no-denoise  --gate  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT
+           camera:       --camera "NAME" [--camera-fps N]   # webcam -> camera.mp4 (video only)
+    
+    OPTIONS
+      --screen N                 monitor number (see 'agenteyes screens')
+      --mic NAME                 microphone name fragment
+      --mix                      record the mic AND system audio
+      --loopback                 record system audio only
+      --region                   drag a region to record instead of the whole monitor
+      --seconds N                stop by itself after N seconds
+      --fps N                    screen frame rate (default 30)
+      --crf N                    video quality, lower is better (default 23)
+      --camera NAME              webcam name fragment; records camera.mp4
+      --camera-fps N             webcam frame rate (default 30)
+      --no-denoise               switch off mic noise suppression
+      --gate                     force the noise gate on
+      --no-gate                  force the noise gate off
+      --no-level                 switch off voice leveling
+      --mic-vol PCT              microphone volume, percent
+      --sys-vol PCT              system-audio volume, percent
+      --label NAME               label used in the session folder name and manifest
+      --out DIR                  session folder (default: ./recordings/<stamp>_<label>)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes video --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes package --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD] [--frames | --no-frames]
+    
+    OPTIONS
+      --interval N               seconds between extracted frames (default 5)
+      --scene THRESHOLD          extract frames on scene change instead of an interval
+      --frames                   write the frames to disk
+      --no-frames                serve the frames on demand instead of writing them
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes package --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes compose --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes compose <recording-dir>         # render the camera into recording.mp4 at the framing the preset chose
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes compose --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes always-on --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes always-on --screen N [--mic "NAME"] [--system] [--counts mic|system|both] [--threshold DB|auto]
+                         [--before SEC] [--after SEC] [--gap SEC] [--cap-gb N] [--piece SECONDS] [--fps N] [--seconds N]
+                         [--clips DIR] [--work DIR]    record all day, keep only the stretches with sound
+    
+    OPTIONS
+      --screen N                 monitor number (default 1)
+      --mic NAME                 microphone name fragment
+      --system                   record system audio
+      --counts mic|system|both   which sound decides what is kept
+      --threshold DB|auto        loudness that counts as sound, dBFS at or below 0, or auto
+      --before SEC               seconds kept before the sound
+      --after SEC                seconds kept after the sound
+      --gap SEC                  silence that closes a clip
+      --cap-gb N                 disk cap for the clips, GB (default 5)
+      --piece SECONDS            length of each recorded piece (default 60)
+      --fps N                    screen frame rate (default 10)
+      --seconds N                stop by itself after N seconds
+      --clips DIR                where kept clips go
+      --work DIR                 working folder for the pieces
+      -h, --help                 print this help and exit; no command runs
+      NOTE: this command is not available on this platform.
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes always-on --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes housekeep --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes housekeep [root] [--apply] [--days N] [--keep-video-days N] [--ceiling-gb N] [--no-transcode] [--no-frames] [--frame-days N] [--smaller-audio]
+           reduce the recordings folder's own footprint. REPORTS ONLY unless --apply is given.
+    
+    OPTIONS
+      --apply                    actually change files (without it the pass only reports)
+      --days N                   days to keep preserved originals
+      --keep-video-days N        days to keep the composed video (0 = never expire it)
+      --ceiling-gb N             footprint ceiling, GB: past it the oldest recordings are aged early
+      --no-transcode             do not transcode preserved audio
+      --no-frames                do not convert frames to JPEG
+      --frame-days N             age in days at which frames are converted to JPEG
+      --smaller-audio            allow preserved audio that is not bit-exact
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes housekeep --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes import --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes import  <video.mp4>             # import an external video into the library
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes import --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes translate --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved
+    
+    OPTIONS
+      --to LANG                  target language code (e.g. tr)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes translate --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes subtitle --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)
+    
+    OPTIONS
+      --lang LANG                language of the transcript to burn in
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes subtitle --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes selftest --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes selftest                        # headless end-to-end self-test
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes selftest --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes serve --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes serve [--port N]                # headless recorder + Control API (the systemd service runs this)
+    
+    OPTIONS
+      --port N                   Control API port (default 7882)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes serve --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes signin --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes signin                          # sign in to the DevThrottle account used for transcription and titles
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes signin --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes signout --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes signout                         # delete the stored DevThrottle key
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes signout --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes account --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes account                         # which DevThrottle account is signed in
+    
+    OPTIONS
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes account --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start -h
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start -h | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+      agenteyes record stop                     # stop and save the service's recording
+      agenteyes record status                   # what the service is doing
+    
+    OPTIONS for agenteyes record start
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+    
+    OPTIONS for agenteyes record stop
+      (none)
+      -h, --help                 print this help and exit; no command runs
+    
+    OPTIONS for agenteyes record status
+      (none)
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes help record start
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes help record start | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes --help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    AgentEyes - screen + audio recorder (CLI: agenteyes)
+    
+    USAGE
+      agenteyes screens                         # list monitors and microphones
+      agenteyes shot    --screen N [--region] [--out DIR] [--label NAME]
+      agenteyes audio   --screen N (--mic "NAME" | --loopback | --mix --mic "NAME") [--seconds N] [--out DIR] [--label NAME]
+           mic options:  --no-denoise  --gate  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT
+      agenteyes video   --screen N [--mic "NAME"] [--mix | --loopback] [--region] [--seconds N] [--fps N] [--crf N] [--out DIR] [--label NAME]
+           mic options:  --no-denoise  --gate  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT
+           camera:       --camera "NAME" [--camera-fps N]   # webcam -> camera.mp4 (video only)
+      agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD] [--frames | --no-frames]
+      agenteyes compose <recording-dir>         # render the camera into recording.mp4 at the framing the preset chose
+      agenteyes always-on --screen N [--mic "NAME"] [--system] [--counts mic|system|both] [--threshold DB|auto]
+                         [--before SEC] [--after SEC] [--gap SEC] [--cap-gb N] [--piece SECONDS] [--fps N] [--seconds N]
+                         [--clips DIR] [--work DIR]    record all day, keep only the stretches with sound
+      agenteyes housekeep [root] [--apply] [--days N] [--keep-video-days N] [--ceiling-gb N] [--no-transcode] [--no-frames] [--frame-days N] [--smaller-audio]
+           reduce the recordings folder's own footprint. REPORTS ONLY unless --apply is given.
+      agenteyes import  <video.mp4>             # import an external video into the library
+      agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved
+      agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)
+      agenteyes selftest                        # headless end-to-end self-test
+      agenteyes serve [--port N]                # headless recorder + Control API (the systemd service runs this)
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+      agenteyes record stop                     # stop and save the service's recording
+      agenteyes record status                   # what the service is doing
+      agenteyes signin                          # sign in to the DevThrottle account used for transcription and titles
+      agenteyes signout                         # delete the stored DevThrottle key
+      agenteyes account                         # which DevThrottle account is signed in
+      agenteyes <command> --help                # help for one command (also -h, or 'agenteyes help <command>')
+    
+    SESSION HOTKEYS (audio/video)
+      S = screenshot   P = pause/resume   Q = stop
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes --help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes -h
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    AgentEyes - screen + audio recorder (CLI: agenteyes)
+    
+    USAGE
+      agenteyes screens                         # list monitors and microphones
+      agenteyes shot    --screen N [--region] [--out DIR] [--label NAME]
+      agenteyes audio   --screen N (--mic "NAME" | --loopback | --mix --mic "NAME") [--seconds N] [--out DIR] [--label NAME]
+           mic options:  --no-denoise  --gate  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT
+      agenteyes video   --screen N [--mic "NAME"] [--mix | --loopback] [--region] [--seconds N] [--fps N] [--crf N] [--out DIR] [--label NAME]
+           mic options:  --no-denoise  --gate  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT
+           camera:       --camera "NAME" [--camera-fps N]   # webcam -> camera.mp4 (video only)
+      agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD] [--frames | --no-frames]
+      agenteyes compose <recording-dir>         # render the camera into recording.mp4 at the framing the preset chose
+      agenteyes always-on --screen N [--mic "NAME"] [--system] [--counts mic|system|both] [--threshold DB|auto]
+                         [--before SEC] [--after SEC] [--gap SEC] [--cap-gb N] [--piece SECONDS] [--fps N] [--seconds N]
+                         [--clips DIR] [--work DIR]    record all day, keep only the stretches with sound
+      agenteyes housekeep [root] [--apply] [--days N] [--keep-video-days N] [--ceiling-gb N] [--no-transcode] [--no-frames] [--frame-days N] [--smaller-audio]
+           reduce the recordings folder's own footprint. REPORTS ONLY unless --apply is given.
+      agenteyes import  <video.mp4>             # import an external video into the library
+      agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved
+      agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)
+      agenteyes selftest                        # headless end-to-end self-test
+      agenteyes serve [--port N]                # headless recorder + Control API (the systemd service runs this)
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+      agenteyes record stop                     # stop and save the service's recording
+      agenteyes record status                   # what the service is doing
+      agenteyes signin                          # sign in to the DevThrottle account used for transcription and titles
+      agenteyes signout                         # delete the stored DevThrottle key
+      agenteyes account                         # which DevThrottle account is signed in
+      agenteyes <command> --help                # help for one command (also -h, or 'agenteyes help <command>')
+    
+    SESSION HOTKEYS (audio/video)
+      S = screenshot   P = pause/resume   Q = stop
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes -h | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --audio-only -h
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --audio-only -h | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --mic -h
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --mic -h | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --mic help
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --mic help | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes RECORD START --HELP
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    USAGE
+      agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
+    
+    OPTIONS
+      --mix                      record the mic AND system audio (needs --mic)
+      --loopback                 record system audio only
+      --mic NAME                 microphone name fragment (see 'agenteyes screens')
+      --screen N                 monitor number (default 1)
+      --camera NAME              webcam name fragment
+      --fps N                    screen frame rate
+      --audio-only               record audio without the screen
+      -h, --help                 print this help and exit; no command runs
+--- exit code: 0
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes RECORD START --HELP | exit=0 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --nonsense
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --nonsense | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --audio-only --nonsense
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --audio-only --nonsense | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start -x
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option -x for 'agenteyes record start'. See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start -x | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start hepl
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unexpected argument 'hepl' for 'agenteyes record start'. See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start hepl | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --mic
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] --mic needs a value (NAME). See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --mic | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --mic=Yeti
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --mic=Yeti (an option's value goes after a space: --mic Yeti) for 'agenteyes record start'. See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --mic=Yeti | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --fps=30
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --fps=30 (an option's value goes after a space: --fps 30) for 'agenteyes record start'. See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --fps=30 | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --region
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --region for 'agenteyes record start'. See: agenteyes record start --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --region | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record stop --audio-only
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --audio-only for 'agenteyes record stop'. See: agenteyes record stop --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record stop --audio-only | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes video --nonsense
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes video'. See: agenteyes video --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes video --nonsense | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes serve --nonsense
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes serve'. See: agenteyes serve --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes serve --nonsense | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes shot --nonsense
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes shot'. See: agenteyes shot --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes shot --nonsense | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes selftest --nonsense
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes selftest'. See: agenteyes selftest --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes selftest --nonsense | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes signout --nonsense
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes signout'. See: agenteyes signout --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes signout --nonsense | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record --nonsense start
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] unknown option --nonsense for 'agenteyes record'. See: agenteyes record --help
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record --nonsense start | exit=1 | count 49 -> 49 | "State": "idle"

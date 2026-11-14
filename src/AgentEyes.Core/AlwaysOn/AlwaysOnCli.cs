@@ -13,10 +13,7 @@ namespace AgentEyes.AlwaysOn
     /// </summary>
     internal static class AlwaysOnCli
     {
-        public const string Usage =
-            "  agenteyes always-on --screen N [--mic \"NAME\"] [--system] [--counts mic|system|both] [--threshold DB|auto]\n"
-            + "                     [--before SEC] [--after SEC] [--gap SEC] [--cap-gb N] [--piece SECONDS] [--fps N] [--seconds N]\n"
-            + "                     [--clips DIR] [--work DIR]    record all day, keep only the stretches with sound";
+        // Issue #122: the usage text lives in CliCommandTable ("always-on"), next to the flags it accepts.
 
         public static int Run(CliArgs opts)
         {
