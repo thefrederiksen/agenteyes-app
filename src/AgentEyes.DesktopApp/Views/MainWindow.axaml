@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:AgentEyes.LinuxApp.ViewModels"
-        x:Class="AgentEyes.LinuxApp.Views.MainWindow"
+        xmlns:vm="using:AgentEyes.DesktopApp.ViewModels"
+        x:Class="AgentEyes.DesktopApp.Views.MainWindow"
         Title="AgentEyes" Width="1280" Height="720" MinWidth="900" MinHeight="560"
         Icon="/Assets/agenteyes.png" WindowStartupLocation="CenterScreen">
   <!-- Issue #107: the Windows main window (AgentEyes.App/MainWindow.xaml) - icon rail, contextual

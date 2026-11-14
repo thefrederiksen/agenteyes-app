@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="AgentEyes.LinuxApp.Views.DetailWindow"
+        x:Class="AgentEyes.DesktopApp.Views.DetailWindow"
         Title="Recording details" Width="680" Height="640" MinWidth="480" MinHeight="420"
         Icon="/Assets/agenteyes.png" WindowStartupLocation="CenterOwner">
   <!-- Issue #107: the Windows RecordingDetailWindow - editable title, summary, transcript, actions. -->

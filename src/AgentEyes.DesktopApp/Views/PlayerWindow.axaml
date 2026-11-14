@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
-        x:Class="AgentEyes.LinuxApp.Views.PlayerWindow"
+        x:Class="AgentEyes.DesktopApp.Views.PlayerWindow"
         Title="AgentEyes - Preview" Width="1000" Height="640" MinWidth="480" MinHeight="320"
         Icon="/Assets/agenteyes.png" WindowStartupLocation="CenterOwner">
   <!-- Issue #107: the Windows PreviewWindow - plays the recording inside the app. -->

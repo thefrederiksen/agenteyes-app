@@ -1,5 +1,5 @@
 using System;
-using AgentEyes.LinuxApp.Model;
+using AgentEyes.DesktopApp.Model;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -7,7 +7,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using LibVLCSharp.Shared;
 
-namespace AgentEyes.LinuxApp.Views
+namespace AgentEyes.DesktopApp.Views
 {
     /// <summary>
     /// Plays a recording inside the app (issue #107) - the Windows PreviewWindow: Play/Pause, Restart,

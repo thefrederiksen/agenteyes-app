@@ -4,12 +4,12 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using AgentEyes.LinuxApp.Model;
+using AgentEyes.DesktopApp.Model;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 
-namespace AgentEyes.LinuxApp.ViewModels
+namespace AgentEyes.DesktopApp.ViewModels
 {
     internal abstract class ObservableObject : INotifyPropertyChanged
     {

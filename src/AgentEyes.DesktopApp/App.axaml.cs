@@ -1,13 +1,13 @@
 using System;
 using System.Linq;
-using AgentEyes.LinuxApp.Views;
+using AgentEyes.DesktopApp.Views;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 
-namespace AgentEyes.LinuxApp
+namespace AgentEyes.DesktopApp
 {
     public partial class App : Application
     {

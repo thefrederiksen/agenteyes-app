@@ -1,10 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using AgentEyes.LinuxApp.Model;
-using AgentEyes.LinuxApp.Services;
+using AgentEyes.DesktopApp.Model;
+using AgentEyes.DesktopApp.Services;
 using Avalonia.Threading;
 
-namespace AgentEyes.LinuxApp
+namespace AgentEyes.DesktopApp
 {
     /// <summary>
     /// What the window and the tray share (issue #107): the service client, the remembered capture

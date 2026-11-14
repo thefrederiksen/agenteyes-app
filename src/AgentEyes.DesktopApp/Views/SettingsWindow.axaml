@@ -1,6 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="AgentEyes.LinuxApp.Views.SettingsWindow"
+        x:Class="AgentEyes.DesktopApp.Views.SettingsWindow"
         Title="Settings" Width="560" Height="480" CanResize="False"
         Icon="/Assets/agenteyes.png" WindowStartupLocation="CenterOwner">
   <!-- Issue #107: the Windows SettingsDialog - General and Account. -->

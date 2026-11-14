@@ -2,13 +2,13 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using AgentEyes.App;
-using AgentEyes.LinuxApp.Model;
-using AgentEyes.LinuxApp.ViewModels;
+using AgentEyes.DesktopApp.Model;
+using AgentEyes.DesktopApp.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 
-namespace AgentEyes.LinuxApp.Views
+namespace AgentEyes.DesktopApp.Views
 {
     /// <summary>
     /// One recording's details (issue #107) - the Windows RecordingDetailWindow: the editable title

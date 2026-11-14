@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 
-namespace AgentEyes.LinuxApp.Model
+namespace AgentEyes.DesktopApp.Model
 {
     /// <summary>
     /// The Linux app's own settings (issue #107), in linux-app.json next to the AgentEyes config.
@@ -90,7 +90,7 @@ namespace AgentEyes.LinuxApp.Model
             $"Icon={iconPath}\n" +
             "Terminal=false\n" +
             "Categories=AudioVideo;Recorder;\n" +
-            "StartupWMClass=AgentEyesLinux\n" +
+            $"StartupWMClass={Program.WmClass}\n" +
             (tray ? "X-GNOME-Autostart-enabled=true\n" : "");
     }
 }

@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using AgentEyes.LinuxApp;
-using AgentEyes.LinuxApp.Model;
-using AgentEyes.LinuxApp.Views;
+using AgentEyes.DesktopApp;
+using AgentEyes.DesktopApp.Model;
+using AgentEyes.DesktopApp.Views;
 using Xunit;
 
 namespace AgentEyes.Tests.Linux
 {
-    /// <summary>Issue #107: the Linux app's toolkit-free logic - the library rules it shares with the
+    /// <summary>Issues #107 and #116: the desktop app's toolkit-free logic - the library rules it shares with the
     /// Windows app, the capture setup, the launch commands and the desktop entries.</summary>
-    public sealed class LinuxAppTests
+    public sealed class DesktopAppTests
     {
         private static string NewRecording(string root, string id, string manifestJson, params string[] files)
         {
@@ -147,25 +147,25 @@ namespace AgentEyes.Tests.Linux
         [InlineData(new[] { "--snap", "/tmp/x" }, "snap:/tmp/x")]
         public void CommandFrom_LaunchArguments_ReturnsTheCommand(string[] args, string expected)
         {
-            Assert.Equal(expected, AgentEyes.LinuxApp.Program.CommandFrom(args));
+            Assert.Equal(expected, AgentEyes.DesktopApp.Program.CommandFrom(args));
         }
 
         [Fact]
         public void DesktopEntry_Tray_StartsInTheTrayAndIsAutostartEnabled()
         {
-            string text = Autostart.DesktopEntry("/opt/a/AgentEyesLinux", "/opt/a/agenteyes.png", tray: true);
+            string text = Autostart.DesktopEntry("/opt/a/AgentEyesDesktop", "/opt/a/agenteyes.png", tray: true);
 
-            Assert.Contains("Exec=/opt/a/AgentEyesLinux --tray\n", text);
+            Assert.Contains("Exec=/opt/a/AgentEyesDesktop --tray\n", text);
             Assert.Contains("X-GNOME-Autostart-enabled=true", text);
-            Assert.Contains("StartupWMClass=AgentEyesLinux", text);
+            Assert.Contains("StartupWMClass=AgentEyesDesktop", text);
         }
 
         [Fact]
         public void DesktopEntry_Launcher_HasNoTrayFlag()
         {
-            string text = Autostart.DesktopEntry("/opt/a/AgentEyesLinux", "/opt/a/agenteyes.png", tray: false);
+            string text = Autostart.DesktopEntry("/opt/a/AgentEyesDesktop", "/opt/a/agenteyes.png", tray: false);
 
-            Assert.Contains("Exec=/opt/a/AgentEyesLinux\n", text);
+            Assert.Contains("Exec=/opt/a/AgentEyesDesktop\n", text);
             Assert.DoesNotContain("Autostart", text);
         }
 

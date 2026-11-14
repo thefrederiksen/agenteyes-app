@@ -27,7 +27,11 @@
          failing to compile against Platform/Mac. -->
     <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"
                       AdditionalProperties="AgentEyesUnixPlatform=linux" />
-    <ProjectReference Include="..\..\src\AgentEyes.LinuxApp\AgentEyes.LinuxApp.csproj" />
+    <!-- The desktop app (issue #116: one project for all three platforms) picks its engine from the
+         host. Pinned to linux here as well, so the app and this suite reference ONE build of the
+         engine (the same global properties) instead of two that race to the same output folder. -->
+    <ProjectReference Include="..\..\src\AgentEyes.DesktopApp\AgentEyes.DesktopApp.csproj"
+                      AdditionalProperties="AgentEyesUnixPlatform=linux" />
   </ItemGroup>
 
   <ItemGroup>

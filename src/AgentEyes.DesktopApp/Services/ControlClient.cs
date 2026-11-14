@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AgentEyes.Headless;
 
-namespace AgentEyes.LinuxApp.Services
+namespace AgentEyes.DesktopApp.Services
 {
     /// <summary>The service answered with an error, or did not answer (issue #107).</summary>
     internal sealed class ControlApiException : Exception

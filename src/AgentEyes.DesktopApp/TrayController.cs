@@ -1,12 +1,12 @@
 using System;
 using System.IO;
-using AgentEyes.LinuxApp.Services;
+using AgentEyes.DesktopApp.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 
-namespace AgentEyes.LinuxApp
+namespace AgentEyes.DesktopApp
 {
     /// <summary>
     /// The top-bar icon (issue #107), owned by the app like the Windows TrayHost: a moon when idle, a

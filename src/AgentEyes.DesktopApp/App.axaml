@@ -1,6 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="AgentEyes.LinuxApp.App"
+             x:Class="AgentEyes.DesktopApp.App"
              RequestedThemeVariant="Dark">
   <!-- Issue #107: the Windows app's dark palette (AgentEyes.App/App.xaml, Rd* brushes). -->
   <Application.Resources>

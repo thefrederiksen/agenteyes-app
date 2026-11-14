@@ -1,19 +1,27 @@
 using System;
 using System.Linq;
-using AgentEyes.LinuxApp.Services;
+using AgentEyes.DesktopApp.Services;
 using Avalonia;
 
-namespace AgentEyes.LinuxApp
+namespace AgentEyes.DesktopApp
 {
     /// <summary>
-    /// The AgentEyes desktop app for Linux (issue #107).
-    ///   AgentEyesLinux          open the window (or bring the running one forward)
-    ///   AgentEyesLinux --tray   start in the tray only - what the login autostart runs
-    ///   AgentEyesLinux --view library|record|dictionary, --details ID, --preview ID, --settings general|account
-    ///                           open that view or window (in the running app when there is one)
+    /// The AgentEyes desktop app (issue #107 on Linux; one app for Windows, macOS and Linux since #116).
+    ///   AgentEyesDesktop          open the window (or bring the running one forward)
+    ///   AgentEyesDesktop --tray   start in the tray only - what the login autostart runs
+    ///   AgentEyesDesktop --view library|record|dictionary, --details ID, --preview ID, --settings general|account
+    ///                             open that view or window (in the running app when there is one)
     /// </summary>
     internal static class Program
     {
+        /// <summary>
+        /// The X11 window class, which a Linux .desktop entry's StartupWMClass must match for the dock
+        /// to group the window under its launcher. Only Avalonia's X11 backend reads
+        /// X11PlatformOptions; on Windows (Win32) and macOS (AvaloniaNative) the option is registered
+        /// and never consulted.
+        /// </summary>
+        public const string WmClass = "AgentEyesDesktop";
+
         public static bool StartInTray { get; private set; }
         public static SingleInstance? Instance { get; private set; }
 
@@ -25,7 +33,7 @@ namespace AgentEyes.LinuxApp
         {
             StartInTray = args.Contains("--tray");
             StartCommand = CommandFrom(args);
-            Log.Info($"[Program] Main: AgentEyes Linux app starting (tray={StartInTray}, pid={Environment.ProcessId})");
+            Log.Info($"[Program] Main: AgentEyes desktop app starting on {Shell.PlatformName} (tray={StartInTray}, pid={Environment.ProcessId})");
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
                 Log.Error("[Program] unhandled exception - the app is going down", e.ExceptionObject as Exception);
 
@@ -63,7 +71,7 @@ namespace AgentEyes.LinuxApp
         public static AppBuilder BuildAvaloniaApp() =>
             AppBuilder.Configure<App>()
                 .UsePlatformDetect()
-                .With(new X11PlatformOptions { WmClass = "AgentEyesLinux" })
+                .With(new X11PlatformOptions { WmClass = WmClass })
                 .LogToTrace();
     }
 }

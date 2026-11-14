@@ -5,9 +5,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using AgentEyes.LinuxApp.Model;
-using AgentEyes.LinuxApp.Services;
-using AgentEyes.LinuxApp.ViewModels;
+using AgentEyes.DesktopApp.Model;
+using AgentEyes.DesktopApp.Services;
+using AgentEyes.DesktopApp.ViewModels;
 using AgentEyes.Transcription;
 using Avalonia;
 using Avalonia.Controls;
@@ -19,7 +19,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
-namespace AgentEyes.LinuxApp.Views
+namespace AgentEyes.DesktopApp.Views
 {
     /// <summary>
     /// The AgentEyes main window on Linux (issue #107) - the Windows MainWindow's rail, top bar and

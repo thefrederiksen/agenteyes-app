@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 
-namespace AgentEyes.LinuxApp.Model
+namespace AgentEyes.DesktopApp.Model
 {
     /// <summary>What kind of file a library entry previews.</summary>
     internal enum MediaKind { None, Video, Audio, Image }

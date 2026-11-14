@@ -7,7 +7,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace AgentEyes.LinuxApp.Views
+namespace AgentEyes.DesktopApp.Views
 {
     /// <summary>
     /// The small modal dialogs the Windows app gets from MessageBox and PromptDialog (issue #107):

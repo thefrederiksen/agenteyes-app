@@ -4,13 +4,13 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using AgentEyes.DevThrottle;
-using AgentEyes.LinuxApp.Model;
-using AgentEyes.LinuxApp.Services;
+using AgentEyes.DesktopApp.Model;
+using AgentEyes.DesktopApp.Services;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 
-namespace AgentEyes.LinuxApp.Views
+namespace AgentEyes.DesktopApp.Views
 {
     /// <summary>
     /// Settings (issue #107) - the Windows SettingsDialog's General and Account tabs. Run at login is
