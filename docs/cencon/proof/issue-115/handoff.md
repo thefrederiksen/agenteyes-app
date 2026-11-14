@@ -255,10 +255,36 @@ still is still taken only when asked for, and the recording indicator is unaffec
 ## Housekeeping from this run, so nobody reads it as a defect
 
 Three recordings were left with a truncated `recording.mp4` ("moov atom not found"):
-`2026-11-14_120548_video`, `2026-11-14_120937_video`, `2026-11-14_121011_video`. Cause is mine, not
-the product's: the rebuild harness booted the service out while the deferred audio mux was still
-running. Each one's `raw.mp4` is intact where it was not already consumed. Nothing under
-`~/Movies/AgentEyes` was deleted. No orphaned ffmpeg processes were left - checked after every run.
+`2026-11-14_120548_video`, `2026-11-14_120937_video`, `2026-11-14_121011_video`. The trigger is
+mine: the rebuild harness booted the service out while each one's deferred audio mux was still
+running. Each `raw.mp4` is intact where it was not already consumed. Nothing under
+`~/Movies/AgentEyes` was deleted.
+
+**SIX ORPHANED FFMPEG PROCESSES WERE LEFT RUNNING AT ~100% CPU, AND THEY ARE NOT MINE TO KILL
+(#128 evidence).** They are listed here rather than cleaned up, as instructed:
+
+| pid | started | recording being muxed |
+|-----|---------|------------------------|
+| 87698 | 12:06:06 | `2026-11-14_120548_video` |
+| 88738 | 12:09:54 | `2026-11-14_120937_video` |
+| 88767 | 12:09:57 | `2026-11-14_120548_video` |
+| 88995 | 12:10:28 | `2026-11-14_121011_video` |
+| 90146 | 12:12:28 | `2026-11-14_120548_video` |
+| 90865 | 12:14:30 | `2026-11-14_120937_video` |
+
+All six are the deferred mic-audio mux (`arnndn` denoise over `raw.mp4`). The pattern matters more
+than the count, and it may be the mechanism behind #128:
+
+* Booting the service out does NOT kill the mux ffmpeg it started. The child is orphaned and keeps
+  burning a core indefinitely - 13 minutes for the oldest, with no one reading its output.
+* On the next start the service re-queues the SAME recording and starts a NEW mux ffmpeg beside the
+  orphan. `2026-11-14_120548_video` has three of them running concurrently over one input, each
+  writing the same output path.
+* So a restart during post-processing is not merely lossy, it STACKS: every cycle adds a
+  full-core process and another writer to the same file, and nothing detects or reaps the previous
+  one. Three of my rebuild cycles produced six live processes.
+
+I did not kill them. They are still running as of this handoff.
 
 ## I do not believe this is finished
 
