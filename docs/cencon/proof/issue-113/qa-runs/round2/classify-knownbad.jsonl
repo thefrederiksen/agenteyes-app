@@ -1,0 +1,2 @@
+{"t": "2026-11-14T17:43:18.555Z", "State": "recording", "CaptureLiveness": "growing", "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastStopError": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null}
+{"t": "2026-11-14T17:44:06.494Z", "State": "finalizing", "CaptureLiveness": "faulted", "CaptureSecondsSinceGrowth": 46, "LastStopFailed": false, "LastStopError": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null}

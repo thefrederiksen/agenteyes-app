@@ -1,0 +1,10 @@
+polls total=3591 errors=0 first=2026-11-14T18:39:29.995Z last=2026-11-14T18:41:05.909Z
+state classes (State, CaptureLiveness, LastStopFailed, fault-named): count, first seen
+  ('idle', None, False, False): 41  first 2026-11-14T18:39:29.995Z
+  ('recording', 'starting', False, False): 344  first 2026-11-14T18:39:31.051Z
+  ('recording', 'growing', False, False): 168  first 2026-11-14T18:39:42.557Z
+  ('recording', 'not-growing', False, False): 2464  first 2026-11-14T18:39:44.578Z
+  ('finalizing', 'faulted', True, True): 50  first 2026-11-14T18:40:52.581Z
+  ('idle', None, True, True): 524  first 2026-11-14T18:40:53.746Z
+polls after the recording ended: 574; of them finalizing=50 idle=524
+MISLEADING polls after the recording started: 0

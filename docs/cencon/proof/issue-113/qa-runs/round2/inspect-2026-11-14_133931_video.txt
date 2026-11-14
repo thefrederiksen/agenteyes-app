@@ -1,0 +1,12 @@
+=== /home/soren/Videos/AgentEyes/2026-11-14_133931_video
+files: audio_16k.wav manifest.json raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots thumb.jpg transcript.en.vtt transcript.json transcript.txt walkthrough.html 
+  manifest.DurationSeconds = 2.07
+  manifest.CapturedSeconds = 2.07
+  manifest.CaptureFault = "stalled"
+  manifest.CaptureFaultDetail = "raw.mp4 stopped growing at 81303 bytes and has not grown for 46s (limit 45s); last growth 2026-11-14T18:40:06.559Z"
+  manifest.CaptureFaultDetectedUtc = "2026-11-14T18:40:52.5676411Z"
+  manifest.CaptureFaultElapsedSeconds = 80
+  manifest.PendingMux = null
+  manifest.PostProcessing = {'mux': 'done', 'thumbnail': 'done', 'package': 'done'}
+  ffprobe recording.mp4: codec_type=video|nb_read_frames=60 codec_type=audio|nb_read_frames=90 duration=2.066016 
+  ffprobe recording.original.mp4: codec_type=video|nb_read_frames=60 codec_type=audio|nb_read_frames=90 duration=2.066667 

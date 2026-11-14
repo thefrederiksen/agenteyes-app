@@ -1,0 +1,7 @@
+polls total=2 errors=0 first=2026-11-14T17:43:18.555Z last=2026-11-14T17:44:06.494Z
+state classes (State, CaptureLiveness, LastStopFailed, fault-named): count, first seen
+  ('recording', 'growing', False, False): 1  first 2026-11-14T17:43:18.555Z
+  ('finalizing', 'faulted', False, False): 1  first 2026-11-14T17:44:06.494Z
+polls after the recording ended: 1; of them finalizing=1 idle=0
+MISLEADING polls after the recording started: 1
+   {'t': '2026-11-14T17:44:06.494Z', 'State': 'finalizing', 'CaptureLiveness': 'faulted', 'CaptureSecondsSinceGrowth': 46, 'LastStopFailed': False, 'LastStopError': None, 'LastCaptureFault': None, 'LastCaptureFaultUtc': None}
