@@ -376,7 +376,14 @@ namespace AgentEyes
                     }
                     MuxCoordinator.Reconcile(dir);
 
-                    if (PostRecordingPlan.NeedsMux(dir))
+                    if (Manifest.Load(dir).PendingMux == null)
+                    {
+                        // Issue #128 round three (R2-3): Reconcile published a mux that had completed
+                        // before a process death - the final media exists, so the later stages run.
+                        Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - reconciled a completed mux; "
+                            + "continuing with the later stages");
+                    }
+                    else if (PostRecordingPlan.NeedsMux(dir))
                     {
                         // Counted before the work: a process killed mid-mux must still consume a try, or
                         // a capture ffmpeg can never mux would re-run on every recovery pass forever.

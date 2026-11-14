@@ -287,7 +287,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Packaging.TitleBackfill::Apply -> AgentEyes.ManifestStore::Update x1",    // the generated title, and the AI cost ADDED to the total
             "agenteyes.dll!AgentEyes.PostRecordingState::Update -> AgentEyes.ManifestStore::Update x1",        // the issue #152 stage journal
             "agenteyes.dll!AgentEyes.RecordingService::BeginSession -> AgentEyes.ManifestStore::Replace x1",   // the record published at start (issue #155)
-            "agenteyes.dll!AgentEyes.RecordingService::FinalizePending -> AgentEyes.ManifestStore::Update x1", // the deferred mux result
+            "agenteyes.dll!AgentEyes.RecordingService::PublishFinalized -> AgentEyes.ManifestStore::Update x1", // the deferred mux result (FinalizePending and, issue #128 round three, a finalize completed after a process death)
             "agenteyes.dll!AgentEyes.RecordingService::Screenshot -> AgentEyes.ManifestStore::Replace x1",     // a one-shot screenshot's own record
             "agenteyes.dll!AgentEyes.RecordingService::Stop -> AgentEyes.ManifestStore::Update x1",            // the stop's own fields
             "agenteyes.dll!AgentEyes.RecoveryManifest::Save -> AgentEyes.ManifestStore::Replace x1",           // the issue #153 reduced last-resort record

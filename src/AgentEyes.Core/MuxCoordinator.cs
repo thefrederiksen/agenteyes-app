@@ -39,6 +39,22 @@ namespace AgentEyes
             var p = m.PendingMux;
             if (p == null) return;
 
+            // Issue #128 round three (R2-3): a death AFTER the mux completed - Preserve had renamed a
+            // raw input to its backup - but before the manifest said so. Round two kept the file but
+            // recorded a failed attempt and left the mux pending, so the next pass re-muxed from an
+            // input that was gone and either DELETED the completed file (processing off) or
+            // stranded it forever behind "could not read the audio channel count" (defaults on).
+            // The intended behaviour is to finish what the dead process was doing: publish the
+            // completed file and record the mux as done.
+            if (IsProvenComplete(dir, p))
+            {
+                Log.Error($"[MuxCoordinator] Reconcile: {Path.GetFileName(dir)} - {p.FinalFile} is a COMPLETED mux whose manifest " +
+                          "update was lost (a raw input was already preserved as its .original backup); publishing it");
+                RecordingService.CompleteInterruptedFinalize(dir);
+                PostRecordingState.NoteDone(dir, PostStage.Mux);
+                return;
+            }
+
             var record = PostRecordingState.Get(m, PostStage.Mux);
             if (record != null && string.Equals(record.State, PostStageState.Running, StringComparison.Ordinal))
             {
@@ -53,12 +69,26 @@ namespace AgentEyes
         }
 
         /// <summary>
-        /// The final path of a recording whose mux is still pending can only hold a fragment: the
-        /// mux clears <see cref="Manifest.PendingMux"/> only after it wrote the file completely. The
-        /// one exception is a death in the instant between the mux finishing and that manifest write
-        /// - after <see cref="OriginalBackup.Preserve"/> has already renamed the raw inputs away. So
-        /// the file is removed only while every raw input the mux reads is still present; if one is
-        /// gone the mux had completed, the file is kept, and that is logged loudly.
+        /// Issue #128 round three: true when the final file of a pending mux is proven COMPLETE - it
+        /// exists, and <see cref="OriginalBackup.Preserve"/> has renamed at least one raw input to its
+        /// backup, which <see cref="RecordingService.FinalizePending"/> does only after the mux
+        /// returned. An input that is merely missing, with no backup, is not proof.
+        /// </summary>
+        public static bool IsProvenComplete(string dir, Manifest.PendingMuxInfo p)
+        {
+            if (p == null) throw new ArgumentNullException(nameof(p));
+            if (string.IsNullOrWhiteSpace(p.FinalFile)) return false;
+            if (!File.Exists(Path.Combine(dir, p.FinalFile))) return false;
+            return OriginalBackup.AnyPreserved(dir, p.Mode, RecordingService.ParseSource(p.Source));
+        }
+
+        /// <summary>
+        /// The final path of a recording whose mux is still pending holds a fragment, unless
+        /// <see cref="IsProvenComplete"/> (handled before this is reached): the mux clears
+        /// <see cref="Manifest.PendingMux"/> only after it wrote the file completely. The file is
+        /// removed only while every raw input the mux reads is still present - an input that is gone
+        /// without a backup means something outside AgentEyes removed it, the file cannot be proven
+        /// a fragment, and it is kept (and the next attempt refuses to start, naming the input).
         /// </summary>
         private static void RemoveFragment(string dir, Manifest.PendingMuxInfo p)
         {
@@ -72,8 +102,8 @@ namespace AgentEyes
                 if (!File.Exists(Path.Combine(dir, input)))
                 {
                     Log.Error($"[MuxCoordinator] RemoveFragment: {Path.GetFileName(dir)} - {p.FinalFile} exists, the mux is " +
-                              $"still marked pending, but its input {input} is gone (already preserved as the original): " +
-                              "the mux completed and only its manifest update was lost. The file is KEPT.");
+                              $"still marked pending, and its input {input} is gone with no .original backup: the file " +
+                              "cannot be proven a fragment, so it is KEPT.");
                     return;
                 }
             }

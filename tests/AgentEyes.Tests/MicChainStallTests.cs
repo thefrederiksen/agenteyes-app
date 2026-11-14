@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -471,29 +472,53 @@ namespace AgentEyes.Tests
             string model = ModelFilterPath();
             string version = FfmpegVersion();
 
-            var bare = NonFiniteAfter($"arnndn=m='{model}'", samples, layout);
+            // Issue #128 round three (R2-2): the defect is an out-of-bounds read, so whether ONE bare
+            // run shows it is per-run chance - QA measured 2 of 30 bare mono runs clean on 9.0.2, and
+            // a single-shot requirement failed CI on a correct build (push run 43635548525). The bare
+            // run is therefore repeated until it reproduces, up to BareRunLimit times: at the
+            // measured clean rate (2/30) ten clean runs in a row is about 2e-12. On an ffmpeg WITHOUT
+            // the defect (8.1.1) every run is clean, so the CI requirement below still fails there,
+            // after BareRunLimit runs, exactly as before. What counts as reproducing is unchanged: a
+            // non-finite sample, or ffmpeg dying on it.
+            const int BareRunLimit = 10;
+            var bareRuns = new List<(int exit, long total, long nonFinite)>();
+            (int exit, long total, long nonFinite) bare;
+            do
+            {
+                bare = NonFiniteAfter($"arnndn=m='{model}'", samples, layout);
+                bareRuns.Add(bare);
+            }
+            while (bare.nonFinite == 0 && bare.exit == 0 && bareRuns.Count < BareRunLimit);
+            bool bareReproduced = bare.nonFinite > 0 || bare.exit != 0;
+
             var framed = NonFiniteAfter($"{FfmpegArgs.ArnndnFraming},arnndn=m='{model}'", samples, layout);
             _out.WriteLine($"{version} | {layout} | {samples} samples (% 480 = {samples % 480}) | " +
-                           $"arnndn alone: exit {bare.exit}, {bare.nonFinite} non-finite of {bare.total} | " +
-                           $"framed: exit {framed.exit}, {framed.nonFinite} of {framed.total}");
+                           $"arnndn alone, {bareRuns.Count} run(s): " +
+                           string.Join("; ", bareRuns.Select(r => $"exit {r.exit}, {r.nonFinite} non-finite of {r.total}")) +
+                           $" | framed: exit {framed.exit}, {framed.nonFinite} of {framed.total}");
 
             // The instrument must work: arnndn rounds its output up to a whole frame either way.
             Assert.True(framed.exit == 0, $"framed arnndn failed with exit {framed.exit}");
             Assert.True(framed.total > 0, "framed arnndn produced no samples - broken instrument");
             Assert.Equal(0, framed.nonFinite);
             // The framing must not change the length (arnndn rounds up to a whole frame either way).
-            // Only checkable when the bare run survived.
-            if (bare.exit == 0)
-                Assert.True(framed.total == bare.total,
-                    $"output lengths differ (bare {bare.total}, framed {framed.total}) - the framing changed the length");
+            // Checked against every bare run that survived; at least one survives in practice (a
+            // crash is ~1 in 40), and a sweep with none is said, not silently skipped.
+            var survived = bareRuns.Where(r => r.exit == 0).ToList();
+            foreach (var r in survived)
+                Assert.True(framed.total == r.total,
+                    $"output lengths differ (bare {r.total}, framed {framed.total}) - the framing changed the length");
+            if (survived.Count == 0)
+                _out.WriteLine("length check not made: every bare run crashed");
 
             // A test that can only pass proves nothing, so record whether THIS ffmpeg reproduces the
             // defect. 9.0.2 (gyan.dev, the shipped build) does; 8.1.1 does not. On CI it MUST
             // reproduce - if a newer ffmpeg stops emitting the frame, this fails and says so, rather
             // than the D3 tests quietly testing nothing.
             if (Environment.GetEnvironmentVariable("CI") == "true")
-                Assert.True(bare.nonFinite > 0 || bare.exit != 0,
-                    $"{version} no longer emits arnndn's end-of-stream NaN frame - the D3 tests no longer exercise the defect on CI");
+                Assert.True(bareReproduced,
+                    $"{version} did not emit arnndn's end-of-stream NaN frame in {bareRuns.Count} bare run(s) - " +
+                    "the D3 tests no longer exercise the defect on CI");
         }
 
         [Fact]

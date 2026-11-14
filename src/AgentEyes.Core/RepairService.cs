@@ -356,9 +356,19 @@ namespace AgentEyes
         ///
         /// Ungated on purpose - the caller holds <see cref="Gate"/>.
         /// </summary>
-        public async Task ResumeUnfinishedAsync(int captureEpoch)
+        public Task ResumeUnfinishedAsync(int captureEpoch) => ResumeUnfinishedAsync(RecordingPaths.Root, captureEpoch);
+
+        /// <summary>
+        /// <see cref="ResumeUnfinishedAsync(int)"/> over an explicit recordings root: the discovery
+        /// scan and the resume loop, exactly as the repair pass runs them. The root is a parameter
+        /// (issue #128 round three) so a test can drive the PRODUCT path - discovery included -
+        /// over a temporary library; round two's test called the sequence directly, skipped
+        /// discovery, and so could not see a recording discovery never listed.
+        /// </summary>
+        internal async Task ResumeUnfinishedAsync(string root, int captureEpoch)
         {
-            var unfinished = await Task.Run(() => PostRecordingPlan.FindUnfinished(RecordingPaths.Root));
+            Log.Info($"[RepairService] ResumeUnfinishedAsync: root={root}");
+            var unfinished = await Task.Run(() => PostRecordingPlan.FindUnfinished(root));
             await ResumeAsync(unfinished, captureEpoch);
         }
 

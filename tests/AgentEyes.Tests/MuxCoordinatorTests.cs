@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using AgentEyes;
 using Xunit;
 
@@ -32,6 +33,7 @@ namespace AgentEyes.Tests
         {
             PostRecording.RestoreDefaultSteps();
             PostRecording.AfterPackaging = null;
+            RepairService.RestoreDefaultSteps();
             try { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); }
             catch (IOException) { }
         }
@@ -255,7 +257,10 @@ namespace AgentEyes.Tests
                 MuxCoordinator.Reconcile(dir);
 
             Assert.True(File.Exists(Path.Combine(dir, "recording.mp4")), "a completed mux output was deleted");
-            Assert.StartsWith(MuxCoordinator.InterruptedPrefix, MuxRecord(dir)!.Error);
+            // Round three (R2-3): kept AND published - recording it as an interrupted failure left the
+            // mux pending, and the next pass then deleted or stranded the file.
+            Assert.Null(Manifest.Load(dir).PendingMux);
+            Assert.Equal(PostStageState.Done, MuxRecord(dir)!.State);
         }
 
         [Fact]
@@ -278,6 +283,179 @@ namespace AgentEyes.Tests
         {
             string dir = PendingVideo("2026-11-14_130000_d2transcribe", fragment: true);
             Assert.False(TranscriptionBacklog.NeedsTranscription(dir));
+        }
+
+        // ---- round three: every case below runs through the repair pass's REAL entry point -------
+        //
+        // RepairService.ResumeUnfinishedAsync(root, epoch) is the method the app's repair tick runs
+        // (RunAsync -> ResumeUnfinishedAsync(epoch) -> this overload with RecordingPaths.Root):
+        // discovery (PostRecordingPlan.FindUnfinished) and then the resume loop (ResumeAsync ->
+        // PostRecording.Resume). Only the root differs. Round two's R2-1 test called
+        // PostRecording.Run directly, skipped discovery, and so could not see a recording discovery
+        // never listed - that is the defect these exist to catch.
+
+        private Task RepairPass() =>
+            new RepairService(() => false).ResumeUnfinishedAsync(_root, CaptureSignal.Epoch);
+
+        private List<string> RecordLaterStages()
+        {
+            var ran = new List<string>();
+            PostRecording.ComposeStep = _ => ran.Add(PostStage.Compose);
+            PostRecording.ThumbnailStep = _ => ran.Add(PostStage.Thumbnail);
+            PostRecording.PackageStep = _ => ran.Add(PostStage.Package);
+            return ran;
+        }
+
+        /// <summary>Gives a pending fixture a camera and a recorded framing, so it needs a compose.</summary>
+        private static void AddCamera(string dir)
+        {
+            File.WriteAllBytes(Path.Combine(dir, "camera.mp4"), new byte[1024]);
+            ManifestStore.Update(dir, m =>
+            {
+                m.CameraFile = "camera.mp4";
+                m.PreviewOverlayCorner = "bottom-right";
+                m.PreviewOverlayShape = "circle";
+            });
+        }
+
+        [Fact]
+        public async Task RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone()
+        {
+            // R2-1, QA's launch 4: three hard kills, so attempts = 3 and the record is still "running"
+            // with the 18 MB fragment at the final path. Before the fix FindUnfinished said
+            // "unfinished=0" and nothing ever reconciled it.
+            string dir = PendingVideo("2026-11-14_140000_r3last", PostStageState.Running,
+                attempts: PostRecordingState.MaxMuxAttempts, fragment: true);
+            var ran = RecordLaterStages();
+            bool muxRan = false;
+            PostRecording.MuxStep = _ => muxRan = true;
+
+            Assert.Equal(new[] { dir }, PostRecordingPlan.FindUnfinished(_root));   // discovery finds it
+
+            await RepairPass();
+
+            var rec = MuxRecord(dir)!;
+            Assert.Equal(PostStageState.Failed, rec.State);
+            Assert.Equal(PostRecordingState.MaxMuxAttempts, rec.Attempts);
+            Assert.StartsWith(MuxCoordinator.InterruptedPrefix, rec.Error);
+            Assert.Contains($"mux attempt {PostRecordingState.MaxMuxAttempts}", rec.Error);
+            Assert.False(File.Exists(Path.Combine(dir, "recording.mp4")), "the dead attempt's fragment is still at the final path");
+            Assert.False(muxRan, "a fourth mux attempt ran");
+            Assert.Empty(ran);
+
+            // Settled: it must not come back on every repair tick.
+            Assert.Empty(PostRecordingPlan.FindUnfinished(_root));
+        }
+
+        [Theory]
+        [InlineData(1, false)]
+        [InlineData(1, true)]
+        [InlineData(3, false)]
+        [InlineData(3, true)]
+        public async Task RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(int attempts, bool processingOn)
+        {
+            // R2-3: the death between OriginalBackup.Preserve (raw.mp4 already renamed to its backup)
+            // and the manifest write. Round two kept the file but left the mux pending: the next pass
+            // deleted it (processing off, RunStage's cleanup) or failed forever on "could not read
+            // the audio channel count" (defaults on). Decided behaviour: the mux had completed, so the
+            // repair pass finishes the dead process's publication - the file stays, the mux is done,
+            // and the recording goes on to its thumbnail and transcript. No mux runs.
+            string dir = PendingVideo($"2026-11-14_140000_r3done{attempts}{(processingOn ? "on" : "off")}",
+                PostStageState.Running, attempts: attempts, fragment: true);
+            if (processingOn)
+                ManifestStore.Update(dir, m => m.PendingMux!.Options = new AudioMixOptions());   // the shipped defaults
+            byte[] completed = new byte[8192];
+            new Random(128).NextBytes(completed);
+            File.WriteAllBytes(Path.Combine(dir, "recording.mp4"), completed);
+            File.Move(Path.Combine(dir, "raw.mp4"), Path.Combine(dir, "recording.original.mp4"));
+            var ran = RecordLaterStages();
+            // The REAL mux step: if anything re-muxes, it runs against an input that is gone.
+            PostRecording.MuxStep = RecordingService.FinalizePending;
+
+            Assert.Equal(new[] { dir }, PostRecordingPlan.FindUnfinished(_root));
+
+            await RepairPass();
+
+            Assert.True(File.Exists(Path.Combine(dir, "recording.mp4")), "the completed mux output was deleted");
+            Assert.Equal(completed, File.ReadAllBytes(Path.Combine(dir, "recording.mp4")));
+            var m = Manifest.Load(dir);
+            Assert.Null(m.PendingMux);
+            Assert.Contains("recording.original.mp4", m.OriginalFiles);
+            var rec = MuxRecord(dir)!;
+            Assert.Equal(PostStageState.Done, rec.State);
+            Assert.Null(rec.Error);
+            Assert.Equal(attempts, rec.Attempts);   // publishing a completed mux is not another attempt
+            Assert.Contains(PostStage.Thumbnail, ran);
+            Assert.True(TranscriptionBacklog.NeedsTranscription(dir) || ran.Contains(PostStage.Package),
+                "the recording is neither transcribed nor waiting for transcription");
+        }
+
+        [Fact]
+        public async Task RepairPass_InputGoneWithoutABackup_KeepsTheFinalFileAndNamesTheMissingInput()
+        {
+            // R2-3, the other half: an input missing with NO .original backup is not proof the mux
+            // completed, so the file is neither published nor deleted, and the real mux step refuses
+            // before ffmpeg can run (and before a failed pass's cleanup can delete the file).
+            string dir = PendingVideo("2026-11-14_140000_r3gone", PostStageState.Failed, attempts: 1, fragment: true);
+            File.Delete(Path.Combine(dir, "raw.mp4"));
+            var ran = RecordLaterStages();
+            PostRecording.MuxStep = RecordingService.FinalizePending;
+
+            await RepairPass();
+
+            Assert.True(File.Exists(Path.Combine(dir, "recording.mp4")), "a file that could not be proven a fragment was deleted");
+            var rec = MuxRecord(dir)!;
+            Assert.Equal(PostStageState.Failed, rec.State);
+            Assert.Equal(2, rec.Attempts);
+            Assert.Contains("raw.mp4 is missing", rec.Error);
+            Assert.NotNull(Manifest.Load(dir).PendingMux);
+            Assert.Empty(ran);
+        }
+
+        [Fact]
+        public async Task RepairPass_CameraRecordingWithAnExhaustedMux_BurnsNoComposeAndIsNotRediscovered()
+        {
+            // R2-4: NeedsCompose had no PendingMux guard. QA measured, with the early return in
+            // Execute removed, a compose attempt burned with "the screen recording is missing"; and
+            // with it in place the recording was still listed by discovery on every repair tick.
+            string dir = PendingVideo("2026-11-14_140000_r3cam", PostStageState.Failed,
+                attempts: PostRecordingState.MaxMuxAttempts);
+            AddCamera(dir);
+            var ran = RecordLaterStages();
+
+            Assert.Empty(PostRecordingPlan.FindUnfinished(_root));
+
+            await RepairPass();
+
+            Assert.Empty(ran);
+            Assert.Null(PostRecordingState.Get(Manifest.Load(dir), PostStage.Compose));
+        }
+
+        [Fact]
+        public async Task RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose()
+        {
+            string dir = PendingVideo("2026-11-14_140000_r3camkill", PostStageState.Running,
+                attempts: PostRecordingState.MaxMuxAttempts, fragment: true);
+            AddCamera(dir);
+            var ran = RecordLaterStages();
+
+            await RepairPass();
+
+            Assert.StartsWith(MuxCoordinator.InterruptedPrefix, MuxRecord(dir)!.Error);
+            Assert.False(File.Exists(Path.Combine(dir, "recording.mp4")));
+            Assert.Empty(ran);
+            Assert.Null(PostRecordingState.Get(Manifest.Load(dir), PostStage.Compose));
+            Assert.Empty(PostRecordingPlan.FindUnfinished(_root));
+        }
+
+        [Fact]
+        public void NeedsCompose_PendingMux_IsFalse_AndTrueOnceTheMuxIsDone()
+        {
+            string dir = PendingVideo("2026-11-14_140000_r3composepred", fragment: true);
+            AddCamera(dir);
+            Assert.False(PostRecordingPlan.NeedsCompose(dir));
+            ManifestStore.Update(dir, m => m.PendingMux = null);
+            Assert.True(PostRecordingPlan.NeedsCompose(dir));
         }
 
         [Fact]
