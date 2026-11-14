@@ -187,9 +187,9 @@ recording's own video, and the same bitrate class as criterion 1's.
   #128's watchdog rather than spinning forever.** Often, not occasionally: the bare filter graph on
   this audio wedged 3 of 3 times, so the 6.71 s completion was the lucky one. The second finding
   below has the rates, the fact that it reproduces on `main`'s chain with no video in the command,
-  and the measurement QA will want - **`-filter_complex_threads 1` makes it go away, 0 of 3**. I did
-  not put that flag in the product, for the reasons given there. Both runs are in
-  [mux-run-log.txt](mux-run-log.txt).
+  and what I could and could not establish about it - including a `-filter_complex_threads 1` lead
+  that looked like the answer on the ten-minute audio and then failed on the sixty-second one, so
+  there is no workaround to hand QA. Both runs are in [mux-run-log.txt](mux-run-log.txt).
 
 ### 3. Sixty seconds, default settings, macOS - amended to the mux level
 
@@ -479,8 +479,8 @@ stalling stage is `speechnorm`:
 | with the sanitizer, `speechnorm` removed | 60.224 s | 2 | **0** |
 | the same chain on 111731's audio (criterion 1's recording) | 75.488 s | 3 | **0** |
 | the same chain on the ten-minute audio | 600.384 s | 3 | **3** |
-| **the ten-minute audio with `-filter_complex_threads 1`** | 600.384 s | 2 | **0** (3 s each) |
-| **the 60-second audio with `-filter_complex_threads 1`** | 60.224 s | 1 | **0** (1 s) |
+| the ten-minute audio with `-filter_complex_threads 1` | 600.384 s | 2 | **0** (3 s each) |
+| the 60-second audio with `-filter_complex_threads 1` | 60.224 s | 3 | **2** |
 
 So it is pre-existing on `main`, the sanitizer is not the cause - it wedged **more** often without
 it - and it is content-dependent: `speechnorm`, on some content and not other content. Read against
@@ -502,21 +502,23 @@ output (a raw stream with no header to rewrite) completed where `.wav` and `.m4a
 reads as an ffmpeg 9.0.2 end-of-stream scheduling race rather than a filter that cannot finish -
 the same family as the muxing-queue deadlock, and not the same bug.
 
-**The actionable part, and I am handing it over rather than acting on it.**
-`-filter_complex_threads 1` removes the stall: 0 of 3 single-threaded runs wedged, against 3 of 3
-(ten minutes) and 2 of 4 (sixty seconds) with the default. That is the **opposite** of how the
-muxing-queue deadlock behaved - the Implementation Lead measured the same flag against that one and
-it did not help - so the flag is a clean discriminator between the two faults, and it points at a
-filter-threading race at end of stream.
+**A conclusion I drew too early and am withdrawing.** When the ten-minute single-threaded runs came
+back 0 of 2 against a default 3 of 3, I wrote here - and raised to the Implementation Lead - that
+`-filter_complex_threads 1` removes the stall. The 60-second single-threaded runs then came back **2
+of 3 wedged**, the same rate as that input's default. So it does not: single-threading changed
+nothing measurable on the shorter audio, and 0-of-2 against 3-of-3 on the longer one is too small a
+sample to claim a cause from. There is no flag in this branch that mitigates this stall, and I am
+not going to invent one.
 
-**I did not add that flag to the product**, although one line in the pass-1 builders would do it and
-it would make criteria 2 and 3 pass reliably. It is a mitigation for a different issue's defect, its
-root cause is not established, and one issue per branch. The Implementation Lead has the measurement
-and can say whether it belongs in this PR.
+What survives is the part that was measured rather than inferred: the stall is real and frequent
+(3 of 3 on the ten-minute audio), it is not the muxing queue, it is not #128's sanitizer, it is
+`speechnorm` - removing that stage is the only intervention that cleanly stopped it (0 of 2) - it is
+content-dependent, and #128's watchdog bounds it. **The root cause is not established here.**
 
-One caveat on it: single-threading stops the hang but **not** the level nondeterminism - the two
-completed single-threaded ten-minute runs were still 15 dB apart (mean -52.4 / max -0.4, then mean
--67.7 / max -25.8). So the hang and the varying gain may not share one cause.
+One further caveat: whatever it is, it has a second symptom that no threading change touched - the
+processed **level** is not reproducible either. The two completed single-threaded ten-minute runs
+were 15 dB apart (mean -52.4 / max -0.4, then mean -67.7 / max -25.8), and two completed 60-second
+product runs were 26 dB apart. So the hang and the varying gain may not share one cause.
 
 All of it is in [chain-stall-repeats.txt](chain-stall-repeats.txt).
 
@@ -579,8 +581,11 @@ mux, and the way to drive the mux is the one I used.
    `devthrottle-mac-mini`. Build a recording directory whose `raw.mp4` is a long video plus a long
    mic track and whose `manifest.json` carries a `PendingMux` of `Mode: video, Source: mic`, then
    drive `RecordingService.FinalizePending(dir)` (or `agenteyes package <dir>`, which calls it
-   first - note that packaging then goes on to transcribe and will fail at that step if the machine
-   is not signed in; the mux has already happened by then and the log records it).
+   first). **I ran the `agenteyes package` route myself rather than only asserting it works**, since
+   it is the route I am asking QA to use: on the 76-second fixture it muxed, renamed `raw.mp4` to
+   `recording.original.mp4`, left no `audio_processed.wav`, and then failed at the NEXT stage -
+   `transcription FAILED: Not signed in to DevThrottle` - which is expected on this machine and is
+   after the mux, not part of it. Whole invocation 1.29 s.
    [build-mux-fixtures.sh](build-mux-fixtures.sh) builds the exact three directories I measured,
    from material already on the machine; [mux-run-log.txt](mux-run-log.txt) holds both runs it
    produced,
@@ -650,6 +655,7 @@ None of those are needed for this issue.
   run, and that the runs which failed failed in PASS 1, with no video stream in the command.
 - **I did not find the root cause of that second stall, and I did not try to fix it.** I established
   that it is `speechnorm`, that it is at the end of the stream, that it is intermittent, that it is
-  on `main`, and that #128's watchdog bounds it. Why it is intermittent - a thread-scheduling race is
-  the obvious suspect given the identical freeze point - is unanswered here. It belongs to #128 or to
-  an issue of its own, and the Implementation Lead has it.
+  on `main`, and that #128's watchdog bounds it. Why it is intermittent is unanswered: filter
+  threading was the obvious suspect and `-filter_complex_threads 1` did not survive the data, so I
+  withdrew that claim rather than keep it. It belongs to #128 or to an issue of its own, and the
+  Implementation Lead has the measurements.

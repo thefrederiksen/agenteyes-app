@@ -51,6 +51,8 @@ where .wav and .m4a did not.
   c2-1thread run2: ok rc=0 in 3s (115275008 bytes, mean_volume: -67.7 dB max_volume: -25.8 dB )
 === c3-60s audio, -filter_complex_threads 1
   c3-1thread run1: ok rc=0 in 1s (11564288 bytes, mean_volume: -42.6 dB max_volume: -0.4 dB )
+  c3-1thread run2: WEDGED (killed 100s, 11534336 bytes)
+  c3-1thread run3: WEDGED (killed 100s, 11534336 bytes)
 
 SUMMARY
   60 s input, with #128's aeval sanitizer        : 2 of 4 wedged
@@ -59,22 +61,32 @@ SUMMARY
   76 s input (2026-11-14_111731), same chain     : 0 of 3 wedged   -> content-dependent
   602 s input, default threading                 : 3 of 3 wedged
   602 s input, -filter_complex_threads 1         : 0 of 2 wedged, 3 s each
-  60 s input,  -filter_complex_threads 1         : 0 of 1 wedged, 1 s
+  60 s input,  -filter_complex_threads 1         : 2 of 3 wedged   <- so threading is NOT the answer
 
-THE ACTIONABLE PART, for whoever owns this next. '-filter_complex_threads 1' removes the stall:
-0 of 3 single-threaded runs wedged against 3 of 3 (602 s) and 2 of 4 (60 s) with the default. Note
-that this is the OPPOSITE of how the muxing-queue deadlock behaved - the Implementation Lead measured
-'-filter_complex_threads 1' and it did NOT help there. So the flag is a clean discriminator between
-the two faults, and it points at a filter-threading race at end of stream.
+A CORRECTION I AM MAKING TO MYSELF. After the 602 s single-threaded runs came back 0 of 2 against a
+default 3 of 3, I wrote that '-filter_complex_threads 1' removes the stall and raised it as the
+actionable finding. The 60-second single-threaded runs then came back 2 of 3 wedged, which is the
+same rate as that input's default (2 of 4). So that claim was wrong and it is withdrawn:
 
-I did NOT add that flag to the product. It is a mitigation for a different issue's defect, its root
-cause is not established, and one issue per branch. One line in FfmpegArgs' pass-1 builders would do
-it if the Implementation Lead wants it here.
+  - single-threading changed NOTHING measurable on the 60-second audio;
+  - the 602-second difference is 0 of 2 against 3 of 3, which with samples that small is not enough
+    to claim a cause, and I am not going to claim one from it;
+  - the only intervention that clearly helped is REMOVING speechnorm (0 of 2), which is consistent
+    with speechnorm being the stalling stage and with nothing else here.
 
-A SECOND SYMPTOM, which the flag does NOT fix: the processed LEVEL is not reproducible either.
-Completed runs of the same input through the same code differ by 15-26 dB:
+What is left standing, and it is still worth having:
+  - the stall is real, reproducible and frequent (3 of 3 on the ten-minute audio);
+  - it is NOT the muxing queue: no video stream in the command, and it reproduces on main's chain;
+  - it is NOT #128's sanitizer: 4 of 4 wedged without it, 2 of 4 with it;
+  - it is speechnorm, at end of stream, and it is content-dependent (0 of 3 on 111731's audio);
+  - it freezes at an identical byte count on each input, a fraction of a second from the end,
+    without writing the WAV's final header, and '-f adts' output completes where .wav does not;
+  - #128's watchdog bounds it: it failed the stage in 63 s on the product path rather than spinning.
+The root cause is NOT established here, and no flag in this branch mitigates it.
+
+A SECOND SYMPTOM: the processed LEVEL is not reproducible either. Completed runs of the same input
+through the same code differ by 15-26 dB:
   60 s  via the product: mean -68.5 / max -41.5, then mean -42.6 / max -0.4
   602 s single-threaded: mean -52.4 / max -0.4,  then mean -67.7 / max -25.8
-So single-threading the graph stops the hang but not the nondeterminism, which suggests the two
-symptoms may not share one cause. 2026-11-14_111731's audio, by contrast, reproduced exactly
-(mean -68.8 / max -41.0 on every run), which is why the handoff's criterion 4 comparison uses it.
+2026-11-14_111731's audio, by contrast, reproduced exactly (mean -68.8 / max -41.0 on every run),
+which is why the handoff's criterion 4 comparison uses it.
