@@ -187,7 +187,9 @@ namespace AgentEyes.Tests
             // The pre-fix chain's stalling stage on its own, against the trigger, with a short limit.
             string input = WavWithOneNan("nan.wav");
             string output = Path.Combine(_root, "stalled.wav");
-            var limit = TimeSpan.FromSeconds(4);
+            // 10 s, not less: on a loaded 2-core CI runner (the whole suite runs in parallel, other
+            // tests start ffmpeg too) a 4 s limit fired before ffmpeg's output time first advanced.
+            var limit = TimeSpan.FromSeconds(10);
             var sw = Stopwatch.StartNew();
 
             // Run on a worker and wait a bounded time, so that a guard which does NOT fire fails this
@@ -196,18 +198,22 @@ namespace AgentEyes.Tests
             {
                 "-y", "-i", input, "-af", "speechnorm=e=4:p=0.95", "-c:a", "pcm_f32le", output,
             }, "test stall", limit));
-            bool finished = ((System.IAsyncResult)run).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(30));
+            bool finished = ((System.IAsyncResult)run).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(60));
             sw.Stop();
-            Assert.True(finished, "RunWatched was still running after 30 s - the stall guard did not fire");
+            Assert.True(finished, "RunWatched was still running after 60 s - the stall guard did not fire");
             var ex = Assert.IsType<UsageException>(run.Exception?.InnerException);
+            string msg = ex.Message;   // quoted whole in every failure below - xunit truncates otherwise
 
-            Assert.Contains("ffmpeg stalled during test stall", ex.Message);
-            Assert.Contains("limit 4s", ex.Message);
-            Assert.Contains("process killed", ex.Message);
-            // Frozen just before the NaN at 30 s, never at the end (90 s).
-            Assert.Matches(@"at (2\d|30)\.\ds of output", ex.Message);
+            Assert.True(msg.Contains("ffmpeg stalled during test stall") && msg.Contains("limit 10s")
+                        && msg.Contains("process killed"), "unexpected stall message: " + msg);
+            // Frozen just before the NaN at 30 s: the pre-NaN audio DID flow (so this is the NaN
+            // stall, not a run that never started) and the end (90 s) was never reached.
+            var at = System.Text.RegularExpressions.Regex.Match(msg, @"at (\d+\.\d)s of output");
+            Assert.True(at.Success, "the stall was not frozen at an output time: " + msg);
+            double frozenAt = double.Parse(at.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.True(frozenAt >= 20 && frozenAt <= 30.1, $"frozen at {frozenAt}s, expected just before 30 s: " + msg);
             // Bound: the limit plus start-up and 1 s progress granularity - and nowhere near "forever".
-            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(30), $"took {sw.Elapsed.TotalSeconds:F1}s");
+            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(60), $"took {sw.Elapsed.TotalSeconds:F1}s");
         }
 
         [Fact]

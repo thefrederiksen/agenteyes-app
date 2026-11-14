@@ -101,7 +101,7 @@ with a "done" status, which is the quiet degradation this repo forbids.
 | 3 | macOS completes | NOT done - no Mac here. The fix is shared code; QA on macOS must run it. | Open for the macOS seat |
 | 4 | Same on Windows / Linux | Windows: see "Branch run" below. Linux: open. | Windows done |
 | 5 | Audio still processed | See "Processing still happens" below | Done (Windows) |
-| 6 | Stall now fails, within a bound | Injected the pre-fix chain (mutation A below) into the real `AudioMix.MixWavs` path with a NaN-bearing mic: failed after 61 s with `ffmpeg stalled during mix mic+system: output stopped advancing at 30.0s of output for 60s (limit 60s) after 61s - process killed`. Unit-level: 4 s limit fails in well under 30 s. Bound = 60 s of frozen output + up to ~1.5 s (1 s progress period + 0.5 s poll). | Done |
+| 6 | Stall now fails, within a bound | Injected the pre-fix chain (mutation A below) into the real `AudioMix.MixWavs` path with a NaN-bearing mic: failed after 61 s with `ffmpeg stalled during mix mic+system: output stopped advancing at 30.0s of output for 60s (limit 60s) after 61s - process killed`. Unit-level: a 10 s limit fails well inside the test's 60 s wait. Bound = 60 s of frozen output + up to ~1.5 s (1 s progress period + 0.5 s poll). | Done |
 | 7 | Regression tests | 21 tests, both kinds, including the stall itself in ~12 s. Mutation evidence below. | Done |
 | 8 | Gates | Below | Windows done; Unix via CI |
 | 9 | No orphan survives the stage being abandoned | Watchdog kills the process tree; product run below shows the pid gone after the failure | Done (Windows) |
@@ -244,9 +244,9 @@ Failed!  - Failed:     4, Passed:     9, Skipped:     0, Total:    13
 Mutation B - watchdog disabled (`RunWatched` -> `RunCore(args, label, null)`):
 
 ```
-Failed AgentEyes.Tests.MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound [31 s]
-  RunWatched was still running after 30 s - the stall guard did not fire
-Failed!  - Failed:     1, Passed:    12, Skipped:     0, Total:    13
+Failed AgentEyes.Tests.MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound [1 m 1 s]
+  RunWatched was still running after 60 s - the stall guard did not fire
+Failed!  - Failed:     1, Passed:    15, Skipped:     0, Total:    16
 ```
 
 Mutations C, D, E together - partial-output delete off, exhausted-mux guard a no-op, reaper never kills:
@@ -263,13 +263,13 @@ Failed AgentEyes.Tests.MicChainStallTests.RunStage_FailedPass_RemovesThePartialO
 Failed!  - Failed:     4, Passed:    17, Skipped:     0, Total:    21
 ```
 
-(The stall test waits on a worker with a 30 s bound precisely so a dead guard fails by name instead
+(The stall test waits on a worker with a 60 s bound precisely so a dead guard fails by name instead
 of hanging the suite. The watchdog's own unit tests are independent of the wiring and stay green
 under B, as they should.)
 
 ### Gates
 
-Windows, final branch head:
+Windows, final branch head. (CI's first Windows run failed this test at a 4 s limit: on the loaded 2-core runner the guard fired before ffmpeg's output time first advanced. The limit is now 10 s, and the test checks the frozen point is 20-30.1 s, so a run that never started cannot pass as the NaN stall.)
 
 ```
 dotnet build AgentEyes.sln -c Release   -> Build succeeded.  0 Error(s)
