@@ -470,9 +470,18 @@ namespace AgentEyes
                         break;
                 }
 
+                // THE RECORDING'S CLOCK STARTS WHEN THE RECORDING STARTS (issue #114). This used to
+                // be restarted AFTER StartSession, so it measured from the moment every writer was
+                // up and warmed - which is one to two seconds after the capture itself began,
+                // because starting a writer opens a device and waits to see that it opened. The
+                // files therefore came out longer than the duration the service reported for them,
+                // by exactly that setup: 61.90 s of video for a recording reported as 60.06 s, with
+                // nothing wrong with either number except that they were measured from different
+                // instants. Everything that reads this - /status, the HUD, the manifest's
+                // DurationSeconds - now counts from the same instant the first frame does.
+                _sw.Restart();
                 StartSession(steps);
 
-                _sw.Restart();
                 _state = "recording";
                 Log.Info($"start audio src={src} dir={_dir}");
             }
@@ -561,7 +570,15 @@ namespace AgentEyes
                 // gets a post pass too (no loopback!) when any mic processing (suppression,
                 // gate, leveling, volume) is on, so clean-voice applies to plain narration.
                 bool needLoopback = src is AudioSourceKind.Mixed or AudioSourceKind.System;
-                bool postMux = needLoopback || (src == AudioSourceKind.Mic && opts.MicProcessing);
+                // WHO CAPTURED THE MICROPHONE decides whether a mux is optional or mandatory
+                // (issue #114). Where the screen recorder's ffmpeg captures the mic itself, a
+                // mic-only video already has sound and the mux is only for the clean-voice chain.
+                // On macOS it does not: the mic is its own writer, so the mux is the ONLY thing that
+                // puts audio in the recording and it runs whether any processing is on or not.
+                bool separateMic = !CaptureTopology.ScreenRecorderCapturesMic
+                                   && src is AudioSourceKind.Mic or AudioSourceKind.Mixed;
+                bool postMux = needLoopback || separateMic
+                               || (src == AudioSourceKind.Mic && opts.MicProcessing);
                 string finalPath = Path.Combine(_dir, "recording.mp4");
                 string ffOut = postMux ? Path.Combine(_dir, "raw.mp4") : finalPath;
                 if (postMux) _rawVideo = ffOut;
@@ -579,8 +596,9 @@ namespace AgentEyes
                 // BuildPendingMux. The ffmpeg command line is not known until the process starts;
                 // it is recorded at stop, which is the only field of this session that is.
                 if (needLoopback) _sysWav = Path.Combine(_dir, "sys_native.wav");
+                if (separateMic) _micWav = Path.Combine(_dir, CaptureTopology.MicNativeWav);
                 _manifest.PendingMux = BuildPendingMux(
-                    "video", src, micWav: null, _sysWav, _rawVideo,
+                    "video", src, _micWav, _sysWav, _rawVideo,
                     finalFile: finalPath, rawDurationSeconds: 0, opts);
 
                 // The live preview taps (issue #33). Created BEFORE the writers because each one has
@@ -656,8 +674,13 @@ namespace AgentEyes
 
                 steps.Add(new RecordingStartStep("video", () =>
                 {
+                    // The microphone goes to the screen recorder's ffmpeg only on the platforms whose
+                    // recorder captures it (issue #114). Where it does not - macOS - this session has
+                    // already added its own microphone writer above, and passing one here is a
+                    // programming error that FfmpegRecorder refuses rather than ignores.
+                    string? recorderMic = src == AudioSourceKind.System || separateMic ? null : dshowMic;
                     _video = FfmpegRecorder.Start(
-                        capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut, _screenTap,
+                        capture, recorderMic, fps, 23, ffOut, _screenTap,
                         screenNumber: _monitor!.Index);
                     _manifest!.FfmpegCommand = _video.CommandLine;
 
@@ -669,15 +692,32 @@ namespace AgentEyes
                             Math.Round((_camera.StartedUtc - _video.StartedUtc).TotalSeconds, 3);
                 }));
 
-                // ffmpeg owns the mic stream in video mode, so nothing in-process sees the samples.
-                // Open a monitor-only WaveIn capture (shared mode, no file) purely to drive the level
-                // meter. The meter is auxiliary: if the WaveIn name does not resolve (dshow-only
-                // fragment), log it loudly and record without one - so this step never fails the
-                // start, and the recording it would have metered is not thrown away for it.
+                // WHAT THIS WRITER IS FOR DEPENDS ON THE PLATFORM (issue #114).
+                //
+                // Where the screen recorder's ffmpeg owns the mic stream, nothing in-process sees
+                // the samples, so this is a monitor-only capture (shared mode, no file) purely to
+                // drive the level meter. The meter is auxiliary: if the name does not resolve
+                // (a dshow-only fragment), log it loudly and record without one - so the step never
+                // fails the start, and the recording it would have metered is not thrown away for it.
+                //
+                // On macOS it is the RECORDING'S ONLY MICROPHONE, writing mic_native.wav for the
+                // mux, and it therefore CANNOT be auxiliary: swallowing its failure would hand back
+                // a silent video and call it a success, which is the whole defect this issue is
+                // about. There it is a required step like any other writer and a failure fails the
+                // start, with the mic's own message.
                 if (src is AudioSourceKind.Mic or AudioSourceKind.Mixed)
                 {
-                    steps.Add(new RecordingStartStep("mic level meter", () =>
+                    steps.Add(new RecordingStartStep(
+                        separateMic ? "microphone" : "mic level meter", () =>
                     {
+                        if (separateMic)
+                        {
+                            _audio = new AudioCapture(AudioCapture.ResolveDevice(micFragment!));
+                            _audio.LevelChanged += p => _peakMic = p;
+                            _audio.Start(_micWav!);
+                            return;
+                        }
+
                         try
                         {
                             _audio = new AudioCapture(AudioCapture.ResolveDevice(micFragment!));
@@ -712,9 +752,18 @@ namespace AgentEyes
                     }));
                 }
 
+                // THE RECORDING'S CLOCK STARTS WHEN THE RECORDING STARTS (issue #114). This used to
+                // be restarted AFTER StartSession, so it measured from the moment every writer was
+                // up and warmed - which is one to two seconds after the capture itself began,
+                // because starting a writer opens a device and waits to see that it opened. The
+                // files therefore came out longer than the duration the service reported for them,
+                // by exactly that setup: 61.90 s of video for a recording reported as 60.06 s, with
+                // nothing wrong with either number except that they were measured from different
+                // instants. Everything that reads this - /status, the HUD, the manifest's
+                // DurationSeconds - now counts from the same instant the first frame does.
+                _sw.Restart();
                 StartSession(steps);
 
-                _sw.Restart();
                 _state = "recording";
                 Log.Info($"start video src={src} dir={_dir} camera={dshowCamera ?? "(none)"}");
             }
@@ -783,6 +832,30 @@ namespace AgentEyes
             _sw.Stop();
             double elapsed = _sw.Elapsed.TotalSeconds;
 
+            // HOW FAR APART THE TWO CAPTURES' t=0 ARE (issue #114), read from the capture clock both
+            // ffmpegs report their first frame/sample on. Measured HERE, before anything is stopped,
+            // because this is the first moment both numbers are certainly known: each is printed in
+            // its process's input dump a second or two into the recording, so it cannot be computed
+            // at start. Null whenever there is nothing to align - the screen recorder captured the
+            // mic itself, there was no mic, or one of the two never reported a start.
+            double? micOffset = null;
+            if (micWav != null && video?.InputStartSeconds is double videoStart
+                && audio?.InputStartSeconds is double micStart)
+            {
+                micOffset = Math.Round(micStart - videoStart, 6);
+                Log.Info($"[RecordingService] Stop: mic/video alignment - video first frame at "
+                         + $"{videoStart:F6}s, mic first sample at {micStart:F6}s, offset "
+                         + $"{micOffset.Value:F3}s");
+            }
+            else if (micWav != null)
+            {
+                Log.Warn("[RecordingService] Stop: the mic/video alignment could not be measured "
+                         + $"(video start={video?.InputStartSeconds?.ToString() ?? "unknown"}, mic "
+                         + $"start={audio?.InputStartSeconds?.ToString() ?? "unknown"}) - the mux "
+                         + "will join them unshifted and the audio may lead or lag by the "
+                         + "difference in device warm-up. See " + dir);
+            }
+
             string finalAudio = Path.Combine(dir!, "audio.wav");
             string finalVideo = Path.Combine(dir!, "recording.mp4");
 
@@ -816,7 +889,7 @@ namespace AgentEyes
                 manifest!.PendingMux = BuildPendingMux(
                     mode, src, micWav, sysWav, rawVideo,
                     finalFile: mode == "audio" ? finalAudio : finalVideo,
-                    rawDurationSeconds: elapsed, opts);
+                    rawDurationSeconds: elapsed, opts, micOffset);
                 deferred = manifest.PendingMux != null;
 
                 manifest.DurationSeconds = Math.Round(elapsed, 2);
@@ -1008,8 +1081,34 @@ namespace AgentEyes
             }
             else
             {
-                if (src == AudioSourceKind.Mixed) { AudioMix.MuxVideoMixed(raw!, sys!, finalPath, p.Options); elapsed = SafeDur(finalPath, elapsed); }
+                // Mixed, with the microphone captured separately (macOS, issue #114): the mic is its
+                // own input rather than the audio track inside the video, so this is the three-input
+                // form. Checked BEFORE the two-input one, which would look for a mic track that a
+                // macOS raw.mp4 does not have.
+                if (src == AudioSourceKind.Mixed && raw != null && mic != null && sys != null)
+                {
+                    if (p.MicOffsetSeconds == null) WarnUnalignedMux(dir);
+                    AudioMix.MuxVideoMicAndSystemWavs(
+                        raw, mic, sys, finalPath, p.Options, p.MicOffsetSeconds ?? 0.0);
+                    elapsed = SafeDur(finalPath, elapsed);
+                }
+                else if (src == AudioSourceKind.Mixed) { AudioMix.MuxVideoMixed(raw!, sys!, finalPath, p.Options); elapsed = SafeDur(finalPath, elapsed); }
                 else if (src == AudioSourceKind.System) { AudioMix.MuxVideoSystemOnly(raw!, sys!, finalPath, p.Options.SystemGain); elapsed = SafeDur(finalPath, elapsed); }
+                // The microphone was captured by its own ffmpeg into its own WAV (macOS, issue #114),
+                // so this mux is what gives the recording its audio - not just its clean-voice pass.
+                //
+                // A NULL OFFSET IS NOT ZERO, it is "never measured", and the two are only the same
+                // number. It happens for a recording recovered from its START manifest: the stop that
+                // measures the alignment never landed, and both ffmpeg logs died with the process, so
+                // the measurement cannot be recovered. Joining them unshifted keeps a playable
+                // recording with its sound - which is the point of recovery - and the warning plus the
+                // null left in the manifest are what stop that from passing as a measured alignment.
+                else if (src == AudioSourceKind.Mic && raw != null && mic != null)
+                {
+                    if (p.MicOffsetSeconds == null) WarnUnalignedMux(dir);
+                    AudioMix.MuxVideoMicWav(raw, mic, finalPath, p.Options, p.MicOffsetSeconds ?? 0.0);
+                    elapsed = SafeDur(finalPath, elapsed);
+                }
                 else if (src == AudioSourceKind.Mic && raw != null) { AudioMix.ProcessVideoMic(raw, finalPath, p.Options); elapsed = SafeDur(finalPath, elapsed); }
             }
 
@@ -1038,6 +1137,19 @@ namespace AgentEyes
             });
             Log.Info($"finalize: done dir={dir} dur={elapsed:F1}s");
         }
+
+        /// <summary>
+        /// A NULL OFFSET IS NOT ZERO, it is "never measured", and the two are only the same number
+        /// (issue #114). It happens for a recording recovered from its START manifest: the stop that
+        /// measures the alignment never landed, and both ffmpeg logs died with the process, so the
+        /// measurement cannot be recovered. Joining the two unshifted keeps a playable recording with
+        /// its sound - which is the point of recovery - and this warning plus the null left in the
+        /// manifest are what stop that from being mistaken for a measured alignment.
+        /// </summary>
+        private static void WarnUnalignedMux(string dir) =>
+            Log.Warn($"finalize: {Path.GetFileName(dir)} has no measured mic/video alignment "
+                     + "(recovered from a recording that never stopped) - muxing unshifted; the "
+                     + "audio may lead or lag by the difference in device warm-up");
 
         // ---- helpers ------------------------------------------------------
 
@@ -1222,7 +1334,8 @@ namespace AgentEyes
         /// </summary>
         private static Manifest.PendingMuxInfo? BuildPendingMux(
             string mode, AudioSourceKind src, string? micWav, string? sysWav, string? rawVideo,
-            string finalFile, double rawDurationSeconds, AudioMixOptions opts)
+            string finalFile, double rawDurationSeconds, AudioMixOptions opts,
+            double? micOffsetSeconds = null)
         {
             bool deferred = mode == "audio"
                 ? src is AudioSourceKind.System or AudioSourceKind.Mixed
@@ -1240,6 +1353,7 @@ namespace AgentEyes
                 SysWav = sysWav != null ? Path.GetFileName(sysWav) : null,
                 FinalFile = Path.GetFileName(finalFile),
                 RawDurationSeconds = Math.Round(rawDurationSeconds, 2),
+                MicOffsetSeconds = micOffsetSeconds,
                 Options = opts,
             };
         }
