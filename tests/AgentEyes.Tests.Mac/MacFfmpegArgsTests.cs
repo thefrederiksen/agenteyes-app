@@ -163,21 +163,8 @@ namespace AgentEyes.Tests.Mac
             Assert.Throws<ArgumentOutOfRangeException>(() => FfmpegArgs.AvfCameraCapture(-1, 30, 23, "/r/c.mp4"));
         }
 
-        [Fact]
-        public void ScreencaptureStill_IsSilentPngOfTheRegion()
-        {
-            var args = FfmpegArgs.ScreencaptureStill(new Rectangle(10, 20, 640, 480), "/r/shot.png");
-
-            Assert.Equal(new[] { "-x", "-t", "png", "-R", "10,20,640,480", "/r/shot.png" }, args);
-        }
-
-        [Fact]
-        public void ScreencaptureStill_OddRegion_IsEvenized()
-        {
-            var args = FfmpegArgs.ScreencaptureStill(new Rectangle(0, 0, 641, 481), "/r/shot.png");
-
-            Assert.Contains("0,0,640,480", args);
-        }
+        // The still used to be built here as a screencapture command line. Issue #115 moved it onto
+        // the AVFoundation grabber the recording uses; MacStillCaptureTests owns it now.
 
         // ---- the live microphone stream ----
 
