@@ -266,7 +266,7 @@ curl -s -X POST $API/record/stop -H 'Content-Type: application/json' -d '{}'   #
 | 5 | frame count vs rate | `ffprobe -count_packets` video packets vs duration x 30, within 10%. |
 | 6 | `audio_16k.wav` spans it | `ffprobe` its duration vs the video's, within 3.0 s. |
 | 7 | encoder keeps up | last `frame=` line of the log, `speed=` at least 0.95x. |
-| 8 | Windows and Linux untouched | `tests/AgentEyes.Tests.Linux/LinuxFfmpegArgsTests.cs` pins the exact x11grab+pulse command line INCLUDING its mic input, and adds `CaptureTopology_OnLinux_TheScreenRecorderCapturesTheMicItself`. `tests/AgentEyes.Tests.Mac/MacMicAlignmentTests.cs` pins `FilterVideoMic` and `MuxVideoAddSystem` byte-for-byte, which are every other caller of the `MicChain` I changed - that one runs on a Mac, so it is checked on the machine the change was made on. The Windows suite `tests/AgentEyes.Tests/` cannot run on a Mac; CI runs it on the PR. |
+| 8 | Windows and Linux untouched | `tests/AgentEyes.Tests.Linux/LinuxFfmpegArgsTests.cs` pins the exact x11grab+pulse command line INCLUDING its mic input, and adds `CaptureTopology_OnLinux_TheScreenRecorderCapturesTheMicItself`. `tests/AgentEyes.Tests.Mac/MacMicAlignmentTests.cs` pins `FilterVideoMic`, `MixTwoWav` and `MuxVideoMixMicSystem` byte-for-byte, which are (verified by grep) exactly the three pre-existing callers that rely on `MicChain`'s `[0:a]` default; the only other callers are the two macOS builders this issue added, which pass `[1:a]` explicitly. It also pins `MuxVideoAddSystem`, which is NOT a `MicChain` caller - an earlier version of this row named it as one and called the two pins "every other caller", and both claims were wrong (QA finding F2, corrected on this branch; the `MixTwoWav` and `MuxVideoMixMicSystem` pins were added at the same time and passed first time against the unchanged builders). That suite runs on a Mac, so it is checked on the machine the change was made on. The Windows suite `tests/AgentEyes.Tests/` cannot run on a Mac; CI runs it on the PR. |
 | 9 | gate | the four commands above. |
 | 10 | regression test | `MacFfmpegArgsTests.AvfVideoCapture_NeverCapturesTheMicrophone_WhateverTheScreen` fails against the argument list that shipped (it appended an avfoundation audio input plus `-c:a aac -b:a 128k`), and `AvfStreamArguments_GiveTheDeviceADeepInputQueue` fails against the mic arguments that shipped. Both assert a PRESENCE first - that the list really is an AVFoundation capture - so an empty or throwing builder fails instead of passing for free. |
 
@@ -356,3 +356,59 @@ Medium, and concentrated in two places.
 * The macOS mic is now a separate writer whose failure fails the start. That is deliberate (a
   silent video reported as a success is the defect), but it does mean a Mac whose microphone
   cannot be opened can no longer record screen+mic at all, where before it recorded silently.
+
+## Follow-up pass: QA findings F1 and F2 applied (comments only)
+
+A short pass on this branch after the review gate, applying the two findings QA raised. No
+behaviour change: every line changed under `src/` is a comment line, verified by diffing with
+comment lines filtered out, and the gate was re-run after.
+
+**F1 - the disproved cause was still stated as fact in the source.** Corrected in three places.
+`Platform/Mac/FfmpegArgs.Mac.cs` (`AvfVideoCapture`) now states the measured cause - no
+`ProcessType` on the launchd agent, so macOS ran the recorder as throttled background work, and
+ffmpeg's AVFoundation demuxer holds exactly one sample buffer per device and silently discards
+whatever arrives before the reader takes it - with both QoS measurements and the explicit statement
+that `ProcessType Interactive` is load-bearing and not removable tuning, including QA's result that
+a deep input queue does not rescue a throttled capture. The retracted process-coupling hypothesis is
+kept but labelled as the confounded experiment it was (the sidecar ran from a shell at normal QoS),
+and the two independently valid reasons for the topology are kept as the reasons it stands: one
+AVFoundation input per process has one fewer way to drop samples, and a mic WAV on disk makes the
+loss visible and measurable against the take.
+
+`Video/CaptureTopology.cs` carried the same wrong cause ("two AVFoundation inputs in one process ...
+lose about 88%") and now points at the QoS cause and the plist line instead. `Video/FfmpegRecorder.cs`
+(the macOS branch, ~line 110) asserted it a third time, in product code, and was corrected the same
+way - QA named two sites; the third is the same defect and was found by grepping for the claim.
+Two comments in the Mac test suite that repeated it were corrected too.
+
+**F2 - "every other caller of `MicChain`" was wrong.** The caller list was re-derived by grep rather
+than taken from the finding, and the finding is right. `MicChain` has five callers:
+`MixTwoWav` (`FfmpegArgs.cs:411`), `MuxVideoMixMicSystem` (`:426`) and `FilterVideoMic` (`:443`) rely
+on the `[0:a]` default; `MuxVideoAddMic` (`:486`) and `MuxVideoAddMicAndSystem` (`:523`) are this
+issue's own macOS builders and pass `[1:a]` explicitly. `MuxVideoAddSystem` is NOT a caller - it has
+no mic stage at all. The comment in `MacMicAlignmentTests.cs` and the criterion-8 row above now say
+that, and record what the old sentence got wrong.
+
+The gap the wrong sentence was claiming is also closed, since it was cheap: `MixTwoWav` and
+`MuxVideoMixMicSystem` now have exact-equality pins in `MacMicAlignmentTests.cs`, in the same style
+as the existing `FilterVideoMic` pin. All three default-source callers are now pinned byte-for-byte
+on the machine the change was made on, so the criterion-8 enumeration is exhaustive rather than
+nearly so. **Both new pins passed first time against the unchanged builders**, which is the
+independent check that this pass changed no emitted argument.
+
+### Gate re-run after this pass
+
+`AgentEyes.sln` contains the WPF app and cannot build on a Mac, so the Windows gate commands are not
+runnable here; CI covers that suite on the PR.
+
+| Command | Result |
+|---------|--------|
+| `dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=mac` | 0 Error(s), 1 pre-existing warning (`AlwaysOnEngine.cs:901` CS8602) |
+| `dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release` | **105 passed**, 0 failed, 0 skipped (103 at branch head + the 2 new pins) |
+| `dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=linux` | 0 Error(s), same 1 warning |
+| `dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release` | **94 passed**, 0 failed, 1 skipped (`MachineLocalAppData_OnLinux_IsTheXdgDataHome`) |
+
+The Linux count is the branch-head count, not main's 268: this branch has deliberately not been
+rebased, because the merge order is #128 first, then this rebased onto it.
+
+F3 needed no code change - QA answered it in the report and the gate accepted that answer.

@@ -7,11 +7,19 @@ namespace AgentEyes.Video
     ///
     /// Windows (gdigrab + dshow) and Linux (x11grab + pulse) take the microphone as a second input of
     /// the SAME ffmpeg that captures the screen, and that ffmpeg writes a file with sound in it.
-    /// macOS cannot: two AVFoundation inputs in one process, one of them a display, lose about 88% of
-    /// the microphone's samples - see the measurement table on FfmpegArgs.AvfVideoCapture. There the
-    /// microphone is captured by its own ffmpeg (AvfStream, behind AudioCapture) into its own WAV and
-    /// the deferred mux puts it into the recording, which is the same shape the system-audio path has
-    /// always had.
+    /// macOS does not: the microphone is captured by its own ffmpeg (AvfStream, behind AudioCapture)
+    /// into its own WAV, and the deferred mux puts it into the recording - the same shape the
+    /// system-audio path has always had.
+    ///
+    /// This split is NOT the fix for #114's audio loss, and reading it as one is the mistake to
+    /// avoid. The measured cause was scheduling class: the launchd agent carried no ProcessType, so
+    /// macOS ran the recorder as throttled background work, and ffmpeg's AVFoundation demuxer keeps
+    /// exactly one sample buffer per device and silently discards whatever arrives before the reader
+    /// takes it. `ProcessType Interactive` in scripts/mac/com.agenteyes.recorder.plist is the
+    /// load-bearing fix; the numbers and the retraction of the earlier process-coupling hypothesis
+    /// are on FfmpegArgs.AvfVideoCapture. The split is kept because one AVFoundation input per
+    /// process has one fewer way to drop samples, and because a mic WAV on disk makes any future
+    /// loss visible and measurable against the take.
     /// </summary>
     internal static class CaptureTopology
     {

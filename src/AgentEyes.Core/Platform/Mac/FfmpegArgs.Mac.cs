@@ -90,29 +90,52 @@ namespace AgentEyes.Video
         /// A screen region through AVFoundation, muxed to MP4 (H.264) - the macOS twin of
         /// VideoCapture and X11VideoCapture.
         ///
-        /// VIDEO ONLY, AND THAT IS THE FIX FOR ISSUE #114. Its Windows and Linux twins take the
-        /// microphone as a second input of the SAME ffmpeg process. On macOS that topology destroys
-        /// the audio: a screen+mic capture kept about 12% of its samples (a 30 s ask produced 35.3 s
-        /// of video holding 4.0 s of audio). Measured on devthrottle-mac-mini, ffmpeg 9.0.2:
+        /// VIDEO ONLY on macOS (issue #114). Its Windows and Linux twins take the microphone as a
+        /// second input of the SAME ffmpeg process; this one cannot carry an audio input at all.
         ///
-        ///  * mic alone, one ffmpeg               -> 12.000 s asked, 189 packets = 12.10 s. No loss.
-        ///  * two avfoundation MICS, one ffmpeg   -> both streams complete. Not an "two inputs" limit.
-        ///  * screen+mic, one ffmpeg, 320x240 out -> still 15% of the audio, encoder at speed=0.997x.
-        ///  * screen+mic, one ffmpeg              -> 87.92% CPU IDLE. Not a starved machine.
-        ///  * screen in one ffmpeg, mic in ANOTHER, at the same time, same devices
-        ///                                        -> 25.000 s asked, 392 packets = 25.09 s. NO LOSS.
+        /// READ THE CAUSE BEFORE YOU CHANGE ANYTHING, BECAUSE THE FIX LIVES SOMEWHERE ELSE.
+        /// The audio loss that issue #114 was filed about - a 30 s screen+mic recording that kept
+        /// 4.0 s of audio, and a screen capture that ran at 13 fps instead of 30 - was NOT caused by
+        /// this topology, and splitting the processes is NOT what fixed it. The measured cause is
+        /// SCHEDULING CLASS:
         ///
-        /// So the loss is coupling INSIDE one ffmpeg process between an AVFoundation screen input and
-        /// an AVFoundation audio input - ffmpeg's avfoundation demuxer holds exactly ONE sample
-        /// buffer per device and silently discards whatever arrives before the reader takes it, and
-        /// beside a screen input the mic was read once per ~2 s (exactly 4096 samples each time, in a
-        /// burst every 1.7-2.3 s depending on video load). It is not the encoder, not the CPU, not
-        /// the device, and not the frame rate. The surviving topology is the last line above, so on
-        /// macOS the microphone is captured by its OWN ffmpeg (AvfStream, which is what the level
-        /// meter already ran) and the deferred mux puts it into the recording.
+        ///  * The launchd agent carried no ProcessType, so macOS ran the whole recorder as throttled
+        ///    background work - deprioritized CPU, deprioritized I/O, coalesced timers.
+        ///  * ffmpeg's AVFoundation demuxer holds exactly ONE sample buffer per device and silently
+        ///    discards whatever arrives before the reader takes it. Nothing is logged anywhere. Under
+        ///    throttling the reader is late, so the samples simply vanish.
         ///
-        /// There is therefore NO microphone parameter here, by construction: this list cannot carry
-        /// an AVFoundation audio input again. MacFfmpegArgsTests asserts exactly that.
+        /// Measured twice on devthrottle-mac-mini (ffmpeg 9.0.2) on the SAME ffmpeg command line,
+        /// this builder's -thread_queue_size included, 20 s of wall clock, differing only in
+        /// scheduling class - once by the developer, then independently by QA:
+        ///
+        ///  * normal QoS                    -> 1,898,496 bytes = 19.78 s of 20 s. 98.9% kept.
+        ///  * background QoS (taskpolicy -b) ->  322,560 bytes =  3.36 s of 20 s. 16.8% kept.
+        ///
+        /// So `ProcessType Interactive` in scripts/mac/com.agenteyes.recorder.plist IS THE FIX AND IS
+        /// LOAD-BEARING - it is not tuning and it is not removable. QA also measured that a deep
+        /// input queue does NOT rescue a throttled capture, which is what rules out treating the
+        /// plist line as an optimisation. Delete it and the audio loss comes straight back,
+        /// regardless of how the processes here are arranged.
+        ///
+        /// WHY THE MIC IS STILL A SEPARATE PROCESS, on its own merits. The hypothesis this topology
+        /// was first built on - "the loss is coupling inside one ffmpeg process", from an experiment
+        /// where the screen ran in one ffmpeg and the mic in ANOTHER with no loss - is RETRACTED:
+        /// that sidecar ran from a shell at normal QoS, so the variable that actually differed was
+        /// the scheduling class, not the process boundary. The experiment was confounded and proves
+        /// nothing about the topology. The split is kept for two reasons that stand on their own:
+        ///
+        ///  * One AVFoundation input per process has one fewer way to drop samples - each demuxer's
+        ///    single sample buffer is read by a process with nothing else to do.
+        ///  * The mic lands on disk as its own WAV, so audio loss is VISIBLE and measurable against
+        ///    the take instead of being invisible inside a muxed MP4. That property is how #114 was
+        ///    diagnosed at all, and it is how the next regression will be.
+        ///
+        /// On macOS the microphone is therefore captured by its OWN ffmpeg (AvfStream, which is what
+        /// the level meter already ran) and the deferred mux puts it into the recording.
+        ///
+        /// There is NO microphone parameter here, by construction: this list cannot carry an
+        /// AVFoundation audio input again. MacFfmpegArgsTests asserts exactly that.
         /// </summary>
         /// <param name="avfScreenIndex">The AVFoundation video index of the display (see AvfDevices).</param>
         /// <param name="screen">That display's full pixel size, which the region is cropped inside.</param>

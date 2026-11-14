@@ -6,11 +6,12 @@ using Xunit;
 namespace AgentEyes.Tests.Mac
 {
     /// <summary>
-    /// ISSUE #114. On macOS the microphone is captured by its own ffmpeg process, because a second
-    /// AVFoundation input beside a display loses about 88% of its samples. These are the pure parts
-    /// of that fix: the capture-clock reading that aligns the two files, the mux argument list that
-    /// applies it, and the guarantee that moving the macOS microphone did not move the Windows or
-    /// Linux one.
+    /// ISSUE #114. On macOS the microphone is captured by its own ffmpeg process rather than as a
+    /// second input of the screen capture. The audio loss that issue was filed about was caused by
+    /// throttled background QoS, not by the topology (see FfmpegArgs.AvfVideoCapture); these are the
+    /// pure parts of the topology change that accompanied it: the capture-clock reading that aligns
+    /// the two files, the mux argument list that applies it, and the guarantee that moving the macOS
+    /// microphone did not move the Windows or Linux one.
     /// </summary>
     public sealed class MacMicAlignmentTests
     {
@@ -226,9 +227,19 @@ namespace AgentEyes.Tests.Mac
 
         /// <summary>
         /// MicChain gained a source-label parameter so the macOS mux could read [1:a]. Its DEFAULT is
-        /// [0:a], and these two shared builders are every other caller of it - so this pins that the
-        /// lists Windows and Linux emit are the lists they emitted before issue #114. (Their own
-        /// suites pin them too: tests/AgentEyes.Tests/FfmpegArgsTests.cs and
+        /// [0:a], and the pre-existing callers that rely on that default are exactly three -
+        /// FfmpegArgs.FilterVideoMic, FfmpegArgs.MixTwoWav and FfmpegArgs.MuxVideoMixMicSystem. All
+        /// three are pinned byte-for-byte in this file (this test and the two below it), so between
+        /// them they pin that the lists Windows and Linux emit are the lists they emitted before
+        /// issue #114. The only other callers are the two macOS builders added by #114,
+        /// MuxVideoAddMic and MuxVideoAddMicAndSystem, which pass "[1:a]" explicitly.
+        ///
+        /// MuxVideoAddSystem does NOT call MicChain - it carries no mic stage at all - so the pin
+        /// below it is a plain unchanged-builder pin, not part of this enumeration. An earlier
+        /// version of this comment named it as a MicChain caller and claimed the two pins were
+        /// "every other caller"; both were wrong (issue #114, QA finding F2).
+        ///
+        /// (The shared suites cover these builders too: tests/AgentEyes.Tests/FfmpegArgsTests.cs and
         /// tests/AgentEyes.Tests.Linux/LinuxFfmpegArgsTests.cs. This one runs on a Mac, which is the
         /// machine the change was made on.)
         /// </summary>
@@ -258,6 +269,52 @@ namespace AgentEyes.Tests.Mac
             {
                 "-y", "-i", "raw.mp4", "-i", "sys_native.wav",
                 "-filter_complex", "[1:a]volume=0.7[a]",
+                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k",
+                "final.mp4",
+            }, args);
+        }
+
+        /// <summary>
+        /// The second MicChain caller that relies on the [0:a] default. This is the WAV+WAV mix the
+        /// Windows and Linux system-audio paths run, and it must still read the mic from input 0.
+        /// </summary>
+        [Fact]
+        public void MixTwoWav_StillReadsTheMicFromInsideInputZero()
+        {
+            var args = FfmpegArgs.MixTwoWav("mic.wav", "sys.wav", "out.wav", Opts());
+
+            Assert.Equal(new[]
+            {
+                "-y", "-i", "mic.wav", "-i", "sys.wav",
+                "-filter_complex",
+                "[0:a]arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
+                + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,"
+                + "volume=1[m];[1:a]volume=0.7[s];"
+                + "[m][s]amix=inputs=2:duration=longest:normalize=0,"
+                + "alimiter=limit=0.95:level=false[a]",
+                "-map", "[a]", "-ar", "48000", "-ac", "2", "out.wav",
+            }, args);
+        }
+
+        /// <summary>
+        /// The third and last MicChain caller that relies on the [0:a] default: a video that ALREADY
+        /// contains its mic track, muxed with a separate system WAV. That is the Windows and Linux
+        /// screen+mic+system shape, which issue #114 did not touch.
+        /// </summary>
+        [Fact]
+        public void MuxVideoMixMicSystem_StillReadsTheMicFromInsideInputZero()
+        {
+            var args = FfmpegArgs.MuxVideoMixMicSystem("raw.mp4", "sys.wav", "final.mp4", Opts());
+
+            Assert.Equal(new[]
+            {
+                "-y", "-i", "raw.mp4", "-i", "sys.wav",
+                "-filter_complex",
+                "[0:a]arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
+                + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,"
+                + "volume=1[m];[1:a]volume=0.7[s];"
+                + "[m][s]amix=inputs=2:duration=longest:normalize=0,"
+                + "alimiter=limit=0.95:level=false[a]",
                 "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k",
                 "final.mp4",
             }, args);
@@ -302,7 +359,8 @@ namespace AgentEyes.Tests.Mac
         /// <summary>
         /// This is what makes RecordingService start a mic WRITER rather than a mic METER, and makes
         /// the mux mandatory rather than optional. If it ever reads true on a Mac, screen+mic silently
-        /// returns to the topology that lost 88% of the audio.
+        /// returns to the single-process topology that shipped when 88% of the audio was being lost,
+        /// and the mic WAV that made that loss measurable stops being written.
         /// </summary>
         [Fact]
         public void CaptureTopology_OnMacOS_TheScreenRecorderDoesNotCaptureTheMic()
