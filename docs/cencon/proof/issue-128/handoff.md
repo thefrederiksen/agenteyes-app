@@ -369,6 +369,43 @@ segfaulting (the D3 addendum above), and the test now treats that as the defect 
   criteria 11, 12 and 13 on the product path. The unit tests drive `PostRecording.Run/Resume`,
   `Package.Run` and `FinalizePending` with real files and, for the lock, a real second process.
 
+## Gate (round two)
+
+On the branch head, which contains `main` (`git merge-base --is-ancestor origin/main HEAD` -> yes):
+
+```
+dotnet build AgentEyes.sln -c Release   -> Build succeeded.   0 Error(s)
+dotnet test  AgentEyes.sln -c Release   -> Passed!  - Failed: 0, Passed: 2348, Skipped: 0, Total: 2348
+   (run twice: QA_RECORD_FFMPEG_DIR = shipped 9.0.2-essentials, and PATH = 8.1.1-full; both 2348/0)
+```
+2348 = 2318 (main + round one) + 30 new tests in round two.
+
+CI, PR #133, run 43635270037 (pull_request, head 537a1bd), all three jobs SUCCESS:
+```
+windows  Passed!  - Failed: 0, Passed: 2348, Skipped: 0, Total: 2348 - AgentEyes.Tests.dll
+linux    Passed!  - Failed: 0, Passed:  274, Skipped: 0, Total:  274 - AgentEyes.Tests.Linux.dll
+macos    Passed!  - Failed: 0, Passed:  232, Skipped: 0, Total:  232 - AgentEyes.Tests.Mac.dll
+```
+The run before it (43634897903, head 73dd437) FAILED on macos, 1 of 232:
+`MacForeignFfmpegOptionTests.NoForeignFfmpegOptionInAnyAvfoundationArgumentList`. Its fixture builds
+mix options by hand without a measured mic, and D7 now refuses that. The fixture sets
+`MicChannels = 1` (537a1bd). The Windows CI job runs with `CI=true`, so the D3 instrument test
+required that CI's ffmpeg reproduces arnndn's partial-frame defect, and that held: the D3 tests can
+fail on CI.
+
+## For the #136 seat, on your rebase
+
+- `MicChain` now emits `aeval...:c=same,aformat=channel_layouts=<layout>,asetnsamples=n=480:p=1,arnndn=...`.
+  Any test asserting adjacency of the sanitizer to the next stage will need the two new stages.
+- Any hand-built `AudioMixOptions` that reaches a sanitized chain needs `MicChannels`, as in
+  `FfmpegArgsTests.FullOpts` and the macOS guard above. `AudioMix.Prepare` measures it in the
+  product, so your pass-1 path gets it as long as it goes through `Prepare`.
+- `RunStage`'s body changed (D5: catch + `RemovePartialOutput` instead of a delete in `finally`;
+  `Ffmpeg.CurrentPostProcessStallTimeout`). Its signature did not.
+- `FinalizePending` takes `MuxLock` near its top. Your two-pass code runs inside it unchanged.
+- `ManifestWriterIlTests` gained pins for `MuxLock::TryAcquire` (FileStream), `MuxCoordinator::RemoveFragment`
+  (Delete), and the moved `AudioMix::RemovePartialOutput` (Delete).
+
 # ROUND ONE
 
 ## The answer first: Windows exposure
