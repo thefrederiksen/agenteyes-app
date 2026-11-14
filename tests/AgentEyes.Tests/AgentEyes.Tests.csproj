@@ -59,6 +59,7 @@
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
     <!-- Issue #113: the platform-neutral capture watchdog, tested once for all three platforms. -->
     <Compile Include="..\Shared\CaptureWatchdogTests.cs" Link="Shared\CaptureWatchdogTests.cs" />
+    <Compile Include="..\Shared\CaptureWatchdogWiringTests.cs" Link="Shared\CaptureWatchdogWiringTests.cs" />
   </ItemGroup>
 
 </Project>

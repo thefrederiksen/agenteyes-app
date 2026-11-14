@@ -62,13 +62,32 @@ namespace AgentEyes.Tests.Shared
 
         // ---- the thresholds the issue depends on ---------------------------------------------
 
+        /// <summary>
+        /// The worst case from a verdict to the service being idle again: the abandon, which is a kill
+        /// and a bounded wait for the process to be reaped. Round one's abandon ran the drain-and-quit
+        /// stop instead (5 s drain + 8 s quit wait + 3 s after the kill = 16 s), and no test counted it.
+        /// <see cref="RecorderAbandonTests"/> measures a real Abandon against a process that ignores
+        /// the quit, so this constant is held to what the code actually does.
+        /// </summary>
+        private static readonly double VerdictToIdle = global::AgentEyes.Video.FfmpegRecorder.AbandonExitWait.TotalSeconds;
+
         [Fact]
-        public void Defaults_StallPlusOneCheck_FitInsideTheSixtySecondWindow()
+        public void Defaults_StallPlusOneCheckPlusTheStop_FitInsideTheSixtySecondWindow()
         {
-            // Issue #113 AC1/AC2: detection within 60 s. The worst case is a stall that begins just
-            // after a check saw growth: it is decided StallTimeout later, at the next check.
-            double worst = CaptureWatchdog.DefaultStallTimeout.TotalSeconds + Interval;
-            Assert.True(worst <= 50, $"worst-case detection {worst}s leaves under 10 s of margin inside 60 s");
+            // Issue #113 AC1/AC2, as amended by the gate: the STATE must leave "recording" and the
+            // FAULT must be named within 60 s of the last write. The worst case is a stall that begins
+            // just after a check saw growth: it is decided StallTimeout later, at the next check. From
+            // that verdict:
+            //  - the fault is named on /status at once (PublishVerdict, under the same lock - asserted
+            //    by CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns);
+            //  - the state leaves "recording" at once (Stop flips it to "finalizing" first);
+            //  - the service is idle once the abandon returns, at most VerdictToIdle later.
+            // So the budget that must fit is detection PLUS the stop. Round one's stop made it ~63 s,
+            // which this assertion rejects; round one's version of this test counted detection only.
+            double detection = CaptureWatchdog.DefaultStallTimeout.TotalSeconds + Interval;
+            double worst = detection + VerdictToIdle;
+            Assert.True(worst <= 60,
+                $"worst case {worst}s = detection {detection}s + verdict-to-idle {VerdictToIdle}s exceeds the 60 s window");
             Assert.True(CaptureWatchdog.DefaultStallTimeout.TotalSeconds >= 30,
                 "a stall timeout under 30 s would end recordings on an ordinary slow disk");
         }
@@ -168,8 +187,11 @@ namespace AgentEyes.Tests.Shared
             do { live = Step(dog, clock); } while (live.Fault == null && clock.Monotonic.TotalSeconds < stalledAt + 120);
 
             Assert.Equal(CaptureFault.KindStalled, live.Fault?.Kind);
-            Assert.True(clock.Monotonic.TotalSeconds - stalledAt <= 60,
-                $"detected {clock.Monotonic.TotalSeconds - stalledAt:F1}s after the stall");
+            // Detection, plus the stop that follows it - the window is to the recording being over,
+            // not to the watchdog having an opinion (QA round one: 46 s detected, 60.2 s named).
+            double detected = clock.Monotonic.TotalSeconds - stalledAt;
+            Assert.True(detected + VerdictToIdle <= 60,
+                $"detected {detected:F1}s after the stall, idle by {detected + VerdictToIdle:F1}s");
         }
 
         [Fact]

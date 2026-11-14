@@ -11,7 +11,7 @@ namespace AgentEyes.Video
     /// Screen-video + microphone recorder backed by a single ffmpeg process (gdigrab + dshow -> MP4).
     /// Stop() sends 'q' to ffmpeg's stdin so the MP4 is finalized cleanly (killing it truncates the file).
     /// </summary>
-    internal sealed class FfmpegRecorder : IDisposable
+    internal sealed class FfmpegRecorder : IScreenRecorder
     {
         private readonly Process _proc;
         private readonly StringBuilder _stderr = new();
@@ -283,18 +283,75 @@ namespace AgentEyes.Video
         public double MediaSeconds => System.Threading.Interlocked.Read(ref _mediaMs) / 1000.0;
 
         /// <summary>
-        /// Stop a capture the <see cref="CaptureWatchdog"/> has judged dead. The ordinary
-        /// <see cref="Stop"/> - its drain gives up on a process that is not advancing, the quit goes
-        /// unanswered by a frozen one, and the kill ends it; fragmented output
-        /// (<see cref="FfmpegArgs.FragmentedOutput"/>) is what keeps the file playable through that.
-        /// Logged on both sides so the log shows the abandon and how it ended.
+        /// The longest <see cref="Abandon"/> waits for the killed process to be reaped before it
+        /// reports the capture as un-endable. The kill is the whole of an abandon, so this is also
+        /// the worst case from the watchdog's verdict to the service being idle again - the bound
+        /// CaptureWatchdogTests budgets inside the issue's sixty-second window.
+        /// </summary>
+        internal static readonly TimeSpan AbandonExitWait = TimeSpan.FromSeconds(3);
+
+        /// <summary>
+        /// End a capture the <see cref="CaptureWatchdog"/> has judged dead - AT ONCE (issue #113,
+        /// round two).
+        ///
+        /// This used to call <see cref="Stop"/>, which on a frozen process waited out the whole
+        /// drain (5 s) for a pipeline that was not moving and then the quit wait (8 s) for an answer
+        /// a frozen process cannot give: about 13.5 s spent waiting on a process already judged
+        /// dead, and the recording reported as finishing cleanly the whole time. There is nothing to
+        /// drain from a capture that has stopped producing output and no point asking it to quit,
+        /// so it is killed. The fragmented, flushed output (<see cref="FfmpegArgs.FragmentedOutput"/>)
+        /// is what keeps the file playable through a kill; round one measured that on Linux.
+        ///
+        /// Deliberately independent of <see cref="Stop"/>, which issue #114 rewrites.
+        ///
+        /// Throws when the process does not exit within <see cref="AbandonExitWait"/> of the kill:
+        /// a capture that might still be writing is a failed stop, not a quiet one.
         /// </summary>
         public void Abandon(string reason)
         {
-            Log.Warn($"[FfmpegRecorder] Abandon: {OutputPath} - {reason}");
-            Stop();
-            Log.Info($"[FfmpegRecorder] Abandon: {OutputPath} ended (exit {ExitCode?.ToString() ?? "unknown"}, "
+            Log.Warn($"[FfmpegRecorder] Abandon: {OutputPath} - {reason} - killing the capture process now");
+            if (_stopped)
+            {
+                Log.Info($"[FfmpegRecorder] Abandon: {OutputPath} was already stopped - nothing to kill");
+                return;
+            }
+            _stopped = true;
+
+            var sw = Stopwatch.StartNew();
+            // Kill on a process that has already exited (the "exited" verdict) is a no-op in .NET, but
+            // the check keeps the log honest about which case this was.
+            bool wasRunning = !_proc.HasExited;
+            if (wasRunning) _proc.Kill(entireProcessTree: true);
+            if (!_proc.WaitForExit((int)AbandonExitWait.TotalMilliseconds))
+            {
+                Log.Error($"[FfmpegRecorder] Abandon FAILED: {OutputPath} - the capture process did not exit within "
+                          + $"{AbandonExitWait.TotalSeconds:F0}s of being killed");
+                throw new InvalidOperationException(
+                    $"the capture process for {Path.GetFileName(OutputPath)} did not exit within "
+                    + $"{AbandonExitWait.TotalSeconds:F0}s of being killed; it may still be running");
+            }
+
+            File.WriteAllText(_logPath, _stderr.ToString());
+            Log.Info($"[FfmpegRecorder] Abandon: {OutputPath} ended in {sw.ElapsedMilliseconds}ms "
+                     + $"({(wasRunning ? "killed" : "had already exited")}, exit {ExitCode?.ToString() ?? "unknown"}, "
                      + $"last reported position {MediaSeconds:F2}s)");
+        }
+
+        /// <summary>
+        /// Put an already-started process under this class (issue #113, round two). For the test
+        /// that measures <see cref="Abandon"/> against a process that ignores the 'q' quit, the way a
+        /// frozen ffmpeg does; nothing in the product calls it. Added rather than splitting
+        /// <see cref="Start"/>, which issue #114 rewrites.
+        /// </summary>
+        internal static FfmpegRecorder ForStartedProcess(Process started, string outPath)
+        {
+            if (started == null) throw new ArgumentNullException(nameof(started));
+            var rec = new FfmpegRecorder(started, outPath, started.StartInfo.FileName, outPath + ".ffmpeg.log")
+            {
+                StartedUtc = DateTime.UtcNow,
+            };
+            Log.Info($"[FfmpegRecorder] ForStartedProcess: pid={started.Id} out={outPath}");
+            return rec;
         }
 
         public void Dispose()

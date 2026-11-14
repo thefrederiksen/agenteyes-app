@@ -159,7 +159,7 @@ namespace AgentEyes
 
         private AudioCapture? _audio;
         private LoopbackCapture? _loop;
-        private FfmpegRecorder? _video;
+        private IScreenRecorder? _video;
         private string? _micWav, _sysWav, _rawVideo;
 
         /// <summary>
@@ -221,14 +221,27 @@ namespace AgentEyes
         // Started with every screen recording, stopped by Stop. Its timer is one-shot and re-armed
         // after each check under _lock, so two checks never overlap and none is armed after Stop.
         private CaptureWatchdog? _watchdog;
-        private System.Threading.Timer? _watchdogTimer;
+        private IWatchdogTimer? _watchdogTimer;
         private volatile CaptureLiveness? _liveness;
         private string? _watchedFile;
 
         // Set by the watchdog, under _lock, the moment it decides to end the recording; consumed by
-        // Stop under the same lock, which is what makes the verdict reach the manifest and /status
-        // whichever of the watchdog and a user stop gets there first.
+        // Stop under the same lock, which is what makes the verdict reach the manifest whichever of
+        // the watchdog and a user stop gets there first. /status does not wait for it: the verdict is
+        // PUBLISHED in the same lock that sets this (PublishVerdict).
         private CaptureFault? _pendingFault;
+
+        // Where this service reaches the machine for a screen recording (issue #113, round two).
+        private readonly RecordingServiceSeams _seams;
+
+        public RecordingService() : this(RecordingServiceSeams.Production) { }
+
+        /// <summary>Tests only: a service whose screen capture, folder, monitor and watchdog pacing
+        /// are supplied by the caller. See <see cref="RecordingServiceSeams"/>.</summary>
+        internal RecordingService(RecordingServiceSeams seams)
+        {
+            _seams = seams ?? throw new ArgumentNullException(nameof(seams));
+        }
 
         // The most recent recording's capture fault, for /status, until the next start.
         private volatile CaptureFault? _lastCaptureFault;
@@ -564,7 +577,7 @@ namespace AgentEyes
             lock (_lock)
             {
                 if (_state != "idle") throw new UsageException("already recording");
-                var mon = Monitors.Require(screen);
+                var mon = _seams.RequireMonitor(screen);
                 Reset(mon, "video", src, opts);
                 var capture = region is { Length: 4 }
                     ? new Drawing.Rectangle(region[0], region[1], region[2], region[3])
@@ -589,7 +602,7 @@ namespace AgentEyes
                 }
                 _cameraName = dshowCamera;
 
-                _dir = RecordingPaths.NewDir("video", "video");
+                _dir = _seams.NewRecordingDir("video", "video");
                 _manifest = NewManifest("video", mon);
                 _manifest.VideoFile = "recording.mp4";
                 _manifest.Region = region;
@@ -716,9 +729,9 @@ namespace AgentEyes
 
                 steps.Add(new RecordingStartStep("video", () =>
                 {
-                    _video = FfmpegRecorder.Start(
+                    _video = _seams.StartScreen(
                         capture, src == AudioSourceKind.System ? null : dshowMic, fps, 23, ffOut, _screenTap,
-                        screenNumber: _monitor!.Index);
+                        _monitor!.Index);
                     _manifest!.FfmpegCommand = _video.CommandLine;
 
                     // The alignment hint (assumption A5): how far the camera start sits from the
@@ -825,7 +838,7 @@ namespace AgentEyes
         {
             Log.Info("stop: begin (synchronous raw save only)");
             // Flip to finalizing under lock, then flush the raw files outside the lock.
-            AudioCapture? audio; LoopbackCapture? loop; FfmpegRecorder? video; FfmpegCameraRecorder? camera;
+            AudioCapture? audio; LoopbackCapture? loop; IScreenRecorder? video; FfmpegCameraRecorder? camera;
             string? micWav, sysWav, rawVideo, dir; Manifest? manifest; string mode; AudioSourceKind src; AudioMixOptions opts;
             CameraOverlaySettings? previewOverlay;
             CaptureFault? fault;
@@ -908,7 +921,7 @@ namespace AgentEyes
                     // user waiting on it, so the probe does not slow any stop a person makes (issue
                     // #77); an unreadable file probes as 0, which is the honest answer for it.
                     double captured = fault != null
-                        ? Math.Round(MediaProbe.DurationSeconds(video.OutputPath), 2)
+                        ? Math.Round(_seams.ProbeDurationSeconds(video.OutputPath), 2)
                         : Math.Round(video.MediaSeconds, 2);
                     if (fault != null)
                         Log.Info($"stop: abandoned capture - {Path.GetFileName(video.OutputPath)} probes at {captured:F2}s "
@@ -1027,7 +1040,7 @@ namespace AgentEyes
                     () => RecoveryManifest.Save(manifest!, elapsed, dir!),
                     fault == null
                         ? null
-                        : new[] { new RecordingStopFailure("capture watchdog", new CaptureFaultException(fault)) });
+                        : new[] { new RecordingStopFailure(VerdictStage, new CaptureFaultException(fault)) });
                 _lastStopFailure = report.Failed ? report : null;
 
                 string? outFile = manifest!.VideoFile != null ? finalVideo : (manifest.AudioFile != null ? finalAudio : null);
@@ -1421,15 +1434,15 @@ namespace AgentEyes
         /// once the recording is live. The first check runs one interval later; each check re-arms
         /// the next, so checks never overlap.
         /// </summary>
-        private void StartWatchdog(FfmpegRecorder video)
+        private void StartWatchdog(IScreenRecorder video)
         {
             string path = video.OutputPath;
             _watchedFile = Path.GetFileName(path);
             _watchdog = new CaptureWatchdog(
-                _watchedFile, () => CaptureWatchdog.FileSize(path), () => video.ExitCode, new SystemCaptureClock());
+                _watchedFile, () => CaptureWatchdog.FileSize(path), () => video.ExitCode, _seams.NewWatchdogClock());
             _liveness = _watchdog.Last;
-            _watchdogTimer = new System.Threading.Timer(
-                _ => OnWatchdogTick(), null, CaptureWatchdog.DefaultCheckInterval, System.Threading.Timeout.InfiniteTimeSpan);
+            _watchdogTimer = _seams.NewWatchdogTimer(OnWatchdogTick);
+            _watchdogTimer.Arm(CaptureWatchdog.DefaultCheckInterval);
             Log.Info($"[RecordingService] StartWatchdog: watching {path} (stall {_watchdog.StallTimeout.TotalSeconds:F0}s, "
                      + $"start-up {_watchdog.StartupTimeout.TotalSeconds:F0}s, every "
                      + $"{CaptureWatchdog.DefaultCheckInterval.TotalSeconds:F0}s)");
@@ -1451,9 +1464,10 @@ namespace AgentEyes
 
         /// <summary>
         /// One watchdog check (timer thread - an entry point, so it catches). Reads the capture's
-        /// file, publishes the reading for /status, and on a fault ends the recording.
+        /// file, publishes the reading for /status, and on a fault publishes the verdict and ends the
+        /// recording.
         /// </summary>
-        private void OnWatchdogTick()
+        internal void OnWatchdogTick()
         {
             try
             {
@@ -1469,6 +1483,7 @@ namespace AgentEyes
                 // /status must keep answering meanwhile.
                 var live = watchdog.Check();
 
+                string? dir;
                 lock (_lock)
                 {
                     // Published, re-armed and acted on only while this is still the LIVE session's
@@ -1478,12 +1493,18 @@ namespace AgentEyes
                     _liveness = live;
                     if (live.Fault == null)
                     {
-                        _watchdogTimer?.Change(CaptureWatchdog.DefaultCheckInterval, System.Threading.Timeout.InfiniteTimeSpan);
+                        _watchdogTimer?.Arm(CaptureWatchdog.DefaultCheckInterval);
                         return;
                     }
+
+                    // THE VERDICT IS PUBLISHED HERE, in the same lock that saw it (issue #113, round
+                    // two). Not after the writers stop: a client reading /status between the verdict
+                    // and the end of the stop used to see a recording that had finished cleanly.
+                    PublishVerdict(live.Fault);
+                    dir = _dir;
                 }
 
-                EndFaultedCapture(watchdog, live.Fault);
+                EndFaultedCapture(live.Fault, dir);
             }
             catch (Exception ex)
             {
@@ -1492,24 +1513,42 @@ namespace AgentEyes
         }
 
         /// <summary>
-        /// The watchdog decided the capture is producing nothing: say so in the log NOW, at
-        /// detection time (issue #113, AC7), then end the recording through the ordinary stop, which
-        /// records the fault in the manifest and on /status and saves what was captured.
+        /// Make the watchdog's verdict visible the instant it is reached. Called under
+        /// <see cref="_lock"/>, while the session is still the one the verdict is about.
+        ///
+        /// QA's round-one finding: for ~13.5 s after the verdict /status read
+        /// <c>State=finalizing CaptureLiveness=faulted LastStopFailed=false LastCaptureFault=null</c>.
+        /// <c>LastStopFailed=false</c> is not silence - it is an active statement that nothing went
+        /// wrong, made after the service knew something had. So from here on:
+        ///  - <see cref="RecordStatus.LastCaptureFault"/> names the fault, and
+        ///  - <see cref="RecordStatus.LastStopFailed"/> is true, with the verdict as its error. A
+        ///    recording the watchdog ends did not stop cleanly, and the stop report that replaces
+        ///    this one when the writers are down leads with the same verdict.
         /// </summary>
-        private void EndFaultedCapture(CaptureWatchdog watchdog, CaptureFault fault)
+        private void PublishVerdict(CaptureFault fault)
         {
-            string? dir;
-            lock (_lock)
-            {
-                if (_state != "recording" || !ReferenceEquals(_watchdog, watchdog))
-                {
-                    Log.Info($"[RecordingService] EndFaultedCapture: the recording already ended - not acting on {fault}");
-                    return;
-                }
-                _pendingFault = fault;
-                dir = _dir;
-            }
+            _pendingFault = fault;
+            _lastCaptureFault = fault;
+            _lastCaptureFaultDir = _dir;
+            _lastStopFailure = new RecordingStopReport(
+                _dir!,
+                new[] { new RecordingStopFailure(VerdictStage, new CaptureFaultException(fault)) },
+                manifestSaved: false, recoveryManifestSaved: false);
+            Log.Info($"[RecordingService] PublishVerdict: /status now reports LastStopFailed=true, "
+                     + $"LastCaptureFault=\"{fault}\" for {_dir}");
+        }
 
+        /// <summary>The stop-report stage name a watchdog verdict is recorded under.</summary>
+        internal const string VerdictStage = "capture watchdog";
+
+        /// <summary>
+        /// The watchdog decided the capture is producing nothing, and the verdict is already on
+        /// /status: say so in the log NOW, at detection time (issue #113, AC7), then end the
+        /// recording through the ordinary stop, which abandons the capture (a kill, not a drain),
+        /// records the fault in the manifest and saves what was captured.
+        /// </summary>
+        private void EndFaultedCapture(CaptureFault fault, string? dir)
+        {
             Log.Error($"[RecordingService] CAPTURE FAULT at elapsed={_sw.Elapsed.TotalSeconds:F1}s "
                       + $"(detected {fault.DetectedUtc:yyyy-MM-ddTHH:mm:ss.fffZ}) dir={dir} - {fault} - "
                       + "ending the recording now and keeping what was captured");
@@ -1522,7 +1561,10 @@ namespace AgentEyes
             try
             {
                 Stop();
-                Log.Info($"[RecordingService] EndFaultedCapture: recording ended dir={dir}");
+                // Not reachable while the verdict leads the stop report, which always makes this a
+                // failed stop; logged loudly in case that ever changes.
+                Log.Error($"[RecordingService] EndFaultedCapture: the stop of {dir} reported success although "
+                          + "the watchdog ended it - the verdict did not reach the stop report");
             }
             catch (RecordingStopFailedException ex)
             {
@@ -1540,9 +1582,10 @@ namespace AgentEyes
                 {
                     Log.Info($"[RecordingService] EndFaultedCapture: queuing post-processing for {stoppedDir}");
                     queued = true;
+                    var postProcess = _seams.PostProcess;
                     System.Threading.Tasks.Task.Run(() =>
                     {
-                        try { PostRecording.Run(stoppedDir); }
+                        try { postProcess(stoppedDir); }
                         catch (Exception postEx) { Log.Error($"[RecordingService] EndFaultedCapture: post-processing FAILED dir={stoppedDir}", postEx); }
                         finally { work.Dispose(); }
                     });
@@ -1555,8 +1598,9 @@ namespace AgentEyes
             }
             catch (UsageException ex)
             {
-                // A user stop won the race; it took the verdict with it (_pendingFault is read under
-                // the lock by whichever Stop ran) and queued its own post-processing.
+                // A user stop won the race between the verdict and this call; it took the verdict with
+                // it (_pendingFault is read under the lock by whichever Stop ran) and queued its own
+                // post-processing.
                 Log.Info($"[RecordingService] EndFaultedCapture: {ex.Message} - a stop got there first");
             }
             finally
