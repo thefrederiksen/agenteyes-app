@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- The tests for the macOS build of AgentEyes.Core (net8.0):
          dotnet test tests/AgentEyes.Tests.Mac -c Release
@@ -42,6 +42,16 @@
          to Linux: the suite must test the same engine whichever machine runs it. -->
     <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"
                       AdditionalProperties="AgentEyesUnixPlatform=mac" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Issue #136: ONE guard, compiled into all three suites. FfmpegMuxShapeTests sweeps the
+         argument builders in THIS build - which is the whole point of linking it rather than
+         duplicating it: each suite's sweep sees its own platform's FfmpegArgs partial, so the macOS
+         and Linux builders are covered by the macOS and Linux gates, and the shared ones by all
+         three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
+         graph, because on macOS that command never finalizes. -->
+    <Compile Include="..\Shared\FfmpegMuxShapeTests.cs" Link="Shared\FfmpegMuxShapeTests.cs" />
   </ItemGroup>
 
 </Project>

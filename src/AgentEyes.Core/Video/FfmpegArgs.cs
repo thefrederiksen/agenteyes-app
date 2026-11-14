@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Drawing = System.Drawing;
 
@@ -414,66 +414,120 @@ namespace AgentEyes.Video
         private static string FilterPath(string path) => path.Replace('\\', '/').Replace(":", "\\:");
 
         /// <summary>
+        /// The clean-voice chain on the mic alone, ending at label [a]: the mic chain plus the
+        /// safety limiter. One graph string, used by every builder that processes a microphone, so
+        /// the processing cannot drift between the WAV path and the video path.
+        /// </summary>
+        private static string MicOnlyGraph(AudioMixOptions o) => $"{MicChain(o)};[m]{Limiter}[a]";
+
+        /// <summary>
+        /// The clean-voice chain on the mic (input 0) mixed with a system-audio track (input 1),
+        /// ending at label [a]. normalize=0 keeps each source at the gain the preset chose instead
+        /// of halving both.
+        /// </summary>
+        private static string MicPlusSystemGraph(AudioMixOptions o) =>
+            $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
+            + $"[m][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
+
+        /// <summary>
+        /// The sample format the intermediate processed-audio WAV is written in (issue #136). 32-bit
+        /// float is what the filtergraph computes in and what the AAC encoder takes, so splitting the
+        /// mux into two passes hands the encoder the SAME samples the single pass did - the two-pass
+        /// output is not a quality step down from the one-pass output it replaces.
+        /// </summary>
+        internal const string ProcessedAudioCodec = "pcm_f32le";
+
+        /// <summary>
         /// Mix a mic WAV and a system WAV into one WAV (48 kHz stereo): gate+volume the mic,
         /// volume the system, amix. normalize=0 keeps levels predictable.
         /// </summary>
         public static List<string> MixTwoWav(string micWav, string sysWav, string outWav, AudioMixOptions o)
         {
-            string fc = $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
-                      + $"[m][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
             return new()
             {
                 "-y", "-i", micWav, "-i", sysWav,
-                "-filter_complex", fc, "-map", "[a]", "-ar", "48000", "-ac", "2", outWav,
+                "-filter_complex", MicPlusSystemGraph(o), "-map", "[a]", "-ar", "48000", "-ac", "2", outWav,
             };
         }
 
-        /// <summary>
-        /// Mux a video that already contains a mic track (input 0) with a separate system WAV
-        /// (input 1): copy the video, mix mic+system into the audio track.
-        /// </summary>
-        public static List<string> MuxVideoMixMicSystem(string rawMp4, string sysWav, string outMp4, AudioMixOptions o)
-        {
-            string fc = $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
-                      + $"[m][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
-            return new()
-            {
-                "-y", "-i", rawMp4, "-i", sysWav,
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            };
-        }
+        // ---- the two-pass video mux (issue #136) ---------------------------
+        //
+        // WHY THERE ARE TWO PASSES AND NOT ONE. Every one of these builders used to be a single
+        // ffmpeg run that paired "-c:v copy" with a filtered audio stream, and on macOS that shape
+        // DEADLOCKS: the copied video is read and queued almost instantly while the mic is still
+        // being filtered, ffmpeg's muxing queue hits its default bound, and the process then spins
+        // at ~99% CPU past the end of the content without ever finalizing. Measured on a 76 s
+        // recording (issue #136): the shipped single-pass mux never completed, while the same filter
+        // graph with no video present completed in about a second, and so did the same video copy
+        // with no filter graph present. It needs BOTH halves in one command, which is why neither
+        // half alone ever showed it.
+        //
+        // So the two halves are run as two commands:
+        //   pass 1 - the audio filter graph alone, to an intermediate float WAV. No video stream in
+        //            the command, so there is nothing to race the filters;
+        //   pass 2 - the video copy plus that finished WAV. NO filter graph at all, so there is
+        //            nothing for the video to race.
+        // This is the architecture the system-audio path already used with sys_native.wav, and it
+        // needs no tuned queue bound: "-max_muxing_queue_size <n>" also completed, but the depth
+        // needed grows with how far the video can race ahead, so a number that is big enough for a
+        // 76 s recording says nothing about a 10-minute one.
+        //
+        // The invariant this leaves behind: NO argument list in this file pairs a copied video
+        // stream with a filter graph. FfmpegMuxShapeTests sweeps every builder here and fails if one
+        // does - including a builder added later.
 
         /// <summary>
-        /// Re-process the mic track already inside a video (input 0) through the full mic chain
-        /// plus the safety limiter: copy the video, re-encode only the audio. Used for mic-only
-        /// recordings so they get the same clean-voice treatment as mixed ones.
+        /// PASS 1, microphone only: run the mic through the clean-voice chain and the limiter into an
+        /// intermediate WAV. No video stream is present, which is the point (see above).
         /// </summary>
-        public static List<string> FilterVideoMic(string rawMp4, string outMp4, AudioMixOptions o)
+        /// <param name="micSource">The microphone capture - a WAV, or a video file whose first audio
+        /// stream is the mic track.</param>
+        public static List<string> FilterMicToWav(string micSource, string outWav, AudioMixOptions o) => new()
         {
-            string fc = $"{MicChain(o)};[m]{Limiter}[a]";
-            return new()
-            {
-                "-y", "-i", rawMp4,
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            };
-        }
+            "-y", "-i", micSource,
+            "-filter_complex", MicOnlyGraph(o),
+            "-map", "[a]", "-c:a", ProcessedAudioCodec, outWav,
+        };
 
         /// <summary>
-        /// Mux a video-only file (input 0) with a system WAV (input 1) as its sole audio track.
-        /// Used when capturing system audio for video without a microphone.
+        /// PASS 1, microphone plus system audio: the clean-voice chain on the mic, the system gain on
+        /// the system WAV, the two mixed and limited, into an intermediate WAV.
         /// </summary>
-        public static List<string> MuxVideoAddSystem(string rawMp4, string sysWav, string outMp4, double sysGain)
+        /// <param name="micSource">The microphone capture - a WAV, or a video file whose first audio
+        /// stream is the mic track.</param>
+        public static List<string> MixMicSystemToWav(
+            string micSource, string sysWav, string outWav, AudioMixOptions o) => new()
         {
-            string fc = $"[1:a]volume={Inv(sysGain)}[a]";
-            return new()
-            {
-                "-y", "-i", rawMp4, "-i", sysWav,
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            };
-        }
+            "-y", "-i", micSource, "-i", sysWav,
+            "-filter_complex", MicPlusSystemGraph(o),
+            "-map", "[a]", "-c:a", ProcessedAudioCodec, outWav,
+        };
+
+        /// <summary>
+        /// PASS 1, system audio only: apply the system gain into an intermediate WAV. The filter is
+        /// cheap enough that it has never been measured losing the race - it is split anyway so that
+        /// the no-filter-graph-beside-a-copied-video invariant holds without an exemption, and so
+        /// that a future stage added to this graph cannot reintroduce the deadlock.
+        /// </summary>
+        public static List<string> FilterSystemToWav(string sysWav, string outWav, double sysGain) => new()
+        {
+            "-y", "-i", sysWav,
+            "-filter_complex", $"[0:a]volume={Inv(sysGain)}[a]",
+            "-map", "[a]", "-c:a", ProcessedAudioCodec, outWav,
+        };
+
+        /// <summary>
+        /// PASS 2: copy the video stream from <paramref name="rawMp4"/>, encode the ALREADY-PROCESSED
+        /// audio from <paramref name="processedWav"/>, and mux them. There is deliberately no
+        /// -filter_complex here: the audio arrives finished, so the only work beside the stream copy
+        /// is the AAC encode, and the muxing queue has nothing to deadlock over.
+        /// </summary>
+        public static List<string> MuxVideoWithProcessedAudio(
+            string rawMp4, string processedWav, string outMp4) => new()
+        {
+            "-y", "-i", rawMp4, "-i", processedWav,
+            "-map", "0:v", "-c:v", "copy", "-map", "1:a", "-c:a", "aac", "-b:a", "160k", outMp4,
+        };
 
         // ---- subtitle burn-in (issue #102) --------------------------------
 

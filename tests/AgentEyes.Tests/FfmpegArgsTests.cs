@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Drawing;
 using Xunit;
 using AgentEyes.Video;
@@ -270,39 +270,60 @@ namespace AgentEyes.Tests
                 () => FfmpegArgs.MixTwoWav("mic.wav", "sys.wav", "out.wav", o));
         }
 
+        // ---- the two-pass video mux (issue #136) --------------------------
+        //
+        // These three replaced MuxVideoMixMicSystem / FilterVideoMic / MuxVideoAddSystem, which each
+        // paired "-c:v copy" with a filter graph in ONE command - the shape that deadlocks on macOS.
+        // FfmpegMuxShapeTests holds the invariant; these pin what each half actually emits.
+
         [Fact]
-        public void MuxVideoMixMicSystem_copies_video_and_mixes_audio()
+        public void MixMicSystemToWav_mixes_mic_and_system_into_the_intermediate_with_no_video()
         {
-            var args = FfmpegArgs.MuxVideoMixMicSystem("raw.mp4", "sys.wav", "final.mp4", FullOpts());
-            var s = Join(args);
-            Assert.Contains("-map 0:v", s);
-            Assert.Contains("-c:v copy", s);
+            var s = Join(FfmpegArgs.MixMicSystemToWav("raw.mp4", "sys.wav", "audio_processed.wav", FullOpts()));
             Assert.Contains("amix=inputs=2", s);
-            Assert.Contains("aac", s);
-            Assert.EndsWith("final.mp4", s);
+            Assert.Contains("alimiter=", s);
+            Assert.Contains("-c:a pcm_f32le", s);
+            Assert.DoesNotContain("0:v", s);          // no video stream in the audio pass
+            Assert.DoesNotContain("copy", s);
+            Assert.EndsWith("audio_processed.wav", s);
         }
 
         [Fact]
-        public void FilterVideoMic_copies_video_and_filters_mic_without_amix()
+        public void FilterMicToWav_filters_the_mic_into_the_intermediate_without_amix()
         {
-            var s = Join(FfmpegArgs.FilterVideoMic("raw.mp4", "final.mp4", FullOpts()));
-            Assert.Contains("-map 0:v", s);
-            Assert.Contains("-c:v copy", s);
+            var s = Join(FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", FullOpts()));
             Assert.Contains("arnndn", s);
             Assert.Contains("speechnorm", s);
             Assert.Contains("alimiter=", s);
-            Assert.DoesNotContain("amix", s);        // single source, nothing to mix
-            Assert.EndsWith("final.mp4", s);
+            Assert.Contains("-c:a pcm_f32le", s);
+            Assert.DoesNotContain("amix", s);         // single source, nothing to mix
+            Assert.DoesNotContain("0:v", s);
+            Assert.EndsWith("audio_processed.wav", s);
         }
 
         [Fact]
-        public void MuxVideoAddSystem_maps_system_as_only_audio()
+        public void FilterSystemToWav_applies_the_system_gain_and_nothing_else()
         {
-            var s = Join(FfmpegArgs.MuxVideoAddSystem("raw.mp4", "sys.wav", "final.mp4", 0.8));
+            var s = Join(FfmpegArgs.FilterSystemToWav("sys.wav", "audio_processed.wav", 0.8));
+            Assert.Contains("[0:a]volume=0.8[a]", s);
+            Assert.DoesNotContain("amix", s);         // no mic to mix
+            Assert.DoesNotContain("0:v", s);
+            Assert.Contains("-c:a pcm_f32le", s);
+        }
+
+        [Fact]
+        public void MuxVideoWithProcessedAudio_copies_the_video_and_carries_no_filter_graph()
+        {
+            var s = Join(FfmpegArgs.MuxVideoWithProcessedAudio("raw.mp4", "audio_processed.wav", "final.mp4"));
             Assert.Contains("-map 0:v", s);
             Assert.Contains("-c:v copy", s);
-            Assert.Contains("volume=0.8", s);
-            Assert.DoesNotContain("amix", s);     // no mic to mix
+            Assert.Contains("-map 1:a", s);
+            Assert.Contains("-c:a aac", s);
+            // The whole point: the audio arrives finished, so there is no graph to race the copy.
+            Assert.DoesNotContain("-filter_complex", s);
+            Assert.DoesNotContain("arnndn", s);
+            Assert.DoesNotContain("speechnorm", s);
+            Assert.EndsWith("final.mp4", s);
         }
 
         // ---- subtitle burn-in (issue #102) --------------------------------
