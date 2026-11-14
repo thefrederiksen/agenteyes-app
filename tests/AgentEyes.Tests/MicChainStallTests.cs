@@ -57,9 +57,11 @@ namespace AgentEyes.Tests
         // ---- the generated chain -----------------------------------------------------------
 
         [Fact]
-        public void FilterVideoMic_DefaultSettings_SanitizesNonFiniteSamplesBeforeArnndn()
+        public void FilterMicToWav_DefaultSettings_SanitizesNonFiniteSamplesBeforeArnndn()
         {
-            string s = Join(FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", Defaults()));
+            // Issue #136 moved the mic chain out of the single-pass video mux and into the audio
+            // pass of a two-pass mux. The chain is the same chain, so this guard follows it there.
+            string s = Join(FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", Defaults()));
 
             int finite = s.IndexOf(FfmpegArgs.FiniteSamples, StringComparison.Ordinal);
             int arnndn = s.IndexOf("arnndn", StringComparison.Ordinal);
@@ -81,9 +83,9 @@ namespace AgentEyes.Tests
             var o = Defaults();
             foreach (var chain in new[]
             {
-                Join(FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", o)),
+                Join(FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", o)),
                 Join(FfmpegArgs.MixTwoWav("m.wav", "s.wav", "o.wav", o)),
-                Join(FfmpegArgs.MuxVideoMixMicSystem("r.mp4", "s.wav", "o.mp4", o)),
+                Join(FfmpegArgs.MixMicSystemToWav("r.mp4", "s.wav", "a.wav", o)),
             })
             {
                 Assert.Contains(FfmpegArgs.ArnndnFraming + ",arnndn=", chain);
@@ -91,14 +93,14 @@ namespace AgentEyes.Tests
                             < chain.IndexOf(FfmpegArgs.ArnndnFraming, StringComparison.Ordinal), chain);
             }
             var noDenoise = Defaults(); noDenoise.NoiseSuppression = false;
-            Assert.DoesNotContain("asetnsamples", Join(FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", noDenoise)));
+            Assert.DoesNotContain("asetnsamples", Join(FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", noDenoise)));
         }
 
         [Fact]
         public void MicChain_LevelWithoutDenoise_SanitizesBeforeSpeechnorm()
         {
             var o = Defaults(); o.NoiseSuppression = false;
-            string s = Join(FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", o));
+            string s = Join(FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", o));
             Assert.Contains("[0:a]" + FfmpegArgs.FiniteSamples + ",aformat=channel_layouts=stereo,speechnorm=", s);
         }
 
@@ -107,14 +109,15 @@ namespace AgentEyes.Tests
         {
             var o = Defaults();
             Assert.Contains(FfmpegArgs.FiniteSamples, Join(FfmpegArgs.MixTwoWav("m.wav", "s.wav", "o.wav", o)));
-            Assert.Contains(FfmpegArgs.FiniteSamples, Join(FfmpegArgs.MuxVideoMixMicSystem("r.mp4", "s.wav", "o.mp4", o)));
+            Assert.Contains(FfmpegArgs.FiniteSamples, Join(FfmpegArgs.FilterMicToWav("r.mp4", "a.wav", o)));
+            Assert.Contains(FfmpegArgs.FiniteSamples, Join(FfmpegArgs.MixMicSystemToWav("r.mp4", "s.wav", "a.wav", o)));
         }
 
         [Fact]
         public void MicChain_NeitherDenoiseNorLevel_OmitsTheSanitizer()
         {
             var o = Defaults(); o.NoiseSuppression = false; o.VoiceLeveling = false;
-            string s = Join(FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", o));
+            string s = Join(FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", o));
             Assert.DoesNotContain("aeval", s);
             Assert.Contains("[0:a]volume=1[m]", s);
         }
@@ -607,9 +610,9 @@ namespace AgentEyes.Tests
             Assert.Contains(FfmpegArgs.FiniteSamples + ",aformat=channel_layouts=mono,",
                 Join(FfmpegArgs.MixTwoWav("m.wav", "s.wav", "o.wav", mono)));
             Assert.Contains(FfmpegArgs.FiniteSamples + ",aformat=channel_layouts=stereo,",
-                Join(FfmpegArgs.MuxVideoMixMicSystem("r.mp4", "s.wav", "o.mp4", stereo)));
+                Join(FfmpegArgs.MixMicSystemToWav("r.mp4", "s.wav", "a.wav", stereo)));
             Assert.Contains(FfmpegArgs.FiniteSamples + ",aformat=channel_layouts=6c,",
-                Join(FfmpegArgs.FilterVideoMic("r.mp4", "o.mp4", six)));
+                Join(FfmpegArgs.FilterMicToWav("r.mp4", "a.wav", six)));
 
             var unmeasured = Defaults(); unmeasured.MicChannels = null;
             var ex = Assert.Throws<UsageException>(() => FfmpegArgs.MixTwoWav("m.wav", "s.wav", "o.wav", unmeasured));

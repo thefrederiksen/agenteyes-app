@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using AgentEyes;
 using AgentEyes.Audio;
 using AgentEyes.Video;
@@ -241,7 +241,7 @@ namespace AgentEyes.Tests
             var o = GatedOpts();   // NoiseGate on, GateCalibrated still false
 
             var ex = Assert.Throws<UsageException>(
-                () => FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", o));
+                () => FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", o));
             Assert.Contains("has not been measured", ex.Message);
         }
 
@@ -252,7 +252,7 @@ namespace AgentEyes.Tests
             o.GateCalibrated = true;
             o.GateThresholdLinear = null;   // measured, and the answer was "do not gate"
 
-            string s = string.Join(" ", FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", o));
+            string s = string.Join(" ", FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", o));
             Assert.DoesNotContain("agate", s);
         }
 
@@ -264,7 +264,7 @@ namespace AgentEyes.Tests
             o.GateThresholdLinear = GateCalibration.ThresholdLinear(
                 new MicLevels(QuietMicFloorDb, QuietMicRmsDb));
 
-            string s = string.Join(" ", FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", o));
+            string s = string.Join(" ", FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", o));
             Assert.Contains($"agate=threshold={o.GateThresholdLinear!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}", s);
             Assert.DoesNotContain("agate=threshold=0.02", s);
         }
@@ -275,7 +275,7 @@ namespace AgentEyes.Tests
             var o = GatedOpts();
             o.NoiseGate = false;
 
-            string s = string.Join(" ", FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", o));
+            string s = string.Join(" ", FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", o));
             Assert.DoesNotContain("agate", s);
         }
 
@@ -435,7 +435,7 @@ namespace AgentEyes.Tests
             // So a resumed mux cannot build a chain until it measures the capture - it can never
             // silently apply the stale threshold.
             var ex = Assert.Throws<UsageException>(
-                () => FfmpegArgs.FilterVideoMic("raw.mp4", "out.mp4", options));
+                () => FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", options));
             Assert.Contains("has not been measured", ex.Message);
         }
 
