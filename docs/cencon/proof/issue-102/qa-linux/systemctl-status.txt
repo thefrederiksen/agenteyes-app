@@ -1,0 +1,12 @@
+* agenteyes.service - AgentEyes headless recorder (Control API on 127.0.0.1:7882)
+     Loaded: loaded (/home/soren/.config/systemd/user/agenteyes.service; enabled; preset: enabled)
+     Active: active (running) since Sat 2026-11-14 09:26:53 EST; 5min ago
+       Docs: https://github.com/thefrederiksen/agenteyes-app/blob/main/docs/linux.md
+   Main PID: 2350406 (agenteyes)
+      Tasks: 14 (limit: 47862)
+     Memory: 131.9M (peak: 1018.5M)
+        CPU: 5min 30.341s
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/agenteyes.service
+             `-2350406 /home/soren/.local/lib/agenteyes/agenteyes serve
+
+Nov 14 09:29:36 devlinux agenteyes[2350406]:   title: Linux Screen and Audio Quality Check  (430 tokens)

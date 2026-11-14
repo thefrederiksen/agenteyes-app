@@ -1,0 +1,19 @@
+[00:10] This is the agentized quality check on the Linux machine.
+[00:15] The quick brown fox jumps over the lazy dog.
+[00:20] Counting now. 1, 2, 3, 4, 5, 6, 7, 8, 9, 10.
+[00:28] We are measuring whether the audio lasts as long as the video.
+[00:33] Bananas, oranges, and purple elephants are dancing in the kitchen.
+[00:39] 15 seconds of speech remain in this test recording.
+[00:44] Thank you for listening to the System Audio Track.
+[00:48] Final sentence.
+[00:49] The recording will stop shortly.
+[00:53] This is the agent eyes quality check on the Linux machine.
+[00:58] The quick brown fox jumps over the lazy dog.
+[01:02] Counting out.
+[01:03] 1, 2, 3, 4, 5, 6, 7, 8, 9, 10.
+[01:11] We are measuring whether the audio lasts as long as the video.
+[01:16] Bananas, oranges, and purple elephants are dancing in the kitchen.
+[01:21] 15 seconds of speech remain in this test recording.
+[01:26] Thank you for listening to the System Audio Track.
+[01:31] Final sentence.
+[01:32] The recording will stop shortly.

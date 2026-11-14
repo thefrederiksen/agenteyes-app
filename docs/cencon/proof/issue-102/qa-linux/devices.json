@@ -1,0 +1,24 @@
+{
+    "monitors": [
+        {
+            "Index": 1,
+            "Width": 1920,
+            "Height": 1080,
+            "Primary": true,
+            "Name": "HDMI-0",
+            "X": 0,
+            "Y": 0
+        }
+    ],
+    "mics": [
+        {
+            "Number": 0,
+            "Name": "Family 17h (Models 00h-0fh) HD Audio Controller Analog Stereo"
+        }
+    ],
+    "dshow": [
+        "Family 17h (Models 00h-0fh) HD Audio Controller Analog Stereo"
+    ],
+    "cameras": [],
+    "systemAudio": "Monitor of Family 17h (Models 00h-0fh) HD Audio Controller Digital Stereo (IEC958) (alsa_output.pci-0000_08_00.3.iec958-stereo.monitor)"
+}
