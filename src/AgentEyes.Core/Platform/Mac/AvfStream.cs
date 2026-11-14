@@ -29,6 +29,29 @@ namespace AgentEyes.Platform.Mac
         public int SampleRate { get; }
         public int Channels { get; }
 
+        /// <summary>
+        /// The capture clock timestamp of the FIRST sample this stream's ffmpeg read from the device,
+        /// as ffmpeg reports it, or null when the log has not said. On macOS it is a CoreMedia
+        /// host-clock reading, the same clock FfmpegRecorder.InputStartSeconds is on, so the two
+        /// subtract to the exact offset between this stream's first sample and the recording's first
+        /// video frame (issue #114).
+        ///
+        /// Microseconds in a long, published with Interlocked, for the same reason as
+        /// FfmpegRecorder.InputStartSeconds: written on ffmpeg's stderr thread, read at the stop,
+        /// and a nullable double is neither one field nor atomically written.
+        /// </summary>
+        public double? InputStartSeconds
+        {
+            get
+            {
+                long micros = Interlocked.Read(ref _inputStartMicros);
+                return micros < 0 ? null : micros / 1_000_000.0;
+            }
+        }
+
+        /// <summary>Backing store for <see cref="InputStartSeconds"/>; negative means "not reported".</summary>
+        private long _inputStartMicros = -1;
+
         /// <summary>One block of PCM: the buffer and how many of its bytes are valid.</summary>
         public event Action<byte[], int>? Data;
 
@@ -57,8 +80,29 @@ namespace AgentEyes.Platform.Mac
         /// </summary>
         internal static string[] Arguments(int avfAudioIndex, int sampleRate, int channels) => new[]
         {
-            "-hide_banner", "-nostats", "-loglevel", "warning",
+            // -loglevel info, NOT warning, and -nostats so that is all it costs (issue #114). ffmpeg
+            // prints the input dump - the line carrying this capture's start time on the machine's
+            // shared capture clock - at info level, and on macOS that timestamp is the only thing
+            // that can align this WAV with the screen recording's video, which is a different ffmpeg
+            // process. With -nostats there is no progress spam, so the whole block is ~15 lines.
+            "-hide_banner", "-nostats", "-loglevel", "info",
             "-f", "avfoundation",
+            // KEEP DRAINING THE DEVICE WHILE THIS END IS BUSY (issue #114). ffmpeg's avfoundation
+            // demuxer holds exactly ONE sample buffer per device and silently discards whatever
+            // arrives before the reader takes it, and this capture's reader is at the far end of a
+            // pipe inside a .NET service that also transcribes: a garbage collection or a few
+            // seconds of memory pressure stalls the pipe, ffmpeg blocks on the write, and the samples
+            // that arrive meanwhile are gone with nothing logged. Measured while the service was
+            // transcribing its backlog: a 60.05 s capture kept 25.15 s - the same shape of loss this
+            // issue is about, on the other side of the same one-buffer demuxer.
+            //
+            // A deep input queue decouples the two: the demuxer thread keeps taking buffers off the
+            // device into the queue while the output is blocked. At roughly 4096 samples per buffer
+            // this is minutes of slack for a stall measured in seconds. It is the same guard, with the
+            // same value, that the screen capture has carried from the start - this input simply
+            // never had it. It is a generic ffmpeg input option, not a foreign demuxer's
+            // (MacForeignFfmpegOptionTests still sweeps this list for those).
+            "-thread_queue_size", "1024",
             "-i", ":" + avfAudioIndex.ToString(CultureInfo.InvariantCulture),
             "-ac", channels.ToString(CultureInfo.InvariantCulture),
             "-ar", sampleRate.ToString(CultureInfo.InvariantCulture),
@@ -83,7 +127,21 @@ namespace AgentEyes.Platform.Mac
             Log.Info($"[AvfStream] Start {_label}: {FfmpegArgs.ToCommandLine(exe, psi.ArgumentList)}");
 
             var p = new Process { StartInfo = psi };
-            p.ErrorDataReceived += (_, e) => { if (e.Data != null) lock (_stderr) _stderr.AppendLine(e.Data); };
+            p.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data == null) return;
+                lock (_stderr) _stderr.AppendLine(e.Data);
+                if (Interlocked.Read(ref _inputStartMicros) < 0)
+                {
+                    double? start = FfmpegRecorder.ParseInputStartSeconds(e.Data);
+                    if (start is > 0)
+                    {
+                        Interlocked.Exchange(
+                            ref _inputStartMicros, (long)Math.Round(start.Value * 1_000_000.0));
+                        Log.Info($"[AvfStream] {_label}: capture clock start {start.Value:F6}s");
+                    }
+                }
+            };
             if (!p.Start()) throw new UsageException($"failed to start ffmpeg for {_label}.");
             _proc = p;
             p.BeginErrorReadLine();
@@ -170,6 +228,21 @@ namespace AgentEyes.Platform.Mac
             }
             if (_reader != null && !_reader.Join(5000))
                 Log.Warn($"[AvfStream] Stop {_label}: the reader did not drain within 5s");
+
+            // WHAT FFMPEG ITSELF SAYS IT CAPTURED. Without this, a capture that silently delivered a
+            // fraction of its samples looked identical in the log to one that delivered all of them -
+            // the only number recorded was how many bytes came out of the pipe, which cannot tell
+            // "the device gave us less" apart from "we read less". ffmpeg's closing summary carries
+            // its own size= and time=, so the two sides can be compared whenever they disagree.
+            string report;
+            lock (_stderr) report = _stderr.ToString().Trim();
+            if (report.Length > 0)
+            {
+                var lines = report.Split('\n');
+                int from = Math.Max(0, lines.Length - 4);
+                Log.Info($"[AvfStream] Stop {_label}: ffmpeg reported "
+                         + string.Join(" | ", lines[from..]).Replace("\r", "").Trim());
+            }
             Log.Info($"[AvfStream] Stop {_label}: done (ffmpeg exit={(p.HasExited ? p.ExitCode.ToString() : "running")})");
         }
 
