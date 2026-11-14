@@ -1,0 +1,2 @@
+[2026-11-14T17:44:06.492Z] State left recording after 46.538256186s (now finalizing)
+[2026-11-14T17:44:20.118Z] /status first NAMED the fault after 60.165146688s: capture stalled: raw.mp4 stopped growing at 513873 bytes and has not grown for 46s (limit 45s); last growth 2026-11-14T17:43:20.333Z

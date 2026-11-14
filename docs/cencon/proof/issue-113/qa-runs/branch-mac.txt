@@ -1,0 +1,2 @@
+  Failed AgentEyes.Tests.Mac.MacPathsTests.MachineLocalAppData_OnMac_IsTheApplicationSupportFolder [10 ms]
+Failed!  - Failed:     1, Passed:   251, Skipped:     0, Total:   252, Duration: 96 ms - AgentEyes.Tests.Mac.dll (net8.0)
