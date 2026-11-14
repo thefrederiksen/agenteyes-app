@@ -12,7 +12,7 @@ contradicts this change; one of its defects (D3) is in fact the root cause of th
 below, which is a help rather than a problem. A `git diff` of this branch against the **current**
 tip of `issue-128-mic-chain-stall` will show its two QA-report commits as deletions - that is the
 usual two-dot-diff artifact, not something I removed. Against the merge base it is 15 files,
-+2347/-68.
++2598/-68.
 
 I believe this is finished, with one thing stated up front rather than buried. The decision asked
 for in the issue is **candidate (1), two passes**; the reasoning and the measurements are in "The
