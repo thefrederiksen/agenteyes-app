@@ -13,25 +13,25 @@ namespace AgentEyes.Audio
         public static void MixWavs(string micWav, string sysWav, string outWav, AudioMixOptions o)
         {
             Prepare(o, micWav);
-            Ffmpeg.Run(FfmpegArgs.MixTwoWav(micWav, sysWav, outWav, o), "mix mic+system");
+            Ffmpeg.RunWatched(FfmpegArgs.MixTwoWav(micWav, sysWav, outWav, o), "mix mic+system", Ffmpeg.PostProcessStallTimeout);
         }
 
         /// <summary>Video (with mic track) + system WAV -> final MP4 with mixed audio.</summary>
         public static void MuxVideoMixed(string rawMp4, string sysWav, string outMp4, AudioMixOptions o)
         {
             Prepare(o, rawMp4);
-            Ffmpeg.Run(FfmpegArgs.MuxVideoMixMicSystem(rawMp4, sysWav, outMp4, o), "mux video+mic+system");
+            Ffmpeg.RunWatched(FfmpegArgs.MuxVideoMixMicSystem(rawMp4, sysWav, outMp4, o), "mux video+mic+system", Ffmpeg.PostProcessStallTimeout);
         }
 
         /// <summary>Video (no audio) + system WAV -> final MP4 with system audio only.</summary>
         public static void MuxVideoSystemOnly(string rawMp4, string sysWav, string outMp4, double sysGain)
-            => Ffmpeg.Run(FfmpegArgs.MuxVideoAddSystem(rawMp4, sysWav, outMp4, sysGain), "mux video+system");
+            => Ffmpeg.RunWatched(FfmpegArgs.MuxVideoAddSystem(rawMp4, sysWav, outMp4, sysGain), "mux video+system", Ffmpeg.PostProcessStallTimeout);
 
         /// <summary>Video with a mic-only track -> final MP4 with the mic run through the clean-voice chain.</summary>
         public static void ProcessVideoMic(string rawMp4, string outMp4, AudioMixOptions o)
         {
             Prepare(o, rawMp4);
-            Ffmpeg.Run(FfmpegArgs.FilterVideoMic(rawMp4, outMp4, o), "process mic audio");
+            Ffmpeg.RunWatched(FfmpegArgs.FilterVideoMic(rawMp4, outMp4, o), "process mic audio", Ffmpeg.PostProcessStallTimeout);
         }
 
         /// <summary>
