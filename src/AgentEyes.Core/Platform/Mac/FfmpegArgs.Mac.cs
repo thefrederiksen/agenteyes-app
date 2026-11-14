@@ -127,6 +127,7 @@ namespace AgentEyes.Video
 
             if (avfMicIndex != null) a.AddRange(new[] { "-c:a", "aac", "-b:a", "128k" });
 
+            a.AddRange(FragmentedOutput());   // issue #113: a playable file after an unclean end
             a.Add(outPath);
             if (previewStream) a.AddRange(PreviewOutput());
             return a;

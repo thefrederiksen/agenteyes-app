@@ -57,6 +57,8 @@
     <!-- Issue #122: pure argument-parsing tests shared by all three suites (Windows, Linux, macOS),
          compiled from ONE source file so every platform's build of the CLI passes the same ones. -->
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
+    <!-- Issue #113: the platform-neutral capture watchdog, tested once for all three platforms. -->
+    <Compile Include="..\Shared\CaptureWatchdogTests.cs" Link="Shared\CaptureWatchdogTests.cs" />
   </ItemGroup>
 
 </Project>

@@ -86,10 +86,39 @@ namespace AgentEyes.Video
                 a.AddRange(new[] { "-c:a", "aac", "-b:a", "128k" });
             }
 
+            a.AddRange(FragmentedOutput());
             a.Add(outPath);
             if (previewStream) a.AddRange(PreviewOutput());
             return a;
         }
+
+        /// <summary>
+        /// Issue #113: the screen capture writes FRAGMENTED MP4, flushed to disk at every fragment, so
+        /// a capture that ends uncleanly - frozen and then killed, or killed outright - still leaves a
+        /// file that plays up to its last fragment. Plain MP4 writes its index (the moov atom) only on
+        /// a clean exit, which is why the 18-hour recording of 2026-11-12 was unreadable
+        /// ("moov atom not found").
+        ///
+        /// - empty_moov + default_base_moof: the index is written up front and every fragment is
+        ///   self-describing, so any prefix of the file that ends on a fragment is a valid MP4.
+        /// - frag_keyframe + frag_duration 2 s: a new fragment at each keyframe or every two seconds,
+        ///   whichever comes first, so an unclean end loses at most about two seconds.
+        /// - flush_packets 1: the fragment reaches the DISK when it is cut. Without it ffmpeg keeps up
+        ///   to 32 KB in its write buffer, and on a static screen that was over 12 seconds of output
+        ///   that a SIGKILL threw away (measured on Linux, 2026-11-14) - and a file whose size stands
+        ///   still for 12 seconds on a healthy capture would also be no use as the liveness signal
+        ///   <see cref="CaptureWatchdog"/> judges by. With the flush the file grows every two seconds
+        ///   of media whatever is on screen.
+        ///
+        /// Placed immediately before the output path, so the options apply to the MP4 output and not
+        /// to the optional preview output that follows it.
+        /// </summary>
+        internal static List<string> FragmentedOutput() => new()
+        {
+            "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+            "-frag_duration", "2000000",
+            "-flush_packets", "1",
+        };
 
         /// <summary>
         /// Split a requested capture region into what gdigrab can actually grab (the part inside the
