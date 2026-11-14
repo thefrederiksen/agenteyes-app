@@ -1,0 +1,38 @@
+Issue #136 - the SECOND finding's measurements. NOT #136's defect: this is a stall in the mic
+chain itself, with NO video stream in the command, so it cannot be the muxing queue. Pre-existing
+on main. Recorded here so it is not rediscovered as a #136 regression.
+
+Machine: devthrottle-mac-mini, ffmpeg 9.0.2. Input: the audio track of
+fixtures/c3-60s/recording.original.mp4, which is ~/Movies/AgentEyes/2026-11-14_111433_video's
+mic_native.wav (60.224 s, pcm_s16le, 48 kHz, mono) as the video's AAC track. Command shape:
+  ffmpeg -nostdin -y -i <input> -filter_complex <chain> -map [a] -c:a pcm_f32le out.wav
+Each run killed at 75 s if it had not finished. A successful run writes 11,564,252 bytes; a
+wedged run freezes at exactly 11,534,336 bytes = 11 MiB, i.e. 60.07 s of the 60.23 s - it reaches
+the end of the content and never writes the WAV's final header.
+
+=== c3-60s mic, chain WITH #128's aeval sanitizer (what is on this branch)
+  c3-with run1: ok rc=0 in 1s (11564252 bytes)
+  c3-with run2: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-with run3: ok rc=0 in 1s (11564252 bytes)
+  c3-with run4: WEDGED (killed 75s, wrote 11534336 bytes)
+=== c3-60s mic, chain WITHOUT the sanitizer (main's chain)
+  c3-without run1: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-without run2: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-without run3: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-without run4: WEDGED (killed 75s, wrote 11534336 bytes)
+=== c3-60s mic, sanitizer + arnndn but NO speechnorm
+  c3-nolevel run1: ok rc=0 in 2s (11564252 bytes)
+  c3-nolevel run2: ok rc=0 in 1s (11564252 bytes)
+=== c1-76s mic, chain WITH the sanitizer
+  c1-with run1: ok rc=0 in 1s (14494172 bytes)
+  c1-with run2: ok rc=0 in 1s (14494172 bytes)
+  c1-with run3: ok rc=0 in 1s (14494172 bytes)
+
+SUMMARY
+  c3 with #128's aeval sanitizer      : 2 of 4 wedged
+  c3 without it (main's chain)        : 4 of 4 wedged  -> pre-existing, not #128's doing
+  c3 with the sanitizer, no speechnorm: 0 of 2 wedged  -> speechnorm is the stalling stage
+  c1 (2026-11-14_111731) same chain   : 0 of 3 wedged  -> content-dependent
+
+Also measured: '-f adts' output (a raw stream with no header to rewrite) completed where .wav
+and .m4a did not, on a run of the same command in the same minute.

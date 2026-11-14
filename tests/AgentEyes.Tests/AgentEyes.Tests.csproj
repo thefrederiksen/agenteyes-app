@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
@@ -65,7 +65,7 @@
          and Linux builders are covered by the macOS and Linux gates, and the shared ones by all
          three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
          graph, because on macOS that command never finalizes. -->
-    <Compile Include="..\Shared\FfmpegMuxShapeTests.cs" Link="Shared\FfmpegMuxShapeTests.cs" />
+    <Compile Include="../Shared/FfmpegMuxShapeTests.cs" Link="Shared/FfmpegMuxShapeTests.cs" />
   </ItemGroup>
 
 </Project>

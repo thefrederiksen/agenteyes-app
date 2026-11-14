@@ -1,0 +1,158 @@
+Issue #136 - the two-pass mux run over the three fixtures, through the real deferred-mux code path
+(RecordingService.FinalizePending), on devthrottle-mac-mini, ffmpeg 9.0.2.
+
+The fixtures are a recording directory each, holding a raw.mp4 (a long video stream plus a long mic
+track, muxed with no filters) and a manifest.json carrying a PendingMux of Mode: video, Source: mic
+with the shipped default options (NoiseSuppression true, VoiceLeveling true, NoiseGate false,
+MicGain 1, SystemGain 0.7). Their material, all of it already on the machine:
+
+  c1-76s   ~/Movies/AgentEyes/2026-11-14_111731_video/raw.mp4                (77.067 s, 4.62 Mbit/s)
+           + that directory's mic_native.wav                                 (75.488 s, mono 48 kHz)
+  c3-60s   ~/Movies/AgentEyes/2026-11-14_111433_video/recording.original.mp4 (61.833 s, 3.95 Mbit/s)
+           + that directory's mic_native.wav                                 (60.224 s, mono 48 kHz)
+  c2-600s  ~/Movies/AgentEyes/2026-11-14_110301_video/recording.original.mp4 (601.900 s, 4.27 Mbit/s)
+           + that directory's mic_native.wav                                 (600.384 s, mono 48 kHz)
+
+Building each fixture's raw.mp4 is itself PASS 2's shape - a video copy beside an audio encode with
+no filter graph - so it is a measurement too:
+
+  c1-76s   0.39 s      46,084,198 bytes
+  c3-60s   0.33 s      31,785,067 bytes
+  c2-600s  2.90 s     333,919,633 bytes    <- pass 2's shape does not race at ten minutes either
+
+Local file paths from the test harness have been replaced with <scratch> below. Nothing else is
+edited.
+
+----------------------------------------------------------------------
+
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  AgentEyes.Core -> <home>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll
+  typecheck -> <scratch>/typecheck/bin/Release/net8.0/AgentEyes.Tests.dll
+Test run for <scratch>/typecheck/bin/Release/net8.0/AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+<scratch>/typecheck/bin/Release/net8.0/AgentEyes.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 10.0.15)
+[xUnit.net 00:00:00.02]   Discovering: AgentEyes.Tests
+[xUnit.net 00:00:00.03]   Discovered:  AgentEyes.Tests
+[xUnit.net 00:00:00.04]   Starting:    AgentEyes.Tests
+  Passed AgentEyes.Tests.MuxProof.Finalize(name: "c3-60s") [1 s]
+  Standard Output Messages:
+ === c3-60s
+   raw.mp4           31,785,067 bytes  codec_name=h264|codec_type=video|duration=61.833333 | codec_name=aac|codec_type=audio|sample_rate=48000|channels=1|duration=60.224000 | duration=61.833333 |
+   FinalizePending   1.05 s wall clock
+   recording.mp4     31,612,581 bytes  codec_name=h264|codec_type=video|duration=61.833333 | codec_name=aac|codec_type=audio|sample_rate=48000|channels=1|duration=60.230000 | duration=61.833333 |
+   intermediate left False
+   dir now           recording.original.mp4, recording.mp4, manifest.json
+   volumedetect      [Parsed_volumedetect_0 @ 0xa1d01ca80] mean_volume: -68.5 dB  [Parsed_volumedetect_0 @ 0xa1d01ca80] max_volume: -41.5 dB
+   manifest          {
+   "Tool": "AgentEyes",
+   "Mode": "video",
+   "Imported": false,
+   "Label": "video",
+   "CreatedUtc": "2026-11-14T16:17:31.5882860Z",
+   "MonitorIndex": 1,
+   "MonitorName": "Display 1",
+   "Microphone": "Yealink UH36",
+   "DurationSeconds": 61.83,
+   "VideoFile": "recording.mp4",
+   "Transcripts": {},
+   "TranscribeAttempts": 0,
+   "TitleAttempts": 0,
+   "ThumbAttempts": 0,
+   "Shots": [],
+   "Files": [
+     "recording.mp4",
+     "recording.original.mp4"
+   ],
+   "Keep": false,
+   "Housekeeping": [],
+   "OriginalFiles": [
+     "recording.original.mp4"
+   ],
+   "PostProcessing": {}
+ }
+
+
+  Passed AgentEyes.Tests.MuxProof.Finalize(name: "c1-76s") [1 s]
+  Standard Output Messages:
+ === c1-76s
+   raw.mp4           46,084,198 bytes  codec_name=h264|codec_type=video|duration=77.066667 | codec_name=aac|codec_type=audio|sample_rate=48000|channels=1|duration=75.488000 | duration=77.066667 |
+   FinalizePending   1.17 s wall clock
+   recording.mp4     45,872,117 bytes  codec_name=h264|codec_type=video|duration=77.066667 | codec_name=aac|codec_type=audio|sample_rate=48000|channels=1|duration=75.490000 | duration=77.066667 |
+   intermediate left False
+   dir now           recording.original.mp4, recording.mp4, manifest.json
+   volumedetect      [Parsed_volumedetect_0 @ 0xa41020a80] mean_volume: -68.8 dB  [Parsed_volumedetect_0 @ 0xa41020a80] max_volume: -41.0 dB
+   manifest          {
+   "Tool": "AgentEyes",
+   "Mode": "video",
+   "Imported": false,
+   "Label": "video",
+   "CreatedUtc": "2026-11-14T16:17:31.5882860Z",
+   "MonitorIndex": 1,
+   "MonitorName": "Display 1",
+   "Microphone": "Yealink UH36",
+   "DurationSeconds": 77.07,
+   "VideoFile": "recording.mp4",
+   "Transcripts": {},
+   "TranscribeAttempts": 0,
+   "TitleAttempts": 0,
+   "ThumbAttempts": 0,
+   "Shots": [],
+   "Files": [
+     "recording.mp4",
+     "recording.original.mp4"
+   ],
+   "Keep": false,
+   "Housekeeping": [],
+   "OriginalFiles": [
+     "recording.original.mp4"
+   ],
+   "PostProcessing": {}
+ }
+
+
+[xUnit.net 00:00:09.64]   Finished:    AgentEyes.Tests
+  Passed AgentEyes.Tests.MuxProof.Finalize(name: "c2-600s") [7 s]
+  Standard Output Messages:
+ === c2-600s
+   raw.mp4           333,919,633 bytes  codec_name=h264|codec_type=video|duration=601.900000 | codec_name=aac|codec_type=audio|sample_rate=48000|channels=1|duration=600.384000 | duration=601.900000 |
+   FinalizePending   6.71 s wall clock
+   recording.mp4     332,354,524 bytes  codec_name=h264|codec_type=video|duration=601.900000 | codec_name=aac|codec_type=audio|sample_rate=48000|channels=1|duration=600.390000 | duration=601.900000 |
+   intermediate left False
+   dir now           recording.original.mp4, recording.mp4, manifest.json
+   volumedetect      [Parsed_volumedetect_0 @ 0x94b005080] mean_volume: -67.8 dB  [Parsed_volumedetect_0 @ 0x94b005080] max_volume: -25.8 dB
+   manifest          {
+   "Tool": "AgentEyes",
+   "Mode": "video",
+   "Imported": false,
+   "Label": "video",
+   "CreatedUtc": "2026-11-14T16:17:31.5882860Z",
+   "MonitorIndex": 1,
+   "MonitorName": "Display 1",
+   "Microphone": "Yealink UH36",
+   "DurationSeconds": 601.9,
+   "VideoFile": "recording.mp4",
+   "Transcripts": {},
+   "TranscribeAttempts": 0,
+   "TitleAttempts": 0,
+   "ThumbAttempts": 0,
+   "Shots": [],
+   "Files": [
+     "recording.mp4",
+     "recording.original.mp4"
+   ],
+   "Keep": false,
+   "Housekeeping": [],
+   "OriginalFiles": [
+     "recording.original.mp4"
+   ],
+   "PostProcessing": {}
+ }
+
+
+
+Test Run Successful.
+Total tests: 3
+     Passed: 3
+ Total time: 9.8240 Seconds

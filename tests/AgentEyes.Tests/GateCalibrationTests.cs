@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using AgentEyes;
 using AgentEyes.Audio;
 using AgentEyes.Video;

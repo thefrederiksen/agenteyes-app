@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Issue #102: the tests for the Linux build of AgentEyes.Core (net8.0). They run on Linux:
          dotnet test tests/AgentEyes.Tests.Linux -c Release
@@ -42,7 +42,7 @@
          and Linux builders are covered by the macOS and Linux gates, and the shared ones by all
          three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
          graph, because on macOS that command never finalizes. -->
-    <Compile Include="..\Shared\FfmpegMuxShapeTests.cs" Link="Shared\FfmpegMuxShapeTests.cs" />
+    <Compile Include="../Shared/FfmpegMuxShapeTests.cs" Link="Shared/FfmpegMuxShapeTests.cs" />
   </ItemGroup>
 
 </Project>
