@@ -3,8 +3,16 @@
 **[Recorder] macOS: the mux deadlocks when a copied video stream is paired with the filtered mic chain**
 
 PR: #140, against `main`, **stacked on #133** (issue #128's PR). Branch
-`issue-136-mux-queue-deadlock`, cut from `issue-128-mic-chain-stall`, not from `main`: #128 adds the
-progress watchdog criterion 9 asks me to leave working and it edits the same files.
+`issue-136-mux-queue-deadlock`, cut from `issue-128-mic-chain-stall` at `ea7b66a`, not from `main`:
+#128 adds the progress watchdog criterion 9 asks me to leave working and it edits the same files.
+
+**#128 went `flow:qa-failed` while I was working**, so my base will move. I have not rebased - the
+Implementation Lead's instruction was that she tells me when to. Nothing in #128's QA report
+contradicts this change; one of its defects (D3) is in fact the root cause of the second finding
+below, which is a help rather than a problem. A `git diff` of this branch against the **current**
+tip of `issue-128-mic-chain-stall` will show its two QA-report commits as deletions - that is the
+usual two-dot-diff artifact, not something I removed. Against the merge base it is 15 files,
++2165/-68.
 
 I believe this is finished, with one thing stated up front rather than buried. The decision asked
 for in the issue is **candidate (1), two passes**; the reasoning and the measurements are in "The
@@ -513,7 +521,34 @@ not going to invent one.
 What survives is the part that was measured rather than inferred: the stall is real and frequent
 (3 of 3 on the ten-minute audio), it is not the muxing queue, it is not #128's sanitizer, it is
 `speechnorm` - removing that stage is the only intervention that cleanly stopped it (0 of 2) - it is
-content-dependent, and #128's watchdog bounds it. **The root cause is not established here.**
+content-dependent, and #128's watchdog bounds it.
+
+**AND THE ROOT CAUSE IS ESTABLISHED - by #128's QA seat, independently, on Windows, while I was
+measuring this on the Mac.** #128 went `flow:qa-failed` during my pass, and its QA report's defect
+D3 is this stall:
+
+> **arnndn on ffmpeg 9.0.2 emits a NaN frame at end of stream on finite input.** The sanitizer sits
+> before arnndn by necessity, so it cannot remove it, and speechnorm then spins at the end.
+
+with `astats` showing 0 NaNs in the input and **480 NaNs (one 10 ms frame) after
+sanitizer + arnndn**, the same stall under ffmpeg 9.0.2 and none under 8.1.1, and a length sweep in
+which `samples mod 480` partly predicts it. That explains every number I measured and I am adopting
+it rather than keeping my own partial account:
+
+- it freezes a fraction of a second from the end, because the NaN frame is the terminal one;
+- removing `speechnorm` stops it (0 of 2), because the NaN then passes through to a filter that can
+  survive it;
+- removing the sanitizer makes it **worse** (4 of 4), because the sanitizer removes the input's own
+  non-finite samples but cannot remove the one `arnndn` manufactures after it;
+- and it is content-dependent as well as length-dependent, which both seats measured separately -
+  their real ten-minute dshow capture completed at a non-multiple length, and 111731's audio
+  completed 3 of 3 here.
+
+So "speechnorm is the stalling stage" is right and incomplete: `speechnorm` is where it spins,
+`arnndn`'s end-of-stream NaN is what feeds it. Their report says "this may also bear on #136. This
+QA seat has not verified that." It does bear on it, exactly as described, and these are the Mac-side
+numbers for it. It remains #128's defect to fix, not mine: the fix belongs at the head or the tail
+of the mic chain, which I was told not to touch.
 
 One further caveat: whatever it is, it has a second symptom that no threading change touched - the
 processed **level** is not reproducible either. The two completed single-threaded ten-minute runs
@@ -657,5 +692,8 @@ None of those are needed for this issue.
   that it is `speechnorm`, that it is at the end of the stream, that it is intermittent, that it is
   on `main`, and that #128's watchdog bounds it. Why it is intermittent is unanswered: filter
   threading was the obvious suspect and `-filter_complex_threads 1` did not survive the data, so I
-  withdrew that claim rather than keep it. It belongs to #128 or to an issue of its own, and the
-  Implementation Lead has the measurements.
+  withdrew that claim rather than keep it. **#128's QA seat then established it independently on
+  Windows while I was measuring - its defect D3, `arnndn` emitting a NaN frame at end of stream on
+  ffmpeg 9.0.2, which the head sanitizer cannot see and which `speechnorm` then spins on.** The
+  second finding below adopts their account and gives the Mac-side numbers for it. The fix belongs in
+  the mic chain, which is #128's and which I was told not to touch.

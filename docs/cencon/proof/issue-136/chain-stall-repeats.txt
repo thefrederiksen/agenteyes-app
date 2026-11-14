@@ -82,7 +82,25 @@ What is left standing, and it is still worth having:
   - it freezes at an identical byte count on each input, a fraction of a second from the end,
     without writing the WAV's final header, and '-f adts' output completes where .wav does not;
   - #128's watchdog bounds it: it failed the stage in 63 s on the product path rather than spinning.
-The root cause is NOT established here, and no flag in this branch mitigates it.
+No flag in this branch mitigates it.
+
+THE ROOT CAUSE, ESTABLISHED BY #128's QA SEAT ON WINDOWS WHILE THIS WAS BEING MEASURED ON THE MAC.
+#128 went flow:qa-failed during this pass and its QA report's defect D3 is this stall: arnndn on
+ffmpeg 9.0.2 emits a NaN frame at end of stream on finite input; the sanitizer sits before arnndn by
+necessity so it cannot remove it; speechnorm then spins at the end. Their astats: 0 NaNs in the
+input, 480 NaNs - one 10 ms frame - after sanitizer+arnndn, the stall on 9.0.2 and none on 8.1.1.
+
+That explains every number above, and it is adopted here in place of the partial account this file
+first carried:
+  - it freezes a fraction of a second from the end because the NaN frame is the terminal one;
+  - removing speechnorm stops it, because the NaN then reaches a filter that survives it;
+  - removing the sanitizer makes it WORSE, because the sanitizer removes the INPUT's non-finite
+    samples and cannot remove the one arnndn manufactures after it;
+  - it is content-dependent as well as length-dependent, which both seats measured separately.
+So "speechnorm is the stalling stage" is right and incomplete: speechnorm is where it spins,
+arnndn's end-of-stream NaN is what feeds it. Their report says "this may also bear on #136. This QA
+seat has not verified that." It does, exactly as described, and the numbers above are the Mac side
+of it.
 
 A SECOND SYMPTOM: the processed LEVEL is not reproducible either. Completed runs of the same input
 through the same code differ by 15-26 dB:
