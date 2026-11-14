@@ -106,6 +106,13 @@ Added:
 
 `src/AgentEyes.Core/Audio/AudioMix.cs`
 
+**For #128 round two, first, because it is rebasing onto this.** `RunStage` itself is **byte-for-byte
+unchanged** - `git diff` shows no `+`/`-` inside its body. All I did was change its *callers*: the
+three mux entry points now call it twice, through `MuxInTwoPasses`, instead of once directly. So
+neither of the two `RunStage` defects #128's QA raised is harder to fix than it was, and neither is
+hidden: the `finally`-never-runs-on-process-death problem and the `File.Delete` race are both still
+exactly where they were, in a method I did not edit. The new code sits in `MuxInTwoPasses` beside it.
+
 - `MuxVideoMixed`, `MuxVideoSystemOnly`, `ProcessVideoMic` keep their signatures and their call sites
   (`RecordingService.FinalizePending`, `Commands`, `SelfTest` are unchanged) and now go through
   `MuxInTwoPasses`.
@@ -404,7 +411,17 @@ project (same assembly name, so internals resolve): **101 passed, 0 failed**, in
 real-ffmpeg stall tests. That is not the Windows gate - it does not build the WPF app or the
 Windows-only tests - but it is why I expect the Windows job to be green on the test files I changed.
 
-### 9. #128's guards still fire
+### 9. #128's guards still fire - DEFERRED BY THE IMPLEMENTATION LEAD
+
+**QA: do not fail this issue on criterion 9. It was deferred by the Implementation Lead during this
+pass, in writing, and her reasoning is sound rather than convenient:** this fix makes the mux
+*complete*, so there is nothing left on this path for a watchdog to catch; #128's watchdog is
+defence in depth for the case where something else stalls. They are independent, which is why they
+became two issues. It moves to a combined post-merge check once both are in.
+
+I am recording what I have anyway, because it is stronger than what the criterion asked for and it
+cost nothing - the watchdog fired on this branch, on the product path, on a genuinely stalled stage,
+without my arranging it.
 
 Nothing of #128's was removed, duplicated or "improved": the sanitizer, the watchdog, the child
 registry and the retry-ceiling fix are all as they were on `issue-128-mic-chain-stall`.
@@ -437,12 +454,63 @@ registry and the retry-ceiling fix are all as they were on `issue-128-mic-chain-
 
 ---
 
-## Two findings that are NOT this issue, reported separately
+## The Implementation Lead's question: does the split make #128's defect (2) impossible?
 
-Both are in the mic chain, both reproduce identically before and after my change, and both are out
-of scope here ("do not remove, duplicate or improve #128's sanitizer"). The first is #128's; the
-second is older than #128 and is on `main`. I have raised both to the Implementation Lead. Recording
-them here so QA does not rediscover them as #136 defects.
+**She asked whether the two-pass structure makes #128's QA defect (2) - a process death leaving a
+moov-less `recording.mp4` at the FINAL path - structurally unreachable, and said plainly: do not
+stretch the claim to be helpful. The answer is NO. It does not.**
+
+I measured it rather than reasoned about it, because the honest answer depended on whether pass 2
+writes the final path incrementally. It does. The method: run `FinalizePending` in a child process,
+`SIGKILL` the managed host **first** so no `finally` can run (which is what process death means),
+then its ffmpeg, then look at the directory. Fixture: the 601.9 s / 323 MB video with 111731's
+75.5 s mic track.
+
+| killed | at the instant of death | after the death |
+|---|---|---|
+| 0.4 s in | `audio_processed.wav` complete (14,494,208 B), `recording.mp4` growing (9,437,232 B) | **`recording.mp4` left at the final path, 9,699,376 B, `ffprobe`: "moov atom not found"**; `audio_processed.wav` orphaned |
+| 1.1 s in | same, `recording.mp4` at 35,913,776 B | **`recording.mp4` left at the final path, 35,913,776 B, `ffprobe`: "moov atom not found"**; `audio_processed.wav` orphaned |
+
+So defect (2) is reachable on this path exactly as #128's QA described it. The split does **not**
+remove it, and I am not going to claim otherwise.
+
+What the split does and does not change, precisely:
+
+- **A death during pass 1 leaves NOTHING at the final path**, because pass 1 writes only the
+  intermediate. That window is genuinely immune.
+- **A death during pass 2 leaves the moov-less file**, because ffmpeg streams the `mdat` and writes
+  the `moov` atom at the end. Unchanged from the single-pass behaviour.
+- So the exposed window narrows from "the whole mux" to "pass 2 only" - and that is a smaller
+  improvement than it sounds, because pass 2 is a large share of the time: of 1.17 s on the 76 s
+  fixture about 0.4 s is pass 2, and of 6.71 s on the 602 s fixture about 2.9 s is. Call it a third
+  to a half. **Narrowed, not closed.**
+- And the split **adds** an orphan: `audio_processed.wav` survives a process death too, as both runs
+  above show. That is the limitation already listed under "What this does NOT cover", now measured
+  rather than inferred.
+
+**It could be closed, cheaply, and in my code rather than #128's** - which is worth saying because
+the "you will collide with #128 round two" reason for leaving it alone does not apply to this
+particular remedy. If pass 2 wrote to a temp path beside the output and `File.Move`d it into place
+on success - an atomic rename on the same volume - then a death at *any* point in the mux would
+leave nothing at the final path, and (2) would be unreachable on this path by construction rather
+than guarded against. That is a few lines inside `AudioMix.MuxInTwoPasses`
+(`src/AgentEyes.Core/Audio/AudioMix.cs`), touches no part of `RunStage`, and would not conflict with
+#128's round two.
+
+**I have not done it**, because the instruction was explicit that (2) belongs to #128 round two, and
+an instruction is not something to reinterpret just because I found a conclusion I like better. The
+measurement and the offer are with the Implementation Lead; if she wants it, it is a short commit on
+this branch and the test for it writes itself from the harness above.
+
+---
+
+## Three findings that are NOT this issue, reported separately
+
+Three findings, not two. All of them reproduce identically before and after my change and all are
+out of scope here ("do not remove, duplicate or improve #128's sanitizer"). The first and third are
+#128's; the second is older than #128 and is on `main`, and its root cause was then established by
+#128's own QA seat. All are with the Implementation Lead. Recording them here so QA does not
+rediscover them as #136 defects.
 
 ### First: #128's sanitizer segfaults ffmpeg on a mono mic plus stereo system audio
 
@@ -568,6 +636,30 @@ both - the log line names which pass failed.
 
 ---
 
+### Third: on Windows, a fast-failing ffmpeg surfaces the WRONG exception, hiding the real error
+
+Found by my own test failing on the Windows CI job for this issue, which is how I would rather find
+these. `Ffmpeg.RunCore` calls `KillOnCloseJob.Assign(p)` immediately after `Process.Start`, and
+assigning an **already-exited** process to a job object fails, so the run throws
+
+```
+System.ComponentModel.Win32Exception : could not tie ffmpeg (pid 4080) to AgentEyes' lifetime
+```
+
+instead of the `UsageException` that names what ffmpeg actually complained about. Any post-processing
+pass that fails fast enough - a missing input, a bad argument - can hit it, and it is a race, so it
+is intermittent: the same test passed on the previous CI run and failed on the next with no code
+change between them. It is the same shape as the `File.Delete`-raced-and-surfaced-as-`IOException`
+defect #128's QA already found: the real cause gets replaced by a bystander.
+
+`KillOnCloseJob.Assign` and that call site are #128's, so this is #128 round two's, not mine. **What
+I did about it:** `MuxTwoPassTests` no longer pins the exception type for its two
+deliberately-failing passes. It asserts that the pass failed with one of the two exceptions a failed
+ffmpeg run can produce, and then asserts the thing the test is actually about - that the cleanup ran
+and left neither a fragment at the final path nor an intermediate. The cleanup happens in a
+`finally`, so it is unaffected by which exception came out. The helper `AssertPassFailed` carries
+this explanation at the point of use, so nobody tightens it back up without knowing why it is loose.
+
 ## #114, and why its merge cannot quietly undo this
 
 `issue-114-macos-audio-loss-and-frame-rate` adds two builders that are **exactly the removed shape**:
@@ -678,11 +770,14 @@ None of those are needed for this issue.
   4 GB intermediate. Separately, `MixTwoWav` - the audio-only recording's own final `.wav`, which
   this change does not touch - has the same latent 4 GB RIFF limit at about 6 hours and no `-rf64`.
   That is pre-existing and out of scope here; it is worth its own issue.
-- **The intermediate can be left behind by a hard kill.** The `finally` covers a failure and an
-  exception; a `SIGKILL` or a power cut between pass 1 and pass 2 leaves `audio_processed.wav` in
-  the recording directory, where `RecoveryManifest.FilesOnDisk` would list it as capture bytes. The
-  next mux attempt overwrites it (`-y`) and then deletes it, so it persists only for a recording
-  that is abandoned entirely. `sys_native.wav` has always had the same property.
+- **A process death leaves BOTH the intermediate and a moov-less final file behind - measured, not
+  assumed.** See "The Implementation Lead's question" above for the numbers. The `finally` covers a
+  failure and an exception, not a `SIGKILL` or a power cut. `audio_processed.wav` then stays in the
+  recording directory, where `RecoveryManifest.FilesOnDisk` would list it as capture bytes; the next
+  mux attempt overwrites it (`-y`) and deletes it, so it persists only for a recording that is
+  abandoned entirely, and `sys_native.wav` has always had the same property. The moov-less
+  `recording.mp4` is #128's QA defect (2) and is unchanged by this fix on the pass-2 window, which
+  that section states plainly rather than claiming otherwise.
 - **The 602 s timing is one run on one machine with one core already pinned** by the stuck installed
   mux. 6.71 s against a 60 s stall bound is not a close call, but it is one sample - and the only
   other run of that fixture did not complete, for the separate reason above. I ran each fixture
