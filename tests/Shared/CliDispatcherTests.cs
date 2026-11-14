@@ -16,7 +16,7 @@ namespace AgentEyes.Tests.Shared
 {
     using CliArgs = global::AgentEyes.CliArgs;
     using CliCommand = global::AgentEyes.CliCommand;
-    using CliCommands = global::AgentEyes.CliCommands;
+    using CliCommandTable = global::AgentEyes.CliCommandTable;
     using CliDispatcher = global::AgentEyes.CliDispatcher;
 
     /// <summary>
@@ -42,7 +42,7 @@ namespace AgentEyes.Tests.Shared
 
             public Harness()
             {
-                Commands = CliCommands.All
+                Commands = CliCommandTable.All
                     .Select(c => c with { Run = o => { Calls.Add((c.Path, o)); return 0; } })
                     .ToList();
             }
@@ -52,14 +52,14 @@ namespace AgentEyes.Tests.Shared
         }
 
         public static IEnumerable<object[]> EveryCommand() =>
-            CliCommands.All.Select(c => new object[] { c.Path });
+            CliCommandTable.All.Select(c => new object[] { c.Path });
 
         public static IEnumerable<object[]> EveryCommandAndHelpForm() =>
-            from c in CliCommands.All
+            from c in CliCommandTable.All
             from form in new[] { "--help", "-h", "help" }
             select new object[] { c.Path, form };
 
-        private static CliCommand Spec(string path) => CliCommands.All.Single(c => c.Path == path);
+        private static CliCommand Spec(string path) => CliCommandTable.All.Single(c => c.Path == path);
 
         private static string[] Words(string path, params string[] more) =>
             path.Split(' ').Concat(more).ToArray();
@@ -151,7 +151,7 @@ namespace AgentEyes.Tests.Shared
 
             Assert.Equal(0, code);
             Assert.Empty(h.Calls);
-            foreach (var c in CliCommands.All) Assert.Contains(c.Synopsis, h.Out.ToString());
+            foreach (var c in CliCommandTable.All) Assert.Contains(c.Synopsis, h.Out.ToString());
         }
 
         // ---- criterion 4: an unknown flag is refused ----------------------------------------
@@ -311,7 +311,7 @@ namespace AgentEyes.Tests.Shared
                 "signout", "subtitle", "translate", "audio", "video",
             }.OrderBy(p => p, StringComparer.Ordinal);
 
-            Assert.Equal(expected, CliCommands.All.Select(c => c.Path).OrderBy(p => p, StringComparer.Ordinal));
+            Assert.Equal(expected, CliCommandTable.All.Select(c => c.Path).OrderBy(p => p, StringComparer.Ordinal));
         }
 
         /// <summary>
@@ -331,7 +331,7 @@ namespace AgentEyes.Tests.Shared
         {
             var mismatches = new List<string>();
             int totalReads = 0;
-            foreach (var c in CliCommands.All)
+            foreach (var c in CliCommandTable.All)
             {
                 var reads = CliArgsIl.KeysRead(c.Run.Method);
                 totalReads += reads.Count;

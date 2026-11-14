@@ -12,7 +12,7 @@ namespace AgentEyes
     /// takes the command's boolean flags so they never swallow the next token, and a help token
     /// ("-h" or "help") is never taken as a value - otherwise "record start --mic -h" would try to
     /// record from a microphone called "-h" instead of printing help. Which flags a command ACCEPTS is decided by
-    /// <see cref="CliDispatcher"/> against <see cref="CliCommands"/>, not here.
+    /// <see cref="CliDispatcher"/> against <see cref="CliCommandTable"/>, not here.
     /// </summary>
     internal sealed class CliArgs
     {

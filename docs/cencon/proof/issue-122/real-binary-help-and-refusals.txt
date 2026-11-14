@@ -1,10 +1,10 @@
-Real-binary run for issue #122 on devlinux, 2026-11-14T11:01:00-05:00. agenteyes -> /home/soren/.local/lib/agenteyes/agenteyes
+Real-binary run for issue #122 on devlinux, 2026-11-14T11:08:28-05:00. agenteyes -> /home/soren/.local/lib/agenteyes/agenteyes
 ################################################################
 $ agenteyes record start --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -19,17 +19,17 @@ $ agenteyes record start --help
       --audio-only               record audio without the screen
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start -h
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -44,17 +44,17 @@ $ agenteyes record start -h
       --audio-only               record audio without the screen
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -69,17 +69,17 @@ $ agenteyes record start help
       --audio-only               record audio without the screen
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record stop --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record stop                     # stop and save the service's recording
@@ -88,17 +88,17 @@ $ agenteyes record stop --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record status --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record status                   # what the service is doing
@@ -107,17 +107,17 @@ $ agenteyes record status --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes screens --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes screens                         # list monitors and microphones
@@ -126,17 +126,17 @@ $ agenteyes screens --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes shot --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes shot    --screen N [--region] [--out DIR] [--label NAME]
@@ -148,17 +148,17 @@ $ agenteyes shot --help
       --out DIR                  session folder (default: ./recordings/<stamp>_<label>)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes audio --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes audio   --screen N (--mic "NAME" | --loopback | --mix --mic "NAME") [--seconds N] [--out DIR] [--label NAME]
@@ -180,17 +180,17 @@ $ agenteyes audio --help
       --out DIR                  session folder (default: ./recordings/<stamp>_<label>)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes video --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes video   --screen N [--mic "NAME"] [--mix | --loopback] [--region] [--seconds N] [--fps N] [--crf N] [--out DIR] [--label NAME]
@@ -218,17 +218,17 @@ $ agenteyes video --help
       --out DIR                  session folder (default: ./recordings/<stamp>_<label>)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes package --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD] [--frames | --no-frames]
@@ -240,17 +240,17 @@ $ agenteyes package --help
       --no-frames                serve the frames on demand instead of writing them
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes compose --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes compose <recording-dir>         # render the camera into recording.mp4 at the framing the preset chose
@@ -259,17 +259,17 @@ $ agenteyes compose --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes always-on --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes always-on --screen N [--mic "NAME"] [--system] [--counts mic|system|both] [--threshold DB|auto]
@@ -294,17 +294,17 @@ $ agenteyes always-on --help
       -h, --help                 print this help and exit; no command runs
       NOTE: this command is not available on this platform.
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes housekeep --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes housekeep [root] [--apply] [--days N] [--keep-video-days N] [--ceiling-gb N] [--no-transcode] [--no-frames] [--frame-days N] [--smaller-audio]
@@ -321,17 +321,17 @@ $ agenteyes housekeep --help
       --smaller-audio            allow preserved audio that is not bit-exact
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes import --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes import  <video.mp4>             # import an external video into the library
@@ -340,17 +340,17 @@ $ agenteyes import --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes translate --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved
@@ -359,17 +359,17 @@ $ agenteyes translate --help
       --to LANG                  target language code (e.g. tr)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes subtitle --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)
@@ -378,17 +378,17 @@ $ agenteyes subtitle --help
       --lang LANG                language of the transcript to burn in
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes selftest --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes selftest                        # headless end-to-end self-test
@@ -397,17 +397,17 @@ $ agenteyes selftest --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes serve --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes serve [--port N]                # headless recorder + Control API (the systemd service runs this)
@@ -416,17 +416,17 @@ $ agenteyes serve --help
       --port N                   Control API port (default 7882)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes signin --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes signin                          # sign in to the DevThrottle account used for transcription and titles
@@ -435,17 +435,17 @@ $ agenteyes signin --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes signout --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes signout                         # delete the stored DevThrottle key
@@ -454,17 +454,17 @@ $ agenteyes signout --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes account --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes account                         # which DevThrottle account is signed in
@@ -473,17 +473,17 @@ $ agenteyes account --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -508,17 +508,17 @@ $ agenteyes record --help
       (none)
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes help record start
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -533,17 +533,17 @@ $ agenteyes help record start
       --audio-only               record audio without the screen
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     AgentEyes - screen + audio recorder (CLI: agenteyes)
     
@@ -578,87 +578,87 @@ $ agenteyes --help
     SESSION HOTKEYS (audio/video)
       S = screenshot   P = pause/resume   Q = stop
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start --nonsense
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start --audio-only --nonsense
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start -x
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option -x for 'agenteyes record start'. See: agenteyes record start --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start hepl
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unexpected argument 'hepl' for 'agenteyes record start'. See: agenteyes record start --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start --mic
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] --mic needs a value (NAME). See: agenteyes record start --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start --mic help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -673,50 +673,50 @@ $ agenteyes record start --mic help
       --audio-only               record audio without the screen
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes record start --mic=Yeti
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option --mic=Yeti (an option's value goes after a space: --mic Yeti) for 'agenteyes record start'. See: agenteyes record start --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes video --nonsense
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option --nonsense for 'agenteyes video'. See: agenteyes video --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 
 ################################################################
 $ agenteyes serve --nonsense
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option --nonsense for 'agenteyes serve'. See: agenteyes serve --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null 

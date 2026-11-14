@@ -15,7 +15,7 @@ namespace AgentEyes
     /// <item>--help, -h, or the word "help" anywhere on a command line prints that command's help
     /// and exits 0. No command handler runs; the only thing written is this class's own lines in
     /// the CLI log.</item>
-    /// <item>A flag the command does not declare in <see cref="CliCommands"/>, a value-taking flag
+    /// <item>A flag the command does not declare in <see cref="CliCommandTable"/>, a value-taking flag
     /// given no value, or more positional arguments than the command takes is refused with exit 1,
     /// naming the token and pointing at --help. No command handler runs.</item>
     /// <item>Only then does the handler run.</item>
@@ -25,7 +25,7 @@ namespace AgentEyes
     {
         /// <summary>
         /// Run one command line against <paramref name="commands"/> (the real table is
-        /// <see cref="CliCommands.All"/>). Returns the process exit code:
+        /// <see cref="CliCommandTable.All"/>). Returns the process exit code:
         /// 0 ok/help, 1 usage error, 2 not built, 3 unexpected error, 4 not on this platform.
         /// </summary>
         public static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr,

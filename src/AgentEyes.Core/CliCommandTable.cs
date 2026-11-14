@@ -40,7 +40,7 @@ namespace AgentEyes
     /// it via <see cref="CliDispatcher"/>, the top-level usage is printed from it, and each command's
     /// --help is printed from it - so the help, the parser and the accepted flags cannot drift apart.
     /// </summary>
-    internal static class CliCommands
+    internal static class CliCommandTable
     {
         // Options shared by the audio and video commands (Commands.MixOpts, NewSessionDir, NewManifest).
         private static readonly CliOption[] MicOptions =

@@ -3,9 +3,12 @@
 `agenteyes record start --help` started a real screen recording, and an unknown flag was silently
 ignored. Both are fixed on branch `issue-122-cli-help-and-unknown-flags`.
 
-Everything below was measured on devlinux on 2026-11-14 against the INSTALLED binary of the final
-code (`bash scripts/linux/install.sh` at 11:00, so `agenteyes` -> `~/.local/lib/agenteyes/agenteyes`),
-unless it says otherwise. The full command output is committed next to this note:
+Everything below was measured on devlinux on 2026-11-14 against the INSTALLED binary
+(`bash scripts/linux/install.sh`, so `agenteyes` -> `~/.local/lib/agenteyes/agenteyes`), unless it
+says otherwise. The help and refusal run is on the binary of the PR head (installed 11:08). The
+criterion-5 recordings are on the install just before it (11:00). The only difference between the
+two is a type rename, `CliCommands` -> `CliCommandTable` (see "Windows CI" below), which changes no
+behaviour. All seven guard-disabled mutations were re-run after the rename with identical counts. The full command output is committed next to this note:
 
 | File | What it holds |
 |------|---------------|
@@ -23,7 +26,7 @@ read and then ignored.
 
 The fix is one table plus one dispatcher, and everything reads from that table:
 
-* `src/AgentEyes.Core/CliCommands.cs` (new). It lists every command (19 entries, with `record
+* `src/AgentEyes.Core/CliCommandTable.cs` (new; class `CliCommandTable`). It lists every command (19 entries, with `record
   start|stop|status` as three). Each entry has its synopsis text, its options (name, value placeholder
   or boolean, one-line description), its maximum number of positional arguments, and its handler.
   **This is the only list of flags any command accepts.**
@@ -90,10 +93,10 @@ Implemented by rule 1. Measured (from `real-binary-help-and-refusals.txt`):
 
 ```
 $ agenteyes record start --help
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -108,10 +111,10 @@ $ agenteyes record start --help
       --audio-only               record audio without the screen
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null
 ```
 
@@ -122,43 +125,45 @@ and `curl -s 127.0.0.1:7882/status`.
 ### 2. The same for every other subcommand
 
 Implemented by rule 1 for every table entry. Measured for all 18 others, plus `record --help`,
-`help record start` and `--help`: every one exited **0**, the recordings dir stayed at **47 entries**
+`help record start` and `--help`: every one exited **0**, the recordings dir stayed at **49 entries**
 with the same newest three, and `/status` said `idle`. The full help text of each one is in
 `real-binary-help-and-refusals.txt`. Summary, one line per command, extracted from that file:
 
 ```
-$ agenteyes record start --help  | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes record start -h      | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes record start help    | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes record stop --help   | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes record status --help | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes screens --help       | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes shot --help          | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes audio --help         | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes video --help         | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes package --help       | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes compose --help       | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes always-on --help     | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes housekeep --help     | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes import --help        | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes translate --help     | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes subtitle --help      | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes selftest --help      | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes serve --help         | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes signin --help        | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes signout --help       | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes account --help       | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes record --help        | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes help record start    | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
-$ agenteyes --help               | exit code: 0 | before: 47 entries -> after:  47 entries | "State": "idle"
+$ agenteyes record start --help  | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes record start -h      | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes record start help    | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes record stop --help   | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes record status --help | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes screens --help       | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes shot --help          | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes audio --help         | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes video --help         | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes package --help       | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes compose --help       | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes always-on --help     | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes housekeep --help     | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes import --help        | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes translate --help     | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes subtitle --help      | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes selftest --help      | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes serve --help         | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes signin --help        | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes signout --help       | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes account --help       | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes record --help        | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes help record start    | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
+$ agenteyes --help               | exit code: 0 | before: 49 entries -> after:  49 entries | "State": "idle"
 ```
 
 `/status` and the recordings dir only show the recorder's side effects. They say nothing about
 `signin --help`, `signout --help`, `serve --help`, `housekeep --help` or `selftest --help`, whose
 side effects would be elsewhere (a browser sign-in, a deleted key, a second server, file changes,
-a self-test run). For those the evidence is the CLI's own log (`cli-log-extract.txt`). Across the whole run of 33
-commands (11:01:00-11:01:06) the dispatcher logged **25** help decisions, **8** usage errors (25 + 8
-= the 33 commands), **0** `Dispatch: running` lines and **0** `[HeadlessCli] Record*` lines. The
+a self-test run). For those the evidence is the CLI's own log (`cli-log-extract.txt`). Across the whole run
+(11:08:28.958-11:08:35) the dispatcher logged **33** runs: **25** help decisions plus **8** usage
+errors, with **0** `Dispatch: running` lines and **0** `[HeadlessCli] Record*` lines. That window
+starts at the script's first command. The installer's own two bare `agenteyes account` calls came
+0.5 s before it and are outside it; I checked them by pid and arguments. The
 same log in the next window shows a `Dispatch: running record start` line for every real start,
 which proves the instrument does see a handler run. After `signout --help`,
 `~/.local/share/AgentEyes/devthrottle.cred` still has its 2026-10-15 mtime, and `agenteyes account`
@@ -167,11 +172,11 @@ on any help path.
 
 ### 3. `-h` behaves identically to `--help`
 
-Measured: `agenteyes record start -h` printed the same text as `--help`, exit 0, 47 -> 47 entries,
+Measured: `agenteyes record start -h` printed the same text as `--help`, exit 0, 47 -> 49 entries,
 `idle` (see the file). The test theory `Run_CommandWithHelp_PrintsItsHelpAndRunsNoHandler` runs
 `--help`, `-h` and `help` against every one of the 19 commands (57 cases). `-h` is also tested in
 positions that used to break it: `record start --audio-only -h`, `record start --mic -h`, and
-`record start --mic help` (measured on the real binary too: exit 0, help printed, 47 -> 47, `idle`).
+`record start --mic help` (measured on the real binary too: exit 0, help printed, 49 -> 49, `idle`).
 
 ### 4. An unknown flag is refused
 
@@ -179,21 +184,21 @@ Implemented by rules 3-6. Measured:
 
 ```
 $ agenteyes record start --nonsense
---- before: 47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- before: 49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
 --- exit code: 1
---- after:  47 entries; newest 3:
-    2026-11-14 10:39:11.501931764 /home/soren/Videos/AgentEyes/2026-11-14_102532_video
-    2026-11-14 10:50:37.862936140 /home/soren/Videos/AgentEyes/2026-11-14_105026_video
+--- after:  49 entries; newest 3:
     2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null
 ```
 
-The other refusals measured, each exit 1, 47 -> 47 entries, `idle`:
+The other refusals measured, each exit 1, 47 -> 49 entries, `idle`:
 
 ```
 [error] unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help   (record start --audio-only --nonsense)
@@ -246,7 +251,7 @@ assertion (see criterion 7).
 criterion 1). Where the text comes from:
 
 * The synopsis line and the OPTIONS list are both printed from the `record start` entry of
-  `CliCommands.All`. The dispatcher refuses any flag not in that same entry. So the help cannot list
+  `CliCommandTable.All`. The dispatcher refuses any flag not in that same entry. So the help cannot list
   a flag the parser refuses, and the parser cannot accept a flag the help leaves out: there is one
   list, not two.
 * The synopsis is hand-written text (it carries `[--mix | --loopback]` grouping that a generated
@@ -331,6 +336,16 @@ tests passed in that run.
 WindowsDesktop targets, so even a compile-only build fails at the import. The PR's CI runs it
 (`windows-latest`: build + test `AgentEyes.sln`), as it runs the Linux and macOS suites. Read the CI
 result on the PR, not this note, for Windows.
+
+### Windows CI
+
+The first push failed the Windows CI build. `tests/AgentEyes.Tests/SetupCliRestartTests.cs` has a
+file-level alias `using CliCommands = AgentEyes.Setup.Cli.Commands;`. My new type, then called
+`AgentEyes.CliCommands`, outranked that alias inside `namespace AgentEyes.Tests`, so the test no
+longer compiled (`CS0117: 'CliCommands' does not contain a definition for 'RunningAppHandleFactory'`).
+I renamed my type to `CliCommandTable` rather than touch that test. I also checked my other new names
+(`CliDispatcher`, `CliCommand`, `CliOption`) against every identifier in the Windows suite: none
+is used there. Read the Windows result on the PR's CI after this push.
 
 ## Notes for QA
 

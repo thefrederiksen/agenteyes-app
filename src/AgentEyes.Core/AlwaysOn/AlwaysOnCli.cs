@@ -13,7 +13,7 @@ namespace AgentEyes.AlwaysOn
     /// </summary>
     internal static class AlwaysOnCli
     {
-        // Issue #122: the usage text lives in CliCommands ("always-on"), next to the flags it accepts.
+        // Issue #122: the usage text lives in CliCommandTable ("always-on"), next to the flags it accepts.
 
         public static int Run(CliArgs opts)
         {

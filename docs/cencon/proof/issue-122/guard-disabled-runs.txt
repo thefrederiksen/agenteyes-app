@@ -1,4 +1,4 @@
-Guard-disabled runs for issue #122, 2026-11-14T10:57:51-05:00, Linux suite. Each mutation is applied, the suite run, the file restored and touched.
+Guard-disabled runs for issue #122, 2026-11-14T11:07:01-05:00, Linux suite. Each mutation is applied, the suite run, the file restored and touched.
 === MUTATION M1-help-detection-off: in src/AgentEyes.Core/CliDispatcher.cs replaced [opts.Has(CliArgs.HelpWord) || opts.Positional.Any(CliArgs.IsHelpToken);] with [false;]
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_CommandWithHelp_PrintsItsHelpAndRunsNoHandler(path: "account", helpForm: "-h")
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_CommandWithHelp_PrintsItsHelpAndRunsNoHandler(path: "account", helpForm: "--help")
@@ -69,7 +69,7 @@ Guard-disabled runs for issue #122, 2026-11-14T10:57:51-05:00, Linux suite. Each
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordStartHelpInAnyPosition_PrintsRecordStartHelpAndRunsNothing(args: ["record", "start", "--mic", "Yealink", "--help"])
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordStartHelpInAnyPosition_PrintsRecordStartHelpAndRunsNothing(args: ["record", "start", "--nonsense", "--help"])
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordStartHelp_ListsEveryOptionRecordStartAccepts
-Failed!  - Failed:    69, Passed:   199, Skipped:     0, Total:   268, Duration: 373 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Failed!  - Failed:    69, Passed:   199, Skipped:     0, Total:   268, Duration: 233 ms - AgentEyes.Tests.Linux.dll (net8.0)
 === MUTATION M2-unknown-flag-validation-off: in src/AgentEyes.Core/CliDispatcher.cs replaced [            Validate(command, opts);] with [            // Validate(command, opts);]
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_CommandWithUnknownFlag_ExitsOneNamingTheFlagAndRunsNoHandler(path: "account")
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_CommandWithUnknownFlag_ExitsOneNamingTheFlagAndRunsNoHandler(path: "always-on")
@@ -99,27 +99,27 @@ Failed!  - Failed:    69, Passed:   199, Skipped:     0, Total:   268, Duration:
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordWithBadArguments_IsRefusedWithAClearMessageAndRunsNothing(message: "unknown option --nonsense", args: ["record", "start", "--nonsense"])
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordWithBadArguments_IsRefusedWithAClearMessageAndRunsNothing(message: "unknown option --region", args: ["record", "start", "--region"])
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordWithBadArguments_IsRefusedWithAClearMessageAndRunsNothing(message: "unknown option -x", args: ["record", "start", "-x"])
-Failed!  - Failed:    28, Passed:   240, Skipped:     0, Total:   268, Duration: 458 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Failed!  - Failed:    28, Passed:   240, Skipped:     0, Total:   268, Duration: 234 ms - AgentEyes.Tests.Linux.dll (net8.0)
 === MUTATION M3-help-tokens-taken-as-values: in src/AgentEyes.Core/CliArgs.cs replaced [                        && !IsHelpToken(args[i + 1]))] with [                        )]
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordStartHelpInAnyPosition_PrintsRecordStartHelpAndRunsNothing(args: ["record", "start", "--mic", "-h"])
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Run_RecordStartHelpInAnyPosition_PrintsRecordStartHelpAndRunsNothing(args: ["record", "start", "--mic", "help"])
-Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 1 s - AgentEyes.Tests.Linux.dll (net8.0)
+Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 276 ms - AgentEyes.Tests.Linux.dll (net8.0)
 === MUTATION M4-booleans-swallow-next-token: in src/AgentEyes.Core/CliArgs.cs replaced [if (!booleans.Contains(key)] with [if (true]
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.CorrectInvocation_PackageWithDirAndBooleanFlag_KeepsTheDirPositional
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.RecordStart_CorrectInvocations_ReachTheHandlerWithTheirFlags
-Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 310 ms - AgentEyes.Tests.Linux.dll (net8.0)
-=== MUTATION M5-video-crf-removed-from-table: in src/AgentEyes.Core/CliCommands.cs replaced [                    new("crf", "N", "video quality, lower is better (default 23)"),] with []
+Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 248 ms - AgentEyes.Tests.Linux.dll (net8.0)
+=== MUTATION M5-video-crf-removed-from-table: in src/AgentEyes.Core/CliCommandTable.cs replaced [                    new("crf", "N", "video quality, lower is better (default 23)"),] with []
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Handlers_ReadExactlyTheFlagsTheirTableEntryDeclares
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Synopsis_EveryCommand_NamesExactlyTheOptionsItAccepts(path: "video")
-Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 1 s - AgentEyes.Tests.Linux.dll (net8.0)
-=== MUTATION M6-record-start-declares-unread-flag: in src/AgentEyes.Core/CliCommands.cs replaced [                    new("audio-only", null, "record audio without the screen"),] with [                    new("audio-only", null, "record audio without the screen"), new("preset", "NAME", "x"),]
+Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 484 ms - AgentEyes.Tests.Linux.dll (net8.0)
+=== MUTATION M6-record-start-declares-unread-flag: in src/AgentEyes.Core/CliCommandTable.cs replaced [                    new("audio-only", null, "record audio without the screen"),] with [                    new("audio-only", null, "record audio without the screen"), new("preset", "NAME", "x"),]
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Handlers_ReadExactlyTheFlagsTheirTableEntryDeclares
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.Synopsis_EveryCommand_NamesExactlyTheOptionsItAccepts(path: "record start")
-Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 485 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Failed!  - Failed:     2, Passed:   266, Skipped:     0, Total:   268, Duration: 228 ms - AgentEyes.Tests.Linux.dll (net8.0)
 === MUTATION M7-migration-after-dispatcher: in src/AgentEyes.Core/Program.cs replaced [            StorageMigration.Run();
-] with [            int code = CliDispatcher.Run(args, Console.Out, Console.Error, CliCommands.All); StorageMigration.Run(); return code;
+] with [            int code = CliDispatcher.Run(args, Console.Out, Console.Error, CliCommandTable.All); StorageMigration.Run(); return code;
 ]
   FAILED AgentEyes.Tests.Shared.CliDispatcherTests.ProgramMain_RunsTheStorageMigrationBeforeTheDispatcher
-Failed!  - Failed:     1, Passed:   267, Skipped:     0, Total:   268, Duration: 308 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Failed!  - Failed:     1, Passed:   267, Skipped:     0, Total:   268, Duration: 245 ms - AgentEyes.Tests.Linux.dll (net8.0)
 === UNMUTATED (fix restored)
-Passed!  - Failed:     0, Passed:   268, Skipped:     0, Total:   268, Duration: 290 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Passed!  - Failed:     0, Passed:   268, Skipped:     0, Total:   268, Duration: 203 ms - AgentEyes.Tests.Linux.dll (net8.0)

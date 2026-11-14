@@ -20,9 +20,9 @@ namespace AgentEyes.Headless
     {
         private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
 
-        // Issue #122: the three verbs are separate handlers in CliCommands, reached only through
+        // Issue #122: the three verbs are separate handlers in CliCommandTable, reached only through
         // CliDispatcher - which has already refused unknown flags and answered --help. The usage text
-        // for them lives in CliCommands, the one place the parser and the help both read.
+        // for them lives in CliCommandTable, the one place the parser and the help both read.
 
         public static int RecordStart(CliArgs opts)
         {

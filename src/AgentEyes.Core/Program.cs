@@ -29,7 +29,7 @@ namespace AgentEyes
 
             // Issue #122: every command line goes through the dispatcher, which prints help or refuses
             // an unknown flag BEFORE any command handler runs.
-            return CliDispatcher.Run(args, Console.Out, Console.Error, CliCommands.All);
+            return CliDispatcher.Run(args, Console.Out, Console.Error, CliCommandTable.All);
         }
     }
 
