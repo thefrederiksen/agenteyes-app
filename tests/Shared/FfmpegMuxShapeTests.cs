@@ -164,7 +164,12 @@ namespace AgentEyes.Tests.Shared
         [Fact]
         public void TheGuardFires_OnEverySpellingOfACopiedVideoStream()
         {
-            foreach (string copy in CopyAllOptions.Concat(VideoCodecOptions))
+            // Including the stream-specifier forms ("-c:v:0"), which an equality check would miss.
+            var spellings = CopyAllOptions
+                .Concat(VideoCodecOptions)
+                .Concat(VideoCodecOptions.Select(v => v + ":0"))
+                .ToList();
+            foreach (string copy in spellings)
             {
                 foreach (string graph in FilterGraphOptions)
                 {
@@ -173,6 +178,10 @@ namespace AgentEyes.Tests.Shared
                         $"the detector missed '{copy} copy' beside '{graph}'");
                 }
             }
+
+            // ... and it must not fire on an AUDIO codec that happens to start the same way.
+            Assert.False(VideoCopiedBesideAFilterGraph(
+                new[] { "-i", "a.mp4", "-filter_complex", "[0:v]scale=2[v]", "-c:a", "copy", "out.mp4" }));
         }
 
         [Fact]
@@ -293,11 +302,19 @@ namespace AgentEyes.Tests.Shared
         {
             for (int i = 0; i + 1 < args.Count; i++)
             {
-                bool option = CopyAllOptions.Contains(args[i]) || VideoCodecOptions.Contains(args[i]);
-                if (option && args[i + 1] == "copy") return true;
+                if (args[i + 1] == "copy" && SetsTheVideoCodec(args[i])) return true;
             }
             return false;
         }
+
+        /// <summary>
+        /// True for every option that can set the video stream's codec. The video forms are matched
+        /// by PREFIX, not by equality, so a stream specifier spells past it: "-c:v:0 copy" copies the
+        /// video exactly as "-c:v copy" does, and an equality check would have let that one through.
+        /// </summary>
+        private static bool SetsTheVideoCodec(string option) =>
+            CopyAllOptions.Contains(option)
+            || VideoCodecOptions.Any(v => option.StartsWith(v, StringComparison.Ordinal));
 
         // ---- the sweep -----------------------------------------------------
 

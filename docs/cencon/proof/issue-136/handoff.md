@@ -6,8 +6,16 @@ PR: #140, against `main`, **stacked on #133** (issue #128's PR). Branch
 `issue-136-mux-queue-deadlock`, cut from `issue-128-mic-chain-stall`, not from `main`: #128 adds the
 progress watchdog criterion 9 asks me to leave working and it edits the same files.
 
-I believe this is finished. The decision asked for in the issue is **candidate (1), two passes**;
-the reasoning and the measurements behind it are in "The decision" below.
+I believe this is finished, with one thing stated up front rather than buried. The decision asked
+for in the issue is **candidate (1), two passes**; the reasoning and the measurements are in "The
+decision" below. The muxing-queue deadlock this issue is about is gone, measured at 76 s, 61 s and
+602 s through the product's own code path. While measuring it I ran into a **separate, pre-existing,
+intermittent `speechnorm` stall** that has nothing to do with the muxing queue - it reproduces with
+no video stream in the command and on `main`'s chain - and which will sometimes fail the same mux
+for its own reason. It is reported to the Implementation Lead, it is not fixed here, and criteria 2,
+3 and 4 below say exactly where it touches them. If QA's reading is that criterion 2 cannot be
+called met until that is fixed, that is a fair reading and I would not argue with it; what I will
+not do is present it as met without saying so.
 
 Machine: `devthrottle-mac-mini`, macOS, ffmpeg 9.0.2 (`/opt/homebrew/bin/ffmpeg`), .NET 8.
 **I did not reinstall the service and I did not record anything.** The installed plist is still the
@@ -152,11 +160,35 @@ Pairing, stated because the video's size and bitrate are the mechanism:
 recording's own video, and the same bitrate class as criterion 1's.
 
 - **Expected:** completes; audio vs video duration within 3.0 s.
-- **Actual:** **6.71 s** wall clock through `FinalizePending`. `recording.mp4` 332,354,524 bytes,
-  `ffprobe` video 601.900 s / audio 600.390 s - **1.510 s apart**, which is the capture's own
+- **Actual, run 1:** **6.71 s** wall clock through `FinalizePending`. `recording.mp4` 332,354,524
+  bytes, `ffprobe` video 601.900 s / audio 600.390 s - **1.510 s apart**, which is the capture's own
   difference carried through unchanged. `PendingMux` cleared, `DurationSeconds` 601.9, no
   intermediate left. Default settings: `NoiseSuppression` true, `VoiceLeveling` true, `NoiseGate`
   false, `MicGain` 1, `SystemGain` 0.7, RNNoise model materialized by the product.
+- **Actual, run 2 of the same fixture: it did not complete, and I am reporting that rather than the
+  run that suited me.** `pass 1` - the audio pass, which has no video stream in its command at all -
+  froze at the very end of the content and #128's watchdog killed it:
+
+  ```
+  AgentEyes.UsageException : ffmpeg stalled during process mic audio (audio):
+  output stopped advancing at 600.4s of output for 60s (limit 60s) after 63s - process killed
+  ```
+
+  `600.4s of output` against a 600.384 s mic track: it produced all of the audio and then failed to
+  finalize. This is the second finding below, not the muxing queue - the muxing queue needs two
+  streams to interleave and that command has one. The cleanup was correct: no `audio_processed.wav`
+  and no `recording.mp4` fragment left, `raw.mp4` intact, `PendingMux` still set so a later attempt
+  can retry.
+
+  So the honest statement of criterion 2 is: **the muxing-queue deadlock is gone at ten minutes -
+  when the mux runs, it takes 6.71 s instead of never - and on this particular material the audio
+  pass has an independent, pre-existing stall that will often fail it instead, bounded at 63 s by
+  #128's watchdog rather than spinning forever.** Often, not occasionally: the bare filter graph on
+  this audio wedged 3 of 3 times, so the 6.71 s completion was the lucky one. The second finding
+  below has the rates, the fact that it reproduces on `main`'s chain with no video in the command,
+  and the measurement QA will want - **`-filter_complex_threads 1` makes it go away, 0 of 3**. I did
+  not put that flag in the product, for the reasons given there. Both runs are in
+  [mux-run-log.txt](mux-run-log.txt).
 
 ### 3. Sixty seconds, default settings, macOS - amended to the mux level
 
@@ -164,18 +196,23 @@ Pairing: `2026-11-14_111433_video/mic_native.wav` (60.224 s, pcm_s16le, 48 kHz, 
 `2026-11-14_111433_video/recording.original.mp4` (61.833 s, h264, 3.95 Mbit/s, 30.5 MB).
 
 - **Expected:** completes; audio vs video within 3.0 s.
-- **Actual:** **1.05 s**. `recording.mp4` 31,612,581 bytes, video 61.833 s / audio 60.230 s -
-  **1.603 s apart**. No intermediate left.
+- **Actual:** **1.05 s** (run 1) and **1.02 s** (run 2), both completed. `recording.mp4` 31,612,581 /
+  31,612,592 bytes, video 61.833 s / audio 60.230 s - **1.603 s apart**. No intermediate left either
+  time.
 
-**A caveat on this one that QA must read, and it is not about my fix.** While measuring criterion 4
-I found that the mic chain on **this particular recording's content** intermittently wedges *with no
-video stream in the command at all*, on `main`'s chain as well as this one - so it is not the muxing
-queue, it is not a regression, and the two-pass split neither causes nor cures it. See "Second
-finding" below: 2 of 4 bare-filter-graph runs on the same bytes wedged with #128's sanitizer, 4 of 4
-without it, and 0 of 2 with `speechnorm` taken out. The mux above completed in 1.05 s; a repeat may
-hit that stall instead, and
-#128's watchdog is what turns that into a bounded failure rather than a hang - which is the other
-reason criterion 9 matters.
+**Two caveats on this one that QA must read, and neither is about my fix.** Both are the second
+finding below.
+
+- The mic chain on **this recording's content** intermittently wedges *with no video stream in the
+  command at all*, on `main`'s chain as well as this one: 2 of 4 bare-filter-graph runs on the same
+  bytes wedged with #128's sanitizer, 4 of 4 without it, 0 of 2 with `speechnorm` taken out. Both
+  mux runs above happened to complete; a third may not.
+- **The processed level is not reproducible on this content either.** Run 1's output measured mean
+  -68.5 dB / max -41.5 dB and run 2's measured mean -42.6 dB / max -0.4 dB - 26 dB apart, from
+  identical input through identical code, with run 2 pinned against the limiter. That is the same
+  `speechnorm` nondeterminism showing up as gain rather than as a hang. It is why criterion 4's
+  identical-output claim is made on 111731's content, which reproduced exactly twice, and not on
+  this one.
 
 ### 4. The audio is still processed
 
@@ -189,10 +226,16 @@ graph run in one pass with no video present** - the Lead's matrix case 6, which 
 | the filter graph in ONE pass, no video | -68.8 dB | -41.0 dB |
 | **the TWO-PASS mux output (the fix)** | **-68.8 dB** | **-41.0 dB** |
 
-Identical to the tenth of a dB. The split did not change what the chain does: the mean is 6.3 dB
-up on the raw capture (`speechnorm` boosting quiet speech) and the peak is 2.7 dB down (`arnndn`
-plus the limiter). A mux that completed because the filters stopped doing anything would show the
-raw numbers; it does not.
+Identical to the tenth of a dB, and **reproducible** - two separate `FinalizePending` runs of this
+fixture produced mean -68.8 / max -41.0 both times. The split did not change what the chain does:
+the mean is 6.3 dB up on the raw capture (`speechnorm` boosting quiet speech) and the peak is 2.7 dB
+down (`arnndn` plus the limiter). A mux that completed because the filters stopped doing anything
+would show the raw numbers; it does not.
+
+I measured this on 111731's content deliberately, and the reason is in criterion 3's second caveat:
+on 111433's content the chain's own output level is **not** reproducible between runs (-68.5/-41.5
+then -42.6/-0.4), so a comparison there would have measured ffmpeg's nondeterminism rather than my
+change. 111731 reproduces exactly, which is what a reference comparison needs.
 
 The static half of the same claim is pinned by test:
 `FfmpegMuxShapeTests.TheTwoPassesTogetherStillCarryTheWholeCleanVoiceChain` asserts the sanitizer,
@@ -267,10 +310,15 @@ Two new files plus retargeted existing ones.
   line copied from the service log, so it is proven to fire rather than assumed to, and against
   each new builder alone, so the split is shown to clear it.
 - `TheGuardFires_OnEverySpellingOfACopiedVideoStream` - `-c`/`-codec`/`-c:v`/`-codec:v`/`-vcodec`
-  crossed with `-filter_complex`/`-filter_complex_script`/`-lavfi`.
+  **and the stream-specifier forms (`-c:v:0`)**, crossed with
+  `-filter_complex`/`-filter_complex_script`/`-lavfi`. The video forms are matched by prefix rather
+  than by equality precisely because `-c:v:0 copy` copies the video exactly as `-c:v copy` does and
+  an equality check would have waved it through; the same test asserts the detector does NOT fire on
+  `-c:a copy`.
 - `TheGuardDoesNotTouchTheCasesThatAreFine` - a copied *audio* stream beside a video filter graph
   (the camera compose), and a pure stream copy. Flagging these would have meant breaking compose.
-- `TheAlwaysOnBuildersCarryNoFilterGraphBesideACopiedVideo`, plus the two pass-content tests.
+- `TheAlwaysOnBuildersCarryNoFilterGraphBesideACopiedVideo`, plus the two pass-content tests - which
+  also pin the intermediate's `pcm_f32le` and its `-rf64 auto`.
 
 `tests/AgentEyes.Tests/MuxTwoPassTests.cs` - 6 tests, real ffmpeg: both passes run, the
 intermediate is cleaned up, a failure in either pass leaves neither a fragment at the final path nor
@@ -291,6 +339,7 @@ name:**
 | `ProcessedAudioCodec` back to `pcm_s16le` | `FfmpegMuxShapeTests.TheTwoPassesTogetherStillCarryTheWholeCleanVoiceChain` |
 | the final-path cleanup (`if (!ok ...)`) | `MuxTwoPassTests.MuxInTwoPasses_AudioPassFails_RemovesTheIntermediateAndThePartialOutput` |
 | the intermediate deletion | `MuxTwoPassTests.MuxVideoSystemOnly_RunsBothPassesAndLeavesNoIntermediate`, `MuxTwoPassTests.MuxInTwoPasses_MuxPassFails_RemovesTheIntermediateAndThePartialOutput`, `MuxTwoPassTests.MuxVideoMixed_RunsBothPassesAndLeavesNoIntermediate`, `MuxTwoPassTests.ProcessVideoMic_RunsBothPassesAndLeavesNoIntermediate`, `MuxTwoPassTests.MuxInTwoPasses_TheIntermediateGoesBesideTheOutput_NotIntoTheSystemTemp` (5 of 6) |
+| `-rf64 auto` removed from all three pass-1 builders | `FfmpegMuxShapeTests.EveryPassOneBuilderWritesTheIntermediateAndNothingElse` |
 | added a builder name to `RequiredBuilders` that the sweep cannot find | `FfmpegMuxShapeTests.NoArgumentListPairsACopiedVideoStreamWithAFilterGraph` - the broken-instrument assertion is live |
 
 All patches reverted; the tree is the committed state.
@@ -354,6 +403,21 @@ registry and the retry-ceiling fix are all as they were on `issue-128-mic-chain-
 - **Both** passes go through `AudioMix.RunStage`, so both get `Ffmpeg.RunWatched` with
   `PostProcessStallTimeout` (60 s) and both get the partial-output removal. A two-pass mux is
   therefore *more* watched than the single pass was, not less.
+- **And it fired for real, on this branch, on the product path, while I was measuring criterion 2.**
+  I did not arrange this; the second run of the 602-second fixture stalled and the watchdog killed
+  it:
+
+  ```
+  AgentEyes.UsageException : ffmpeg stalled during process mic audio (audio):
+  output stopped advancing at 600.4s of output for 60s (limit 60s) after 63s - process killed
+  ```
+
+  That is criterion 9 answered by a real stalled stage rather than by a synthetic one: the message
+  names the stage **and which pass of it**, the frozen output time and the bound; the process was
+  killed at 63 s rather than spinning; and `MuxInTwoPasses` then left no `audio_processed.wav`, no
+  `recording.mp4` fragment, `raw.mp4` intact and `PendingMux` still set for a retry. So this fix is
+  demonstrably not the reason the watchdog would never trigger again - it triggered on the first
+  genuinely stalled stage it met.
 - `MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound` still passes: the
   known-stalling filter is killed and failed within the bound, with the message naming the stage,
   the frozen output time and the limit. Verified here (it is in the 101 above), not only in CI.
@@ -397,33 +461,63 @@ purpose and commented as such, so the mixed-path tests exercise my orchestration
 somebody else's crash. Mono is the common microphone; if that crash is fixed, make the fixture mono
 again.
 
-### Second: the mic chain itself intermittently wedges on 111433's content, with no video present, on `main`
+### Second: the mic chain itself intermittently wedges at the end of the content, with no video present, on `main`
 
 While measuring criterion 4 I ran the clean-voice graph on `c3-60s`'s audio with **no video stream
 mapped at all** and it wedged at 100% CPU past the end of the content - the same
 reaches-the-end-then-spins signature, but it cannot be the muxing queue, because there is no second
-stream to interleave. It is **intermittent on identical bytes**, it is **not** #128's sanitizer, and the stalling stage is
-`speechnorm`:
+stream to interleave. It then happened again inside the product, on the 602-second fixture, where
+#128's watchdog killed it at 63 s (criterion 9 above) - so it is not confined to one short
+recording. It is **intermittent on identical bytes**, it is **not** #128's sanitizer, and the
+stalling stage is `speechnorm`:
 
-| chain, same 60.224 s input, `pcm_f32le` to .wav, 75 s bound | runs | wedged |
-|---|---|---|
-| with #128's `aeval` sanitizer (this branch) | 4 | **2** |
-| without it (`main`'s chain) | 4 | **4** |
-| with the sanitizer, `speechnorm` removed | 2 | **0** |
-| the same chain on 111731's audio instead (criterion 1's recording) | 3 | **0** |
+| pass 1's exact command, `pcm_f32le` to .wav | input | runs | wedged |
+|---|---|---|---|
+| with #128's `aeval` sanitizer (this branch) | 60.224 s | 4 | **2** |
+| without it (`main`'s chain) | 60.224 s | 4 | **4** |
+| with the sanitizer, `speechnorm` removed | 60.224 s | 2 | **0** |
+| the same chain on 111731's audio (criterion 1's recording) | 75.488 s | 3 | **0** |
+| the same chain on the ten-minute audio | 600.384 s | 3 | **3** |
+| **the ten-minute audio with `-filter_complex_threads 1`** | 600.384 s | 2 | **0** (3 s each) |
+| **the 60-second audio with `-filter_complex_threads 1`** | 60.224 s | 1 | **0** (1 s) |
 
 So it is pre-existing on `main`, the sanitizer is not the cause - it wedged **more** often without
-it - and it is content-dependent: `speechnorm` on this one recording's audio. Read against #128's
-own criterion 3 ("default-settings post-processing completes on macOS"), that 2-of-4 is worth
+it - and it is content-dependent: `speechnorm`, on some content and not other content. Read against
+#128's own criterion 3 ("default-settings post-processing completes on macOS"), that 2-of-4 is worth
 someone's attention: the sanitizer reduces the `speechnorm` stall on this content but does not
-remove it. The frozen size is identical every time, **11,534,336 bytes = exactly 11 MiB**,
-against 11,564,252 bytes on a successful run: the chain produces 60.07 s of the 60.23 s and then
-freezes 0.16 s from the end, on a flush boundary, without writing the WAV's final header. `-f adts`
+remove it, and the 602-second material stalled the same way inside the product.
+
+The same nondeterminism also shows up as **gain** rather than as a hang: two `FinalizePending` runs
+of the 60-second fixture both completed and produced outputs 26 dB apart (mean -68.5 / max -41.5,
+then mean -42.6 / max -0.4, the second pinned against the limiter) from identical input through
+identical code. Whatever `speechnorm` is doing at the end of this stream, its state is not
+reproducible run to run.
+
+The frozen size, on the other hand, is identical every time, on both inputs: **11,534,336 bytes**
+against 11,564,252 complete on the 60-second audio (60.07 s of 60.23 s), and **115,081,216** against
+115,275,008 complete on the ten-minute one (599.4 s of 600.4 s). The chain produces all but the last
+fraction of a second and then freezes without writing the WAV's final header. `-f adts`
 output (a raw stream with no header to rewrite) completed where `.wav` and `.m4a` did not. That
 reads as an ffmpeg 9.0.2 end-of-stream scheduling race rather than a filter that cannot finish -
 the same family as the muxing-queue deadlock, and not the same bug.
 
-The repeat measurements are in [chain-stall-repeats.txt](chain-stall-repeats.txt).
+**The actionable part, and I am handing it over rather than acting on it.**
+`-filter_complex_threads 1` removes the stall: 0 of 3 single-threaded runs wedged, against 3 of 3
+(ten minutes) and 2 of 4 (sixty seconds) with the default. That is the **opposite** of how the
+muxing-queue deadlock behaved - the Implementation Lead measured the same flag against that one and
+it did not help - so the flag is a clean discriminator between the two faults, and it points at a
+filter-threading race at end of stream.
+
+**I did not add that flag to the product**, although one line in the pass-1 builders would do it and
+it would make criteria 2 and 3 pass reliably. It is a mitigation for a different issue's defect, its
+root cause is not established, and one issue per branch. The Implementation Lead has the measurement
+and can say whether it belongs in this PR.
+
+One caveat on it: single-threading stops the hang but **not** the level nondeterminism - the two
+completed single-threaded ten-minute runs were still 15 dB apart (mean -52.4 / max -0.4, then mean
+-67.7 / max -25.8). So the hang and the varying gain may not share one cause.
+
+All of it is in [chain-stall-repeats.txt](chain-stall-repeats.txt).
 
 **Why it does not change this issue, and what it does change.** It reproduces with no video input,
 so the two-pass split neither causes nor cures it, and it reproduces without the change to #128's
@@ -487,7 +581,8 @@ mux, and the way to drive the mux is the one I used.
    first - note that packaging then goes on to transcribe and will fail at that step if the machine
    is not signed in; the mux has already happened by then and the log records it).
    [build-mux-fixtures.sh](build-mux-fixtures.sh) builds the exact three directories I measured,
-   from material already on the machine; [mux-run-log.txt](mux-run-log.txt) is the run it produced,
+   from material already on the machine; [mux-run-log.txt](mux-run-log.txt) holds both runs it
+   produced,
    with the expected numbers. Do not delete `2026-11-14_111731_video`, `2026-11-14_110301_video` or
    `2026-11-14_111433_video` - they are the material, and 111731 is the regression case.
 
@@ -495,6 +590,11 @@ mux, and the way to drive the mux is the one I used.
    quoted in criterion 1) against `2026-11-14_111731_video`. Expect output time to freeze near
    `time=00:01:16` within two seconds and the process to sit at ~100% CPU indefinitely. Kill it;
    it will not finish. Nothing in the repository can run that command any more, which is the point.
+
+   Use **111731** for this, not 111433 or 110301. Those two also trip the separate `speechnorm`
+   stall, so a hang there would not tell you which of the two defects you were looking at. 111731's
+   audio completed 3 of 3 bare-graph runs and 2 of 2 product runs, so on that recording a hang means
+   the muxing queue and nothing else.
 
 5. **The watchdog (criterion 9).** `MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound`
    and the five `Watchdog_*` unit tests. The two-pass mux runs both passes through the same
@@ -543,4 +643,12 @@ None of those are needed for this issue.
   next mux attempt overwrites it (`-y`) and then deletes it, so it persists only for a recording
   that is abandoned entirely. `sys_native.wav` has always had the same property.
 - **The 602 s timing is one run on one machine with one core already pinned** by the stuck installed
-  mux. 6.71 s against a 60 s stall bound is not a close call, but it is one sample.
+  mux. 6.71 s against a 60 s stall bound is not a close call, but it is one sample - and the only
+  other run of that fixture did not complete, for the separate reason above. I ran each fixture
+  twice, not twenty times; what I can show is that the muxing-queue deadlock never recurred in any
+  run, and that the runs which failed failed in PASS 1, with no video stream in the command.
+- **I did not find the root cause of that second stall, and I did not try to fix it.** I established
+  that it is `speechnorm`, that it is at the end of the stream, that it is intermittent, that it is
+  on `main`, and that #128's watchdog bounds it. Why it is intermittent - a thread-scheduling race is
+  the obvious suspect given the identical freeze point - is unanswered here. It belongs to #128 or to
+  an issue of its own, and the Implementation Lead has it.

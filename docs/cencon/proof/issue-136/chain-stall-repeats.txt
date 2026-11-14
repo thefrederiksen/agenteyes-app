@@ -1,15 +1,28 @@
-Issue #136 - the SECOND finding's measurements. NOT #136's defect: this is a stall in the mic
-chain itself, with NO video stream in the command, so it cannot be the muxing queue. Pre-existing
-on main. Recorded here so it is not rediscovered as a #136 regression.
+Issue #136 - the SECOND finding's measurements. NOT #136's defect: this is a stall in the mic chain
+itself, with NO video stream in the command, so it cannot be the muxing queue. Pre-existing on main.
+Recorded here so it is not rediscovered as a #136 regression.
 
-Machine: devthrottle-mac-mini, ffmpeg 9.0.2. Input: the audio track of
-fixtures/c3-60s/recording.original.mp4, which is ~/Movies/AgentEyes/2026-11-14_111433_video's
-mic_native.wav (60.224 s, pcm_s16le, 48 kHz, mono) as the video's AAC track. Command shape:
-  ffmpeg -nostdin -y -i <input> -filter_complex <chain> -map [a] -c:a pcm_f32le out.wav
-Each run killed at 75 s if it had not finished. A successful run writes 11,564,252 bytes; a
-wedged run freezes at exactly 11,534,336 bytes = 11 MiB, i.e. 60.07 s of the 60.23 s - it reaches
-the end of the content and never writes the WAV's final header.
+Machine: devthrottle-mac-mini, ffmpeg 9.0.2, 10 cores (one of them pinned throughout by the
+installed service's own stuck mux - see the handoff, criterion 1).
 
+Command shape, which is exactly what PASS 1 of the two-pass mux runs:
+  ffmpeg -nostdin -y [-filter_complex_threads 1] -i <input> -filter_complex <chain> \
+         -map [a] -c:a pcm_f32le -rf64 auto out.wav
+Chain: [0:a]<#128's aeval sanitizer>,arnndn=m=bd.rnnn,speechnorm=e=4:p=0.95,volume=1[m];
+       [m]alimiter=limit=0.95:level=false[a]
+Inputs: the audio track of each fixture (see mux-run-log.txt) - i.e. 2026-11-14_111433_video's
+mic_native.wav (60.224 s) and 2026-11-14_110301_video's (600.384 s), both pcm_s16le 48 kHz mono.
+Each run killed at the bound shown if it had not finished.
+
+THE SIGNATURE. A wedged run freezes at a byte count that is identical every time, just short of the
+full length, and never writes the WAV's final header:
+  60 s input : 11,534,336 wedged  vs 11,564,252 complete  (60.07 s of 60.23 s)
+  602 s input: 115,081,216 wedged vs 115,275,008 complete (599.4 s of 600.4 s)
+It reaches the end of the content and fails to finalize - the same family as the muxing-queue
+deadlock, and not the same bug. '-f adts' output (a raw stream with no header to rewrite) completed
+where .wav and .m4a did not.
+
+--- 60-second input, default threading, 75 s bound
 === c3-60s mic, chain WITH #128's aeval sanitizer (what is on this branch)
   c3-with run1: ok rc=0 in 1s (11564252 bytes)
   c3-with run2: WEDGED (killed 75s, wrote 11534336 bytes)
@@ -23,16 +36,45 @@ the end of the content and never writes the WAV's final header.
 === c3-60s mic, sanitizer + arnndn but NO speechnorm
   c3-nolevel run1: ok rc=0 in 2s (11564252 bytes)
   c3-nolevel run2: ok rc=0 in 1s (11564252 bytes)
-=== c1-76s mic, chain WITH the sanitizer
+=== 76-second input (2026-11-14_111731) instead, chain WITH the sanitizer
   c1-with run1: ok rc=0 in 1s (14494172 bytes)
   c1-with run2: ok rc=0 in 1s (14494172 bytes)
   c1-with run3: ok rc=0 in 1s (14494172 bytes)
 
-SUMMARY
-  c3 with #128's aeval sanitizer      : 2 of 4 wedged
-  c3 without it (main's chain)        : 4 of 4 wedged  -> pre-existing, not #128's doing
-  c3 with the sanitizer, no speechnorm: 0 of 2 wedged  -> speechnorm is the stalling stage
-  c1 (2026-11-14_111731) same chain   : 0 of 3 wedged  -> content-dependent
+--- 602-second and single-threaded runs, 100 s bound
+=== c2-600s audio, pass 1's exact command, default threading
+  c2-default run1: WEDGED (killed 100s, 115081216 bytes)
+  c2-default run2: WEDGED (killed 100s, 115081216 bytes)
+  c2-default run3: WEDGED (killed 100s, 115081216 bytes)
+=== c2-600s audio, -filter_complex_threads 1
+  c2-1thread run1: ok rc=0 in 3s (115275008 bytes, mean_volume: -52.4 dB max_volume: -0.4 dB )
+  c2-1thread run2: ok rc=0 in 3s (115275008 bytes, mean_volume: -67.7 dB max_volume: -25.8 dB )
+=== c3-60s audio, -filter_complex_threads 1
+  c3-1thread run1: ok rc=0 in 1s (11564288 bytes, mean_volume: -42.6 dB max_volume: -0.4 dB )
 
-Also measured: '-f adts' output (a raw stream with no header to rewrite) completed where .wav
-and .m4a did not, on a run of the same command in the same minute.
+SUMMARY
+  60 s input, with #128's aeval sanitizer        : 2 of 4 wedged
+  60 s input, without it (main's chain)          : 4 of 4 wedged   -> pre-existing, not #128's doing
+  60 s input, with the sanitizer, no speechnorm  : 0 of 2 wedged   -> speechnorm is the stalling stage
+  76 s input (2026-11-14_111731), same chain     : 0 of 3 wedged   -> content-dependent
+  602 s input, default threading                 : 3 of 3 wedged
+  602 s input, -filter_complex_threads 1         : 0 of 2 wedged, 3 s each
+  60 s input,  -filter_complex_threads 1         : 0 of 1 wedged, 1 s
+
+THE ACTIONABLE PART, for whoever owns this next. '-filter_complex_threads 1' removes the stall:
+0 of 3 single-threaded runs wedged against 3 of 3 (602 s) and 2 of 4 (60 s) with the default. Note
+that this is the OPPOSITE of how the muxing-queue deadlock behaved - the Implementation Lead measured
+'-filter_complex_threads 1' and it did NOT help there. So the flag is a clean discriminator between
+the two faults, and it points at a filter-threading race at end of stream.
+
+I did NOT add that flag to the product. It is a mitigation for a different issue's defect, its root
+cause is not established, and one issue per branch. One line in FfmpegArgs' pass-1 builders would do
+it if the Implementation Lead wants it here.
+
+A SECOND SYMPTOM, which the flag does NOT fix: the processed LEVEL is not reproducible either.
+Completed runs of the same input through the same code differ by 15-26 dB:
+  60 s  via the product: mean -68.5 / max -41.5, then mean -42.6 / max -0.4
+  602 s single-threaded: mean -52.4 / max -0.4,  then mean -67.7 / max -25.8
+So single-threading the graph stops the hang but not the nondeterminism, which suggests the two
+symptoms may not share one cause. 2026-11-14_111731's audio, by contrast, reproduced exactly
+(mean -68.8 / max -41.0 on every run), which is why the handoff's criterion 4 comparison uses it.
