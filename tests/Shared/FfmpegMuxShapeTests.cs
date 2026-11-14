@@ -273,6 +273,10 @@ namespace AgentEyes.Tests.Shared
                 Assert.DoesNotContain("0:v", list);
                 Assert.Equal("audio_processed.wav", list[list.Count - 1]);
                 Assert.Equal(FfmpegArgs.ProcessedAudioCodec, list[list.IndexOf("-c:a") + 1]);
+                // A plain RIFF WAV cannot describe more than 4 GB, which float at 48 kHz reaches at
+                // about 6 hours of mono. Without this the intermediate would break at one
+                // unannounced length - the silent-cliff failure this issue rejected elsewhere.
+                Assert.Equal("auto", list[list.IndexOf("-rf64") + 1]);
             }
         }
 

@@ -77,6 +77,16 @@ Added:
   keeps the split honest: 32-bit float is what the filter graph computes in and what the AAC encoder
   takes, so pass 2's encoder gets the same samples the single pass handed it. `pcm_s16le` would have
   been half the disk and a quantization step nobody asked for.
+- `-rf64 auto` on every pass-1 command. **A bound I went looking for after arguing against silent
+  cliffs, and found one of my own.** A plain RIFF WAV holds its size in 32 bits, so it cannot
+  describe more than 4 GB, and float at 48 kHz is 192 kB/s per channel - about 6 hours of mono or 3
+  hours of stereo. Before this change there was no intermediate and therefore no such limit, so
+  leaving the default (`-rf64 never`) would have introduced exactly the kind of unannounced length at
+  which things stop working that I rejected `-max_muxing_queue_size` for. Measured: `auto` leaves a
+  plain RIFF header below 4 GB (same bytes as the default apart from the 36-byte placeholder the
+  upgrade needs), `always` writes an `RF64` magic, and pass 2 reads an RF64 intermediate and produces
+  a correct `h264 + aac` output. I did **not** generate a 4 GB file to see the wrap; the bound is
+  ffmpeg's documented reason for the option.
 
 `src/AgentEyes.Core/Audio/AudioMix.cs`
 
@@ -522,6 +532,11 @@ None of those are needed for this issue.
 - **`pcm_f32le` is a claim about sample fidelity that I checked by `volumedetect`, not sample by
   sample.** Mean and max agree to 0.1 dB with the one-pass output; I did not compute a difference
   signal.
+- **The 4 GB WAV bound was reasoned and the mechanism measured, but not reached.** I verified
+  `-rf64 auto`'s behaviour below the bound and that pass 2 reads an RF64 file; I did not write a
+  4 GB intermediate. Separately, `MixTwoWav` - the audio-only recording's own final `.wav`, which
+  this change does not touch - has the same latent 4 GB RIFF limit at about 6 hours and no `-rf64`.
+  That is pre-existing and out of scope here; it is worth its own issue.
 - **The intermediate can be left behind by a hard kill.** The `finally` covers a failure and an
   exception; a `SIGKILL` or a power cut between pass 1 and pass 2 leaves `audio_processed.wav` in
   the recording directory, where `RecoveryManifest.FilesOnDisk` would list it as capture bytes. The

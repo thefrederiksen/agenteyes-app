@@ -470,6 +470,7 @@ namespace AgentEyes.Video
         /// </summary>
         internal const string ProcessedAudioCodec = "pcm_f32le";
 
+
         /// <summary>
         /// Mix a mic WAV and a system WAV into one WAV (48 kHz stereo): gate+volume the mic,
         /// volume the system, amix. normalize=0 keeps levels predictable.
@@ -508,6 +509,15 @@ namespace AgentEyes.Video
         // The invariant this leaves behind: NO argument list in this file pairs a copied video
         // stream with a filter graph. FfmpegMuxShapeTests sweeps every builder here and fails if one
         // does - including a builder added later.
+        //
+        // ONE BOUND THE INTERMEDIATE DOES HAVE, named rather than left to be discovered. A plain
+        // RIFF WAV holds its size in 32 bits and so cannot describe more than 4 GB, and float at
+        // 48 kHz is 192 kB/s per channel - about 6 hours of mono or 3 hours of stereo. Long for a
+        // recording, but not impossible, and being wrong about it silently is the same class of
+        // defect as the tuned queue bound above. So pass 1 passes "-rf64 auto": a plain RIFF header
+        // below 4 GB (measured: the same bytes apart from the 36-byte placeholder the upgrade needs)
+        // and an RF64 header only once the file really grows past it. ffmpeg reads either, so pass 2
+        // does not care which it got - also measured.
 
         /// <summary>
         /// PASS 1, microphone only: run the mic through the clean-voice chain and the limiter into an
@@ -519,7 +529,9 @@ namespace AgentEyes.Video
         {
             "-y", "-i", micSource,
             "-filter_complex", MicOnlyGraph(o),
-            "-map", "[a]", "-c:a", ProcessedAudioCodec, outWav,
+            "-map", "[a]", "-c:a", ProcessedAudioCodec,
+            // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+            "-rf64", "auto", outWav,
         };
 
         /// <summary>
@@ -533,7 +545,9 @@ namespace AgentEyes.Video
         {
             "-y", "-i", micSource, "-i", sysWav,
             "-filter_complex", MicPlusSystemGraph(o),
-            "-map", "[a]", "-c:a", ProcessedAudioCodec, outWav,
+            "-map", "[a]", "-c:a", ProcessedAudioCodec,
+            // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+            "-rf64", "auto", outWav,
         };
 
         /// <summary>
@@ -546,7 +560,9 @@ namespace AgentEyes.Video
         {
             "-y", "-i", sysWav,
             "-filter_complex", $"[0:a]volume={Inv(sysGain)}[a]",
-            "-map", "[a]", "-c:a", ProcessedAudioCodec, outWav,
+            "-map", "[a]", "-c:a", ProcessedAudioCodec,
+            // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+            "-rf64", "auto", outWav,
         };
 
         /// <summary>
