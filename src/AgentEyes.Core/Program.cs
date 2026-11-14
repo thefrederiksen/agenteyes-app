@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace AgentEyes
 {
@@ -24,143 +23,13 @@ namespace AgentEyes
         [STAThread]
         private static int Main(string[] args)
         {
-            StorageMigration.Run();   // qa-record -> AgentEyes folders, one time
+            // FIRST, before anything can log: Log creates the AgentEyes data folder, and the one-time
+            // qa-record -> AgentEyes move skips itself for good once that folder exists.
+            StorageMigration.Run();
 
-            if (args.Length == 0)
-            {
-                PrintUsage();
-                return 1;
-            }
-
-            string command = args[0].ToLowerInvariant();
-            var rest = new List<string>(args);
-            rest.RemoveAt(0);
-            var opts = CliArgs.Parse(rest);
-
-            try
-            {
-                switch (command)
-                {
-                    case "screens":
-                        return Commands.Screens();
-
-                    case "shot":
-                        return Commands.Shot(opts);
-
-                    case "audio":
-                        return Commands.Audio(opts);
-
-                    case "video":
-                        return Commands.Video(opts);
-
-                    case "package":
-                        return Commands.Package(opts);
-
-                    case "compose":
-                        return Commands.Compose(opts);
-
-                    case "housekeep":
-                        return Commands.Housekeep(opts);
-
-                    case "import":
-                        return Commands.Import(opts);
-
-                    case "translate":
-                        return Commands.Translate(opts);
-
-                    case "subtitle":
-                        return Commands.Subtitle(opts);
-
-                    case "selftest":
-                        return SelfTest.Run();
-
-                    case "always-on":
-#if MACOS
-                        throw Platform.Mac.NotOnMac.Feature("Always-on recording");
-#elif !WINDOWS
-                        throw Platform.Linux.NotOnLinux.Feature("Always-on recording");
-#else
-                        return AlwaysOn.AlwaysOnCli.Run(opts);
-#endif
-
-                    // Issue #102: the headless service and its clients.
-                    case "serve":
-                        return Headless.HeadlessHost.Run(opts);
-
-                    case "record":
-                        return Headless.HeadlessCli.Record(opts);
-
-                    case "signin":
-                        return Headless.HeadlessCli.SignIn();
-
-                    case "signout":
-                        return Headless.HeadlessCli.SignOut();
-
-                    case "account":
-                        return Headless.HeadlessCli.Account();
-
-                    case "-h":
-                    case "--help":
-                    case "help":
-                        PrintUsage();
-                        return 0;
-
-                    default:
-                        Console.Error.WriteLine("[error] unknown command: " + command);
-                        PrintUsage();
-                        return 1;
-                }
-            }
-            catch (UsageException ux)
-            {
-                Console.Error.WriteLine("[error] " + ux.Message);
-                return 1;
-            }
-#if !WINDOWS
-            catch (PlatformNotSupportedException px)
-            {
-                // Issue #102: a Windows-only feature reached on Linux - said plainly, its own exit code.
-                Console.Error.WriteLine("[not-on-this-platform] " + px.Message);
-                return 4;
-            }
-#endif
-            catch (NotYetBuiltException nb)
-            {
-                // Honest scaffold boundary - no silent fallback, clear next step.
-                Console.Error.WriteLine("[not-built] " + nb.Message);
-                return 2;
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine("[error] " + ex.Message);
-                return 3;
-            }
-        }
-
-        private static void PrintUsage()
-        {
-            Console.WriteLine("AgentEyes - screen + audio recorder (CLI: agenteyes)");
-            Console.WriteLine();
-            Console.WriteLine("USAGE");
-            Console.WriteLine("  agenteyes screens");
-            Console.WriteLine("  agenteyes shot    --screen N [--region] [--out DIR] [--label NAME]");
-            Console.WriteLine("  agenteyes audio   --screen N (--mic \"NAME\" | --loopback | --mix --mic \"NAME\") [--seconds N]");
-            Console.WriteLine("  agenteyes video   --screen N [--mic \"NAME\"] [--mix | --loopback] [--region] [--seconds N]");
-            Console.WriteLine("       mic options:  --no-denoise  --no-gate  --no-level  --mic-vol PCT  --sys-vol PCT");
-            Console.WriteLine("       camera:       --camera \"NAME\" [--camera-fps N]   # webcam -> camera.mp4 (video only)");
-            Console.WriteLine("  agenteyes package <recording-dir | video.mp4> [--interval N | --scene THRESHOLD]");
-            Console.WriteLine("  agenteyes compose <recording-dir>   render the camera into recording.mp4 at the framing the preset chose");
-            Console.WriteLine(AlwaysOn.AlwaysOnCli.Usage);
-            Console.WriteLine("  agenteyes housekeep [root] [--apply] [--days N] [--ceiling-gb N] [--no-transcode] [--no-frames] [--frame-days N] [--smaller-audio]");
-            Console.WriteLine("       reduce the recordings folder's own footprint. REPORTS ONLY unless --apply is given.");
-            Console.WriteLine("  agenteyes import  <video.mp4>             # import an external video into the library");
-            Console.WriteLine("  agenteyes translate <id> --to LANG        # translate a transcript into LANG (e.g. tr), timing preserved");
-            Console.WriteLine("  agenteyes subtitle  <id> --lang LANG      # burn LANG captions into a new subtitled MP4 (ffmpeg)");
-            Console.WriteLine("  agenteyes selftest                        # headless end-to-end self-test");
-            Console.WriteLine(Headless.HeadlessCli.Usage);
-            Console.WriteLine();
-            Console.WriteLine("SESSION HOTKEYS (audio/video)");
-            Console.WriteLine("  S = screenshot   P = pause/resume   Q = stop");
+            // Issue #122: every command line goes through the dispatcher, which prints help or refuses
+            // an unknown flag BEFORE any command handler runs.
+            return CliDispatcher.Run(args, Console.Out, Console.Error, CliCommands.All);
         }
     }
 

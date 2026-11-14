@@ -1,0 +1,70 @@
+Extract of ~/.local/share/AgentEyes/logs/AgentEyes-20261114.log (the CLI's own log; pids stripped).
+Window 1 = real-binary-help-and-refusals.txt (11:01:00 - 11:01:06.999). Window 2 = real-binary-correct-invocations.txt (11:01:18 - 11:01:40).
+
+== Window 1: every dispatcher decision and every record-handler line
+11:01:00.446 [INFO] [CliDispatcher] Dispatch: help for record start
+11:01:00.626 [INFO] [CliDispatcher] Dispatch: help for record start
+11:01:00.843 [INFO] [CliDispatcher] Dispatch: help for record start
+11:01:01.065 [INFO] [CliDispatcher] Dispatch: help for record stop
+11:01:01.225 [INFO] [CliDispatcher] Dispatch: help for record status
+11:01:01.378 [INFO] [CliDispatcher] Dispatch: help for screens
+11:01:01.563 [INFO] [CliDispatcher] Dispatch: help for shot
+11:01:01.716 [INFO] [CliDispatcher] Dispatch: help for audio
+11:01:01.893 [INFO] [CliDispatcher] Dispatch: help for video
+11:01:02.058 [INFO] [CliDispatcher] Dispatch: help for package
+11:01:02.212 [INFO] [CliDispatcher] Dispatch: help for compose
+11:01:02.372 [INFO] [CliDispatcher] Dispatch: help for always-on
+11:01:02.579 [INFO] [CliDispatcher] Dispatch: help for housekeep
+11:01:02.748 [INFO] [CliDispatcher] Dispatch: help for import
+11:01:02.909 [INFO] [CliDispatcher] Dispatch: help for translate
+11:01:03.085 [INFO] [CliDispatcher] Dispatch: help for subtitle
+11:01:03.239 [INFO] [CliDispatcher] Dispatch: help for selftest
+11:01:03.396 [INFO] [CliDispatcher] Dispatch: help for serve
+11:01:03.591 [INFO] [CliDispatcher] Dispatch: help for signin
+11:01:03.776 [INFO] [CliDispatcher] Dispatch: help for signout
+11:01:03.974 [INFO] [CliDispatcher] Dispatch: help for account
+11:01:04.151 [INFO] [CliDispatcher] Dispatch: help for record
+11:01:04.306 [INFO] [CliDispatcher] Dispatch: help for record start
+11:01:04.479 [INFO] [CliDispatcher] Dispatch: top-level help
+11:01:04.653 [INFO] [CliDispatcher] Dispatch: parsed record start options=[nonsense] positionals=0
+11:01:04.656 [WARN] [CliDispatcher] Run: usage error: unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
+11:01:04.820 [INFO] [CliDispatcher] Dispatch: parsed record start options=[audio-only,nonsense] positionals=0
+11:01:04.823 [WARN] [CliDispatcher] Run: usage error: unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
+11:01:04.975 [INFO] [CliDispatcher] Dispatch: parsed record start options=[] positionals=1
+11:01:04.976 [WARN] [CliDispatcher] Run: usage error: unknown option -x for 'agenteyes record start'. See: agenteyes record start --help
+11:01:05.148 [INFO] [CliDispatcher] Dispatch: parsed record start options=[] positionals=1
+11:01:05.150 [WARN] [CliDispatcher] Run: usage error: unexpected argument 'hepl' for 'agenteyes record start'. See: agenteyes record start --help
+11:01:05.305 [INFO] [CliDispatcher] Dispatch: parsed record start options=[mic] positionals=0
+11:01:05.308 [WARN] [CliDispatcher] Run: usage error: --mic needs a value (NAME). See: agenteyes record start --help
+11:01:05.481 [INFO] [CliDispatcher] Dispatch: help for record start
+11:01:05.629 [INFO] [CliDispatcher] Dispatch: parsed record start options=[mic=Yeti] positionals=0
+11:01:05.631 [WARN] [CliDispatcher] Run: usage error: unknown option --mic=Yeti (an option's value goes after a space: --mic Yeti) for 'agenteyes record start'. See: agenteyes record start --help
+11:01:05.821 [INFO] [CliDispatcher] Dispatch: parsed video options=[nonsense] positionals=0
+11:01:05.824 [WARN] [CliDispatcher] Run: usage error: unknown option --nonsense for 'agenteyes video'. See: agenteyes video --help
+11:01:06.001 [INFO] [CliDispatcher] Dispatch: parsed serve options=[nonsense] positionals=0
+11:01:06.004 [WARN] [CliDispatcher] Run: usage error: unknown option --nonsense for 'agenteyes serve'. See: agenteyes serve --help
+== Window 1 counts: help=25 usage-errors=8 running=0 record-handler=0
+
+== Window 2 (the presence control: the same log DOES record a handler run). The final 'Record: verb=start' is main's old binary (baseline).
+11:01:18.238 [INFO] [CliDispatcher] Dispatch: running record start
+11:01:18.241 [INFO] [HeadlessCli] RecordStart
+11:01:19.928 [INFO] [HeadlessCli] RecordStart: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110118_video
+11:01:24.180 [INFO] [CliDispatcher] Dispatch: running record stop
+11:01:24.182 [INFO] [HeadlessCli] RecordStop
+11:01:26.801 [INFO] [HeadlessCli] RecordStop: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110118_video
+11:01:29.974 [INFO] [CliDispatcher] Dispatch: running record start
+11:01:29.976 [INFO] [HeadlessCli] RecordStart
+11:01:30.979 [INFO] [HeadlessCli] RecordStart: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+11:01:35.161 [INFO] [CliDispatcher] Dispatch: running record stop
+11:01:35.162 [INFO] [HeadlessCli] RecordStop
+11:01:35.450 [INFO] [HeadlessCli] RecordStop: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+11:01:38.654 [INFO] [CliDispatcher] Dispatch: running record status
+11:01:38.656 [INFO] [HeadlessCli] RecordStatus
+11:01:38.759 [INFO] [HeadlessCli] RecordStatus: state=idle
+11:01:38.983 [INFO] [CliDispatcher] Dispatch: running record start
+11:01:38.986 [INFO] [HeadlessCli] RecordStart
+11:01:39.392 [INFO] [HeadlessCli] Record: verb=start
+
+== Credential file after 'agenteyes signout --help': mtime unchanged
+2026-10-15 18:21:52.867931445 /home/soren/.local/share/AgentEyes/devthrottle.cred
+$ agenteyes account -> signed in as soren@centerconsulting.com
