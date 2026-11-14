@@ -1,0 +1,104 @@
+diff --git a/src/AgentEyes.Core/RecordingService.cs b/src/AgentEyes.Core/RecordingService.cs
+index ac0a078..d01cd67 100644
+--- a/src/AgentEyes.Core/RecordingService.cs
++++ b/src/AgentEyes.Core/RecordingService.cs
+@@ -996,7 +996,7 @@ namespace AgentEyes
+             // Issue #128 round two (D1): one writer per output, across processes, for ANY caller.
+             // Re-entrant for MuxCoordinator / PostRecording, which already hold it around the
+             // counted attempt; anyone else either gets it here or is refused with the reason.
+-            using var muxLock = MuxLock.Acquire(dir, "finalize");
++            /*QA M1*/
+ 
+             string finalPath = Path.Combine(dir, p.FinalFile);
+             string? raw = p.RawVideo != null ? Path.Combine(dir, p.RawVideo) : null;
+diff --git a/src/AgentEyes.Core/PostRecording.cs b/src/AgentEyes.Core/PostRecording.cs
+index 12a833a..22f6055 100644
+--- a/src/AgentEyes.Core/PostRecording.cs
++++ b/src/AgentEyes.Core/PostRecording.cs
+@@ -368,7 +368,7 @@ namespace AgentEyes
+                     // pass. Holding the lock also proves no live process owns a "running" record, so
+                     // a dead attempt's state and fragment are settled before anything reads them.
+                     using var muxLock = MuxLock.TryAcquire(dir, "post-recording");
+-                    if (muxLock == null)
++                    if (false)
+                     {
+                         Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - another process is muxing this "
+                             + "recording; every stage stays outstanding for the next pass");
+diff --git a/src/AgentEyes.Core/MuxCoordinator.cs b/src/AgentEyes.Core/MuxCoordinator.cs
+index 5197c93..83a75a2 100644
+--- a/src/AgentEyes.Core/MuxCoordinator.cs
++++ b/src/AgentEyes.Core/MuxCoordinator.cs
+@@ -79,7 +79,7 @@ namespace AgentEyes
+             }
+ 
+             long size = new FileInfo(finalPath).Length;
+-            File.Delete(finalPath);
++            /*QA M6*/
+             Log.Info($"[MuxCoordinator] RemoveFragment: {Path.GetFileName(dir)} - removed {size}-byte fragment {p.FinalFile} " +
+                      "left by an attempt that never finished");
+         }
+diff --git a/src/AgentEyes.Core/Video/FfmpegArgs.cs b/src/AgentEyes.Core/Video/FfmpegArgs.cs
+index fb1647c..55afb1d 100644
+--- a/src/AgentEyes.Core/Video/FfmpegArgs.cs
++++ b/src/AgentEyes.Core/Video/FfmpegArgs.cs
+@@ -367,7 +367,7 @@ namespace AgentEyes.Video
+                     throw new UsageException(
+                         "noise suppression is on but the RNNoise model path is not set - " +
+                         "call RnnoiseModel.Ensure() before building mix args");
+-                denoise = $"{ArnndnFraming},arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
++                denoise = $"arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
+             }
+             // The threshold is MEASURED from the capture, never assumed. Building the chain with
+             // the gate on but nothing measured is a programming error and says so, exactly like the
+diff --git a/src/AgentEyes.Core/Audio/AudioMix.cs b/src/AgentEyes.Core/Audio/AudioMix.cs
+index 4446aa1..78c6297 100644
+--- a/src/AgentEyes.Core/Audio/AudioMix.cs
++++ b/src/AgentEyes.Core/Audio/AudioMix.cs
+@@ -74,7 +74,7 @@ namespace AgentEyes.Audio
+             {
+                 string msg = $"{stageError.Message} (and its partial output {outPath} could not be removed: {cleanupError.Message})";
+                 Log.Error($"[AudioMix] RunStage: {label} FAILED and its partial output could not be removed: {cleanupError.Message}");
+-                throw new UsageException(msg, stageError);
++                throw;
+             }
+             Log.Info($"[AudioMix] RunStage: {label} did not complete - removed partial output {outPath}");
+         }
+diff --git a/src/AgentEyes.Core/PostRecording.cs b/src/AgentEyes.Core/PostRecording.cs
+index 12a833a..4eb3000 100644
+--- a/src/AgentEyes.Core/PostRecording.cs
++++ b/src/AgentEyes.Core/PostRecording.cs
+@@ -393,7 +393,7 @@ namespace AgentEyes
+                     {
+                         Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - the mux is out of attempts; "
+                             + "there is no final media, so no later stage can run");
+-                        return outcome;
++                        /*QA M13*/
+                     }
+                 }
+                 else
+diff --git a/src/AgentEyes.Core/Video/FfmpegArgs.cs b/src/AgentEyes.Core/Video/FfmpegArgs.cs
+index fb1647c..0efb23b 100644
+--- a/src/AgentEyes.Core/Video/FfmpegArgs.cs
++++ b/src/AgentEyes.Core/Video/FfmpegArgs.cs
+@@ -394,7 +394,7 @@ namespace AgentEyes.Video
+             // poisons its recurrent state so every sample after it comes out NaN - which then hangs
+             // speechnorm. NaN/Inf is not audio; zeroing that one sample is inaudible. It is only
+             // emitted when one of those two stages is in the chain.
+-            string finite = (o.NoiseSuppression || o.VoiceLeveling) ? FiniteSamples + "," + PinMicLayout(o) + "," : "";
++            string finite = (o.NoiseSuppression || o.VoiceLeveling) ? FiniteSamples + "," : "";
+             return $"[0:a]{finite}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+         }
+ 
+diff --git a/src/AgentEyes.Core/Video/Ffmpeg.cs b/src/AgentEyes.Core/Video/Ffmpeg.cs
+index a170092..eb7231b 100644
+--- a/src/AgentEyes.Core/Video/Ffmpeg.cs
++++ b/src/AgentEyes.Core/Video/Ffmpeg.cs
+@@ -167,7 +167,7 @@ namespace AgentEyes.Video
+             {
+                 AgentEyes.AlwaysOn.KillOnCloseJob.Assign(p);
+             }
+-            catch (System.ComponentModel.Win32Exception ex) when (p.HasExited)
++            catch (System.ComponentModel.Win32Exception ex) when (false)
+             {
+                 Log.Info($"ffmpeg [{label}] exited (code {p.ExitCode}) before it could be tied to AgentEyes' lifetime " +
+                          $"({ex.Message}) - nothing left to tie; its own result is reported");

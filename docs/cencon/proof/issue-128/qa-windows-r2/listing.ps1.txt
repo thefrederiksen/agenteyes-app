@@ -1,0 +1,12 @@
+param([string]$label)
+$all = Get-CimInstance Win32_Process
+$t = (Get-Date).ToString('HH:mm:ss.fff')
+"--- $label at $t (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)"
+$hits = $all | Where-Object { $_.Name -in 'ffmpeg.exe','AgentEyesApp.exe','agenteyes.exe' }
+if (-not $hits) { "  (none of the three are running)" }
+foreach ($p in $hits) {
+  $cl = [string]$p.CommandLine
+  $outArg = if ($p.Name -eq 'ffmpeg.exe') { ' | output-arg: ' + ($cl -split ' ')[-1] } else { '' }
+  "  {0,6} ppid {1,6} {2,-17} {3}{4}" -f $p.ProcessId, $p.ParentProcessId, $p.Name, ($(if ($cl.Length -gt 150) { $cl.Substring(0,150) + '...' } else { $cl })), $outArg
+}
+"  instrument check: $($all.Count) processes visible to the query, e.g. " + (($all | Select-Object -First 3 | ForEach-Object { "$($_.ProcessId) $($_.Name)" }) -join ', ')

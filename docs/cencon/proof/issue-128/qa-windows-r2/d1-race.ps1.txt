@@ -1,0 +1,28 @@
+param([string]$cli, [string]$dir, [string]$tag)
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$L = "$PSScriptRoot\listing.ps1"; $out = "$PSScriptRoot\$tag"
+function Mux { (Get-Content "$dir\manifest.json" -Raw | ConvertFrom-Json).PostProcessing.mux | ConvertTo-Json -Compress }
+function FfFor { @(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like "*$dir*" }) }
+"=== $tag  cli=$cli"; "dir=$dir"; "manifest mux before: $(Mux)"
+$a = Start-Process $cli -ArgumentList @('package', "`"$dir`"") -PassThru -NoNewWindow -RedirectStandardOutput "$out-cliA.out" -RedirectStandardError "$out-cliA.err"
+"CLI A pid $($a.Id) started $((Get-Date).ToString('HH:mm:ss.fff'))"
+$dl = (Get-Date).AddSeconds(40); while (-not (FfFor) -and (Get-Date) -lt $dl) { Start-Sleep -Milliseconds 250 }
+Start-Sleep 3
+& $L "after CLI A's mux started"
+"manifest mux: $(Mux)"
+$b = Start-Process $cli -ArgumentList @('package', "`"$dir`"") -PassThru -NoNewWindow -RedirectStandardOutput "$out-cliB.out" -RedirectStandardError "$out-cliB.err"
+"CLI B pid $($b.Id) started $((Get-Date).ToString('HH:mm:ss.fff'))"
+Start-Sleep 6
+& $L "6 s after CLI B started"
+$ff = FfFor
+"ffmpeg processes whose command line names this recording: $(@($ff).Count)"
+foreach ($p in $ff) { "  pid $($p.ProcessId) ppid $($p.ParentProcessId) output-arg: " + ($p.CommandLine -split ' ')[-1] }
+"CLI B exited? $($b.HasExited)$(if ($b.HasExited) { ' code ' + $b.ExitCode })"
+"manifest mux: $(Mux)"
+$b.WaitForExit(120000) | Out-Null; $a.WaitForExit(120000) | Out-Null
+"CLI A exit $($a.ExitCode); CLI B exit $($b.ExitCode) at $((Get-Date).ToString('HH:mm:ss.fff'))"
+"CLI A stdout/err tail:"; Get-Content "$out-cliA.out","$out-cliA.err" -ErrorAction SilentlyContinue | Select-Object -Last 4 | ForEach-Object { "  $_" }
+"CLI B stdout/err tail:"; Get-Content "$out-cliB.out","$out-cliB.err" -ErrorAction SilentlyContinue | Select-Object -Last 4 | ForEach-Object { "  $_" }
+& $L "after both CLIs exited"
+"manifest mux after: $(Mux)"
+"recording.mp4 present: $(Test-Path "$dir\recording.mp4")"
