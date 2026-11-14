@@ -33,6 +33,15 @@ namespace AgentEyes.Headless
         private readonly List<Task> _postWork = new();
         private Thread? _thread;
         private volatile bool _running;
+        private int _dispatched;
+
+        /// <summary>
+        /// How many requests passed the framing guard and reached an endpoint handler (issue #123). A
+        /// request rejected by <see cref="IsUnframedBody"/> never increments it, so a test can prove the
+        /// rejection happened BEFORE any handler ran, which the client cannot see: on Linux and macOS the
+        /// listener's own 411 looks the same whether or not the action ran behind it.
+        /// </summary>
+        internal int RequestsDispatched => Volatile.Read(ref _dispatched);
 
         public int Port { get; }
         public string Url => $"http://127.0.0.1:{Port}/";
@@ -103,6 +112,13 @@ namespace AgentEyes.Headless
             string path = ctx.Request.Url!.AbsolutePath.TrimEnd('/');
             if (path == "") path = "/";
             Log.Info($"[HeadlessControlServer] {method} {path}");
+
+            if (IsUnframedBody(method, ctx.Request.Headers["Content-Length"], ctx.Request.Headers["Transfer-Encoding"]))
+            {
+                RejectUnframed(ctx, method, path);
+                return;
+            }
+            Interlocked.Increment(ref _dispatched);
 
             try
             {
@@ -420,14 +436,77 @@ namespace AgentEyes.Headless
             return reader.ReadToEnd();
         }
 
+        /// <summary>
+        /// True for a POST or PUT that carries neither a Content-Length nor a chunked body (issue #123),
+        /// e.g. <c>curl -X POST url</c> with no <c>-d</c>. The managed HttpListener on Linux and macOS
+        /// answers such a request with its own <c>411 Length Required</c> and disposes the response
+        /// BEFORE it hands the request to us (measured on devlinux: curl had the 411 before the handler
+        /// ran), so no 200 can ever reach that caller. The only honest contract is therefore to reject
+        /// it before any effect, identically on every platform. A bodyless POST that sends
+        /// <c>Content-Length: 0</c> (curl <c>-d ''</c>, most HTTP libraries) is framed and is served.
+        /// </summary>
+        internal static bool IsUnframedBody(string method, string? contentLength, string? transferEncoding)
+        {
+            bool bodyMethod = string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase)
+                              || string.Equals(method, "PUT", StringComparison.OrdinalIgnoreCase);
+            if (!bodyMethod) return false;
+            if (!string.IsNullOrWhiteSpace(contentLength)) return false;
+            bool chunked = transferEncoding != null
+                           && transferEncoding.Contains("chunked", StringComparison.OrdinalIgnoreCase);
+            return !chunked;
+        }
+
+        /// <summary>
+        /// Answers an unframed POST with 411 without running its handler. Where the listener has already
+        /// sent its own 411 (Linux, macOS) our write fails, and that is logged as exactly that - the
+        /// caller still got a 411 and nothing was done.
+        /// </summary>
+        private static void RejectUnframed(HttpListenerContext ctx, string method, string path)
+        {
+            Log.Warn($"[HeadlessControlServer] {method} {path} REJECTED before any effect: no Content-Length and no chunked body "
+                     + "(411 Length Required). Send a JSON body, or Content-Length: 0.");
+            const string message = "this request has no Content-Length and no chunked body, so it was rejected and NOTHING was done. "
+                                   + "Send a JSON body (e.g. -H 'Content-Type: application/json' -d '{}') or Content-Length: 0 (curl -d '').";
+            try
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { error = message, code = "length_required" }, JsonOpts));
+                ctx.Response.StatusCode = 411;
+                ctx.Response.ContentType = "application/json";
+                ctx.Response.ContentLength64 = bytes.Length;
+                ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                ctx.Response.OutputStream.Close();
+                Log.Info($"[HeadlessControlServer] {method} {path}: 411 answer written, no action taken");
+            }
+            catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                Log.Info($"[HeadlessControlServer] {method} {path}: the listener had already answered 411 itself ({ex.GetType().Name}); no action taken");
+            }
+        }
+
+        /// <summary>
+        /// Writes the 200 answer of an endpoint whose action has ALREADY happened. A failed write here
+        /// must never be mistaken for a failed action (issue #123), so it is caught and logged as
+        /// "handled, answer not delivered" instead of escaping to the loop's generic 500 path.
+        /// </summary>
         private static void Json(HttpListenerContext ctx, object payload)
         {
             byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(payload, JsonOpts));
-            ctx.Response.StatusCode = 200;
-            ctx.Response.ContentType = "application/json";
-            ctx.Response.ContentLength64 = bytes.Length;
-            ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
-            ctx.Response.OutputStream.Close();
+            string what = ctx.Request.HttpMethod + " " + ctx.Request.Url?.AbsolutePath;
+            try
+            {
+                ctx.Response.StatusCode = 200;
+                ctx.Response.ContentType = "application/json";
+                ctx.Response.ContentLength64 = bytes.Length;
+                ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+                ctx.Response.OutputStream.Close();
+            }
+            catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException or InvalidOperationException)
+            {
+                Log.Error($"[HeadlessControlServer] {what} HANDLED - the action completed - but its 200 answer could NOT be written "
+                          + $"({ex.GetType().Name}: {ex.Message}). The caller may believe it failed; the action stands.");
+                return;
+            }
+            Log.Info($"[HeadlessControlServer] {what}: 200 answer written ({bytes.Length} bytes)");
         }
 
         private static void Error(HttpListenerContext ctx, int code, string message, string errorCode)
