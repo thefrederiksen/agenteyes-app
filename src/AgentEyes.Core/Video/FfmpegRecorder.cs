@@ -107,10 +107,13 @@ namespace AgentEyes.Video
             // resolved from the region: a Mac region is display-local, and RequireScreen pairs the
             // index ffmpeg wants with the size the crop is clamped into.
             //
-            // THE MICROPHONE IS NOT AN INPUT OF THIS PROCESS ON macOS (issue #114). A second
-            // AVFoundation input beside a display loses ~88% of its samples, so the microphone is
-            // captured by its own ffmpeg (AudioCapture over AvfStream) and the deferred mux joins
-            // them - see CaptureTopology, which is what tells a caller which of the two it must do.
+            // THE MICROPHONE IS NOT AN INPUT OF THIS PROCESS ON macOS (issue #114): it is captured
+            // by its own ffmpeg (AudioCapture over AvfStream) and the deferred mux joins them - see
+            // CaptureTopology, which is what tells a caller which of the two it must do. That split
+            // is NOT what fixed #114's audio loss; the measured cause was the recorder running at
+            // throttled background QoS, and `ProcessType Interactive` in the launchd plist is the
+            // load-bearing fix. FfmpegArgs.AvfVideoCapture carries the numbers and the two reasons
+            // the split is kept on its own merits.
             //
             // ASKING FOR ONE HERE IS A PROGRAMMING ERROR AND SAYS SO, rather than being ignored.
             // Ignoring it is what would ship the real damage: this method would return happily, the
