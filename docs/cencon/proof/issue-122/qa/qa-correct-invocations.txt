@@ -1,0 +1,156 @@
+==================== BINARY: main (<main-df81375-build>/agenteyes) ====================
+################################################################
+$ agenteyes record start --audio-only
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [error] the service refused: audio requires source mic, system, or mixed (HTTP 400)
+--- exit code: 1
+--- after:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --audio-only | exit=1 | count 49 -> 49 | "State": "idle"
+################################################################
+$ agenteyes record start --screen 1 --mic Family 17h
+--- before:
+    count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
+--- output:
+    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_111948_video
+         source=mic mode=video
+         stop with: agenteyes record stop
+--- exit code: 0
+--- after:
+    count=50  newest5(ls -1 | tail -5): 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 
+--- GET /status: "State": "recording"
+SUMMARY | agenteyes record start --screen 1 --mic Family 17h | exit=0 | count 49 -> 50 | "State": "recording"
+################################################################
+$ agenteyes record stop
+--- before:
+    count=50  newest5(ls -1 | tail -5): 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 
+--- output:
+    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_111948_video (4.2s)
+         mixing, thumbnail, transcription and title continue in the service;
+         watch with: agenteyes record status   (or GET /recordings)
+--- exit code: 0
+--- after:
+    count=50  newest5(ls -1 | tail -5): 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record stop | exit=0 | count 50 -> 50 | "State": "idle"
+--- LastStopDir=
+################################################################
+$ agenteyes record start --audio-only --mic Family 17h
+--- before:
+    count=50  newest5(ls -1 | tail -5): 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 
+--- output:
+    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_111956_audio
+         source=mic mode=audio
+         stop with: agenteyes record stop
+--- exit code: 0
+--- after:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- GET /status: "State": "recording"
+SUMMARY | agenteyes record start --audio-only --mic Family 17h | exit=0 | count 50 -> 51 | "State": "recording"
+################################################################
+$ agenteyes record stop
+--- before:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- output:
+    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_111956_audio (4.2s)
+         mixing, thumbnail, transcription and title continue in the service;
+         watch with: agenteyes record status   (or GET /recordings)
+--- exit code: 0
+--- after:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record stop | exit=0 | count 51 -> 51 | "State": "idle"
+--- LastStopDir=
+################################################################
+$ agenteyes record status
+--- before:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- output:
+    state=idle elapsed=4.2s level=0.000
+    signedIn=True pendingTranscriptions=0
+--- exit code: 0
+--- after:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record status | exit=0 | count 51 -> 51 | "State": "idle"
+==================== BINARY: branch (/home/soren/.local/bin/agenteyes) ====================
+################################################################
+$ agenteyes record start --audio-only
+--- before:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- output:
+    [error] the service refused: audio requires source mic, system, or mixed (HTTP 400)
+--- exit code: 1
+--- after:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record start --audio-only | exit=1 | count 51 -> 51 | "State": "idle"
+################################################################
+$ agenteyes record start --screen 1 --mic Family 17h
+--- before:
+    count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
+--- output:
+    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_112002_video
+         source=mic mode=video
+         stop with: agenteyes record stop
+--- exit code: 0
+--- after:
+    count=52  newest5(ls -1 | tail -5): 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 
+--- GET /status: "State": "recording"
+SUMMARY | agenteyes record start --screen 1 --mic Family 17h | exit=0 | count 51 -> 52 | "State": "recording"
+################################################################
+$ agenteyes record stop
+--- before:
+    count=52  newest5(ls -1 | tail -5): 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 
+--- output:
+    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_112002_video (4.2s)
+         mixing, thumbnail, transcription and title continue in the service;
+         watch with: agenteyes record status   (or GET /recordings)
+--- exit code: 0
+--- after:
+    count=52  newest5(ls -1 | tail -5): 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record stop | exit=0 | count 52 -> 52 | "State": "idle"
+--- LastStopDir=
+################################################################
+$ agenteyes record start --audio-only --mic Family 17h
+--- before:
+    count=52  newest5(ls -1 | tail -5): 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 
+--- output:
+    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_112010_audio
+         source=mic mode=audio
+         stop with: agenteyes record stop
+--- exit code: 0
+--- after:
+    count=53  newest5(ls -1 | tail -5): 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 2026-11-14_112010_audio 
+--- GET /status: "State": "recording"
+SUMMARY | agenteyes record start --audio-only --mic Family 17h | exit=0 | count 52 -> 53 | "State": "recording"
+################################################################
+$ agenteyes record stop
+--- before:
+    count=53  newest5(ls -1 | tail -5): 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 2026-11-14_112010_audio 
+--- output:
+    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_112010_audio (4.2s)
+         mixing, thumbnail, transcription and title continue in the service;
+         watch with: agenteyes record status   (or GET /recordings)
+--- exit code: 0
+--- after:
+    count=53  newest5(ls -1 | tail -5): 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 2026-11-14_112010_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record stop | exit=0 | count 53 -> 53 | "State": "idle"
+--- LastStopDir=
+################################################################
+$ agenteyes record status
+--- before:
+    count=53  newest5(ls -1 | tail -5): 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 2026-11-14_112010_audio 
+--- output:
+    state=idle elapsed=4.2s level=0.000
+    signedIn=True pendingTranscriptions=0
+--- exit code: 0
+--- after:
+    count=53  newest5(ls -1 | tail -5): 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 2026-11-14_112010_audio 
+--- GET /status: "State": "idle"
+SUMMARY | agenteyes record status | exit=0 | count 53 -> 53 | "State": "idle"

@@ -18,52 +18,48 @@ namespace AgentEyes.Headless
     /// </summary>
     internal static class HeadlessCli
     {
-        public const string Usage =
-              "  agenteyes serve [--port N]                # headless recorder + Control API (the systemd service runs this)\n"
-            + "  agenteyes record start [--mix | --loopback] [--mic \"NAME\"] [--screen N] [--camera \"NAME\"] [--fps N] [--audio-only]\n"
-            + "  agenteyes record stop | status            # drive the running service\n"
-            + "  agenteyes signin | signout | account      # the DevThrottle account used for transcription and titles";
-
         private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
 
-        public static int Record(CliArgs opts)
+        // Issue #122: the three verbs are separate handlers in CliCommandTable, reached only through
+        // CliDispatcher - which has already refused unknown flags and answered --help. The usage text
+        // for them lives in CliCommandTable, the one place the parser and the help both read.
+
+        public static int RecordStart(CliArgs opts)
         {
-            string verb = opts.Positional.Count > 0 ? opts.Positional[0].ToLowerInvariant() : "";
-            Log.Info($"[HeadlessCli] Record: verb={verb}");
-            switch (verb)
-            {
-                case "start":
-                {
-                    string body = JsonSerializer.Serialize(StartBody(opts));
-                    var status = Call(HttpMethod.Post, "record/start", body);
-                    Console.WriteLine($"[ok] recording -> {Str(status, "dir")}");
-                    Console.WriteLine($"     source={Str(status, "source")} mode={Str(status, "mode")}"
-                        + (Str(status, "camera") is { Length: > 0 } cam ? $" camera={cam}" : ""));
-                    Console.WriteLine("     stop with: agenteyes record stop");
-                    return 0;
-                }
-                case "stop":
-                {
-                    var result = Call(HttpMethod.Post, "record/stop", "{}");
-                    Console.WriteLine($"[ok] saved {Str(result, "dir")} ({Num(result, "durationSeconds"):0.0}s)");
-                    Console.WriteLine("     mixing, thumbnail, transcription and title continue in the service;");
-                    Console.WriteLine("     watch with: agenteyes record status   (or GET /recordings)");
-                    return 0;
-                }
-                case "status":
-                {
-                    var s = Call(HttpMethod.Get, "status", null);
-                    Console.WriteLine($"state={Str(s, "state")} elapsed={Num(s, "elapsedSeconds"):0.0}s level={Num(s, "level"):0.000}");
-                    if (Str(s, "dir") is { Length: > 0 } dir) Console.WriteLine($"dir={dir}");
-                    Console.WriteLine($"signedIn={IsTrue(s, "signedIn")} "
-                        + $"pendingTranscriptions={Num(s, "pendingTranscriptions"):0}");
-                    if (IsTrue(s, "lastStopFailed"))
-                        Console.WriteLine($"LAST STOP FAILED: {Str(s, "lastStopError")} (dir={Str(s, "lastStopDir")})");
-                    return 0;
-                }
-                default:
-                    throw new UsageException("record needs start, stop or status:\n" + Usage);
-            }
+            Log.Info("[HeadlessCli] RecordStart");
+            string body = JsonSerializer.Serialize(StartBody(opts));
+            var status = Call(HttpMethod.Post, "record/start", body);
+            Console.WriteLine($"[ok] recording -> {Str(status, "dir")}");
+            Console.WriteLine($"     source={Str(status, "source")} mode={Str(status, "mode")}"
+                + (Str(status, "camera") is { Length: > 0 } cam ? $" camera={cam}" : ""));
+            Console.WriteLine("     stop with: agenteyes record stop");
+            Log.Info($"[HeadlessCli] RecordStart: ok dir={Str(status, "dir")}");
+            return 0;
+        }
+
+        public static int RecordStop(CliArgs opts)
+        {
+            Log.Info("[HeadlessCli] RecordStop");
+            var result = Call(HttpMethod.Post, "record/stop", "{}");
+            Console.WriteLine($"[ok] saved {Str(result, "dir")} ({Num(result, "durationSeconds"):0.0}s)");
+            Console.WriteLine("     mixing, thumbnail, transcription and title continue in the service;");
+            Console.WriteLine("     watch with: agenteyes record status   (or GET /recordings)");
+            Log.Info($"[HeadlessCli] RecordStop: ok dir={Str(result, "dir")}");
+            return 0;
+        }
+
+        public static int RecordStatus(CliArgs opts)
+        {
+            Log.Info("[HeadlessCli] RecordStatus");
+            var s = Call(HttpMethod.Get, "status", null);
+            Console.WriteLine($"state={Str(s, "state")} elapsed={Num(s, "elapsedSeconds"):0.0}s level={Num(s, "level"):0.000}");
+            if (Str(s, "dir") is { Length: > 0 } dir) Console.WriteLine($"dir={dir}");
+            Console.WriteLine($"signedIn={IsTrue(s, "signedIn")} "
+                + $"pendingTranscriptions={Num(s, "pendingTranscriptions"):0}");
+            if (IsTrue(s, "lastStopFailed"))
+                Console.WriteLine($"LAST STOP FAILED: {Str(s, "lastStopError")} (dir={Str(s, "lastStopDir")})");
+            Log.Info($"[HeadlessCli] RecordStatus: state={Str(s, "state")}");
+            return 0;
         }
 
         /// <summary>The POST /record/start body for the CLI flags. Pure, unit-tested.</summary>
