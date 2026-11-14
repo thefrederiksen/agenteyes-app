@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -249,6 +249,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.MuxCoordinator::RemoveFragment -> System.IO.File::Delete x1",          // the moov-less fragment a dead mux attempt left at the final path (issue #128 round two, D2)
             "agenteyes.dll!AgentEyes.MuxLock::TryAcquire -> System.IO.FileStream::.ctor x1",              // <recording>\mux.lock, the cross-process one-writer lock, zero-length (issue #128 round two, D1)
             "agenteyes.dll!AgentEyes.Audio.AudioMix::RemovePartialOutput -> System.IO.File::Delete x1",    // the partial output of a failed/stalled mix pass (issue #128; moved out of RunStage so a cleanup failure cannot mask the stall, round two D5)
+            "agenteyes.dll!AgentEyes.Audio.AudioMix::MuxInTwoPasses -> System.IO.File::Delete x2",         // the intermediate processed audio, and the final path when the mux did not complete (issue #136)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::ReapOrphans -> System.IO.File::Delete x2",  // run\ffmpeg\<pid>.json records of reaped/exited children (issue #128)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Register -> System.IO.File::WriteAllText x1",// run\ffmpeg\<pid>.json: a running post-processing child (issue #128)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Unregister -> System.IO.File::Delete x1",   // run\ffmpeg\<pid>.json of a child that exited (issue #128)
