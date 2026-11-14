@@ -21,14 +21,16 @@ namespace AgentEyes.DesktopApp.Services
     /// </summary>
     internal sealed class SingleInstance : IDisposable
     {
-        /// <summary>How long a second launch waits for the first one's pipe before deciding it is first.</summary>
-        private const int PipeConnectTimeoutMs = 300;
+        /// <summary>How long a second launch waits to connect to the first one's pipe, which exists (the
+        /// claim failed) and only needs a free instance.</summary>
+        private const int PipeConnectTimeoutMs = 5000;
 
         private readonly Socket? _listener;
         private readonly string _path;
         private readonly NamedPipeServerStream? _firstPipe;
         private readonly string? _pipeName;
         private readonly CancellationTokenSource _stop = new();
+        private readonly Task? _pipeLoop;
         private volatile bool _running = true;
 
         /// <summary>A command from a second launch: "show", "view:library", "details:ID", "preview:ID", "settings:account".</summary>
@@ -49,7 +51,7 @@ namespace AgentEyes.DesktopApp.Services
             _firstPipe = firstPipe;
             _pipeName = pipeName;
             _path = pipeName;
-            _ = Task.Run(ServePipesAsync);
+            _pipeLoop = Task.Run(ServePipesAsync);
         }
 
         public static string SocketPath => Path.Combine(
@@ -93,36 +95,42 @@ namespace AgentEyes.DesktopApp.Services
         }
 
         /// <summary>
-        /// The named-pipe transport (Windows). A second launch connects to the first one's pipe and
-        /// writes its command; when nothing answers within <see cref="PipeConnectTimeoutMs"/>, this
-        /// process is the first and creates the pipe itself, before returning, so a launch that follows
-        /// finds it. Internal so the tests can name the pipe (.NET carries named pipes on Linux too,
-        /// which is how the suite exercises this path on the Linux CI job).
+        /// The named-pipe transport (Windows). The first launch CLAIMS the name: it creates the pipe
+        /// with PipeOptions.FirstPipeInstance, which fails when the pipe already exists, so two launches
+        /// at once cannot both become the first. A launch whose claim fails is a second launch: it
+        /// connects to the first one's pipe and writes its command. Internal so the tests can name the
+        /// pipe (.NET carries named pipes on Linux too, which is how the suite exercises this path on
+        /// the Linux CI job; Windows pipe semantics themselves are proven only on Windows).
         /// </summary>
         internal static SingleInstance? TryAcquirePipe(string command, string pipeName)
         {
             Log.Info($"[SingleInstance] TryAcquirePipe: {pipeName} command='{command}'");
-            using (var client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out, PipeOptions.CurrentUserOnly))
+            NamedPipeServerStream first;
+            try
             {
-                try
-                {
-                    client.Connect(PipeConnectTimeoutMs);
-                }
-                catch (TimeoutException)
-                {
-                    client.Dispose();
-                    var first = new NamedPipeServerStream(pipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte,
-                        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-                    Log.Info($"[SingleInstance] TryAcquire: listening on pipe {pipeName}");
-                    return new SingleInstance(first, pipeName);
-                }
+                first = NewPipeInstance(pipeName, claim: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The name is taken: another instance owns it. Hand it this launch.
+                Log.Info($"[SingleInstance] TryAcquire: pipe {pipeName} is owned by another instance ({ex.GetType().Name}: {ex.Message})");
+                using var client = new NamedPipeClientStream(".", pipeName, PipeDirection.Out, PipeOptions.CurrentUserOnly);
+                client.Connect(PipeConnectTimeoutMs);
                 byte[] bytes = Encoding.UTF8.GetBytes(command + "\n");
                 client.Write(bytes, 0, bytes.Length);
                 client.Flush();
+                Log.Info($"[SingleInstance] TryAcquire: another instance is running - sent it '{command}'");
+                return null;
             }
-            Log.Info($"[SingleInstance] TryAcquire: another instance is running - sent it '{command}'");
-            return null;
+            Log.Info($"[SingleInstance] TryAcquire: listening on pipe {pipeName}");
+            return new SingleInstance(first, pipeName);
         }
+
+        /// <summary>One server instance of this user's pipe. claim=true is the first one, which fails
+        /// when the pipe exists; the later ones are this process's own and never fail that way.</summary>
+        private static NamedPipeServerStream NewPipeInstance(string pipeName, bool claim) =>
+            new(pipeName, PipeDirection.In, NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly | (claim ? PipeOptions.FirstPipeInstance : PipeOptions.None));
 
         private void Accept()
         {
@@ -145,33 +153,40 @@ namespace AgentEyes.DesktopApp.Services
             }
         }
 
-        /// <summary>One pipe instance per second launch: wait, read its one line, start the next.</summary>
+        /// <summary>
+        /// One pipe instance per second launch. The NEXT instance is created as soon as a launch
+        /// connects and BEFORE the connected one is closed, so the pipe never stops existing while the
+        /// app runs: a launch arriving in between would otherwise find no pipe (Windows) or a closing
+        /// listener (Linux, where it failed with "Broken pipe" in testing).
+        /// </summary>
         private async Task ServePipesAsync()
         {
             NamedPipeServerStream? server = _firstPipe;
             while (_running)
             {
+                NamedPipeServerStream? connected = null;
                 try
                 {
-                    server ??= new NamedPipeServerStream(_pipeName!, PipeDirection.In, 1, PipeTransmissionMode.Byte,
-                        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                    server ??= NewPipeInstance(_pipeName!, claim: false);
                     await server.WaitForConnectionAsync(_stop.Token).ConfigureAwait(false);
-                    using var reader = new StreamReader(server, Encoding.UTF8);
+                    connected = server;
+                    server = NewPipeInstance(_pipeName!, claim: false);
+                    using var reader = new StreamReader(connected, Encoding.UTF8);
                     string cmd = ((await reader.ReadLineAsync(_stop.Token).ConfigureAwait(false)) ?? "").Trim();
                     Log.Info($"[SingleInstance] Accept: '{cmd}'");
                     if (cmd.Length > 0) CommandReceived?.Invoke(cmd);
                 }
                 catch (Exception ex) when (ex is IOException or ObjectDisposedException or OperationCanceledException)
                 {
-                    if (!_running) return;
+                    if (!_running) break;
                     Log.Error("[SingleInstance] Accept FAILED (pipe)", ex);
                 }
                 finally
                 {
-                    server?.Dispose();
-                    server = null;
+                    connected?.Dispose();
                 }
             }
+            server?.Dispose();
         }
 
         public void Dispose()
@@ -179,8 +194,15 @@ namespace AgentEyes.DesktopApp.Services
             Log.Info($"[SingleInstance] Dispose: {Transport} {_path}");
             _running = false;
             _stop.Cancel();
-            if (_listener == null) return;
-            _listener.Dispose();
+            if (_pipeLoop != null)
+            {
+                // The pipe must be CLOSED when Dispose returns: an open instance still accepts a client,
+                // and a launch that follows would hand its command to an app that is going away.
+                if (!_pipeLoop.Wait(TimeSpan.FromSeconds(5)))
+                    Log.Warn($"[SingleInstance] Dispose: the pipe loop did not stop within 5 s ({_pipeName})");
+                return;
+            }
+            _listener!.Dispose();
             try { File.Delete(_path); }
             catch (IOException ex) { Log.Warn($"[SingleInstance] Dispose: could not remove {_path}: {ex.Message}"); }
         }
