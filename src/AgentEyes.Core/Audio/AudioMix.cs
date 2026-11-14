@@ -13,25 +13,50 @@ namespace AgentEyes.Audio
         public static void MixWavs(string micWav, string sysWav, string outWav, AudioMixOptions o)
         {
             Prepare(o, micWav);
-            Ffmpeg.Run(FfmpegArgs.MixTwoWav(micWav, sysWav, outWav, o), "mix mic+system");
+            RunStage(FfmpegArgs.MixTwoWav(micWav, sysWav, outWav, o), outWav, "mix mic+system");
         }
 
         /// <summary>Video (with mic track) + system WAV -> final MP4 with mixed audio.</summary>
         public static void MuxVideoMixed(string rawMp4, string sysWav, string outMp4, AudioMixOptions o)
         {
             Prepare(o, rawMp4);
-            Ffmpeg.Run(FfmpegArgs.MuxVideoMixMicSystem(rawMp4, sysWav, outMp4, o), "mux video+mic+system");
+            RunStage(FfmpegArgs.MuxVideoMixMicSystem(rawMp4, sysWav, outMp4, o), outMp4, "mux video+mic+system");
         }
 
         /// <summary>Video (no audio) + system WAV -> final MP4 with system audio only.</summary>
         public static void MuxVideoSystemOnly(string rawMp4, string sysWav, string outMp4, double sysGain)
-            => Ffmpeg.Run(FfmpegArgs.MuxVideoAddSystem(rawMp4, sysWav, outMp4, sysGain), "mux video+system");
+            => RunStage(FfmpegArgs.MuxVideoAddSystem(rawMp4, sysWav, outMp4, sysGain), outMp4, "mux video+system");
 
         /// <summary>Video with a mic-only track -> final MP4 with the mic run through the clean-voice chain.</summary>
         public static void ProcessVideoMic(string rawMp4, string outMp4, AudioMixOptions o)
         {
             Prepare(o, rawMp4);
-            Ffmpeg.Run(FfmpegArgs.FilterVideoMic(rawMp4, outMp4, o), "process mic audio");
+            RunStage(FfmpegArgs.FilterVideoMic(rawMp4, outMp4, o), outMp4, "process mic audio");
+        }
+
+        /// <summary>
+        /// Issue #128: run one audio post-processing pass under the stall watchdog, and if it does
+        /// not succeed, remove whatever partial output it left. A killed or failed pass leaves a
+        /// truncated file with no moov atom at the FINAL path; later stages test for that file's
+        /// existence and would treat a fragment as the finished recording (measured: the thumbnail
+        /// stage then failed on "moov atom not found"). The raw capture is untouched either way.
+        /// </summary>
+        internal static void RunStage(System.Collections.Generic.IReadOnlyList<string> args, string outPath, string label)
+        {
+            bool ok = false;
+            try
+            {
+                Ffmpeg.RunWatched(args, label, Ffmpeg.PostProcessStallTimeout);
+                ok = true;
+            }
+            finally
+            {
+                if (!ok && System.IO.File.Exists(outPath))
+                {
+                    System.IO.File.Delete(outPath);
+                    Log.Info($"[AudioMix] RunStage: {label} did not complete - removed partial output {outPath}");
+                }
+            }
         }
 
         /// <summary>

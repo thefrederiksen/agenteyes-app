@@ -387,8 +387,23 @@ namespace AgentEyes.Video
             }
             // e=4: boost quiet speech up to 4x (+12 dB); p=0.95: normalize peaks to 95%.
             string level = o.VoiceLeveling ? "speechnorm=e=4:p=0.95," : "";
-            return $"[0:a]{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+
+            // Issue #128: replace any non-finite sample with silence BEFORE the first stage that
+            // cannot survive one. A single NaN sample makes speechnorm spin at 100% CPU forever
+            // (measured on ffmpeg 8.1.1 and 9.0.2, Windows and macOS), and a single NaN into arnndn
+            // poisons its recurrent state so every sample after it comes out NaN - which then hangs
+            // speechnorm. NaN/Inf is not audio; zeroing that one sample is inaudible. It is only
+            // emitted when one of those two stages is in the chain.
+            string finite = (o.NoiseSuppression || o.VoiceLeveling) ? FiniteSamples + "," : "";
+            return $"[0:a]{finite}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
         }
+
+        /// <summary>
+        /// Issue #128: per-sample, per-channel (<c>ch</c> = the channel the expression runs for;
+        /// <c>c=same</c> keeps the input layout) replacement of NaN and +/-Inf with 0. Finite
+        /// samples pass through unchanged.
+        /// </summary>
+        internal const string FiniteSamples = "aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same";
 
         /// <summary>Safety limiter appended after the last mix stage: stops clipping when the
         /// leveled mic and the system audio sum above full scale. level=false = no auto makeup gain.</summary>
