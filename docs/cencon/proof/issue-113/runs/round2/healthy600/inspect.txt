@@ -1,0 +1,12 @@
+=== /home/soren/Videos/AgentEyes/2026-11-14_132347_video
+files: audio_16k.wav manifest.json raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots thumb.jpg 
+  manifest.DurationSeconds = 602.73
+  manifest.CapturedSeconds = 602.56
+  manifest.CaptureFault = null
+  manifest.CaptureFaultDetail = null
+  manifest.CaptureFaultDetectedUtc = null
+  manifest.CaptureFaultElapsedSeconds = null
+  manifest.PendingMux = null
+  manifest.PostProcessing = {'mux': 'done', 'thumbnail': 'done'}
+  ffprobe recording.mp4: codec_type=video|nb_read_frames=18080 codec_type=audio|nb_read_frames=28247 duration=602.732683 
+  ffprobe recording.original.mp4: codec_type=video|nb_read_frames=18080 codec_type=audio|nb_read_frames=28246 duration=602.733334 

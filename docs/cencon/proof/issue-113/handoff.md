@@ -4,6 +4,220 @@ Branch `issue-113-capture-watchdog`, cut from `main` at `af0ddb1`. Developer sea
 2026-11-14. Platform exercised at runtime: **Linux only** (x11grab + PulseAudio). macOS and Windows
 are covered by the shared unit tests and the argument tests only - see "What is NOT covered".
 
+## ROUND TWO (2026-11-14) - what changed after QA failed criterion 1
+
+QA round one (`qa-report.md`, gate ruling on the issue): a frozen capture was **detected at 46 s but
+named on `/status` only at 59.4-60.2 s**. For the ~13.5 s between, `/status` read
+`State=finalizing CaptureLiveness=faulted LastStopFailed=false LastCaptureFault=null` - a clean stop,
+stated after the service had decided otherwise. And deleting `StartWatchdog(_video!);` from
+`StartVideo` left the suite 294 / 0 green. Both are fixed; the watchdog itself is unchanged.
+
+Code: commit `41b8d24` on this branch. Round-two raw evidence: `runs/round2/`.
+
+### What changed
+
+| Change | Where |
+|---|---|
+| **The verdict is published at detection.** `PublishVerdict` runs inside the same `_lock` that sees the fault: it sets `LastCaptureFault` and a provisional stop report that leads with the verdict, so `LastStopFailed=true` and `LastStopError="capture watchdog: capture stalled: ..."` from that instant. The final stop report replaces it, with the same verdict leading. | `RecordingService.OnWatchdogTick`, `PublishVerdict` |
+| **`Abandon` kills at once.** It no longer calls `Stop()` (5 s drain + 8 s quit wait on a process already judged dead). It kills the process tree and waits at most `AbandonExitWait` (3 s) for it to be reaped, and **throws** if it is not - a capture that may still be writing is a failed stop. It shares nothing with `Stop()` any more. | `FfmpegRecorder.Abandon`, `AbandonExitWait` |
+| **A seam for a fake capture.** `IScreenRecorder` (what the service needs from the capture) and `RecordingServiceSeams` (monitor, folder, capture start, watchdog clock, watchdog timer, duration probe, post-processing). The public constructor uses `RecordingServiceSeams.Production`, which is exactly what the service called before; only tests pass anything else. `FfmpegRecorder.ForStartedProcess` lets a test put a non-ffmpeg process under the recorder. | `Video/IScreenRecorder.cs`, `RecordingServiceSeams.cs` (new) |
+| **Wiring tests**, platform-neutral, linked into all three suites. | `tests/Shared/CaptureWatchdogWiringTests.cs` (new) |
+| **The window test counts the stop.** `Defaults_StallPlusOneCheckPlusTheStop_FitInsideTheSixtySecondWindow` budgets `StallTimeout + Interval + AbandonExitWait` (45 + 2 + 3 = 50 s) against 60; the Theory `Stall_WhereverInTheIntervalItBegins_...` adds the same stop to each measured detection. Round one's stop (16 s worst case) gives 63 s, which both reject - see mutant G. | `tests/Shared/CaptureWatchdogTests.cs` |
+
+**I took both of QA's fixes.** (1) alone would have fixed what `/status` says, but left the service
+`finalizing` for ~13.5 s on a dead process and left `Abandon` coupled to the `Stop()` that #127
+rewrites. (2) alone would have shortened the lie to ~1 s, not removed it.
+
+### The new tests (`CaptureWatchdogWiringTests`, `RecorderAbandonTests`)
+
+They drive the **real** `RecordingService` - `StartVideo`, the watchdog it starts, the verdict, `Stop`,
+the manifest on disk - with a capture the test controls: a real file the test grows (the watchdog
+stats it through the production `FileSize`), a fake clock, a timer the test fires.
+
+| Test | Asserts (presence, not absence) |
+|---|---|
+| `StartVideo_StartsTheWatchdog_OnTheCaptureFile` | a watchdog timer exists, armed for 2 s; `/status` `CaptureLiveness=starting`, `CaptureFile=recording.mp4`; after growth `growing`, `CaptureBytes=12345`, re-armed |
+| `Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns` | with the capture's abandon held open (and asserted not returned): `State=finalizing`, `CaptureLiveness=faulted`, `LastStopFailed=true`, `LastCaptureFault` starts `capture stalled: recording.mp4 stopped growing at 200000 bytes`, `LastStopError` contains `capture watchdog: capture stalled`, fault dir and time |
+| `WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields` | idle with `LastStopFailed=true`; the final report has a manifest; `Abandon` ran and `Stop` did not; manifest `CaptureFault=stalled`, `CaptureFaultDetail`, `CapturedSeconds=18.73` (probe), `CaptureFaultElapsedSeconds`, `CaptureFaultDetectedUtc`; post-processing queued for that directory |
+| `WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck` | exit code 137 -> `capture exited ... (code 137)`, `LastStopFailed=true`, manifest `exited` |
+| `UserStop_TakesTheWatchdogDownBeforeTheWritersStop` | event order `watchdog disposed` before `video stop`; no abandon; clean stop; a check fired after the stop acts on nothing |
+| `UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict` | a user stop during the watchdog's stop is refused and `/status` still says failed; manifest `stalled` |
+| `NextRecording_ClearsThePreviousVerdict` | the next start clears `LastStopFailed` / `LastCaptureFault` |
+| `RecorderAbandonTests.Abandon_OnAProcessThatIgnoresTheQuit_KillsItWithinTheAbandonBound` | the REAL `FfmpegRecorder.Abandon` on `sleep 600` (`ping -n 600` on Windows) with stdin redirected: process exited, exit code present, under `AbandonExitWait` (3 s). Round one's Abandon takes ~13 s on it (mutant K: 13 s run) |
+
+### Re-run proof (Linux, devlinux) - re-run, not reasoned
+
+Service: branch commit `41b8d24`, installed with `scripts/linux/install.sh` from this worktree at
+18:20:59Z. **Service pid 2910064, `~/.local/lib/agenteyes/agenteyes.dll` sha256
+`5116697b919da56424c53cccd40309ff823b2458f4d99e1523142e167a3c3542`** (`runs/round2/service.txt`; the
+log lines below carry `[pid 2910064]` and the new `PublishVerdict` line, which main does not have).
+Driver: QA's own `qa-runs/qa-fault.sh`, unchanged, plus `runs/round2/timeline.sh` polling `/status`
+every ~0.29 s for the whole run.
+
+#### SIGSTOP, `ONGROWTH=1` (`runs/round2/stop/`) - named 46.6 s after the freeze (round one: 59.4-60.2 s)
+
+```
+18:21:45.313Z healthy2  State=recording  CaptureLiveness=growing     CaptureBytes=475563 LastStopFailed=False LastCaptureFault=None
+                        raw.mp4 grew 475563 -> 513996; injecting now
+18:21:46.746Z           injected SIGSTOP into 2911602
+18:21:56.815Z stalled   State=recording  CaptureLiveness=not-growing CaptureBytes=513996 SinceGrowth=8  LastStopFailed=False LastCaptureFault=None
+18:22:33.319Z           State left recording after 46.571010231s (now finalizing)
+18:22:33.322Z left      State=finalizing CaptureLiveness=faulted SinceGrowth=46 LastStopFailed=True
+                        LastCaptureFault=capture stalled: raw.mp4 stopped growing at 513996 bytes and has not grown
+                        for 46s (limit 45s); last growth 2026-11-14T18:21:47.106Z
+18:22:33.397Z           /status first NAMED the fault after 46.649312801s
+18:22:34.519Z after     State=idle LastStopFailed=True LastCaptureFault=capture stalled: raw.mp4 ... (same)
+                        capture ffmpeg 2911602 is gone
+```
+
+The 0.29 s timeline (`stop/timeline.txt`, 263 polls) through the verdict:
+
+```
+18:22:33.019Z State=recording  Liveness=not-growing SinceGrowth=44 LastStopFailed=False LastCaptureFault=None
+18:22:33.310Z State=finalizing Liveness=faulted     SinceGrowth=46 LastStopFailed=True  LastCaptureFault='capture stalled: raw.mp4 stopped growing at 513996 bytes and'
+18:22:33.594Z State=finalizing Liveness=faulted     SinceGrowth=46 LastStopFailed=True  LastCaptureFault='capture stalled: ...'
+18:22:33.886Z State=idle                                           LastStopFailed=True  LastCaptureFault='capture stalled: ...'
+```
+
+**Polls showing `faulted` or `finalizing` with `LastStopFailed=False` or no fault name: 0 of 263**
+(`grep -E "faulted|finalizing" timeline.txt | grep -cE "LastStopFailed=False|LastCaptureFault=None"`).
+The check is a count over polls that DID see the post-verdict state - there are two such polls in
+`finalizing` and the rest idle, so an empty instrument would show as zero `finalizing` lines, which it
+does not.
+
+Service log (local time, EST):
+```
+13:22:33.115 [pid 2910064] [INFO]  [RecordingService] PublishVerdict: /status now reports LastStopFailed=true, LastCaptureFault="capture stalled: ..."
+13:22:33.116 [pid 2910064] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=68.0s (detected 2026-11-14T18:22:33.113Z) ...
+13:22:33.212 [pid 2910064] [WARN]  [FfmpegRecorder] Abandon: .../raw.mp4 - capture stalled: ... - killing the capture process now
+13:22:33.734 [pid 2910064] [INFO]  [FfmpegRecorder] Abandon: .../raw.mp4 ended in 521ms (killed, exit 137, last reported position 21.74s)
+13:22:33.873 [pid 2910064] [ERROR] stop: FAILED dir=.../2026-11-14_132123_video dur=68.0s manifest=on disk - capture watchdog: capture stalled: ...
+```
+
+Verdict to idle: **0.77 s** (33.113 -> 33.886), of which the kill took 521 ms. Round one: ~13.5 s.
+
+File (`stop/inspect.txt`): `recording.mp4` 20.73 s, 620 video frames, mux/thumbnail/package done;
+manifest `CaptureFault "stalled"`, `CapturedSeconds 20.73`, `CaptureFaultDetectedUtc
+2026-11-14T18:22:33.1139502Z`.
+
+#### SIGKILL (`runs/round2/kill/`) - named 1.81 s after the kill (QA round one: 2.13 s)
+
+```
+18:23:36.360Z healthy2  State=recording  CaptureLiveness=growing CaptureBytes=475529 LastStopFailed=False
+18:23:36.414Z           injected SIGKILL into 2920073
+18:23:38.223Z           State left recording after 1.807620476s (now finalizing)
+18:23:38.225Z left      State=finalizing CaptureLiveness=faulted LastStopFailed=True
+                        LastCaptureFault=capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 475529 bytes
+18:23:39.410Z after     State=idle LastStopFailed=True LastCaptureFault=capture exited: ... (same)
+```
+
+The first post-verdict poll (`left`, 18:23:38.225Z) already names it, as does `named`. The 0.29 s
+timeline in `kill/timeline.txt` did NOT land a poll inside the short `finalizing` window (0
+`finalizing` lines), so it is no evidence either way for this run - an empty result, not a clean one.
+The two script polls above are the evidence. File: `recording.mp4` 18.73 s, 560 frames; manifest `CaptureFault "exited"`.
+
+#### `LastStopFailed=true` on a watchdog-ended recording
+
+Both runs above: `LastStopFailed=True` from the first post-verdict poll through idle (`after.json`),
+and in the unit tests `Status_AtDetection_...` (during the stop) and `WatchdogEnded_Recording_...`
+(after it).
+
+#### Healthy 10-minute run (`runs/round2/healthy600/`)
+
+QA's `healthy-run.sh 600`, unchanged, screen + mic, 18:23:48Z-18:33:49Z: **59 polls, every one
+`State=recording` and `CaptureLiveness=growing`, `CaptureBytes` strictly increasing** (203,366 ->
+14,137,346). Stop: `DurationSeconds 601.12`, then `/status` `State=idle LastStopFailed=False
+LastCaptureFault=None`. Final `recording.mp4` **602.73 s, 18,080 video frames**; manifest `CaptureFault`
+null. **Machine load during the run: 1-minute load average 5.91-9.34 on 32 cores** (`load.txt`, sampled
+every 30 s; other seats were running on the box).
+
+### Service state on devlinux after round two
+
+Left running and healthy on **this branch, commit `41b8d24`, pid 2910064, agenteyes.dll sha256
+`5116697b...2e167a3c3542`**, idle, `/health` ok. It is NOT on main. Recordings made in round two are
+kept: `2026-11-14_132123_video` (SIGSTOP), `2026-11-14_132315_video` (SIGKILL),
+`2026-11-14_132347_video` (healthy 600 s). Nothing under `~/Videos/AgentEyes` was deleted;
+`2026-11-14_102532_video` was not touched. No ffmpeg of mine is running (`pgrep -a ffmpeg` empty after
+the last run); the `sleep 600` stand-in from the unit test is killed by the test itself.
+`AccountEmail` is redacted in the committed `/status` bodies.
+
+### The mutation run (`runs/round2/mutation.txt`, produced by `mutate.py`)
+
+`mutate.py` applies each mutant to the source, runs the Linux suite, lists every failing test by full
+name, and restores the file. The name regex now matches `[< 1 ms]` and Theory cases (round one's
+missed both), so **the names listed equal the failure counts: 51 names for 51 failures.**
+
+| Mutant | Failed (of 302) |
+|---|---|
+| **W - `StartWatchdog(_video!);` deleted from `StartVideo`** (QA's wiring mutant; round one: 0 failed) | **7**: every `CaptureWatchdogWiringTests` test that starts a recording - `StartVideo_StartsTheWatchdog_OnTheCaptureFile`, `Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns`, `WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields`, `WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck`, `UserStop_TakesTheWatchdogDownBeforeTheWritersStop`, `UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict`, `NextRecording_ClearsThePreviousVerdict` |
+| P - verdict reaches `/status` only after the stop (round one's behaviour) | 2: `Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns`, `UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict` |
+| K - `Abandon` runs the drain-and-quit `Stop()` (round one's behaviour) | 1: `RecorderAbandonTests.Abandon_OnAProcessThatIgnoresTheQuit_KillsItWithinTheAbandonBound` (the run took 13 s) |
+| O - watchdog taken down AFTER the writers stop | 1: `UserStop_TakesTheWatchdogDownBeforeTheWritersStop` |
+| V - the verdict left out of the stop report | 3: `WatchdogEnded_Recording_...`, `WatchdogEnded_DeadCapture_...`, `NextRecording_ClearsThePreviousVerdict` |
+| G - the stop after the verdict budgeted at round one's 16 s | 4: `Defaults_StallPlusOneCheckPlusTheStop_FitInsideTheSixtySecondWindow` + the 3 Theory cases of `Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds` |
+| A - watchdog never fires (round one) | 14 (round one: 9) - the round-one nine plus 5 wiring tests |
+| B - no fragmented output (round one) | 3, same names as round one |
+| C - gaps counted as stalls (round one) | 2, same |
+| D - no start-up window (round one) | 4, same |
+| E - stall timeout doubled (round one) | 8 (round one: 5) - the round-one five plus 3 wiring tests |
+| F - "behind" never recorded (round one) | 2, same |
+| restored | **Passed 302, Failed 0** |
+
+### The gate (round two, devlinux)
+
+| Command | Result |
+|---|---|
+| `dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -f net8.0 -p:Platform=x64` | Build succeeded, 0 Error(s), 1 Warning (pre-existing `AlwaysOnEngine.cs(901)`) |
+| `dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release` | **Passed 302, Failed 0** (round one 294 / 0) |
+| `dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -f net8.0 -p:AgentEyesUnixPlatform=mac` | Build succeeded, 0 Error(s), same 1 warning |
+| `dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release` (on Linux) | Passed 259, Failed 1 - `MacPathsTests.MachineLocalAppData_OnMac_IsTheApplicationSupportFolder`, the pre-existing one that fails identically on main |
+| Windows suite | **Not run** here (no WindowsDesktop pack). The new shared file is compiled into it; `RecorderAbandonTests` uses `ping -n 600 127.0.0.1` there. PR CI is the only Windows evidence. |
+
+### Still NOT covered after round two
+
+- **The Windows suite and the Windows app at runtime**, as round one. The Windows `ping` stand-in in
+  `RecorderAbandonTests` has not been run anywhere; if CI shows it misbehaving, that is the test, not
+  the product.
+- **macOS at runtime**, as round one.
+- **The kill itself on a frozen capture is measured on Linux only** (521 ms). `Kill(entireProcessTree)`
+  on Windows/macOS is .NET's, not ours, but no frozen Windows or Mac capture has been killed by it.
+- **The real System.Threading.Timer** is not under test: the wiring tests use a fired-by-hand timer.
+  `ThreadingWatchdogTimer` is three lines and the runtime runs above exercise it.
+- **The window test still budgets constants.** It is held to the code by `RecorderAbandonTests`
+  (Abandon really returns inside `AbandonExitWait`) and by `Status_AtDetection_...` (the name is
+  published before the stop), not by measuring a 60 s run. The runtime runs above are the measurement.
+- **The CLI `agenteyes video` loop** calls the same `Abandon`, so it now kills too; it was not re-run
+  at runtime in round two.
+- **`EARLY` / `behind` and `never-started`** were not re-run at runtime in round two (not touched).
+- `TranscriptionBacklog.FindPending(RecordingPaths.Root)` runs inside `Status()` in the wiring tests and
+  reads the real recordings folder read-only; harmless, but the tests are not hermetic about it.
+
+### PR #127 merges first - what I expect to conflict
+
+`Abandon` no longer calls `Stop()`, so #127's rewrite of the drain and quit does not change what a
+watchdog-ended recording does. Expected on rebase:
+
+1. **`RecordingService.StartVideo`, the capture start.** #127 changes the `FfmpegRecorder.Start(...)`
+   call to pass `recorderMic`; this branch changed the same call to `_seams.StartScreen(...)`. Resolve
+   as `_video = _seams.StartScreen(capture, recorderMic, fps, 23, ffOut, _screenTap, _monitor!.Index);`.
+2. **`RecordingService.StartVideo`, the end.** #127 moves `_sw.Restart()` above `StartSession(steps)`;
+   this branch has `StartWatchdog(_video!);` right after `_state = "recording";`. Keep #127's order and
+   keep `StartWatchdog` after `_state = "recording"`. **If the resolution drops it, mutant W's seven
+   tests fail** - which is the point of them.
+3. **A compile break with no textual conflict:** #127's `Stop()` reads `video?.InputStartSeconds`, and
+   `video` is now an `IScreenRecorder`. Add `double? InputStartSeconds { get; }` to `IScreenRecorder`
+   (and a `null` property to `FakeScreenRecorder` in the wiring tests).
+4. `FfmpegRecorder.cs`: round two's edits are the class line (`: IScreenRecorder`) and the block after
+   `MediaSeconds` (`AbandonExitWait`, `Abandon`, `ForStartedProcess`); #127's hunks are in `Start` and
+   `Stop`. I expect it to merge cleanly. Round one's `Start` call-site extraction was considered and
+   rejected for exactly this reason.
+5. Round one's expected conflicts still apply: `AvfVideoCapture` (one `FragmentedOutput()` line) and
+   the `MacFfmpegArgsTests` exact line. Re-run the Mac suite after the rebase.
+
+---
+
+# Round one (unchanged below this line)
+
 ## What was built
 
 | Piece | Where |
@@ -257,7 +471,7 @@ because that would have hurt the other seats on it. Not claimed.
 
 ## What these tests do NOT cover
 
-- **The wiring in `RecordingService` has no unit test.** Starting the watchdog, the timer re-arm,
+- **[Round one; closed in round two - see `CaptureWatchdogWiringTests` and mutant W.]** **The wiring in `RecordingService` has no unit test.** Starting the watchdog, the timer re-arm,
   `EndFaultedCapture`, the stop report, the manifest fields and the immediate post-processing are
   proven only by the runtime runs above. A change that stopped `StartVideo` calling
   `StartWatchdog` would keep the whole suite green. (RecordingService starts real ffmpeg; there is
@@ -293,7 +507,7 @@ because that would have hurt the other seats on it. Not claimed.
   path; #127 removes the mic parameter), `MacFfmpegArgsTests` exact line, and additive blocks in
   `RecordingService.StartVideo` / `Stop`. Mechanical, but they need re-running the Mac suite.
 
-## Service state on devlinux
+## Service state on devlinux (round one - superseded by the round-two section at the top)
 
 Left running, idle, on **main `af0ddb1`** (reinstalled with `scripts/linux/install.sh` from the main
 checkout at the end; `/status` shows no `Capture*` fields, which is how to tell). QA must install

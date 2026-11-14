@@ -1,0 +1,1 @@
+[2026-11-14T18:23:36.414Z] injected SIGKILL into 2920073

@@ -1,0 +1,146 @@
+18:23:14.909Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture stalled: raw.mp4 stopped growing at 513996 bytes and'
+18:23:15.204Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:16.440Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:16.735Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:17.029Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:17.316Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:17.602Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:17.890Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:18.190Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:18.486Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:18.776Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:19.067Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:19.359Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:19.643Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:19.933Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:20.223Z State=recording Liveness=growing Bytes=81394 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:20.508Z State=recording Liveness=growing Bytes=81394 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:20.795Z State=recording Liveness=growing Bytes=81394 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:21.084Z State=recording Liveness=growing Bytes=81394 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:21.368Z State=recording Liveness=growing Bytes=81394 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:21.654Z State=recording Liveness=growing Bytes=81394 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:21.938Z State=recording Liveness=growing Bytes=81394 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:22.222Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:22.510Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:22.799Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:23.099Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:23.390Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:23.676Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:23.967Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:24.253Z State=recording Liveness=growing Bytes=158047 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:24.539Z State=recording Liveness=growing Bytes=158047 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:24.833Z State=recording Liveness=growing Bytes=158047 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:25.122Z State=recording Liveness=growing Bytes=158047 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:25.407Z State=recording Liveness=growing Bytes=158047 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:25.697Z State=recording Liveness=growing Bytes=158047 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:25.989Z State=recording Liveness=growing Bytes=158047 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:26.280Z State=recording Liveness=growing Bytes=203639 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:26.568Z State=recording Liveness=growing Bytes=203639 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:26.858Z State=recording Liveness=growing Bytes=203639 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:27.149Z State=recording Liveness=growing Bytes=203639 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:27.437Z State=recording Liveness=growing Bytes=203639 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:27.727Z State=recording Liveness=growing Bytes=203639 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:28.016Z State=recording Liveness=growing Bytes=203639 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:28.305Z State=recording Liveness=growing Bytes=279274 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:28.597Z State=recording Liveness=growing Bytes=279274 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:28.883Z State=recording Liveness=growing Bytes=279274 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:29.172Z State=recording Liveness=growing Bytes=279274 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:29.462Z State=recording Liveness=growing Bytes=279274 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:29.746Z State=recording Liveness=growing Bytes=279274 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:30.036Z State=recording Liveness=growing Bytes=279274 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:30.327Z State=recording Liveness=growing Bytes=317196 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:30.618Z State=recording Liveness=growing Bytes=317196 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:30.903Z State=recording Liveness=growing Bytes=317196 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:31.188Z State=recording Liveness=growing Bytes=317196 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:31.478Z State=recording Liveness=growing Bytes=317196 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:31.761Z State=recording Liveness=growing Bytes=317196 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:32.045Z State=recording Liveness=growing Bytes=317196 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:32.336Z State=recording Liveness=growing Bytes=355532 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:32.625Z State=recording Liveness=growing Bytes=355532 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:32.910Z State=recording Liveness=growing Bytes=355532 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:33.194Z State=recording Liveness=growing Bytes=355532 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:33.483Z State=recording Liveness=growing Bytes=355532 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:33.774Z State=recording Liveness=growing Bytes=355532 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:34.059Z State=recording Liveness=growing Bytes=355532 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:34.347Z State=recording Liveness=growing Bytes=400441 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:34.634Z State=recording Liveness=growing Bytes=400441 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:34.925Z State=recording Liveness=growing Bytes=400441 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:35.211Z State=recording Liveness=growing Bytes=400441 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:35.500Z State=recording Liveness=growing Bytes=400441 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:35.791Z State=recording Liveness=growing Bytes=400441 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:36.084Z State=recording Liveness=growing Bytes=400441 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:36.371Z State=recording Liveness=growing Bytes=475529 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:36.658Z State=recording Liveness=growing Bytes=475529 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:36.948Z State=recording Liveness=growing Bytes=475529 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:37.236Z State=recording Liveness=growing Bytes=475529 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:37.548Z State=recording Liveness=growing Bytes=475529 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:37.838Z State=recording Liveness=growing Bytes=475529 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:38.128Z State=recording Liveness=growing Bytes=475529 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:38.419Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:38.704Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:38.992Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:39.274Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:39.565Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:39.851Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:40.133Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:40.416Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:40.706Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:40.996Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:41.279Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:41.569Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:41.859Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:42.150Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:42.435Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:42.724Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:43.009Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:43.297Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:43.587Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:43.900Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:44.191Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:44.483Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:44.772Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:45.055Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:45.339Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:45.630Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:45.918Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:46.206Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:46.493Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:46.782Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:47.071Z State=idle Liveness=None Bytes=None SinceGrowth=None LastStopFailed=True LastCaptureFault='capture exited: the capture process exited (code 137) while '
+18:23:47.353Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:48.815Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:49.111Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:49.408Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:49.695Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:49.985Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:50.280Z State=recording Liveness=starting Bytes=0 SinceGrowth=None LastStopFailed=False LastCaptureFault=None
+18:23:50.572Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:50.854Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:51.143Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:51.434Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:51.722Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:52.014Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:52.306Z State=recording Liveness=growing Bytes=1241 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:52.598Z State=recording Liveness=growing Bytes=81737 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:52.886Z State=recording Liveness=growing Bytes=81737 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:53.176Z State=recording Liveness=growing Bytes=81737 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:53.464Z State=recording Liveness=growing Bytes=81737 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:53.752Z State=recording Liveness=growing Bytes=81737 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:54.037Z State=recording Liveness=growing Bytes=81737 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:54.332Z State=recording Liveness=growing Bytes=81737 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:54.624Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:54.908Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:55.192Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:55.478Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:55.768Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:56.051Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:56.334Z State=recording Liveness=growing Bytes=119692 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:56.626Z State=recording Liveness=growing Bytes=158377 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:56.917Z State=recording Liveness=growing Bytes=158377 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:57.202Z State=recording Liveness=growing Bytes=158377 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:57.490Z State=recording Liveness=growing Bytes=158377 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:57.782Z State=recording Liveness=growing Bytes=158377 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:58.067Z State=recording Liveness=growing Bytes=158377 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:58.355Z State=recording Liveness=growing Bytes=158377 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:58.648Z State=recording Liveness=growing Bytes=203366 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+18:23:58.935Z State=recording Liveness=growing Bytes=203366 SinceGrowth=0 LastStopFailed=False LastCaptureFault=None
