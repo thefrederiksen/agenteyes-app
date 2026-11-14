@@ -216,6 +216,7 @@ namespace AgentEyes.Tests
             // that have been calibrated. 0.02 stands in for whatever a measurement returned.
             GateThresholdLinear = 0.02,
             GateCalibrated = true,
+            MicChannels = 1,      // measured by AudioMix.Prepare in the product (#128 round two, D7)
             RnnoiseModelPath = @"C:\Users\u\AppData\Local\AgentEyes\models\bd.rnnn",
         };
 

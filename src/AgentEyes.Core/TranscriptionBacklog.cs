@@ -84,6 +84,10 @@ namespace AgentEyes
 
             if (File.Exists(Path.Combine(dir, "transcript.json"))) return false;
 
+            // Issue #128 round two (D2): a pending mux means the media file is not final - at most
+            // the fragment of an attempt that died. QA measured a transcribe attempt burned on one.
+            if (TryLoad(dir)?.PendingMux != null) return false;
+
             return AttemptsSoFar(dir) < MaxTranscribeAttempts;
         }
 

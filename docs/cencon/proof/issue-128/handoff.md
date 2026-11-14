@@ -2,6 +2,375 @@
 
 Branch: `issue-128-mic-chain-stall`. Machine: Windows 11 (SORENLAPTOP).
 
+# ROUND TWO (after QA FAIL, report `qa-report-windows.md`, defects D1-D5, plus D6-D7)
+
+Round one (everything below the line "ROUND ONE") stands: the head sanitizer, the progress
+watchdog, the child registry and the two closed retry bypasses were not rebuilt. Round two fixes
+the five defects QA found, plus two the Lead added during the round (D6, the job-object race, and
+D7, the sanitizer segfault on mono mic + stereo system, both found by the #136 seat). It also
+merges `main` (af0ddb1, #122) into the branch, which takes the
+local count from 2164 to 2318 before the new tests.
+
+I believe this is finished. All seven defects (D1-D7) are fixed. Nothing was left unfixed; the limits of
+what the tests can see are listed under "What the tests do NOT catch".
+
+## D1 - criteria 12 and 13: one writer per output, across processes; every attempt counted
+
+**What QA measured.** The app's mux (ffmpeg 15332) and an `agenteyes package` mux (ffmpeg
+12196) both had `...\recording.mp4` as their output at 12:41:11, and `Attempts` stayed at 2.
+`RecordingWorkset` is in-memory, and `Package.RunAsync` called `FinalizePending` with no
+`NoteStarted`.
+
+**What changed.**
+- New `src/AgentEyes.Core/MuxLock.cs`: a lock ON DISK. An exclusive handle (`FileShare.None`) on
+  `<recording>\mux.lock`, held for the whole mux. On Windows a second open is a sharing
+  violation. On macOS and Linux, .NET takes an exclusive `flock` for `FileShare.None`. The OS
+  drops the handle when the holder dies, however it dies, so a killed mux cannot leave a stale
+  lock. The lock is re-entrant on the holding thread only. Another thread in the same process is
+  refused the same way another process is. The zero-length file is left in place after release on
+  purpose: deleting it reopens the Unix flock race (a waiter locks an unlinked inode while a third
+  party creates a new file).
+- `RecordingService.FinalizePending` takes the lock for ANY caller. A second writer is refused
+  with `the audio mux for <rec> is already running in another AgentEyes process ... refusing to
+  start a second writer on the same output`. No ffmpeg is started.
+- New `src/AgentEyes.Core/MuxCoordinator.cs` `RunForPackage`, which `Package.RunAsync` now calls in
+  place of `RefuseExhaustedMux` + `FinalizePending`. It takes the lock (refused if held), settles
+  a dead attempt (D2), refuses an exhausted mux, then **`NoteStarted` before the work**, then
+  `NoteDone` or `NoteFailed`. A package-path attempt that the watchdog abandons is now counted,
+  like the automatic runner's.
+- `PostRecording.Execute` takes the lock with `TryAcquire` before it counts anything. If another
+  process holds it, the pass leaves every stage outstanding and counts nothing. It does not join
+  as a second writer, and it does not burn an attempt on someone else's mux.
+
+**How QA re-tests it** (QA's own recipe, `qa-report-windows.md` "Reproduction kit", D1 line):
+rebuild `2026-11-14_130000_qa128` with the NaN-trigger command, build mutation A into the branch
+app so the app's mux stalls, and run `agenteyes.exe package <dir>` while it runs.
+- Expected: the CLI exits non-zero with `... already running in another AgentEyes process ...
+  refusing to start a second writer ...`. `Get-CimInstance Win32_Process` shows ONE ffmpeg with
+  `<dir>\recording.mp4` as its output. `Attempts` does not move for the refused CLI call. (It was
+  refused, so there was no attempt.)
+- Then let the app's mux fail, and run `agenteyes package <dir>` again with attempts left.
+  Expected: `"mux":{"State":"running","Attempts":N+1}` while it runs, then `failed` with the stall
+  error. The package attempt now counts (criterion 13).
+
+## D2 - criterion 11: a mux ended by process death
+
+**What QA measured.** After `Stop-Process -Force` during attempt 3, an 18,350,128-byte moov-less
+`recording.mp4` stayed at the final path. The manifest stayed at `"State":"running","Attempts":3`
+with no error. The thumbnail stage then ran on the fragment twice (`moov atom not found`), and a
+transcribe attempt was burned.
+
+**Does #136's two-pass mux make this structurally unreachable? No.** No answer is posted yet on
+#136 or PR #140, so I read the branch (`origin/issue-136-mux-queue-deadlock`, handoff `e01c70f`).
+Pass 2 still writes directly to the FINAL path (its handoff: "RunStage already removes the final
+path when it is pass 2 that fails"). So:
+- a death during **pass 1** leaves nothing new at the final path. That case IS removed by
+  construction;
+- a death during **pass 2** still leaves a fragment at the final path. Pass 2 is short (about 1 s
+  measured on the Mac), so the window is narrower, but it is not closed;
+- a fragment left by an **earlier** attempt (any build, including round one or today's shipped
+  app) is still at the final path when the next attempt starts;
+- the **"running forever with no error"** record is untouched by two passes. No process that dies
+  can write its own failure.
+So round two fixes D2 in full, independently of #136. That is also why it is fixed with no change
+to the mux argument construction (#136's territory).
+
+**What changed.**
+- `MuxCoordinator.Reconcile(dir)` runs under the lock before any mux decision, on both the runner
+  and the package path. Holding the lock PROVES that no live process owns the mux, so:
+  - a `running` mux record is recorded as `failed` with `interrupted: mux attempt N (started <utc>)
+    never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way
+    through`. `RefuseExhaustedMux` now names that reason instead of `(no error recorded)`;
+  - a file at the final path while `PendingMux` is set is removed (size logged). Exception: a death
+    in the instant after the mux completed and `OriginalBackup.Preserve` renamed the raw input away,
+    but before the manifest update. Then the file IS complete, so it is kept, with a loud log. The
+    rule is: delete only while every raw input the mux reads is still present.
+- `PostRecording.Execute`: a pending mux that is out of attempts now returns. It no longer goes on
+  to the thumbnail and package stages, because there is no final media.
+- `Thumbnails.NeedsThumb` and `TranscriptionBacklog.NeedsTranscription` (QA named both) return
+  false while `PendingMux` is set. They are also the predicates the repair ticks use, and those
+  ticks do not go through `Execute`.
+
+**How QA re-tests it** (reproduction kit, D2 line): with the stalling directory, `Stop-Process
+-Force` the app during the mux, three times, then start it again.
+- Expected after the 4th start: the log shows `[MuxCoordinator] Reconcile: ... interrupted: mux
+  attempt 3 ...` and `RemoveFragment: ... removed <N>-byte fragment recording.mp4`, and the
+  manifest shows `"mux":{"State":"failed","Attempts":3,"Error":"interrupted: mux attempt 3 ..."}`.
+  No `recording.mp4` is in the directory. There is NO `[poster thumbnail]` ffmpeg line and no
+  transcribe attempt for that recording. `agenteyes package <dir>` refuses with `failed 3 time(s)
+  ... Last error: interrupted: ...`.
+- After a kill on attempt 1 or 2 (attempts left): the next start logs Reconcile and RemoveFragment
+  first, then starts attempt N+1. The fragment is gone before the new ffmpeg starts.
+
+## D3 - BLOCKING: arnndn's own end-of-stream NaN frame. Option (a), pad, chosen
+
+**Measured on this machine.** NaN counts come from the raw f32 output bytes, not `astats`. The
+tool is a 300 Hz tone through `arnndn=m=bd.rnnn`.
+
+| ffmpeg | layout | samples (% 480) | NaN after arnndn | output samples |
+|---|---|---|---|---|
+| 9.0.2-essentials gyan.dev (shipped) | mono s16 | 480,123 (123) | **480** (frames 480000-480479) | 480,480 |
+| 9.0.2 | stereo s16 | 480,123 (123) | **960** (both channels) | 480,480 |
+| 9.0.2 | **mono s16, the Mac file's exact length** | 3,623,424 (384) | **480** | 3,623,520 |
+| 9.0.2 | mono / stereo s16 | 3,623,040 (0) | 0 | 3,623,040 |
+| 9.0.2 | mono flt / stereo flt | 480,123 (123) | 480 / 480 | 480,480 |
+| 8.1.1-full gyan.dev | all of the above | | **0** | identical lengths |
+| 9.0.2 | **framed** (`asetnsamples=n=480:p=1,arnndn`), mono, stereo, and the 3,623,424 length | | **0** | identical lengths |
+
+**On the Lead's question (which ffmpeg build and channel count): CHANNEL COUNT IS NOT THE
+EXPLANATION.** The gyan.dev Windows 9.0.2 build emits the NaN frame on a MONO s16 file of exactly
+the macOS file's length, 3,623,424 samples. So the macOS "no NaN" result is either the build
+(Homebrew arm64 vs gyan.dev x64: different build options, different SIMD path) or the instrument.
+The instrument is the less likely of the two: on Windows, `astats` DID count the frame (QA's
+`Number of NaNs: 480`), and my raw-byte count agrees with it. I cannot run the Homebrew arm64 build
+from here, so the build explanation is the remaining candidate, not a proven one. The one-command
+check on the Mac would settle it: the same `-f f32le` output, then a byte-level NaN count.
+
+**Why (a), and why it is not impractical in the filtergraph.** ffmpeg already has the primitive.
+`asetnsamples=n=480:p=1` re-frames the stream into 480-sample frames, and `p=1` pads the LAST
+frame with digital silence. It needs no knowledge of the input length. It goes immediately
+before arnndn (`FfmpegArgs.ArnndnFraming`, used by `MicChain`, the one builder of every
+denoising chain). Measured consequences:
+- **Nothing to trim.** arnndn already rounds its output up to a whole frame on both builds (the
+  output-samples column above). The framed output has exactly the same length as today's.
+- **Every real sample is unchanged.** On 8.1.1 the WHOLE framed output, final frame included, is
+  bit-identical to the unframed output (md5 35d896381bf6 both, 1,921,920 bytes). So padding with
+  zeros is exactly what the healthy build's arnndn did internally. On 9.0.2 the first 480,000
+  samples are bit-identical framed vs unframed, and identical to 8.1.1 (md5 3ca065fbad60, all
+  four).
+- **The full default chain on QA's 90.01 s input (4,320,500 samples), 9.0.2:** unframed timed out
+  at 40 s (rc 124). Framed completed in 2 s.
+- **Why not (b).** (b) would zero arnndn's output and count the zeros. Counting needs a second
+  instrument in the graph (astats, parsed out of stderr) and a threshold, and it handles the
+  symptom after arnndn has produced it. (a) removes the condition. And because (a) adds NO
+  sanitizer after arnndn, the poisoning case stays loud: if arnndn ever emits NaN for another
+  reason, speechnorm still stalls, and the watchdog still fails the stage with an error instead
+  of shipping silence with a `done` status.
+
+**How QA re-tests it** (reproduction kit, "Finite s16 trigger for D3"): build the 90.01 s finite
+s16 directory and run the FIXED branch app with `QA_RECORD_FFMPEG_DIR` set to the shipped 9.0.2.
+- Expected: the log shows `ffmpeg [process mic audio]: ... aeval=...,asetnsamples=n=480:p=1,arnndn=...`
+  then `ffmpeg [process mic audio] ok` within seconds, and the manifest shows
+  `"mux":{"State":"done","Attempts":1}`. Round one failed this with `output stopped advancing at
+  89.9s ... after 63s`. QA's one-line repro with `asetnsamples=n=480:p=1,` inserted before
+  `arnndn` gives `Number of NaNs: 0`.
+
+## D4 - criterion 7: the watchdog wiring, and the fixture that dodged its own condition
+
+- `RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog` drives the PRODUCT stage runner
+  (`AudioMix.RunStage`), not `Ffmpeg.RunWatched`. Its input is read in real time (`-re`) with the
+  first 28 s trimmed away, so ffmpeg writes nothing for 28 s and then finishes ON ITS OWN at about
+  30 s. With the watchdog (5 s, through a new AsyncLocal override `Ffmpeg.PostProcessStallTimeoutOverride`
+  that cannot leak into parallel tests), the stage fails at about 5 s. Without it, the stage
+  SUCCEEDS and the test fails by name. No ffmpeg is left running in either case.
+- The NaN product test (`MixWavs_DefaultSettingsMicWithNanSample_...`) now uses **4,320,500
+  samples (% 480 = 20)**, not 90 s. The fixture asserts its own length is not a multiple of 480.
+- New D3 tests at a non-multiple length: `ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample`
+  (mono and stereo, raw-byte NaN count). It prints the ffmpeg version and whether THIS ffmpeg
+  reproduces the bare-arnndn NaN frame. Under `CI=true` it REQUIRES the reproduction, so if the CI
+  ffmpeg stops emitting the frame, the test says the D3 tests no longer exercise the defect, rather
+  than passing silently. There is also `ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes`
+  (the product path, a finite s16 mono capture) and the shape test `MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames`.
+- The stall test's leak under mutation B is fixed. On a timeout it kills the ffmpeg it started,
+  and `dotnet test` returns. (See M15 below for the measurement.)
+
+## D5 - the cleanup delete no longer masks the stall error
+
+`AudioMix.RunStage` no longer deletes in a `finally`. On failure it calls
+`RemovePartialOutput`. If that delete fails, it throws a `UsageException` whose message is
+**the stage's own error first**, then `(and its partial output <path> could not be removed:
+<reason>)`, with the original error as the inner exception. Nothing is swallowed. The fragment
+that stays behind is removed by `Reconcile` before the next attempt.
+Test: `RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError`. It holds the
+output open with no delete sharing, which is QA's exact IOException.
+
+## D6 (added by the Lead during round two, found by the #136 seat on Windows CI): the job-object race
+
+`Ffmpeg.RunCore` called `KillOnCloseJob.Assign` right after `Process.Start`. Assigning an
+ALREADY-EXITED process to a job object fails. So an ffmpeg that failed within milliseconds
+reported `could not tie ffmpeg (pid N) to AgentEyes' lifetime` instead of ffmpeg's own error.
+Now `Ffmpeg.TieToLifetime` handles it:
+- if the child has already exited, there is nothing left to tie, and the caller goes on to report
+  ffmpeg's exit code and stderr as usual;
+- if the child is still ALIVE and cannot be tied, it is killed (it must not run untied), and the
+  tie error is thrown.
+Test: `TieToLifetime_ProcessAlreadyExited_DoesNotReplaceTheRealResult` is deterministic. It runs
+`cmd /c exit 3` to completion, first asserts that a raw `Assign` of it DOES throw (so the fixture
+reproduces the hazard), then asserts `TieToLifetime` does not throw and the exit code is still 3.
+`RunStage_FailedPass_RemovesThePartialOutput` now asserts the OUTCOME (the fragment is gone), not
+which exception type won. The #136 seat flagged that type assertion as the same latent flake.
+
+## D7 (added by the Lead during round two, found by the #136 seat): the sanitizer segfaults ffmpeg on mono mic + stereo system
+
+**Measured on this machine.** 10 runs per row, the full default mixed chain through `amix`. Exit
+code 139 is a segfault.
+
+| configuration | ffmpeg 9.0.2 result |
+|---|---|
+| mixed, MONO mic + STEREO system, round-one sanitizer (`aeval ... c=same`) | **139 in 8 of 10** |
+| mixed, mono + stereo, NO sanitizer (main's chain) | 0 in 10 of 10 |
+| mixed, stereo + stereo / stereo + mono / mono + mono, round-one sanitizer | 0 in 10 of 10 each |
+| mic-only (`FilterVideoMic` shape), mono mic / stereo mic, round-one sanitizer | 0 in 10 of 10 each |
+| mixed mono + stereo, sanitizer + `aformat=channel_layouts=mono` after it | **0 in 10 of 10** |
+| mixed mono + stereo, `aeval ... c=mono` | 0 in 10 of 10 |
+
+8.1.1 crashes the same way (2 of 2 spot runs on the plain `aeval` + `volume` chain), so this is not
+a 9.0.2 regression.
+
+**Is it confined to mixed recordings?** Yes. It needs the mic and the system track to have
+DIFFERENT layouts in one `amix`, with the mic as the mono one. Mic-only recordings did not crash
+in any of 20 runs, mono or stereo. So users who never record system audio were not exposed. Users
+who record a mono mic with system audio (the shipped default for a mixed recording on a mono
+device) were exposed on most runs.
+
+**Why.** `aeval ... c=same` does not hold its OUTPUT layout to its INPUT layout during format
+negotiation. `amix` pulls the mic branch to stereo to match the system track, so `aeval` ends up
+configured mono-in and stereo-out, and it crashes. The evidence:
+- pinning `aeval`'s output to the mic's own layout (`aformat=channel_layouts=mono` right after
+  it) removes the crash in 10 of 10;
+- the same `aformat` placed BEFORE `aeval` (pinning only its input) still crashed.
+I did not read ffmpeg's source to the faulting line. This is the measured mechanism, not a source
+proof.
+
+**What changed.** The pin needs the mic's real layout. A mic can be mono or stereo depending on
+the device, and pinning to a fixed layout changes the output: pinning to stereo gave a different
+md5 from main's chain. So:
+- `AudioMix.Prepare` now MEASURES the channel count with `MediaProbe.AudioChannels` (ffprobe) and
+  stores it in `AudioMixOptions.MicChannels`. It is re-measured on every run, like the gate
+  threshold.
+- `MicChain` emits `aeval ...:c=same,aformat=channel_layouts=<mono|stereo|Nc>`.
+- Building a chain that contains the sanitizer with `MicChannels` unset throws, exactly as an
+  unmeasured gate does. No layout is assumed.
+
+With the pin, the mixed output is **bit-identical to main's chain** (md5 6db48d1043cb, both).
+
+**Note for the #136 seat:** any test that builds a sanitized mic chain from hand-made options must
+now set `MicChannels`. I did that for `FfmpegArgsTests.FullOpts` and `MicChainStallTests.Defaults`.
+Your `FfmpegMuxShapeTests` and the retargeted `GateCalibrationTests` call sites will need the same
+one-line addition on your rebase.
+
+Tests: `MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg` and
+`MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg` run the PRODUCT paths with a
+mono mic and a stereo system track. Each runs 5 times, because unpinned the crash hits 8 of 10, so
+5 runs miss it with probability about 0.03%. Each also asserts that the product path measured
+`MicChannels == 1`. The shape test is `MicChain_SanitizerIsPinnedToTheMeasuredMicLayout` (mono,
+stereo, 6c, and an unmeasured mic throws).
+
+## One theme across D5, D6 and D7: the error that reaches the manifest must describe the failure
+
+The Lead asked for this as one theme. What is now true:
+- **D5:** a cleanup failure can no longer replace a stage failure. The stage's error comes first,
+  the cleanup failure is appended, and the original is the inner exception.
+- **D6:** a job-object tie can no longer replace ffmpeg's own error when ffmpeg exited first.
+- **D2:** a stage killed by process death no longer leaves `running` with no error. The next
+  owner records `interrupted: mux attempt N ... never finished`, and `RefuseExhaustedMux` names it.
+- **D7:** a crash is still reported faithfully as `ffmpeg failed during ... (exit -1073741819)`.
+  It was never masked; it is now prevented.
+
+**What could NOT be made true:**
+- A process killed mid-stage cannot record WHY it was killed. The next owner can only say "the
+  process ended part-way through". Whether that was a user restart, a crash or a power loss is not
+  knowable from the recording directory.
+- When ffmpeg segfaults, the error is an exit code plus the tail of stderr. ffmpeg prints nothing
+  about the fault itself.
+- The automatic runner journals a failed stage through `PostRecording.Journal`, which by design
+  logs and drops a journal write that itself fails (issue #152). In that case the manifest can
+  still be left `running`. D2's Reconcile then reports it as `interrupted` on the next pass: it is
+  no longer silent, but it is mislabelled.
+
+## D3 addendum: the partial-frame bug also CRASHES ffmpeg, and padding prevents that too
+
+While chasing a test that failed in 7 of 15 suite runs, I found the failure was ffmpeg itself
+exiting `0xC0000005` (access violation) on the UNFRAMED arnndn count. Measured, 40 runs each:
+- unframed `arnndn` on 9.0.2: **1 of 40 segfault**;
+- unframed on 8.1.1: 0 of 40;
+- framed on both builds: **0 of 80**.
+So the 9.0.2 partial-frame defect is an out-of-bounds read. It usually yields the NaN frame and
+occasionally crashes outright, and framing removes both. That strengthens option (a): it avoids
+the condition, where (b) would only have cleaned the symptom on the runs that did not crash. The
+D3 instrument test now counts a crash of the bare run as "this ffmpeg reproduces the defect", and
+still requires the framed run to exit 0 with no NaN.
+
+**On the Lead's later message saying "D3 (sanitize after arnndn, assert on the sanitizer's own
+count)":** the earlier message the same day said the preference was still to pad. I kept (a), for
+the reasons above. If (b) is wanted after all, that is a decision for the Lead, and I have not
+implemented it.
+
+## Disable each fix in turn: the failure list, by name
+
+Method: a script applies ONE mutation to the source, runs `dotnet build AgentEyes.sln -c
+Release`, runs the FULL `dotnet test AgentEyes.sln -c Release` with `QA_RECORD_FFMPEG_DIR` set to
+the shipped ffmpeg 9.0.2, records every failed test by name, counts ffmpeg processes still
+running, and restores the file. Run 2 is the final code. M18 and M19 were rerun after the IL test
+was added. After the run, `git diff -- src tests | md5sum` was identical to the value before it
+(`1e3a144e...` both), so every mutation was restored.
+
+| # | Fix disabled | Full suite | Failed, by name | ffmpeg left running |
+|---|---|---|---|---|
+| M1 | D1: `FinalizePending` takes no mux lock | 1 failed / 2347 | `MuxCoordinatorTests.FinalizePending_LockHeldByAnotherProcess_RefusesWithoutStartingASecondWriter` | 0 |
+| M2 | D1: the package path does not count the attempt | 2 / 2347 | `MuxCoordinatorTests.PackageRun_PendingMuxThatFails_CountsTheAttempt`, `MuxCoordinatorTests.RunForPackage_FailedAttempt_IsCountedAndJournaled` | 0 |
+| M3 | D1: `Package.RunAsync` reverted to round one's two calls | 1 / 2347 | `MuxCoordinatorTests.PackageRun_PendingMuxThatFails_CountsTheAttempt` | 0 |
+| M4 | D1: the runner ignores a lock held elsewhere | 1 / 2347 | `MuxCoordinatorTests.PostRecordingRun_LockHeldByAnotherProcess_LeavesTheMuxToItAndCountsNothing` | 0 |
+| M16 | D1: lock file opened shareable instead of exclusive | 2 / 2347 | `MuxLockTests.TryAcquire_Free_HoldsTheFileExclusivelyUntilDisposed`, `MuxLockTests.TryAcquire_SameThreadTwice_IsReentrantAndReleasesOnTheOutermostDispose` | 0 |
+| M5 | D2: a dead `running` attempt is not recorded as failed | 2 / 2347 | `MuxCoordinatorTests.PostRecordingRun_HardKillOnTheLastAttempt_RecordsInterruptedRemovesTheFragmentAndRunsNothingOnIt`, `MuxCoordinatorTests.Reconcile_FinalFilePresentButRawInputGone_KeepsTheFile` | 0 |
+| M6 | D2: the fragment at the final path is not removed | 3 / 2347 | `MuxCoordinatorTests.PostRecordingRun_HardKillOnTheLastAttempt_...`, `MuxCoordinatorTests.PostRecordingRun_HardKillWithAttemptsLeft_TheRetryNeverSeesTheFragmentAndIsCounted`, `ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite` | 0 |
+| M14 | D2: the runner does not call Reconcile | 2 / 2347 | `MuxCoordinatorTests.PostRecordingRun_HardKillOnTheLastAttempt_...`, `MuxCoordinatorTests.PostRecordingRun_HardKillWithAttemptsLeft_...` | 0 |
+| M7 | D2: `NeedsThumb` trusts a file at the final path while the mux is pending | 1 / 2347 | `MuxCoordinatorTests.NeedsThumb_PendingMuxWithAFileAtTheFinalPath_IsFalse` | 0 |
+| M8 | D2: `NeedsTranscription` does the same | 1 / 2347 | `MuxCoordinatorTests.NeedsTranscription_PendingMuxWithAFileAtTheFinalPath_IsFalse` | 0 |
+| M13 | D2: the runner goes on to later stages when the mux is out of attempts | **0 / 2348 - SURVIVES** | none. It is redundant with M7/M8: the predicates already refuse, so the early return is not observable. **Declared uncovered.** | 0 |
+| M9 | D3: arnndn framing removed | 3 / 2347 | `MicChainStallTests.MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames`, `MicChainStallTests.MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan`, `MicChainStallTests.ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes` | 0 |
+| M10 | D4: QA's mutation F, `RunStage` calls the unwatched `Ffmpeg.Run` | 1 / 2347 | `MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog` | 0 |
+| M11 | D4: `RunStage` ignores the per-flow bound (fixed 60 s) | 1 / 2347 | `MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog` | 0 |
+| M15 | QA's mutation B, `RunWatched` with no stall guard (checks the leak fix) | 2 / 2347 | `MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog`, `MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound` | **0. The suite returned in 125 s; round one leaked and hung here** |
+| M12 | D5: a cleanup failure replaces the stage error again | 1 / 2347 | `MicChainStallTests.RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError` | 0 |
+| M17 | D7: sanitizer output not pinned to the mic layout | 4 / 2347 | `MicChainStallTests.MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg`, `MicChainStallTests.MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg`, `MicChainStallTests.MicChain_SanitizerIsPinnedToTheMeasuredMicLayout`, `MicChainStallTests.MicChain_LevelWithoutDenoise_SanitizesBeforeSpeechnorm` | 0 |
+| M18 | D6: `RunCore` calls a raw `KillOnCloseJob.Assign` again | 1 / 2348 (it SURVIVED run 2. Fixed by adding the IL test, then rerun) | `MicChainStallTests.RunCore_TiesItsChildOnlyThroughTieToLifetime_InTheCompiledProduct` | 0 |
+| M19 | D6: an already-exited child is treated like a live one | 1 / 2348 | `MicChainStallTests.TieToLifetime_ProcessAlreadyExited_DoesNotReplaceTheRealResult` | 0 |
+
+Run 1 (before the D6/D7 work) is what found M4 and M16 surviving. M4's test passed for the wrong
+reason: the pass blew up, which also runs nothing. It now asserts the outcome had no error. M16's
+probe used a strict open, which any handle refuses; it now uses the most permissive open. Run 1
+also showed a D3 test failing intermittently. That turned out to be ffmpeg 9.0.2's unframed arnndn
+segfaulting (the D3 addendum above), and the test now treats that as the defect reproducing.
+
+## What the tests do NOT catch
+
+- **M13** (above): the early return in `Execute` for an exhausted pending mux. It is redundant with
+  the predicate guards and has no observable effect beyond a log line.
+- **The cross-process lock on macOS and Linux.** `MuxLockTests` is compiled into the macOS and
+  Linux suites, and it stands in for another process with a second handle. A second handle is
+  refused by `flock` exactly like another process, so that run proves the flock mechanism. The
+  real two-process test (`MuxLock_HeldByAnotherProcess_IsRefusedUntilThatProcessDies`) is
+  Windows-only. It uses `powershell.exe`. I have no Mac or Linux machine.
+- **`MuxLock.IsHeldElsewhere` on Unix** treats HResult 11 (Linux EWOULDBLOCK) and 35 (macOS) as
+  "held". That comes from .NET's documented mapping, which I could not observe on those platforms.
+  If .NET reported a different code, the lock would THROW rather than report "busy". That fails
+  loudly, not open, and CI's mac/linux runs of `MuxLockTests.TryAcquire_LockFileHeldByAnotherHandle_ReturnsNull`
+  exercise exactly that path.
+- **The D3 runtime tests can only fail on an ffmpeg that has the defect.** 9.0.2 has it; 8.1.1 does
+  not. On 8.1.1 only the shape test (`MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames`) guards the
+  framing. Under `CI=true` the instrument test REQUIRES the bare arnndn to reproduce the defect, so
+  a CI ffmpeg without it fails loudly rather than testing nothing.
+- **The D7 tests are probabilistic.** Unpinned, the crash hits 8 of 10 runs, so the 5-run tests
+  miss it with probability about 0.03%. The shape test is deterministic.
+- **`MediaProbe.AudioChannels`** is exercised only through the product-path tests (mono, measured as
+  1). There is no stereo-file assertion and no file without an audio stream.
+- **Thumbnail partial output.** `Thumbnails.Ensure` writes `thumb.jpg` directly with an unwatched
+  `Ffmpeg.Run`. A process death mid-write could leave a partial jpg that `PathFor` then accepts.
+  That is outside D2 as QA filed it, and the window is a single-frame encode. It is noted, not
+  fixed.
+- **D2's generality, stated plainly.** Every caller of `AudioMix.RunStage` writes the
+  `PendingMux.FinalFile` of a deferred mux, and so does `downmix loopback` (the audio-only system
+  path, an unwatched `Ffmpeg.Run` to `audio.wav`). `Reconcile` keys on `PendingMux` + `FinalFile`,
+  so it covers ALL of them, whichever builder wrote the file. It does not cover #136's intermediate
+  `audio_processed.wav`. That seat's atomic publish makes the final path unreachable by a pass-2
+  death on its own path.
+- **Nothing here was run in the real app.** QA's live runs (reproduction kit) are the proof for
+  criteria 11, 12 and 13 on the product path. The unit tests drive `PostRecording.Run/Resume`,
+  `Package.Run` and `FinalizePending` with real files and, for the lock, a real second process.
+
+# ROUND ONE
+
 ## The answer first: Windows exposure
 
 **A Windows recording with default mic settings does NOT hang in post-processing today. The stall

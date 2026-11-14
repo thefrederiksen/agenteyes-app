@@ -993,6 +993,11 @@ namespace AgentEyes
             var p = manifest.PendingMux;
             if (p == null) { Log.Info($"finalize: no pending mux in {dir}"); return; }
 
+            // Issue #128 round two (D1): one writer per output, across processes, for ANY caller.
+            // Re-entrant for MuxCoordinator / PostRecording, which already hold it around the
+            // counted attempt; anyone else either gets it here or is refused with the reason.
+            using var muxLock = MuxLock.Acquire(dir, "finalize");
+
             string finalPath = Path.Combine(dir, p.FinalFile);
             string? raw = p.RawVideo != null ? Path.Combine(dir, p.RawVideo) : null;
             string? sys = p.SysWav != null ? Path.Combine(dir, p.SysWav) : null;

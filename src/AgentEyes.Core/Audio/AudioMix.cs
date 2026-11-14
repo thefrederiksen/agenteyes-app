@@ -1,3 +1,4 @@
+using System;
 using AgentEyes.Video;
 
 namespace AgentEyes.Audio
@@ -43,20 +44,39 @@ namespace AgentEyes.Audio
         /// </summary>
         internal static void RunStage(System.Collections.Generic.IReadOnlyList<string> args, string outPath, string label)
         {
-            bool ok = false;
             try
             {
-                Ffmpeg.RunWatched(args, label, Ffmpeg.PostProcessStallTimeout);
-                ok = true;
+                Ffmpeg.RunWatched(args, label, Ffmpeg.CurrentPostProcessStallTimeout);
             }
-            finally
+            catch (Exception stageError)
             {
-                if (!ok && System.IO.File.Exists(outPath))
-                {
-                    System.IO.File.Delete(outPath);
-                    Log.Info($"[AudioMix] RunStage: {label} did not complete - removed partial output {outPath}");
-                }
+                RemovePartialOutput(outPath, label, stageError);
+                throw;
             }
+        }
+
+        /// <summary>
+        /// Issue #128 round two (D5): remove a failed pass's partial output WITHOUT letting a cleanup
+        /// failure replace the reason the pass failed. Measured: a File.Delete that threw an
+        /// IOException in a finally block discarded the stall error, and the manifest recorded the
+        /// IOException instead. When the delete fails, the stage's own error stays first in the
+        /// message and the cleanup failure is appended to it - neither is hidden. The fragment that
+        /// stays behind is removed by <see cref="MuxCoordinator.Reconcile"/> before the next attempt.
+        /// </summary>
+        private static void RemovePartialOutput(string outPath, string label, Exception stageError)
+        {
+            if (!System.IO.File.Exists(outPath)) return;
+            try
+            {
+                System.IO.File.Delete(outPath);
+            }
+            catch (Exception cleanupError) when (cleanupError is System.IO.IOException or UnauthorizedAccessException)
+            {
+                string msg = $"{stageError.Message} (and its partial output {outPath} could not be removed: {cleanupError.Message})";
+                Log.Error($"[AudioMix] RunStage: {label} FAILED and its partial output could not be removed: {cleanupError.Message}");
+                throw new UsageException(msg, stageError);
+            }
+            Log.Info($"[AudioMix] RunStage: {label} did not complete - removed partial output {outPath}");
         }
 
         /// <summary>
@@ -67,6 +87,9 @@ namespace AgentEyes.Audio
         {
             if (o.NoiseSuppression && string.IsNullOrWhiteSpace(o.RnnoiseModelPath))
                 o.RnnoiseModelPath = RnnoiseModel.Ensure();
+
+            // Issue #128 round two (D7): the sanitizer is pinned to the mic's own layout, so measure it.
+            o.MicChannels = (o.NoiseSuppression || o.VoiceLeveling) ? MediaProbe.AudioChannels(micSource) : null;
 
             Calibrate(o, micSource);
         }

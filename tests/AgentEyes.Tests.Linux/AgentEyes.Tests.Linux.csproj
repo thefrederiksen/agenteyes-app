@@ -34,6 +34,7 @@
     <!-- Issue #122: pure argument-parsing tests shared by all three suites (Windows, Linux, macOS),
          compiled from ONE source file so every platform's build of the CLI passes the same ones. -->
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
+    <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
   </ItemGroup>
 
 </Project>

@@ -360,16 +360,39 @@ namespace AgentEyes
                 if (!File.Exists(Path.Combine(dir, "manifest.json")))
                     throw new UsageException($"no manifest.json in {dir} - the recording cannot be post-processed.");
 
-                if (PostRecordingPlan.NeedsMux(dir))
+                if (Manifest.Load(dir).PendingMux != null)
                 {
-                    // Counted before the work: a process killed mid-mux must still consume a try, or
-                    // a capture ffmpeg can never mux would re-run on every recovery pass forever.
-                    PostRecordingState.NoteStarted(dir, PostStage.Mux);
-                    if (!RunStage(dir, PostStage.Mux, StageMixing, progress, MuxStep, outcome))
+                    // Issue #128 round two (D1/D2): the mux runs under the on-disk lock, so a mux
+                    // another PROCESS is running (an `agenteyes package`, a second service) is left
+                    // alone rather than joined by a second writer - and is not counted against this
+                    // pass. Holding the lock also proves no live process owns a "running" record, so
+                    // a dead attempt's state and fragment are settled before anything reads them.
+                    using var muxLock = MuxLock.TryAcquire(dir, "post-recording");
+                    if (muxLock == null)
                     {
-                        Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - the mux failed; "
-                            + "the thumbnail and packaging stages need the final media file, so they stay "
-                            + "outstanding for the next recovery pass");
+                        Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - another process is muxing this "
+                            + "recording; every stage stays outstanding for the next pass");
+                        return outcome;
+                    }
+                    MuxCoordinator.Reconcile(dir);
+
+                    if (PostRecordingPlan.NeedsMux(dir))
+                    {
+                        // Counted before the work: a process killed mid-mux must still consume a try, or
+                        // a capture ffmpeg can never mux would re-run on every recovery pass forever.
+                        PostRecordingState.NoteStarted(dir, PostStage.Mux);
+                        if (!RunStage(dir, PostStage.Mux, StageMixing, progress, MuxStep, outcome))
+                        {
+                            Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - the mux failed; "
+                                + "the thumbnail and packaging stages need the final media file, so they stay "
+                                + "outstanding for the next recovery pass");
+                            return outcome;
+                        }
+                    }
+                    else
+                    {
+                        Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - the mux is out of attempts; "
+                            + "there is no final media, so no later stage can run");
                         return outcome;
                     }
                 }

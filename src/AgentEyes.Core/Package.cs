@@ -109,8 +109,13 @@ namespace AgentEyes
             // that had already failed MaxMuxAttempts times - an uncounted fourth (fifth, sixth...)
             // attempt on every packaging try, which is how a stalling mux kept coming back. A mux
             // that has used its attempts is reported, not re-run.
-            RefuseExhaustedMux(dir);
-            RecordingService.FinalizePending(dir);
+            //
+            // Issue #128 round two (D1): and never as a second writer or an uncounted attempt. QA
+            // measured this call running a mux beside the app's own on the same recording.mp4, with
+            // Attempts unchanged. The coordinator takes the on-disk mux lock (refused if another
+            // process holds it), settles a dead earlier attempt, refuses an exhausted mux, and
+            // counts the attempt before running it.
+            MuxCoordinator.RunForPackage(dir);
 
             var manifest = Manifest.Load(dir);
             string shotsDir = Path.Combine(dir, "shots");

@@ -246,7 +246,9 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Transcription.DictionaryStore::Save -> System.IO.File::WriteAllText x1",// the transcription dictionary
             "agenteyes.dll!AgentEyes.Translator::WriteTranslatedVtt -> System.IO.File::WriteAllText x1",     // transcript.<lang>.vtt
             "agenteyes.dll!AgentEyes.Video.FfmpegCameraRecorder::WriteFfmpegLog -> System.IO.File::WriteAllText x1",   // the camera ffmpeg stderr log (issue #28; the FAILED-open path deliberately writes nothing into the recording directory)
-            "agenteyes.dll!AgentEyes.Audio.AudioMix::RunStage -> System.IO.File::Delete x1",               // the partial output of a failed/stalled mix pass (issue #128)
+            "agenteyes.dll!AgentEyes.MuxCoordinator::RemoveFragment -> System.IO.File::Delete x1",          // the moov-less fragment a dead mux attempt left at the final path (issue #128 round two, D2)
+            "agenteyes.dll!AgentEyes.MuxLock::TryAcquire -> System.IO.FileStream::.ctor x1",              // <recording>\mux.lock, the cross-process one-writer lock, zero-length (issue #128 round two, D1)
+            "agenteyes.dll!AgentEyes.Audio.AudioMix::RemovePartialOutput -> System.IO.File::Delete x1",    // the partial output of a failed/stalled mix pass (issue #128; moved out of RunStage so a cleanup failure cannot mask the stall, round two D5)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::ReapOrphans -> System.IO.File::Delete x2",  // run\ffmpeg\<pid>.json records of reaped/exited children (issue #128)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Register -> System.IO.File::WriteAllText x1",// run\ffmpeg\<pid>.json: a running post-processing child (issue #128)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Unregister -> System.IO.File::Delete x1",   // run\ffmpeg\<pid>.json of a child that exited (issue #128)
