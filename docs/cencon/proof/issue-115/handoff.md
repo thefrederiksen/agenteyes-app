@@ -284,7 +284,12 @@ than the count, and it may be the mechanism behind #128:
   full-core process and another writer to the same file, and nothing detects or reaps the previous
   one. Three of my rebuild cycles produced six live processes.
 
-I did not kill them. They are still running as of this handoff.
+I did not kill them, as instructed. The Implementation Lead captured each one's pid, ppid, CPU,
+elapsed and output path and then cleared all six, confirming the stacking above: `120548` had three
+concurrent muxes writing one `recording.mp4` and `120937` had two, which is why those outputs are
+truncated. **That makes #128 a data-corruption defect and not only a CPU leak**, and it is now two
+further criteria there. The service spawned a replacement within three seconds of the kill, so the
+retry half is captured live on that issue too. Machine load went from 9.62 back to 6.39.
 
 ## I do not believe this is finished
 
