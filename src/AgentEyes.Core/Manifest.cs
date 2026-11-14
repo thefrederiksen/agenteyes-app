@@ -375,6 +375,16 @@ namespace AgentEyes
             public string? SysWav { get; set; }          // sys_native.wav (relative), null when none
             public string FinalFile { get; set; } = "";  // recording.mp4 / audio.wav (relative)
             public double RawDurationSeconds { get; set; } // elapsed measured at stop, no probe
+
+            /// <summary>
+            /// How far the microphone WAV's first sample sits AFTER the video's first frame, in
+            /// seconds, when the two were captured by different ffmpeg processes (macOS, issue #114).
+            /// Negative means the microphone was already recording when the first video frame
+            /// arrived, so that head has to come off the WAV - the same sign convention as
+            /// CameraStartOffsetSeconds. Null when there is nothing to align: either the screen
+            /// recorder captured the microphone itself (Windows, Linux) or no microphone was used.
+            /// </summary>
+            public double? MicOffsetSeconds { get; set; }
             public AudioMixOptions Options { get; set; } = new();
         }
 

@@ -13,6 +13,14 @@ namespace AgentEyes.Video
     /// same shape on all three. Pure, so every command line is unit-tested without launching ffmpeg
     /// and without the Screen Recording permission.
     ///
+    /// ISSUE #111 STILL APPLIES, in AvfStream. The AVFoundation option set is audio_device_index,
+    /// video_device_index, pixel_format, framerate, video_size, capture_cursor, capture_mouse_clicks,
+    /// capture_raw_data, drop_late_frames and list_devices - there is no device-buffer option among
+    /// them, in any ffmpeg release, and putting DirectShow's back made ffmpeg exit 8 before it opened
+    /// a device. The microphone argument builder that guard was written around now lives in
+    /// AvfStream.Arguments (issue #114 moved the macOS microphone into its own process), and
+    /// MacForeignFfmpegOptionTests sweeps it there.
+    ///
     /// THE ONE STRUCTURAL DIFFERENCE. gdigrab and x11grab take a region as an INPUT OFFSET into one
     /// big desktop. AVFoundation cannot: it opens a whole display and the region has to be a crop
     /// FILTER applied to those frames. So where the Windows and Linux builders narrow the input, this
@@ -79,14 +87,37 @@ namespace AgentEyes.Video
         }
 
         /// <summary>
-        /// A screen region through AVFoundation plus an optional microphone, muxed to MP4
-        /// (H.264 + AAC) - the macOS twin of VideoCapture and X11VideoCapture.
+        /// A screen region through AVFoundation, muxed to MP4 (H.264) - the macOS twin of
+        /// VideoCapture and X11VideoCapture.
+        ///
+        /// VIDEO ONLY, AND THAT IS THE FIX FOR ISSUE #114. Its Windows and Linux twins take the
+        /// microphone as a second input of the SAME ffmpeg process. On macOS that topology destroys
+        /// the audio: a screen+mic capture kept about 12% of its samples (a 30 s ask produced 35.3 s
+        /// of video holding 4.0 s of audio). Measured on devthrottle-mac-mini, ffmpeg 9.0.2:
+        ///
+        ///  * mic alone, one ffmpeg               -> 12.000 s asked, 189 packets = 12.10 s. No loss.
+        ///  * two avfoundation MICS, one ffmpeg   -> both streams complete. Not an "two inputs" limit.
+        ///  * screen+mic, one ffmpeg, 320x240 out -> still 15% of the audio, encoder at speed=0.997x.
+        ///  * screen+mic, one ffmpeg              -> 87.92% CPU IDLE. Not a starved machine.
+        ///  * screen in one ffmpeg, mic in ANOTHER, at the same time, same devices
+        ///                                        -> 25.000 s asked, 392 packets = 25.09 s. NO LOSS.
+        ///
+        /// So the loss is coupling INSIDE one ffmpeg process between an AVFoundation screen input and
+        /// an AVFoundation audio input - ffmpeg's avfoundation demuxer holds exactly ONE sample
+        /// buffer per device and silently discards whatever arrives before the reader takes it, and
+        /// beside a screen input the mic was read once per ~2 s (exactly 4096 samples each time, in a
+        /// burst every 1.7-2.3 s depending on video load). It is not the encoder, not the CPU, not
+        /// the device, and not the frame rate. The surviving topology is the last line above, so on
+        /// macOS the microphone is captured by its OWN ffmpeg (AvfStream, which is what the level
+        /// meter already ran) and the deferred mux puts it into the recording.
+        ///
+        /// There is therefore NO microphone parameter here, by construction: this list cannot carry
+        /// an AVFoundation audio input again. MacFfmpegArgsTests asserts exactly that.
         /// </summary>
         /// <param name="avfScreenIndex">The AVFoundation video index of the display (see AvfDevices).</param>
         /// <param name="screen">That display's full pixel size, which the region is cropped inside.</param>
-        /// <param name="avfMicIndex">The AVFoundation AUDIO index of the microphone, or null for video only.</param>
         public static List<string> AvfVideoCapture(
-            Drawing.Rectangle capture, int avfScreenIndex, Drawing.Size screen, int? avfMicIndex,
+            Drawing.Rectangle capture, int avfScreenIndex, Drawing.Size screen,
             int fps, int crf, string outPath, bool previewStream = false)
         {
             if (avfScreenIndex < 0)
@@ -101,14 +132,21 @@ namespace AgentEyes.Video
                 "-thread_queue_size", "1024",
                 // The pointer is part of what a recording is for; gdigrab and x11grab both draw it.
                 "-capture_cursor", "1",
+                // ASK THE DISPLAY FOR THE FORMAT THE ENCODER WANTS. The avfoundation demuxer's own
+                // default for this option is yuv420p, which no display supports, so every macOS
+                // capture logged "Selected pixel format (yuv420p) is not supported by the input
+                // device / Overriding ... to use uyvy422 instead" and then spent a per-frame swscale
+                // pass turning 16-bpp packed 4:2:2 into the 12-bpp planar 4:2:0 that x264 encodes.
+                // nv12 is 4:2:0 already - the same subsampling as yuv420p, semi-planar - so the
+                // conversion becomes a plane split instead of a resample, and the misleading log
+                // lines go away. A display that does not offer nv12 is overridden exactly as before,
+                // so this is never worse than the default it replaces.
+                "-pixel_format", "nv12",
                 "-framerate", fps.ToString(CultureInfo.InvariantCulture),
-                // "index:none" is video only. The microphone, when there is one, is its OWN input
-                // below, as the pulse microphone is on Linux - separate inputs keep the audio queue
-                // and the video queue from sharing one buffer.
+                // "index:none" is video only - see the topology note above. The microphone is NOT an
+                // input of this process on macOS.
                 "-i", avfScreenIndex.ToString(CultureInfo.InvariantCulture) + ":none",
             };
-
-            if (avfMicIndex != null) a.AddRange(AvfAudioInput(avfMicIndex.Value));
 
             string? chain = FilterChain(cropFilter, padFilter);
             if (chain != null)
@@ -123,39 +161,30 @@ namespace AgentEyes.Video
                 "-preset", "veryfast",
                 "-pix_fmt", "yuv420p",
                 "-crf", crf.ToString(CultureInfo.InvariantCulture),
+                // DECLARE THE FRAME RATE ON THE OUTPUT (issue #114). An AVFoundation screen input
+                // reports no frame rate of its own ("not enough frames to estimate rate"), so
+                // without this the stream is carried on the demuxer's 1 us timebase and ffmpeg wrote
+                // mp4 headers reading "1000k fps, 1000k tbn". That is not cosmetic: x264 sized the
+                // file's level from it and said so - "MB rate (8160000000) > level limit (16711680)"
+                // - stamping level 6.2 on 1080p30 footage, and a 1000k-tbn mp4 is awkward for players
+                // and editors to seek. With -r the output is constant-rate at the rate that was
+                // asked for, which is what the gdigrab and x11grab twins already produce.
+                //
+                // IT DOES NOT CREATE FRAMES, and must not be read as the fix for the capture rate.
+                // AVFoundation screen delivery tops out near 13 fps on this machine whatever it is
+                // asked for (measured: ask 10 -> 10.0, 15 -> 12.2, 20 -> 12.5, 30 -> 13.2,
+                // 60 -> 14.0 fps), and no avfoundation option moves it - nv12, -capture_cursor 0 and
+                // -drop_late_frames false were each measured and each changed nothing. Above ~13 fps
+                // -r repeats the frame that was captured; the unique content is still ~13 fps. The
+                // ceiling is ffmpeg's avfoundation indev, the only screen backend this ffmpeg has,
+                // and raising it needs a different capture API (ScreenCaptureKit) - its own issue.
+                "-r", fps.ToString(CultureInfo.InvariantCulture),
             });
-
-            if (avfMicIndex != null) a.AddRange(new[] { "-c:a", "aac", "-b:a", "128k" });
 
             a.Add(outPath);
             if (previewStream) a.AddRange(PreviewOutput());
             return a;
         }
-
-        /// <summary>
-        /// An AVFoundation audio input. ":index" is audio with no video. The macOS twin of PulseInput
-        /// and of the dshow audio input.
-        ///
-        /// AVFOUNDATION HAS NO DEVICE-BUFFER OPTION, OF ANY NAME (issue #111). This input used to
-        /// pass dshow's buffer-length option as if it were the macOS form of the issue #125 guard,
-        /// and it is not: that option belongs to DIRECTSHOW alone. ffmpeg answered "Unrecognized
-        /// option" and exited 8 before it opened a device, so every macOS capture with audio failed
-        /// instantly. The whole AVFoundation option set is audio_device_index, video_device_index,
-        /// pixel_format, framerate, video_size, capture_cursor, capture_mouse_clicks,
-        /// capture_raw_data, drop_late_frames and list_devices - there is no buffer length among
-        /// them, in any ffmpeg release. So macOS does NOT get the issue #125 short-buffer
-        /// mitigation; whether it needs some other end-of-recording guard is its own question, not
-        /// something to invent here. Do not put a buffer option back: the guard in
-        /// MacForeignFfmpegOptionTests fails if one reappears. (The option is not spelled out here
-        /// on purpose - issue #111's first acceptance criterion is that grepping this folder for
-        /// its name finds nothing at all.)
-        /// </summary>
-        internal static List<string> AvfAudioInput(int avfMicIndex) => new()
-        {
-            "-f", "avfoundation",
-            "-thread_queue_size", "1024",
-            "-i", ":" + avfMicIndex.ToString(CultureInfo.InvariantCulture),
-        };
 
         /// <summary>A webcam through AVFoundation to camera.mp4, video only - the twin of CameraCapture.</summary>
         public static List<string> AvfCameraCapture(

@@ -28,6 +28,38 @@ namespace AgentEyes.Video
         /// </summary>
         private long _mediaMs;
 
+        /// <summary>
+        /// The tightest observed offset, in milliseconds on <see cref="_clock"/>, between this
+        /// recorder's wall clock and ffmpeg's media clock - i.e. where media time 0 sits on our
+        /// clock. See <see cref="Stop"/> for why the drain cannot be computed without it. long.MaxValue
+        /// until the first progress tick carries a timestamp.
+        /// </summary>
+        private long _mediaOriginMs = long.MaxValue;
+
+        /// <summary>
+        /// The capture clock timestamp of the FIRST frame ffmpeg read from the device, as ffmpeg
+        /// reports it ("Input #0, avfoundation, ... start: 152597.730833"), or null when the log has
+        /// not said. On macOS this is a CoreMedia host-clock reading, which is the SAME clock the
+        /// microphone's own ffmpeg reports its first sample on - so the difference of the two is the
+        /// exact offset between this file's t=0 and that WAV's t=0 (issue #114).
+        ///
+        /// Held as microseconds in a long, and published with Interlocked, because it is WRITTEN on
+        /// ffmpeg's stderr thread and READ at the stop: a nullable double is two fields and neither
+        /// of them is written atomically, so a reader could see the value without the flag or half
+        /// of a torn double. Microseconds are six decimal places, which is every digit ffmpeg prints.
+        /// </summary>
+        public double? InputStartSeconds
+        {
+            get
+            {
+                long micros = System.Threading.Interlocked.Read(ref _inputStartMicros);
+                return micros < 0 ? null : micros / 1_000_000.0;
+            }
+        }
+
+        /// <summary>Backing store for <see cref="InputStartSeconds"/>; negative means "not reported".</summary>
+        private long _inputStartMicros = -1;
+
         /// <summary>How long Stop() will wait for the pipeline to catch up before quitting anyway.</summary>
         private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(5);
 
@@ -74,12 +106,33 @@ namespace AgentEyes.Video
             // capture needs that display's index and size rather than a desktop offset. The screen is
             // resolved from the region: a Mac region is display-local, and RequireScreen pairs the
             // index ffmpeg wants with the size the crop is clamped into.
-            int? avfMic = dshowMicName == null
-                ? null
-                : Platform.Mac.AvfDevices.RequireMicrophoneIndex(dshowMicName);
+            //
+            // THE MICROPHONE IS NOT AN INPUT OF THIS PROCESS ON macOS (issue #114). A second
+            // AVFoundation input beside a display loses ~88% of its samples, so the microphone is
+            // captured by its own ffmpeg (AudioCapture over AvfStream) and the deferred mux joins
+            // them - see CaptureTopology, which is what tells a caller which of the two it must do.
+            //
+            // ASKING FOR ONE HERE IS A PROGRAMMING ERROR AND SAYS SO, rather than being ignored.
+            // Ignoring it is what would ship the real damage: this method would return happily, the
+            // caller would believe its recording had sound, and the file would be silent with
+            // nothing anywhere saying why. Two callers still pass a microphone - the CLI's video
+            // recording (Commands.cs) and the headless selftest - and neither can capture a macOS
+            // screen at all today, because TCC grants the Screen Recording permission to the launchd
+            // agent and not to a shell. They fail here with this message instead of writing a silent
+            // file, and teaching them the separate-writer topology is their own work.
+            if (dshowMicName != null)
+            {
+                throw new UsageException(
+                    "on macOS the screen recorder cannot capture the microphone: ffmpeg's "
+                    + "AVFoundation demuxer loses most of the samples when a display and an audio "
+                    + "device share one process (issue #114). Capture it with AudioCapture into its "
+                    + "own WAV beside the video and mux it afterwards - see CaptureTopology and "
+                    + "RecordingService.StartVideo - and pass no microphone here.");
+            }
+
             var (avfScreen, macScreen) = Platform.Mac.MacDisplay.RequireScreen(screenNumber);
             var args = FfmpegArgs.AvfVideoCapture(
-                capture, avfScreen, new Drawing.Size(macScreen.Width, macScreen.Height), avfMic,
+                capture, avfScreen, new Drawing.Size(macScreen.Width, macScreen.Height),
                 fps, crf, outPath, previewStream: preview != null);
 #else
             // Issue #102: x11grab + pulse. The microphone arrives by its listed description (what
@@ -114,7 +167,23 @@ namespace AgentEyes.Video
                 // ffmpeg writes its progress with a carriage return, which .NET treats as a line
                 // break, so each "time=" tick arrives here as its own line.
                 long ms = ParseProgressMs(e.Data);
-                if (ms >= 0) System.Threading.Interlocked.Exchange(ref rec._mediaMs, ms);
+                if (ms >= 0)
+                {
+                    System.Threading.Interlocked.Exchange(ref rec._mediaMs, ms);
+                    // Where media time 0 sits on our clock. Reported media time always TRAILS wall
+                    // time (the pipeline's latency), so wall-minus-media is an over-estimate of the
+                    // origin and the smallest one seen is the tightest estimate of it.
+                    long origin = rec._clock.ElapsedMilliseconds - ms;
+                    if (origin < System.Threading.Interlocked.Read(ref rec._mediaOriginMs))
+                        System.Threading.Interlocked.Exchange(ref rec._mediaOriginMs, origin);
+                }
+                else if (System.Threading.Interlocked.Read(ref rec._inputStartMicros) < 0)
+                {
+                    double? start = ParseInputStartSeconds(e.Data);
+                    if (start is > 0)
+                        System.Threading.Interlocked.Exchange(
+                            ref rec._inputStartMicros, (long)Math.Round(start.Value * 1_000_000.0));
+                }
             };
             // Stdout carries the preview stream when there is a tap, and nothing at all when there is
             // not. The two readers are mutually exclusive by construction: BeginOutputReadLine takes
@@ -159,10 +228,27 @@ namespace AgentEyes.Video
             // remove it. So instead of guessing a delay, wait for ffmpeg's own "time=" to reach the
             // moment the user asked to stop. That is self-tuning: a fast machine waits briefly, a
             // slow one waits longer, and neither loses the end of the take.
-            long stopAtMs = _clock.ElapsedMilliseconds;
+            // THE TWO CLOCKS ARE NOT THE SAME CLOCK (issue #114). This used to wait for ffmpeg's
+            // media time to reach OUR elapsed time, which silently assumed that media time 0 and
+            // this stopwatch's zero are the same instant. They are not: the stopwatch starts when
+            // this object is constructed, and media time 0 is the first frame the DEVICE delivered -
+            // about two seconds later on macOS, where opening a display costs that much warm-up. So
+            // the target was ~2 s past the end of the take and the drain ran to its full timeout
+            // EVERY time, with ffmpeg still capturing: a 30 s ask came back as a 35.3 s recording
+            // whose own duration disagreed with the duration the service reported.
+            //
+            // The media position that corresponds to "now" is now-minus-the-origin, so that is what
+            // we wait for. On Windows and Linux the origin is a few hundred milliseconds and this
+            // barely changes the wait; on macOS it is the whole defect.
+            //
+            // No tick has carried a timestamp yet (origin unknown) means ffmpeg has not reported any
+            // output at all. There is nothing to drain TO, so the drain is skipped rather than being
+            // given a made-up target - and the "did not catch up" branch below says so.
+            long origin = System.Threading.Interlocked.Read(ref _mediaOriginMs);
+            long stopAtMs = origin == long.MaxValue ? -1 : _clock.ElapsedMilliseconds - origin;
             var drain = Stopwatch.StartNew();
             bool caughtUp = false;
-            while (drain.Elapsed < DrainTimeout)
+            while (stopAtMs >= 0 && drain.Elapsed < DrainTimeout)
             {
                 if (_proc.HasExited) break;
                 if (System.Threading.Interlocked.Read(ref _mediaMs) >= stopAtMs) { caughtUp = true; break; }
@@ -173,14 +259,15 @@ namespace AgentEyes.Video
             if (caughtUp)
             {
                 Log.Info($"[FfmpegRecorder] Stop: pipeline drained in {drain.ElapsedMilliseconds}ms " +
-                         $"(take {stopAtMs}ms) - full take captured");
+                         $"(take {stopAtMs}ms, media origin {origin}ms) - full take captured");
             }
             else
             {
                 Log.Warn($"[FfmpegRecorder] Stop: pipeline did not reach {stopAtMs}ms within " +
                          $"{DrainTimeout.TotalSeconds:0.#}s (reached " +
-                         $"{System.Threading.Interlocked.Read(ref _mediaMs)}ms) - the end of this " +
-                         $"recording may be truncated. See {_logPath}");
+                         $"{System.Threading.Interlocked.Read(ref _mediaMs)}ms, media origin " +
+                         $"{(origin == long.MaxValue ? "never reported" : origin + "ms")}) - the end " +
+                         $"of this recording may be truncated. See {_logPath}");
             }
 
             try
@@ -230,6 +317,35 @@ namespace AgentEyes.Video
             // Round rather than truncate: 8.11 seconds is 8109.999... in binary, and casting would
             // shave a millisecond off every tick.
             return (long)Math.Round((h * 3600 + m * 60 + s) * 1000.0);
+        }
+
+        /// <summary>
+        /// Read the CAPTURE CLOCK timestamp of a device's first frame out of ffmpeg's input dump
+        /// ("  Duration: N/A, start: 152597.730833, bitrate: N/A") and return it in seconds, or null
+        /// when the line is not that line. Pure, so the alignment that depends on it is tested
+        /// without launching ffmpeg (issue #114).
+        ///
+        /// On macOS this number is a CoreMedia host-clock reading, which every process on the machine
+        /// shares - so the same field from the microphone's own ffmpeg is directly comparable, and the
+        /// difference is how far the two captures' t=0 are apart. Only the ", start: " form is matched:
+        /// the per-stream line carries "start 152597.730833" with no colon and is a different field.
+        /// </summary>
+        internal static double? ParseInputStartSeconds(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return null;
+            int i = line.IndexOf(", start: ", StringComparison.Ordinal);
+            if (i < 0) return null;
+            i += ", start: ".Length;
+
+            int end = i;
+            while (end < line.Length && (char.IsDigit(line[end]) || line[end] == '.' || line[end] == '-')) end++;
+            if (end == i) return null;
+
+            return double.TryParse(
+                line.AsSpan(i, end - i), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double seconds)
+                ? seconds
+                : null;
         }
 
         /// <summary>

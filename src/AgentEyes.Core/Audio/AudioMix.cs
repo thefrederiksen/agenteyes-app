@@ -35,6 +35,35 @@ namespace AgentEyes.Audio
         }
 
         /// <summary>
+        /// Video-only capture + a SEPARATELY captured mic WAV -> final MP4, mic through the same
+        /// clean-voice chain, aligned by <paramref name="micOffsetSeconds"/> (issue #114, macOS).
+        /// The gate is calibrated from the WAV, which IS the mic capture here - measuring the silent
+        /// video would have left every gate threshold meaningless.
+        /// </summary>
+        public static void MuxVideoMicWav(
+            string rawMp4, string micWav, string outMp4, AudioMixOptions o, double micOffsetSeconds)
+        {
+            Prepare(o, micWav);
+            Ffmpeg.Run(
+                FfmpegArgs.MuxVideoAddMic(rawMp4, micWav, outMp4, o, micOffsetSeconds),
+                "mux video+mic");
+        }
+
+        /// <summary>
+        /// Video-only capture + a separately captured mic WAV + a system WAV -> final MP4 with the
+        /// two mixed (issue #114, macOS). The macOS form of <see cref="MuxVideoMixed"/>.
+        /// </summary>
+        public static void MuxVideoMicAndSystemWavs(
+            string rawMp4, string micWav, string sysWav, string outMp4, AudioMixOptions o,
+            double micOffsetSeconds)
+        {
+            Prepare(o, micWav);
+            Ffmpeg.Run(
+                FfmpegArgs.MuxVideoAddMicAndSystem(rawMp4, micWav, sysWav, outMp4, o, micOffsetSeconds),
+                "mux video+mic+system");
+        }
+
+        /// <summary>
         /// Everything the mic chain needs before it can be built: the RNNoise model materialized on
         /// disk, and the gate threshold measured from the capture that is about to be processed.
         /// </summary>

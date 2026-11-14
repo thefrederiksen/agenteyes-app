@@ -358,7 +358,13 @@ namespace AgentEyes.Video
         /// Mic chain prefix producing label [m], in OBS order: RNNoise suppression (arnndn),
         /// noise gate, voice leveling (speechnorm), then manual volume. Each stage optional.
         /// </summary>
-        private static string MicChain(AudioMixOptions o)
+        /// <param name="source">
+        /// The filtergraph label the mic samples come from. "[0:a]" is the default and keeps every
+        /// existing caller's command line byte-identical: there the mic is the audio track already
+        /// inside input 0. macOS captures the mic as its own file, so it arrives as input 1 and
+        /// passes "[1:a]" (issue #114).
+        /// </param>
+        private static string MicChain(AudioMixOptions o, string source = "[0:a]")
         {
             string denoise = "";
             if (o.NoiseSuppression)
@@ -387,7 +393,7 @@ namespace AgentEyes.Video
             }
             // e=4: boost quiet speech up to 4x (+12 dB); p=0.95: normalize peaks to 95%.
             string level = o.VoiceLeveling ? "speechnorm=e=4:p=0.95," : "";
-            return $"[0:a]{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+            return $"{source}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
         }
 
         /// <summary>Safety limiter appended after the last mix stage: stops clipping when the
@@ -458,6 +464,87 @@ namespace AgentEyes.Video
                 "-filter_complex", fc,
                 "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
             };
+        }
+
+        /// <summary>
+        /// Mux a video-only file (input 0) with a SEPARATELY CAPTURED microphone WAV (input 1) as its
+        /// sole audio track, running the mic through the same clean-voice chain and limiter
+        /// <see cref="FilterVideoMic"/> applies - so a macOS recording gets exactly the treatment its
+        /// Windows and Linux twins get, from a mic that was captured by its own ffmpeg (issue #114).
+        ///
+        /// ALIGNMENT, and it is the whole reason this takes an offset. The two captures are different
+        /// processes with different device warm-ups, so their t=0 are not the same instant.
+        /// <paramref name="micOffsetSeconds"/> is how far the mic's first sample sits AFTER the first
+        /// video frame, measured from the capture clock both ffmpegs report, and the sign convention
+        /// is ComposeArgs.CameraInset's:
+        ///  * positive - the mic started LATE, so its samples belong later in the timeline: pad the
+        ///    head with that much silence (adelay) rather than letting speech run early;
+        ///  * negative - the mic was already running, so the WAV holds audio from before the picture
+        ///    existed: seek that head off the input (-ss), the cheap form, before decoding.
+        /// Zero does neither and emits the plain two-input list.
+        /// </summary>
+        public static List<string> MuxVideoAddMic(
+            string rawMp4, string micWav, string outMp4, AudioMixOptions o, double micOffsetSeconds)
+        {
+            var a = new List<string> { "-y", "-i", rawMp4 };
+
+            double skip = -micOffsetSeconds;
+            if (skip > 0) { a.Add("-ss"); a.Add(Inv(Math.Round(skip, 6))); }
+            a.Add("-i");
+            a.Add(micWav);
+
+            // adelay wants milliseconds, and all=1 applies the one value to every channel.
+            string delay = micOffsetSeconds > 0
+                ? $"adelay={Inv(Math.Round(micOffsetSeconds * 1000.0, 3))}:all=1,"
+                : "";
+            string fc = $"{MicChain(o, "[1:a]")};[m]{delay}{Limiter}[a]";
+
+            a.AddRange(new[]
+            {
+                "-filter_complex", fc,
+                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
+            });
+            return a;
+        }
+
+        /// <summary>
+        /// Mux a video-only file (input 0) with a SEPARATELY CAPTURED microphone WAV (input 1) and a
+        /// system-audio WAV (input 2), mixing the two into the one audio track - the macOS form of
+        /// <see cref="MuxVideoAddMixed"/>, for the same reason <see cref="MuxVideoAddMic"/> exists:
+        /// there the microphone is captured by its own ffmpeg and is not inside the video (issue
+        /// #114). <paramref name="micOffsetSeconds"/> aligns the mic exactly as it does there.
+        ///
+        /// NOT EXERCISED END TO END on devthrottle-mac-mini, and the handoff note says so: macOS has
+        /// no way to record what it is PLAYING without a virtual audio device, and that machine has
+        /// none, so a mixed recording cannot be started on it at all. The argument list is pinned by
+        /// unit test and every stage in it is one this file already builds for the other platforms;
+        /// what is unverified is the running capture, on a Mac that has something like BlackHole.
+        /// </summary>
+        public static List<string> MuxVideoAddMicAndSystem(
+            string rawMp4, string micWav, string sysWav, string outMp4, AudioMixOptions o,
+            double micOffsetSeconds)
+        {
+            var a = new List<string> { "-y", "-i", rawMp4 };
+
+            double skip = -micOffsetSeconds;
+            if (skip > 0) { a.Add("-ss"); a.Add(Inv(Math.Round(skip, 6))); }
+            a.Add("-i");
+            a.Add(micWav);
+            a.Add("-i");
+            a.Add(sysWav);
+
+            string delay = micOffsetSeconds > 0
+                ? $"adelay={Inv(Math.Round(micOffsetSeconds * 1000.0, 3))}:all=1,"
+                : "";
+            string fc = $"{MicChain(o, "[1:a]")};[2:a]volume={Inv(o.SystemGain)}[s];"
+                      + $"[m]{delay}anull[md];[md][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
+
+            a.AddRange(new[]
+            {
+                "-filter_complex", fc,
+                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
+            });
+            return a;
         }
 
         // ---- subtitle burn-in (issue #102) --------------------------------

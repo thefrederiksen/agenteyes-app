@@ -82,7 +82,10 @@ namespace AgentEyes.Tests.Mac
         private static readonly string[] RequiredMacBuilders =
         {
             "FfmpegArgs.AvfVideoCapture",
-            "FfmpegArgs.AvfAudioInput",
+            // FfmpegArgs.AvfAudioInput was the fourth. Issue #114 DELETED it: the macOS screen
+            // capture no longer has a microphone input (it cost ~88% of the audio), so the only
+            // AVFoundation microphone argument builder left in the product is AvfStream.Arguments,
+            // which is on this list and is swept exactly as that one was.
             "FfmpegArgs.AvfCameraCapture",
             "AvfStream.Arguments",
         };
@@ -138,8 +141,9 @@ namespace AgentEyes.Tests.Mac
             Assert.True(IsAvFoundation(new ArgList("fixture", asItShipped)));
             Assert.Equal(new[] { "audio_buffer_size" }, Violations(asItShipped));
 
-            // ... and the current builder, for the same input, is clean.
-            Assert.Empty(Violations(FfmpegArgs.AvfAudioInput(0)));
+            // ... and the builder that opens a microphone on a Mac today is clean. (It is
+            // AvfStream.Arguments since issue #114 removed the screen capture's audio input.)
+            Assert.Empty(Violations(AgentEyes.Platform.Mac.AvfStream.Arguments(0, 48000, 1)));
         }
 
         [Fact]
