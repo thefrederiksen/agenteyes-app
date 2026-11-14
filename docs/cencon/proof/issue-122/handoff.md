@@ -333,9 +333,19 @@ on this host (main: Passed 71, Failed 1). It asserts a real Mac's folder layout.
 tests passed in that run.
 
 **Not run here:** the Windows suite. `AgentEyes.sln` cannot build on Linux, and this SDK has no
-WindowsDesktop targets, so even a compile-only build fails at the import. The PR's CI runs it
-(`windows-latest`: build + test `AgentEyes.sln`), as it runs the Linux and macOS suites. Read the CI
-result on the PR, not this note, for Windows.
+WindowsDesktop targets, so even a compile-only build fails at the import.
+
+**CI on PR #129 (commit 35c0670), all three platforms green.** The baseline is the CI run of #123
+(43610416654), which is the code this branch starts from (df81375):
+
+| Suite (CI runner) | Baseline (#123) | This PR (run 43614067368) | Difference |
+|-------------------|-----------------|---------------------------|------------|
+| Windows `AgentEyes.Tests` (`windows-latest`, `dotnet test AgentEyes.sln`) | Passed 2143, Failed 0 | **Passed 2297, Failed 0** | +154 |
+| Linux `AgentEyes.Tests.Linux` (`ubuntu-latest`) | Passed 114, Failed 0 | **Passed 268, Failed 0** | +154 |
+| macOS `AgentEyes.Tests.Mac` (`macos-latest`) | Passed 72, Failed 0 | **Passed 226, Failed 0** | +154 |
+
++154 in every suite is exactly the 154 cases of the shared file, so the same tests ran and passed on
+all three platforms. On a real Mac the `MacPathsTests` case that fails on this Linux host passes.
 
 ### Windows CI
 
@@ -345,7 +355,7 @@ file-level alias `using CliCommands = AgentEyes.Setup.Cli.Commands;`. My new typ
 longer compiled (`CS0117: 'CliCommands' does not contain a definition for 'RunningAppHandleFactory'`).
 I renamed my type to `CliCommandTable` rather than touch that test. I also checked my other new names
 (`CliDispatcher`, `CliCommand`, `CliOption`) against every identifier in the Windows suite: none
-is used there. Read the Windows result on the PR's CI after this push.
+is used there. After the rename the Windows CI build and tests passed (table above).
 
 ## Notes for QA
 
