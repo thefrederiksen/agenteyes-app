@@ -630,10 +630,21 @@ stalling stage is `speechnorm`:
 | the 60-second audio with `-filter_complex_threads 1` | 60.224 s | 3 | **2** |
 
 So it is pre-existing on `main`, the sanitizer is not the cause - it wedged **more** often without
-it - and it is content-dependent: `speechnorm`, on some content and not other content. Read against
-#128's own criterion 3 ("default-settings post-processing completes on macOS"), that 2-of-4 is worth
-someone's attention: the sanitizer reduces the `speechnorm` stall on this content but does not
-remove it, and the 602-second material stalled the same way inside the product.
+it - and `speechnorm` is where it spins. Read against #128's own criterion 3 ("default-settings
+post-processing completes on macOS"), that 2-of-4 is worth someone's attention: the sanitizer reduces
+the stall on this content but does not remove it, and the 602-second material stalled the same way
+inside the product.
+
+**A correction to my own word "content-dependent", used earlier in this file before I had measured
+enough.** It is **nondeterministic per run**, with a per-file propensity rather than a per-file
+answer. `arnndn`'s end-of-stream NaN frame - the mechanism, below - appears on the same file, same
+command, same machine, in some runs and not others: 6 of 11 on the 60-second audio, 4 of 15 on the
+ten-minute one, 0 of 11 on 111731's. The ten-minute file returned 0 of 6 in one batch and 3 of 6 in
+another, so no single run characterises a file and the rate itself moves with machine conditions. I
+had also hypothesised that an AAC transcode in my fixtures explained the gap between my numbers and
+the Lead's; measured on the same audio it is 4 of 15 as a WAV against 2 of 7 as an AAC track, so that
+hypothesis is dead as well. All of it, with a loose end I did not close, is in
+[chain-stall-repeats.txt](chain-stall-repeats.txt).
 
 The same nondeterminism also shows up as **gain** rather than as a hang: two `FinalizePending` runs
 of the 60-second fixture both completed and produced outputs 26 dB apart (mean -68.5 / max -41.5,
@@ -660,7 +671,7 @@ not going to invent one.
 What survives is the part that was measured rather than inferred: the stall is real and frequent
 (3 of 3 on the ten-minute audio), it is not the muxing queue, it is not #128's sanitizer, it is
 `speechnorm` - removing that stage is the only intervention that cleanly stopped it (0 of 2) - it is
-content-dependent, and #128's watchdog bounds it.
+nondeterministic per run (the rates are below), and #128's watchdog bounds it.
 
 **AND THE ROOT CAUSE IS ESTABLISHED - by #128's QA seat, independently, on Windows, while I was
 measuring this on the Mac.** #128 went `flow:qa-failed` during my pass, and its QA report's defect
@@ -679,9 +690,12 @@ it rather than keeping my own partial account:
   survive it;
 - removing the sanitizer makes it **worse** (4 of 4), because the sanitizer removes the input's own
   non-finite samples but cannot remove the one `arnndn` manufactures after it;
-- and it is content-dependent as well as length-dependent, which both seats measured separately -
-  their real ten-minute dshow capture completed at a non-multiple length, and 111731's audio
-  completed 3 of 3 here.
+- and it is nondeterministic per run rather than a property of the input, which is the one place I
+  can add to their account: repeated counts give 6 of 11, 4 of 15 and 0 of 11 on the three mic WAVs,
+  and the ten-minute one gave 0 of 6 in one batch and 3 of 6 in another. So no length rule, no
+  remainder rule and no container difference predicts it - which is exactly why the remedy has to
+  sit after `arnndn` and count what it zeroes, and why a fix cannot be signed off on "the mux
+  completed".
 
 So "speechnorm is the stalling stage" is right and incomplete: `speechnorm` is where it spins,
 `arnndn`'s end-of-stream NaN is what feeds it. Their report says "this may also bear on #136. This
