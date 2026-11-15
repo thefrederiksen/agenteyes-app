@@ -249,10 +249,21 @@ a test that would catch it if the product's own path ever grew (see M2 below).
 The platform test is **host-independent, not skipped**. QA pointed at `LinuxOnlyFact` and that is the
 right pattern for a Linux operating-system convention, but this fact is not Linux-specific: the
 behaviour worth pinning is "whatever host this is, the app names it correctly and therefore picks
-that host's opener". Expected comes from `RuntimeInformation.OSDescription`, not from
-`OperatingSystem.IsX`, so it is not a mirror of the implementation. It earned its keep immediately:
-the first run failed because the description here is `macOS 26.5.2`, not `Darwin ...` - the check
-fires on a wrong answer, including mine.
+that host's opener". Expected comes from a file only that operating system has
+(`/System/Library/CoreServices/SystemVersion.plist`, `/proc/version`, the Windows system
+directory), not from `OperatingSystem.IsX`, so it is not a mirror of the implementation.
+
+It earned its keep twice, against me. I first took the expectation from
+`RuntimeInformation.OSDescription`: that failed here because the description is `macOS 26.5.2`, not
+`Darwin ...`, and then failed on Linux CI because .NET answers with the distribution's pretty name -
+`Ubuntu 26.04.1 LTS`, which names no platform at all. Both times the `throw` on an unrecognised host
+is what caught it, which is exactly why that arm is there instead of a default: a default would have
+passed without checking anything.
+
+**The lesson is worth more than the test.** I ran "the Linux suite" on a Mac and called it a Linux
+run. It is not one - `tests/AgentEyes.Tests.Linux` on a Mac is the Linux PROJECT on a macOS HOST, and
+for a host-dependent fact those are different machines. The only real Linux run available from here
+is CI, so anything host-dependent has to go round CI before it can be claimed.
 
 Worth saying plainly: the OLD assertion did not merely fail on a Mac, it **rewarded the bug** there.
 `Assert.Equal("linux", Shell.PlatformName)` is exactly what a `PlatformName` that wrongly answered
@@ -334,7 +345,7 @@ evidence; CI is only there to show Linux and Windows did not regress.
 
 | # | Mutation | Test that fired | Message |
 |---|----------|-----------------|---------|
-| M1 | `Shell.PlatformName` answers "linux" on macOS | `PlatformName_OnAnyHost_...` | `Assert.Equal() Failure: Strings differ`. The OLD test PASSED under this mutation on a Mac. |
+| M1 | `Shell.PlatformName` answers "linux" on macOS | `PlatformName_OnAnyHost_...` | `Assert.Equal() Failure: Strings differ`. The OLD test PASSED under this mutation on a Mac. Re-run after the expectation source changed, and it still fires. |
 | M2 | `SingleInstance.SocketPath` made 128 bytes | `SocketPath_OnThisHost_FitsTheUnixSocketPathLimit` | `SingleInstance.SocketPath is 128 bytes, over the 104-byte sun_path limit: ...` |
 | M3 | pipe listener serves one handoff then stops | `TryAcquirePipe_SecondLaunch_...` | `Assert.Null() Failure: Value is not null` |
 | M4 | fixture builds the old 47-character pipe name | `TryAcquirePipe_SecondLaunch_...` | `THE FIXTURE, not the product: this test's path is 107 bytes ...` (the exact 107 QA measured) |

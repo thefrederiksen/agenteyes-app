@@ -45,15 +45,21 @@ namespace AgentEyes.Tests.Linux
             // correctly and therefore picks that host's opener. Expected comes from the operating
             // system's own description rather than from OperatingSystem.IsX, so this is not a mirror
             // of the implementation: swap two arms of PlatformName and this fails on both hosts.
-            // OSDescription here: "macOS 26.5.2", "Linux 6.8.0-45-generic #45-Ubuntu ...",
-            // "Microsoft Windows 10.0.19045". Anything else is an unknown host and must say so
-            // rather than fall through to a default - a default would pass without checking.
-            string os = RuntimeInformation.OSDescription;
+            // Expected comes from a file only that operating system has, which is the OS speaking for
+            // itself. RuntimeInformation.OSDescription is NOT usable: on Linux .NET returns the
+            // distribution's pretty name - the CI runner answers "Ubuntu 26.04.1 LTS", which names no
+            // platform at all - and on macOS it answers "macOS 26.5.2". Both were tried and both were
+            // caught by the throw below, which is why the throw is here: an unrecognised host must say
+            // so, never fall through to a default that would pass without checking anything.
+            bool mac = File.Exists("/System/Library/CoreServices/SystemVersion.plist");
+            bool linux = !mac && File.Exists("/proc/version");
+            bool windows = !mac && !linux && Directory.Exists(Environment.GetFolderPath(Environment.SpecialFolder.Windows));
             (string name, string opener) =
-                os.Contains("macOS", StringComparison.Ordinal) || os.Contains("Darwin", StringComparison.Ordinal) ? ("mac", "open") :
-                os.Contains("Windows", StringComparison.Ordinal) ? ("windows", "explorer.exe") :
-                os.Contains("Linux", StringComparison.Ordinal) ? ("linux", "xdg-open") :
-                throw new InvalidOperationException($"unrecognised host '{os}' - this suite runs on Linux, macOS and Windows");
+                mac ? ("mac", "open") :
+                linux ? ("linux", "xdg-open") :
+                windows ? ("windows", "explorer.exe") :
+                throw new InvalidOperationException(
+                    $"unrecognised host '{RuntimeInformation.OSDescription}' - no macOS, Linux or Windows marker found; this suite runs on those three");
 
             Assert.Equal(name, Shell.PlatformName);
             Assert.Equal(opener, Shell.OpenerFor(Shell.PlatformName));
