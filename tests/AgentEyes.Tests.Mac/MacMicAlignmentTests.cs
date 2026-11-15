@@ -23,7 +23,22 @@ namespace AgentEyes.Tests.Mac
             GateThresholdLinear = 0.02,
             GateCalibrated = true,
             RnnoiseModelPath = "/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn",
+            // Issue #128 round two (D7) pins the NaN sanitizer to the mic's MEASURED layout, so the
+            // chain cannot be built without one. AudioMix.Prepare measures it from the mic WAV; on
+            // this machine that is a mono device.
+            MicChannels = 1,
         };
+
+        /// <summary>
+        /// The clean-voice chain Opts() produces, spelled out rather than composed from the
+        /// product's own constants: a pin that is built the way the thing it pins is built cannot
+        /// fail when that thing changes. Issue #128's sanitizer and arnndn framing are part of it.
+        /// </summary>
+        private const string Chain =
+            "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,"
+            + "aformat=channel_layouts=mono,asetnsamples=n=480:p=1,"
+            + "arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
+            + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,volume=1[m]";
 
         private static string Join(IEnumerable<string> args) => string.Join(" ", args);
 
@@ -93,54 +108,69 @@ namespace AgentEyes.Tests.Mac
             Assert.Null(FfmpegRecorder.ParseInputStartSeconds(null!));
         }
 
-        // ---- the mux that applies it ---------------------------------------
+        // ---- the pass-1 audio command that applies it ----------------------
+        //
+        // ISSUE #136 SPLIT THIS IN HALF, and the halves are where the alignment now lives. #114 was
+        // written against a single-command mux - "-i raw.mp4 -i mic.wav -filter_complex <chain>
+        // -map 0:v -c:v copy -map [a] -c:a aac" - which is exactly the shape #136 proved deadlocks
+        // on macOS: the copied video is queued almost instantly while the mic is still being
+        // filtered, ffmpeg's muxing queue hits its bound and the process spins at ~99% CPU without
+        // ever finalizing. So the mic's whole journey - the seek, the chain, the delay, the limiter
+        // - is PASS 1, into an intermediate WAV with no video stream anywhere in the command, and
+        // the picture is joined to it by PASS 2, which carries no filter graph at all.
+        //
+        // The alignment arithmetic below is unchanged by that; what changed is which command
+        // carries it, and that the mic is now input 0 of its own pass rather than input 1 of a mux.
+        // AgentEyes.Tests.Shared.FfmpegMuxShapeTests is the guard that keeps the single-pass shape
+        // out; these are the pins for what #114 adds to the pass that survived.
 
         [Fact]
-        public void MuxVideoAddMic_NoOffset_IsTwoInputsVideoCopiedMicFiltered()
+        public void MicPass_NoOffset_IsTheMicWavThroughTheChainIntoTheIntermediate()
         {
-            var args = FfmpegArgs.MuxVideoAddMic("raw.mp4", "mic_native.wav", "recording.mp4", Opts(), 0.0);
+            var args = FfmpegArgs.FilterMicToWav("mic_native.wav", "audio_processed.wav", Opts(), 0.0);
 
             Assert.Equal(new[]
             {
-                "-y", "-i", "raw.mp4", "-i", "mic_native.wav",
-                "-filter_complex",
-                "[1:a]arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
-                + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,"
-                + "volume=1[m];[m]alimiter=limit=0.95:level=false[a]",
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k",
-                "recording.mp4",
+                "-y", "-i", "mic_native.wav",
+                "-filter_complex", Chain + ";[m]alimiter=limit=0.95:level=false[a]",
+                "-map", "[a]", "-c:a", "pcm_f32le", "-rf64", "auto", "audio_processed.wav",
             }, args);
         }
 
         /// <summary>
-        /// The mic is input 1 here, not the audio track inside input 0. Reading [0:a] would filter the
-        /// VIDEO file's audio - which on macOS does not exist at all, so ffmpeg would fail the mux.
+        /// The mic is input 0 of its own pass. Under the single-command mux it was input 1, because
+        /// input 0 was the video; there is no video in this command at all, which is the point of
+        /// the split - so [1:a] here would read an input that does not exist.
         /// </summary>
         [Fact]
-        public void MuxVideoAddMic_ReadsTheMicFromInputOne()
+        public void MicPass_ReadsTheMicFromInputZeroAndHasNoVideoInTheCommand()
         {
-            string s = Join(FfmpegArgs.MuxVideoAddMic("raw.mp4", "mic.wav", "out.mp4", Opts(), 0.0));
+            var args = FfmpegArgs.FilterMicToWav("mic.wav", "audio_processed.wav", Opts(), 0.0);
+            string s = Join(args);
 
-            Assert.Contains("[1:a]", s);
-            Assert.DoesNotContain("[0:a]", s);
+            Assert.Contains("[0:a]", s);
+            Assert.DoesNotContain("[1:a]", s);
+            Assert.DoesNotContain("0:v", args);
+            Assert.DoesNotContain("-c:v", args);
+            Assert.Equal(1, args.Count(a => a == "-i"));
         }
 
         [Fact]
-        public void MuxVideoAddMic_MicStartedLate_PadsItsHeadWithThatMuchSilence()
+        public void MicPass_MicStartedLate_PadsItsHeadWithThatMuchSilence()
         {
             // +1.25 s: the mic's first sample is 1.25 s after the first video frame, so its samples
             // belong 1.25 s into the timeline. Letting them start at zero would run the speech early.
-            string s = Join(FfmpegArgs.MuxVideoAddMic("raw.mp4", "mic.wav", "out.mp4", Opts(), 1.25));
+            string s = Join(FfmpegArgs.FilterMicToWav("mic.wav", "audio_processed.wav", Opts(), 1.25));
 
             Assert.Contains("adelay=1250:all=1", s);
             Assert.DoesNotContain("-ss", s);
         }
 
         [Fact]
-        public void MuxVideoAddMic_MicStartedEarly_SeeksThatHeadOffTheInput()
+        public void MicPass_MicStartedEarly_SeeksThatHeadOffTheInput()
         {
             // -0.75 s: the WAV holds 0.75 s of audio from before the picture existed.
-            var args = FfmpegArgs.MuxVideoAddMic("raw.mp4", "mic.wav", "out.mp4", Opts(), -0.75);
+            var args = FfmpegArgs.FilterMicToWav("mic.wav", "audio_processed.wav", Opts(), -0.75);
 
             int ss = args.IndexOf("-ss");
             Assert.True(ss >= 0);
@@ -151,69 +181,113 @@ namespace AgentEyes.Tests.Mac
             Assert.DoesNotContain("adelay", Join(args));
         }
 
+        /// <summary>
+        /// Whatever the offset does to the mic, the pass stays a pass: one input, no video, the
+        /// limiter still on the end, and the intermediate WAV as the output. An offset that pushed a
+        /// video stream back into this command would put the deadlock back (issue #136).
+        /// </summary>
         [Fact]
-        public void MuxVideoAddMic_AlwaysCopiesTheVideoAndEndsAtTheOutput()
+        public void MicPass_AtEveryOffset_StaysAnAudioOnlyPassIntoTheIntermediate()
         {
             foreach (double offset in new[] { -2.0, -0.001, 0.0, 0.001, 2.0 })
             {
-                var args = FfmpegArgs.MuxVideoAddMic("raw.mp4", "mic.wav", "out.mp4", Opts(), offset);
+                var args = FfmpegArgs.FilterMicToWav("mic.wav", "audio_processed.wav", Opts(), offset);
 
-                Assert.Equal("out.mp4", args[^1]);
-                int v = args.IndexOf("-c:v");
-                Assert.Equal("copy", args[v + 1]);
+                Assert.Equal("audio_processed.wav", args[^1]);
+                Assert.Equal("pcm_f32le", args[args.IndexOf("-c:a") + 1]);
+                Assert.Equal("auto", args[args.IndexOf("-rf64") + 1]);
                 Assert.Contains("alimiter=limit=0.95:level=false", Join(args));
-                Assert.Equal(2, args.Count(a => a == "-i"));
+                Assert.Equal(1, args.Count(a => a == "-i"));
+                Assert.DoesNotContain("0:v", args);
+                Assert.DoesNotContain("copy", args);
             }
         }
 
         /// <summary>A sub-millisecond offset is not worth an adelay stage, and adelay cannot express
         /// it: the filter takes whole milliseconds. Rounding keeps the number ffmpeg will accept.</summary>
         [Fact]
-        public void MuxVideoAddMic_SmallPositiveOffset_RoundsToMillisecondsFfmpegAccepts()
+        public void MicPass_SmallPositiveOffset_RoundsToMillisecondsFfmpegAccepts()
         {
-            string s = Join(FfmpegArgs.MuxVideoAddMic("raw.mp4", "mic.wav", "out.mp4", Opts(), 0.2085));
+            string s = Join(FfmpegArgs.FilterMicToWav("mic.wav", "audio_processed.wav", Opts(), 0.2085));
 
             Assert.Contains("adelay=208.5:all=1", s);
+        }
+
+        /// <summary>
+        /// PASS 2 is what joins the aligned audio to the picture, and it is the same builder every
+        /// other mux on every platform uses: no filter graph, so nothing can race the video copy.
+        /// Pinned here because this is the pass #114's own path now ends in.
+        /// </summary>
+        [Fact]
+        public void MuxPass_JoinsThePictureToTheIntermediateWithNoFilterGraph()
+        {
+            var args = FfmpegArgs.MuxVideoWithProcessedAudio(
+                "raw.mp4", "audio_processed.wav", "recording.mp4.muxing.tmp");
+
+            Assert.Equal(new[]
+            {
+                "-y", "-i", "raw.mp4", "-i", "audio_processed.wav",
+                "-map", "0:v", "-c:v", "copy", "-map", "1:a", "-c:a", "aac", "-b:a", "160k",
+                "-f", "mp4", "recording.mp4.muxing.tmp",
+            }, args);
+            Assert.DoesNotContain("-filter_complex", args);
+        }
+
+        /// <summary>
+        /// FAIL-CLOSED on the shape that was removed. #114's single-command builders cannot be
+        /// reintroduced by name without this failing, and FfmpegMuxShapeTests would catch them under
+        /// any other name - the two together are why "split the mux" cannot be quietly undone.
+        /// </summary>
+        [Fact]
+        public void TheSingleCommandMuxBuildersAreGone()
+        {
+            foreach (string removed in new[] { "MuxVideoAddMic", "MuxVideoAddMicAndSystem" })
+            {
+                Assert.Null(typeof(FfmpegArgs).GetMethod(
+                    removed,
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.NonPublic));
+            }
         }
 
         // ---- mixed: mic captured separately, system from its own WAV --------
 
         /// <summary>
-        /// macOS mixed audio. The microphone is input 1 and the system WAV input 2, because on macOS
-        /// the video holds no audio track at all - the two-input MuxVideoAddMixed would look for a
-        /// [0:a] that does not exist and fail the mux. NOT exercised end to end on this machine (it
-        /// has no virtual audio device, so a mixed recording cannot start), which is why the argument
-        /// list is pinned here instead.
+        /// macOS mixed audio, as pass 1. The microphone is input 0 and the system WAV input 1 -
+        /// under the single-command mux they were inputs 1 and 2 behind the video, and on macOS the
+        /// video holds no audio track at all. NOT exercised end to end on this machine (it has no
+        /// virtual audio device, so a mixed recording cannot start), which is why the argument list
+        /// is pinned here instead.
         /// </summary>
         [Fact]
-        public void MuxVideoAddMicAndSystem_MicIsInputOne_SystemIsInputTwo()
+        public void MicPlusSystemPass_MicIsInputZero_SystemIsInputOne()
         {
-            var args = FfmpegArgs.MuxVideoAddMicAndSystem(
-                "raw.mp4", "mic_native.wav", "sys_native.wav", "recording.mp4", Opts(), 0.0);
+            var args = FfmpegArgs.MixMicSystemToWav(
+                "mic_native.wav", "sys_native.wav", "audio_processed.wav", Opts(), 0.0);
 
             Assert.Equal(new[]
             {
-                "-y", "-i", "raw.mp4", "-i", "mic_native.wav", "-i", "sys_native.wav",
+                "-y", "-i", "mic_native.wav", "-i", "sys_native.wav",
                 "-filter_complex",
-                "[1:a]arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
-                + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,"
-                + "volume=1[m];[2:a]volume=0.7[s];"
-                + "[m]anull[md];[md][s]amix=inputs=2:duration=longest:normalize=0,"
-                + "alimiter=limit=0.95:level=false[a]",
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k",
-                "recording.mp4",
+                Chain + ";[1:a]volume=0.7[s];"
+                      + "[m][s]amix=inputs=2:duration=longest:normalize=0,"
+                      + "alimiter=limit=0.95:level=false[a]",
+                "-map", "[a]", "-c:a", "pcm_f32le", "-rf64", "auto", "audio_processed.wav",
             }, args);
         }
 
         [Fact]
-        public void MuxVideoAddMicAndSystem_AlignsTheMicTheSameWayTheMicOnlyMuxDoes()
+        public void MicPlusSystemPass_AlignsTheMicTheSameWayTheMicOnlyPassDoes()
         {
-            string late = Join(FfmpegArgs.MuxVideoAddMicAndSystem(
-                "raw.mp4", "mic.wav", "sys.wav", "out.mp4", Opts(), 1.25));
-            Assert.Contains("adelay=1250:all=1", late);
+            var late = FfmpegArgs.MixMicSystemToWav(
+                "mic.wav", "sys.wav", "audio_processed.wav", Opts(), 1.25);
+            // The delay is on the MIC branch and nowhere near the system branch, which is written by
+            // the same process as the picture and is therefore already aligned to it.
+            Assert.Contains("[m]adelay=1250:all=1,anull[md];[md][s]amix=", Join(late));
+            Assert.DoesNotContain("-ss", late);
 
-            var early = FfmpegArgs.MuxVideoAddMicAndSystem(
-                "raw.mp4", "mic.wav", "sys.wav", "out.mp4", Opts(), -0.75);
+            var early = FfmpegArgs.MixMicSystemToWav(
+                "mic.wav", "sys.wav", "audio_processed.wav", Opts(), -0.75);
             int ss = early.IndexOf("-ss");
             Assert.True(ss >= 0);
             Assert.Equal("0.75", early[ss + 1]);
@@ -223,101 +297,102 @@ namespace AgentEyes.Tests.Mac
             Assert.DoesNotContain("adelay", Join(early));
         }
 
+        [Fact]
+        public void MicPlusSystemPass_AtEveryOffset_StaysAnAudioOnlyPassIntoTheIntermediate()
+        {
+            foreach (double offset in new[] { -2.0, 0.0, 2.0 })
+            {
+                var args = FfmpegArgs.MixMicSystemToWav(
+                    "mic.wav", "sys.wav", "audio_processed.wav", Opts(), offset);
+
+                Assert.Equal("audio_processed.wav", args[^1]);
+                Assert.DoesNotContain("0:v", args);
+                Assert.DoesNotContain("copy", args);
+                Assert.Equal(2, args.Count(a => a == "-i"));
+            }
+        }
+
         // ---- criterion 8: Windows and Linux are untouched -------------------
 
         /// <summary>
-        /// MicChain gained a source-label parameter so the macOS mux could read [1:a]. Its DEFAULT is
-        /// [0:a], and the pre-existing callers that rely on that default are exactly three -
-        /// FfmpegArgs.FilterVideoMic, FfmpegArgs.MixTwoWav and FfmpegArgs.MuxVideoMixMicSystem. All
-        /// three are pinned byte-for-byte in this file (this test and the two below it), so between
-        /// them they pin that the lists Windows and Linux emit are the lists they emitted before
-        /// issue #114. The only other callers are the two macOS builders added by #114,
-        /// MuxVideoAddMic and MuxVideoAddMicAndSystem, which pass "[1:a]" explicitly.
+        /// ISSUE #114 ADDS AN OPTIONAL ALIGNMENT OFFSET TO TWO SHARED PASS-1 BUILDERS, and nothing
+        /// else about them. Its default is 0.0, which is what every caller on a platform whose screen
+        /// recorder captures the mic itself passes, and at 0.0 both builders emit the list they
+        /// emitted before #114 - byte for byte, which is what these two tests pin.
         ///
-        /// MuxVideoAddSystem does NOT call MicChain - it carries no mic stage at all - so the pin
-        /// below it is a plain unchanged-builder pin, not part of this enumeration. An earlier
-        /// version of this comment named it as a MicChain caller and claimed the two pins were
-        /// "every other caller"; both were wrong (issue #114, QA finding F2).
+        /// How this changed in the rebase onto #136, because the earlier version of this comment is
+        /// no longer true of the code. #114 originally parameterized MicChain's SOURCE LABEL, so the
+        /// macOS mux could read the mic from [1:a] behind the video; the enumeration that mattered
+        /// was then "which callers rely on the [0:a] default". After #136's split there is no video
+        /// in a pass-1 command, so the mic is input 0 everywhere and that parameter is gone again -
+        /// MicChain is byte-identical to main's. What #114 now adds is the offset, so what has to be
+        /// pinned is that the offset's default changes nothing.
         ///
-        /// (The shared suites cover these builders too: tests/AgentEyes.Tests/FfmpegArgsTests.cs and
-        /// tests/AgentEyes.Tests.Linux/LinuxFfmpegArgsTests.cs. This one runs on a Mac, which is the
-        /// machine the change was made on.)
+        /// Both builders are also pinned, without an offset, by the shared and Linux suites
+        /// (tests/Shared/FfmpegMuxShapeTests.cs, tests/AgentEyes.Tests.Linux/LinuxFfmpegArgsTests.cs).
+        /// These run on a Mac, which is the machine the change was made on.
         /// </summary>
         [Fact]
-        public void FilterVideoMic_StillReadsTheMicFromInsideInputZero()
+        public void FilterMicToWav_WithNoOffset_IsTheListItEmittedBeforeIssue114()
         {
-            var args = FfmpegArgs.FilterVideoMic("raw.mp4", "final.mp4", Opts());
-
-            Assert.Equal(new[]
+            var expected = new[]
             {
                 "-y", "-i", "raw.mp4",
-                "-filter_complex",
-                "[0:a]arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
-                + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,"
-                + "volume=1[m];[m]alimiter=limit=0.95:level=false[a]",
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k",
-                "final.mp4",
-            }, args);
+                "-filter_complex", Chain + ";[m]alimiter=limit=0.95:level=false[a]",
+                "-map", "[a]", "-c:a", "pcm_f32le", "-rf64", "auto", "audio_processed.wav",
+            };
+
+            // The overload every non-macOS caller uses - it does not mention an offset at all ...
+            Assert.Equal(expected, FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", Opts()));
+            // ... and an explicit zero is the same list, so the default is not hiding a difference.
+            Assert.Equal(expected,
+                FfmpegArgs.FilterMicToWav("raw.mp4", "audio_processed.wav", Opts(), 0.0));
         }
 
         [Fact]
-        public void MuxVideoAddSystem_IsUnchanged()
+        public void MixMicSystemToWav_WithNoOffset_IsTheListItEmittedBeforeIssue114()
         {
-            var args = FfmpegArgs.MuxVideoAddSystem("raw.mp4", "sys_native.wav", "final.mp4", 0.7);
-
-            Assert.Equal(new[]
+            var expected = new[]
             {
-                "-y", "-i", "raw.mp4", "-i", "sys_native.wav",
-                "-filter_complex", "[1:a]volume=0.7[a]",
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k",
-                "final.mp4",
-            }, args);
+                "-y", "-i", "raw.mp4", "-i", "sys.wav",
+                "-filter_complex",
+                Chain + ";[1:a]volume=0.7[s];"
+                      + "[m][s]amix=inputs=2:duration=longest:normalize=0,"
+                      + "alimiter=limit=0.95:level=false[a]",
+                "-map", "[a]", "-c:a", "pcm_f32le", "-rf64", "auto", "audio_processed.wav",
+            };
+
+            Assert.Equal(expected,
+                FfmpegArgs.MixMicSystemToWav("raw.mp4", "sys.wav", "audio_processed.wav", Opts()));
+            Assert.Equal(expected,
+                FfmpegArgs.MixMicSystemToWav("raw.mp4", "sys.wav", "audio_processed.wav", Opts(), 0.0));
         }
 
         /// <summary>
-        /// The second MicChain caller that relies on the [0:a] default. This is the WAV+WAV mix the
-        /// Windows and Linux system-audio paths run, and it must still read the mic from input 0.
+        /// The two shared builders #114 does not touch at all, pinned on this machine for the same
+        /// reason: the mic-plus-system WAV mix an audio-only recording ends in, and the system-only
+        /// pass. Neither grew an offset - the system track is written by the same process as the
+        /// picture, so there is nothing to align.
         /// </summary>
         [Fact]
-        public void MixTwoWav_StillReadsTheMicFromInsideInputZero()
+        public void TheSharedBuildersIssue114DoesNotTouch_AreUnchanged()
         {
-            var args = FfmpegArgs.MixTwoWav("mic.wav", "sys.wav", "out.wav", Opts());
-
             Assert.Equal(new[]
             {
                 "-y", "-i", "mic.wav", "-i", "sys.wav",
                 "-filter_complex",
-                "[0:a]arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
-                + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,"
-                + "volume=1[m];[1:a]volume=0.7[s];"
-                + "[m][s]amix=inputs=2:duration=longest:normalize=0,"
-                + "alimiter=limit=0.95:level=false[a]",
+                Chain + ";[1:a]volume=0.7[s];"
+                      + "[m][s]amix=inputs=2:duration=longest:normalize=0,"
+                      + "alimiter=limit=0.95:level=false[a]",
                 "-map", "[a]", "-ar", "48000", "-ac", "2", "out.wav",
-            }, args);
-        }
-
-        /// <summary>
-        /// The third and last MicChain caller that relies on the [0:a] default: a video that ALREADY
-        /// contains its mic track, muxed with a separate system WAV. That is the Windows and Linux
-        /// screen+mic+system shape, which issue #114 did not touch.
-        /// </summary>
-        [Fact]
-        public void MuxVideoMixMicSystem_StillReadsTheMicFromInsideInputZero()
-        {
-            var args = FfmpegArgs.MuxVideoMixMicSystem("raw.mp4", "sys.wav", "final.mp4", Opts());
+            }, FfmpegArgs.MixTwoWav("mic.wav", "sys.wav", "out.wav", Opts()));
 
             Assert.Equal(new[]
             {
-                "-y", "-i", "raw.mp4", "-i", "sys.wav",
-                "-filter_complex",
-                "[0:a]arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
-                + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,"
-                + "volume=1[m];[1:a]volume=0.7[s];"
-                + "[m][s]amix=inputs=2:duration=longest:normalize=0,"
-                + "alimiter=limit=0.95:level=false[a]",
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k",
-                "final.mp4",
-            }, args);
+                "-y", "-i", "sys_native.wav",
+                "-filter_complex", "[0:a]volume=0.7[a]",
+                "-map", "[a]", "-c:a", "pcm_f32le", "-rf64", "auto", "audio_processed.wav",
+            }, FfmpegArgs.FilterSystemToWav("sys_native.wav", "audio_processed.wav", 0.7));
         }
 
         // ---- asking the screen recorder for a mic is refused, not ignored ----

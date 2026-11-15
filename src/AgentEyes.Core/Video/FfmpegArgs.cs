@@ -358,13 +358,7 @@ namespace AgentEyes.Video
         /// Mic chain prefix producing label [m], in OBS order: RNNoise suppression (arnndn),
         /// noise gate, voice leveling (speechnorm), then manual volume. Each stage optional.
         /// </summary>
-        /// <param name="source">
-        /// The filtergraph label the mic samples come from. "[0:a]" is the default and keeps every
-        /// existing caller's command line byte-identical: there the mic is the audio track already
-        /// inside input 0. macOS captures the mic as its own file, so it arrives as input 1 and
-        /// passes "[1:a]" (issue #114).
-        /// </param>
-        private static string MicChain(AudioMixOptions o, string source = "[0:a]")
+        private static string MicChain(AudioMixOptions o)
         {
             string denoise = "";
             if (o.NoiseSuppression)
@@ -401,7 +395,7 @@ namespace AgentEyes.Video
             // speechnorm. NaN/Inf is not audio; zeroing that one sample is inaudible. It is only
             // emitted when one of those two stages is in the chain.
             string finite = (o.NoiseSuppression || o.VoiceLeveling) ? FiniteSamples + "," + PinMicLayout(o) + "," : "";
-            return $"{source}{finite}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+            return $"[0:a]{finite}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
         }
 
         /// <summary>
@@ -457,16 +451,66 @@ namespace AgentEyes.Video
         /// safety limiter. One graph string, used by every builder that processes a microphone, so
         /// the processing cannot drift between the WAV path and the video path.
         /// </summary>
-        private static string MicOnlyGraph(AudioMixOptions o) => $"{MicChain(o)};[m]{Limiter}[a]";
+        /// <param name="micDelay">
+        /// The mic's alignment stage, or "" (issue #114). See <see cref="MicDelayStage"/>: it is a
+        /// filter plus its trailing comma, so an empty string emits the graph these builders emitted
+        /// before alignment existed, byte for byte.
+        /// </param>
+        private static string MicOnlyGraph(AudioMixOptions o, string micDelay = "") =>
+            $"{MicChain(o)};[m]{micDelay}{Limiter}[a]";
 
         /// <summary>
         /// The clean-voice chain on the mic (input 0) mixed with a system-audio track (input 1),
         /// ending at label [a]. normalize=0 keeps each source at the gain the preset chose instead
         /// of halving both.
         /// </summary>
-        private static string MicPlusSystemGraph(AudioMixOptions o) =>
-            $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
-            + $"[m][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
+        /// <param name="micDelay">The mic's alignment stage, or "" - see <see cref="MicOnlyGraph"/>.
+        /// A delayed mic needs a stage of its own between [m] and the amix, so it gets one ([md]);
+        /// with no delay the graph is exactly the one this builder emitted before.</param>
+        private static string MicPlusSystemGraph(AudioMixOptions o, string micDelay = "")
+        {
+            string mic = micDelay.Length == 0 ? "[m]" : $"[m]{micDelay}anull[md];[md]";
+            return $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
+                 + $"{mic}[s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
+        }
+
+        /// <summary>
+        /// HOW THE TWO macOS CAPTURES ARE LINED UP (issue #114), as a filter stage for the mic
+        /// branch of a pass-1 graph - or "" when there is nothing to do.
+        ///
+        /// On macOS the microphone is captured by its own ffmpeg, so the two captures are different
+        /// processes with different device warm-ups and their t=0 are not the same instant.
+        /// <paramref name="micOffsetSeconds"/> is how far the mic's first sample sits AFTER the first
+        /// video frame, measured from the capture clock both ffmpegs report, and the sign convention
+        /// is ComposeArgs.CameraInset's:
+        ///  * positive - the mic started LATE, so its samples belong later in the timeline: pad the
+        ///    head with that much silence (adelay, this stage) rather than letting speech run early;
+        ///  * negative - the mic was already running, so the WAV holds audio from before the picture
+        ///    existed: that head is seeked off the INPUT instead (see <see cref="MicInputSeek"/>),
+        ///    which is the cheap form, and this stage is empty.
+        /// Zero does neither, and every non-macOS caller passes zero.
+        ///
+        /// adelay wants milliseconds, and all=1 applies the one value to every channel. A
+        /// sub-millisecond offset is rounded to what the filter can express.
+        /// </summary>
+        private static string MicDelayStage(double micOffsetSeconds) =>
+            micOffsetSeconds > 0
+                ? $"adelay={Inv(Math.Round(micOffsetSeconds * 1000.0, 3))}:all=1,"
+                : "";
+
+        /// <summary>
+        /// The other half of <see cref="MicDelayStage"/>: a NEGATIVE offset means the mic WAV holds
+        /// audio from before the first video frame, so that head is seeked off the input. Returns the
+        /// "-ss &lt;seconds&gt;" pair to place immediately before the mic's own "-i", or an empty
+        /// list. An INPUT seek, so it belongs before that -i and before nothing else.
+        /// </summary>
+        private static List<string> MicInputSeek(double micOffsetSeconds)
+        {
+            double skip = -micOffsetSeconds;
+            return skip > 0
+                ? new List<string> { "-ss", Inv(Math.Round(skip, 6)) }
+                : new List<string>();
+        }
 
         /// <summary>
         /// The sample format the intermediate processed-audio WAV is written in (issue #136). 32-bit
@@ -531,14 +575,25 @@ namespace AgentEyes.Video
         /// </summary>
         /// <param name="micSource">The microphone capture - a WAV, or a video file whose first audio
         /// stream is the mic track.</param>
-        public static List<string> FilterMicToWav(string micSource, string outWav, AudioMixOptions o) => new()
+        /// <param name="micOffsetSeconds">How far the mic's first sample sits after the first video
+        /// frame (issue #114, macOS - see <see cref="MicDelayStage"/>). Zero, which is what every
+        /// platform whose screen recorder captures the mic itself passes, emits the argument list
+        /// this builder emitted before alignment existed, byte for byte.</param>
+        public static List<string> FilterMicToWav(
+            string micSource, string outWav, AudioMixOptions o, double micOffsetSeconds = 0.0)
         {
-            "-y", "-i", micSource,
-            "-filter_complex", MicOnlyGraph(o),
-            "-map", "[a]", "-c:a", ProcessedAudioCodec,
-            // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
-            "-rf64", "auto", outWav,
-        };
+            var a = new List<string> { "-y" };
+            a.AddRange(MicInputSeek(micOffsetSeconds));
+            a.AddRange(new[]
+            {
+                "-i", micSource,
+                "-filter_complex", MicOnlyGraph(o, MicDelayStage(micOffsetSeconds)),
+                "-map", "[a]", "-c:a", ProcessedAudioCodec,
+                // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+                "-rf64", "auto", outWav,
+            });
+            return a;
+        }
 
         /// <summary>
         /// PASS 1, microphone plus system audio: the clean-voice chain on the mic, the system gain on
@@ -546,15 +601,26 @@ namespace AgentEyes.Video
         /// </summary>
         /// <param name="micSource">The microphone capture - a WAV, or a video file whose first audio
         /// stream is the mic track.</param>
+        /// <param name="micOffsetSeconds">The mic's alignment against the picture (issue #114,
+        /// macOS - see <see cref="MicDelayStage"/>). It applies to the MIC and never to the system
+        /// WAV: the system track is written by the same process as the picture. Zero emits the list
+        /// this builder emitted before alignment existed, byte for byte.</param>
         public static List<string> MixMicSystemToWav(
-            string micSource, string sysWav, string outWav, AudioMixOptions o) => new()
+            string micSource, string sysWav, string outWav, AudioMixOptions o,
+            double micOffsetSeconds = 0.0)
         {
-            "-y", "-i", micSource, "-i", sysWav,
-            "-filter_complex", MicPlusSystemGraph(o),
-            "-map", "[a]", "-c:a", ProcessedAudioCodec,
-            // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
-            "-rf64", "auto", outWav,
-        };
+            var a = new List<string> { "-y" };
+            a.AddRange(MicInputSeek(micOffsetSeconds));
+            a.AddRange(new[]
+            {
+                "-i", micSource, "-i", sysWav,
+                "-filter_complex", MicPlusSystemGraph(o, MicDelayStage(micOffsetSeconds)),
+                "-map", "[a]", "-c:a", ProcessedAudioCodec,
+                // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+                "-rf64", "auto", outWav,
+            });
+            return a;
+        }
 
         /// <summary>
         /// PASS 1, system audio only: apply the system gain into an intermediate WAV. The filter is
@@ -592,87 +658,6 @@ namespace AgentEyes.Video
             "-map", "0:v", "-c:v", "copy", "-map", "1:a", "-c:a", "aac", "-b:a", "160k",
             "-f", "mp4", outMp4,
         };
-
-        /// <summary>
-        /// Mux a video-only file (input 0) with a SEPARATELY CAPTURED microphone WAV (input 1) as its
-        /// sole audio track, running the mic through the same clean-voice chain and limiter
-        /// <see cref="FilterVideoMic"/> applies - so a macOS recording gets exactly the treatment its
-        /// Windows and Linux twins get, from a mic that was captured by its own ffmpeg (issue #114).
-        ///
-        /// ALIGNMENT, and it is the whole reason this takes an offset. The two captures are different
-        /// processes with different device warm-ups, so their t=0 are not the same instant.
-        /// <paramref name="micOffsetSeconds"/> is how far the mic's first sample sits AFTER the first
-        /// video frame, measured from the capture clock both ffmpegs report, and the sign convention
-        /// is ComposeArgs.CameraInset's:
-        ///  * positive - the mic started LATE, so its samples belong later in the timeline: pad the
-        ///    head with that much silence (adelay) rather than letting speech run early;
-        ///  * negative - the mic was already running, so the WAV holds audio from before the picture
-        ///    existed: seek that head off the input (-ss), the cheap form, before decoding.
-        /// Zero does neither and emits the plain two-input list.
-        /// </summary>
-        public static List<string> MuxVideoAddMic(
-            string rawMp4, string micWav, string outMp4, AudioMixOptions o, double micOffsetSeconds)
-        {
-            var a = new List<string> { "-y", "-i", rawMp4 };
-
-            double skip = -micOffsetSeconds;
-            if (skip > 0) { a.Add("-ss"); a.Add(Inv(Math.Round(skip, 6))); }
-            a.Add("-i");
-            a.Add(micWav);
-
-            // adelay wants milliseconds, and all=1 applies the one value to every channel.
-            string delay = micOffsetSeconds > 0
-                ? $"adelay={Inv(Math.Round(micOffsetSeconds * 1000.0, 3))}:all=1,"
-                : "";
-            string fc = $"{MicChain(o, "[1:a]")};[m]{delay}{Limiter}[a]";
-
-            a.AddRange(new[]
-            {
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            });
-            return a;
-        }
-
-        /// <summary>
-        /// Mux a video-only file (input 0) with a SEPARATELY CAPTURED microphone WAV (input 1) and a
-        /// system-audio WAV (input 2), mixing the two into the one audio track - the macOS form of
-        /// <see cref="MuxVideoAddMixed"/>, for the same reason <see cref="MuxVideoAddMic"/> exists:
-        /// there the microphone is captured by its own ffmpeg and is not inside the video (issue
-        /// #114). <paramref name="micOffsetSeconds"/> aligns the mic exactly as it does there.
-        ///
-        /// NOT EXERCISED END TO END on devthrottle-mac-mini, and the handoff note says so: macOS has
-        /// no way to record what it is PLAYING without a virtual audio device, and that machine has
-        /// none, so a mixed recording cannot be started on it at all. The argument list is pinned by
-        /// unit test and every stage in it is one this file already builds for the other platforms;
-        /// what is unverified is the running capture, on a Mac that has something like BlackHole.
-        /// </summary>
-        public static List<string> MuxVideoAddMicAndSystem(
-            string rawMp4, string micWav, string sysWav, string outMp4, AudioMixOptions o,
-            double micOffsetSeconds)
-        {
-            var a = new List<string> { "-y", "-i", rawMp4 };
-
-            double skip = -micOffsetSeconds;
-            if (skip > 0) { a.Add("-ss"); a.Add(Inv(Math.Round(skip, 6))); }
-            a.Add("-i");
-            a.Add(micWav);
-            a.Add("-i");
-            a.Add(sysWav);
-
-            string delay = micOffsetSeconds > 0
-                ? $"adelay={Inv(Math.Round(micOffsetSeconds * 1000.0, 3))}:all=1,"
-                : "";
-            string fc = $"{MicChain(o, "[1:a]")};[2:a]volume={Inv(o.SystemGain)}[s];"
-                      + $"[m]{delay}anull[md];[md][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
-
-            a.AddRange(new[]
-            {
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            });
-            return a;
-        }
 
         // ---- subtitle burn-in (issue #102) --------------------------------
 

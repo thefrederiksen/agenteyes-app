@@ -266,28 +266,33 @@ namespace AgentEyes.Audio
         /// clean-voice chain, aligned by <paramref name="micOffsetSeconds"/> (issue #114, macOS).
         /// The gate is calibrated from the WAV, which IS the mic capture here - measuring the silent
         /// video would have left every gate threshold meaningless.
+        ///
+        /// TWO PASSES, like every other mux in this class (issue #136). The single-pass form this
+        /// replaced - the copied video stream and the mic's filter graph in one ffmpeg command - is
+        /// the exact shape that deadlocks on macOS, which is the platform this method exists for.
+        /// <see cref="MuxInTwoPasses"/> carries the reasoning and
+        /// AgentEyes.Tests.Shared.FfmpegMuxShapeTests is the guard that keeps it out.
         /// </summary>
         public static void MuxVideoMicWav(
             string rawMp4, string micWav, string outMp4, AudioMixOptions o, double micOffsetSeconds)
         {
             Prepare(o, micWav);
-            Ffmpeg.Run(
-                FfmpegArgs.MuxVideoAddMic(rawMp4, micWav, outMp4, o, micOffsetSeconds),
-                "mux video+mic");
+            MuxInTwoPasses(rawMp4, outMp4, "mux video+mic",
+                wav => FfmpegArgs.FilterMicToWav(micWav, wav, o, micOffsetSeconds));
         }
 
         /// <summary>
         /// Video-only capture + a separately captured mic WAV + a system WAV -> final MP4 with the
-        /// two mixed (issue #114, macOS). The macOS form of <see cref="MuxVideoMixed"/>.
+        /// two mixed (issue #114, macOS). The macOS form of <see cref="MuxVideoMixed"/>, and like it
+        /// a two-pass mux (issue #136).
         /// </summary>
         public static void MuxVideoMicAndSystemWavs(
             string rawMp4, string micWav, string sysWav, string outMp4, AudioMixOptions o,
             double micOffsetSeconds)
         {
             Prepare(o, micWav);
-            Ffmpeg.Run(
-                FfmpegArgs.MuxVideoAddMicAndSystem(rawMp4, micWav, sysWav, outMp4, o, micOffsetSeconds),
-                "mux video+mic+system");
+            MuxInTwoPasses(rawMp4, outMp4, "mux video+mic+system",
+                wav => FfmpegArgs.MixMicSystemToWav(micWav, sysWav, wav, o, micOffsetSeconds));
         }
 
         /// <summary>
