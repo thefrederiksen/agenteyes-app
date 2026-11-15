@@ -1,0 +1,97 @@
+# label=FIXED-ac2-sigkill-screen+mic inject=KILL source=mic observe=120.0s service_pid=26649
+# load at start: 13:04  up 2 days, 21:58, 1 user, load averages: 2.57 3.30 4.18
+# UTC start 2026-11-15T18:04:54Z
+# /record/start -> {"State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 1.18, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 56, "LastStopFailed": false, "LastStopError": null, "LastStopDir": null, "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastCaptureFaultDir": null}
+# healthy at +2.1s  liveness=growing bytes=761
+# children: screen=28453 mic=28472
+#   screen cmd: /opt/homebrew/bin/ffmpeg -hide_banner -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 
+# --- AC3 healthy polls (10 s apart) ---
+AC3POLL t=+    2.1s {"State": "recording", "CaptureLiveness": "growing", "CaptureBytes": 761, "CaptureLastGrowthUtc": "2026-11-15T18:04:58.422764Z", "CaptureSecondsSinceGrowth": 0}
+AC3POLL t=+   12.1s {"State": "recording", "CaptureLiveness": "growing", "CaptureBytes": 5616126, "CaptureLastGrowthUtc": "2026-11-15T18:05:08.433075Z", "CaptureSecondsSinceGrowth": 0}
+# INJECTED KILL on screen ffmpeg pid 28453 at +22.1s UTC 2026-11-15T18:05:18Z
+T +   22.1s (inj+   0.0s) State=recording   Live=growing      Fault=None       Bytes=11146565   SinceGrowth=0       child=gone svc_cpu=0.3
+T +   24.2s (inj+   2.0s) State=finalizing  Live=faulted      Fault=capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes Bytes=11146565   SinceGrowth=2       child=gone svc_cpu=1.9
+### FAULT NAMED on /status at inj+2.04s  body:
+{
+ "State": "finalizing",
+ "Mode": "video",
+ "Source": "mic",
+ "ElapsedSeconds": 25.21,
+ "Level": 0,
+ "MicLevel": 0,
+ "SystemLevel": 0,
+ "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video",
+ "Camera": null,
+ "SignedIn": false,
+ "AccountEmail": null,
+ "PendingTranscriptions": 56,
+ "LastStopFailed": true,
+ "LastStopError": "capture watchdog: capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes",
+ "LastStopDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video",
+ "CameraStuck": false,
+ "StuckCameras": [],
+ "PreviewScreenFrame": null,
+ "PreviewCameraFrame": null,
+ "PreviewAvailable": false,
+ "PreviewArmed": false,
+ "PreviewPublishing": false,
+ "PreviewScreenFramesRead": 0,
+ "PreviewCameraFramesRead": 0,
+ "PreviewFailed": false,
+ "PreviewOverlayCorner": null,
+ "PreviewOverlayShape": null,
+ "CaptureLiveness": "faulted",
+ "CaptureFile": "raw.mp4",
+ "CaptureBytes": 11146565,
+ "CaptureLastGrowthUtc": "2026-11-15T18:05:18.442716Z",
+ "CaptureSecondsSinceGrowth": 2,
+ "LastCaptureFault": "capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes",
+ "LastCaptureFaultUtc": "2026-11-15T18:05:20.445028Z",
+ "LastCaptureFaultDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video"
+}
+### STATE LEFT 'recording' at inj+2.04s (State=finalizing)
+T +   26.2s (inj+   4.1s) State=idle        Live=None         Fault=capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes Bytes=None       SinceGrowth=None    child=gone svc_cpu=3.0
+### REACHED IDLE at inj+4.07s
+{
+ "State": "idle",
+ "Mode": null,
+ "Source": null,
+ "ElapsedSeconds": 25.21,
+ "Level": 0,
+ "MicLevel": 0,
+ "SystemLevel": 0,
+ "Dir": null,
+ "Camera": null,
+ "SignedIn": false,
+ "AccountEmail": null,
+ "PendingTranscriptions": 57,
+ "LastStopFailed": true,
+ "LastStopError": "capture watchdog: capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes",
+ "LastStopDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video",
+ "CameraStuck": false,
+ "StuckCameras": [],
+ "PreviewScreenFrame": null,
+ "PreviewCameraFrame": null,
+ "PreviewAvailable": false,
+ "PreviewArmed": false,
+ "PreviewPublishing": false,
+ "PreviewScreenFramesRead": 0,
+ "PreviewCameraFramesRead": 0,
+ "PreviewFailed": false,
+ "PreviewOverlayCorner": null,
+ "PreviewOverlayShape": null,
+ "CaptureLiveness": null,
+ "CaptureFile": null,
+ "CaptureBytes": null,
+ "CaptureLastGrowthUtc": null,
+ "CaptureSecondsSinceGrowth": null,
+ "LastCaptureFault": "capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes",
+ "LastCaptureFaultUtc": "2026-11-15T18:05:20.445028Z",
+ "LastCaptureFaultDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video"
+}
+# SUMMARY label=FIXED-ac2-sigkill-screen+mic fault_at=2.0428478717803955 not_recording_at=2.0428478717803955 idle_at=4.073376893997192
+# final child state: pid 28453 -> gone
+# remaining ffmpegs: []
+# final /status: {"State": "idle", "Mode": null, "Source": null, "ElapsedSeconds": 25.21, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": null, "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 57, "LastStopFailed": true, "LastStopError": "capture watchdog: capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes", "LastStopDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video", "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": "capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11146565 bytes", "LastCaptureFaultUtc": "2026-11-15T18:05:20.445028Z", "LastCaptureFaultDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130455_video"}
+# load at end: 13:05  up 2 days, 21:58, 1 user, load averages: 3.34 3.42 4.19
+# UTC end 2026-11-15T18:05:22Z

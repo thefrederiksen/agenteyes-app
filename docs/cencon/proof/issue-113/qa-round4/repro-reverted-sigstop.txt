@@ -1,0 +1,175 @@
+# label=REVERTED-N-sigstop-screen+mic inject=STOP source=mic observe=240.0s service_pid=24368
+# load at start: 12:56  up 2 days, 21:50, 1 user, load averages: 4.21 3.80 4.83
+# UTC start 2026-11-15T17:56:48Z
+# /record/start -> {"State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 1.15, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_125649_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 53, "LastStopFailed": false, "LastStopError": null, "LastStopDir": null, "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastCaptureFaultDir": null}
+# healthy at +2.1s  liveness=growing bytes=761
+# children: screen=24480 mic=24483
+#   screen cmd: /opt/homebrew/bin/ffmpeg -hide_banner -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 
+# --- AC3 healthy polls (10 s apart) ---
+AC3POLL t=+    2.1s {"State": "recording", "CaptureLiveness": "growing", "CaptureBytes": 761, "CaptureLastGrowthUtc": "2026-11-15T17:56:52.407044Z", "CaptureSecondsSinceGrowth": 0}
+AC3POLL t=+   12.1s {"State": "recording", "CaptureLiveness": "growing", "CaptureBytes": 6629734, "CaptureLastGrowthUtc": "2026-11-15T17:57:02.416096Z", "CaptureSecondsSinceGrowth": 0}
+# INJECTED STOP on screen ffmpeg pid 24480 at +22.1s UTC 2026-11-15T17:57:12Z
+T +   22.2s (inj+   0.0s) State=recording   Live=growing      Fault=None       Bytes=13102183   SinceGrowth=0       child=T svc_cpu=0.1
+T +   24.2s (inj+   2.0s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=2       child=T svc_cpu=100.0
+T +   26.2s (inj+   4.1s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=4       child=T svc_cpu=100.6
+T +   28.2s (inj+   6.1s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=6       child=T svc_cpu=100.0
+T +   30.3s (inj+   8.1s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=8       child=T svc_cpu=98.9
+T +   32.3s (inj+  10.1s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=10      child=T svc_cpu=100.0
+T +   34.3s (inj+  12.2s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=12      child=T svc_cpu=95.4
+T +   36.3s (inj+  14.2s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=14      child=T svc_cpu=99.0
+T +   38.3s (inj+  16.2s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=16      child=T svc_cpu=100.9
+T +   40.4s (inj+  18.2s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=18      child=T svc_cpu=99.0
+T +   42.4s (inj+  20.2s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=20      child=T svc_cpu=99.1
+T +   44.4s (inj+  22.3s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=22      child=T svc_cpu=100.0
+T +   46.4s (inj+  24.3s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=24      child=T svc_cpu=100.0
+T +   48.5s (inj+  26.3s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=26      child=T svc_cpu=100.0
+T +   50.5s (inj+  28.3s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=28      child=T svc_cpu=99.0
+T +   52.5s (inj+  30.4s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=30      child=T svc_cpu=99.0
+T +   54.5s (inj+  32.4s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=32      child=T svc_cpu=99.0
+T +   56.6s (inj+  34.4s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=34      child=T svc_cpu=99.0
+T +   58.6s (inj+  36.4s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=36      child=T svc_cpu=100.0
+T +   60.6s (inj+  38.5s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=38      child=T svc_cpu=99.1
+T +   62.6s (inj+  40.5s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=40      child=T svc_cpu=98.8
+T +   64.7s (inj+  42.5s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=42      child=T svc_cpu=100.0
+T +   66.7s (inj+  44.5s) State=recording   Live=not-growing  Fault=None       Bytes=13102183   SinceGrowth=44      child=T svc_cpu=99.0
+T +   68.7s (inj+  46.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.5
+### FAULT NAMED on /status at inj+46.55s  body:
+{
+ "State": "finalizing",
+ "Mode": "video",
+ "Source": "mic",
+ "ElapsedSeconds": 69.21,
+ "Level": 0,
+ "MicLevel": 0,
+ "SystemLevel": 0,
+ "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_125649_video",
+ "Camera": null,
+ "SignedIn": false,
+ "AccountEmail": null,
+ "PendingTranscriptions": 53,
+ "LastStopFailed": true,
+ "LastStopError": "capture watchdog: capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z",
+ "LastStopDir": "/Users/soren/Movies/AgentEyes/2026-11-15_125649_video",
+ "CameraStuck": false,
+ "StuckCameras": [],
+ "PreviewScreenFrame": null,
+ "PreviewCameraFrame": null,
+ "PreviewAvailable": false,
+ "PreviewArmed": false,
+ "PreviewPublishing": false,
+ "PreviewScreenFramesRead": 0,
+ "PreviewCameraFramesRead": 0,
+ "PreviewFailed": false,
+ "PreviewOverlayCorner": null,
+ "PreviewOverlayShape": null,
+ "CaptureLiveness": "faulted",
+ "CaptureFile": "raw.mp4",
+ "CaptureBytes": 13102183,
+ "CaptureLastGrowthUtc": "2026-11-15T17:57:12.42621Z",
+ "CaptureSecondsSinceGrowth": 46,
+ "LastCaptureFault": "capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z",
+ "LastCaptureFaultUtc": "2026-11-15T17:57:58.464163Z",
+ "LastCaptureFaultDir": "/Users/soren/Movies/AgentEyes/2026-11-15_125649_video"
+}
+### STATE LEFT 'recording' at inj+46.55s (State=finalizing)
+T +   70.7s (inj+  48.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.2
+T +   72.7s (inj+  50.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +   74.8s (inj+  52.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +   76.8s (inj+  54.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +   78.8s (inj+  56.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=98.1
+T +   80.8s (inj+  58.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.3
+T +   82.9s (inj+  60.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +   84.9s (inj+  62.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +   86.9s (inj+  64.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +   88.9s (inj+  66.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +   90.9s (inj+  68.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=101.0
+T +   93.0s (inj+  70.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=98.8
+T +   95.0s (inj+  72.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +   97.0s (inj+  74.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +   99.0s (inj+  76.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.3
+T +  101.0s (inj+  78.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  103.1s (inj+  80.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  105.1s (inj+  82.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.7
+T +  107.1s (inj+  85.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.8
+T +  109.1s (inj+  87.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.4
+T +  111.2s (inj+  89.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  113.2s (inj+  91.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.7
+T +  115.2s (inj+  93.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  117.2s (inj+  95.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  119.2s (inj+  97.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.6
+T +  121.3s (inj+  99.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +  123.3s (inj+ 101.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  125.3s (inj+ 103.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  127.3s (inj+ 105.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +  129.4s (inj+ 107.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  131.4s (inj+ 109.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.4
+T +  133.4s (inj+ 111.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +  135.4s (inj+ 113.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +  137.5s (inj+ 115.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  139.5s (inj+ 117.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.5
+T +  141.5s (inj+ 119.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=98.9
+T +  143.5s (inj+ 121.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  145.5s (inj+ 123.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.9
+T +  147.6s (inj+ 125.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  149.6s (inj+ 127.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  151.6s (inj+ 129.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  153.6s (inj+ 131.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +  155.6s (inj+ 133.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +  157.7s (inj+ 135.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  159.7s (inj+ 137.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  161.7s (inj+ 139.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.6
+T +  163.7s (inj+ 141.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  165.8s (inj+ 143.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  167.8s (inj+ 145.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  169.8s (inj+ 147.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  171.8s (inj+ 149.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=98.6
+T +  173.8s (inj+ 151.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  175.9s (inj+ 153.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  177.9s (inj+ 155.7s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  179.9s (inj+ 157.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.3
+T +  181.9s (inj+ 159.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.3
+T +  184.0s (inj+ 161.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  186.0s (inj+ 163.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +  188.0s (inj+ 165.8s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  190.0s (inj+ 167.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  192.0s (inj+ 169.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.9
+T +  194.1s (inj+ 171.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +  196.1s (inj+ 173.9s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +  198.1s (inj+ 176.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  200.1s (inj+ 178.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  202.1s (inj+ 180.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  204.2s (inj+ 182.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  206.2s (inj+ 184.0s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.8
+T +  208.2s (inj+ 186.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=98.9
+T +  210.2s (inj+ 188.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +  212.2s (inj+ 190.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.3
+T +  214.3s (inj+ 192.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=96.7
+T +  216.3s (inj+ 194.1s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  218.3s (inj+ 196.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +  220.3s (inj+ 198.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  222.3s (inj+ 200.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.1
+T +  224.4s (inj+ 202.2s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=98.8
+T +  226.4s (inj+ 204.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  228.4s (inj+ 206.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.0
+T +  230.4s (inj+ 208.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  232.5s (inj+ 210.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  234.5s (inj+ 212.3s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=98.6
+T +  236.5s (inj+ 214.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.7
+T +  238.5s (inj+ 216.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.3
+T +  240.6s (inj+ 218.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.1
+T +  242.6s (inj+ 220.4s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  244.6s (inj+ 222.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  246.6s (inj+ 224.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  248.6s (inj+ 226.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.7
+T +  250.7s (inj+ 228.5s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  252.7s (inj+ 230.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=99.6
+T +  254.7s (inj+ 232.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  256.7s (inj+ 234.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  258.8s (inj+ 236.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+T +  260.8s (inj+ 238.6s) State=finalizing  Live=faulted      Fault=capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z Bytes=13102183   SinceGrowth=46      child=T svc_cpu=100.0
+# SUMMARY label=REVERTED-N-sigstop-screen+mic fault_at=46.55461597442627 not_recording_at=46.55461597442627 idle_at=None
+# final child state: pid 24480 -> T
+# remaining ffmpegs: [{"pid": 24480, "state": "T", "cpu": "0.0"}]
+# final /status: {"State": "finalizing", "Mode": "video", "Source": "mic", "ElapsedSeconds": 69.21, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_125649_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 53, "LastStopFailed": true, "LastStopError": "capture watchdog: capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z", "LastStopDir": "/Users/soren/Movies/AgentEyes/2026-11-15_125649_video", "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "faulted", "CaptureFile": "raw.mp4", "CaptureBytes": 13102183, "CaptureLastGrowthUtc": "2026-11-15T17:57:12.42621Z", "CaptureSecondsSinceGrowth": 46, "LastCaptureFault": "capture stalled: raw.mp4 stopped growing at 13102183 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:57:12.426Z", "LastCaptureFaultUtc": "2026-11-15T17:57:58.464163Z", "LastCaptureFaultDir": "/Users/soren/Movies/AgentEyes/2026-11-15_125649_video"}
+# load at end: 13:01  up 2 days, 21:54, 1 user, load averages: 4.29 3.95 4.62
+# UTC end 2026-11-15T18:01:13Z
