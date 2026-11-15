@@ -1,0 +1,34 @@
+Issue #146, criterion 2 - the 48 kHz case still passes, 10 of 10, so the fix is not a trade.
+Windows, SORENLAPTOP, ffmpeg 9.0.2 (%LOCALAPPDATA%\AgentEyes\app\ffmpeg.exe), this branch's AgentEyes.Core build.
+
+WHY THIS IS NOT TEN APP RECORDINGS, said plainly. The app cannot be made to capture this microphone at 48 kHz:
+dshow is given no -sample_rate and picks 44.1 kHz on this Realtek mic. Changing the Windows "Default Format" does
+NOT change that - measured: the endpoint's shared-mode format is ALREADY 2 ch / 16 bit / 48000 Hz (read through
+IPolicyConfig::GetDeviceFormat, nothing written), and dshow still delivers 44100 Hz. So the closest real 48 kHz
+case is:
+  1. CAPTURE: the app's exact capture command (copied from a C1 manifest's FfmpegCommand: gdigrab 1920x1080 30 fps
+     + dshow, thread_queue_size 1024, audio_buffer_size 80, libx264 veryfast crf 23, aac 128k) with ONE addition,
+     "-sample_rate 48000" on the dshow input, and a -t length. The mic accepts 48000 (it is in its dshow mode list).
+     Lengths chosen so every capture ends PART-WAY through a 480-sample frame - four first attempts happened to land
+     on whole frames (AAC's 1024-sample frames align with 480 every 15 frames) and were re-captured, because a
+     whole-frame capture would not exercise the end-of-stream condition at all.
+  2. POST-PROCESS: the product's own call, AudioMix.ProcessVideoMic(raw.mp4, recording.mp4, options) - the call the
+     app's mux stage makes for a mic-only video recording - one folder per capture, with the app's mic-only
+     defaults (denoise on, leveling on, gate off: the chain the app logged for the C1 runs). Run under the
+     product's stall watchdog. The harness was a temporary test file, not committed.
+
+capture   audio rate   decoded samples (mono)   % 480   post-processing            final audio
+run1      48000 Hz     1121232                  432     COMPLETED in 1.9s          aac 48000 Hz 23.36 s
+run2      48000 Hz     1524336                  336     COMPLETED in 2.0s          aac 48000 Hz 31.76 s
+run3      48000 Hz      936864                  384     COMPLETED in 1.6s          aac 48000 Hz 19.52 s
+run4      48000 Hz     1319952                  432     COMPLETED in 1.9s          aac 48000 Hz 27.50 s
+run5      48000 Hz     1682832                  432     COMPLETED in 2.2s          aac 48000 Hz 35.06 s
+run6      48000 Hz     1087104                  384     COMPLETED in 1.3s          aac 48000 Hz 22.65 s
+run7      48000 Hz     1431312                  432     COMPLETED in 1.6s          aac 48000 Hz 29.82 s
+run8      48000 Hz     1229712                  432     COMPLETED in 1.4s          aac 48000 Hz 25.62 s
+run9      48000 Hz     1612848                   48     COMPLETED in 1.7s          aac 48000 Hz 33.61 s
+run10     48000 Hz     1052208                   48     COMPLETED in 1.3s          aac 48000 Hz 21.93 s
+RESULT: 10 of 10 completed
+
+Also in the committed suite: MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(48000) - for a 48 kHz
+source the added resample is a pass-through and arnndn is still fed straight from asetnsamples at 48000 Hz.

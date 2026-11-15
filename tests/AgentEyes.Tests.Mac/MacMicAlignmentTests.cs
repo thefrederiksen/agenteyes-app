@@ -32,11 +32,12 @@ namespace AgentEyes.Tests.Mac
         /// <summary>
         /// The clean-voice chain Opts() produces, spelled out rather than composed from the
         /// product's own constants: a pin that is built the way the thing it pins is built cannot
-        /// fail when that thing changes. Issue #128's sanitizer and arnndn framing are part of it.
+        /// fail when that thing changes. Issue #128's sanitizer and arnndn framing are part of it, and
+        /// so is issue #146's 48 kHz resample, which must sit AHEAD of the framing.
         /// </summary>
         private const string Chain =
             "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,"
-            + "aformat=channel_layouts=mono,asetnsamples=n=480:p=1,"
+            + "aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,"
             + "arnndn=m='/Users/u/Library/Application Support/AgentEyes/models/bd.rnnn',"
             + "agate=threshold=0.02:ratio=2:attack=20:release=250,speechnorm=e=4:p=0.95,volume=1[m]";
 

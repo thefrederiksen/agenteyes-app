@@ -1,0 +1,36 @@
+Issue #146, criterion 5 - denoise and leveling are still APPLIED, not dropped to make the chain complete.
+Windows, SORENLAPTOP, ffmpeg 9.0.2. Method: the FULL default chain against the same chain with ONE stage turned off,
+so any difference is that stage's own effect. RMS is overall RMS of the decoded output.
+
+== A. Committed regression tests (MicChainSampleRateTests - opt-in, AGENTEYES_FFMPEG_TESTS=1, because they launch
+   ffmpeg), 44.1 kHz stereo s16 sources, through the shipped
+   pass-1 builder FfmpegArgs.FilterMicToWav, run under the product's stall watchdog. Last run's numbers:
+   MicChain_44kNoise_DenoiseIsStillApplied:   white noise, RMS with denoise -44.6 dB, with denoise off -15.7 dB
+                                              -> 28.9 dB removed (asserted floor: 12 dB)
+   MicChain_44kQuietVoice_LevelingIsStillApplied: quiet tone, RMS with leveling -55.1 dB, with leveling off -67.1 dB
+                                              -> +12.0 dB, exactly speechnorm e=4 (asserted floor: 6 dB)
+   Both also assert every output sample is finite.
+
+== B. The ten real C1 recordings. recording.original.mp4 is the UNPROCESSED capture packaging keeps (44.1 kHz AAC);
+   recording.mp4 is what the app produced. The two counterfactual columns run the shipped chain over the original
+   with one stage removed.
+
+recording              original    final(app)  final with denoise off  final with leveling off
+2026-11-15_122409     -97.48 dB   -85.53 dB   -85.44 dB               -97.47 dB
+2026-11-15_122442     -96.94 dB   -84.97 dB   -84.90 dB               -96.92 dB
+2026-11-15_122522     -97.48 dB   -85.55 dB   -85.44 dB               -97.47 dB
+2026-11-15_122551     -97.44 dB   -85.51 dB   -85.40 dB               -97.43 dB
+2026-11-15_122627     -97.41 dB   -85.47 dB   -85.37 dB               -97.39 dB
+2026-11-15_122712     -97.42 dB   -85.47 dB   -85.38 dB               -97.40 dB
+2026-11-15_122743     -97.40 dB   -85.45 dB   -85.36 dB               -97.38 dB
+2026-11-15_122821     -97.45 dB   -85.49 dB   -85.41 dB               -97.44 dB
+2026-11-15_122856     -97.43 dB   -85.49 dB   -85.39 dB               -97.42 dB
+2026-11-15_122938     -97.51 dB   -85.56 dB   -85.47 dB               -97.50 dB
+
+   LEVELING: applied in all ten - the app's output is +12.0 dB over the leveling-off counterfactual.
+   DENOISE: NOT demonstrable on these recordings, and not claimed from them. This laptop microphone captured about
+   -97 dBFS - effectively digital silence (nobody speaking, no room noise reaching it) - so there is nothing for
+   arnndn to remove: denoise on and off differ by about 0.1 dB. That is a broken instrument for denoise, not a pass.
+   Denoise is proven by A (29 dB removed from a 44.1 kHz noise source through the shipped builder) and by the
+   executed-graph test, which shows arnndn present and fed 48 kHz frames for every source rate
+   (c3-order-pinned.txt). A QA run with real speech or room noise on a 44.1 kHz mic would close this on a real capture.

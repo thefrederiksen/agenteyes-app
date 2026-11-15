@@ -66,6 +66,7 @@
          three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
          graph, because on macOS that command never finalizes. -->
     <Compile Include="../Shared/FfmpegMuxShapeTests.cs" Link="Shared/FfmpegMuxShapeTests.cs" />
+    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
   </ItemGroup>
 
 </Project>
