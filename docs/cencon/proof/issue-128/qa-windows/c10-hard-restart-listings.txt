@@ -1,0 +1,13 @@
+--- process listing BEFORE hard restart at 12:39:42.949 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+ 22000 ppid  14160 AgentEyesApp.exe  cpu    1.5s  "C:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe" --tray 
+   336 ppid  22000 ffmpeg.exe        cpu    9.2s  "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex [0:a]arnndn=m='C\:/Users/soren/AppData/Local/AgentEyes/models/bd.rnnn',s...
+instrument check: 291 processes total visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System, 184 Registry
+record: 336.json {"Pid":336,"StartUtc":"2026-11-14T17:39:34.342745Z","OwnerPid":22000,"OwnerStartUtc":"2026-11-14T17:39:12.5798027Z","Label":"process mic audio"}
+manifest mux: {"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T17:39:34.291769Z"}
+Stop-Process -Id 22000 -Force at 12:39:54.300
+--- process listing AFTER force-kill of app at 12:39:57.371 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+(none of the three names running)
+instrument check: 289 processes total visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System, 184 Registry
+pid 336 alive? False
+record left behind: 336.json
+recording.mp4 at final path after kill: 18350128 bytes

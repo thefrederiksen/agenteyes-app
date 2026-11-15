@@ -1,0 +1,171 @@
+"""Issue #128 round three mutation harness (QA copy: developer list plus QA mutations Q1-Q5).
+
+One mutation at a time against the committed head: apply exact single-occurrence replacements,
+full build, full suite on the pinned ffmpeg, record failures BY NAME and the ffmpeg count, restore
+with git checkout, and prove the restore with an empty `git diff -- src tests`.
+Usage: python mutate.py <repo> <outfile> [ids...]
+"""
+import os, re, subprocess, sys, time
+
+REPO = sys.argv[1]
+OUT = sys.argv[2]
+ONLY = set(sys.argv[3:])
+FF = r"C:\Users\soren\AppData\Local\AgentEyes\app"
+
+RS = "src/AgentEyes.Core/RecordingService.cs"
+PR = "src/AgentEyes.Core/PostRecording.cs"
+PP = "src/AgentEyes.Core/PostRecordingPlan.cs"
+MC = "src/AgentEyes.Core/MuxCoordinator.cs"
+PK = "src/AgentEyes.Core/Package.cs"
+ML = "src/AgentEyes.Core/MuxLock.cs"
+AM = "src/AgentEyes.Core/Audio/AudioMix.cs"
+FA = "src/AgentEyes.Core/Video/FfmpegArgs.cs"
+FM = "src/AgentEyes.Core/Video/Ffmpeg.cs"
+TH = "src/AgentEyes.Core/Thumbnails.cs"
+TB = "src/AgentEyes.Core/TranscriptionBacklog.cs"
+
+M13 = (PR, '+ "there is no final media, so no later stage can run");\n                        return outcome;',
+           '+ "there is no final media, so no later stage can run");\n                        /*M13*/')
+N5 = (PP, 'so all three later stages agree.\n            if (m.PendingMux != null) return false;',
+          'so all three later stages agree.\n            /*N5*/')
+
+MUTATIONS = [
+    ("M1", "D1: FinalizePending takes no mux lock",
+     [(RS, 'using var muxLock = MuxLock.Acquire(dir, "finalize");', '/*M1*/')]),
+    ("M2", "D1: the package path does not count the attempt",
+     [(MC, '            PostRecordingState.NoteStarted(dir, PostStage.Mux);\n            try\n            {\n                RecordingService.FinalizePending(dir);',
+           '            /*M2*/\n            try\n            {\n                RecordingService.FinalizePending(dir);')]),
+    ("M3", "D1: Package.RunAsync reverted to round one's two calls",
+     [(PK, '            MuxCoordinator.RunForPackage(dir);\n', '            RefuseExhaustedMux(dir);\n            RecordingService.FinalizePending(dir);\n')]),
+    ("M4", "D1: the runner ignores a lock held elsewhere",
+     [(PR, '                    if (muxLock == null)\n', '                    if (false)\n')]),
+    ("M16", "D1: lock file opened shareable instead of exclusive",
+     [(ML, 'FileAccess.ReadWrite, FileShare.None, bufferSize: 1);', 'FileAccess.ReadWrite, FileShare.ReadWrite, bufferSize: 1);')]),
+    ("M5", "D2: a dead running attempt is not recorded as failed",
+     [(MC, '                PostRecordingState.NoteFailed(dir, PostStage.Mux, error);\n            }\n\n            RemoveFragment(dir, p);',
+           '                /*M5*/\n            }\n\n            RemoveFragment(dir, p);')]),
+    ("M6", "D2: the fragment at the final path is not removed",
+     [(MC, '            File.Delete(finalPath);\n', '            /*M6*/\n')]),
+    ("M14", "D2: the runner does not call Reconcile",
+     [(PR, '                    MuxCoordinator.Reconcile(dir);\n', '                    /*M14*/\n')]),
+    ("M7", "D2: NeedsThumb trusts a file at the final path while the mux is pending",
+     [(TH, '            if (m.PendingMux != null) return false;\n', '            /*M7*/\n')]),
+    ("M8", "D2: NeedsTranscription does the same",
+     [(TB, '            if (TryLoad(dir)?.PendingMux != null) return false;\n', '            /*M8*/\n')]),
+    ("M9", "D3: arnndn framing removed",
+     [(FA, "denoise = $\"{ArnndnFraming},arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',\";",
+           "denoise = $\"arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',\";")]),
+    ("M10", "D4: RunStage calls the unwatched Ffmpeg.Run",
+     [(AM, 'Ffmpeg.RunWatched(args, label, Ffmpeg.CurrentPostProcessStallTimeout);', 'Ffmpeg.Run(args, label);')]),
+    ("M11", "D4: RunStage ignores the per-flow bound (fixed 60 s)",
+     [(AM, 'Ffmpeg.RunWatched(args, label, Ffmpeg.CurrentPostProcessStallTimeout);', 'Ffmpeg.RunWatched(args, label, Ffmpeg.PostProcessStallTimeout);')]),
+    ("M15", "QA mutation B: RunWatched with no stall guard",
+     [(FM, '            => RunCore(args, label, stallTimeout);', '            => RunCore(args, label, null);')]),
+    ("M12", "D5: a cleanup failure replaces the stage error",
+     [(AM, '                throw new UsageException(msg, stageError);', '                throw;')]),
+    ("M17", "D7: sanitizer output not pinned to the mic layout",
+     [(FA, 'FiniteSamples + "," + PinMicLayout(o) + "," : "";', 'FiniteSamples + "," : "";')]),
+    ("M18", "D6: RunCore calls a raw KillOnCloseJob.Assign",
+     [(FM, 'if (OperatingSystem.IsWindows()) TieToLifetime(p, label);', 'if (OperatingSystem.IsWindows()) AgentEyes.AlwaysOn.KillOnCloseJob.Assign(p);')]),
+    ("M19", "D6: an already-exited child is treated like a live one",
+     [(FM, 'catch (System.ComponentModel.Win32Exception ex) when (p.HasExited)', 'catch (System.ComponentModel.Win32Exception ex) when (false)')]),
+    ("M13", "D2: the runner goes on to later stages when the mux is out of attempts (alone)", [M13]),
+    # ---- round three ----
+    ("N1", "R2-1: NeedsMuxReconcile always false (discovery blind again)",
+     [(PP, '            return deadAttempt || MuxCoordinator.IsProvenComplete(dir, m.PendingMux);', '            return false;')]),
+    ("N2", "R2-1: Outstanding does not consult NeedsMuxReconcile",
+     [(PP, 'if (NeedsMux(dir) || NeedsMuxReconcile(dir)) stages.Add(PostStage.Mux);', 'if (NeedsMux(dir)) stages.Add(PostStage.Mux);')]),
+    ("N3", "R2-3: Reconcile does not publish a proven-complete mux (round two behaviour)",
+     [(MC, '            if (IsProvenComplete(dir, p))\n', '            if (false)\n')]),
+    ("N9", "R2-3: Execute does not continue after Reconcile published the mux",
+     [(PR, '                    if (Manifest.Load(dir).PendingMux == null)\n', '                    if (false)\n')]),
+    ("N8", "R2-3: the publication records only backups renamed by this call",
+     [(RS, '            OriginalBackup.Preserve(dir, p.Mode, src);\n            var originals = OriginalBackup.Present(dir, p.Mode, src);',
+           '            var originals = OriginalBackup.Preserve(dir, p.Mode, src);')]),
+    ("N4", "R2-3: FinalizePending starts ffmpeg with a missing input",
+     [(RS, '                if (input != null && !File.Exists(input))\n', '                if (false)\n')]),
+    ("N5", "R2-4: NeedsCompose has no PendingMux guard", [N5]),
+    ("N7", "R2-4: M13 and the compose guard both removed", [M13, N5]),
+    # ---- QA round three, own mutations ----
+    ("Q1", "R2-2 test side: the FRAMED run in the instrument test loses its framing",
+     [("tests/AgentEyes.Tests/MicChainStallTests.cs", "var framed = NonFiniteAfter($\"{FfmpegArgs.ArnndnFraming},arnndn=m='{model}'\", samples, layout);",
+       "var framed = NonFiniteAfter($\"arnndn=m='{model}'\", samples, layout);")]),
+    ("Q2", "R2-2 product side: the framing constant becomes a no-op filter",
+     [(FA, 'internal const string ArnndnFraming = "asetnsamples=n=480:p=1";', 'internal const string ArnndnFraming = "anull";')]),
+    ("Q3", "R2-1: a SETTLED (failed) mux record still counts as needing reconcile - resurrection every tick",
+     [(PP, "bool deadAttempt = record != null && string.Equals(record.State, PostStageState.Running, StringComparison.Ordinal);",
+           "bool deadAttempt = record != null;")]),
+    ("Q4", "R2-3: a missing input counts as proof of completion even with NO backup",
+     [("src/AgentEyes.Core/OriginalBackup.cs", "if (!File.Exists(Path.Combine(dir, r.From)) && File.Exists(Path.Combine(dir, r.To)))",
+       "if (!File.Exists(Path.Combine(dir, r.From)))")]),
+    ("Q5", "R2-1: NeedsMuxReconcile ignores the proven-complete arm (dead attempt only)",
+     [(PP, "return deadAttempt || MuxCoordinator.IsProvenComplete(dir, m.PendingMux);", "return deadAttempt;")]),
+]
+
+
+def run(cmd, env=None, timeout=1800):
+    e = dict(os.environ)
+    if env: e.update(env)
+    return subprocess.run(cmd, cwd=REPO, env=e, capture_output=True, text=True, timeout=timeout, shell=isinstance(cmd, str))
+
+
+def ffmpeg_count():
+    r = run(["tasklist", "/FI", "IMAGENAME eq ffmpeg.exe"])
+    return r.stdout.lower().count("ffmpeg.exe")
+
+
+def diff_empty():
+    return run(["git", "diff", "--quiet", "--", "src", "tests"]).returncode == 0
+
+
+def apply(edits):
+    for path, old, new in edits:
+        full = os.path.join(REPO, path)
+        with open(full, encoding="utf-8", newline="") as f:
+            s = f.read()
+        if "\r\n" in s:
+            old_, new_ = old.replace("\n", "\r\n"), new.replace("\n", "\r\n")
+        else:
+            old_, new_ = old, new
+        n = s.count(old_)
+        if n != 1:
+            raise RuntimeError(f"{path}: anchor found {n} times: {old[:80]!r}")
+        with open(full, "w", encoding="utf-8", newline="") as f:
+            f.write(s.replace(old_, new_))
+
+
+def restore(edits):
+    files = sorted({p for p, _, _ in edits})
+    run(["git", "checkout", "--"] + files)
+
+
+out = open(OUT, "a", encoding="ascii", errors="replace")
+def w(line):
+    print(line, flush=True); out.write(line + "\n"); out.flush()
+
+head = run(["git", "rev-parse", "--short", "HEAD"]).stdout.strip()
+w(f"# mutation run at {head}, {time.strftime('%Y-%m-%d %H:%M:%S')}, ffmpeg dir {FF}")
+w(f"restore baseline: diff empty = {diff_empty()}")
+for mid, desc, edits in MUTATIONS:
+    if ONLY and mid not in ONLY: continue
+    t0 = time.time()
+    try:
+        apply(edits)
+        b = run(["dotnet", "build", "AgentEyes.sln", "-c", "Release"])
+        if "0 Error(s)" not in b.stdout:
+            errs = [l.strip() for l in b.stdout.splitlines() if " error " in l][:3]
+            w(f"{mid} | {desc} | BUILD FAILED | {errs}")
+            continue
+        t = run(["dotnet", "test", "AgentEyes.sln", "-c", "Release", "--no-build"], env={"QA_RECORD_FFMPEG_DIR": FF})
+        summary = [l.strip() for l in t.stdout.splitlines() if l.strip().startswith(("Passed!", "Failed!"))]
+        failed = sorted({re.sub(r"\s*\[.*$", "", l.strip()[len("Failed "):]) for l in t.stdout.splitlines()
+                         if l.strip().startswith("Failed AgentEyes")})
+        w(f"{mid} | {desc} | {'; '.join(s.split(' - ')[0] for s in summary)} | ffmpeg left {ffmpeg_count()} | {int(time.time()-t0)}s")
+        for f in failed: w(f"    {f}")
+        if not failed: w("    (no test failed - SURVIVES)")
+    finally:
+        restore(edits)
+        w(f"    restored, diff empty = {diff_empty()}")
+
+b = run(["dotnet", "build", "AgentEyes.sln", "-c", "Release"])
+w(f"final rebuild: {'0 Error(s)' in b.stdout}; diff empty = {diff_empty()}")

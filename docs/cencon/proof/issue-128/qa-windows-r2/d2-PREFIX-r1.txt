@@ -1,0 +1,109 @@
+=== d2-PREFIX-r1 app=C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+launch 1 app pid 11020 at 15:46:37.428
+--- launch 1, mux running at 15:47:03.415 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+   11020 ppid  20036 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.App\bin\x64\Release\net...
+    4104 ppid  11020 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14... | output-arg: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4
+  instrument check: 296 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T20:46:58.7646742Z"}}
+--- launch 1, 2 s after Stop-Process -Force at 15:47:05.716 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+  (none of the three are running)
+  instrument check: 289 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  fragment at final path: 18350128 bytes; PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T20:46:58.7646742Z"}}
+launch 2 app pid 13068 at 15:47:05.746
+--- launch 2, mux running at 15:47:30.777 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+   13068 ppid  20036 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.App\bin\x64\Release\net...
+    8408 ppid  13068 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14... | output-arg: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4
+  instrument check: 295 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":2,"LastAttemptUtc":"2026-11-14T20:47:26.2329999Z"}}
+--- launch 2, 2 s after Stop-Process -Force at 15:47:33.127 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+  (none of the three are running)
+  instrument check: 296 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  fragment at final path: 18350128 bytes; PostProcessing: {"mux":{"State":"running","Attempts":2,"LastAttemptUtc":"2026-11-14T20:47:26.2329999Z"}}
+launch 3 app pid 20108 at 15:47:33.170
+--- launch 3, mux running at 15:47:58.573 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+   20108 ppid  20036 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.App\bin\x64\Release\net...
+    3680 ppid  20108 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14... | output-arg: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4
+  instrument check: 293 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":3,"LastAttemptUtc":"2026-11-14T20:47:54.0717312Z"}}
+--- launch 3, 2 s after Stop-Process -Force at 15:48:00.751 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+  (none of the three are running)
+  instrument check: 290 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  fragment at final path: 18350128 bytes; PostProcessing: {"mux":{"State":"running","Attempts":3,"LastAttemptUtc":"2026-11-14T20:47:54.0717312Z"}}
+before launch 4: ThumbAttempts=0 TranscribeAttempts=0
+launch 4 app pid 14160 at 15:48:00.779; waiting 90 s
+--- launch 4, after 90 s at 15:49:31.051 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+   14160 ppid  20036 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.App\bin\x64\Release\net...
+  instrument check: 290 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":3,"LastAttemptUtc":"2026-11-14T20:47:54.0717312Z"},"thumbnail":{"State":"failed","Attempts":1,"LastAttemptUtc":"2026-11-14T20:48:21.3766701Z","Error":"ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 0000025766e72d80] moov atom not found\r\n[in#0 @ 0000025766e72b40] Error opening input: Invalid data found when processing input\r\nError opening input file C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_210300_qa128r2prekill\\recording.mp4.\r\n"},"package":{"State":"failed","Attempts":1,"LastAttemptUtc":"2026-11-14T20:48:21.4071992Z","Error":"the audio mux for 2026-11-14_210300_qa128r2prekill failed 3 time(s) and is not retried automatically (limit 3); there is no final media to package. Last error: (no error recorded)"}}
+  ThumbAttempts=2 TranscribeAttempts=1
+  recording.mp4 present: True; thumb.jpg present: False
+  files: manifest.json(1882), raw.mp4(72476673), recording.mp4(18350128)
+--- log lines naming this recording from launch 4 (pid 14160):
+15:48:21.232 [pid 14160] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-14_210300_qa128r2prekill needs thumbnail, package
+15:48:21.243 [pid 14160] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-14_210300_qa128r2prekill#1 (no claim)
+15:48:21.244 [pid 14160] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill hostedWork=True
+15:48:21.245 [pid 14160] [INFO] [PostRecording] TrackWork: resume 2026-11-14_210300_qa128r2prekill (in flight=1)
+15:48:21.248 [pid 14160] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill claimed by FullPipeline/resume#2
+15:48:21.249 [pid 14160] [INFO] [PostRecording] Execute: 2026-11-14_210300_qa128r2prekill - nothing to mux
+15:48:21.250 [pid 14160] [INFO] [PostRecording] Execute: 2026-11-14_210300_qa128r2prekill - no camera to compose
+15:48:21.251 [pid 14160] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-14_210300_qa128r2prekill
+15:48:21.252 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.278 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill written
+15:48:21.278 [pid 14160] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-14_210300_qa128r2prekill attempt 1/3
+15:48:21.297 [pid 14160] [INFO] ffmpeg [poster thumbnail]: "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -ss 9 -i C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\thumb.jpg
+15:48:21.354 [pid 14160] [ERROR] Error opening input file C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4.
+15:48:21.374 [pid 14160] [ERROR] [PostRecording] stage thumbnail FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.374 [pid 14160] [ERROR] Error opening input file C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4.
+15:48:21.375 [pid 14160] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_210300_qa128r2prekill stage=thumbnail error=ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 0000025766e72d80] moov atom not found
+15:48:21.375 [pid 14160] [INFO] Error opening input file C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4.
+15:48:21.375 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.380 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill written
+15:48:21.390 [pid 14160] [INFO] [PostRecording] stage package: start dir=2026-11-14_210300_qa128r2prekill
+15:48:21.391 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.394 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill written
+15:48:21.395 [pid 14160] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-14_210300_qa128r2prekill attempt 1/3
+15:48:21.403 [pid 14160] [ERROR] [Package] RefuseExhaustedMux: the audio mux for 2026-11-14_210300_qa128r2prekill failed 3 time(s) and is not retried automatically (limit 3); there is no final media to package. Last error: (no error recorded)
+15:48:21.405 [pid 14160] [ERROR] [PostRecording] stage package FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.405 [pid 14160] [ERROR] AgentEyes.UsageException: the audio mux for 2026-11-14_210300_qa128r2prekill failed 3 time(s) and is not retried automatically (limit 3); there is no final media to package. Last error: (no error recorded)
+15:48:21.406 [pid 14160] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_210300_qa128r2prekill stage=package error=the audio mux for 2026-11-14_210300_qa128r2prekill failed 3 time(s) and is not retried automatically (limit 3); there is no final media to package. Last error: (no error recorded)
+15:48:21.406 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.410 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill written
+15:48:21.412 [pid 14160] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill released by FullPipeline/resume#2
+15:48:21.413 [pid 14160] [INFO] [PostRecording] TrackWork released: resume 2026-11-14_210300_qa128r2prekill (in flight=0)
+15:48:21.415 [pid 14160] [INFO] [RecordingWorkset] EndStep: resume 2026-11-14_210300_qa128r2prekill#1 (no claim) finished
+15:48:21.484 [pid 14160] [INFO] [RecordingWorkset] TryAdmitStep: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill admitted for thumbnail repair#4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill#3
+15:48:21.485 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.492 [pid 14160] [INFO] [ManifestStore] Update: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill written
+15:48:21.493 [pid 14160] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-14_210300_qa128r2prekill attempt 2/3
+15:48:21.502 [pid 14160] [INFO] ffmpeg [poster thumbnail]: "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -ss 9 -i C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\thumb.jpg
+15:48:21.544 [pid 14160] [ERROR] Error opening input file C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4.
+15:48:21.545 [pid 14160] [ERROR] [RepairService] thumb repair C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.545 [pid 14160] [ERROR] Error opening input file C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4.
+15:48:21.545 [pid 14160] [INFO] [RecordingWorkset] EndStep: thumbnail repair#4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill#3 finished
+15:48:21.546 [pid 14160] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill released by Stage/thumbnail repair#3
+--- any thumbnail / transcribe / package activity by pid 14160 (any recording):
+15:48:21.232 [pid 14160] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-14_210300_qa128r2prekill needs thumbnail, package
+15:48:21.232 [pid 14160] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+15:48:21.251 [pid 14160] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-14_210300_qa128r2prekill
+15:48:21.278 [pid 14160] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-14_210300_qa128r2prekill attempt 1/3
+15:48:21.297 [pid 14160] [INFO] ffmpeg [poster thumbnail]: "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -ss 9 -i C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\thumb.jpg
+15:48:21.354 [pid 14160] [ERROR] ffmpeg [poster thumbnail] failed (exit -1094995529). [in#0 @ 0000025766e72d80] moov atom not found
+15:48:21.374 [pid 14160] [ERROR] [PostRecording] stage thumbnail FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill
+15:48:21.374 [pid 14160] [ERROR] AgentEyes.UsageException: ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 0000025766e72d80] moov atom not found
+15:48:21.374 [pid 14160] [ERROR]    at AgentEyes.Thumbnails.Ensure(String dir) in C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\Thumbnails.cs:line 73
+15:48:21.375 [pid 14160] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_210300_qa128r2prekill stage=thumbnail error=ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 0000025766e72d80] moov atom not found
+15:48:21.395 [pid 14160] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-14_210300_qa128r2prekill attempt 1/3
+15:48:21.403 [pid 14160] [ERROR] [Package] RefuseExhaustedMux: the audio mux for 2026-11-14_210300_qa128r2prekill failed 3 time(s) and is not retried automatically (limit 3); there is no final media to package. Last error: (no error recorded)
+15:48:21.461 [pid 14160] [INFO] [TranscriptionBacklog] FindMissingTitles: root=C:\Users\soren\Videos\AgentEyes, pending=0
+15:48:21.481 [pid 14160] [INFO] [Thumbnails] FindMissing: root=C:\Users\soren\Videos\AgentEyes, missing=1
+15:48:21.483 [pid 14160] [INFO] [RepairService] ThumbsAsync: 1 recording(s) missing a thumbnail
+15:48:21.484 [pid 14160] [INFO] [RecordingWorkset] TryAdmitStep: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill admitted for thumbnail repair#4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill#3
+15:48:21.493 [pid 14160] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-14_210300_qa128r2prekill attempt 2/3
+15:48:21.502 [pid 14160] [INFO] ffmpeg [poster thumbnail]: "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -ss 9 -i C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill\thumb.jpg
+15:48:21.544 [pid 14160] [ERROR] ffmpeg [poster thumbnail] failed (exit -1094995529). [in#0 @ 000002216f121d00] moov atom not found
+15:48:21.545 [pid 14160] [ERROR] AgentEyes.UsageException: ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 000002216f121d00] moov atom not found
+15:48:21.545 [pid 14160] [ERROR]    at AgentEyes.Thumbnails.Ensure(String dir) in C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\Thumbnails.cs:line 73
+15:48:21.545 [pid 14160] [INFO] [RecordingWorkset] EndStep: thumbnail repair#4 C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill#3 finished
+15:48:21.546 [pid 14160] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-14_210300_qa128r2prekill released by Stage/thumbnail repair#3
+launch 4 stopped

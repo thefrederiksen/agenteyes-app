@@ -1,0 +1,5 @@
+2026-11-14T20:07:06.0111873Z   Failed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [302 ms]
+2026-11-14T20:07:06.0113272Z   Error Message:
+2026-11-14T20:07:06.0115242Z    ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers no longer emits arnndn's end-of-stream NaN frame - the D3 tests no longer exercise the defect on CI
+2026-11-14T20:07:06.0121140Z  ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone: exit 0, 0 non-finite of 480480 | framed: exit 0, 0 of 480480
+2026-11-14T20:07:29.5349796Z Failed!  - Failed:     1, Passed:  2347, Skipped:     0, Total:  2348, Duration: 54 s - AgentEyes.Tests.dll (net8.0)

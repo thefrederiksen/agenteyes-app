@@ -1,0 +1,149 @@
+=== r23-PREFIX-537a1bd app=<qa-scratch>\wt-preA\src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+--- initial state
+  [2026-11-15_101000_qa128r3pubpre]
+    PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-15T15:00:00Z"}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1867), recording.mp4(12515040), recording.original.mp4(14257878)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonepre]
+    PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-15T15:00:00Z"}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1867), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+launch 1 app pid 2636 at 10:12:41.178; waiting 60 s
+--- after launch 1
+  [2026-11-15_101000_qa128r3pubpre]
+    PostProcessing: {"mux":{"State":"failed","Attempts":2,"LastAttemptUtc":"2026-11-15T15:13:01.7449349Z","Error":"could not read the audio channel count of C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101000_qa128r3pubpre\\raw.mp4 (ffprobe said: \u0027\u0027). The mic chain cannot be built without it."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1283), mux.lock(0), recording.mp4(12515040), recording.original.mp4(14257878)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonepre]
+    PostProcessing: {"mux":{"State":"failed","Attempts":2,"LastAttemptUtc":"2026-11-15T15:13:01.8571457Z","Error":"could not read the audio channel count of C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101100_qa128r3gonepre\\raw.mp4 (ffprobe said: \u0027\u0027). The mic chain cannot be built without it."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1284), mux.lock(0), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+    ffmpeg alive now: 0
+--- log lines from pid 2636 naming either recording, plus FindUnfinished summaries:
+10:13:01.685 [pid 2636] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_101000_qa128r3pubpre needs mux
+10:13:01.686 [pid 2636] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_101100_qa128r3gonepre needs mux
+10:13:01.686 [pid 2636] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=2
+10:13:01.694 [pid 2636] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_101000_qa128r3pubpre#1 (no claim)
+10:13:01.695 [pid 2636] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre hostedWork=True
+10:13:01.696 [pid 2636] [INFO] [PostRecording] TrackWork: resume 2026-11-15_101000_qa128r3pubpre (in flight=1)
+10:13:01.699 [pid 2636] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre claimed by FullPipeline/resume#2
+10:13:01.701 [pid 2636] [INFO] [MuxLock] TryAcquire: 2026-11-15_101000_qa128r3pubpre (post-recording) - acquired by pid 2636
+10:13:01.702 [pid 2636] [INFO] [MuxCoordinator] Reconcile: 2026-11-15_101000_qa128r3pubpre
+10:13:01.703 [pid 2636] [ERROR] [MuxCoordinator] Reconcile: 2026-11-15_101000_qa128r3pubpre - interrupted: mux attempt 1 (started 2026-11-15T15:00:00.0000000Z) never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way through
+10:13:01.704 [pid 2636] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101000_qa128r3pubpre stage=mux error=interrupted: mux attempt 1 (started 2026-11-15T15:00:00.0000000Z) never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way through
+10:13:01.733 [pid 2636] [ERROR] [MuxCoordinator] RemoveFragment: 2026-11-15_101000_qa128r3pubpre - recording.mp4 exists, the mux is still marked pending, but its input raw.mp4 is gone (already preserved as the original): the mux completed and only its manifest update was lost. The file is KEPT.
+10:13:01.745 [pid 2636] [INFO] [PostRecordingState] NoteStarted: 2026-11-15_101000_qa128r3pubpre stage=mux
+10:13:01.750 [pid 2636] [INFO] [PostRecording] stage mux: start dir=2026-11-15_101000_qa128r3pubpre
+10:13:01.765 [pid 2636] [INFO] [MuxLock] TryAcquire: 2026-11-15_101000_qa128r3pubpre (finalize) - re-entered, depth 2
+10:13:01.765 [pid 2636] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre
+10:13:01.767 [pid 2636] [INFO] [MediaProbe] AudioChannels: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4
+10:13:01.818 [pid 2636] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:13:01.835 [pid 2636] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre
+10:13:01.835 [pid 2636] [ERROR] AgentEyes.UsageException: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:13:01.835 [pid 2636] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101000_qa128r3pubpre stage=mux error=could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:13:01.841 [pid 2636] [INFO] [PostRecording] Execute: 2026-11-15_101000_qa128r3pubpre - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:13:01.842 [pid 2636] [INFO] [MuxLock] Release: 2026-11-15_101000_qa128r3pubpre - released by pid 2636
+10:13:01.844 [pid 2636] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre released by FullPipeline/resume#2
+10:13:01.845 [pid 2636] [INFO] [PostRecording] TrackWork released: resume 2026-11-15_101000_qa128r3pubpre (in flight=0)
+10:13:01.847 [pid 2636] [INFO] [RecordingWorkset] EndStep: resume 2026-11-15_101000_qa128r3pubpre#1 (no claim) finished
+10:13:01.848 [pid 2636] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_101100_qa128r3gonepre#3 (no claim)
+10:13:01.849 [pid 2636] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre hostedWork=True
+10:13:01.849 [pid 2636] [INFO] [PostRecording] TrackWork: resume 2026-11-15_101100_qa128r3gonepre (in flight=1)
+10:13:01.849 [pid 2636] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre claimed by FullPipeline/resume#4
+10:13:01.851 [pid 2636] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonepre (post-recording) - acquired by pid 2636
+10:13:01.851 [pid 2636] [INFO] [MuxCoordinator] Reconcile: 2026-11-15_101100_qa128r3gonepre
+10:13:01.852 [pid 2636] [ERROR] [MuxCoordinator] Reconcile: 2026-11-15_101100_qa128r3gonepre - interrupted: mux attempt 1 (started 2026-11-15T15:00:00.0000000Z) never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way through
+10:13:01.852 [pid 2636] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101100_qa128r3gonepre stage=mux error=interrupted: mux attempt 1 (started 2026-11-15T15:00:00.0000000Z) never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way through
+10:13:01.856 [pid 2636] [ERROR] [MuxCoordinator] RemoveFragment: 2026-11-15_101100_qa128r3gonepre - recording.mp4 exists, the mux is still marked pending, but its input raw.mp4 is gone (already preserved as the original): the mux completed and only its manifest update was lost. The file is KEPT.
+10:13:01.857 [pid 2636] [INFO] [PostRecordingState] NoteStarted: 2026-11-15_101100_qa128r3gonepre stage=mux
+10:13:01.861 [pid 2636] [INFO] [PostRecording] stage mux: start dir=2026-11-15_101100_qa128r3gonepre
+10:13:01.869 [pid 2636] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonepre (finalize) - re-entered, depth 2
+10:13:01.869 [pid 2636] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre
+10:13:01.869 [pid 2636] [INFO] [MediaProbe] AudioChannels: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4
+10:13:01.914 [pid 2636] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:13:01.914 [pid 2636] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre
+10:13:01.914 [pid 2636] [ERROR] AgentEyes.UsageException: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:13:01.915 [pid 2636] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101100_qa128r3gonepre stage=mux error=could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:13:01.919 [pid 2636] [INFO] [PostRecording] Execute: 2026-11-15_101100_qa128r3gonepre - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:13:01.919 [pid 2636] [INFO] [MuxLock] Release: 2026-11-15_101100_qa128r3gonepre - released by pid 2636
+10:13:01.920 [pid 2636] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre released by FullPipeline/resume#4
+10:13:01.920 [pid 2636] [INFO] [PostRecording] TrackWork released: resume 2026-11-15_101100_qa128r3gonepre (in flight=0)
+10:13:01.920 [pid 2636] [INFO] [RecordingWorkset] EndStep: resume 2026-11-15_101100_qa128r3gonepre#3 (no claim) finished
+launch 2 app pid 3572 at 10:13:43.418; waiting 60 s
+--- after launch 2
+  [2026-11-15_101000_qa128r3pubpre]
+    PostProcessing: {"mux":{"State":"failed","Attempts":3,"LastAttemptUtc":"2026-11-15T15:14:03.8774828Z","Error":"could not read the audio channel count of C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101000_qa128r3pubpre\\raw.mp4 (ffprobe said: \u0027\u0027). The mic chain cannot be built without it."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1283), mux.lock(0), recording.mp4(12515040), recording.original.mp4(14257878)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonepre]
+    PostProcessing: {"mux":{"State":"failed","Attempts":3,"LastAttemptUtc":"2026-11-15T15:14:04.0017126Z","Error":"could not read the audio channel count of C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101100_qa128r3gonepre\\raw.mp4 (ffprobe said: \u0027\u0027). The mic chain cannot be built without it."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1284), mux.lock(0), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+    ffmpeg alive now: 0
+--- log lines from pid 3572 naming either recording, plus FindUnfinished summaries:
+10:14:03.858 [pid 3572] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_101000_qa128r3pubpre needs mux
+10:14:03.859 [pid 3572] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_101100_qa128r3gonepre needs mux
+10:14:03.860 [pid 3572] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=2
+10:14:03.868 [pid 3572] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_101000_qa128r3pubpre#1 (no claim)
+10:14:03.869 [pid 3572] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre hostedWork=True
+10:14:03.870 [pid 3572] [INFO] [PostRecording] TrackWork: resume 2026-11-15_101000_qa128r3pubpre (in flight=1)
+10:14:03.873 [pid 3572] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre claimed by FullPipeline/resume#2
+10:14:03.875 [pid 3572] [INFO] [MuxLock] TryAcquire: 2026-11-15_101000_qa128r3pubpre (post-recording) - acquired by pid 3572
+10:14:03.875 [pid 3572] [INFO] [MuxCoordinator] Reconcile: 2026-11-15_101000_qa128r3pubpre
+10:14:03.876 [pid 3572] [ERROR] [MuxCoordinator] RemoveFragment: 2026-11-15_101000_qa128r3pubpre - recording.mp4 exists, the mux is still marked pending, but its input raw.mp4 is gone (already preserved as the original): the mux completed and only its manifest update was lost. The file is KEPT.
+10:14:03.877 [pid 3572] [INFO] [PostRecordingState] NoteStarted: 2026-11-15_101000_qa128r3pubpre stage=mux
+10:14:03.904 [pid 3572] [INFO] [PostRecording] stage mux: start dir=2026-11-15_101000_qa128r3pubpre
+10:14:03.920 [pid 3572] [INFO] [MuxLock] TryAcquire: 2026-11-15_101000_qa128r3pubpre (finalize) - re-entered, depth 2
+10:14:03.920 [pid 3572] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre
+10:14:03.922 [pid 3572] [INFO] [MediaProbe] AudioChannels: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4
+10:14:03.973 [pid 3572] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:14:03.984 [pid 3572] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre
+10:14:03.984 [pid 3572] [ERROR] AgentEyes.UsageException: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:14:03.985 [pid 3572] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101000_qa128r3pubpre stage=mux error=could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:14:03.991 [pid 3572] [INFO] [PostRecording] Execute: 2026-11-15_101000_qa128r3pubpre - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:14:03.992 [pid 3572] [INFO] [MuxLock] Release: 2026-11-15_101000_qa128r3pubpre - released by pid 3572
+10:14:03.993 [pid 3572] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubpre released by FullPipeline/resume#2
+10:14:03.994 [pid 3572] [INFO] [PostRecording] TrackWork released: resume 2026-11-15_101000_qa128r3pubpre (in flight=0)
+10:14:03.996 [pid 3572] [INFO] [RecordingWorkset] EndStep: resume 2026-11-15_101000_qa128r3pubpre#1 (no claim) finished
+10:14:03.997 [pid 3572] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_101100_qa128r3gonepre#3 (no claim)
+10:14:03.998 [pid 3572] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre hostedWork=True
+10:14:03.998 [pid 3572] [INFO] [PostRecording] TrackWork: resume 2026-11-15_101100_qa128r3gonepre (in flight=1)
+10:14:03.999 [pid 3572] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre claimed by FullPipeline/resume#4
+10:14:04.000 [pid 3572] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonepre (post-recording) - acquired by pid 3572
+10:14:04.000 [pid 3572] [INFO] [MuxCoordinator] Reconcile: 2026-11-15_101100_qa128r3gonepre
+10:14:04.001 [pid 3572] [ERROR] [MuxCoordinator] RemoveFragment: 2026-11-15_101100_qa128r3gonepre - recording.mp4 exists, the mux is still marked pending, but its input raw.mp4 is gone (already preserved as the original): the mux completed and only its manifest update was lost. The file is KEPT.
+10:14:04.001 [pid 3572] [INFO] [PostRecordingState] NoteStarted: 2026-11-15_101100_qa128r3gonepre stage=mux
+10:14:04.006 [pid 3572] [INFO] [PostRecording] stage mux: start dir=2026-11-15_101100_qa128r3gonepre
+10:14:04.014 [pid 3572] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonepre (finalize) - re-entered, depth 2
+10:14:04.014 [pid 3572] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre
+10:14:04.015 [pid 3572] [INFO] [MediaProbe] AudioChannels: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4
+10:14:04.061 [pid 3572] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:14:04.062 [pid 3572] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre
+10:14:04.062 [pid 3572] [ERROR] AgentEyes.UsageException: could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:14:04.062 [pid 3572] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101100_qa128r3gonepre stage=mux error=could not read the audio channel count of C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+10:14:04.066 [pid 3572] [INFO] [PostRecording] Execute: 2026-11-15_101100_qa128r3gonepre - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:14:04.067 [pid 3572] [INFO] [MuxLock] Release: 2026-11-15_101100_qa128r3gonepre - released by pid 3572
+10:14:04.067 [pid 3572] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonepre released by FullPipeline/resume#4
+10:14:04.067 [pid 3572] [INFO] [PostRecording] TrackWork released: resume 2026-11-15_101100_qa128r3gonepre (in flight=0)
+10:14:04.068 [pid 3572] [INFO] [RecordingWorkset] EndStep: resume 2026-11-15_101100_qa128r3gonepre#3 (no claim) finished
+launch 3 app pid 22720 at 10:14:45.558; waiting 60 s
+--- after launch 3
+  [2026-11-15_101000_qa128r3pubpre]
+    PostProcessing: {"mux":{"State":"failed","Attempts":3,"LastAttemptUtc":"2026-11-15T15:14:03.8774828Z","Error":"could not read the audio channel count of C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101000_qa128r3pubpre\\raw.mp4 (ffprobe said: \u0027\u0027). The mic chain cannot be built without it."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1283), mux.lock(0), recording.mp4(12515040), recording.original.mp4(14257878)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonepre]
+    PostProcessing: {"mux":{"State":"failed","Attempts":3,"LastAttemptUtc":"2026-11-15T15:14:04.0017126Z","Error":"could not read the audio channel count of C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101100_qa128r3gonepre\\raw.mp4 (ffprobe said: \u0027\u0027). The mic chain cannot be built without it."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1284), mux.lock(0), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+    ffmpeg alive now: 0
+--- log lines from pid 22720 naming either recording, plus FindUnfinished summaries:
+10:15:05.990 [pid 22720] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=0

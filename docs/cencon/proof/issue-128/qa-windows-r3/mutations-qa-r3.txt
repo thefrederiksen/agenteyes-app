@@ -1,0 +1,17 @@
+# mutation run at 43aa5bb, 2026-11-15 10:19:50, ffmpeg dir C:\Users\soren\AppData\Local\AgentEyes\app
+restore baseline: diff empty = True
+M7 | D2: NeedsThumb trusts a file at the final path while the mux is pending | Failed!  | ffmpeg left 0 | 109s
+    AgentEyes.Tests.MuxCoordinatorTests.NeedsThumb_PendingMuxWithAFileAtTheFinalPath_IsFalse
+    restored, diff empty = True
+M8 | D2: NeedsTranscription does the same | Failed!  | ffmpeg left 0 | 107s
+    AgentEyes.Tests.MuxCoordinatorTests.NeedsTranscription_PendingMuxWithAFileAtTheFinalPath_IsFalse
+    restored, diff empty = True
+M13 | D2: the runner goes on to later stages when the mux is out of attempts (alone) | Passed!  | ffmpeg left 0 | 106s
+    (no test failed - SURVIVES)
+    restored, diff empty = True
+N5 | R2-4: NeedsCompose has no PendingMux guard | Failed!  | ffmpeg left 0 | 91s
+    AgentEyes.Tests.MuxCoordinatorTests.NeedsCompose_PendingMux_IsFalse_AndTrueOnceTheMuxIsDone
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingWithAnExhaustedMux_BurnsNoComposeAndIsNotRediscovered
+    restored, diff empty = True
+[killed by the host for low memory during Q1; Q1 restored by git checkout, git diff --quiet -- src tests empty, rebuilt 0 errors]

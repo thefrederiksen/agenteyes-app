@@ -86,6 +86,9 @@ namespace AgentEyes.Tests.Shared
         public int? ExitCode { get; set; }
         public double MediaSeconds { get; set; } = 20.0;
 
+        /// <summary>Issue #114's alignment reading. Null here: nothing in these tests aligns a mic.</summary>
+        public double? InputStartSeconds { get; set; }
+
         public ManualResetEventSlim AbandonEntered { get; } = new(false);
         public ManualResetEventSlim ReleaseAbandon { get; } = new(true);
         public volatile bool AbandonReturned;

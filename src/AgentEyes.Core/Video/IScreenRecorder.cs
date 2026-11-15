@@ -29,6 +29,14 @@ namespace AgentEyes.Video
         /// <summary>Seconds of output the capture last reported writing.</summary>
         double MediaSeconds { get; }
 
+        /// <summary>
+        /// The capture clock timestamp of the FIRST frame the capture read from the device, or null
+        /// when it has not reported one (issue #114). The stop subtracts it from the microphone
+        /// writer's own reading to align the two files, so the service needs it through this seam.
+        /// See <see cref="FfmpegRecorder.InputStartSeconds"/> for why it is held atomically.
+        /// </summary>
+        double? InputStartSeconds { get; }
+
         /// <summary>Stop a healthy capture and let it finish its file.</summary>
         void Stop();
 

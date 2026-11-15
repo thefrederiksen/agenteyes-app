@@ -1,0 +1,13 @@
+diff --git a/src/AgentEyes.Core/Video/FfmpegArgs.cs b/src/AgentEyes.Core/Video/FfmpegArgs.cs
+index fb1647c..b49c49e 100644
+--- a/src/AgentEyes.Core/Video/FfmpegArgs.cs
++++ b/src/AgentEyes.Core/Video/FfmpegArgs.cs
+@@ -394,7 +394,7 @@ namespace AgentEyes.Video
+             // poisons its recurrent state so every sample after it comes out NaN - which then hangs
+             // speechnorm. NaN/Inf is not audio; zeroing that one sample is inaudible. It is only
+             // emitted when one of those two stages is in the chain.
+-            string finite = (o.NoiseSuppression || o.VoiceLeveling) ? FiniteSamples + "," + PinMicLayout(o) + "," : "";
++            string finite = ""; /*QA mutation A*/
+             return $"[0:a]{finite}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+         }
+ 

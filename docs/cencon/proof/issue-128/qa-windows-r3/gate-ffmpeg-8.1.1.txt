@@ -1,0 +1,2 @@
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Passed!  - Failed:     0, Passed:  2357, Skipped:     0, Total:  2357, Duration: 1 m 18 s - AgentEyes.Tests.dll (net8.0)
