@@ -365,9 +365,20 @@ No mutant survived.
 
 ## 6. CI
 
-See the issue comment for the run ids and counts at the final head: windows, linux and macos, green
-on more than one run. The Windows suite is the only one that cannot be built on this machine, so
-every Windows number comes from CI.
+The Windows suite is the only one that cannot be built on this machine, so every Windows number
+comes from CI. All three jobs, two runs, at `7b4382e` - the last commit here that touches code:
+
+| Job | run 43742536227 (push) | run 43742541592 (pull_request) |
+|---|---|---|
+| windows | **2415 / 0** | **2415 / 0** |
+| linux | 321 / 0 | 321 / 0 |
+| macos | 313 / 0 | 313 / 0 |
+
+CI's Linux job reports 321 passed and 0 skipped where this machine reports 320 passed / 1 skipped:
+`LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome` runs only on a real Linux host.
+
+The commit that adds this table is documentation only; its own two runs are quoted in the issue
+comment.
 
 ---
 
