@@ -412,3 +412,268 @@ The Linux count is the branch-head count, not main's 268: this branch has delibe
 rebased, because the merge order is #128 first, then this rebased onto it.
 
 F3 needed no code change - QA answered it in the report and the gate accepted that answer.
+
+---
+
+# ADDENDUM: rebased onto `main` (2026-11-15)
+
+Everything above is the pre-rebase record and is left as it stands. This section is what changed
+when the branch was rebased onto `main` after #122, #123, #128 and #136 landed, what was re-run on
+the rebased code, and what was carried forward. Where a statement above is no longer true of the
+code, it is corrected here rather than edited there.
+
+`main` moved from `f29c8c2` to `1b1b266` under this branch. Rebased head: the branch now contains
+`main`'s head (`git merge-base --is-ancestor origin/main HEAD` -> yes).
+
+## What conflicted: exactly one hunk
+
+`src/AgentEyes.Core/Video/FfmpegArgs.cs`, in `MicChain`. #128 round two added three stages to that
+method in the same lines this branch was editing - the NaN sanitizer (`FiniteSamples`, D3), the
+arnndn framing (`asetnsamples=n=480:p=1`, D3) and the layout pin (`aformat=channel_layouts=...`,
+D7) - while this branch was parameterizing the method's SOURCE LABEL so the macOS mux could read
+the mic from `[1:a]`.
+
+Everything else merged with no conflict, including all 142 lines of `RecordingService.cs`: the
+clock move, the `separateMic` topology branch, the mic writer, the alignment measurement and the two
+new mux branches all landed cleanly beside #128's `MuxLock`, its missing-input refusal and #136's
+two-pass runner. The `micWav` input this branch adds to `PendingMux` is already covered by #128
+round three's pre-flight check, which refuses a mux whose input is missing before any ffmpeg starts.
+
+## The deliberate conflict: #136's shape guard, and how the two builders were split
+
+`tests/Shared/FfmpegMuxShapeTests.cs` enforces that no argument list in this engine pairs a copied
+video stream with a filter graph, because that single command deadlocks on macOS. This branch's
+`MuxVideoAddMic` and `MuxVideoAddMicAndSystem` were exactly that shape. They are **gone**, split per
+the recipe in `docs/cencon/proof/issue-136/handoff.md`:
+
+| was | is now |
+|---|---|
+| `MuxVideoAddMic(raw, mic, out, o, offset)` | `FilterMicToWav(mic, intermediate, o, offset)` then `MuxVideoWithProcessedAudio(raw, intermediate, out)` |
+| `MuxVideoAddMicAndSystem(raw, mic, sys, out, o, offset)` | `MixMicSystemToWav(mic, sys, intermediate, o, offset)` then the same pass 2 |
+
+The guard was NOT weakened, exempted or skipped, and no builder was added to any exemption list -
+there is no such list.
+
+**The alignment moved into pass 1 with the mic.** `MicDelayStage` builds the `adelay` for a mic that
+started late and `MicInputSeek` builds the `-ss` for a mic that started early; both are applied to
+the mic's own pass-1 command. The arithmetic, the sign convention and the millisecond rounding are
+unchanged from what is described above.
+
+**Three consequences worth stating, because two of them improve the change:**
+
+1. **`MicChain` no longer takes a source label, and is now byte-identical to `main`'s.** After the
+   split there is no video stream in a pass-1 command, so the mic is input 0 in every caller and the
+   parameter has nothing left to express. `git diff origin/main..HEAD -- src/AgentEyes.Core/Video/FfmpegArgs.cs`
+   does not mention `MicChain` at all. This retires the whole F2 question: there is no longer a
+   "which callers rely on the `[0:a]` default" enumeration to get right, because the method the
+   enumeration was about is unchanged.
+2. **Both macOS muxes now run through `AudioMix.MuxInTwoPasses` rather than `Ffmpeg.Run`.** They
+   therefore pick up #128's stall watchdog, its partial-output cleanup, the stale-temp sweep and
+   #136's atomic rename into the final path - none of which the pre-rebase branch had, because it
+   predates all of it.
+3. **What #114 now adds to the two shared pass-1 builders is one optional parameter**,
+   `double micOffsetSeconds = 0.0`. At its default both builders emit the list they emitted before
+   this branch existed, byte for byte. That is the criterion-8 guarantee restated for the new shape,
+   and it is pinned by exact equality rather than argued (below).
+
+## Criteria RE-RUN on the rebased code
+
+Two fresh recordings through the Control API on `devthrottle-mac-mini`, after
+`bash scripts/mac/install.sh` from this branch. Both were made with **DEFAULT mic processing**
+(`denoise`, `gate` and `level` all on) - not the `denoise:false,gate:false,level:false` scope the
+pre-rebase proof runs were honestly limited to. That limit existed because of #128 and #136, and
+both are now in `main`, so the shipped configuration is what is measured here.
+
+What was answering: installed plist `~/Library/LaunchAgents/com.agenteyes.recorder.plist` carries
+`<key>ProcessType</key><string>Interactive</string>` and `LowPriorityIO false`; `agenteyes.dll`
+sha256 `ddb8b6e918bf55db...`, mtime 11:17:16; service **pid 82638**. Every log line quoted below
+carries `[pid 82638]`.
+
+| Recording | asked | `/record/stop` reported |
+|---|---|---|
+| `~/Movies/AgentEyes/2026-11-15_111822_video` | 600 s | `DurationSeconds: 601.16` |
+| `~/Movies/AgentEyes/2026-11-15_112903_video` | 60 s | `DurationSeconds: 61.23` |
+
+| # | Expected | 10-minute Actual | 60-second Actual | |
+|---|---|---|---|---|
+| 1 | `Output #0` reads the requested fps, delivered rate matches (as amended) | `... 1920x1080, q=2-31, 30 fps, 15360 tbn`; 18054 frames / 601.800 s = **30.0000 fps** | same `Output #0` line; 1843 / 61.433 s = **30.0000 fps** | PASS |
+| 2 | 10-min audio within 3.0 s of video | video 601.800 s vs audio 601.104 s = **0.696 s**; 28178 x 1024 / 48000 = 601.131 s | - | PASS |
+| 3 | 60-s audio within 3.0 s | - | video 61.433 s vs audio 60.830 s = **0.603 s**; 2853 x 1024 / 48000 = 60.864 s | PASS |
+| 4 | file within 1.0 s of reported | 601.800 vs 601.16 = **0.640 s** | 61.433 vs 61.23 = **0.203 s** | PASS |
+| 5 | frames within 10% of duration x fps | 18054 vs 18054.0 = **0.0000%** | 1843 vs 1843.0 = **0.0000%** | PASS |
+| 6 | `audio_16k.wav` within 3.0 s of video | 601.104 s -> **0.696 s** | 60.830 s -> **0.603 s** | PASS |
+| 7 | final progress line `speed=` >= 0.95x | `frame=18054 fps= 30 q=-1.0 Lsize= 313198KiB time=00:10:01.73 bitrate=4263.9kbits/s speed=   1x` | `frame= 1843 fps= 30 q=-1.0 Lsize= 28288KiB time=00:01:01.36 bitrate=3776.2kbits/s speed=0.999x` | PASS |
+| 8 | Windows and Linux untouched | re-derived for the new shape - see below | | PASS |
+| 9 | both build+test pairs | mac 0 Error(s) / **274 passed, 0 failed**; linux 0 Error(s) / **281 passed, 1 skipped, 0 failed** | | PASS |
+| 10 | a regression test that fires against the shipped arguments | the alignment pins were rewritten for the split and re-run; the shape guard was proved to FIRE by mutation - see below | | PASS |
+
+`FfmpegCommand` from both manifests (identical apart from the output path):
+
+```
+"/opt/homebrew/bin/ffmpeg" -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1
+  -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p
+  -crf 23 -r 30 <dir>/raw.mp4
+```
+
+Criterion 1's unreachable half is unchanged and is not being re-claimed: the INPUT line still reads
+`Stream #0:0: Video: rawvideo (NV12 / 0x3231564E), nv12, 1920x1080, 1000k tbr, 1000k tbn`. An
+AVFoundation screen input reports no rate for the demuxer to estimate, and nothing about the rebase
+changes that.
+
+### The alignment, measured and applied - the thing the split had to not break
+
+10-minute run:
+
+```
+[RecordingService] Stop: mic/video alignment - video first frame at 245471.173000s,
+                        mic first sample at 245471.636625s, offset 0.464s
+[AudioCapture] Stop: wrote 57661440 bytes of PCM = 600.64s of audio over a 600.92s capture
+```
+
+and the mux it produced, which is the split working end to end on the shipped defaults:
+
+```
+pass 1  "ffmpeg" -y -i <dir>/mic_native.wav -filter_complex
+        "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,
+          aformat=channel_layouts=mono,asetnsamples=n=480:p=1,
+          arnndn=m='.../bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];
+         [m]adelay=463.625:all=1,alimiter=limit=0.95:level=false[a]"
+        -map [a] -c:a pcm_f32le -rf64 auto <dir>/audio_processed.wav          2.67 s
+pass 2  "ffmpeg" -y -i <dir>/raw.mp4 -i <dir>/audio_processed.wav
+        -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 <dir>/recording.mp4.muxing.tmp
+                                                                              4.12 s
+```
+
+`adelay=463.625:all=1` is #114's measured 0.464 s offset, inside #128's chain, in #136's pass 1,
+with no video stream in the command. 60-second run: offset **0.470 s**, `adelay=470.417:all=1`,
+`wrote 5793792 bytes of PCM = 60.35s of audio over a 60.59s capture`.
+
+**Post-processing completed on the shipped defaults, first attempt, on both.** `PostProcessing.mux`
+= `{"State":"done","Attempts":1}` for each; the intermediate was removed; nothing was left at the
+muxing temp. That is the arithmetic the Implementation Lead was holding the merge for: macOS now
+keeps its whole recording AND finalizes it. (`package` fails with "Not signed in to DevThrottle" on
+both, which is expected on a machine nobody has signed in on and is not this issue.)
+
+### Criterion 8, re-derived rather than carried forward
+
+The pre-rebase argument for criterion 8 was an enumeration of `MicChain`'s callers plus a 52-
+invocation cross-tree dump. After the split that argument is the wrong shape, so it was redone:
+
+1. **`MicChain` is byte-identical to `main`'s.** It does not appear in
+   `git diff origin/main..HEAD -- src/AgentEyes.Core/Video/FfmpegArgs.cs`. The shared clean-voice
+   chain cannot have changed, for any caller, on any platform.
+2. **The only shared change left is one optional parameter on two pass-1 builders**, and
+   `MacMicAlignmentTests.FilterMicToWav_WithNoOffset_IsTheListItEmittedBeforeIssue114` and
+   `MixMicSystemToWav_WithNoOffset_IsTheListItEmittedBeforeIssue114` pin, by exact equality, that
+   the no-argument overload and an explicit `0.0` both emit a literal expected list. The literal is
+   spelled out in the test rather than composed from the product's own constants, so a pin built the
+   way the thing it pins is built cannot silently follow it.
+3. **`MixTwoWav` and `FilterSystemToWav`**, the two shared builders this branch does not touch at
+   all, are pinned by exact equality in the same file.
+4. `tests/AgentEyes.Tests.Linux` is green locally (281 passed) and the Windows suite is green in CI
+   (2377 passed). **What this does not cover, plainly:** the two shared RUNTIME changes this branch
+   makes - the recording clock (`RecordingService.cs`) and the drain (`FfmpegRecorder.cs`) - shift
+   behaviour on Windows and Linux and no argument test can see them. Their only Windows coverage is
+   still the green CI job. That was true before the rebase and it is still true.
+
+What was NOT repeated: QA's throwaway harness that compiled against both trees and diffed 52
+argument lists. Point 1 makes it unnecessary for the chain - an unchanged method cannot emit a
+changed list - but it is a different and weaker instrument than the one QA used, and that is stated
+rather than glossed.
+
+### Criterion 10, and the guard proved to fire
+
+`tests/AgentEyes.Tests.Mac/MacMicAlignmentTests.cs` was rewritten for the split: the alignment pins
+now assert the pass-1 command (the `adelay` for a late mic, the `-ss` for an early one, the
+millisecond rounding, and that the pass carries no video stream and no `copy` at any offset), and
+`MuxPass_JoinsThePictureToTheIntermediateWithNoFilterGraph` pins pass 2.
+
+Two fail-closed checks, both of which were run against a known-BAD input and shown to FIRE
+(DEVELOPMENT_METHOD 6c item 3):
+
+* `TheSingleCommandMuxBuildersAreGone` refuses either removed builder coming back by name.
+* `FfmpegMuxShapeTests.NoArgumentListPairsACopiedVideoStreamWithAFilterGraph` catches the shape
+  under any name. **Mutation evidence:** `MuxVideoAddMic` was re-added verbatim and the suite went
+  to `Failed: 2, Passed: 272`, the guard naming the builder and printing its whole command line:
+
+```
+a copied video stream is back in the same ffmpeg command as a filter graph (issue #136 ...):
+  FfmpegArgs.MuxVideoAddMic: -y -i fixture.mp4 -i fixture.mp4 -filter_complex
+  [0:a]aeval=...,aformat=channel_layouts=stereo,speechnorm=e=4:p=0.95,volume=1[m];
+  [m]adelay=1500:all=1,alimiter=limit=0.95:level=false[a]
+  -map 0:v -c:v copy -map [a] -c:a aac -b:a 160k fixture.mp4
+```
+
+The mutation was reverted; the committed tree is the one the counts above were measured on. An
+EMPTY sweep result is a broken instrument and fails in that test by construction, not by this note.
+
+## Criteria CARRIED FORWARD, and why each is untouched by the conflicts
+
+Nothing in the measured set was carried forward - criteria 1 through 10 were all re-run or
+re-derived above. Two things from the pre-rebase record are carried, and neither is a criterion:
+
+* **F3's answer** (`AvfCameraCapture` and `AlwaysOnArgs`). No conflict touched either file:
+  `AlwaysOnArgs` is gdigrab and has no macOS path at all, `AvfCameraCapture` is unchanged by this
+  branch and by the rebase, and the root cause is a property of the launchd job rather than of any
+  argument list, so it is shared by every process the service spawns. Still untestable here
+  (`cameras: []`).
+* **The root-cause reproduction** (98.9% of a capture kept at normal QoS against 16.8% under
+  `taskpolicy -b`). That measurement is about the launchd plist's scheduling class, which no
+  conflict touched - `scripts/mac/com.agenteyes.recorder.plist` merged without conflict and the
+  installed plist was re-verified above. It is carried, not re-run.
+
+## The gaps, unchanged and still open
+
+* **The three-input mixed-audio path is still not exercised end to end.** `POST /record/start` with
+  `"source":"mixed"` is refused outright on this machine - `/devices` reports
+  `systemAudio: (unavailable: none of the audio inputs on this Mac is a loopback device ...)`. The
+  split applies to it (`MixMicSystemToWav` + pass 2) and its argument list is pinned by
+  `MicPlusSystemPass_MicIsInputZero_SystemIsInputOne` and
+  `MicPlusSystemPass_AlignsTheMicTheSameWayTheMicOnlyPassDoes`, but the running capture is
+  unverified and must not be read as verified. Installing a loopback device needs the person at the
+  keyboard.
+* **Criterion 1 remains partly met**, exactly as amended, for the reason quoted above.
+* **One limit of these two runs, stated because it bears on criterion 7.** The Mac's screen was
+  LOCKED throughout (`CGSSessionScreenIsLocked = Yes`), so the picture is static wallpaper and the
+  x264 encode is easier than a real desktop's. `speed=1x` / `speed=0.999x` is therefore a weaker
+  stress than the pre-rebase runs, which measured the same figures on a live desktop while four
+  cores of this ten-core machine were pinned by orphaned muxes. The frame-rate, duration and audio-
+  length criteria do not depend on the content; criterion 7 does.
+
+## Machine state left behind, since the anomaly the Lead recorded on 2026-11-14 is now resolved
+
+The installed service no longer disagrees with any commit: it was reinstalled from this branch, so
+the binary and the `ProcessType Interactive` plist now come from the same tree. New service pid
+82638 (the old one was 90675, so the restart is proven by a new pid rather than assumed).
+
+One orphan was cleared. `ffmpeg` pid 78054 - the OLD build's single-pass mux of
+`2026-11-15_093623_video`, the exact shape #136 fixes - had been spinning at 100% CPU for 10 minutes
+and survived the service restart reparented to pid 1, which is QA's F4 finding reproducing itself. It
+was killed and nothing respawned. **The new build then completed that same mux in 0.2 s on startup**
+(`PostProcessing.mux` `State: done, Attempts: 3` - the old build had burned two), which is an
+independent corroboration of #136 on a recording nobody made for the purpose. Nothing under
+`~/Movies/AgentEyes` was deleted.
+
+## Gate on the rebased head
+
+`AgentEyes.sln` contains the WPF app and cannot build on a Mac, so the Windows gate commands are not
+runnable here; CI covers that suite.
+
+| Command | Result |
+|---------|--------|
+| `dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=mac` | **0 Error(s)**, 1 pre-existing warning (`AlwaysOnEngine.cs:901` CS8602) |
+| `dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release` | **274 passed, 0 failed, 0 skipped** |
+| `dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=linux` | **0 Error(s)**, same 1 warning |
+| `dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release` | **281 passed, 0 failed, 1 skipped** (`MachineLocalAppData_OnLinux_IsTheXdgDataHome`) |
+
+The counts are now `main`'s counts plus this branch's tests, not the pre-rebase 105/94 - this branch
+is rebased, so it carries `tests/Shared` and everything #122, #128 and #136 added.
+
+Note for whoever measures next: running that gate rewrites the macOS app output as a Linux one
+(`tests/AgentEyes.Tests.Linux` pins `AgentEyesUnixPlatform=linux` and shares `bin/Release/net8.0`),
+so rebuild the desktop app before launching or inspecting it on a Mac. The two recordings above were
+made by the INSTALLED service from `scripts/mac/install.sh`, which publishes separately, so they are
+unaffected.
+
+CI on the rebased head, all three jobs, on more than one run - run ids and counts are in the issue
+comment that accompanies this addendum.
