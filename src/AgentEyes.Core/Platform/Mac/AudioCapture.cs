@@ -18,8 +18,16 @@ namespace AgentEyes.Audio
         private readonly AvfStream _stream;
         private WavStreamWriter? _writer;
         private bool _isRecording;
+        private readonly System.Diagnostics.Stopwatch _clock = new();
 
         public bool IsRecording => _isRecording;
+
+        /// <summary>
+        /// The capture clock timestamp of this microphone's first sample, for aligning it with a
+        /// screen recording captured by a different ffmpeg process (issue #114). See
+        /// <see cref="AvfStream.InputStartSeconds"/>.
+        /// </summary>
+        public double? InputStartSeconds => _stream.InputStartSeconds;
 
         /// <summary>Peak level (0..1) of each ~50 ms block.</summary>
         public event Action<float>? LevelChanged;
@@ -45,6 +53,7 @@ namespace AgentEyes.Audio
             Log.Info($"[AudioCapture] Start: {wavPath}");
             _writer = new WavStreamWriter(wavPath, SampleRate, Channels);
             _isRecording = true;
+            _clock.Restart();
             _stream.Start();
         }
 
@@ -67,7 +76,26 @@ namespace AgentEyes.Audio
             _writer = null;
             if (w != null)
             {
-                Log.Info($"[AudioCapture] Stop: wrote {w.DataBytes} bytes of PCM");
+                // HOW MUCH OF THE TAKE IS ACTUALLY IN THE FILE, stated as a number and checked
+                // (issue #114). A byte count on its own cannot be wrong, so it never reported
+                // anything: the capture that kept 12% of its samples and the one that kept all of
+                // them wrote the same shape of log line. Comparing it with the wall clock is what
+                // makes a short capture say so. The warning is deliberately loud - a near-silent
+                // recording that nothing complains about is the defect this issue exists for.
+                double bytesPerSecond = SampleRate * Channels * 2;
+                double captured = w.DataBytes / bytesPerSecond;
+                double elapsed = _clock.Elapsed.TotalSeconds;
+                _clock.Stop();
+                string detail = $"wrote {w.DataBytes} bytes of PCM = {captured:F2}s of audio "
+                                + $"over a {elapsed:F2}s capture";
+                // The device needs a moment to deliver its first sample, so a capture is expected to
+                // be slightly short; a second of slack covers that warm-up without covering loss.
+                if (elapsed - captured > 1.0)
+                    Log.Warn($"[AudioCapture] Stop: {detail} - {elapsed - captured:F2}s MISSING. "
+                             + "The AVFoundation device dropped samples this end did not take in "
+                             + "time; the recording will be short of audio by that much.");
+                else
+                    Log.Info($"[AudioCapture] Stop: {detail}");
                 w.Dispose();
             }
         }

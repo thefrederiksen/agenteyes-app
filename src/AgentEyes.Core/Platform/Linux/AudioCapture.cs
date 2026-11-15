@@ -21,6 +21,14 @@ namespace AgentEyes.Audio
 
         public bool IsRecording => _isRecording;
 
+        /// <summary>
+        /// Null on this platform, and that is the whole answer: the screen recorder's own ffmpeg
+        /// captures the microphone here (see CaptureTopology), so the two are already one timeline
+        /// and there is nothing to align. Only macOS captures the microphone in a separate process
+        /// and needs a capture clock reading to line it up (issue #114).
+        /// </summary>
+        public double? InputStartSeconds => null;
+
         /// <summary>Peak level (0..1) of each ~50 ms block.</summary>
         public event Action<float>? LevelChanged;
 

@@ -25,6 +25,23 @@ namespace AgentEyes.Tests.Linux
             }, args);
         }
 
+        /// <summary>
+        /// ISSUE #114 moved the macOS microphone out of the screen capture's ffmpeg. Linux keeps it
+        /// INSIDE, as the exact-command-line test above pins - and this is the constant the shared
+        /// recording pipeline reads to decide which of the two it is doing. If it ever read false
+        /// here, Linux would start a mic writer nothing muxes and record silent video.
+        /// </summary>
+        [Fact]
+        public void CaptureTopology_OnLinux_TheScreenRecorderCapturesTheMicItself()
+        {
+            Assert.True(CaptureTopology.ScreenRecorderCapturesMic);
+
+            // ... and the x11grab list is what carries it.
+            var args = FfmpegArgs.X11VideoCapture(Desktop, ":0", "alsa_input.mic", 30, 23, "/r/raw.mp4", Desktop);
+            Assert.Contains("pulse", args);
+            Assert.Contains("alsa_input.mic", args);
+        }
+
         [Fact]
         public void X11VideoCapture_NoMic_HasNoAudioInputOrCodec()
         {
