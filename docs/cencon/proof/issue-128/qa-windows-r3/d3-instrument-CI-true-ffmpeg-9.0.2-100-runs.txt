@@ -1,0 +1,500 @@
+=== run 1
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [607 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [555 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 2
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [602 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [548 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 3
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [621 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [847 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 4
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 5
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [616 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [567 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 6
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [950 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [776 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 7
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [847 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [904 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 8
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 9
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [2 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 2 run(s): exit 0, 0 non-finite of 480480; exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 10
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [981 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 11
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 12
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [927 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 13
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [765 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [794 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 14
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 15
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [634 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [554 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 16
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [654 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [534 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 17
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [652 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [980 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 18
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [772 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 19
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [688 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [644 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 20
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [668 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [561 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 21
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [652 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [596 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 22
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [719 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [599 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 23
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [641 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [554 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 24
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 25
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [746 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit -1073741819, 0 non-finite of 0 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [776 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 26
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [712 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [616 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 27
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [884 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 28
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [972 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [898 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 29
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [703 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [659 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 30
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [652 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [591 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 31
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [834 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [965 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 32
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [659 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [571 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 33
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [699 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [640 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 34
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [676 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [578 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 35
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [659 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [552 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 36
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [715 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [632 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 37
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [672 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [625 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 38
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [766 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 39
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [844 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [739 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 40
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [628 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [574 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 41
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [700 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [599 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 42
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [731 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [889 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 43
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [664 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [579 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 44
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [731 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [579 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 45
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [665 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [564 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 46
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [648 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [601 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 47
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [683 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [561 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 48
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [803 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 49
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [905 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit -1073741819, 0 non-finite of 0 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [736 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 50
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [760 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [578 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 51
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [632 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [580 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 52
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [637 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [777 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 53
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [769 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [690 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 54
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [750 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [700 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 55
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [714 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [585 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit -1073741819, 0 non-finite of 0 | framed: exit 0, 0 of 480480
+=== run 56
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [653 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [540 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 57
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 58
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [805 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [681 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 59
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [738 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [575 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 60
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [643 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [539 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 61
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [694 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [550 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 62
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [654 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [699 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 63
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [635 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 3 run(s): exit 0, 0 non-finite of 480480; exit 0, 0 non-finite of 480480; exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 64
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [695 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [571 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 65
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [647 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [566 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 66
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [616 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [770 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 67
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [694 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [580 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 68
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [632 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [607 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 69
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [706 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [605 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 70
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [635 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [566 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 71
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [700 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [563 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 72
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [616 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [539 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 73
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [764 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [545 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 74
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [669 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [536 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 75
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [625 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [539 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 76
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [634 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [611 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 77
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [660 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [538 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 78
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [647 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [565 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 79
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [693 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [837 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 80
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [651 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [531 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 81
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [620 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [577 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 82
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 2 run(s): exit 0, 0 non-finite of 960960; exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [638 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 83
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [667 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [547 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 84
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [625 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [556 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 85
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [611 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [571 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 86
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [713 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [556 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 87
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [739 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [591 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 88
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [607 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [785 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 2 run(s): exit 0, 0 non-finite of 480480; exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 89
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [611 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 2 run(s): exit 0, 0 non-finite of 480480; exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 90
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [635 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [587 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 91
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [665 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [544 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 92
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [666 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [540 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 93
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [630 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [552 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 94
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [613 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [740 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 95
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [677 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [579 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 96
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [624 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [530 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit -1073741819, 0 non-finite of 0 | framed: exit 0, 0 of 480480
+=== run 97
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [616 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [532 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 98
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [619 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [542 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 99
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [623 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [567 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+=== run 100
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [636 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+  Passed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [711 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
