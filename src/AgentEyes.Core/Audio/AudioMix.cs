@@ -107,16 +107,15 @@ namespace AgentEyes.Audio
             // A temp sitting here now means an earlier attempt DIED here - a process death runs no
             // finally, so nothing cleared it. This says so, at WARN, before overwriting it.
             //
-            // Be clear about what this is and is not: it is the DIAGNOSTIC, not the guarantee. The
-            // finally below is what actually removes both temps, on every path, and ffmpeg's "-y"
-            // would have overwritten them anyway - so disabling these two lines breaks no test and
-            // leaks no file. What it would lose is the only signal that distinguishes "a previous
-            // mux was killed here" from routine cleanup, on a machine where that is exactly the
-            // question someone will be asking.
+            // Be clear about what this is and is not: it is the DIAGNOSTIC, not the guarantee.
+            // RemoveMuxScratch below is what actually removes both temps, on every path this process
+            // survives, and ffmpeg's "-y" would have overwritten them anyway - so disabling these two
+            // lines breaks no test and leaks no file. What it would lose is the only signal that
+            // distinguishes "a previous mux was killed here" from routine cleanup, on a machine where
+            // that is exactly the question someone will be asking.
             RemoveStaleTemp(processed, label);
             RemoveStaleTemp(muxing, label);
 
-            bool ok = false;
             try
             {
                 RunStage(audioPass(processed), processed, label + " (audio)");
@@ -126,40 +125,88 @@ namespace AgentEyes.Audio
                 // previous attempt left, and PendingMux being set is what says this file is still
                 // being produced.
                 System.IO.File.Move(muxing, outMp4, overwrite: true);
-                ok = true;
                 Log.Info($"[AudioMix] MuxInTwoPasses: {label} done out={outMp4}");
             }
-            finally
+            catch (Exception stageError)
             {
-                // However this ended: the temps are scratch and must not be left in the recording
-                // directory, where every file-on-disk scan would count them as capture bytes.
-                if (System.IO.File.Exists(processed))
-                {
-                    System.IO.File.Delete(processed);
-                    Log.Info($"[AudioMix] MuxInTwoPasses: removed intermediate {processed}");
-                }
-                if (System.IO.File.Exists(muxing))
-                {
-                    System.IO.File.Delete(muxing);
-                    Log.Info($"[AudioMix] MuxInTwoPasses: removed muxing temp {muxing}");
-                }
-
-                // Issue #128's rule, kept for the mux AS A WHOLE and not only for the pass that
-                // failed. With the rename above, THIS build can no longer write a fragment to the
-                // final path at all - but a fragment left there by an older binary still can be, and
-                // a failed mux must not leave one for the thumbnail stage to find.
-                if (!ok && System.IO.File.Exists(outMp4))
-                {
-                    System.IO.File.Delete(outMp4);
-                    Log.Info($"[AudioMix] MuxInTwoPasses: {label} did not complete - removed {outMp4}");
-                }
+                // Issue #128 round two's D5 rule, applied to THIS method's cleanup. The mux has
+                // already failed and stageError is the only record of why. Cleanup follows it - the
+                // two temps, and (the issue #128 rule, kept for the mux AS A WHOLE and not only for
+                // the pass that happened to fail) any fragment at the final path: with the rename
+                // above THIS build can no longer write one there, but an older binary's can still be
+                // sitting there and a failed mux must not leave one for the thumbnail stage to find.
+                //
+                // Those deletes used to sit in a finally, where one that threw would have REPLACED
+                // the stall or ffmpeg error with its own IOException - measured on #128, where the
+                // manifest recorded the IOException and the real reason was lost. So the cleanup
+                // reports instead of throwing, and whatever it reports is APPENDED to the stage
+                // error, exactly as RemovePartialOutput does for a single pass. Neither is hidden.
+                string? trouble = RemoveMuxScratch(label,
+                    (processed, "intermediate processed audio"),
+                    (muxing, "muxing temp"),
+                    (outMp4, "incomplete output"));
+                if (trouble == null) throw;
+                throw new UsageException($"{stageError.Message} (and {trouble})", stageError);
             }
+
+            // The mux succeeded, so there is no stage error here for a cleanup failure to mask - and
+            // a temp left in a recording directory is counted as capture bytes by every file-on-disk
+            // scan, so it is not something to swallow either. It fails on its own, loudly.
+            string? afterPublish = RemoveMuxScratch(label,
+                (processed, "intermediate processed audio"),
+                (muxing, "muxing temp"));
+            if (afterPublish != null)
+                throw new UsageException($"the mux {label} produced {outMp4} but {afterPublish}");
+        }
+
+        /// <summary>
+        /// Remove the two-pass mux's scratch, REPORTING a delete that fails instead of throwing it
+        /// (issue #128 round two, D5 - applied here as a rule rather than a site, because round two
+        /// fixed <see cref="RunStage"/> and this method did not exist when that defect was filed).
+        /// Returns null when every file named was removed or was not there, and otherwise a
+        /// description of what could not be removed, for the caller to append to the error that
+        /// actually matters. Each file is attempted even if an earlier one failed.
+        ///
+        /// The delete is attempted whether or not the path exists, because File.Delete is a no-op on
+        /// a path that is not there - and because the ONE case that must not pass silently is a path
+        /// that exists and cannot be removed, which is what the regression test plants.
+        /// </summary>
+        private static string? RemoveMuxScratch(string label, params (string Path, string What)[] files)
+        {
+            System.Collections.Generic.List<string>? trouble = null;
+            foreach (var (path, what) in files)
+            {
+                bool existed = System.IO.File.Exists(path);
+                try
+                {
+                    System.IO.File.Delete(path);
+                }
+                catch (Exception cleanupError) when (cleanupError is System.IO.IOException or UnauthorizedAccessException)
+                {
+                    Log.Error($"[AudioMix] MuxInTwoPasses: {label} could not remove the {what} " +
+                              $"{path}: {cleanupError.Message}");
+                    (trouble ??= new System.Collections.Generic.List<string>())
+                        .Add($"its {what} {path} could not be removed: {cleanupError.Message}");
+                    continue;
+                }
+                if (existed)
+                    Log.Info($"[AudioMix] MuxInTwoPasses: {label} removed the {what} {path}");
+            }
+            return trouble == null ? null : string.Join("; ", trouble);
         }
 
         /// <summary>
         /// Remove a temp a killed attempt left behind, saying so at WARN. This exists for the
-        /// message, not for the deletion: <see cref="MuxInTwoPasses"/>'s finally removes both temps
-        /// on every path regardless. Silently overwriting one would hide that a mux died here.
+        /// message, not for the deletion: <see cref="RemoveMuxScratch"/> removes both temps on every
+        /// path regardless. Silently overwriting one would hide that a mux died here.
+        ///
+        /// This delete is deliberately NOT given issue #128 round two's D5 treatment, and the
+        /// distinction is the point of that rule rather than an exemption from it. D5 is about a
+        /// cleanup delete REPLACING the exception that says why a stage failed. This one runs BEFORE
+        /// either pass starts, so there is no stage error in flight for it to replace: if it throws,
+        /// its own exception IS the whole story - the mux could not clear a temp it was about to
+        /// write, and it stops before doing any work. Guarding it would turn that clear failure into
+        /// a swallowed one, which is the opposite of what D5 asks for.
         /// </summary>
         private static void RemoveStaleTemp(string path, string label)
         {

@@ -288,6 +288,45 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void MuxInTwoPasses_CleanupCannotRemoveATemp_TheStageErrorSurvivesWithTheCleanupFailureAppended()
+        {
+            // Issue #128 round two's D5, as a RULE rather than a site. Round two fixed the delete in
+            // RunStage; MuxInTwoPasses did not exist when that defect was filed, and it has three
+            // deletes of its own. The defect D5 names is a cleanup delete that THROWS and replaces
+            // the exception saying why the mux failed - measured on #128, where an IOException from
+            // a File.Delete reached the manifest and the real stall error was lost.
+            //
+            // The known-BAD input: a DIRECTORY at the intermediate's path. File.Delete cannot remove
+            // a directory on any platform (and File.Exists does not see one, so the stale-temp
+            // sweep at the top of the mux leaves it alone), so the cleanup is guaranteed to fail
+            // here. The audio pass is given a missing input so it fails for its own, separate
+            // reason - the one that must survive.
+            //
+            // Three arms. Expected: ONE error carrying BOTH reasons. Bad: only the cleanup failure,
+            // which is the defect. Empty: no exception at all would mean the mux did not fail, which
+            // is a broken instrument and the first assertion catches it.
+            string final = Path.Combine(_root, "recording.mp4");
+            string missing = Path.Combine(_root, "no-such-input.wav");
+            Directory.CreateDirectory(Intermediate);
+
+            var ex = Record.Exception(() => AudioMix.MuxInTwoPasses(
+                "raw.mp4", final, "test cleanup cannot remove a temp",
+                wav => new[] { "-y", "-i", missing, "-c:a", "pcm_f32le", wav }));
+
+            Assert.NotNull(ex);
+            Assert.IsType<UsageException>(ex);
+            // The reason the mux failed is still the FIRST thing the message says, and the stage
+            // error itself is kept as the inner exception rather than discarded.
+            Assert.NotNull(ex!.InnerException);
+            Assert.StartsWith(ex.InnerException!.Message, ex.Message);
+            // And the cleanup failure is appended, not hidden.
+            Assert.Contains("could not be removed", ex.Message);
+            Assert.Contains(Intermediate, ex.Message);
+
+            Directory.Delete(Intermediate);
+        }
+
+        [Fact]
         public void MuxInTwoPasses_TheIntermediateGoesBesideTheOutput_NotIntoTheSystemTemp()
         {
             // It has to be on the SAME VOLUME as the recording: a ten-minute float WAV is ~115 MB and
