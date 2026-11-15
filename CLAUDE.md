@@ -66,8 +66,8 @@ Gate policy (revised 2026-07-14 - the hard rule).
 Two tiers, and the difference is real - do not conflate them:
 
 1. **`dotnet test AgentEyes.sln -c Release` - ALWAYS, after every code change.** Measured on the
-   Windows CI runner (issue #151, 2026-11-15): 2382 tests (11 skipped by design) in 33-41 s of
-   test time. It is silent (no app launch, no audio) but it is NOT ffmpeg-free: end-to-end tests
+   Windows CI runner (issue #151, 2026-11-15): 2382 tests (11 skipped by design) in 33-50 s of
+   test time (six runs). It is silent (no app launch, no audio) but it is NOT ffmpeg-free: end-to-end tests
    outside the mic chain start about 235 short ffmpeg runs. The tests that exist only to run a real
    ffmpeg against the mic chain (#128, #146) are opt-in: set `AGENTEYES_FFMPEG_TESTS=1` to run them
    too (2383 tests, about a minute; CI and the release build always do). The Linux and macOS gates
