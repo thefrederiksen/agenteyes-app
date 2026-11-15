@@ -1,0 +1,14 @@
+# row 10 single instance  app pid 4100815  service pid 4100728  load: 3.35 4.38 7.39 2/3527 14238
+## close the main window (WM_DELETE via wmctrl) at 09:44:32.093404214
+main window:   Map State: IsUnMapped
+## second launch: AgentEyesDesktop (no arguments) at 09:44:33.608582881
+second launch exit=0
+main window:   Map State: IsViewable
+AgentEyesDesktop processes now: 4100815 /home/soren/.local/lib/agenteyes-app/AgentEyesDesktop
+## log, both processes (~/.local/share/AgentEyes/logs/AgentEyes-20261115.log)
+09:44:32.098 [pid 4100815] [INFO] [App] window closed to the tray
+09:44:33.713 [pid 14274] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=14274)
+09:44:33.717 [pid 14274] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+09:44:33.727 [pid 4100815] [INFO] [SingleInstance] Accept: 'show'
+09:44:33.727 [pid 4100815] [INFO] [App] Run: show
+09:44:33.727 [pid 4100815] [INFO] [App] ShowWindow

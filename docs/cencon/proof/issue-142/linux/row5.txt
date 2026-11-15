@@ -1,0 +1,10 @@
+# row 5 screen+mic  service pid 4100728  load: 5.81 8.43 10.02 2/3372 4143391
+POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Family 17h"} at 09:36:37.098575032
+{'State': 'recording', 'Mode': 'video', 'Source': 'mic', 'Dir': '/home/soren/Videos/AgentEyes/2026-11-15_093637_video'}
+POST /record/stop at 09:38:23.763167312  load: 4.62 7.24 9.42 3/3530 4179838
+{
+  "Dir": "/home/soren/Videos/AgentEyes/2026-11-15_093637_video",
+  "File": "/home/soren/Videos/AgentEyes/2026-11-15_093637_video/recording.mp4",
+  "DurationSeconds": 105.49,
+  "Shots": 0
+}

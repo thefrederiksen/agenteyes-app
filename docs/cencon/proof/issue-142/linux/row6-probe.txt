@@ -1,0 +1,30 @@
+## top-level MP4 atoms of recording.mp4 (size, type)
+  offset          0  ftyp  32 bytes
+  offset         32  free  8 bytes
+  offset         40  mdat  19364588 bytes
+  offset   19364628  moov  724555 bytes
+## ffprobe
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|avg_frame_rate=30/1|duration=632.033333|nb_frames=18961
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|avg_frame_rate=0/0|duration=631.998000|nb_frames=29625
+format|duration=632.033333|size=20089183
+AAC packets x1024/48000 = 632.000s ; video packets/30 = 632.033s ; audio/video = 99.99% ; diff = 0.033s
+## full decode (ffmpeg -v error -i recording.mp4 -f null -), started 09:50:47 load 2.38 3.44 5.99 1/3147 25511
+decode exit=0 finished 09:50:58
+## inputs for the #121 note
+/home/soren/Videos/AgentEyes/2026-11-15_093907_video/sys_native.wav: No such file or directory
+/home/soren/Videos/AgentEyes/2026-11-15_093907_video/raw.mp4: No such file or directory
+## audio level of the final mix (volumedetect)
+[Parsed_volumedetect_0 @ 0x602401043a80] mean_volume: -69.7 dB
+[Parsed_volumedetect_0 @ 0x602401043a80] max_volume: -33.6 dB
+## raw files: audio_16k.wav manifest.json raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots system.original.wav thumb.jpg transcript.en.vtt transcript.json transcript.txt walkthrough.html  (raw.mp4 -> recording.original.mp4, sys_native.wav -> system.original.wav)
+09:49:39.827 [pid 4100728] [INFO] [RecordingStop] Keep: raw files saved, queuing post-processing for /home/soren/Videos/AgentEyes/2026-11-15_093907_video
+09:49:39.842 [pid 4100728] [INFO] [MicMeasure] Measure: path=/home/soren/Videos/AgentEyes/2026-11-15_093907_video/raw.mp4
+09:49:54.497 [pid 4100728] [INFO] [AudioMix] Calibrate: source=/home/soren/Videos/AgentEyes/2026-11-15_093907_video/raw.mp4 noise floor -78.9 dBFS, RMS -76.8 dBFS -> gate off (measured: only 2.1 dB be
+09:49:54.497 [pid 4100728] [INFO] ffmpeg [mux video+mic+system]: "/usr/bin/ffmpeg" -y -i /home/soren/Videos/AgentEyes/2026-11-15_093907_video/raw.mp4 -i /home/soren/Videos/AgentEyes/2026-11-15_093907_
+## #121 inputs
+stream|codec_type=video|start_time=0.000000|duration=632.033333
+stream|codec_type=audio|start_time=0.000000|duration=631.978000
+format|duration=632.033333
+stream|codec_type=audio|sample_rate=48000|duration=630.180000
+[Parsed_volumedetect_0 @ 0x62cc14991c40] mean_volume: -85.5 dB
+[Parsed_volumedetect_0 @ 0x62cc14991c40] max_volume: -47.2 dB

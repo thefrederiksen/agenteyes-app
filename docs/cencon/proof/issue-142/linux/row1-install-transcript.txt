@@ -1,0 +1,38 @@
+# devlinux 2026-11-15T09:34:18-05:00  commit c80cb9d10cdd8954405b5ccc90340ae884507a34  load: 7.53 10.56 10.88 8/3206 4099997
+## before: processes
+2454852 /home/soren/.local/lib/agenteyes/agenteyes serve
+2455039 /home/soren/.local/lib/agenteyes-app/AgentEyesLinux --tray
+## scripts/linux/install.sh
+Building agenteyes (Release, linux-x64, self-contained) ...
+/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+[OK] built /tmp/tmp.yIBNeHo2Vc/agenteyes
+Stopping the running service (a running recording is stopped and kept) ...
+[OK] installed /home/soren/.local/lib/agenteyes, linked /home/soren/.local/bin/agenteyes, unit /home/soren/.config/systemd/user/agenteyes.service
+[OK] enabled at login (graphical-session.target)
+Building the AgentEyes app (Release, linux-x64, self-contained) ...
+[OK] installed the app (/home/soren/.local/lib/agenteyes-app): 'AgentEyes' in the app grid, starts in the tray at login
+[OK] service is up: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
+[OK] signed in as soren@centerconsulting.com
+[OK] AgentEyes app started - its window opens, and the moon in the top bar stays when you close it
+
+Ready. Open AgentEyes from the app grid or the moon in the top bar. From a terminal:
+            record: agenteyes record start --mix --mic "<part of your mic name>"
+            stop:   agenteyes record stop
+  list mics with:   agenteyes screens
+exit=0
+## after: processes
+4100728 /home/soren/.local/lib/agenteyes/agenteyes serve
+4100815 /home/soren/.local/lib/agenteyes-app/AgentEyesDesktop
+MainPID=4100728
+ExecMainStartTimestamp=Sun 2026-11-15 09:34:34 EST
+ActiveState=active
+65445a3fd2ff67343aa3bba8f7fb3f47495db5809a93d2c691483c1a828ce497  /home/soren/.local/lib/agenteyes/agenteyes
+810837217adbbdfae5e48a52ac8cd9a0d7e4dd25ebc38bf8513205674d9bec22  /home/soren/.local/lib/agenteyes/agenteyes.dll
+014f0fd21b7d1033a9abb1b2d1ac680fe48449d928f1522dc5aaca473580c5d4  /home/soren/.local/lib/agenteyes-app/AgentEyesDesktop.dll
+d1339dda5434f82b1264fd5255dd4248265edc7f37fbc7f27aa966ac3867045f  /home/soren/.local/lib/agenteyes-app/AgentEyesDesktop
+{
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "linux"
+}
