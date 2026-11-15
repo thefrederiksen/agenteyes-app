@@ -1,4 +1,5 @@
 using System.IO;
+using AgentEyes.Setup.Engine;
 
 namespace AgentEyesSetup.Services;
 
@@ -6,7 +7,6 @@ public static class SetupLog
 {
     private static readonly string LogDir;
     private static readonly string LogPath;
-    private static readonly object Lock = new();
 
     /// <summary>The current setup log file (shown on-screen so a user can find/attach it).</summary>
     public static string Path => LogPath;
@@ -25,9 +25,6 @@ public static class SetupLog
     public static void Write(string message)
     {
         var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
-        lock (Lock)
-        {
-            File.AppendAllText(LogPath, line + Environment.NewLine);
-        }
+        CrossProcessFileAppender.AppendLine(LogPath, line + Environment.NewLine);
     }
 }

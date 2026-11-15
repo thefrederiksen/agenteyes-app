@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using AgentEyes.Setup.Engine;
 
@@ -18,12 +19,35 @@ namespace AgentEyes.Tests
         /// <summary>The switch that selects the probe; anything else is a usage error.</summary>
         public const string Switch = "--launch-probe";
 
+        public const string LogAppendSwitch = "--log-append-probe";
+
         /// <summary>
         /// Usage: <c>--launch-probe &lt;layoutRoot&gt; &lt;exe&gt; [arg ...]</c>. Prints <c>pid=N</c> on stdout
         /// and exits 0; exits 1 with the reason on stderr when the launch fails; 2 on a usage error.
         /// </summary>
         public static int Main(string[] args)
         {
+            if (args.Length == 4 && string.Equals(args[0], LogAppendSwitch, StringComparison.Ordinal))
+            {
+                string path = args[1];
+                string prefix = args[2];
+                int count = int.Parse(args[3], CultureInfo.InvariantCulture);
+                string payload = new string('x', 16 * 1024);
+                for (int i = 0; i < count; i++)
+                {
+                    try
+                    {
+                        Log.AppendLine(path, prefix + i.ToString(CultureInfo.InvariantCulture) + ":" + payload + Environment.NewLine);
+                    }
+                    catch (IOException)
+                    {
+                        // Match Log.Write's production contract: a logging failure is swallowed,
+                        // so the parent test detects the lost record instead of a child crash.
+                    }
+                }
+                return 0;
+            }
+
             if (args.Length < 3 || !string.Equals(args[0], Switch, StringComparison.Ordinal))
             {
                 Console.Error.WriteLine($"usage: AgentEyes.Tests.dll {Switch} <layoutRoot> <exe> [arg ...]");

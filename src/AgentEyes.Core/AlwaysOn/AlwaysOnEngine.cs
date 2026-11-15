@@ -1369,7 +1369,7 @@ namespace AgentEyes.AlwaysOn
             long bytes = written.Length;
             // The ledger is written BEFORE the pieces go: a clip the cap may delete is a clip this
             // engine is on record as having written (review finding 3).
-            File.AppendAllText(o.ClipLedger, LedgerLine(written) + Environment.NewLine);
+            Log.AppendLine(o.ClipLedger, LedgerLine(written) + Environment.NewLine);
             Directory.Delete(dir, recursive: true);
             _day.EnsureDay(now);
             _day.Clips++;

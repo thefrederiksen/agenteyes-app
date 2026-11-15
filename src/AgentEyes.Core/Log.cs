@@ -1,5 +1,8 @@
 using System;
 using System.IO;
+using System.Runtime.Versioning;
+using System.Text;
+using System.Threading;
 
 namespace AgentEyes
 {
@@ -16,6 +19,8 @@ namespace AgentEyes
     internal static class Log
     {
         private static readonly object Lock = new();
+
+        private static readonly Encoding Utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
         private static readonly int ProcessId = Environment.ProcessId;
 
@@ -52,14 +57,95 @@ namespace AgentEyes
                 lock (Lock)
                 {
                     Directory.CreateDirectory(Dir);
-                    File.AppendAllText(CurrentFile,
-                        FormatLine(DateTime.Now, ProcessId, level, message) + Environment.NewLine);
+                    AppendLine(CurrentFile, FormatLine(DateTime.Now, ProcessId, level, message) + Environment.NewLine);
                 }
             }
             catch
             {
                 // Logging must never throw.
             }
+        }
+
+        /// <summary>
+        /// Append one complete record while coordinating with writers in other processes.
+        /// The lock protects shared files across the app, CLI, and second-instance processes (issue #143).
+        /// </summary>
+        internal static void AppendLine(string path, string text)
+        {
+            if (OperatingSystem.IsMacOS())
+            {
+                AppendWithPortableLock(path, text);
+                return;
+            }
+
+#pragma warning disable CA1416 // the macOS branch above selects the portable lock implementation.
+            AppendWithByteRangeLock(path, text);
+#pragma warning restore CA1416
+        }
+
+        [SupportedOSPlatform("windows")]
+        [SupportedOSPlatform("linux")]
+        private static void AppendWithByteRangeLock(string path, string text)
+        {
+            const int MaxLockAttempts = 1000;
+            string lockPath = path + ".lock";
+
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    // Lock a sidecar so readers of the real log are not blocked by the writer's
+                    // byte-range lock. The sidecar is intentionally stable: all processes derive the
+                    // same lock path, and the log remains readable with FileShare.ReadWrite.
+                    using var lease = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
+                        FileShare.ReadWrite | FileShare.Delete);
+                    lease.Lock(0, 1);
+                    try
+                    {
+                        AppendUnlocked(path, text);
+                        return;
+                    }
+                    finally
+                    {
+                        lease.Unlock(0, 1);
+                    }
+                }
+                catch (IOException) when (attempt < MaxLockAttempts)
+                {
+                    Thread.Sleep(1);
+                }
+            }
+        }
+
+        private static void AppendWithPortableLock(string path, string text)
+        {
+            const int MaxLockAttempts = 1000;
+            string lockPath = path + ".lock";
+
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    using var lease = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite,
+                        FileShare.None, bufferSize: 1, FileOptions.DeleteOnClose);
+                    AppendUnlocked(path, text);
+                    return;
+                }
+                catch (IOException) when (attempt < MaxLockAttempts)
+                {
+                    Thread.Sleep(1);
+                }
+            }
+        }
+
+        private static void AppendUnlocked(string path, string text)
+        {
+            using var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite,
+                FileShare.ReadWrite | FileShare.Delete);
+            stream.Seek(0, SeekOrigin.End);
+            byte[] bytes = Utf8.GetBytes(text);
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush(flushToDisk: true);
         }
     }
 }

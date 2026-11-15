@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using AgentEyes.AlwaysOn;
 using AgentEyes.Packaging;
 using AgentEyes.Preview;
@@ -181,6 +183,46 @@ namespace AgentEyes.Tests
             string pidPrefix = $@"^\d\d:\d\d:\d\d\.\d{{3}} \[pid {Environment.ProcessId}\] \[ERROR\] ";
             var bare = entry.Where(l => !Regex.IsMatch(l, pidPrefix)).ToList();
             Assert.True(bare.Count == 0, "these lines of the entry do not carry the pid:" + Environment.NewLine + string.Join(Environment.NewLine, bare));
+        }
+
+        [Fact]
+        public async Task Log_ConcurrentProcesses_AppendCompleteLinesWithoutLoss()
+        {
+            string path = Path.Combine(TestRunIsolation.RunRoot, "cross-process-log-" + Guid.NewGuid().ToString("N") + ".log");
+            const int writesPerProcess = 250;
+            var processes = new[]
+            {
+                StartLogAppender(path, "process-a:", writesPerProcess),
+                StartLogAppender(path, "process-b:", writesPerProcess),
+            };
+
+            try
+            {
+                await Task.WhenAll(processes.Select(p => p.WaitForExitAsync()));
+                foreach (Process process in processes)
+                {
+                    string error = await process.StandardError.ReadToEndAsync();
+                    Assert.Equal(0, process.ExitCode);
+                    Assert.True(string.IsNullOrEmpty(error), error);
+                }
+
+                string[] lines = File.ReadAllLines(path);
+                var expected = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string prefix in new[] { "process-a:", "process-b:" })
+                    for (int i = 0; i < writesPerProcess; i++)
+                        expected.Add(prefix + i.ToString() + ":" + new string('x', 16 * 1024));
+
+                Assert.Equal(expected.Count, lines.Length);
+                Assert.True(expected.SetEquals(lines), "one or more concurrent records were corrupted or lost");
+            }
+            finally
+            {
+                foreach (Process process in processes)
+                {
+                    if (!process.HasExited) process.Kill(entireProcessTree: true);
+                    process.Dispose();
+                }
+            }
         }
 
         // ---- criterion 2: every state location -----------------------------------------------
@@ -427,7 +469,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void ReadShared_WhileTheLoggerHoldsTheFileForAppend_Reads_WhereReadAllTextIsRefused()
         {
-            // The writer's handle is opened exactly as Log.Write opens it: File.AppendAllText is a
+            // The writer's handle models the old Log.Write implementation: File.AppendAllText is a
             // StreamWriter(path, append: true), i.e. Write access sharing Read only. KNOWN-BAD FIRST,
             // so the sharing mode is seen to matter: the plain reader is refused while that handle is
             // open. Then the shared reader on the same file, at the same moment, reads both lines.
@@ -457,6 +499,32 @@ namespace AgentEyes.Tests
             TestRunIsolation.ReadShared(path);
             using (var appending = new StreamWriter(path, append: true)) appending.Write(Environment.NewLine + "third line");
             Assert.Contains("third line", TestRunIsolation.ReadShared(path), StringComparison.Ordinal);
+        }
+
+        private static Process StartLogAppender(string path, string prefix, int count)
+        {
+            string testsDll = typeof(LaunchProbe).Assembly.Location;
+            var psi = new ProcessStartInfo(DotnetExe())
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            psi.ArgumentList.Add(testsDll);
+            psi.ArgumentList.Add(LaunchProbe.LogAppendSwitch);
+            psi.ArgumentList.Add(path);
+            psi.ArgumentList.Add(prefix);
+            psi.ArgumentList.Add(count.ToString());
+            return Process.Start(psi) ?? throw new InvalidOperationException("could not start the log appender probe");
+        }
+
+        private static string DotnetExe()
+        {
+            string runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+            string dotnet = Path.GetFullPath(Path.Combine(runtimeDir, "..", "..", "..", "dotnet.exe"));
+            Assert.True(File.Exists(dotnet), $"dotnet.exe was not found at {dotnet}");
+            return dotnet;
         }
 
         // ---- helpers ---------------------------------------------------------------------------

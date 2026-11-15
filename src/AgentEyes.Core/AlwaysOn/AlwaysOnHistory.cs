@@ -195,7 +195,7 @@ namespace AgentEyes.AlwaysOn
                     try
                     {
                         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
-                        File.AppendAllText(Path, Serialize(e) + Environment.NewLine);
+                        Log.AppendLine(Path, Serialize(e) + Environment.NewLine);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {

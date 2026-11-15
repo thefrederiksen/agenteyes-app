@@ -59,16 +59,13 @@ namespace AgentEyes.Tests
         /// <summary>
         /// This run's log, read WITHOUT colliding with the writer (issue #84, second fix).
         ///
-        /// <c>Log.Write</c> appends with <c>File.AppendAllText</c>, whose stream shares Read only, and
-        /// <c>File.ReadAllText</c> opens sharing Read only too - so under the parallel suite the two
-        /// refuse each other in BOTH directions. A reader that arrives while a line is being appended
-        /// throws "being used by another process" and its test fails on the wrong thing; a writer that
-        /// arrives while a test holds the file for reading gets an IOException that <c>Log.Write</c>
-        /// swallows, so the line is LOST and some other test's log assertion fails. Reading with
-        /// ReadWrite | Delete sharing admits the writer's Write access, and the writer's Read sharing
-        /// admits this reader. The tests that read the WHOLE log read it through here; the four that read
-        /// from an offset (RecordingStopSequenceTests, AlwaysOnStallTests, PreviewChoresTests,
-        /// HudPreviewSizingOrderTests) open their own stream with this same sharing mode.
+        /// The old <c>Log.Write</c> implementation used <c>File.AppendAllText</c>, whose stream shared
+        /// Read only, and <c>File.ReadAllText</c> opened sharing Read only too. That made readers and
+        /// writers refuse each other in both directions. The shared reader keeps ReadWrite | Delete
+        /// sharing for compatibility with the old writer and with tests that inspect a log while it is
+        /// active. The four tests that read from an offset (RecordingStopSequenceTests,
+        /// AlwaysOnStallTests, PreviewChoresTests, HudPreviewSizingOrderTests) open their own stream
+        /// with this same sharing mode.
         /// </summary>
         internal static string ReadLog() => ReadShared(Log.CurrentFile);
 
