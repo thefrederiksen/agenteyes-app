@@ -1,0 +1,8 @@
+Log integrity scan (#143) over this session's part of AgentEyes-20261115.log (from 10:45:54, the first launch of the main build):
+  session lines: 2377
+  well-formed (^HH:MM:SS.mmm [pid N]): 2377
+  not well-formed: 0
+  writers: pid 22104 = 2353 lines; pid 23196 = 24 lines; 
+  instrument check: the same grep run over a two-line sample holding one good line and the Linux truncated line
+  "er instance is running - sent it 'show'" counts 1 not-well-formed line, so it fires on the defect's shape.
+  LIMIT: pid 23196 (the first launch, stopped by the updater at 10:46:10) and pid 22104 never ran at the same time, so this session never had two concurrent writers. #143 was NOT exercised; 0 here says nothing about it.

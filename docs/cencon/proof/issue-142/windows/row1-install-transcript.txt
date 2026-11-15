@@ -1,0 +1,113 @@
+== 2026-11-15 10:43:21 agenteyes-setup status (before)
+Installed status (root '%USERPROFILE%\AppData\Local\AgentEyes'):
+  app        1.11.11
+  cli        1.11.11
+  setup-cli  1.11.11
+  ffmpeg     9.0.2
+exit=0
+== 10:43:21 agenteyes-setup install --release-dir dist\release
+Nothing to do - all components up to date.
+PATH: already set
+Native extraction dir: already set (%USERPROFILE%\AppData\Local\AgentEyes\bundle)
+Start Menu shortcut: created
+Add/Remove Programs: registered v1.11.11
+exit=0
+== 10:43:21 agenteyes-setup status (after)
+Installed status (root '%USERPROFILE%\AppData\Local\AgentEyes'):
+  app        1.11.11
+  cli        1.11.11
+  setup-cli  1.11.11
+  ffmpeg     9.0.2
+exit=0
+
+== 10:44:46 NOTE: install above was a no-op (same version 1.11.11 already installed from a 2026-10-11 build). Old app pid 16936 quit via its quit request at 10:44:37. Performing uninstall + clean install.
+== 10:44:46 agenteyes-setup uninstall
+Uninstall finished with errors:
+  removed App binaries: %USERPROFILE%\AppData\Local\AgentEyes\app
+  removed Setup bookkeeping: %USERPROFILE%\AppData\Local\AgentEyes\config\setup
+  removed PATH entry: %USERPROFILE%\AppData\Local\AgentEyes\app
+  removed DOTNET_BUNDLE_EXTRACT_BASE_DIR variable
+  removed Start Menu shortcut: %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk
+  removed desktop shortcut: %USERPROFILE%\Desktop\AgentEyes.lnk
+  removed run-at-login entry (if present)
+  removed Add/Remove Programs entry
+  ERROR: Native extraction cache (%USERPROFILE%\AppData\Local\AgentEyes\bundle): Access to the path 'av_libglesv2.dll' is denied.
+exit=1
+== 10:44:59 after uninstall: app dir exists? no; status:
+Installed status (root '%USERPROFILE%\AppData\Local\AgentEyes'):
+  app        not installed
+  cli        not installed
+  setup-cli  not installed
+  ffmpeg     not installed
+exit=0
+== 10:45:00 agenteyes-setup install --release-dir dist\release --autostart on --desktop-shortcut
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+AgentEyes was not running - it was not started
+PATH: added %USERPROFILE%\AppData\Local\AgentEyes\app (open a new terminal to use agenteyes)
+Native extraction dir: DOTNET_BUNDLE_EXTRACT_BASE_DIR=%USERPROFILE%\AppData\Local\AgentEyes\bundle
+Start Menu shortcut: created
+Add/Remove Programs: registered v1.11.11
+exit=0
+== 10:45:06 status (after)
+Installed status (root '%USERPROFILE%\AppData\Local\AgentEyes'):
+  app        1.11.11
+  cli        1.11.11
+  setup-cli  1.11.11
+  ffmpeg     8.1.1
+exit=0
+
+== 10:45:54 installed app started: AgentEyesApp.exe --tray -> pid 23196; /health at 10:45:55.215: {"ok":true,"app":"AgentEyes"}
+== the app's launch update check (setup-cli.log, verbatim):
+2026-11-15 10:46:00 [Program] RunAsync: command=update positionals=[] flags=[] options=[] root=%USERPROFILE%\AppData\Local\AgentEyes
+2026-11-15 10:46:01 [Program] RunAsync: command=update exit=0
+2026-11-15 10:46:02 [Program] RunAsync: command=update positionals=[] flags=[relaunched] options=[] root=%USERPROFILE%\AppData\Local\AgentEyes
+2026-11-15 10:46:02 [ReleaseSource] FetchLatestAsync: channel=https://api.github.com/repos/thefrederiksen/agenteyes-app/releases/latest
+2026-11-15 10:46:02 [UpdatePlanner] Plan: 4 components, 0 install, 1 update, 0 missing-asset.
+2026-11-15 10:46:02 [UpdateRestartCycle] RunAsync: looking for a running AgentEyes
+2026-11-15 10:46:03 [RunningAppHandle] Find: pid 23196, exe %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, arguments: --tray
+2026-11-15 10:46:03 [UpdateRestartCycle] RunAsync: AgentEyes is running (pid 23196, %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, arguments: --tray) - it keeps running while the update is downloaded and verified
+2026-11-15 10:46:03 [UpdateRestartCycle] RunAsync: preparing (download + verify) before anything is stopped or replaced
+2026-11-15 10:46:03 [UpdateRunner] StageAsync: downloading and verifying 1 component(s) before anything is stopped or replaced
+2026-11-15 10:46:09 [UpdateRunner] StageAsync: ffmpeg 8.1.1 -> 9.0.2 verified at %USERPROFILE%\AppData\Local\Temp\agenteyes-setup-b739c172d6d64057a9aae550ca7a56ac-agenteyes-ffmpeg-win-x64.zip
+2026-11-15 10:46:09 [UpdateRunner] StageAsync: all 1 component(s) verified; nothing installed has been touched
+2026-11-15 10:46:09 [UpdateRestartCycle] RunAsync: prepared; stopping pid 23196 before anything is replaced
+2026-11-15 10:46:09 [RunningApp] StopAndWait: name=AgentEyesApp, graceful=30s, timeout=60s
+2026-11-15 10:46:09 [RunningApp] StopAndWait: 1 instance(s) running - stopping
+2026-11-15 10:46:09 [QuitRequest] TrySignal: quit requested from pid=23196 via AgentEyes-quit-23196
+2026-11-15 10:46:09 [RunningApp] StopAndWait: quit request delivered=True; waiting up to 30s for a clean exit
+2026-11-15 10:46:10 [RunningApp] StopAndWait: gone=True
+2026-11-15 10:46:10 [UpdateRestartCycle] RunAsync: pid 23196 is gone - replacing
+2026-11-15 10:46:10 [UpdateRunner] Swap: placing 1 verified component(s)
+2026-11-15 10:46:12 [InstallSwapper] Place: swapped %USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe (backup %USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe.old)
+2026-11-15 10:46:13 [InstallSwapper] Place: swapped %USERPROFILE%\AppData\Local\AgentEyes\app\ffprobe.exe (backup %USERPROFILE%\AppData\Local\AgentEyes\app\ffprobe.exe.old)
+2026-11-15 10:46:13 [ArchiveInstaller] placed 2 file(s) into %USERPROFILE%\AppData\Local\AgentEyes\app
+2026-11-15 10:46:13 [UpdateRunner] Swap: ffmpeg Updated
+2026-11-15 10:46:13 [UpdateRunner] Swap done: installed=0, updated=1
+2026-11-15 10:46:13 [UpdateRestartCycle] Relaunch: starting the installed %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe with argument(s): --tray
+2026-11-15 10:46:13 [ProcessAppLauncher] BuildCommandLine: 1 argument(s) -> %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe --tray
+2026-11-15 10:46:13 [ProcessAppLauncher] Launch: starting detached (no inherited handles, own console) in %USERPROFILE%\AppData\Local\AgentEyes\app: %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe --tray
+2026-11-15 10:46:13 [ProcessAppLauncher] Launch: started %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe as pid 22104
+2026-11-15 10:46:13 [UpdateRestartCycle] Relaunch: started pid 22104
+2026-11-15 10:46:13 [UpdateRestartCycle] RunAsync: restarted the running app (pid 23196 -> pid 22104)
+2026-11-15 10:46:13 [InstallFinalizer] DOTNET_BUNDLE_EXTRACT_BASE_DIR already set: %USERPROFILE%\AppData\Local\AgentEyes\bundle
+2026-11-15 10:46:13 [InstallFinalizer] created shortcut: %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk
+2026-11-15 10:46:13 [InstallFinalizer] registered Add/Remove Programs entry (v1.11.11)
+2026-11-15 10:46:13 [Program] RunAsync: command=update exit=0
+== 10:46:51 final status:
+Installed status (root '%USERPROFILE%\AppData\Local\AgentEyes'):
+  app        1.11.11
+  cli        1.11.11
+  setup-cli  1.11.11
+  ffmpeg     9.0.2
+== sha256 dist/release (built from 93681fa) vs installed:
+  AgentEyesApp.exe dist=38524e3c9882163f72fb4a8d0ab6b9eaa0c36d62a359b4607f1d1d15c4f57011 installed=38524e3c9882163f72fb4a8d0ab6b9eaa0c36d62a359b4607f1d1d15c4f57011
+  agenteyes.exe dist=1c4b3ef17c155a46721f00e1f0a22ae745c6c206700ec047a9d78df7b7eb4fdf installed=1c4b3ef17c155a46721f00e1f0a22ae745c6c206700ec047a9d78df7b7eb4fdf
+  agenteyes-setup.exe dist=b68a646d6cd39ca4bb49f6ebcf7c7fdefb49c0f7612efa27384352bfff86cdd7 installed=b68a646d6cd39ca4bb49f6ebcf7c7fdefb49c0f7612efa27384352bfff86cdd7
+  ffmpeg.exe installed=3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec (ffmpeg version 9.0.2-essentials_build-ww)
+== pre-session build (backed up before uninstall): AgentEyesApp.exe 06cef20e21b4e160ab873fbca33c74fb2d63abf3a67be880c9d6f1f2bb669c85, agenteyes.exe c0ca85f378f7743bad94a558dbf4500acacda8032dab5bcb967e6bede93cfdb7, ffmpeg.exe 3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec
+== running: pid 22104 %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe

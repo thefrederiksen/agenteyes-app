@@ -1,0 +1,19 @@
+Row 12 - always-on. Windows, SORENLAPTOP, main 93681fa, app pid 22104. Always-on was OFF on arrival and is OFF again.
+POST /always-on/start at 11:37:58.250 -> State listening, Encoder h264_qsv, MicDevice 'Microphone (2- Realtek(R) Audio)', MicMuted False, MicVolumePercent 65
+GET /always-on at 11:39:03 -> Setup Default, ThresholdDb -50 (auto), FloorDb -96.7, LastSoundUtc null
+[console]::Beep(1000,3000) played 11:39:16.870 - 11:39:19.889 (a 3 s 1 kHz tone, attempted through the speakers)
+GET /always-on at 11:40:50 -> today='0 clips kept, 0 s, 0 MB. 2 m of silence discarded.' LastSoundUtc null, ClipsToday 0
+POST /always-on/stop at 11:41:04.333 -> State off, '0 clips kept, 0 s, 0 MB. 3 m of silence discarded.'
+
+== app log (pid 22104)
+11:38:03.101 [pid 22104] [INFO] [ContinuousRecorder] Start: recording, encoder=h264_qsv pieces=%USERPROFILE%\AppData\Local\AgentEyes\alwayson\pieces
+11:38:03.114 [pid 22104] [INFO] [AlwaysOnEngine] Start: always-on is on
+11:39:18.114 [pid 22104] [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s); mic peak=-78.5dBFS avg=-91.6dBFS
+11:39:33.111 [pid 22104] [INFO] [AlwaysOnEngine] keeper: DELETE piece_20261115-163801.mp4 (60s, no sound near it)
+11:40:18.459 [pid 22104] [INFO] [AlwaysOnEngine] levels: mic floor=-96.7dBFS line=-50.0dBFS (auto); last 60s: loud=0 sustained=no (0s); mic peak=-69.7dBFS avg=-85.1dBFS
+11:40:33.111 [pid 22104] [INFO] [AlwaysOnEngine] keeper: DELETE piece_20261115-163901.mp4 (60s, no sound near it)
+11:41:03.850 [pid 22104] [INFO] [AlwaysOnController] StopAsync: control api
+11:41:03.851 [pid 22104] [INFO] [AlwaysOnEngine] Stop: stopping always-on (control api)
+11:41:04.257 [pid 22104] [INFO] [AlwaysOnEngine] keeper: DELETE piece_20261115-164001.mp4 (60s, no sound near it)
+11:41:04.258 [pid 22104] [INFO] [AlwaysOnEngine] keeper: DELETE piece_20261115-164101.mp4 (3s, no sound near it)
+11:41:04.261 [pid 22104] [INFO] [AlwaysOnEngine] Stop: always-on is off
