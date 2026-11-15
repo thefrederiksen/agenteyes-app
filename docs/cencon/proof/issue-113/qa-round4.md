@@ -323,3 +323,53 @@ copy in CLAUDE.md is what sent this round at the merge button and should be corr
 | `qa-round4/mutation-mac-independent.txt` | the independent 14-mutant run |
 | `qa-round4/mutate-mac.py` | the mutation harness, runnable from the repo |
 | `qa-round4/inject.py` | the fault-injection harness used for AC1/AC2/AC3 |
+
+## 12. Which build is answering - a positive discriminator, verified both ways
+
+Added after the round, in response to a mid-run correction from the lead. The point is to tell a
+`#113` build from a main build by a PRESENCE in each direction, never by an absence.
+
+.NET stores string LITERALS as UTF-16 and type/member NAMES as UTF-8, so `strings -a` sees only the
+names and reads every literal as 0. Counting both encodings in `agenteyes.dll`, built from each ref
+with `-p:AgentEyesUnixPlatform=mac`:
+
+| marker | main `432105b` utf8 / utf16 | branch `7b1fd2a` utf8 / utf16 |
+|---|---|---|
+| `CaptureWatchdog` | 0 / 0 | **1 / 1** |
+| `OrderStopSteps` | 0 / 0 | **1 / 0** |
+| `CaptureLiveness` | 0 / 0 | **3 / 0** |
+| `frag_keyframe` | 0 / 0 | **0 / 1** |
+| `avfoundation` | 0 / **2** | 0 / **2** |
+| `MuxInTwoPasses` | **1 / 1** | **1 / 1** |
+
+`avfoundation` (2) and `MuxInTwoPasses` (1) are present in BOTH and are the instrument check: they
+prove the reader is parsing each binary correctly, so the zeros in the first four rows are real
+absences and not a failed read. `local main 432105b` is code-identical to `origin/main 90c9118` in
+`src/` and `tests/` (`git diff --stat` empty), so this table stands for the installed main build.
+
+At runtime the same distinction is positive: a `#113` build's `/status` carries `CaptureLiveness`,
+`CaptureFile`, `CaptureBytes`, `CaptureLastGrowthUtc`, `CaptureSecondsSinceGrowth`,
+`LastCaptureFault`, `LastCaptureFaultUtc`, `LastCaptureFaultDir`. The main build left installed
+carries **no `Capture*` field at all** - 27 fields, none matching `Capture`.
+
+**One marker in the suggested discriminator is wrong and should not be used.** `capture-stalled` reads
+**0 on a branch build as well**, because that literal does not exist anywhere in the source: the fault
+text is built by `CaptureFault.ToString()` as `$"capture {Kind}: {Message}"` with
+`KindStalled = "stalled"` (`CaptureWatchdog.cs:56,80`), producing `capture stalled: ...` with a space.
+A seat using `capture-stalled` as its marker would read 0 on a build that DOES contain #113 and
+conclude the opposite. Use `CaptureWatchdog`, `OrderStopSteps` or `frag_keyframe` instead.
+
+## 13. `RecordingStopOrderTests` in all three suites - confirmed
+
+The claim that the order guard is compiled into every suite holds; one source file, linked three times:
+
+```
+tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj:40  <Compile Include="..\Shared\RecordingStopOrderTests.cs" ... />
+tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj:54      <Compile Include="../Shared/RecordingStopOrderTests.cs" ... />
+tests/AgentEyes.Tests/AgentEyes.Tests.csproj:63              <Compile Include="..\Shared\RecordingStopOrderTests.cs" ... />
+```
+
+Mutant N was run against the macOS suite on this host and kills the two tests by name (section 5).
+The Windows and Linux copies are covered by CI's green windows 2415/0 and linux 321/0 at `fe096aa`
+(section 8); mutating them from this macOS host would not be a Windows or Linux run and was not
+claimed as one.
