@@ -1,0 +1,95 @@
+QA, issue #116 - the desktop app RUNNING on devthrottle-mac-mini (criteria 2, 9, 10, 11 - macOS)
+Host: macOS 26.5.2 (25F84), arm64. Branch issue-116-desktop-app at c80cb9d, built on this machine.
+Binary: <repo>/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop (arm64 apphost).
+Started from a shell in the console user's Aqua session with DOTNET_ROOT=$HOME/.dotnet and
+DOTNET_ROLL_FORWARD=LatestMajor exported in the SHELL only - no script in the repo was changed.
+Without DOTNET_ROOT the apphost refuses to start: 'You must install .NET to run this application /
+Failed to resolve libhostfxr.dylib'. That is this machine having no .NET 8 SDK in a standard
+location, which the issue already notes; it is not a finding against the change.
+
+=========== 1. First launch - the app's own log (pid 43308) ===========
+Both the app and the recorder service write this one file, so each line carries its pid;
+pid 90675 is the installed recorder service (launchd), pid 43308 is the desktop app.
+09:35:43.803 [pid 43308] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=43308)
+09:35:43.804 [pid 43308] [INFO] [SingleInstance] TryAcquireSocket: /var/folders/b8/<redacted>/T/agenteyes-app.sock command='show'
+09:35:43.810 [pid 43308] [INFO] [SingleInstance] TryAcquire: stale socket /var/folders/b8/<redacted>/T/agenteyes-app.sock (ConnectionRefused) - taking it over
+09:35:43.810 [pid 43308] [INFO] [SingleInstance] TryAcquire: listening on /var/folders/b8/<redacted>/T/agenteyes-app.sock
+09:35:44.931 [pid 43308] [INFO] [App] OnFrameworkInitializationCompleted
+09:35:44.949 [pid 43308] [INFO] [TrayController] ctor
+09:35:45.001 [pid 43308] [INFO] [AppSettings] Load: screen=1 mic=Yealink UH36 system=True mode=grid
+09:35:45.002 [pid 43308] [INFO] [AppState] StartPolling
+09:35:45.007 [pid 43308] [INFO] [App] Run: show
+09:35:45.008 [pid 43308] [INFO] [App] ShowWindow
+09:35:45.303 [pid 43308] [INFO] [MainWindow] ctor
+09:35:45.380 [pid 43308] [INFO] [MainWindow] Opened
+09:35:45.381 [pid 43308] [INFO] [ControlClient] GetDevicesAsync
+09:35:45.430 [pid 43308] [INFO] [MainWindow] StartWatchingLibrary: /Users/soren/Movies/AgentEyes
+09:35:45.522 [pid 43308] [INFO] [AppState] PollAsync: service answering, state=idle
+09:35:45.522 [pid 43308] [INFO] [TrayController] Render:  -> idle
+09:35:45.524 [pid 43308] [INFO] [MainWindow] RequestScan: 53 recording(s), 49 pending, 92 ms
+09:35:45.548 [pid 43308] [INFO] [MainWindow] RequestScan: 53 recording(s), 49 pending, 21 ms
+09:35:45.652 [pid 90675] [INFO] [MacDisplay] Screens: 1 online display(s)
+09:35:45.869 [pid 90675] [INFO] [AvfDevices] Read: 1 video input(s), 2 audio input(s)
+09:35:45.939 [pid 90675] [INFO] [AvfDevices] Read: 1 video input(s), 2 audio input(s)
+09:35:46.008 [pid 90675] [INFO] [AvfDevices] Read: 1 video input(s), 2 audio input(s)
+09:35:46.076 [pid 90675] [INFO] [AvfDevices] Read: 1 video input(s), 2 audio input(s)
+09:35:46.083 [pid 43308] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 2 mic(s)
+09:35:46.101 [pid 43308] [INFO] [AppSettings] Save: screen=1 mic=Yealink UH36 system=True mode=grid
+
+=========== 2. LibVLC initialises (the single change the macOS build most depends on) ===========
+Program.Main calls LibVLCSharp.Shared.Core.Initialize() at Program.cs:43, AFTER
+'[SingleInstance] TryAcquire: listening' and BEFORE Avalonia starts. Both of those lines are
+above, so Initialize() returned instead of throwing VLCException as it did before
+VideoLAN.LibVLC.Mac was added. The positive form of the same fact - the native libraries
+actually mapped into the running process:
+<repo>/src/AgentEyes.DesktopApp/bin/Release/net8.0/LibVLCSharp.dll
+<repo>/src/AgentEyes.DesktopApp/bin/Release/net8.0/libvlc/osx-arm64/lib/libvlc.dylib
+<repo>/src/AgentEyes.DesktopApp/bin/Release/net8.0/libvlc/osx-arm64/lib/libvlccore.dylib
+
+=========== 3. The window exists, from the WINDOW SERVER, not from the app's log ===========
+CGWindowListCopyWindowInfo(.optionAll), filtered to the app's pid. Owner name, pid, layer and
+bounds are returned without the Screen Recording grant; the window NAME is withheld without it.
+pid=43308 owner="AgentEyesDesktop" window=623 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+
+Control - the same probe aimed at the recorder service (pid 90675), which owns no window:
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+...so a result for the app is a real presence, not the probe answering yes to everything.
+
+=========== 4. Criterion 9 - the app reads the recorder's state over the Control API ===========
+$ curl -s http://127.0.0.1:7882/health
+{
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "macos"
+}
+The app's own calls to that API, from its log (it is not showing 'not answering'):
+09:35:45.381 [pid 43308] [INFO] [ControlClient] GetDevicesAsync
+09:35:45.522 [pid 43308] [INFO] [AppState] PollAsync: service answering, state=idle
+09:35:45.522 [pid 43308] [INFO] [TrayController] Render:  -> idle
+09:35:46.083 [pid 43308] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 2 mic(s)
+09:36:24.207 [pid 43308] [INFO] [TrayController] Render: idle -> recording
+09:36:32.541 [pid 43308] [INFO] [TrayController] Render: recording -> idle
+
+=========== 5. Criterion 11 - single instance (macOS: the temp-directory fallback) ===========
+XDG_RUNTIME_DIR is unset on macOS, so SingleInstance.SocketPath falls back to Path.GetTempPath():
+  $TMPDIR = /var/folders/b8/<redacted>/T/   -> socket path is 67 characters, inside the 104-
+  character sun_path limit, which is why the product is NOT hit by the limit that breaks the
+  two new unit tests (see mac-gate.txt).
+Second launch, run in the foreground so its exit code is visible:
+  $ ./AgentEyesDesktop --view library    ->    exit code 0
+09:39:15.869 [pid 44378] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=44378)
+09:39:15.870 [pid 44378] [INFO] [SingleInstance] TryAcquireSocket: /var/folders/b8/<redacted>/T/agenteyes-app.sock command='view:library'
+09:39:15.874 [pid 44378] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+09:39:15.874 [pid 43308] [INFO] [SingleInstance] Accept: 'view:library'
+09:39:15.874 [pid 43308] [INFO] [App] Run: view:library
+09:39:15.875 [pid 43308] [INFO] [App] ShowWindow
+09:39:15.877 [pid 43308] [INFO] [MainWindow] RunCommand: view library
+09:39:15.878 [pid 43308] [INFO] [MainWindow] Rail_Changed: Library
+09:39:16.273 [pid 43308] [INFO] [MainWindow] RequestScan: 54 recording(s), 50 pending, 394 ms
+
+pid 44378 is the second launch: it found the socket, sent 'view:library' and exited 0.
+pid 43308 is the first: it accepted the command, raised its window and switched to the Library.
+Processes left afterwards:
+43308 ./AgentEyesDesktop
+(one - the first instance.)
