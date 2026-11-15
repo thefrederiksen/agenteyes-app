@@ -1,0 +1,401 @@
+19:20:36Z LOAD before: 2.42 2.46 2.69
+19:20:36Z service pid: 50642
+19:20:36Z START SKEW-3 screen+mic 1800s body={"mode":"video","screen":1,"source":"mic","mic":"Yealink UH36","fps":30}
+{
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.14,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_142036_video",
+  "Camera": null,
+  "SignedIn": false,
+  "AccountEmail": null,
+  "PendingTranscriptions": 61,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+  "StuckCameras": [],
+  "PreviewScreenFrame": null,
+  "PreviewCameraFrame": null,
+  "PreviewAvailable": false,
+  "PreviewArmed": false,
+  "PreviewPublishing": false,
+  "PreviewScreenFramesRead": 0,
+  "PreviewCameraFramesRead": 0,
+  "PreviewFailed": false,
+  "PreviewOverlayCorner": null,
+  "PreviewOverlayShape": null
+}
+19:20:37Z   t+0s recording 1.18 mic=0.0000 lvl=0.0000
+19:20:42Z   t+5s recording 6.25 mic=0.0000 lvl=0.0000
+19:20:47Z   t+10s recording 11.33 mic=0.0000 lvl=0.0000
+19:20:52Z   t+15s recording 16.39 mic=0.0000 lvl=0.0000
+19:20:57Z   t+20s recording 21.45 mic=0.0000 lvl=0.0000
+19:21:03Z   t+25s recording 26.53 mic=0.0000 lvl=0.0000
+19:21:08Z   t+31s recording 31.6 mic=0.0000 lvl=0.0000
+19:21:13Z   t+36s recording 36.68 mic=0.0000 lvl=0.0000
+19:21:18Z   t+41s recording 41.75 mic=0.0000 lvl=0.0000
+19:21:23Z   t+46s recording 46.83 mic=0.0000 lvl=0.0000
+19:21:28Z   t+51s recording 51.91 mic=0.0000 lvl=0.0000
+19:21:33Z   t+56s recording 56.98 mic=0.0000 lvl=0.0000
+19:21:38Z   t+61s recording 62.05 mic=0.0000 lvl=0.0000
+19:21:43Z   t+66s recording 67.11 mic=0.0000 lvl=0.0000
+19:21:48Z   t+71s recording 72.19 mic=0.0000 lvl=0.0000
+19:21:53Z   t+76s recording 77.26 mic=0.0000 lvl=0.0000
+19:21:58Z   t+81s recording 82.33 mic=0.0000 lvl=0.0000
+19:22:03Z   t+86s recording 87.4 mic=0.0000 lvl=0.0000
+19:22:08Z   t+91s recording 92.49 mic=0.0000 lvl=0.0000
+19:22:14Z   t+96s recording 97.56 mic=0.0000 lvl=0.0000
+19:22:19Z   t+102s recording 102.64 mic=0.0000 lvl=0.0000
+19:22:24Z   t+107s recording 107.71 mic=0.0000 lvl=0.0000
+19:22:29Z   t+112s recording 112.78 mic=0.0000 lvl=0.0000
+19:22:34Z   t+117s recording 117.86 mic=0.0000 lvl=0.0000
+19:22:39Z   t+122s recording 122.93 mic=0.0000 lvl=0.0000
+19:22:44Z   t+127s recording 128 mic=0.0000 lvl=0.0000
+19:22:49Z   t+132s recording 133.08 mic=0.0000 lvl=0.0000
+19:22:54Z   t+137s recording 138.13 mic=0.0000 lvl=0.0000
+19:22:59Z   t+142s recording 143.19 mic=0.0000 lvl=0.0000
+19:23:04Z   t+147s recording 148.27 mic=0.0000 lvl=0.0000
+19:23:09Z   t+152s recording 153.35 mic=0.0000 lvl=0.0000
+19:23:14Z   t+157s recording 158.42 mic=0.0000 lvl=0.0000
+19:23:20Z   t+162s recording 163.51 mic=0.0000 lvl=0.0000
+19:23:25Z   t+168s recording 168.59 mic=0.0000 lvl=0.0000
+19:23:30Z   t+173s recording 173.67 mic=0.0000 lvl=0.0000
+19:23:35Z   t+178s recording 178.76 mic=0.0000 lvl=0.0000
+19:23:40Z   t+183s recording 183.84 mic=0.0000 lvl=0.0000
+19:23:45Z   t+188s recording 188.92 mic=0.0000 lvl=0.0000
+19:23:50Z   t+193s recording 194 mic=0.0000 lvl=0.0000
+19:23:55Z   t+198s recording 199.06 mic=0.0000 lvl=0.0000
+19:24:00Z   t+203s recording 204.14 mic=0.0000 lvl=0.0000
+19:24:05Z   t+208s recording 209.22 mic=0.0000 lvl=0.0000
+19:24:10Z   t+213s recording 214.29 mic=0.0000 lvl=0.0000
+19:24:15Z   t+218s recording 219.36 mic=0.0000 lvl=0.0000
+19:24:20Z   t+223s recording 224.45 mic=0.0000 lvl=0.0000
+19:24:26Z   t+228s recording 229.52 mic=0.0000 lvl=0.0000
+19:24:31Z   t+234s recording 234.59 mic=0.0000 lvl=0.0000
+19:24:36Z   t+239s recording 239.67 mic=0.0000 lvl=0.0000
+19:24:41Z   t+244s recording 244.75 mic=0.0000 lvl=0.0000
+19:24:46Z   t+249s recording 249.84 mic=0.0000 lvl=0.0000
+19:24:51Z   t+254s recording 254.91 mic=0.0000 lvl=0.0000
+19:24:56Z   t+259s recording 259.98 mic=0.0000 lvl=0.0000
+19:25:01Z   t+264s recording 265.06 mic=0.0000 lvl=0.0000
+19:25:06Z   t+269s recording 270.14 mic=0.0000 lvl=0.0000
+19:25:11Z   t+274s recording 275.22 mic=0.0000 lvl=0.0000
+19:25:16Z   t+279s recording 280.29 mic=0.0000 lvl=0.0000
+19:25:21Z   t+284s recording 285.37 mic=0.0000 lvl=0.0000
+19:25:26Z   t+289s recording 290.44 mic=0.0000 lvl=0.0000
+19:25:32Z   t+294s recording 295.52 mic=0.0000 lvl=0.0000
+19:25:37Z   t+300s recording 300.61 mic=0.0000 lvl=0.0000
+19:25:42Z   t+305s recording 305.69 mic=0.0000 lvl=0.0000
+19:25:47Z   t+310s recording 310.77 mic=0.0000 lvl=0.0000
+19:25:52Z   t+315s recording 315.84 mic=0.0000 lvl=0.0000
+19:25:57Z   t+320s recording 320.91 mic=0.0000 lvl=0.0000
+19:26:02Z   t+325s recording 325.99 mic=0.0000 lvl=0.0000
+19:26:07Z   t+330s recording 331.07 mic=0.0000 lvl=0.0000
+19:26:12Z   t+335s recording 336.15 mic=0.0000 lvl=0.0000
+19:26:17Z   t+340s recording 341.23 mic=0.0000 lvl=0.0000
+19:26:22Z   t+345s recording 346.3 mic=0.0000 lvl=0.0000
+19:26:27Z   t+350s recording 351.37 mic=0.0000 lvl=0.0000
+19:26:32Z   t+355s recording 356.45 mic=0.0000 lvl=0.0000
+19:26:38Z   t+360s recording 361.53 mic=0.0000 lvl=0.0000
+19:26:43Z   t+366s recording 366.61 mic=0.0000 lvl=0.0000
+19:26:48Z   t+371s recording 371.69 mic=0.0000 lvl=0.0000
+19:26:53Z   t+376s recording 376.77 mic=0.0000 lvl=0.0000
+19:26:58Z   t+381s recording 381.85 mic=0.0000 lvl=0.0000
+19:27:03Z   t+386s recording 386.92 mic=0.0000 lvl=0.0000
+19:27:08Z   t+391s recording 391.99 mic=0.0000 lvl=0.0000
+19:27:13Z   t+396s recording 397.06 mic=0.0000 lvl=0.0000
+19:27:18Z   t+401s recording 402.13 mic=0.0000 lvl=0.0000
+19:27:23Z   t+406s recording 407.21 mic=0.0000 lvl=0.0000
+19:27:28Z   t+411s recording 412.28 mic=0.0000 lvl=0.0000
+19:27:33Z   t+416s recording 417.36 mic=0.0000 lvl=0.0000
+19:27:38Z   t+421s recording 422.43 mic=0.0000 lvl=0.0000
+19:27:44Z   t+426s recording 427.51 mic=0.0000 lvl=0.0000
+19:27:49Z   t+432s recording 432.58 mic=0.0000 lvl=0.0000
+19:27:54Z   t+437s recording 437.65 mic=0.0000 lvl=0.0000
+19:27:59Z   t+442s recording 442.72 mic=0.0000 lvl=0.0000
+19:28:04Z   t+447s recording 447.79 mic=0.0000 lvl=0.0000
+19:28:09Z   t+452s recording 452.87 mic=0.0000 lvl=0.0000
+19:28:14Z   t+457s recording 457.94 mic=0.0000 lvl=0.0000
+19:28:19Z   t+462s recording 463.02 mic=0.0000 lvl=0.0000
+19:28:24Z   t+467s recording 468.09 mic=0.0000 lvl=0.0000
+19:28:29Z   t+472s recording 473.15 mic=0.0000 lvl=0.0000
+19:28:34Z   t+477s recording 478.22 mic=0.0000 lvl=0.0000
+19:28:39Z   t+482s recording 483.3 mic=0.0000 lvl=0.0000
+19:28:44Z   t+487s recording 488.38 mic=0.0000 lvl=0.0000
+19:28:49Z   t+492s recording 493.47 mic=0.0000 lvl=0.0000
+19:28:55Z   t+497s recording 498.54 mic=0.0000 lvl=0.0000
+19:29:00Z   t+503s recording 503.62 mic=0.0000 lvl=0.0000
+19:29:05Z   t+508s recording 508.69 mic=0.0000 lvl=0.0000
+19:29:10Z   t+513s recording 513.76 mic=0.0000 lvl=0.0000
+19:29:15Z   t+518s recording 518.84 mic=0.0000 lvl=0.0000
+19:29:20Z   t+523s recording 523.92 mic=0.0000 lvl=0.0000
+19:29:25Z   t+528s recording 528.99 mic=0.0000 lvl=0.0000
+19:29:30Z   t+533s recording 534.05 mic=0.0000 lvl=0.0000
+19:29:35Z   t+538s recording 539.12 mic=0.0000 lvl=0.0000
+19:29:40Z   t+543s recording 544.19 mic=0.0000 lvl=0.0000
+19:29:45Z   t+548s recording 549.27 mic=0.0000 lvl=0.0000
+19:29:50Z   t+553s recording 554.34 mic=0.0000 lvl=0.0000
+19:29:55Z   t+558s recording 559.43 mic=0.0000 lvl=0.0000
+19:30:01Z   t+563s recording 564.5 mic=0.0000 lvl=0.0000
+19:30:06Z   t+569s recording 569.58 mic=0.0000 lvl=0.0000
+19:30:11Z   t+574s recording 574.66 mic=0.0000 lvl=0.0000
+19:30:16Z   t+579s recording 579.72 mic=0.0000 lvl=0.0000
+19:30:21Z   t+584s recording 584.81 mic=0.0000 lvl=0.0000
+19:30:26Z   t+589s recording 589.88 mic=0.0000 lvl=0.0000
+19:30:31Z   t+594s recording 594.96 mic=0.0000 lvl=0.0000
+19:30:36Z   t+599s recording 600.04 mic=0.0000 lvl=0.0000
+19:30:41Z   t+604s recording 605.11 mic=0.0000 lvl=0.0000
+19:30:46Z   t+609s recording 610.18 mic=0.0000 lvl=0.0000
+19:30:51Z   t+614s recording 615.25 mic=0.0000 lvl=0.0000
+19:30:56Z   t+619s recording 620.32 mic=0.0000 lvl=0.0000
+19:31:01Z   t+624s recording 625.4 mic=0.0000 lvl=0.0000
+19:31:06Z   t+629s recording 630.48 mic=0.0000 lvl=0.0000
+19:31:12Z   t+634s recording 635.56 mic=0.0000 lvl=0.0000
+19:31:17Z   t+640s recording 640.63 mic=0.0000 lvl=0.0000
+19:31:22Z   t+645s recording 645.71 mic=0.0000 lvl=0.0000
+19:31:27Z   t+650s recording 650.78 mic=0.0000 lvl=0.0000
+19:31:32Z   t+655s recording 655.84 mic=0.0000 lvl=0.0000
+19:31:37Z   t+660s recording 660.92 mic=0.0000 lvl=0.0000
+19:31:42Z   t+665s recording 666 mic=0.0000 lvl=0.0000
+19:31:47Z   t+670s recording 671.07 mic=0.0000 lvl=0.0000
+19:31:52Z   t+675s recording 676.14 mic=0.0000 lvl=0.0000
+19:31:57Z   t+680s recording 681.22 mic=0.0000 lvl=0.0000
+19:32:02Z   t+685s recording 686.29 mic=0.0000 lvl=0.0000
+19:32:07Z   t+690s recording 691.37 mic=0.0000 lvl=0.0000
+19:32:12Z   t+695s recording 696.43 mic=0.0000 lvl=0.0000
+19:32:17Z   t+700s recording 701.49 mic=0.0000 lvl=0.0000
+19:32:23Z   t+706s recording 706.56 mic=0.0000 lvl=0.0000
+19:32:28Z   t+711s recording 711.65 mic=0.0000 lvl=0.0000
+19:32:33Z   t+716s recording 716.72 mic=0.0000 lvl=0.0000
+19:32:38Z   t+721s recording 721.8 mic=0.0000 lvl=0.0000
+19:32:43Z   t+726s recording 726.87 mic=0.0000 lvl=0.0000
+19:32:48Z   t+731s recording 731.95 mic=0.0000 lvl=0.0000
+19:32:53Z   t+736s recording 737.02 mic=0.0000 lvl=0.0000
+19:32:58Z   t+741s recording 742.09 mic=0.0000 lvl=0.0000
+19:33:03Z   t+746s recording 747.18 mic=0.0000 lvl=0.0000
+19:33:08Z   t+751s recording 752.26 mic=0.0000 lvl=0.0000
+19:33:13Z   t+756s recording 757.33 mic=0.0000 lvl=0.0000
+19:33:18Z   t+761s recording 762.4 mic=0.0000 lvl=0.0000
+19:33:23Z   t+766s recording 767.48 mic=0.0000 lvl=0.0000
+19:33:29Z   t+772s recording 772.56 mic=0.0000 lvl=0.0000
+19:33:34Z   t+777s recording 777.62 mic=0.0000 lvl=0.0000
+19:33:39Z   t+782s recording 782.71 mic=0.0000 lvl=0.0000
+19:33:44Z   t+787s recording 787.79 mic=0.0000 lvl=0.0000
+19:33:49Z   t+792s recording 792.86 mic=0.0000 lvl=0.0000
+19:33:54Z   t+797s recording 797.93 mic=0.0000 lvl=0.0000
+19:33:59Z   t+802s recording 803 mic=0.0000 lvl=0.0000
+19:34:04Z   t+807s recording 808.08 mic=0.0000 lvl=0.0000
+19:34:09Z   t+812s recording 813.14 mic=0.0000 lvl=0.0000
+19:34:14Z   t+817s recording 818.2 mic=0.0000 lvl=0.0000
+19:34:19Z   t+822s recording 823.29 mic=0.0000 lvl=0.0000
+19:34:24Z   t+827s recording 828.35 mic=0.0000 lvl=0.0000
+19:34:29Z   t+832s recording 833.41 mic=0.0000 lvl=0.0000
+19:34:34Z   t+837s recording 838.49 mic=0.0000 lvl=0.0000
+19:34:40Z   t+843s recording 843.58 mic=0.0000 lvl=0.0000
+19:34:45Z   t+848s recording 848.65 mic=0.0000 lvl=0.0000
+19:34:50Z   t+853s recording 853.73 mic=0.0000 lvl=0.0000
+19:34:55Z   t+858s recording 858.81 mic=0.0000 lvl=0.0000
+19:35:00Z   t+863s recording 863.89 mic=0.0000 lvl=0.0000
+19:35:05Z   t+868s recording 868.97 mic=0.0000 lvl=0.0000
+19:35:10Z   t+873s recording 874.05 mic=0.0000 lvl=0.0000
+19:35:15Z   t+878s recording 879.13 mic=0.0000 lvl=0.0000
+19:35:20Z   t+883s recording 884.19 mic=0.0000 lvl=0.0000
+19:35:25Z   t+888s recording 889.27 mic=0.0000 lvl=0.0000
+19:35:30Z   t+893s recording 894.35 mic=0.0000 lvl=0.0000
+19:35:35Z   t+898s recording 899.42 mic=0.0000 lvl=0.0000
+19:35:40Z   t+903s recording 904.49 mic=0.0000 lvl=0.0000
+19:35:46Z   t+909s recording 909.57 mic=0.0000 lvl=0.0000
+19:35:51Z   t+914s recording 914.63 mic=0.0000 lvl=0.0000
+19:35:56Z   t+919s recording 919.69 mic=0.0000 lvl=0.0000
+19:36:01Z   t+924s recording 924.75 mic=0.0000 lvl=0.0000
+19:36:06Z   t+929s recording 929.82 mic=0.0000 lvl=0.0000
+19:36:11Z   t+934s recording 934.89 mic=0.0000 lvl=0.0000
+19:36:16Z   t+939s recording 939.95 mic=0.0000 lvl=0.0000
+19:36:21Z   t+944s recording 945.01 mic=0.0000 lvl=0.0000
+19:36:26Z   t+949s recording 950.07 mic=0.0000 lvl=0.0000
+19:36:31Z   t+954s recording 955.14 mic=0.0000 lvl=0.0000
+19:36:36Z   t+959s recording 960.2 mic=0.0000 lvl=0.0000
+19:36:41Z   t+964s recording 965.29 mic=0.0000 lvl=0.0000
+19:36:46Z   t+969s recording 970.37 mic=0.0000 lvl=0.0000
+19:36:51Z   t+974s recording 975.44 mic=0.0000 lvl=0.0000
+19:36:57Z   t+979s recording 980.51 mic=0.0000 lvl=0.0000
+19:37:02Z   t+985s recording 985.6 mic=0.0000 lvl=0.0000
+19:37:07Z   t+990s recording 990.68 mic=0.0000 lvl=0.0000
+19:37:12Z   t+995s recording 995.75 mic=0.0000 lvl=0.0000
+19:37:17Z   t+1000s recording 1000.83 mic=0.0000 lvl=0.0000
+19:37:22Z   t+1005s recording 1005.9 mic=0.0000 lvl=0.0000
+19:37:27Z   t+1010s recording 1010.98 mic=0.0000 lvl=0.0000
+19:37:32Z   t+1015s recording 1016.05 mic=0.0000 lvl=0.0000
+19:37:37Z   t+1020s recording 1021.13 mic=0.0000 lvl=0.0000
+19:37:42Z   t+1025s recording 1026.21 mic=0.0000 lvl=0.0000
+19:37:47Z   t+1030s recording 1031.28 mic=0.0000 lvl=0.0000
+19:37:52Z   t+1035s recording 1036.35 mic=0.0000 lvl=0.0000
+19:37:57Z   t+1040s recording 1041.43 mic=0.0000 lvl=0.0000
+19:38:03Z   t+1045s recording 1046.5 mic=0.0000 lvl=0.0000
+19:38:08Z   t+1051s recording 1051.58 mic=0.0000 lvl=0.0000
+19:38:13Z   t+1056s recording 1056.65 mic=0.0000 lvl=0.0000
+19:38:18Z   t+1061s recording 1061.73 mic=0.0000 lvl=0.0000
+19:38:23Z   t+1066s recording 1066.82 mic=0.0000 lvl=0.0000
+19:38:28Z   t+1071s recording 1071.9 mic=0.0000 lvl=0.0000
+19:38:33Z   t+1076s recording 1076.99 mic=0.0000 lvl=0.0000
+19:38:38Z   t+1081s recording 1082.08 mic=0.0000 lvl=0.0000
+19:38:43Z   t+1086s recording 1087.17 mic=0.0000 lvl=0.0000
+19:38:48Z   t+1091s recording 1092.25 mic=0.0000 lvl=0.0000
+19:38:53Z   t+1096s recording 1097.32 mic=0.0000 lvl=0.0000
+19:38:58Z   t+1101s recording 1102.41 mic=0.0000 lvl=0.0000
+19:39:04Z   t+1106s recording 1107.49 mic=0.0000 lvl=0.0000
+19:39:09Z   t+1112s recording 1112.58 mic=0.0000 lvl=0.0000
+19:39:14Z   t+1117s recording 1117.66 mic=0.0000 lvl=0.0000
+19:39:19Z   t+1122s recording 1122.73 mic=0.0000 lvl=0.0000
+19:39:24Z   t+1127s recording 1127.8 mic=0.0000 lvl=0.0000
+19:39:29Z   t+1132s recording 1132.88 mic=0.0000 lvl=0.0000
+19:39:34Z   t+1137s recording 1137.95 mic=0.0000 lvl=0.0000
+19:39:39Z   t+1142s recording 1143.03 mic=0.0000 lvl=0.0000
+19:39:44Z   t+1147s recording 1148.11 mic=0.0000 lvl=0.0000
+19:39:49Z   t+1152s recording 1153.18 mic=0.0000 lvl=0.0000
+19:39:54Z   t+1157s recording 1158.24 mic=0.0000 lvl=0.0000
+19:39:59Z   t+1162s recording 1163.3 mic=0.0000 lvl=0.0000
+19:40:04Z   t+1167s recording 1168.36 mic=0.0000 lvl=0.0000
+19:40:09Z   t+1172s recording 1173.42 mic=0.0000 lvl=0.0000
+19:40:14Z   t+1177s recording 1178.49 mic=0.0000 lvl=0.0000
+19:40:20Z   t+1183s recording 1183.55 mic=0.0000 lvl=0.0000
+19:40:25Z   t+1188s recording 1188.62 mic=0.0000 lvl=0.0000
+19:40:30Z   t+1193s recording 1193.68 mic=0.0000 lvl=0.0000
+19:40:35Z   t+1198s recording 1198.74 mic=0.0000 lvl=0.0000
+19:40:40Z   t+1203s recording 1203.79 mic=0.0000 lvl=0.0000
+19:40:45Z   t+1208s recording 1208.85 mic=0.0000 lvl=0.0000
+19:40:50Z   t+1213s recording 1213.92 mic=0.0000 lvl=0.0000
+19:40:55Z   t+1218s recording 1218.98 mic=0.0000 lvl=0.0000
+19:41:00Z   t+1223s recording 1224.04 mic=0.0000 lvl=0.0000
+19:41:05Z   t+1228s recording 1229.1 mic=0.0000 lvl=0.0000
+19:41:10Z   t+1233s recording 1234.17 mic=0.0000 lvl=0.0000
+19:41:15Z   t+1238s recording 1239.23 mic=0.0000 lvl=0.0000
+19:41:20Z   t+1243s recording 1244.3 mic=0.0000 lvl=0.0000
+19:41:25Z   t+1248s recording 1249.35 mic=0.0000 lvl=0.0000
+19:41:30Z   t+1253s recording 1254.42 mic=0.0000 lvl=0.0000
+19:41:35Z   t+1258s recording 1259.47 mic=0.0000 lvl=0.0000
+19:41:41Z   t+1263s recording 1264.53 mic=0.0000 lvl=0.0000
+19:41:46Z   t+1269s recording 1269.59 mic=0.0000 lvl=0.0000
+19:41:51Z   t+1274s recording 1274.64 mic=0.0000 lvl=0.0000
+19:41:56Z   t+1279s recording 1279.7 mic=0.0000 lvl=0.0000
+19:42:01Z   t+1284s recording 1284.77 mic=0.0000 lvl=0.0000
+19:42:06Z   t+1289s recording 1289.83 mic=0.0000 lvl=0.0000
+19:42:11Z   t+1294s recording 1294.88 mic=0.0000 lvl=0.0000
+19:42:16Z   t+1299s recording 1299.95 mic=0.0000 lvl=0.0000
+19:42:21Z   t+1304s recording 1305.03 mic=0.0000 lvl=0.0000
+19:42:26Z   t+1309s recording 1310.1 mic=0.0000 lvl=0.0000
+19:42:31Z   t+1314s recording 1315.17 mic=0.0000 lvl=0.0000
+19:42:36Z   t+1319s recording 1320.24 mic=0.0000 lvl=0.0000
+19:42:41Z   t+1324s recording 1325.3 mic=0.0000 lvl=0.0000
+19:42:46Z   t+1329s recording 1330.38 mic=0.0000 lvl=0.0000
+19:42:51Z   t+1334s recording 1335.45 mic=0.0000 lvl=0.0000
+19:42:57Z   t+1339s recording 1340.52 mic=0.0000 lvl=0.0000
+19:43:02Z   t+1345s recording 1345.6 mic=0.0000 lvl=0.0000
+19:43:07Z   t+1350s recording 1350.65 mic=0.0000 lvl=0.0000
+19:43:12Z   t+1355s recording 1355.71 mic=0.0000 lvl=0.0000
+19:43:17Z   t+1360s recording 1360.79 mic=0.0000 lvl=0.0000
+19:43:22Z   t+1365s recording 1365.85 mic=0.0000 lvl=0.0000
+19:43:27Z   t+1370s recording 1370.92 mic=0.0000 lvl=0.0000
+19:43:32Z   t+1375s recording 1375.99 mic=0.0000 lvl=0.0000
+19:43:37Z   t+1380s recording 1381.06 mic=0.0000 lvl=0.0000
+19:43:42Z   t+1385s recording 1386.12 mic=0.0000 lvl=0.0000
+19:43:47Z   t+1390s recording 1391.19 mic=0.0000 lvl=0.0000
+19:43:52Z   t+1395s recording 1396.28 mic=0.0000 lvl=0.0000
+19:43:57Z   t+1400s recording 1401.36 mic=0.0000 lvl=0.0000
+19:44:02Z   t+1405s recording 1406.45 mic=0.0000 lvl=0.0000
+19:44:08Z   t+1410s recording 1411.53 mic=0.0000 lvl=0.0000
+19:44:13Z   t+1416s recording 1416.61 mic=0.0000 lvl=0.0000
+19:44:18Z   t+1421s recording 1421.69 mic=0.0000 lvl=0.0000
+19:44:23Z   t+1426s recording 1426.77 mic=0.0000 lvl=0.0000
+19:44:28Z   t+1431s recording 1431.84 mic=0.0000 lvl=0.0000
+19:44:33Z   t+1436s recording 1436.91 mic=0.0000 lvl=0.0000
+19:44:38Z   t+1441s recording 1441.99 mic=0.0000 lvl=0.0000
+19:44:43Z   t+1446s recording 1447.08 mic=0.0000 lvl=0.0000
+19:44:48Z   t+1451s recording 1452.16 mic=0.0000 lvl=0.0000
+19:44:53Z   t+1456s recording 1457.23 mic=0.0000 lvl=0.0000
+19:44:58Z   t+1461s recording 1462.31 mic=0.0000 lvl=0.0000
+19:45:03Z   t+1466s recording 1467.38 mic=0.0000 lvl=0.0000
+19:45:08Z   t+1471s recording 1472.45 mic=0.0000 lvl=0.0000
+19:45:14Z   t+1476s recording 1477.52 mic=0.0000 lvl=0.0000
+19:45:19Z   t+1482s recording 1482.6 mic=0.0000 lvl=0.0000
+19:45:24Z   t+1487s recording 1487.68 mic=0.0000 lvl=0.0000
+19:45:29Z   t+1492s recording 1492.75 mic=0.0000 lvl=0.0000
+19:45:34Z   t+1497s recording 1497.82 mic=0.0000 lvl=0.0000
+19:45:39Z   t+1502s recording 1502.89 mic=0.0000 lvl=0.0000
+19:45:44Z   t+1507s recording 1507.96 mic=0.0000 lvl=0.0000
+19:45:49Z   t+1512s recording 1513.04 mic=0.0000 lvl=0.0000
+19:45:54Z   t+1517s recording 1518.1 mic=0.0000 lvl=0.0000
+19:45:59Z   t+1522s recording 1523.15 mic=0.0000 lvl=0.0000
+19:46:04Z   t+1527s recording 1528.21 mic=0.0000 lvl=0.0000
+19:46:09Z   t+1532s recording 1533.26 mic=0.0000 lvl=0.0000
+19:46:14Z   t+1537s recording 1538.32 mic=0.0000 lvl=0.0000
+19:46:19Z   t+1542s recording 1543.4 mic=0.0000 lvl=0.0000
+19:46:24Z   t+1547s recording 1548.45 mic=0.0000 lvl=0.0000
+19:46:30Z   t+1552s recording 1553.5 mic=0.0000 lvl=0.0000
+19:46:35Z   t+1558s recording 1558.58 mic=0.0000 lvl=0.0000
+19:46:40Z   t+1563s recording 1563.65 mic=0.0000 lvl=0.0000
+19:46:45Z   t+1568s recording 1568.73 mic=0.0000 lvl=0.0000
+19:46:50Z   t+1573s recording 1573.81 mic=0.0000 lvl=0.0000
+19:46:55Z   t+1578s recording 1578.88 mic=0.0000 lvl=0.0000
+19:47:00Z   t+1583s recording 1583.95 mic=0.0000 lvl=0.0000
+19:47:05Z   t+1588s recording 1589.01 mic=0.0000 lvl=0.0000
+19:47:10Z   t+1593s recording 1594.08 mic=0.0000 lvl=0.0000
+19:47:15Z   t+1598s recording 1599.15 mic=0.0000 lvl=0.0000
+19:47:20Z   t+1603s recording 1604.21 mic=0.0000 lvl=0.0000
+19:47:25Z   t+1608s recording 1609.26 mic=0.0000 lvl=0.0000
+19:47:30Z   t+1613s recording 1614.32 mic=0.0000 lvl=0.0000
+19:47:35Z   t+1618s recording 1619.39 mic=0.0000 lvl=0.0000
+19:47:40Z   t+1623s recording 1624.43 mic=0.0000 lvl=0.0000
+19:47:46Z   t+1628s recording 1629.5 mic=0.0000 lvl=0.0000
+19:47:51Z   t+1634s recording 1634.58 mic=0.0000 lvl=0.0000
+19:47:56Z   t+1639s recording 1639.64 mic=0.0000 lvl=0.0000
+19:48:01Z   t+1644s recording 1644.7 mic=0.0000 lvl=0.0000
+19:48:06Z   t+1649s recording 1649.76 mic=0.0000 lvl=0.0000
+19:48:11Z   t+1654s recording 1654.82 mic=0.0000 lvl=0.0000
+19:48:16Z   t+1659s recording 1659.88 mic=0.0000 lvl=0.0000
+19:48:21Z   t+1664s recording 1664.95 mic=0.0000 lvl=0.0000
+19:48:26Z   t+1669s recording 1670.03 mic=0.0000 lvl=0.0000
+19:48:31Z   t+1674s recording 1675.09 mic=0.0000 lvl=0.0000
+19:48:36Z   t+1679s recording 1680.15 mic=0.0000 lvl=0.0000
+19:48:41Z   t+1684s recording 1685.21 mic=0.0000 lvl=0.0000
+19:48:46Z   t+1689s recording 1690.28 mic=0.0000 lvl=0.0000
+19:48:51Z   t+1694s recording 1695.34 mic=0.0000 lvl=0.0000
+19:48:56Z   t+1699s recording 1700.4 mic=0.0000 lvl=0.0000
+19:49:01Z   t+1704s recording 1705.46 mic=0.0000 lvl=0.0000
+19:49:07Z   t+1709s recording 1710.54 mic=0.0000 lvl=0.0000
+19:49:12Z   t+1715s recording 1715.6 mic=0.0000 lvl=0.0000
+19:49:17Z   t+1720s recording 1720.68 mic=0.0000 lvl=0.0000
+19:49:22Z   t+1725s recording 1725.73 mic=0.0000 lvl=0.0000
+19:49:27Z   t+1730s recording 1730.82 mic=0.0000 lvl=0.0000
+19:49:32Z   t+1735s recording 1735.89 mic=0.0000 lvl=0.0000
+19:49:37Z   t+1740s recording 1740.96 mic=0.0000 lvl=0.0000
+19:49:42Z   t+1745s recording 1746.03 mic=0.0000 lvl=0.0000
+19:49:47Z   t+1750s recording 1751.11 mic=0.0000 lvl=0.0000
+19:49:52Z   t+1755s recording 1756.18 mic=0.0000 lvl=0.0000
+19:49:57Z   t+1760s recording 1761.26 mic=0.0000 lvl=0.0000
+19:50:02Z   t+1765s recording 1766.33 mic=0.0000 lvl=0.0000
+19:50:07Z   t+1770s recording 1771.41 mic=0.0000 lvl=0.0000
+19:50:12Z   t+1775s recording 1776.49 mic=0.0000 lvl=0.0000
+19:50:18Z   t+1781s recording 1781.56 mic=0.0000 lvl=0.0000
+19:50:23Z   t+1786s recording 1786.64 mic=0.0000 lvl=0.0000
+19:50:28Z   t+1791s recording 1791.71 mic=0.0000 lvl=0.0000
+19:50:33Z   t+1796s recording 1796.79 mic=0.0000 lvl=0.0000
+19:50:38Z   t+1801s recording 1801.87 mic=0.0000 lvl=0.0000
+19:50:38Z LOAD at stop: 3.15 3.70 3.36
+19:50:38Z STOP
+{
+  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_142036_video",
+  "File": "/Users/soren/Movies/AgentEyes/2026-11-15_142036_video/recording.mp4",
+  "DurationSeconds": 1801.93,
+  "Shots": 0
+}
+19:50:39Z   +0s idle LastStopFailed=False LastStopError=None dir=None
+19:50:39Z post-stop settle: 0s
+19:50:39Z LOAD after: 3.15 3.70 3.36
+19:50:39Z newest recording dir:
+2026-11-15_142036_video

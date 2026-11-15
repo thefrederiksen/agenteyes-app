@@ -265,7 +265,7 @@ No account is signed in on this machine.
 | Audio | AAC 48 kHz mono, 604.578 s, 28,341 packets |
 | **`moov` atom** | **PRESENT at offset 332,364,545, size 578,738 bytes** |
 | Full decode of every stream | **exit 0** |
-| Mux | `"State": "done"`, **`"Attempts": 1`** - about 6 s for a ten-minute take |
+| Mux | `"State": "done"`, **`"Attempts": 1`** - **13.68 s**, measured from the product's own start and done log lines (13:59:00.868 -> 13:59:14.549) |
 
 The `moov` offset is read from a top-level atom walk of the file, not inferred: the file is
 `ftyp` (0) / `free` (32) / `mdat` (40) / **`moov` (332,364,545)**. The index is at the end, which is
@@ -605,3 +605,126 @@ Under `docs/cencon/proof/issue-142/macos/`:
 | `probe-148.txt`, `restore-main.txt` | the #148 probe and the restore |
 | `rows-not-runnable.txt` | the structural evidence for rows 2, 3, 7-10 |
 | `frames/` | every frame I extracted and read: row 4 t=10 s, row 6 t=5 s, t=300 s, t=603 s |
+
+---
+
+# Addendum, 2026-11-15 - the 1.5 s bound, and two corrections to this report
+
+The lead amended row 5's criterion to **audio within 1.5 s absolute of video** (adopting O1) and
+asked one question: is 1.5 s right for macOS at the longest take I ran, or does the skew grow with
+length in a way that would eventually breach it?
+
+To answer it I ran a **30-minute take** on the same build - `main` `f9ef230`, dll `1b9092d0`, service
+**pid 50642** (the pid after the installer probes; same commit and same binary as rows 4, 5 and 6).
+Load 2.7 - 3.7 on 10 cores. `~/Movies/AgentEyes/2026-11-15_142036_video`.
+
+| Measurement | Value |
+|---|---|
+| Video | 1802.500 s, **54,075 frames**, **30.0000 fps**, frame error **0** |
+| Audio | AAC 48 kHz mono, 1801.653 s |
+| `moov` | **PRESENT at offset 990,825,190**, size 1,719,210 |
+| Full decode | **exit 0** |
+| Mux | `done`, **attempt 1**, 40.62 s |
+| Audio accounting | mic 1801.184 + adelay 0.462667 = 1801.6467 vs measured 1801.6527 - **6.0 ms residual** |
+
+## Correction 1 - row 6's mux figure in this report was wrong
+
+I wrote that row 6's mux took "about 6 s". **It took 13.68 s.** I had inferred the figure from my
+driver's post-stop settle time, which is not the mux at all: **the mux is deferred.** `/status`
+returns `idle` and `POST /record/stop` returns while the mux is still running, so settle time
+measures the stop, not the muxing. The real figures, from the product's own start and done log lines:
+
+| Take | Mux duration | As a share of the take |
+|---|---|---|
+| row 5, 31.7 s | 0.50 s | 1.6% |
+| row 6, 605.7 s | **13.68 s** | 2.3% |
+| long take, 1801.9 s | **40.62 s** | 2.3% |
+
+The row 6 table above is corrected. No other figure in this report depended on it, and row 6's own
+measurements were taken after its mux had finished, so they stand.
+
+**This is worth a line of its own for the next seat: `idle` does not mean the recording is finished
+on disk.** I probed the 30-minute take the moment the driver reported idle and found no
+`recording.mp4` at all - only `recording.mp4.muxing.tmp`. The authority is
+`manifest.json` -> `PostProcessing.mux.State`, not the service state.
+
+**And I checked it was progress and not a stall before waiting on it**, because a stall here is a
+finding and killing it would have destroyed the evidence: `recording.mp4.muxing.tmp` was 945 MB and
+growing, the ffmpeg child (pid 63761) was in state **R** at 102.6% CPU, pass one had already written
+`audio_processed.wav`, and the service itself sat at 0% waiting on its child. Nothing was killed and
+it completed on its own, on attempt 1.
+
+## Correction 2 - my own drift hypothesis was wrong, and the third point refutes it
+
+From rows 5 and 6 alone I had fitted a ~68 ppm growth term and written down, before measuring, that
+it predicted a **1.170 s** shortfall at 1800 s against **1.089 s** for a constant. I flagged at the
+time that two points cannot separate those.
+
+**Measured: 0.847 s.** Lower than both. The prediction is refuted.
+
+| Take | video | audio | shortfall | headroom under 1.5 s |
+|---|---|---|---|---|
+| row 5 | 32.500 s | 31.451 s | 1.0493 s | 0.451 s |
+| row 6 | 605.667 s | 604.578 s | 1.0885 s | 0.411 s |
+| **long** | **1802.500 s** | **1801.653 s** | **0.8473 s** | **0.653 s** |
+
+**The shortfall does not grow with take length.** Across a 56x range the longest take has the
+*largest* headroom. The two-point slope was scatter in the video tail, which varies by about
++/-120 ms run to run.
+
+## But there IS a real proportional term, on the mic side
+
+Separately from the video, the product measures its own microphone capture on every recording and
+logs it: `[AudioCapture] Stop: wrote ... = 1801.18s of audio over a 1801.53s capture`. That isolates
+the mic - no video, no mux, no `adelay`. Across **20 captures on this Mac today, 20.5 s to 1801.5 s,
+an 88x range**:
+
+```
+deficit(T) = 0.2593 s + 49.6 ppm * T
+slope standard error 17.5 ppm, t = 2.83 on 18 df (critical 2.101)
+95% interval on the slope: 12.8 to 86.4 ppm - EXCLUDES zero
+predicted deficit at 1801.5 s: 0.349 s      measured: 0.350 s
+```
+
+With only 604 s of lever arm this slope was **not** significant (52 +/- 39 ppm, t = 1.32). The
+30-minute capture is what resolved it. **~50 ppm is the ordinary magnitude of a crystal mismatch
+between an audio device clock and the system timebase**, so there is a mechanism behind it, not only
+a fit.
+
+Both results are true at once: a 50 ppm drift accumulates only **89 ms over 1800 s**, which is
+smaller than the video tail's run-to-run scatter, so it is real on the mic side and still invisible
+in the video-minus-audio figure at half-hour scale.
+
+## The answer to the question
+
+**1.5 s is right for macOS, for takes up to at least 30 minutes.** Verified directly at 1802 s with
+0.65 s to spare; the bound was never approached at any length I ran.
+
+**It should not be extrapolated to always-on.** At ~50 ppm, drift alone adds **0.18 s per hour**, so
+a base of 1.0 - 1.1 s reaches 1.5 s at roughly **2.2 hours** on the point estimate and as early as
+**1.3 hours** at the 95% upper bound. Phase 5 records for far longer than that.
+
+Recommendation: keep **1.5 s absolute** as the row 5 criterion for takes up to an hour, which covers
+every Wave A row on every platform. For Phase 5 always-on, either express the bound as
+**1.0 s + 100 ppm x T** or re-measure at hour scale before applying a flat number.
+
+## One more thing the throttle arms produced
+
+The product diagnosed my own #114 experiment without being asked. The three `ProcessType` arms are
+distinguishable in its log by severity alone:
+
+```
+[AudioCapture] Stop: wrote 1944576 bytes of PCM = 20.26s of audio over a 20.51s capture
+WARN [AudioCapture] Stop: ... = 3.23s of audio over a 20.42s capture - 17.19s MISSING. The
+     AVFoundation device dropped samples this end did not take in time ...
+WARN [AudioCapture] Stop: ... = 8.03s of audio over a 20.35s capture - 12.32s MISSING. ...
+```
+
+The `Interactive` arm logged at INFO with no complaint; both throttled arms logged at **WARN**,
+naming the exact AVFoundation sample-drop mechanism #114 was filed about. The instrument is not only
+my arithmetic - the product itself separates the healthy arm from the throttled ones.
+
+Additional evidence: `macos/skew3-prediction.txt` (written before the measurement),
+`macos/skew3-take.txt`, `macos/skew3-probe.txt`, `macos/skew3-accounting.txt`,
+`macos/skew-regression-final.txt`, `macos/mux-durations.txt`, `macos/mux-inflight-1.txt`,
+`macos/audiocapture-stop-lines.txt`, `macos/throttle-product-warning.txt`.
