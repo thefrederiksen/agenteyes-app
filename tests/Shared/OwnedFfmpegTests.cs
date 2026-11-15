@@ -148,20 +148,20 @@ namespace AgentEyes.Tests
                 var parallelReady = new ManualResetEventSlim();
                 using (ExecutionContext.SuppressFlow())
                 {
-                    parallelRun = Task.Run(() =>
+                    parallelRun = OnOwnThread(() =>
                     {
                         parallelScope = new OwnedFfmpeg();
                         parallelReady.Set();
                         Ffmpeg.Run(LongRun(), "test parallel");
                     });
                 }
-                Assert.True(parallelReady.Wait(TimeSpan.FromSeconds(10)), "the parallel flow never started");
+                Assert.True(parallelReady.Wait(TimeSpan.FromSeconds(60)), "the parallel flow never started");
 
                 // OWNED: stuck from this test's point of view (a 120 s run, a 5 minute stall bound).
                 using var owned = new OwnedFfmpeg();
-                var run = Task.Run(() => Ffmpeg.RunWatched(LongRun(), "test owned", TimeSpan.FromMinutes(5)));
+                var run = OnOwnThread(() => Ffmpeg.RunWatched(LongRun(), "test owned", TimeSpan.FromMinutes(5)));
 
-                Assert.True(SpinWait.SpinUntil(() => owned.Children.Count == 1 && parallelScope!.Children.Count == 1, TimeSpan.FromSeconds(15)),
+                Assert.True(SpinWait.SpinUntil(() => owned.Children.Count == 1 && parallelScope!.Children.Count == 1, TimeSpan.FromSeconds(60)),
                     $"children not recorded: owned {owned.Children.Count}, parallel {parallelScope!.Children.Count} - broken instrument");
                 var mine = owned.Children[0];
                 var theirs = parallelScope!.Children[0];
@@ -215,6 +215,16 @@ namespace AgentEyes.Tests
                 if (parallelRun != null) Finishes(parallelRun, TimeSpan.FromSeconds(15));
             }
         }
+
+        /// <summary>
+        /// Run <paramref name="body"/> on a dedicated thread, not a thread-pool one. On a 2-core
+        /// Windows runner with the whole suite running in parallel the pool starves: a Task.Run here
+        /// once waited more than 15 s for a thread before it could even start its ffmpeg. A dedicated
+        /// thread still carries this flow's ExecutionContext, so the OwnedFfmpeg observer flows into it
+        /// exactly as it would into Task.Run (and SuppressFlow still keeps it out).
+        /// </summary>
+        private static Task OnOwnThread(Action body) =>
+            Task.Factory.StartNew(body, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
         /// <summary>Wait for <paramref name="t"/> without rethrowing its fault.</summary>
         private static bool Finishes(Task t, TimeSpan within) => ((IAsyncResult)t).AsyncWaitHandle.WaitOne(within);
