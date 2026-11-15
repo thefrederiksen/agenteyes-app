@@ -2,7 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using AgentEyes.DesktopApp;
 using AgentEyes.DesktopApp.Services;
 using Xunit;
@@ -34,9 +37,40 @@ namespace AgentEyes.Tests.Linux
         }
 
         [Fact]
-        public void PlatformName_OnThisLinuxHost_IsLinux()
+        public void PlatformName_OnAnyHost_NamesTheOperatingSystemThisProcessRunsOn()
         {
-            Assert.Equal("linux", Shell.PlatformName);
+            // Shell.PlatformName is a RUNTIME host check, so an assertion that names one platform can
+            // only hold on that platform (it read "linux" here and failed on a Mac - issue #116). The
+            // behaviour worth pinning is host-independent: whatever host this is, the app names it
+            // correctly and therefore picks that host's opener. Expected comes from the operating
+            // system's own description rather than from OperatingSystem.IsX, so this is not a mirror
+            // of the implementation: swap two arms of PlatformName and this fails on both hosts.
+            // OSDescription here: "macOS 26.5.2", "Linux 6.8.0-45-generic #45-Ubuntu ...",
+            // "Microsoft Windows 10.0.19045". Anything else is an unknown host and must say so
+            // rather than fall through to a default - a default would pass without checking.
+            string os = RuntimeInformation.OSDescription;
+            (string name, string opener) =
+                os.Contains("macOS", StringComparison.Ordinal) || os.Contains("Darwin", StringComparison.Ordinal) ? ("mac", "open") :
+                os.Contains("Windows", StringComparison.Ordinal) ? ("windows", "explorer.exe") :
+                os.Contains("Linux", StringComparison.Ordinal) ? ("linux", "xdg-open") :
+                throw new InvalidOperationException($"unrecognised host '{os}' - this suite runs on Linux, macOS and Windows");
+
+            Assert.Equal(name, Shell.PlatformName);
+            Assert.Equal(opener, Shell.OpenerFor(Shell.PlatformName));
+        }
+
+        [Fact]
+        public void SocketPath_OnThisHost_FitsTheUnixSocketPathLimit()
+        {
+            // The product's ONE socket path: Program.cs:40 -> TryAcquire -> TryAcquireSocket(SocketPath).
+            // It is $XDG_RUNTIME_DIR, or the temp directory when that is unset (the macOS case), plus
+            // "agenteyes-app.sock". The fixtures above overran sun_path on macOS; this asserts the
+            // PRODUCT does not, on whatever host the suite is running on - 67 bytes on this Mac.
+            string path = SingleInstance.SocketPath;
+            int bytes = Encoding.UTF8.GetByteCount(path);
+            Assert.True(
+                bytes > 0 && bytes <= LinuxTestIsolation.MaxUnixSocketPathBytes,
+                $"SingleInstance.SocketPath is {bytes} bytes, over the {LinuxTestIsolation.MaxUnixSocketPathBytes}-byte sun_path limit: {path}");
         }
 
         [Fact]
@@ -76,36 +110,70 @@ namespace AgentEyes.Tests.Linux
         [Fact]
         public void TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull()
         {
-            string path = Path.Combine(LinuxTestIsolation.NewTempDir("single"), "app.sock");
-            AssertHandoff(cmd => SingleInstance.TryAcquireSocket(cmd, path), "socket");
+            string dir = LinuxTestIsolation.NewSocketDir();
+            try
+            {
+                string path = Path.Combine(dir, "app.sock");
+                AssertFitsSunPath(path);
+                AssertHandoff(cmd => SingleInstance.TryAcquireSocket(cmd, path), "socket");
+            }
+            finally
+            {
+                Directory.Delete(dir, recursive: true);
+            }
         }
 
         [Fact]
         public void TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull()
         {
-            string name = "agenteyes-test-" + Guid.NewGuid().ToString("N");
+            string name = LinuxTestIsolation.NewPipeName();
+            // .NET lays a named pipe on Unix over a socket at GetTempPath() + "CoreFxPipe_" + name, so
+            // the name spends the same budget as a socket path does.
+            if (!OperatingSystem.IsWindows()) AssertFitsSunPath(Path.Combine(Path.GetTempPath(), "CoreFxPipe_" + name));
             AssertHandoff(cmd => SingleInstance.TryAcquirePipe(cmd, name), "pipe");
+        }
+
+        /// <summary>A fixture path too long for sun_path throws ArgumentOutOfRangeException from inside
+        /// the product call and reads as a product defect. Fail here instead, saying which it is.</summary>
+        private static void AssertFitsSunPath(string path)
+        {
+            int bytes = Encoding.UTF8.GetByteCount(path);
+            Assert.True(
+                bytes > 0 && bytes <= LinuxTestIsolation.MaxUnixSocketPathBytes,
+                $"THE FIXTURE, not the product: this test's path is {bytes} bytes, over the {LinuxTestIsolation.MaxUnixSocketPathBytes}-byte sun_path limit: {path}");
         }
 
         private static void AssertHandoff(Func<string, SingleInstance?> acquire, string transport)
         {
             var received = new BlockingCollection<string>();
-            using (var first = acquire("show"))
-            {
-                Assert.NotNull(first);
-                Assert.Equal(transport, first!.Transport);
-                first.CommandReceived += received.Add;
+            var first = acquire("show");
+            Assert.NotNull(first);
+            Assert.Equal(transport, first!.Transport);
+            first.CommandReceived += received.Add;
 
-                var second = acquire("view:library");
-                Assert.Null(second);
-                Assert.True(received.TryTake(out string? cmd, TimeSpan.FromSeconds(10)), "the first instance never received the second launch's command");
-                Assert.Equal("view:library", cmd);
+            var second = acquire("view:library");
+            Assert.Null(second);
+            Assert.True(received.TryTake(out string? cmd, TimeSpan.FromSeconds(10)), "the first instance never received the second launch's command");
+            Assert.Equal("view:library", cmd);
 
-                // And again: the listener keeps serving after the first handoff.
-                Assert.Null(acquire("settings:account"));
-                Assert.True(received.TryTake(out cmd, TimeSpan.FromSeconds(10)), "the first instance stopped listening after one handoff");
-                Assert.Equal("settings:account", cmd);
-            }
+            // And again: the listener keeps serving after the first handoff.
+            Assert.Null(acquire("settings:account"));
+            Assert.True(received.TryTake(out cmd, TimeSpan.FromSeconds(10)), "the first instance stopped listening after one handoff");
+            Assert.Equal("settings:account", cmd);
+
+            // Shutting down must RETURN. On macOS, closing a listening socket whose accept thread is
+            // blocked in accept() used to block forever, so Program.Main's finally never finished and
+            // the app never quit (issue #116). Disposing on another thread with a deadline is what
+            // makes a regression FAIL here in ten seconds instead of hanging the whole suite.
+            var disposed = Task.Run(first.Dispose);
+            Assert.True(disposed.Wait(TimeSpan.FromSeconds(10)),
+                $"Dispose did not return within 10 s on the {transport} transport - the listener is not being woken");
+
+            // And shutting down must not deliver a command of its own. The socket transport wakes its
+            // accept thread by connecting to its own socket; that connection carries no bytes and must
+            // never be mistaken for a launch asking the app to show a window.
+            Assert.False(received.TryTake(out string? spurious, TimeSpan.FromSeconds(1)),
+                $"shutting down the {transport} transport delivered a command of its own: '{spurious}'");
 
             // Once the first instance is gone, the next launch is the first again.
             using var next = acquire("show");

@@ -202,9 +202,30 @@ namespace AgentEyes.DesktopApp.Services
                     Log.Warn($"[SingleInstance] Dispose: the pipe loop did not stop within 5 s ({_pipeName})");
                 return;
             }
+            // WAKE THE ACCEPT THREAD BEFORE CLOSING THE LISTENER (issue #116, macOS).
+            // On macOS, closing a listening socket does NOT wake a thread blocked in accept():
+            // shutdown() answers ENOTCONN on a listener, and .NET's SafeSocketHandle close then waits
+            // for that pending operation to finish - so Socket.Dispose never returns and the app never
+            // finishes quitting (Program.Main disposes this in its finally). Linux wakes the blocked
+            // accept() by itself, which is why the Linux suite never saw this.
+            // Connecting to our own socket once makes the pending Accept() return. _running is already
+            // false above, so the accept loop goes round once and exits. The connection carries NO
+            // bytes: Accept's Receive returns 0, cmd is empty, and its `if (cmd.Length > 0)` guard
+            // means CommandReceived is NOT raised - no window is shown and no command is acted on.
+            try
+            {
+                using var waker = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+                waker.Connect(new UnixDomainSocketEndPoint(_path));
+            }
+            catch (SocketException ex)
+            {
+                // Not a fallback: nothing here recovers the situation, so say exactly what follows.
+                Log.Warn($"[SingleInstance] Dispose: could not wake the accept thread on {_path} ({ex.SocketErrorCode}) - closing the listener may block until the process exits");
+            }
             _listener!.Dispose();
             try { File.Delete(_path); }
             catch (IOException ex) { Log.Warn($"[SingleInstance] Dispose: could not remove {_path}: {ex.Message}"); }
+            Log.Info($"[SingleInstance] Dispose: socket listener closed and {_path} removed");
         }
     }
 }
