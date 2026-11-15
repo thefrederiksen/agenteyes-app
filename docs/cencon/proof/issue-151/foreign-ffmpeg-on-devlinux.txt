@@ -1,0 +1,10 @@
+# An ffmpeg found running on devlinux at 115% CPU that this work did NOT start. Captured before anything
+# else was done, and never touched: go2rtc camera-wall transcoder (an RTSP republish, not a file).
+2026-11-15T13:20:24-05:00
+    PID    PPID %CPU     ELAPSED                  STARTED USER     COMMAND
+2197930 1354205  115    01:04:21 Sun Nov 15 12:16:02 2026 soren    ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/lake?video&source=ffmpeg:lake%23video%3Dh264%23width%3D1920%23raw%3D-fps_mode+passthrough -fps_mode passthrough -c:v libx264 -g 50 -profile:v high -level:v 4.1 -preset:v superfast -tune:v zerolatency -pix_fmt:v yuv420p -an -vf scale=1920:-1 -user_agent ffmpeg/go2rtc -rtsp_transport tcp -f rtsp rtsp://127.0.0.1:8554/75ce39272fc7b7d436d9c62b371ba859
+parent:
+    PID    PPID     ELAPSED USER     COMMAND
+1354205    2224    01:23:21 soren    /home/soren/camera-wall/go2rtc -config /home/soren/camera-wall/go2rtc.yaml -config /home/soren/camera-wall/lakeview.yaml
+lrwxrwxrwx 1 soren soren 0 Nov 15 13:05 /proc/2197930/cwd -> /home/soren/camera-wall
+total 0

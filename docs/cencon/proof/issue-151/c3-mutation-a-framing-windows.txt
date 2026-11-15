@@ -1,0 +1,25 @@
+# Issue #151 - c3: mutation-a-framing on Windows CI
+# Run: https://github.com/thefrederiksen/agenteyes-app/actions/runs/43747150426  (throwaway branch scratch-151-mutation-a-framing, off f87341c; deleted after)
+# Mutation: FfmpegArgs.ArnndnFraming 'asetnsamples=n=480:p=1' -> 'p=0' (the final partial frame is no longer padded).
+# The opted-in step runs even when the default step fails (if: !cancelled()), and a last step lists every ffmpeg left on the runner.
+
+  Failed AgentEyes.Tests.MicChainStallTests.MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames [3 ms]
+Failed!  - Failed:     1, Passed:  2370, Skipped:    11, Total:  2382, Duration: 30 s - AgentEyes.Tests.dll (net8.0)
+  Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [15 s]
+  Failed AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan [3 s]
+  Failed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [401 ms]
+  Failed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [330 ms]
+  Failed AgentEyes.Tests.MicChainStallTests.MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames [1 ms]
+ffmpeg processes left: 0
+
+# macOS job:
+  Failed AgentEyes.Tests.Mac.MacMicAlignmentTests.MixMicSystemToWav_WithNoOffset_IsTheListItEmittedBeforeIssue114 [20 ms]
+  Failed AgentEyes.Tests.Mac.MacMicAlignmentTests.MicPlusSystemPass_MicIsInputZero_SystemIsInputOne [< 1 ms]
+  Failed AgentEyes.Tests.Mac.MacMicAlignmentTests.FilterMicToWav_WithNoOffset_IsTheListItEmittedBeforeIssue114 [< 1 ms]
+  Failed AgentEyes.Tests.Mac.MacMicAlignmentTests.MicPass_NoOffset_IsTheMicWavThroughTheChainIntoTheIntermediate [< 1 ms]
+  Failed AgentEyes.Tests.Mac.MacMicAlignmentTests.TheSharedBuildersIssue114DoesNotTouch_AreUnchanged [< 1 ms]
+Failed!  - Failed:     5, Passed:   274, Skipped:     1, Total:   280, Duration: 264 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+# Note: OwnedFfmpegTests failed in this run too, from a cause unrelated to the mutation: this branch is off
+# f87341c, before 6dd5ac6 moved that test off the thread pool (on a starved 2-core runner its Task.Run
+# waited >15 s for a thread). It passes at 6dd5ac6 and later on every Windows run.

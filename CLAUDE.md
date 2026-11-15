@@ -65,9 +65,15 @@ Gate policy (revised 2026-07-14 - the hard rule).
 
 Two tiers, and the difference is real - do not conflate them:
 
-1. **`dotnet test AgentEyes.sln -c Release` - ALWAYS, after every code change.** It is FAST and
-   SILENT: 288 tests in ~2 seconds, no app launch, no audio, no ffmpeg. There is never a reason
-   to skip it or defer it to the human. It is part of the gate alongside `dotnet build`.
+1. **`dotnet test AgentEyes.sln -c Release` - ALWAYS, after every code change.** Measured on the
+   Windows CI runner (issue #151, 2026-11-15): 2382 tests (11 skipped by design) in 33-41 s of
+   test time. It is silent (no app launch, no audio) but it is NOT ffmpeg-free: end-to-end tests
+   outside the mic chain start about 235 short ffmpeg runs. The tests that exist only to run a real
+   ffmpeg against the mic chain (#128, #146) are opt-in: set `AGENTEYES_FFMPEG_TESTS=1` to run them
+   too (2383 tests, about a minute; CI and the release build always do). The Linux and macOS gates
+   (`dotnet test tests/AgentEyes.Tests.Linux` / `tests/AgentEyes.Tests.Mac`) are 288 and 280 tests
+   in under a second and start no ffmpeg. There is never a reason to skip it or defer it to the
+   human. It is part of the gate alongside `dotnet build`.
 2. **The heavy smokes** (`api-smoke.ps1`, `gui-smoke.ps1`, `agenteyes selftest`, `run-all.ps1`)
    launch the app, record audio, and run ffmpeg/Whisper - minutes, and AUDIBLE. The agent runs
    these **when the change actually touches that area**, not reflexively on every issue. They
