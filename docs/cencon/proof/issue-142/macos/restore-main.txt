@@ -1,0 +1,14 @@
+=== RESTORING main f9ef230 as the installed build ===
+[OK] ffmpeg: /opt/homebrew/bin/ffmpeg
+[OK] built
+[OK] stopped the running agent
+[OK] installed to /Users/soren/Library/Application Support/AgentEyes/bin
+[OK] linked /Users/soren/.local/bin/agenteyes
+[OK] wrote /Users/soren/Library/LaunchAgents/com.agenteyes.recorder.plist
+[OK] agent loaded (starts at login)
+[OK] agent started
+--- verification ---
+pid : 50642
+dll : 1b9092d077892723730e042bf062eb18b32964326e3d67fa228df0874111ddb0
+commit: ['f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab']
+health: 

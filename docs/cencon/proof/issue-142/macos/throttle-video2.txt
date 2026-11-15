@@ -1,0 +1,4 @@
+### MODE=video  (20 s per arm) ###
+interactive    ProcessType=Interactive  wall=22  s exit=0    load=3.34 3.38 3.18
+background     ProcessType=Background   wall=26  s exit=0    load=4.05 3.55 3.24
+absent         ProcessType=<absent>     wall=25  s exit=0    load=4.34 3.65 3.29

@@ -1,0 +1,15 @@
+=== #114 AUDIO-LOSS SIGNATURE vs ProcessType - THE INSTRUMENT, SHOWN WORKING ===
+20 s mic captures. Each arm is a one-shot launchd job running the SAME installed binary
+(sha256 1b9092d0..., main f9ef230). The arms differ ONLY in the ProcessType key.
+Machine load 3.1 - 3.8 on 10 cores throughout.
+
+ARM           ProcessType         BYTES   DURATION   OF 20 s    VERDICT
+interactive   Interactive       1944620     20.256    101.3%     intact
+background    Background         310316      3.232     16.2%       LOSS
+absent        <absent>           771116      8.032     40.2%       LOSS
+
+The repo's own plist comment (scripts/mac/com.agenteyes.recorder.plist:44-47) records:
+    normal QoS      -> 1,920,000 bytes = 20.00 s of a 20 s capture. No loss.
+    background QoS  ->   319,392 bytes =  3.33 s of a 20 s capture. 83% GONE.
+Measured again today on the shipping build: 1,944,620 and 310,316. The defect and the fix
+both reproduce, which is what makes the Interactive arm a result rather than an assumption.

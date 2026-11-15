@@ -1,0 +1,15 @@
+PREDICTION RECORDED 2026-11-15T18:55:10Z, BEFORE row 6 was probed.
+
+Row 5 showed audio 31.451 s against video 32.500 s = 96.77%. Two candidate explanations:
+  (A) FIXED start/stop skew between two independent ffmpeg captures.
+      video overran the take by 0.780 s; mic started 0.471 s late (measured, compensated by adelay).
+      If (A), the shortfall is a CONSTANT ~1.05 s and does not grow with take length.
+  (B) PROPORTIONAL audio loss (the #114 failure mode, which was 83% of a 20 s take).
+      If (B), the shortfall grows with take length.
+
+These predict different things for the 600 s row 6 take:
+  (A) predicts audio ~= video - 1.0 s, i.e. a ratio around 99.8%.
+  (B) predicts a ratio near 96.8% again, i.e. a shortfall near 20 s.
+
+Row 6 therefore DISCRIMINATES between them. If (B), row 6 is a FAIL and #114 is not fixed on
+this build. The measurement follows below in row6-probe.txt.

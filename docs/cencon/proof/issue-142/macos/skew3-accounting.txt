@@ -1,0 +1,21 @@
+=== THE PREDICTION TEST (prediction recorded 19:21:11Z, before this measurement) ===
+  (C) constant skew  predicted a 1800 s shortfall of ~1.089 s
+  (D) 68 ppm drift   predicted a 1800 s shortfall of ~1.170 s
+
+take           video       audio  SHORTFALL    adelay      TAIL    ratio
+row 5        32.5000     31.4507     1.0493    0.4707    1.0533   96.77%
+row 6       605.6667    604.5781     1.0885    0.4781    1.0925   99.82%
+1800 s     1802.5000   1801.6527     0.8473    0.4627    0.8533   99.95%
+
+  MEASURED at 1800 s: 0.8473 s
+  -> (C) constant predicted 1.089, (D) drift predicted 1.170. Measured 0.847.
+
+=== FRAMES ===
+  54075 frames / 1802.500 s = 30.0000 fps ; expected 54075.0 ; frame error 0.0
+
+=== AUDIO ACCOUNTING ===
+  mic_native 1801.184 + adelay 0.462667 = 1801.646667 ; measured 1801.652667 ; residual 6.0 ms
+
+=== THREE-POINT FIT ON THE FULL video-minus-audio SHORTFALL ===
+  shortfall(T) = 1.0987 s + -127.45 ppm * T
+  1.5 s reached at T = -3148 s = -0.87 hours
