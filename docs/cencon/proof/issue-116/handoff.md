@@ -202,3 +202,186 @@ FirstPipeInstance claim, next instance before closing, Dispose waits), 40 of 40 
   session, and no command of mine touched `~/Videos` (only `ls`). Flagged to the lead.
 
 I believe this is finished for Linux, and ready for QA on macOS and Windows.
+
+---
+
+# Developer pass 2 - the macOS gate (answering the macOS QA FAIL)
+
+Machine `devthrottle-mac-mini`, branch `issue-116-desktop-app`. This pass answers the one defect in
+`qa-report-macos.md`: three tests in `tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs` failed
+on a Mac (branch Failed 3 / Passed 274; `origin/main` Failed 0 / Passed 267 on the same machine).
+
+**It did not stay a test-only pass.** Fixing the fixtures uncovered a real macOS product defect that
+no test could reach before, and it is fixed here under authorisation from the Implementation Lead,
+who also amended criterion 11 for it (see "Criterion 11 is amended" below).
+
+## 1. Was the 104-character overrun the product or the fixture? THE FIXTURE.
+
+QA asked this and was right to. Established from the code, not assumed:
+
+- There is exactly **one** product call site: `Program.cs:40` -> `SingleInstance.TryAcquire` ->
+  on Windows the named pipe (no `sun_path` limit applies), everywhere else
+  `TryAcquireSocket(command, SocketPath)`.
+- `SocketPath` (`SingleInstance.cs:57-59`) is the only path the product ever passes:
+  `$XDG_RUNTIME_DIR`, or the temp directory when that is unset, plus `agenteyes-app.sock`.
+  **Measured on this Mac: 67 bytes.**
+- `grep -rn UnixDomainSocketEndPoint src/` returns exactly two hits, both inside `SingleInstance`,
+  both built from that one path.
+- The two over-long paths were constructed **only in the test file**: 121 bytes for the socket
+  (`RunRoot` carries a timestamp and a pid) and 107 bytes for the pipe (.NET maps a named pipe on
+  Unix onto `GetTempPath() + "CoreFxPipe_" + name`). Both measured, both over the 104-byte limit.
+
+**The limit of that claim, stated rather than hidden:** the product's path length rides on an
+environment variable, so a `TMPDIR` or `XDG_RUNTIME_DIR` deliberately set longer than 86 characters
+would still overflow. The real shapes do not: the macOS per-user `TMPDIR` is a fixed 49 characters,
+and Linux `/run/user/<uid>` is 14-15. That is a configuration hazard, not a defect, and there is now
+a test that would catch it if the product's own path ever grew (see M2 below).
+
+## 2. What changed
+
+### Tests
+
+| File | Change |
+|------|--------|
+| `LinuxTestIsolation.cs` | `NewSocketDir()` and `NewPipeName()` - short enough to fit `sun_path` on every platform - and `MaxUnixSocketPathBytes = 104` (104 on macOS, 108 on Linux; 104 is the one that must hold everywhere). |
+| `DesktopAppPlatformTests.cs` | `PlatformName_OnThisLinuxHost_IsLinux` -> `PlatformName_OnAnyHost_NamesTheOperatingSystemThisProcessRunsOn`. New `SocketPath_OnThisHost_FitsTheUnixSocketPathLimit`. Both handoff tests build short paths and assert the fixture's own path fits before using it. `AssertHandoff` now also asserts that **shutdown returns** and **delivers no command of its own**. |
+
+The platform test is **host-independent, not skipped**. QA pointed at `LinuxOnlyFact` and that is the
+right pattern for a Linux operating-system convention, but this fact is not Linux-specific: the
+behaviour worth pinning is "whatever host this is, the app names it correctly and therefore picks
+that host's opener". Expected comes from `RuntimeInformation.OSDescription`, not from
+`OperatingSystem.IsX`, so it is not a mirror of the implementation. It earned its keep immediately:
+the first run failed because the description here is `macOS 26.5.2`, not `Darwin ...` - the check
+fires on a wrong answer, including mine.
+
+Worth saying plainly: the OLD assertion did not merely fail on a Mac, it **rewarded the bug** there.
+`Assert.Equal("linux", Shell.PlatformName)` is exactly what a `PlatformName` that wrongly answered
+"linux" on macOS would satisfy. Mutation M1 below makes that concrete.
+
+### Product - `SingleInstance.Dispose`, and nothing else
+
+Once the fixture path fit, the socket test reached code that had never run on a Mac, and **hung
+forever**. The hang is in product code:
+
+- The product's own log ends on the `Dispose` entry line and nothing follows, in three separate
+  runs: `Accept: 'view:library'`, `Accept: 'settings:account'` - the handoff itself works perfectly -
+  then `[SingleInstance] Dispose: socket ...`, then nothing. A single-test run was still going after
+  45 seconds with no result line.
+- A 30-line standalone repro referencing nothing from AgentEyes - bind a Unix socket, run `Accept()`
+  on a background thread, `Dispose()` the listener - prints
+  `RESULT: Dispose DID NOT RETURN within 20 s - HUNG` on this Mac.
+- A process sample agrees from a second direction: one thread in `__accept_nocancel`, the main
+  thread in the `SafeSocketHandle` sleep-wait loop.
+
+Cause: on macOS, closing a listening socket does not wake a thread blocked in `accept()` -
+`shutdown()` answers ENOTCONN on a listener - and .NET's `SafeSocketHandle` close then waits for
+that pending operation. Linux wakes the blocked `accept()` itself, which is why the Linux suite and
+Linux CI never saw it.
+
+Fix (`SingleInstance.cs:205-222`): before closing the listener, connect to our own socket once. The
+pending `Accept()` returns, `_running` is already false, and the loop exits. A failed wake-up logs a
+warning naming the consequence rather than pretending to recover.
+
+**Why this is not cosmetic.** `Program.cs:49` disposes this in `Main`'s `finally`. On macOS the app
+therefore never finished quitting and never removed its socket file.
+
+**Corroboration from the real app on this machine - and it is corroboration, not proof.** Across
+every desktop-app launch logged here (4 launches, 11-13 and 11-15) there is not one
+`[Program] Main: exited` and not one `[SingleInstance] Dispose:` line, while the same grep finds the
+`[Program] Main: AgentEyes ...` start lines, so the instrument reads the file. Twice, on two
+different days, the next launch logged `stale socket ... - taking it over`, which is the file a
+clean `Dispose` would have deleted. **A `kill -9` would leave exactly the same trace**, so the log
+is the reason to believe this bites in the real app; the repro and the test log are the proof.
+
+**What the wake-up connection does, and does not do** (the most likely way such a fix introduces a
+new defect): it carries no bytes. `Accept`'s `Receive` returns 0, `cmd` is empty, and the existing
+`if (cmd.Length > 0)` guard means `CommandReceived` is not raised. `CommandReceived` has exactly two
+raise sites (`SingleInstance.cs:146` and `:177`), both behind that guard, and exactly one consumer
+(`App.axaml.cs:26` -> `Run(cmd)`), so no window can be shown and no command acted on. The only
+observable effect is one `[SingleInstance] Accept: ''` line at shutdown, visible in the run log.
+M6 below proves the test fails if that connection ever did speak.
+
+## 3. The gate, three runs
+
+```
+1) dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=mac
+   Build succeeded.  1 Warning(s)  0 Error(s)      (the warning is the CS8602 also present on main)
+2) dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release
+   Passed!  - Failed: 0, Passed: 226, Skipped: 0, Total: 226
+3) dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release
+   run 1: Passed!  - Failed: 0, Passed: 278, Skipped: 1, Total: 279
+   run 2: Passed!  - Failed: 0, Passed: 278, Skipped: 1, Total: 279
+   run 3: Passed!  - Failed: 0, Passed: 278, Skipped: 1, Total: 279
+```
+
+Three of three, matching the three runs in which QA reproduced the failure. The skip is the
+pre-existing `LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome`, unchanged. Total is 279
+rather than 278 because `SocketPath_OnThisHost_FitsTheUnixSocketPathLimit` is new.
+
+**Before and after on the hanging test**, same machine, same command:
+
+```
+BEFORE  dotnet test --filter TryAcquireSocket_SecondLaunch   killed by a watchdog at 45 s,
+        ONE test, no result line ever printed; the product log ends at "Dispose: socket ..."
+AFTER   Passed!  - Failed: 0, Passed: 1, Skipped: 0, Total: 1, Duration: 5 ms
+```
+
+**CI proves nothing about this.** The macOS CI job never runs `tests/AgentEyes.Tests.Linux`, which is
+exactly why these three were green in CI and red on the machine. The local runs above are the
+evidence; CI is only there to show Linux and Windows did not regress.
+
+## 4. Every check was run against a known-BAD input and FIRED
+
+| # | Mutation | Test that fired | Message |
+|---|----------|-----------------|---------|
+| M1 | `Shell.PlatformName` answers "linux" on macOS | `PlatformName_OnAnyHost_...` | `Assert.Equal() Failure: Strings differ`. The OLD test PASSED under this mutation on a Mac. |
+| M2 | `SingleInstance.SocketPath` made 128 bytes | `SocketPath_OnThisHost_FitsTheUnixSocketPathLimit` | `SingleInstance.SocketPath is 128 bytes, over the 104-byte sun_path limit: ...` |
+| M3 | pipe listener serves one handoff then stops | `TryAcquirePipe_SecondLaunch_...` | `Assert.Null() Failure: Value is not null` |
+| M4 | fixture builds the old 47-character pipe name | `TryAcquirePipe_SecondLaunch_...` | `THE FIXTURE, not the product: this test's path is 107 bytes ...` (the exact 107 QA measured) |
+| M5 | the wake-up connection removed | `TryAcquireSocket_SecondLaunch_...` | `Dispose did not return within 10 s on the socket transport - the listener is not being woken` |
+| M6 | the wake-up connection sends "show" | `TryAcquireSocket_SecondLaunch_...` | `shutting down the socket transport delivered a command of its own: 'show'` |
+
+M5 is the regression test for the product fix, and note what it buys beyond catching the bug: a
+regression now **fails in ten seconds with a named reason** instead of hanging the suite forever.
+The deadline is in the test, not in the product.
+
+## 5. Criterion 11 is amended
+
+The Implementation Lead amended criterion 11 on the issue. It said "launch the app twice; the second
+launch raises the first window and exits" - entirely about the SECOND launch, which is precisely why
+this defect survived QA: the second-launch path returns at `Program.cs:41`, before the `try/finally`
+that disposes. It now ALSO requires that **the first instance exits cleanly and removes its socket**.
+
+## 6. What QA should do, and what this pass does NOT cover
+
+1. **The amended criterion 11, on macOS, in the running app.** Launch the app, launch it a second
+   time (it should hand off and exit 0), then **quit the first instance from the tray menu** and
+   check the app log for `[Program] Main: exited` and
+   `[SingleInstance] Dispose: socket listener closed and ... removed`, that the process is gone, and
+   that `$TMPDIR/agenteyes-app.sock` no longer exists. On macOS the app log is
+   `~/Library/Application Support/AgentEyes/logs/`.
+2. **The same on Linux and Windows** - the fix is in the socket transport, so Windows (named pipe)
+   should be unaffected, and Linux never had the hang.
+3. **The clean quit has NOT been exercised in the running app here, and I am saying so rather than
+   implying otherwise.** `Quit` is only reachable from the tray menu (`App.axaml.cs:100`, the only
+   `Shutdown()` call site); there is no headless route, this Mac's screen is locked, and the project
+   rules forbid synthesizing input on the owner's desktop unasked. A `kill` would not exercise it
+   either: `Main`'s `finally` does not run on SIGTERM. What IS proven is the same `Dispose` on the
+   same transport, at unit level, three runs, plus the standalone repro of the operating-system
+   behaviour underneath it.
+4. Everything in "Not covered, and how I know" from pass 1 still stands.
+
+**Trap, carried from QA and confirmed here:** `tests/AgentEyes.Tests.Linux` pins the app to
+`AgentEyesUnixPlatform=linux` and shares `bin/Release/net8.0` with it, so running the macOS gate
+rewrites the macOS app output as a Linux one. Measured on this machine: `x11grab 1, pulse 8,
+avfoundation 0` after the gate; `0, 0, 2` after
+`dotnet build src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj -c Release -p:AgentEyesUnixPlatform=mac`.
+**Rebuild the app after the gate before launching or inspecting it on a Mac.** I left this machine
+with the macOS build in place (0, 0, 2 re-measured after the final gate run).
+
+## 7. Machine state
+
+Recorder service not reinstalled and not restarted. Nothing deleted under `~/Movies/AgentEyes`;
+`2026-11-15_093623_video`, added by QA as evidence, is untouched. No app was launched in this pass.
+
+I believe this is finished.

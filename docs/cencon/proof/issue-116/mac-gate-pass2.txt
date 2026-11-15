@@ -1,0 +1,84 @@
+Issue #116 - developer pass 2, the macOS gate. devthrottle-mac-mini, 2026-11-15.
+Transcript of the evidence in handoff.md. Harness paths scrubbed; <TMPDIR> is the macOS
+per-user temp directory (49 characters).
+
+macOS gate, devthrottle-mac-mini, branch issue-116-desktop-app with the #116 fix
+1) dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=mac
+   Build succeeded.
+       1 Warning(s)
+       0 Error(s)
+2) dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release
+   Passed!  - Failed:     0, Passed:   226, Skipped:     0, Total:   226, Duration: 35 ms - AgentEyes.Tests.Mac.dll (net8.0)
+3) dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release   (no filter, three runs)
+   run 1: Passed!  - Failed:     0, Passed:   278, Skipped:     1, Total:   279, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+   run 2: Passed!  - Failed:     0, Passed:   278, Skipped:     1, Total:   279, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+   run 3: Passed!  - Failed:     0, Passed:   278, Skipped:     1, Total:   279, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+=== BEFORE the product fix: the socket handoff test on macOS (45 s watchdog) ===
+2e16db1 docs(cencon): QA report for #116 - macOS half, FAIL on the macOS gate (#116)
+WATCHDOG: killed at 45s - ONE test, still running
+--- the run's own output (note: no Passed!/Failed! summary line - it never finished) ---
+A total of 1 test files matched the specified pattern.
+--- the product's own log for that run, last 3 SingleInstance lines ---
+10:07:01.918 [pid 53303] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'settings:account'
+10:07:01.918 [pid 53303] [INFO] [SingleInstance] Accept: 'settings:account'
+10:07:01.919 [pid 53303] [INFO] [SingleInstance] Dispose: socket <TMPDIR>/ae2f72f2dc/app.sock
+
+=== AFTER the product fix: the same single test, no exclusion ===
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 5 ms - AgentEyes.Tests.Linux.dll (net8.0)
+--- the product's own log for that run (condition 2: what the wake-up connection does) ---
+10:08:07.972 [pid 53698] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/aed2cb2601/app.sock command='show'
+10:08:07.972 [pid 53698] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/aed2cb2601/app.sock
+10:08:07.973 [pid 53698] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/aed2cb2601/app.sock command='view:library'
+10:08:07.973 [pid 53698] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+10:08:07.973 [pid 53698] [INFO] [SingleInstance] Accept: 'view:library'
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/aed2cb2601/app.sock command='settings:account'
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'settings:account'
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] Accept: 'settings:account'
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] Dispose: socket <TMPDIR>/aed2cb2601/app.sock
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] Accept: ''
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] Dispose: socket listener closed and <TMPDIR>/aed2cb2601/app.sock removed
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/aed2cb2601/app.sock command='show'
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/aed2cb2601/app.sock
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] Dispose: socket <TMPDIR>/aed2cb2601/app.sock
+10:08:07.974 [pid 53698] [INFO] [SingleInstance] Accept: ''
+10:08:07.975 [pid 53698] [INFO] [SingleInstance] Dispose: socket listener closed and <TMPDIR>/aed2cb2601/app.sock removed
+
+===== MUTATION 1: Shell.PlatformName returns 'linux' on a Mac (swap the mac arm) =====
+14-            OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "linux" : "linux";
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnAnyHost_NamesTheOperatingSystemThisProcessRunsOn [FAIL]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnAnyHost_NamesTheOperatingSystemThisProcessRunsOn [3 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 3 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+===== MUTATION 2: SingleInstance.SocketPath made over-long (a product-side overrun) =====
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.SocketPath_OnThisHost_FitsTheUnixSocketPathLimit [FAIL]
+  Error Message:
+   SingleInstance.SocketPath is 128 bytes, over the 104-byte sun_path limit: <TMPDIR>/agenteyes-app-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.sock
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 1 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+===== MUTATION 3: the pipe listener stops serving after the FIRST handoff =====
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [FAIL]
+  Error Message:
+   Assert.Null() Failure: Value is not null
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 5 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+===== MUTATION 4: the fixture builds an over-long path again (the guard must name THE FIXTURE) =====
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [FAIL]
+  Error Message:
+   THE FIXTURE, not the product: this test's path is 107 bytes, over the 104-byte sun_path limit: <TMPDIR>/CoreFxPipe_agenteyes-test-a37e89cc5a66414896058e6fc7271179
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 2 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+===== MUTATION 5: the wake-up connection removed (the hang comes back) =====
+[xUnit.net 00:00:10.09]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [FAIL]
+  Error Message:
+   Dispose did not return within 10 s on the socket transport - the listener is not being woken
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 10 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+===== MUTATION 6: the wake-up connection sends bytes (it WOULD be taken for a launch) =====
+[xUnit.net 00:00:00.07]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [FAIL]
+  Error Message:
+   shutting down the socket transport delivered a command of its own: 'show'
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 4 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
