@@ -1,0 +1,78 @@
+Supplementary to row 6 - the same 10-minute MIXED recording with denoise:false, level:false (arnndn and speechnorm out of the chain). Windows, SORENLAPTOP, main 93681fa, app pid 22104, ffmpeg 9.0.2.
+POST /record/start {"mode":"video","screen":1,"source":"mixed","mic":"Microphone (2- Realtek(R) Audio)","denoise":false,"level":false}
+start 11:14:50.885 state=recording source=mixed dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_111451_video load=10
+11:24:12 elapsed=560.42 loads=30,29,43,36,31,40,41,45,38,46,33,28,29,23,32,53,56,53
+stop 11:25:09.831 DurationSeconds=617.85 File=...\2026-11-15_111451_video\recording.mp4 wall=618.946 loads=26,27,33,51
+
+== directory listing (2026-11-15_111451_video)
+  0	11:25:45	.
+  0	11:14:51	..
+  19819598	11:25:40	audio_16k.wav
+  9498	11:25:45	manifest.json
+  0	11:25:11	mux.lock
+  161882	11:25:11	raw.mp4.ffmpeg.log
+  28141480	11:25:38	recording.mp4
+  25655178	11:25:11	recording.original.mp4
+  0	11:14:51	shots
+  237216058	11:25:10	system.original.wav
+  26590	11:25:39	thumb.jpg
+  360	11:25:45	transcript.en.vtt
+  977	11:25:45	transcript.json
+  110	11:25:45	transcript.txt
+  24175	11:25:45	walkthrough.html
+== recording.mp4: streams
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=620.166667|nb_frames=18171
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=44100|channels=2|channel_layout=stereo|r_frame_rate=0/0|duration=619.368005|nb_frames=26675
+== recording.mp4: format duration
+format|duration=620.166667|size=28141480
+== recording.mp4: packet counts (-count_packets)
+stream|index=0|codec_type=video|nb_read_packets=18171
+stream|index=1|codec_type=audio|nb_read_packets=26675
+== recording.original.mp4: streams
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=620.166667|nb_frames=18171
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=44100|channels=2|channel_layout=stereo|r_frame_rate=0/0|duration=619.368005|nb_frames=26675
+== recording.original.mp4: format duration
+format|duration=620.166667|size=25655178
+== recording.original.mp4: packet counts (-count_packets)
+stream|index=0|codec_type=video|nb_read_packets=18171
+stream|index=1|codec_type=audio|nb_read_packets=26675
+== recording.mp4 top-level atoms
+  ftyp  size=32  offset=0
+  free  size=8  offset=32
+  mdat  size=27,412,618  offset=40
+  moov  size=728,822  offset=27,412,658
+  file size=28,141,480
+== raw.mp4 (capture) streams
+%USERPROFILE%/Videos/AgentEyes/2026-11-15_111451_video/raw.mp4: No such file or directory
+== sys_native.wav
+%USERPROFILE%/Videos/AgentEyes/2026-11-15_111451_video/sys_native.wav: No such file or directory
+== full decode recording.mp4: exit=0 elapsed=28s stderr_bytes=0 load_before=46%
+== volumedetect (final audio)
+mean_volume: -90.3 dB
+max_volume: -60.8 dB
+
+== system.original.wav
+stream|codec_name=pcm_f32le|sample_rate=48000|channels=2|duration=617.750000
+== app log (pid 22104)
+11:25:11.770 [pid 22104] [INFO] stop: return dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_111451_video dur=617.9s deferredMux=True (HUD may close now)
+11:25:11.796 [pid 22104] [INFO] [PostRecording] stage mux: start dir=2026-11-15_111451_video
+11:25:25.408 [pid 22104] [INFO] ffmpeg [mux video+mic+system]: "%USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i %USERPROFILE%\Videos\AgentEyes\2026-11-15_111451_video\raw.mp4 -i %USERPROFILE%\Videos\AgentEyes\2026-11-15_111451_video\sys_native.wav -filter_complex "[0:a]volume=1[m];[1:a]volume=0.7[s];[m][s]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95:level=false[a]" -map 0:v -c:v copy -map [a] -c:a aac -b:a 160k %USERPROFILE%\Videos\AgentEyes\2026-11-15_111451_video\recording.mp4
+11:25:38.776 [pid 22104] [INFO] [PostRecording] stage mux: done dir=2026-11-15_111451_video in 27.0s
+11:25:38.798 [pid 22104] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-15_111451_video
+11:25:39.048 [pid 22104] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-15_111451_video in 0.2s
+11:25:39.064 [pid 22104] [INFO] [PostRecording] stage package: start dir=2026-11-15_111451_video
+11:25:45.402 [pid 22104] [INFO] [PostRecording] stage package: done dir=2026-11-15_111451_video in 6.3s
+11:25:45.412 [pid 22104] [INFO] [PostRecording] stage plugins: start dir=2026-11-15_111451_video
+11:25:45.413 [pid 22104] [INFO] [PostRecording] stage plugins: done dir=2026-11-15_111451_video in 0.0s
+== transcript.txt (silent audio -> empty segments)
+[00:00] 
+[01:03] 
+[01:59] 
+[02:55] 
+[03:52] 
+[04:50] 
+[05:47] 
+[06:46] 
+[07:46] 
+[08:46] 
+[09:42] 

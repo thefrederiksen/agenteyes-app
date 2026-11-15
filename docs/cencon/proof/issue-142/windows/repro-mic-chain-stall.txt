@@ -1,0 +1,38 @@
+Standalone reproduction of the default-mic-chain stall (new defect W1), outside the app, on SORENLAPTOP.
+Inputs are the app's own raw captures. Every run wrote to a scratch folder, never to the recording.
+ffmpeg 9.0.2 = %LOCALAPPDATA%\AgentEyes\app\ffmpeg.exe (sha256 3256173f..., the published bundle)
+ffmpeg 8.1.1 = the winget Gyan build that build-release.ps1 packaged into dist\release
+"timeout N" kills the run after N seconds: exit 124 = still running = stalled. A run that finishes writes
+progress=end to its -progress file.
+
+SHIPPED chain (copied verbatim from the app's log; FfmpegArgs.MicChain):
+  [0:a]aeval=...:c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='...bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];...
+RESAMPLE-FIRST variant (the only change: aresample=48000 inserted before asetnsamples):
+  [0:a]aeval=...:c=same,aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn=...
+
+Input raw mic track in every case: AAC 44100 Hz stereo (dshow capture). arnndn accepts only 48000 Hz, so with
+the shipped order ffmpeg inserts its own resampler AFTER asetnsamples, and #128's padded 480-sample framing is
+undone before the frames reach arnndn.
+
+A. Row 5 capture (2026-11-15_104916_video\raw.mp4, audio 135.557 s), mic-only command, timeout 100:
+   9.0.2 shipped        : exit 124, last out_time=00:02:15.503667, progress=end lines: 0
+   8.1.1 shipped        : exit 0,   last out_time=00:02:15.587000, progress=end lines: 1
+   9.0.2 resample-first : exit 0,   last out_time=00:02:16.233333, progress=end lines: 1, 3 s
+
+B. Row 6 capture (2026-11-15_105751_video\raw.mp4 + sys_native.wav), mixed command, timeout 150:
+   9.0.2 shipped        : exit 124 after 150 s, last out_time=00:10:18.352667, progress=end lines: 0
+   8.1.1 shipped        : exit 0 in 16 s,       last out_time=00:10:18.436000, progress=end lines: 1
+   9.0.2 resample-first : exit 0 in 15 s,       last out_time=00:10:19.000000, progress=end lines: 1
+
+C. Row 11 capture (2026-11-15_112716_video\raw.mp4, 21.6 s), mic-only command, 10 runs each, timeout 25:
+   9.0.2 shipped        exit codes: 124 124 124 124 124 124 124 124 124 124   (10 of 10 stalled, 0 crashed)
+   9.0.2 resample-first exit codes: 0 0 0 0 0 0 0 0 0 0                      (10 of 10 completed)
+   8.1.1 shipped        exit codes: 0 0 0 0 0 0 0 0 0 0                      (10 of 10 completed)
+
+The in-app first attempt on the row 11 capture ended with exit -1073741819 (0xC0000005, access violation)
+instead of a stall (see row11.txt). That crash did not reproduce in the 10 standalone runs above.
+
+D. Mechanism check: the row 11 capture re-encoded to 48000 Hz stereo AAC first (separate ffmpeg pass), then the SHIPPED
+   chain, unchanged, on ffmpeg 9.0.2, 10 runs, timeout 25:
+   exit codes: 0 0 0 0 0 0 0 0 0 0
+   With a 48 kHz input ffmpeg inserts no resampler between asetnsamples and arnndn. Compare C: the same audio at 44.1 kHz stalls 10 of 10.

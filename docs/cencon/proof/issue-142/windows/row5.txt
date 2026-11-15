@@ -1,0 +1,54 @@
+Row 5 - screen + microphone, DEFAULT mic settings (denoise on, voice leveling on). Windows, SORENLAPTOP, main 93681fa, app pid 22104, bundled ffmpeg 9.0.2.
+POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+start 10:49:15.928 (load 15%), loads every 10 s: 23,32,41,34,41,26,40,29,31,38,53,40; stop 10:51:30.899 -> DurationSeconds 133.91, wall 134.971 s
+
+== directory after all three mux attempts (no recording.mp4 - the partial one is removed)
+  0	11:10:49	.
+  0	11:27:16	..
+  1708	11:10:49	manifest.json
+  0	10:51:32	mux.lock
+  5618917	10:51:32	raw.mp4
+  36822	10:51:32	raw.mp4.ffmpeg.log
+  0	10:49:16	shots
+== raw.mp4 (the capture) streams and packets
+stream|index=0|codec_name=h264|codec_type=video|duration=136.300000|nb_frames=4000|nb_read_packets=4000
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=44100|channels=2|channel_layout=stereo|duration=135.557007|nb_frames=5838|nb_read_packets=5838
+== manifest PostProcessing
+{
+ "mux": {
+  "State": "failed",
+  "Attempts": 3,
+  "LastAttemptUtc": "2026-11-15T16:09:44.2378469Z",
+  "Error": "ffmpeg stalled during process mic audio: output stopped advancing at 135.5s of output for 60s (limit 60s) after 65s - process killed"
+ }
+}
+== app log (pid 22104): mux attempts
+10:51:32.936 [pid 22104] [INFO] [MuxLock] TryAcquire: 2026-11-15_104916_video (post-recording) - acquired by pid 22104
+10:51:32.947 [pid 22104] [INFO] [PostRecording] stage mux: start dir=2026-11-15_104916_video
+10:51:32.963 [pid 22104] [INFO] [MuxLock] TryAcquire: 2026-11-15_104916_video (finalize) - re-entered, depth 2
+10:51:32.966 [pid 22104] [INFO] [MediaProbe] AudioChannels: %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\raw.mp4
+10:51:33.104 [pid 22104] [INFO] [MediaProbe] AudioChannels: %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\raw.mp4 -> 2
+10:52:39.113 [pid 22104] [ERROR] [PostRecording] stage mux FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video
+10:52:39.113 [pid 22104] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_104916_video stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 135.5s of output for 60s (limit 60s) after 66s - process killed
+10:52:39.119 [pid 22104] [INFO] [PostRecording] Execute: 2026-11-15_104916_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:52:39.119 [pid 22104] [INFO] [MuxLock] Release: 2026-11-15_104916_video - released by pid 22104
+10:52:39.332 [pid 22104] [INFO] [MuxLock] TryAcquire: 2026-11-15_104916_video (post-recording) - acquired by pid 22104
+10:52:39.337 [pid 22104] [INFO] [PostRecording] stage mux: start dir=2026-11-15_104916_video
+10:52:39.345 [pid 22104] [INFO] [MuxLock] TryAcquire: 2026-11-15_104916_video (finalize) - re-entered, depth 2
+10:52:39.346 [pid 22104] [INFO] [MediaProbe] AudioChannels: %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\raw.mp4
+10:52:39.420 [pid 22104] [INFO] [MediaProbe] AudioChannels: %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\raw.mp4 -> 2
+10:53:43.842 [pid 22104] [ERROR] [PostRecording] stage mux FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video
+10:53:43.843 [pid 22104] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_104916_video stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 135.5s of output for 60s (limit 60s) after 64s - process killed
+10:53:43.847 [pid 22104] [INFO] [PostRecording] Execute: 2026-11-15_104916_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:53:43.847 [pid 22104] [INFO] [MuxLock] Release: 2026-11-15_104916_video - released by pid 22104
+11:09:44.236 [pid 22104] [INFO] [MuxLock] TryAcquire: 2026-11-15_104916_video (post-recording) - acquired by pid 22104
+11:09:44.243 [pid 22104] [INFO] [PostRecording] stage mux: start dir=2026-11-15_104916_video
+11:09:44.250 [pid 22104] [INFO] [MuxLock] TryAcquire: 2026-11-15_104916_video (finalize) - re-entered, depth 2
+11:09:44.251 [pid 22104] [INFO] [MediaProbe] AudioChannels: %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\raw.mp4
+11:09:44.327 [pid 22104] [INFO] [MediaProbe] AudioChannels: %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\raw.mp4 -> 2
+11:10:49.674 [pid 22104] [ERROR] [PostRecording] stage mux FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video
+11:10:49.675 [pid 22104] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_104916_video stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 135.5s of output for 60s (limit 60s) after 65s - process killed
+11:10:49.682 [pid 22104] [INFO] [PostRecording] Execute: 2026-11-15_104916_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+11:10:49.682 [pid 22104] [INFO] [MuxLock] Release: 2026-11-15_104916_video - released by pid 22104
+== the exact command the app ran (first attempt)
+"%USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='%USERPROFILE%/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a]" -map 0:v -c:v copy -map [a] -c:a aac -b:a 160k %USERPROFILE%\Videos\AgentEyes\2026-11-15_104916_video\recording.mp4
