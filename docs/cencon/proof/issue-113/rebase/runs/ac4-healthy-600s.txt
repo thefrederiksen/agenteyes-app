@@ -1,0 +1,70 @@
+== issue #113 rebase re-verification, mode=HEALTHY ==
+start requested 2026-11-15T17:27:12.857Z
+start response: {"State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 1.3, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_122713_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 52, "LastStopFailed": false, "LastStopError": null, "LastStopDir": null, "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastCaptureFaultDir": null}
+2026-11-15T17:27:14.499Z State=recording Elapsed=1.31 Level=0 Liveness=starting Bytes=0 LastGrowth=None SinceGrowth=None LastStopFailed=False Fault=None 
+2026-11-15T17:27:24.506Z State=recording Elapsed=11.32 Level=0 Liveness=growing Bytes=5150619 LastGrowth=2026-11-15T17:27:24.503055Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:27:34.519Z State=recording Elapsed=21.33 Level=0 Liveness=growing Bytes=11810858 LastGrowth=2026-11-15T17:27:34.513824Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:27:44.536Z State=recording Elapsed=31.35 Level=0 Liveness=growing Bytes=18273739 LastGrowth=2026-11-15T17:27:44.523292Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:27:54.543Z State=recording Elapsed=41.35 Level=0 Liveness=growing Bytes=24675573 LastGrowth=2026-11-15T17:27:54.532322Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:28:04.559Z State=recording Elapsed=51.37 Level=0 Liveness=growing Bytes=31069518 LastGrowth=2026-11-15T17:28:04.540557Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:28:14.572Z State=recording Elapsed=61.38 Level=0 Liveness=growing Bytes=36575902 LastGrowth=2026-11-15T17:28:14.549696Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:28:24.585Z State=recording Elapsed=71.39 Level=0 Liveness=growing Bytes=41309535 LastGrowth=2026-11-15T17:28:24.558656Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:28:34.602Z State=recording Elapsed=81.41 Level=0 Liveness=growing Bytes=44626386 LastGrowth=2026-11-15T17:28:34.569423Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:28:44.617Z State=recording Elapsed=91.43 Level=0 Liveness=growing Bytes=48218487 LastGrowth=2026-11-15T17:28:44.574521Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:28:54.635Z State=recording Elapsed=101.44 Level=0 Liveness=growing Bytes=51155868 LastGrowth=2026-11-15T17:28:54.57975Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:29:04.651Z State=recording Elapsed=111.46 Level=0 Liveness=growing Bytes=54933297 LastGrowth=2026-11-15T17:29:04.590386Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:29:14.668Z State=recording Elapsed=121.48 Level=0 Liveness=growing Bytes=58919461 LastGrowth=2026-11-15T17:29:14.597007Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:29:24.689Z State=recording Elapsed=131.51 Level=0 Liveness=growing Bytes=63501765 LastGrowth=2026-11-15T17:29:24.605855Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:29:34.718Z State=recording Elapsed=141.53 Level=0 Liveness=growing Bytes=68437146 LastGrowth=2026-11-15T17:29:34.616521Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:29:44.740Z State=recording Elapsed=151.55 Level=0 Liveness=growing Bytes=72433984 LastGrowth=2026-11-15T17:29:44.625589Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:29:54.762Z State=recording Elapsed=161.57 Level=0 Liveness=growing Bytes=77551953 LastGrowth=2026-11-15T17:29:54.634634Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:30:04.808Z State=recording Elapsed=171.62 Level=0 Liveness=growing Bytes=82956830 LastGrowth=2026-11-15T17:30:04.644262Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:30:14.835Z State=recording Elapsed=181.65 Level=0 Liveness=growing Bytes=88631120 LastGrowth=2026-11-15T17:30:14.653535Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:30:24.865Z State=recording Elapsed=191.68 Level=0 Liveness=growing Bytes=94410649 LastGrowth=2026-11-15T17:30:24.663277Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:30:34.875Z State=recording Elapsed=201.68 Level=0 Liveness=growing Bytes=99087319 LastGrowth=2026-11-15T17:30:34.672846Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:30:44.889Z State=recording Elapsed=211.7 Level=0 Liveness=growing Bytes=104720910 LastGrowth=2026-11-15T17:30:44.682661Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:30:54.907Z State=recording Elapsed=221.72 Level=0 Liveness=growing Bytes=110483910 LastGrowth=2026-11-15T17:30:54.691828Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:31:04.922Z State=recording Elapsed=231.73 Level=0 Liveness=growing Bytes=116595045 LastGrowth=2026-11-15T17:31:04.699482Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:31:14.938Z State=recording Elapsed=241.75 Level=0 Liveness=growing Bytes=122840971 LastGrowth=2026-11-15T17:31:14.705866Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:31:24.965Z State=recording Elapsed=251.77 Level=0 Liveness=growing Bytes=127933478 LastGrowth=2026-11-15T17:31:24.715116Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:31:34.976Z State=recording Elapsed=261.78 Level=0 Liveness=growing Bytes=134272890 LastGrowth=2026-11-15T17:31:34.724811Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:31:44.984Z State=recording Elapsed=271.79 Level=0 Liveness=growing Bytes=140522032 LastGrowth=2026-11-15T17:31:44.733442Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:31:54.993Z State=recording Elapsed=281.8 Level=0 Liveness=growing Bytes=147194202 LastGrowth=2026-11-15T17:31:54.742805Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:32:05.012Z State=recording Elapsed=291.82 Level=0 Liveness=growing Bytes=153813081 LastGrowth=2026-11-15T17:32:04.75024Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:32:15.027Z State=recording Elapsed=301.84 Level=0 Liveness=growing Bytes=159081722 LastGrowth=2026-11-15T17:32:14.760622Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:32:25.036Z State=recording Elapsed=311.84 Level=0 Liveness=growing Bytes=165523376 LastGrowth=2026-11-15T17:32:24.765982Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:32:35.047Z State=recording Elapsed=321.86 Level=0 Liveness=growing Bytes=172022062 LastGrowth=2026-11-15T17:32:34.773731Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:32:45.063Z State=recording Elapsed=331.87 Level=0 Liveness=growing Bytes=178689760 LastGrowth=2026-11-15T17:32:44.783214Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:32:55.081Z State=recording Elapsed=341.89 Level=0 Liveness=growing Bytes=185221097 LastGrowth=2026-11-15T17:32:54.79229Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:33:05.096Z State=recording Elapsed=351.9 Level=0 Liveness=growing Bytes=191616035 LastGrowth=2026-11-15T17:33:04.798138Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:33:15.116Z State=recording Elapsed=361.92 Level=0 Liveness=growing Bytes=196921399 LastGrowth=2026-11-15T17:33:14.808628Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:33:25.129Z State=recording Elapsed=371.94 Level=0 Liveness=growing Bytes=201526146 LastGrowth=2026-11-15T17:33:24.819291Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:33:35.145Z State=recording Elapsed=381.95 Level=0 Liveness=growing Bytes=204856287 LastGrowth=2026-11-15T17:33:34.828526Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:33:45.162Z State=recording Elapsed=391.97 Level=0 Liveness=growing Bytes=208453292 LastGrowth=2026-11-15T17:33:44.839424Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:33:55.168Z State=recording Elapsed=401.97 Level=0 Liveness=growing Bytes=212088628 LastGrowth=2026-11-15T17:33:54.849034Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:34:05.184Z State=recording Elapsed=411.99 Level=0 Liveness=growing Bytes=215201992 LastGrowth=2026-11-15T17:34:04.858201Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:34:15.195Z State=recording Elapsed=422 Level=0 Liveness=growing Bytes=219185457 LastGrowth=2026-11-15T17:34:14.87069Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:34:25.224Z State=recording Elapsed=432.03 Level=0 Liveness=growing Bytes=223757111 LastGrowth=2026-11-15T17:34:24.881362Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:34:35.255Z State=recording Elapsed=442.07 Level=0 Liveness=growing Bytes=228676406 LastGrowth=2026-11-15T17:34:34.890522Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:34:45.323Z State=recording Elapsed=452.13 Level=0 Liveness=growing Bytes=233639860 LastGrowth=2026-11-15T17:34:44.900064Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:34:55.351Z State=recording Elapsed=462.16 Level=0 Liveness=growing Bytes=237803715 LastGrowth=2026-11-15T17:34:54.906916Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:35:05.376Z State=recording Elapsed=472.18 Level=0 Liveness=growing Bytes=243205501 LastGrowth=2026-11-15T17:35:04.917197Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:35:15.405Z State=recording Elapsed=482.21 Level=0 Liveness=growing Bytes=248872367 LastGrowth=2026-11-15T17:35:14.926562Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:35:25.428Z State=recording Elapsed=492.23 Level=0 Liveness=growing Bytes=254644052 LastGrowth=2026-11-15T17:35:24.933376Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:35:35.442Z State=recording Elapsed=502.25 Level=0 Liveness=growing Bytes=260380168 LastGrowth=2026-11-15T17:35:34.943901Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:35:45.453Z State=recording Elapsed=512.26 Level=0 Liveness=growing Bytes=264926723 LastGrowth=2026-11-15T17:35:44.952822Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:35:55.467Z State=recording Elapsed=522.27 Level=0 Liveness=growing Bytes=270689002 LastGrowth=2026-11-15T17:35:54.962983Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:36:05.480Z State=recording Elapsed=532.29 Level=0 Liveness=growing Bytes=276791368 LastGrowth=2026-11-15T17:36:04.973529Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:36:15.496Z State=recording Elapsed=542.3 Level=0 Liveness=growing Bytes=283018275 LastGrowth=2026-11-15T17:36:14.984089Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:36:25.506Z State=recording Elapsed=552.31 Level=0 Liveness=growing Bytes=289295554 LastGrowth=2026-11-15T17:36:24.993615Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:36:35.513Z State=recording Elapsed=562.32 Level=0 Liveness=growing Bytes=294417095 LastGrowth=2026-11-15T17:36:34.999543Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:36:45.528Z State=recording Elapsed=572.33 Level=0 Liveness=growing Bytes=300668806 LastGrowth=2026-11-15T17:36:45.008224Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:36:55.546Z State=recording Elapsed=582.35 Level=0 Liveness=growing Bytes=307341271 LastGrowth=2026-11-15T17:36:55.0168Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:37:05.558Z State=recording Elapsed=592.36 Level=0 Liveness=growing Bytes=313968826 LastGrowth=2026-11-15T17:37:05.026452Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:37:15.573Z State=recording Elapsed=602.38 Level=0 Liveness=growing Bytes=320481733 LastGrowth=2026-11-15T17:37:15.035044Z SinceGrowth=0 LastStopFailed=False Fault=None 
+healthy phase complete after 601.1s - stopping normally at 2026-11-15T17:37:15.577Z
+stop response: {"Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_122713_video", "File": "/Users/soren/Movies/AgentEyes/2026-11-15_122713_video/recording.mp4", "DurationSeconds": 602.39, "Shots": 0}
+2026-11-15T17:37:16.858Z State=idle Elapsed=602.39 Level=0 Liveness=None Bytes=None LastGrowth=None SinceGrowth=None LastStopFailed=False Fault=None 
+2026-11-15T17:37:18.881Z State=idle Elapsed=602.39 Level=0 Liveness=None Bytes=None LastGrowth=None SinceGrowth=None LastStopFailed=False Fault=None   <-- FINAL
+recording dir: None
+polls written: final-ac4/polls.json

@@ -51,6 +51,7 @@
     <!-- Issue #113: the platform-neutral capture watchdog, tested once for all three platforms. -->
     <Compile Include="../Shared/CaptureWatchdogTests.cs" Link="Shared/CaptureWatchdogTests.cs" />
     <Compile Include="../Shared/CaptureWatchdogWiringTests.cs" Link="Shared/CaptureWatchdogWiringTests.cs" />
+    <Compile Include="../Shared/RecordingStopOrderTests.cs" Link="Shared/RecordingStopOrderTests.cs" />
 
     <Compile Include="../Shared/MuxLockTests.cs" Link="Shared/MuxLockTests.cs" />
 

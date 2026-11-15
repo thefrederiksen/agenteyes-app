@@ -1,0 +1,38 @@
+service pid 94050
+started 2026-11-15T17:13:05.646Z dir=/Users/soren/Movies/AgentEyes/2026-11-15_121304_video
+INJECTED SIGSTOP on capture pid 2175 at 2026-11-15T17:13:27.706Z - NOTHING will touch it again
+2026-11-15T17:13:27.718Z +   0.0s State=recording   Liveness=growing Fault=no | capture pid 2175 state=T | service cpu=0.7% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:13:37.733Z +  10.0s State=recording   Liveness=not-growing Fault=no | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:13:47.752Z +  20.0s State=recording   Liveness=not-growing Fault=no | capture pid 2175 state=T | service cpu=98.1% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:13:57.781Z +  30.1s State=recording   Liveness=not-growing Fault=no | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:14:07.794Z +  40.1s State=recording   Liveness=not-growing Fault=no | capture pid 2175 state=T | service cpu=99.7% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:14:17.833Z +  50.1s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.1% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:14:27.858Z +  60.1s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:14:37.882Z +  70.2s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.1% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:14:47.906Z +  80.2s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.7% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:14:57.933Z +  90.2s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:15:07.956Z + 100.2s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:15:17.985Z + 110.3s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:15:28.013Z + 120.3s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.1% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:15:38.039Z + 130.3s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:15:48.061Z + 140.3s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:15:58.086Z + 150.4s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:16:08.115Z + 160.4s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:16:18.144Z + 170.4s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:16:28.161Z + 180.4s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:16:38.190Z + 190.5s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:16:48.218Z + 200.5s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=78.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:16:58.239Z + 210.5s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:17:08.262Z + 220.5s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.3% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:17:18.284Z + 230.6s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:17:28.311Z + 240.6s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:17:38.330Z + 250.6s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:17:48.356Z + 260.6s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:17:58.392Z + 270.7s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:18:08.424Z + 280.7s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:18:18.454Z + 290.7s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:18:28.477Z + 300.8s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=98.6% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:18:38.517Z + 310.8s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=100.6% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:18:48.539Z + 320.8s State=finalizing  Liveness=faulted Fault=YES | capture pid 2175 state=T | service cpu=99.4% | dir: manifest.json mic_native.wav raw.mp4 shots
+end 2026-11-15T17:18:58.549Z: final state=finalizing
+deliberately leaving the frozen pid for the caller to clean up: 2175

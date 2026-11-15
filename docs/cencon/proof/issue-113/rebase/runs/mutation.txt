@@ -1,0 +1,84 @@
+=== F-behind-never-recorded
+    Failed!  - Failed:     2, Passed:   311, Skipped:     0, Total:   313, Duration: 369 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.BehindAtStop_JustPastTheTolerance_IsAFault
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.BehindAtStop_TheEvidenceRecording_IsRecordedAsBehind
+=== A-watchdog-never-fires
+    Failed!  - Failed:    14, Passed:   299, Skipped:     0, Total:   313, Duration: 20 s - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Exited_ProcessEnds_FiresAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Fault_IsFinal_GrowthAfterTheDecisionDoesNotClearIt
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_AnEmptyFileIsNotOutput
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_NoOutputPastTheStartupWindow_Fires
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_GrowthStops_FiresStalledInsideTheWindow
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== B-no-fragmented-output
+    Failed!  - Failed:     3, Passed:   310, Skipped:     0, Total:   313, Duration: 328 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfVideoCapture_WholeScreen_ExactCommandLine
+    FAILED AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfVideoCapture_WithPreview_FragmentsTheRecordingNotThePreview
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.FragmentedOutput_IsOnTheWindowsCaptureImmediatelyBeforeTheOutputPath
+=== C-gaps-counted-as-stalls
+    Failed!  - Failed:     2, Passed:   311, Skipped:     0, Total:   313, Duration: 330 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_LongPauseBetweenChecks_IsNotCountedAsAStall
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+=== D-no-startup-window
+    Failed!  - Failed:     4, Passed:   309, Skipped:     0, Total:   313, Duration: 343 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Healthy_FileGrowsOnlyEveryFortySeconds_NeverFaults
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_NoOutputPastTheStartupWindow_Fires
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Startup_NoBytesYet_InsideTheWindow_DoesNotFireAndReportsStarting
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Startup_SlowFirstOutputThenGrowth_DoesNotFire
+=== E-stall-ignores-timeout
+    Failed!  - Failed:     8, Passed:   305, Skipped:     0, Total:   313, Duration: 20 s - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_GrowthStops_FiresStalledInsideTheWindow
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== W-startvideo-never-starts-the-watchdog
+    Failed!  - Failed:     7, Passed:   306, Skipped:     0, Total:   313, Duration: 307 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.StartVideo_StartsTheWatchdog_OnTheCaptureFile
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_TakesTheWatchdogDownBeforeTheWritersStop
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== P-verdict-published-only-after-the-stop
+    Failed!  - Failed:     2, Passed:   311, Skipped:     0, Total:   313, Duration: 304 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+=== K-abandon-drains-and-quits
+    Failed!  - Failed:     1, Passed:   312, Skipped:     0, Total:   313, Duration: 8 s - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.RecorderAbandonTests.Abandon_OnAProcessThatIgnoresTheQuit_KillsItWithinTheAbandonBound
+=== O-watchdog-down-after-the-writers
+    Failed!  - Failed:     1, Passed:   312, Skipped:     0, Total:   313, Duration: 335 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_TakesTheWatchdogDownBeforeTheWritersStop
+=== V-verdict-not-in-the-stop-report
+    Failed!  - Failed:     3, Passed:   310, Skipped:     0, Total:   313, Duration: 288 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== G-stop-after-the-verdict-takes-16s
+    Failed!  - Failed:     4, Passed:   309, Skipped:     0, Total:   313, Duration: 262 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Defaults_StallPlusOneCheckPlusTheStop_FitInsideTheSixtySecondWindow
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999)
+=== B2-mac-capture-drops-the-fragmented-output
+    Failed!  - Failed:     2, Passed:   311, Skipped:     0, Total:   313, Duration: 266 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfVideoCapture_WholeScreen_ExactCommandLine
+    FAILED AgentEyes.Tests.Mac.MacFfmpegArgsTests.AvfVideoCapture_WithPreview_FragmentsTheRecordingNotThePreview
+=== N-faulted-capture-not-killed-first
+    Failed!  - Failed:     2, Passed:   311, Skipped:     0, Total:   313, Duration: 257 ms - AgentEyes.Tests.Mac.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.RecordingStopOrderTests.OrderStopSteps_TheCameraIsLast_WhicheverWayTheCaptureEnded
+    FAILED AgentEyes.Tests.Shared.RecordingStopOrderTests.OrderStopSteps_WatchdogFaultedTheCapture_KillsTheCaptureFirst
+=== restored: Passed!  - Failed:     0, Passed:   313, Skipped:     0, Total:   313, Duration: 365 ms - AgentEyes.Tests.Mac.dll (net8.0)

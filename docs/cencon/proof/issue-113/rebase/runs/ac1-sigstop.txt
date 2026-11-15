@@ -1,0 +1,34 @@
+== issue #113 rebase re-verification, mode=STOP ==
+start requested 2026-11-15T17:24:56.589Z
+start response: {"State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 1.24, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_122456_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 50, "LastStopFailed": false, "LastStopError": null, "LastStopDir": null, "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastCaptureFaultDir": null}
+2026-11-15T17:24:58.143Z State=recording Elapsed=1.24 Level=0 Liveness=starting Bytes=0 LastGrowth=None SinceGrowth=None LastStopFailed=False Fault=None 
+2026-11-15T17:25:00.158Z State=recording Elapsed=3.26 Level=0 Liveness=growing Bytes=761 LastGrowth=2026-11-15T17:25:00.138809Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:02.173Z State=recording Elapsed=5.27 Level=0 Liveness=growing Bytes=1137912 LastGrowth=2026-11-15T17:25:02.139744Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:04.183Z State=recording Elapsed=7.28 Level=0 Liveness=growing Bytes=2202728 LastGrowth=2026-11-15T17:25:04.141854Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:06.191Z State=recording Elapsed=9.29 Level=0 Liveness=growing Bytes=3234206 LastGrowth=2026-11-15T17:25:06.144011Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:08.206Z State=recording Elapsed=11.3 Level=0 Liveness=growing Bytes=4420786 LastGrowth=2026-11-15T17:25:08.145745Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:10.223Z State=recording Elapsed=13.32 Level=0 Liveness=growing Bytes=5610516 LastGrowth=2026-11-15T17:25:10.147934Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:12.230Z State=recording Elapsed=15.33 Level=0 Liveness=growing Bytes=6645944 LastGrowth=2026-11-15T17:25:12.150095Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:14.237Z State=recording Elapsed=17.34 Level=0 Liveness=growing Bytes=7694219 LastGrowth=2026-11-15T17:25:14.152369Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:16.252Z State=recording Elapsed=19.35 Level=0 Liveness=growing Bytes=8912256 LastGrowth=2026-11-15T17:25:16.152537Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:18.263Z State=recording Elapsed=21.36 Level=0 Liveness=growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=0 LastStopFailed=False Fault=None 
+ffmpeg children matching raw.mp4: ['9577']
+INJECTED -STOP on pid 9577 at 2026-11-15T17:25:18.282Z
+2026-11-15T17:25:18.286Z State=recording Elapsed=21.38 Level=0 Liveness=growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:25:23.528Z State=recording Elapsed=26.63 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=4 LastStopFailed=False Fault=None 
+2026-11-15T17:25:28.499Z State=recording Elapsed=31.6 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=10 LastStopFailed=False Fault=None 
+2026-11-15T17:25:33.478Z State=recording Elapsed=36.58 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=14 LastStopFailed=False Fault=None 
+2026-11-15T17:25:38.478Z State=recording Elapsed=41.58 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=20 LastStopFailed=False Fault=None 
+2026-11-15T17:25:43.436Z State=recording Elapsed=46.53 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=24 LastStopFailed=False Fault=None 
+2026-11-15T17:25:48.415Z State=recording Elapsed=51.51 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=30 LastStopFailed=False Fault=None 
+2026-11-15T17:25:53.409Z State=recording Elapsed=56.51 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=34 LastStopFailed=False Fault=None 
+2026-11-15T17:25:58.380Z State=recording Elapsed=61.48 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=40 LastStopFailed=False Fault=None 
+2026-11-15T17:26:03.360Z State=recording Elapsed=66.46 Level=0 Liveness=not-growing Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=44 LastStopFailed=False Fault=None 
+2026-11-15T17:26:04.409Z State=finalizing Elapsed=67.29 Level=0 Liveness=faulted Bytes=10120501 LastGrowth=2026-11-15T17:25:18.1547Z SinceGrowth=46 LastStopFailed=True Fault='capture stalled: raw.mp4 stopped growing at 10120501 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:25:18.154Z'   <-- FIRST NOT-RECORDING POLL, 46.15s after injection
+2026-11-15T17:26:04.693Z State=idle Elapsed=67.29 Level=0 Liveness=None Bytes=None LastGrowth=None SinceGrowth=None LastStopFailed=True Fault='capture stalled: raw.mp4 stopped growing at 10120501 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:25:18.154Z'   <-- IDLE
+cleanup: resumed and killed pid 9577
+RESULT: named not-recording 46.15s after the injection (at 2026-11-15T17:26:04.409Z)
+RESULT fault text: 'capture stalled: raw.mp4 stopped growing at 10120501 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:25:18.154Z'
+2026-11-15T17:26:06.714Z State=idle Elapsed=67.29 Level=0 Liveness=None Bytes=None LastGrowth=None SinceGrowth=None LastStopFailed=True Fault='capture stalled: raw.mp4 stopped growing at 10120501 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T17:25:18.154Z'   <-- FINAL
+recording dir: None
+polls written: final-ac1/polls.json

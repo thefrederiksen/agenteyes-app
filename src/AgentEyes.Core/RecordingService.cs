@@ -943,14 +943,13 @@ namespace AgentEyes
             // this is the only durable work that has to happen synchronously. Issue #153: each writer
             // is its own named step, so one that throws stops neither the writers after it nor the
             // manifest save.
-            var steps = new List<RecordingStopStep>();
-            if (audio != null) steps.Add(new RecordingStopStep("audio", audio.Stop, audio.Dispose));
-            if (loop != null) steps.Add(new RecordingStopStep("loopback", loop.Stop, loop.Dispose));
             // A capture the watchdog judged dead is abandoned rather than drained (issue #113): there
             // is no pipeline to wait for.
-            if (video != null)
-                steps.Add(new RecordingStopStep("video",
-                    fault != null ? () => video.Abandon(fault.ToString()) : video.Stop, video.Dispose));
+            var videoStep = video == null
+                ? null
+                : new RecordingStopStep("video",
+                    fault != null ? () => video.Abandon(fault.ToString()) : video.Stop, video.Dispose);
+
             // The camera is its own writer with its own final file - it never joins the deferred
             // audio mux (assumption A4), so stopping it IS finalizing camera.mp4. Its Stop never
             // throws for a camera that already died mid-run (decision 4): that loss was reported when
@@ -961,7 +960,12 @@ namespace AgentEyes
             // webcam, so this stop is a FAILED stop. The sequence collects it, the manifest is still
             // saved, and /status reports the failure instead of the service quietly going idle with
             // the camera still held.
-            if (camera != null) steps.Add(new RecordingStopStep("camera", camera.Stop, camera.Dispose));
+            var steps = OrderStopSteps(
+                videoStep,
+                faulted: fault != null,
+                audio: audio == null ? null : new RecordingStopStep("audio", audio.Stop, audio.Dispose),
+                loopback: loop == null ? null : new RecordingStopStep("loopback", loop.Stop, loop.Dispose),
+                camera: camera == null ? null : new RecordingStopStep("camera", camera.Stop, camera.Dispose));
 
             bool deferred = false;
             // What the stop reports back to its caller - the same honest duration the manifest gets
@@ -1584,6 +1588,45 @@ namespace AgentEyes
                 $"the capture wrote {capturedSeconds:F2}s of a {sessionSeconds:F2}s session; "
                 + $"{fileName} is short by {shortBy:F2}s",
                 nowUtc, sessionSeconds);
+        }
+
+        /// <summary>
+        /// The order the writers are shut down in (issue #113). A healthy stop keeps the order it has
+        /// always had - audio, loopback, screen, camera - because the audio writers' files are what
+        /// the mux then reads. A stop the CAPTURE WATCHDOG caused puts the screen capture FIRST.
+        ///
+        /// WHY, measured on devthrottle-mac-mini on 2026-11-15 against the tree that merges this
+        /// issue with #114: SIGSTOP the screen ffmpeg of a screen+mic recording - the shipped default
+        /// - and the watchdog names the fault on /status after 46 s exactly as it should, and then
+        /// the stop never finishes. /status sat at "finalizing" for 330 s, which was the whole
+        /// observation and not a timeout; the frozen child stayed in process state T, never killed;
+        /// the service burned a full core throughout; and raw.mp4 was never finalized, so the
+        /// recording the watchdog saved was not actually saved. It completed within one second of
+        /// that frozen child being killed from outside.
+        ///
+        /// The blocker is beneath us: a STOPPED child makes macOS' .NET child reaper spin
+        /// (sampled: thread ".NET SigHandler" in SystemNative_WaitIdAnyExitedNoHangNoWait and
+        /// wait4 at ~100% CPU), and the microphone writer's own Process.Dispose - #114 gave macOS a
+        /// separate mic ffmpeg, so there IS a writer in front of the capture now - cannot get past
+        /// it. The same injection with source=none, where the capture's own Abandon is already the
+        /// first step, reaches idle unaided in 51 s.
+        ///
+        /// So a faulted capture is killed before anything else is asked to stop. It is both the
+        /// thing the fault is about and the thing holding up everything behind it, and no other
+        /// writer needs it alive. This is ordering, not a fallback: nothing is retried and nothing
+        /// is swallowed. Both orders are asserted in RecordingStopOrderTests.
+        /// </summary>
+        internal static List<RecordingStopStep> OrderStopSteps(
+            RecordingStopStep? video, bool faulted,
+            RecordingStopStep? audio, RecordingStopStep? loopback, RecordingStopStep? camera)
+        {
+            var steps = new List<RecordingStopStep>();
+            if (faulted && video != null) steps.Add(video);
+            if (audio != null) steps.Add(audio);
+            if (loopback != null) steps.Add(loopback);
+            if (!faulted && video != null) steps.Add(video);
+            if (camera != null) steps.Add(camera);
+            return steps;
         }
 
         private void Reset(MonitorInfo mon, string mode, AudioSourceKind src, AudioMixOptions opts)
