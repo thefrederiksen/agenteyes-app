@@ -1,0 +1,55 @@
+=== d2-FIXED-head app=C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_210400_qa128r2kill
+launch 1 app pid 1876 at 15:49:43.889
+--- launch 1, mux running at 15:50:09.458 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+    1876 ppid  14184 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.App\bin\x64\Release\...
+   23192 ppid   1876 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14... | output-arg: C:\Users\soren\Videos\AgentEyes\2026-11-14_210400_qa128r2kill\recording.mp4
+  instrument check: 292 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T20:50:04.9614192Z"}}
+  CLI package pid 22356 during the app's mux: exited=True
+    [error] the audio mux for 2026-11-14_210400_qa128r2kill is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+--- launch 1, after the CLI package attempt at 15:50:10.261 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+    1876 ppid  14184 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.App\bin\x64\Release\...
+   23192 ppid   1876 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14... | output-arg: C:\Users\soren\Videos\AgentEyes\2026-11-14_210400_qa128r2kill\recording.mp4
+  instrument check: 292 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  ffmpeg targeting this recording: 1
+  PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T20:50:04.9614192Z"}}
+--- launch 1, 2 s after Stop-Process -Force at 15:50:12.557 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+  (none of the three are running)
+  instrument check: 289 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  fragment at final path: 18350128 bytes; PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T20:50:04.9614192Z"}}
+launch 2 app pid 21516 at 15:50:12.582
+--- launch 2, mux running at 15:50:37.574 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+   21516 ppid  14184 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.App\bin\x64\Release\...
+   19724 ppid  21516 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14... | output-arg: C:\Users\soren\Videos\AgentEyes\2026-11-14_210400_qa128r2kill\recording.mp4
+  instrument check: 292 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":2,"LastAttemptUtc":"2026-11-14T20:50:33.1378501Z"}}
+--- launch 2, 2 s after Stop-Process -Force at 15:50:39.749 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+  (none of the three are running)
+  instrument check: 289 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  fragment at final path: 18350128 bytes; PostProcessing: {"mux":{"State":"running","Attempts":2,"LastAttemptUtc":"2026-11-14T20:50:33.1378501Z"}}
+launch 3 app pid 3196 at 15:50:39.778
+--- launch 3, mux running at 15:51:04.657 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+    3196 ppid  14184 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.App\bin\x64\Release\...
+   21984 ppid   3196 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14... | output-arg: C:\Users\soren\Videos\AgentEyes\2026-11-14_210400_qa128r2kill\recording.mp4
+  instrument check: 291 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":3,"LastAttemptUtc":"2026-11-14T20:51:00.3098001Z"}}
+--- launch 3, 2 s after Stop-Process -Force at 15:51:06.835 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+  (none of the three are running)
+  instrument check: 288 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  fragment at final path: 18350128 bytes; PostProcessing: {"mux":{"State":"running","Attempts":3,"LastAttemptUtc":"2026-11-14T20:51:00.3098001Z"}}
+before launch 4: ThumbAttempts=0 TranscribeAttempts=0
+launch 4 app pid 21624 at 15:51:06.865; waiting 90 s
+--- launch 4, after 90 s at 15:52:37.125 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
+   21624 ppid  14184 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.App\bin\x64\Release\...
+  instrument check: 288 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
+  PostProcessing: {"mux":{"State":"running","Attempts":3,"LastAttemptUtc":"2026-11-14T20:51:00.3098001Z"}}
+  ThumbAttempts=0 TranscribeAttempts=0
+  recording.mp4 present: True; thumb.jpg present: False
+  files: manifest.json(1089), mux.lock(0), raw.mp4(72476673), recording.mp4(18350128)
+--- log lines naming this recording from launch 4 (pid 21624):
+--- any thumbnail / transcribe / package activity by pid 21624 (any recording):
+15:51:27.330 [pid 21624] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=0
+15:51:27.377 [pid 21624] [INFO] [TranscriptionBacklog] FindMissingTitles: root=C:\Users\soren\Videos\AgentEyes, pending=0
+15:51:27.397 [pid 21624] [INFO] [Thumbnails] FindMissing: root=C:\Users\soren\Videos\AgentEyes, missing=0
+launch 4 stopped

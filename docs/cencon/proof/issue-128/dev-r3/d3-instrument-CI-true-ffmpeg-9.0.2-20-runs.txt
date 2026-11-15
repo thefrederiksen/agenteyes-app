@@ -1,0 +1,80 @@
+=== run 1
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 2
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 2 run(s): exit 0, 0 non-finite of 480480; exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 3
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 4
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 5
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 6
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 7
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 8
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 9
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 10
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 11
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 12
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 13
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 14
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 2 run(s): exit 0, 0 non-finite of 480480; exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 15
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 16
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 17
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 18
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 19
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+=== run 20
+     Passed: 2
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960

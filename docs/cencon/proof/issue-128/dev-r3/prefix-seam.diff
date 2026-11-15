@@ -1,0 +1,17 @@
+diff --git a/src/AgentEyes.Core/RepairService.cs b/src/AgentEyes.Core/RepairService.cs
+index 6766c3c..c1fd9f5 100644
+--- a/src/AgentEyes.Core/RepairService.cs
++++ b/src/AgentEyes.Core/RepairService.cs
+@@ -356,6 +356,12 @@ namespace AgentEyes
+         ///
+         /// Ungated on purpose - the caller holds <see cref="Gate"/>.
+         /// </summary>
++        internal async Task ResumeUnfinishedAsync(string root, int captureEpoch)
++        {
++            var unfinished = await Task.Run(() => PostRecordingPlan.FindUnfinished(root));
++            await ResumeAsync(unfinished, captureEpoch);
++        }
++
+         public async Task ResumeUnfinishedAsync(int captureEpoch)
+         {
+             var unfinished = await Task.Run(() => PostRecordingPlan.FindUnfinished(RecordingPaths.Root));

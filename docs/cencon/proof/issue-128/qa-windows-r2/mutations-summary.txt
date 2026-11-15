@@ -1,0 +1,25 @@
+before: git diff src tests md5 = d41d8cd98f00b204e9800998ecf8427e *-
+M1: Failed!  - Failed:     1, Passed:  2347, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+    M1   Failed AgentEyes.Tests.MuxCoordinatorTests.FinalizePending_LockHeldByAnotherProcess_RefusesWithoutStartingASecondWriter
+M4: Failed!  - Failed:     1, Passed:  2347, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+    M4   Failed AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_LockHeldByAnotherProcess_LeavesTheMuxToItAndCountsNothing
+M6: Failed!  - Failed:     3, Passed:  2345, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+    M6   Failed AgentEyes.Tests.ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite
+    M6   Failed AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_HardKillOnTheLastAttempt_RecordsInterruptedRemovesTheFragmentAndRunsNothingOnIt
+    M6   Failed AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_HardKillWithAttemptsLeft_TheRetryNeverSeesTheFragmentAndIsCounted
+M9: Failed!  - Failed:     3, Passed:  2345, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+    M9   Failed AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan
+    M9   Failed AgentEyes.Tests.MicChainStallTests.ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes
+    M9   Failed AgentEyes.Tests.MicChainStallTests.MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames
+M12: Failed!  - Failed:     1, Passed:  2347, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+    M12   Failed AgentEyes.Tests.MicChainStallTests.RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError
+M13: Passed!  - Failed:     0, Passed:  2348, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+M17: Failed!  - Failed:     4, Passed:  2344, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+    M17   Failed AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg
+    M17   Failed AgentEyes.Tests.MicChainStallTests.MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg
+    M17   Failed AgentEyes.Tests.MicChainStallTests.MicChain_SanitizerIsPinnedToTheMeasuredMicLayout
+    M17   Failed AgentEyes.Tests.MicChainStallTests.MicChain_LevelWithoutDenoise_SanitizesBeforeSpeechnorm
+M19: Failed!  - Failed:     1, Passed:  2347, Skipped:     0, Total:  2348 | ffmpeg left: 0 | restored diff md5: d41d8cd98f00b204e9800998ecf8427e *-
+    M19   Failed AgentEyes.Tests.MicChainStallTests.TieToLifetime_ProcessAlreadyExited_DoesNotReplaceTheRealResult
+after: git diff src tests md5 = d41d8cd98f00b204e9800998ecf8427e *-; final build:     0 Error(s)
+DONE

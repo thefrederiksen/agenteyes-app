@@ -367,7 +367,7 @@ namespace AgentEyes.Video
                     throw new UsageException(
                         "noise suppression is on but the RNNoise model path is not set - " +
                         "call RnnoiseModel.Ensure() before building mix args");
-                denoise = $"arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
+                denoise = $"{ArnndnFraming},arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
             }
             // The threshold is MEASURED from the capture, never assumed. Building the chain with
             // the gate on but nothing measured is a programming error and says so, exactly like the
@@ -387,7 +387,55 @@ namespace AgentEyes.Video
             }
             // e=4: boost quiet speech up to 4x (+12 dB); p=0.95: normalize peaks to 95%.
             string level = o.VoiceLeveling ? "speechnorm=e=4:p=0.95," : "";
-            return $"[0:a]{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+
+            // Issue #128: replace any non-finite sample with silence BEFORE the first stage that
+            // cannot survive one. A single NaN sample makes speechnorm spin at 100% CPU forever
+            // (measured on ffmpeg 8.1.1 and 9.0.2, Windows and macOS), and a single NaN into arnndn
+            // poisons its recurrent state so every sample after it comes out NaN - which then hangs
+            // speechnorm. NaN/Inf is not audio; zeroing that one sample is inaudible. It is only
+            // emitted when one of those two stages is in the chain.
+            string finite = (o.NoiseSuppression || o.VoiceLeveling) ? FiniteSamples + "," + PinMicLayout(o) + "," : "";
+            return $"[0:a]{finite}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+        }
+
+        /// <summary>
+        /// Issue #128: per-sample, per-channel (<c>ch</c> = the channel the expression runs for;
+        /// <c>c=same</c> keeps the input layout) replacement of NaN and +/-Inf with 0. Finite
+        /// samples pass through unchanged.
+        /// </summary>
+        internal const string FiniteSamples = "aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same";
+
+        /// <summary>
+        /// Issue #128 (round two, D3): hand arnndn only whole 480-sample frames. arnndn works in
+        /// 480-sample frames and always rounds its output up to a whole frame; when the input ends
+        /// part-way through one, ffmpeg 9.0.2 (gyan.dev Windows build) emits that final frame as 480
+        /// NaN samples (measured: mono and stereo, s16 and float; 8.1.1 emits finite samples), and
+        /// speechnorm then spins forever on it. p=1 pads the last frame with digital silence, so
+        /// arnndn never sees a partial frame. The output length is unchanged - arnndn already rounds
+        /// up to the same whole frame - and every sample before the final frame is bit-identical
+        /// (measured on 8.1.1 and 9.0.2). This AVOIDS the NaN rather than masking it: nothing after
+        /// arnndn zeroes samples, so if arnndn ever emits a NaN for some other reason, speechnorm
+        /// still stalls and the watchdog still fails the stage loudly instead of shipping silence.
+        /// </summary>
+        internal const string ArnndnFraming = "asetnsamples=n=480:p=1";
+
+        /// <summary>
+        /// Issue #128 round two (D7): pin the sanitizer's OUTPUT to the mic's own channel layout.
+        /// aeval's c=same does not hold its output to its input during format negotiation: in a MIXED
+        /// recording with a MONO mic and a STEREO system track, the downstream amix negotiates the mic
+        /// branch to stereo, aeval is configured mono-in/stereo-out, and ffmpeg segfaults (exit 139,
+        /// 8 of 10 runs on 9.0.2, also on 8.1.1). Measured with the pin: 10 of 10 complete, and the
+        /// output is bit-identical to the chain without a sanitizer. Mic-only recordings (mono or
+        /// stereo) and every other layout pair never crashed; the pin is harmless there.
+        /// </summary>
+        private static string PinMicLayout(AudioMixOptions o)
+        {
+            if (o.MicChannels is not int n || n <= 0)
+                throw new UsageException(
+                    "the mic's channel count has not been measured - call AudioMix preparation before " +
+                    "building mix args (the NaN sanitizer is pinned to the mic's own layout)");
+            string layout = n switch { 1 => "mono", 2 => "stereo", _ => n.ToString(System.Globalization.CultureInfo.InvariantCulture) + "c" };
+            return "aformat=channel_layouts=" + layout;
         }
 
         /// <summary>Safety limiter appended after the last mix stage: stops clipping when the

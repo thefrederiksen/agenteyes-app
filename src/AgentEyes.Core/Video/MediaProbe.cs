@@ -101,6 +101,51 @@ namespace AgentEyes.Video
             return (w, h);
         }
 
+        /// <summary>
+        /// Issue #128 round two (D7): the channel count of the first audio stream. The mic chain's
+        /// NaN sanitizer must be pinned to the mic's own layout (see FfmpegArgs.MicChain), and that
+        /// layout cannot be assumed - Windows dshow and the Mac capture mono or stereo depending on
+        /// the device. Throws when the file has no readable audio stream.
+        /// </summary>
+        public static int AudioChannels(string mediaPath)
+        {
+            Log.Info($"[MediaProbe] AudioChannels: {mediaPath}");
+            var psi = new ProcessStartInfo
+            {
+                FileName = FfmpegLocator.Ffprobe(),
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            foreach (var a in new[]
+            {
+                "-v", "error",
+                "-select_streams", "a:0",
+                "-show_entries", "stream=channels",
+                "-of", "csv=p=0",
+                mediaPath,
+            })
+            {
+                psi.ArgumentList.Add(a);
+            }
+
+            using var p = Process.Start(psi)!;
+            _ = p.StandardError.ReadToEndAsync();
+            string output = p.StandardOutput.ReadToEnd().Trim();
+            p.WaitForExit(10000);
+
+            if (!int.TryParse(output, NumberStyles.Integer, CultureInfo.InvariantCulture, out int channels) || channels <= 0)
+            {
+                string msg = $"could not read the audio channel count of {mediaPath} (ffprobe said: '{output}'). " +
+                             "The mic chain cannot be built without it.";
+                Log.Error($"[MediaProbe] AudioChannels FAILED: {msg}");
+                throw new UsageException(msg);
+            }
+            Log.Info($"[MediaProbe] AudioChannels: {mediaPath} -> {channels}");
+            return channels;
+        }
+
         /// <summary>Mean loudness in dB via ffmpeg volumedetect; ~-91 dB means digital silence.</summary>
         public static double MeanVolumeDb(string mediaPath)
         {

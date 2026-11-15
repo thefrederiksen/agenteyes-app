@@ -1,0 +1,11 @@
+param($ff, $argsFile, $n, $tag)
+$a = Get-Content $argsFile
+$res = @()
+for ($i = 1; $i -le $n; $i++) {
+  $out = "out-$tag-$i.wav"
+  $a2 = $a | ForEach-Object { if ($_ -eq 'OUT.wav') { $out } else { $_ } }
+  $p = Start-Process -FilePath $ff -ArgumentList (@('-hide_banner','-v','error') + ($a2 | ForEach-Object { if ($_ -match '[ ;\[\]]') { '"' + $_ + '"' } else { $_ } })) -NoNewWindow -Wait -PassThru -RedirectStandardError "err-$tag-$i.txt"
+  $md5 = if (Test-Path $out) { (Get-FileHash $out -Algorithm MD5).Hash.Substring(0,12) } else { 'none' }
+  $res += "$tag run $i exit $($p.ExitCode) md5 $md5"
+}
+$res

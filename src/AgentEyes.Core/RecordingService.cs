@@ -993,12 +993,30 @@ namespace AgentEyes
             var p = manifest.PendingMux;
             if (p == null) { Log.Info($"finalize: no pending mux in {dir}"); return; }
 
+            // Issue #128 round two (D1): one writer per output, across processes, for ANY caller.
+            // Re-entrant for MuxCoordinator / PostRecording, which already hold it around the
+            // counted attempt; anyone else either gets it here or is refused with the reason.
+            using var muxLock = MuxLock.Acquire(dir, "finalize");
+
             string finalPath = Path.Combine(dir, p.FinalFile);
             string? raw = p.RawVideo != null ? Path.Combine(dir, p.RawVideo) : null;
             string? sys = p.SysWav != null ? Path.Combine(dir, p.SysWav) : null;
             string? mic = p.MicWav != null ? Path.Combine(dir, p.MicWav) : null;
             var src = ParseSource(p.Source);
             double elapsed = p.RawDurationSeconds;
+
+            // Issue #128 round three (R2-3): a missing input is refused BEFORE any ffmpeg starts,
+            // with the input named. Started anyway, ffmpeg failed with an error that described
+            // something else ("exit -2", "could not read the audio channel count") and the failed
+            // pass's cleanup then DELETED whatever sat at the final path - which can be the only
+            // copy of a mux that had already completed.
+            foreach (string? input in new[] { raw, sys, mic })
+            {
+                if (input != null && !File.Exists(input))
+                    throw new FileNotFoundException(
+                        $"the deferred mux for {Path.GetFileName(dir)} cannot run: its input {Path.GetFileName(input)} is missing " +
+                        $"from {dir}. Nothing was written and {p.FinalFile} was left as it is.", input);
+            }
 
             Log.Info($"finalize: begin mux {p.Mode} src={p.Source} dir={dir}");
             if (p.Mode == "audio")
@@ -1013,6 +1031,50 @@ namespace AgentEyes
                 else if (src == AudioSourceKind.Mic && raw != null) { AudioMix.ProcessVideoMic(raw, finalPath, p.Options); elapsed = SafeDur(finalPath, elapsed); }
             }
 
+            PublishFinalized(dir, p, src, elapsed);
+            Log.Info($"finalize: done dir={dir}");
+        }
+
+        /// <summary>
+        /// Issue #128 round three (R2-3): finish a finalize that a process death interrupted AFTER
+        /// its mux completed - <see cref="OriginalBackup.Preserve"/> had already renamed a raw input
+        /// to its ".original" backup, which it only ever does once the mux returned, but the manifest
+        /// update never landed. Runs no ffmpeg: it completes the same publication
+        /// <see cref="FinalizePending"/> ends with (the remaining renames, the duration, clearing
+        /// <see cref="Manifest.PendingMux"/>). The caller must hold the recording's
+        /// <see cref="MuxLock"/> and must have proven the mux completed
+        /// (<see cref="MuxCoordinator.IsProvenComplete"/>).
+        /// </summary>
+        internal static void CompleteInterruptedFinalize(string dir)
+        {
+            Log.Info($"[RecordingService] CompleteInterruptedFinalize: {dir}");
+            if (!MuxLock.IsHeldByCurrentThread(dir))
+                throw new InvalidOperationException($"CompleteInterruptedFinalize called for {dir} without holding its MuxLock");
+
+            var p = Manifest.Load(dir).PendingMux
+                ?? throw new InvalidOperationException($"CompleteInterruptedFinalize: {dir} has no pending mux to complete");
+            var src = ParseSource(p.Source);
+            string finalPath = Path.Combine(dir, p.FinalFile);
+            if (!File.Exists(finalPath))
+                throw new InvalidOperationException($"CompleteInterruptedFinalize: {dir} has no {p.FinalFile} - there is no completed mux to publish");
+
+            // The same duration rule the mux branches use: a video is probed, audio keeps the
+            // recorded elapsed time (PublishFinalized probes when that is missing).
+            double elapsed = p.Mode == "audio" ? p.RawDurationSeconds : SafeDur(finalPath, p.RawDurationSeconds);
+            PublishFinalized(dir, p, src, elapsed);
+            Log.Info($"[RecordingService] CompleteInterruptedFinalize: done dir={dir}");
+        }
+
+        /// <summary>
+        /// The end of every finalize, interrupted or not: preserve the raw inputs as ".original"
+        /// backups, then record the backups and the duration and clear the pending mux - in that
+        /// order, so a death between the two leaves exactly the evidence
+        /// <see cref="MuxCoordinator.IsProvenComplete"/> reads.
+        /// </summary>
+        private static void PublishFinalized(string dir, Manifest.PendingMuxInfo p, AudioSourceKind src, double elapsed)
+        {
+            string finalPath = Path.Combine(dir, p.FinalFile);
+
             // Issue #155: a recording recovered from its START manifest has no measured duration -
             // the stop that would have written one never landed - so the muxed file itself is the
             // only source of truth for it. A normal stop records the elapsed time and this is a
@@ -1021,7 +1083,11 @@ namespace AgentEyes
 
             // Issue #83: keep the untouched pre-processing capture (renamed to a ".original" backup)
             // instead of deleting it, so over-removal by the clean-voice chain is recoverable.
-            var originals = OriginalBackup.Preserve(dir, p.Mode, src);
+            // Issue #128 round three: every backup that EXISTS is recorded, not only the ones this
+            // call renamed, so a finalize completed after a death also records the renames the dead
+            // process made.
+            OriginalBackup.Preserve(dir, p.Mode, src);
+            var originals = OriginalBackup.Present(dir, p.Mode, src);
 
             // Issue #155: apply only what the mux produced, to the manifest as it reads NOW. The
             // load above happened before minutes of ffmpeg work; saving that copy would erase
@@ -1036,7 +1102,7 @@ namespace AgentEyes
                 m.DurationSeconds = Math.Round(elapsed, 2);
                 m.PendingMux = null;   // mux done; the final file now exists
             });
-            Log.Info($"finalize: done dir={dir} dur={elapsed:F1}s");
+            Log.Info($"[RecordingService] PublishFinalized: dir={dir} dur={elapsed:F1}s originals={originals.Count}");
         }
 
         // ---- helpers ------------------------------------------------------

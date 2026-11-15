@@ -1,0 +1,127 @@
+# mutation run at 3a1165d, 2026-11-14 16:23:55, ffmpeg dir C:\Users\soren\AppData\Local\AgentEyes\app
+restore baseline: diff empty = True
+M1 | D1: FinalizePending takes no mux lock | Failed!  | ffmpeg left 0 | 108s
+    AgentEyes.Tests.MuxCoordinatorTests.FinalizePending_LockHeldByAnotherProcess_RefusesWithoutStartingASecondWriter
+    restored, diff empty = True
+M2 | D1: the package path does not count the attempt | Failed!  | ffmpeg left 0 | 77s
+    AgentEyes.Tests.MuxCoordinatorTests.PackageRun_PendingMuxThatFails_CountsTheAttempt
+    AgentEyes.Tests.MuxCoordinatorTests.RunForPackage_FailedAttempt_IsCountedAndJournaled
+    restored, diff empty = True
+M3 | D1: Package.RunAsync reverted to round one's two calls | Failed!  | ffmpeg left 0 | 83s
+    AgentEyes.Tests.MuxCoordinatorTests.PackageRun_PendingMuxThatFails_CountsTheAttempt
+    restored, diff empty = True
+M4 | D1: the runner ignores a lock held elsewhere | Failed!  | ffmpeg left 0 | 76s
+    AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_LockHeldByAnotherProcess_LeavesTheMuxToItAndCountsNothing
+    restored, diff empty = True
+M16 | D1: lock file opened shareable instead of exclusive | Failed!  | ffmpeg left 0 | 74s
+    AgentEyes.Tests.MuxLockTests.TryAcquire_Free_HoldsTheFileExclusivelyUntilDisposed
+    AgentEyes.Tests.MuxLockTests.TryAcquire_SameThreadTwice_IsReentrantAndReleasesOnTheOutermostDispose
+    restored, diff empty = True
+M5 | D2: a dead running attempt is not recorded as failed | Failed!  | ffmpeg left 0 | 78s
+    AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_HardKillOnTheLastAttempt_RecordsInterruptedRemovesTheFragmentAndRunsNothingOnIt
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone
+    restored, diff empty = True
+M6 | D2: the fragment at the final path is not removed | Failed!  | ffmpeg left 0 | 76s
+    AgentEyes.Tests.ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite
+    AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_HardKillOnTheLastAttempt_RecordsInterruptedRemovesTheFragmentAndRunsNothingOnIt
+    AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_HardKillWithAttemptsLeft_TheRetryNeverSeesTheFragmentAndIsCounted
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone
+    restored, diff empty = True
+M14 | D2: the runner does not call Reconcile | Failed!  | ffmpeg left 0 | 80s
+    AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_HardKillOnTheLastAttempt_RecordsInterruptedRemovesTheFragmentAndRunsNothingOnIt
+    AgentEyes.Tests.MuxCoordinatorTests.PostRecordingRun_HardKillWithAttemptsLeft_TheRetryNeverSeesTheFragmentAndIsCounted
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: True)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: True)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone
+    restored, diff empty = True
+M7 | D2: NeedsThumb trusts a file at the final path while the mux is pending | Failed!  | ffmpeg left 0 | 83s
+    AgentEyes.Tests.MuxCoordinatorTests.NeedsThumb_PendingMuxWithAFileAtTheFinalPath_IsFalse
+    restored, diff empty = True
+M8 | D2: NeedsTranscription does the same | Failed!  | ffmpeg left 0 | 77s
+    AgentEyes.Tests.MuxCoordinatorTests.NeedsTranscription_PendingMuxWithAFileAtTheFinalPath_IsFalse
+    restored, diff empty = True
+M9 | D3: arnndn framing removed | Failed!  | ffmpeg left 0 | 137s
+    AgentEyes.Tests.MicChainStallTests.MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames
+    AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan
+    AgentEyes.Tests.MicChainStallTests.ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes
+    restored, diff empty = True
+M10 | D4: RunStage calls the unwatched Ffmpeg.Run | Failed!  | ffmpeg left 0 | 155s
+    AgentEyes.Tests.MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog
+    restored, diff empty = True
+M11 | D4: RunStage ignores the per-flow bound (fixed 60 s) | Failed!  | ffmpeg left 0 | 99s
+    AgentEyes.Tests.MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog
+    restored, diff empty = True
+M15 | QA mutation B: RunWatched with no stall guard | Failed!  | ffmpeg left 0 | 147s
+    AgentEyes.Tests.MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog
+    AgentEyes.Tests.MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound
+    restored, diff empty = True
+M12 | D5: a cleanup failure replaces the stage error | Failed!  | ffmpeg left 0 | 86s
+    AgentEyes.Tests.MicChainStallTests.RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError
+    restored, diff empty = True
+M17 | D7: sanitizer output not pinned to the mic layout | Failed!  | ffmpeg left 0 | 88s
+    AgentEyes.Tests.MicChainStallTests.MicChain_LevelWithoutDenoise_SanitizesBeforeSpeechnorm
+    AgentEyes.Tests.MicChainStallTests.MicChain_SanitizerIsPinnedToTheMeasuredMicLayout
+    AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg
+    AgentEyes.Tests.MicChainStallTests.MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg
+    restored, diff empty = True
+M18 | D6: RunCore calls a raw KillOnCloseJob.Assign | Failed!  | ffmpeg left 0 | 87s
+    AgentEyes.Tests.MicChainStallTests.RunCore_TiesItsChildOnlyThroughTieToLifetime_InTheCompiledProduct
+    restored, diff empty = True
+M19 | D6: an already-exited child is treated like a live one | Failed!  | ffmpeg left 0 | 84s
+    AgentEyes.Tests.MicChainStallTests.TieToLifetime_ProcessAlreadyExited_DoesNotReplaceTheRealResult
+    restored, diff empty = True
+M13 | D2: the runner goes on to later stages when the mux is out of attempts (alone) | Passed!  | ffmpeg left 0 | 83s
+    (no test failed - SURVIVES)
+    restored, diff empty = True
+N1 | R2-1: NeedsMuxReconcile always false (discovery blind again) | Failed!  | ffmpeg left 0 | 83s
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: True)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone
+    restored, diff empty = True
+N2 | R2-1: Outstanding does not consult NeedsMuxReconcile | Failed!  | ffmpeg left 0 | 79s
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: True)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone
+    restored, diff empty = True
+# mutation run at 3a1165d, 2026-11-15 09:30:11, ffmpeg dir C:\Users\soren\AppData\Local\AgentEyes\app
+restore baseline: diff empty = True
+N3 | R2-3: Reconcile does not publish a proven-complete mux (round two behaviour) | Failed!  | ffmpeg left 0 | 117s
+    AgentEyes.Tests.MuxCoordinatorTests.Reconcile_FinalFilePresentButRawInputGone_KeepsTheFile
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: True)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: True)
+    restored, diff empty = True
+N9 | R2-3: Execute does not continue after Reconcile published the mux | Failed!  | ffmpeg left 0 | 94s
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: True)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: True)
+    restored, diff empty = True
+N8 | R2-3: the publication records only backups renamed by this call | Failed!  | ffmpeg left 0 | 83s
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 1, processingOn: True)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: False)
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: True)
+    restored, diff empty = True
+N4 | R2-3: FinalizePending starts ffmpeg with a missing input | Failed!  | ffmpeg left 0 | 85s
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_InputGoneWithoutABackup_KeepsTheFinalFileAndNamesTheMissingInput
+    restored, diff empty = True
+N5 | R2-4: NeedsCompose has no PendingMux guard | Failed!  | ffmpeg left 0 | 81s
+    AgentEyes.Tests.MuxCoordinatorTests.NeedsCompose_PendingMux_IsFalse_AndTrueOnceTheMuxIsDone
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingWithAnExhaustedMux_BurnsNoComposeAndIsNotRediscovered
+    restored, diff empty = True
+N7 | R2-4: M13 and the compose guard both removed | Failed!  | ffmpeg left 0 | 82s
+    AgentEyes.Tests.MuxCoordinatorTests.NeedsCompose_PendingMux_IsFalse_AndTrueOnceTheMuxIsDone
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose
+    AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingWithAnExhaustedMux_BurnsNoComposeAndIsNotRediscovered
+    restored, diff empty = True
+final rebuild: True; diff empty = True

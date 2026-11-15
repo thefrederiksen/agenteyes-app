@@ -50,6 +50,33 @@ namespace AgentEyes
         }
 
         /// <summary>
+        /// Issue #128 round three (R2-1): true when a pending mux has something for
+        /// <see cref="MuxCoordinator.Reconcile"/> to settle EVEN WHEN no mux attempt is left - an
+        /// attempt a dead process left "running" (its fragment may still sit at the final path), or a
+        /// completed mux whose manifest update was lost.
+        ///
+        /// Round two's D2 guards made the thumbnail and transcription predicates false while a mux
+        /// is pending, which is right, but it meant a hard kill on the LAST attempt made every
+        /// predicate false: the discovery pass never listed the recording, and Reconcile - which
+        /// only the resumed sequence reaches - never ran. This predicate is what keeps such a
+        /// recording discoverable until it is settled. Once settled (the record is "failed" and the
+        /// fragment removed, or the mux published) it is false, so an exhausted recording does not
+        /// come back on every repair tick.
+        /// </summary>
+        public static bool NeedsMuxReconcile(string dir)
+        {
+            if (!Directory.Exists(dir)) return false;
+            if (!File.Exists(Path.Combine(dir, "manifest.json"))) return false;
+
+            var m = Manifest.Load(dir);
+            if (m.PendingMux == null) return false;
+
+            var record = PostRecordingState.Get(m, PostStage.Mux);
+            bool deadAttempt = record != null && string.Equals(record.State, PostStageState.Running, StringComparison.Ordinal);
+            return deadAttempt || MuxCoordinator.IsProvenComplete(dir, m.PendingMux);
+        }
+
+        /// <summary>
         /// True when this recording has no Library thumbnail and one can be generated now. Claim-blind
         /// on purpose: the caller of the sequence already OWNS the recording's
         /// <see cref="RecordingWorkset"/> claim, so the scan-time "someone else is working on it"
@@ -72,6 +99,14 @@ namespace AgentEyes
 
             var m = Manifest.Load(dir);
             if (m.ComposedCamera == true) return false;
+
+            // Issue #128 round three (R2-4): compose renders the camera into the FINAL video, which
+            // does not exist while the mux is pending - at most a dead attempt's fragment sits there.
+            // Without this guard a camera recording whose mux was out of attempts burned a compose
+            // attempt and recorded "the screen recording is missing", misdescribing a mux failure,
+            // and stayed in the discovery pass forever. Same guard as NeedsThumb and
+            // NeedsTranscription, so all three later stages agree.
+            if (m.PendingMux != null) return false;
             if (string.IsNullOrWhiteSpace(m.CameraFile)) return false;
             if (string.IsNullOrWhiteSpace(m.PreviewOverlayCorner)
                 || string.IsNullOrWhiteSpace(m.PreviewOverlayShape))
@@ -97,7 +132,9 @@ namespace AgentEyes
         public static IReadOnlyList<string> Outstanding(string dir)
         {
             var stages = new List<string>();
-            if (NeedsMux(dir)) stages.Add(PostStage.Mux);
+            // A mux that needs only reconciling is still mux-stage work: it is what the resumed
+            // sequence does first (issue #128 round three, R2-1).
+            if (NeedsMux(dir) || NeedsMuxReconcile(dir)) stages.Add(PostStage.Mux);
             if (NeedsCompose(dir)) stages.Add(PostStage.Compose);
             if (NeedsThumbnail(dir)) stages.Add(PostStage.Thumbnail);
             if (NeedsPackage(dir)) stages.Add(PostStage.Package);

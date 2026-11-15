@@ -75,5 +75,34 @@ namespace AgentEyes
             }
             return preserved;
         }
+
+        /// <summary>
+        /// Issue #128 round three: the ".original" backups of this recording's plan that exist on
+        /// disk now, whoever renamed them - this process, or one that died after renaming.
+        /// </summary>
+        public static List<string> Present(string dir, string mode, AudioSourceKind src)
+        {
+            var present = new List<string>();
+            foreach (var r in Plan(mode, src))
+                if (File.Exists(Path.Combine(dir, r.To))) present.Add(r.To);
+            Log.Info($"[OriginalBackup] Present: {Path.GetFileName(dir)} -> {present.Count}");
+            return present;
+        }
+
+        /// <summary>
+        /// Issue #128 round three: true when <see cref="Preserve"/> has renamed at least one raw
+        /// input of this plan - the input is gone AND its backup exists. Preserve runs only after the
+        /// mux returned, so this is proof the mux completed. A raw input that is simply missing,
+        /// with no backup, proves nothing and returns false.
+        /// </summary>
+        public static bool AnyPreserved(string dir, string mode, AudioSourceKind src)
+        {
+            foreach (var r in Plan(mode, src))
+            {
+                if (!File.Exists(Path.Combine(dir, r.From)) && File.Exists(Path.Combine(dir, r.To)))
+                    return true;
+            }
+            return false;
+        }
     }
 }

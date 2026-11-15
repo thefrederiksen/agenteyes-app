@@ -329,7 +329,7 @@ namespace AgentEyes.Tests.Mac
             // sweep reaches EVERY builder; their filter graphs name no demuxer and so are not
             // AVFoundation lists.
             if (t == typeof(AudioMixOptions))
-                return new object?[] { new AudioMixOptions { NoiseSuppression = false, NoiseGate = false } }.ToList();
+                return new object?[] { new AudioMixOptions { NoiseSuppression = false, NoiseGate = false, MicChannels = 1 /* measured in AudioMix.Prepare in the product (#128 round two, D7); the Mac mic is mono */ } }.ToList();
             if (t.IsClass && t.GetConstructor(Type.EmptyTypes) != null)
                 return new object?[] { Activator.CreateInstance(t) }.ToList();
             return null;

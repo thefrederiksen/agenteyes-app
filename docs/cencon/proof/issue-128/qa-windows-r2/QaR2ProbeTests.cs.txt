@@ -1,0 +1,117 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using AgentEyes;
+using AgentEyes.Video;
+using Xunit;
+using Xunit.Abstractions;
+
+namespace AgentEyes.Tests
+{
+    // QA #128 round two - TEMPORARY probe, deleted after the measurement. Not part of the change.
+    [Collection(PostRecordingCollection.Name)]
+    public sealed class QaR2ProbeTests : IDisposable
+    {
+        private readonly string _root;
+        private readonly ITestOutputHelper _out;
+
+        public QaR2ProbeTests(ITestOutputHelper output)
+        {
+            _out = output;
+            _root = Path.Combine(Path.GetTempPath(), "agenteyes-qa128r2probe-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_root);
+        }
+
+        public void Dispose()
+        {
+            PostRecording.RestoreDefaultSteps();
+            PostRecording.AfterPackaging = null;
+            try { if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true); } catch (IOException) { }
+        }
+
+        private string Rec(string name, Action<Manifest> edit)
+        {
+            string dir = Path.Combine(_root, name);
+            Directory.CreateDirectory(dir);
+            var m = new Manifest
+            {
+                Mode = "video", Label = "video", CreatedUtc = "2026-11-14T17:00:00Z", VideoFile = "recording.mp4", DurationSeconds = 4,
+                PendingMux = new Manifest.PendingMuxInfo
+                {
+                    Mode = "video", Source = "mic", RawVideo = "raw.mp4", FinalFile = "recording.mp4", RawDurationSeconds = 4,
+                    Options = new AudioMixOptions { NoiseSuppression = false, NoiseGate = false, VoiceLeveling = false },
+                },
+            };
+            edit(m);
+            ManifestStore.Replace(dir, m);
+            return dir;
+        }
+
+        private static void RealMp4(string path) => Ffmpeg.Run(new[]
+        {
+            "-y", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=10:duration=4", "-f", "lavfi", "-i", "sine=f=300:r=48000:d=4",
+            "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", path,
+        }, "qa probe: complete mp4");
+
+        private string Describe(string dir)
+        {
+            var m = Manifest.Load(dir);
+            string R(string s) { var r = PostRecordingState.Get(m, s); return r == null ? "(none)" : $"{r.State} attempts={r.Attempts} error={r.Error}"; }
+            string f = Path.Combine(dir, "recording.mp4");
+            return $"recording.mp4={(File.Exists(f) ? new FileInfo(f).Length + " bytes" : "ABSENT")} | PendingMux={(m.PendingMux != null ? "set" : "null")} | " +
+                   $"mux: {R(PostStage.Mux)} | compose: {R(PostStage.Compose)} | NeedsThumbnail={PostRecordingPlan.NeedsThumbnail(dir)} | NeedsPackage={PostRecordingPlan.NeedsPackage(dir)}";
+        }
+
+        // M13 probe: a CAMERA recording whose mux is out of attempts. NeedsCompose has no PendingMux guard.
+        [Fact]
+        public void Probe_M13_ExhaustedMuxCameraRecording_RunsNoCompose()
+        {
+            string dir = Rec("2026-11-14_210000_m13cam", m =>
+            {
+                m.CameraFile = "camera.mp4"; m.PreviewOverlayCorner = "bottom-right"; m.PreviewOverlayShape = "circle";
+                m.PostProcessing[PostStage.Mux] = new Manifest.PostStageRecord
+                { State = PostStageState.Failed, Attempts = PostRecordingState.MaxMuxAttempts, Error = "ffmpeg stalled during process mic audio" };
+            });
+            File.WriteAllText(Path.Combine(dir, "raw.mp4"), "x");
+            var ran = new List<string>();
+            PostRecording.MuxStep = _ => ran.Add(PostStage.Mux);
+            PostRecording.ThumbnailStep = _ => ran.Add(PostStage.Thumbnail);
+            PostRecording.PackageStep = _ => ran.Add(PostStage.Package);
+            // ComposeStep left as the PRODUCT step.
+
+            PostRecording.Run(dir);
+            _out.WriteLine("M13 probe: stages run=[" + string.Join(",", ran) + "] | " + Describe(dir));
+            Assert.Null(PostRecordingState.Get(Manifest.Load(dir), PostStage.Compose));
+        }
+
+        // D2 kept-branch probe: the mux completed, OriginalBackup renamed raw.mp4 away, the process died before
+        // the manifest update. Reconcile keeps recording.mp4. What does the NEXT pass do to it?
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Probe_D2_KeptCompleteFile_SurvivesTheNextPasses(bool defaultsOn)
+        {
+            string dir = Rec("2026-11-14_210100_kept" + (defaultsOn ? "on" : "off"), m =>
+            {
+                if (defaultsOn) m.PendingMux!.Options = new AudioMixOptions { NoiseSuppression = true, NoiseGate = false, VoiceLeveling = true };
+                m.PostProcessing[PostStage.Mux] = new Manifest.PostStageRecord
+                { State = PostStageState.Running, Attempts = 1, LastAttemptUtc = new DateTime(2026, 11, 14, 17, 43, 2, DateTimeKind.Utc) };
+            });
+            RealMp4(Path.Combine(dir, "recording.mp4"));
+            RealMp4(Path.Combine(dir, "recording.original.mp4"));   // raw.mp4 already preserved -> gone
+            var ran = new List<string>();
+            PostRecording.ThumbnailStep = _ => ran.Add(PostStage.Thumbnail);
+            PostRecording.PackageStep = _ => ran.Add(PostStage.Package);
+            // MuxStep left as the PRODUCT step (RecordingService.FinalizePending, real ffmpeg).
+
+            _out.WriteLine($"defaultsOn={defaultsOn} BEFORE: " + Describe(dir));
+            for (int pass = 1; pass <= 3; pass++)
+            {
+                PostRecording.Run(dir);
+                _out.WriteLine($"defaultsOn={defaultsOn} after pass {pass}: stages run=[{string.Join(",", ran)}] | " + Describe(dir));
+            }
+            Assert.True(File.Exists(Path.Combine(dir, "recording.mp4")), "the completed recording.mp4 that Reconcile kept was deleted by a later pass");
+            Assert.True(PostRecordingPlan.NeedsThumbnail(dir) || ran.Contains(PostStage.Thumbnail), "the kept complete recording is never thumbnailed");
+        }
+    }
+}

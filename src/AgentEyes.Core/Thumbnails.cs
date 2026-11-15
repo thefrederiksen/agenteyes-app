@@ -163,6 +163,12 @@ namespace AgentEyes
             // A screenshot's card image IS the shot; there is nothing to generate.
             if (m.Mode != "video" && m.Mode != "audio") return false;
 
+            // Issue #128 round two (D2): while the mux is pending, whatever sits at the final path
+            // is not the finished recording - it is at most the fragment of an attempt that died.
+            // QA measured this predicate running the poster on such a fragment ("moov atom not
+            // found") and burning every thumbnail attempt on it.
+            if (m.PendingMux != null) return false;
+
             // The final media file only exists once the deferred mux has run (issues #77/#141).
             // Asking ffmpeg for a poster before then produces nothing, so such a recording is not
             // part of the backlog yet - it comes back on the next pass, once the mux has landed.

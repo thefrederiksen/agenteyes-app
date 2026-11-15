@@ -49,6 +49,15 @@ namespace AgentEyes
         /// RnnoiseModel.Ensure) before building filter args when NoiseSuppression is on.</summary>
         public string? RnnoiseModelPath { get; set; }
 
+        /// <summary>
+        /// Issue #128 round two (D7): the mic capture's channel count, MEASURED by
+        /// <c>AudioMix.Prepare</c> from the file about to be processed - never assumed, because the
+        /// same device can capture mono or stereo. The NaN sanitizer's output is pinned to this
+        /// layout; building the chain with the sanitizer in it and this unset throws, exactly like
+        /// an unmeasured gate. Re-measured on every run, like the gate threshold.
+        /// </summary>
+        public int? MicChannels { get; set; }
+
         /// <summary>True when the mic track needs any post-capture processing at all.</summary>
         public bool MicProcessing => NoiseSuppression || NoiseGate || VoiceLeveling || MicGain != 1.0;
 

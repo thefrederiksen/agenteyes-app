@@ -1,0 +1,33 @@
+param([string]$cli, [string]$dir)
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$L = "$PSScriptRoot\listing.ps1"; $out = "$PSScriptRoot\d1-death"
+function Mux { (Get-Content "$dir\manifest.json" -Raw | ConvertFrom-Json).PostProcessing.mux | ConvertTo-Json -Compress }
+function FfFor { @(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like "*$dir*" }) }
+"manifest mux before: $(Mux)"
+$a = Start-Process $cli -ArgumentList @('package', "`"$dir`"") -PassThru -NoNewWindow -RedirectStandardOutput "$out-holder.out" -RedirectStandardError "$out-holder.err"
+"holder CLI pid $($a.Id) started $((Get-Date).ToString('HH:mm:ss.fff'))"
+$dl = (Get-Date).AddSeconds(60); while (-not (FfFor) -and (Get-Date) -lt $dl) { Start-Sleep -Milliseconds 250 }
+Start-Sleep 3
+& $L "holder's mux running"
+"manifest mux: $(Mux)"
+"mux.lock open by holder; fragment so far: $((Get-Item "$dir\recording.mp4" -ErrorAction SilentlyContinue).Length) bytes"
+"taskkill /F holder pid $($a.Id) at $((Get-Date).ToString('HH:mm:ss.fff'))"
+& taskkill /F /PID $a.Id
+Start-Sleep 2
+& $L "2 s after the holder was killed"
+"manifest mux (left by the dead holder): $(Mux)"
+"fragment at final path after death: $((Get-Item "$dir\recording.mp4" -ErrorAction SilentlyContinue).Length) bytes"
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$b = Start-Process $cli -ArgumentList @('package', "`"$dir`"") -PassThru -NoNewWindow -RedirectStandardOutput "$out-next.out" -RedirectStandardError "$out-next.err"
+"next CLI pid $($b.Id) started $((Get-Date).ToString('HH:mm:ss.fff'))"
+$dl = (Get-Date).AddSeconds(60); while (-not (FfFor) -and -not $b.HasExited -and (Get-Date) -lt $dl) { Start-Sleep -Milliseconds 250 }
+"next CLI's ffmpeg appeared after $([int]$sw.Elapsed.TotalSeconds) s (or it exited: $($b.HasExited))"
+Start-Sleep 2
+& $L "next CLI running"
+"manifest mux: $(Mux)"
+$b.WaitForExit(120000) | Out-Null
+"next CLI done at $((Get-Date).ToString('HH:mm:ss.fff'))"
+"next CLI stdout/err tail:"; Get-Content "$out-next.out","$out-next.err" -ErrorAction SilentlyContinue | Select-Object -Last 3 | ForEach-Object { "  $_" }
+& $L "after the next CLI exited"
+"manifest mux after: $(Mux)"
+"recording.mp4 present: $(Test-Path "$dir\recording.mp4")"

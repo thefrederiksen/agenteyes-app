@@ -1,0 +1,13 @@
+param($ff, $layout, $n, $filterPrefix, $tag)
+$model = "C\:/Users/soren/AppData/Local/AgentEyes/models/bd.rnnn"
+$res = @()
+for ($i=1; $i -le $n; $i++) {
+  $raw = "$PSScriptRoot\$tag-$i.f32"
+  $af = "atrim=end_sample=480123,aformat=sample_fmts=s16:channel_layouts=$layout,${filterPrefix}arnndn=m='$model'"
+  $p = Start-Process -FilePath $ff -ArgumentList @('-hide_banner','-v','error','-y','-f','lavfi','-i','sine=f=300:r=48000:d=20','-af',"`"$af`"",'-f','f32le','-c:a','pcm_f32le',"`"$raw`"") -NoNewWindow -Wait -PassThru
+  if ($p.ExitCode -ne 0) { $res += "$tag $i exit $($p.ExitCode)"; continue }
+  $c = & python -I "$PSScriptRoot\count_nonfinite.py" $raw
+  $res += "$tag $i exit 0 total/nonfinite $c"
+  Remove-Item $raw
+}
+$res
