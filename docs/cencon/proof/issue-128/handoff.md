@@ -2,6 +2,289 @@
 
 Branch: `issue-128-mic-chain-stall`. Machine: Windows 11 (SORENLAPTOP).
 
+# ROUND THREE (after QA round two FAIL, report `qa-report-windows-round2.md`, defects R2-1 to R2-4)
+
+Code commit: `3a1165d`. Round two's work stands and was not redone: D1's lock, D3's framing, D5, D6
+and D7 are unchanged. This round fixes the four defects QA found. Evidence for everything below is
+in `dev-r3/`.
+
+I believe this is finished. All four defects are fixed. What is still not covered, and how I
+established that, is in "Round three: what is still not covered".
+
+Every new test goes through the path the product takes. The R2-1, R2-3 and R2-4 tests call
+`RepairService.ResumeUnfinishedAsync(root, epoch)`. That is the method the repair tick runs: `RunAsync`
+calls `ResumeUnfinishedAsync(epoch)`, which is now `ResumeUnfinishedAsync(RecordingPaths.Root, epoch)`.
+The tests pass only a different root. That covers discovery (`FindUnfinished`), then `ResumeAsync`,
+then `PostRecording.Resume`, then `Execute`. Nothing calls `PostRecording.Run` or `Reconcile` directly
+to set up. The one place a test reaches past the entry point is the round-two test
+`Reconcile_FinalFilePresentButRawInputGone_KeepsTheFile`. It calls `Reconcile` directly, and
+`RepairPass_DeathAfterTheMuxCompleted_*` covers the same case through the real entry point.
+
+## R2-1 (BLOCKING): a hard kill on the LAST attempt is now discovered and reconciled
+
+**Cause, confirmed:** QA was right. Once attempts = 3, `NeedsMux` is false. Round two's guards make
+`NeedsThumb` and `NeedsTranscription` false while `PendingMux` is set, and `NeedsCompose` is false
+without a camera. So `Outstanding()` was empty and `FindUnfinished` never listed the recording.
+`Reconcile` is reachable only from `Execute`, so it never ran.
+
+**Fix:** `PostRecordingPlan.NeedsMuxReconcile(dir)` (PostRecordingPlan.cs). It is true while a
+pending mux has something for `Reconcile` to settle, even with no attempt left:
+- a dead attempt: the mux record is still `running`, or
+- a proven-complete final file (R2-3 below).
+
+`Outstanding()` lists the mux stage when `NeedsMux || NeedsMuxReconcile`. Once `Reconcile` has
+settled the recording (record `failed` with `interrupted: ...` and fragment removed, or mux
+published), the predicate is false, so an exhausted recording does NOT come back on every repair
+tick. A mux that another live process holds is `running` too, so it is listed. `Execute` then fails
+`TryAcquire` and leaves it, exactly as it already did with attempts left.
+
+**Paired proof:**
+- Round-two code (89de539) plus the new tests, with only the `ResumeUnfinishedAsync(root, ...)`
+  seam added (`dev-r3/prefix-seam.diff`): `RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone`
+  FAILS at its first assertion. Discovery returned an empty list where it expected the recording,
+  which is QA's `unfinished=0` (`dev-r3/prefix-new-tests-on-round-two-code.txt`).
+- Fixed code (3a1165d): the same test PASSES. Discovery lists the recording; after the pass, the mux
+  is `failed`, attempts 3, the error starts `interrupted: mux attempt 3`, the fragment is gone, no
+  fourth mux ran, no later stage ran, and a second discovery returns nothing.
+- Mutations N1 (predicate always false) and N2 (`Outstanding` ignores it) each fail 4 tests by name.
+
+## R2-2 (BLOCKING as a CI gate): the D3 instrument test is deterministic
+
+**Fix** (`MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample`): the bare
+arnndn run is repeated until it reproduces the defect, up to 10 times. Nothing else changed:
+- reproducing still means a non-finite sample OR ffmpeg dying;
+- the framed run must still exit 0, produce samples and contain 0 non-finite samples;
+- under `CI=true`, a bare run that never reproduces still fails the test.
+
+The length check now compares the framed output with every bare run that survived. The test output
+lists every bare run.
+
+There was no conflict between determinism and the assertion, so nothing was loosened. The
+probability argument: QA measured 2 of 30 bare mono runs clean on 9.0.2. Ten clean runs in a row is
+about (2/30)^10 = 2e-12. Stereo had 0 clean runs in 30.
+
+**Paired proof:**
+- **Correct build, 9.0.2, `CI=true`, 20 runs** (`dev-r3/d3-instrument-CI-true-ffmpeg-9.0.2-20-runs.txt`):
+  - 20 of 20 pass.
+  - Of the 40 test cases, 38 reproduced on the first bare run. **2 needed a second run**: `exit 0, 0
+    non-finite of 480480; exit 0, 480 non-finite of 480480`. Those 2 are exactly the cases the
+    single-shot test would have failed, the same rate as QA's 1 in 20.
+- **Known-bad, 8.1.1 (no defect), `CI=true`** (`dev-r3/d3-instrument-CI-true-ffmpeg-8.1.1.txt`):
+  both cases FAIL by name, `did not emit arnndn's end-of-stream NaN frame in 10 bare run(s)`. The
+  instrument still fires on an ffmpeg that cannot exercise D3.
+- M9 (framing removed) still fails its 3 tests.
+- **CI:** see "Gate (round three)". Several runs were checked at the final head, not one.
+
+## R2-3: decided behaviour - a mux that completed before a death is PUBLISHED
+
+**Decision:** the file at the final path is a completed mux when `OriginalBackup.Preserve` has
+already renamed one of its raw inputs to its `.original` backup: the input is gone AND its backup
+exists. `FinalizePending` renames only after the mux has returned, so that is proof. The intended
+behaviour is to finish what the dead process was doing, not to record a failure:
+- `Reconcile` calls `RecordingService.CompleteInterruptedFinalize`. It runs no ffmpeg. It completes
+  the remaining renames, records every backup present, sets the duration (video probed, like the mux
+  branches) and clears `PendingMux`.
+- The mux is journaled `done` with no error, and its attempt count is unchanged. Publishing is not
+  an attempt.
+- `Execute` then continues in the same pass to compose, thumbnail and packaging, because the media
+  is final.
+- This path and `FinalizePending` share one tail, `PublishFinalized`, so the two cannot drift. The
+  IL manifest-writer pin moved from `FinalizePending` to `PublishFinalized`.
+
+**The other half:** an input that is gone with NO backup proves nothing. Something outside AgentEyes
+removed it. The file is neither published nor deleted. `FinalizePending` now refuses a missing input
+BEFORE any ffmpeg starts, naming the input (`its input raw.mp4 is missing ... left as it is`). That
+closes the processing-off route by which a failed pass's `RemovePartialOutput` deleted the file. The
+attempt is counted, so the ceiling still bounds it.
+
+**Paired proof** (round-two code vs fixed code, same tests, real `FinalizePending` as the mux step):
+- `RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages`, attempts {1, 3} x
+  processing {off, defaults}:
+  - Round-two code: **all 4 FAIL**. Processing off: `the completed mux output was deleted`, which is
+    QA's 235,246-byte deletion. Defaults: `PendingMux` still set. With attempts = 3, discovery did not
+    even list the recording.
+  - Fixed code: all 4 PASS. The file is byte-identical, `PendingMux` is null, `recording.original.mp4`
+    is in `OriginalFiles`, the mux is `done` with no error, the attempt count is unchanged, and the
+    thumbnail stage ran.
+- `RepairPass_InputGoneWithoutABackup_KeepsTheFinalFileAndNamesTheMissingInput`:
+  - Round-two code: FAILS, `a file that could not be proven a fragment was deleted`.
+  - Fixed code: passes. The file is kept, attempt 2 is recorded with `raw.mp4 is missing`, and no
+    later stage ran.
+- Mutations: N3 (round-two Reconcile) fails 5 tests, N9 (`Execute` stops after publishing) 4, N8
+  (only newly-renamed backups recorded) 4, and N4 (missing-input check removed) 1.
+
+## R2-4: `NeedsCompose` is guarded, and the M13 declaration is corrected
+
+**Fix:** `NeedsCompose` returns false while `PendingMux` is set, the same guard as `NeedsThumb` and
+`NeedsTranscription`. That closes both of QA's observations: the burned compose attempt, and the
+camera recording that discovery listed on every repair tick.
+
+**Paired proof:**
+- Round-two code: `RepairPass_CameraRecordingWithAnExhaustedMux_BurnsNoComposeAndIsNotRediscovered`,
+  `RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose` and
+  `NeedsCompose_PendingMux_IsFalse_AndTrueOnceTheMuxIsDone` all FAIL.
+- Fixed code: all 3 pass.
+- N5 (guard removed) fails all 3 by name.
+
+**Round two's M13 declaration was wrong, and QA was right.** I named two of the three predicates
+`Execute` consults after the mux and missed `NeedsCompose`. The corrected statement, and how I
+established it:
+- **The enumeration, from source, not memory.** This command lists every stage predicate and
+  `RunStage` in `Execute`:
+  `awk '/private static PostRecordingOutcome Execute\(/,/^        }$/' src/AgentEyes.Core/PostRecording.cs | grep -n "PostRecordingPlan\.\|RunStage("`
+  After the mux block it prints exactly three predicates: `NeedsCompose` (line 61 of the method),
+  `NeedsThumbnail` (76) and `NeedsPackage` (87). Plugins runs only inside
+  `if (RunStage(... PackageStep ...))` (99-102), so it is gated by `NeedsPackage`.
+- **Each of the three now refuses while a mux is pending**: `PostRecordingPlan.cs:109`,
+  `Thumbnails.cs:170` and `TranscriptionBacklog.cs:89`. `NeedsThumbnail` and `NeedsPackage` delegate
+  to the last two. `grep -n "PendingMux != null) return false"` over those three files prints those
+  three lines.
+- **Each guard is killed by its own mutation**: N5 (3 tests), M7 (1) and M8 (1).
+- **So M13 alone is an equivalent mutant.** Without the early return, `Execute` reaches the three
+  predicates, all false, and returns at `NeedsPackage` with a different log line. The full suite
+  confirms it: M13 alone, 0 failures.
+- **Its limit:** if a FOURTH later stage is ever added to `Execute` without a `PendingMux` guard, M13
+  becomes observable and nothing here would catch it. The awk command above is the check to re-run.
+
+## The mutation list, from ONE final state (3a1165d)
+
+Method (`dev-r3/mutate.py.txt`, raw output `dev-r3/mutations-r3.txt`), one mutation at a time:
+1. apply exact replacements, each checked to match once;
+2. `dotnet build AgentEyes.sln -c Release`;
+3. FULL `dotnet test AgentEyes.sln -c Release` with `QA_RECORD_FFMPEG_DIR` = shipped 9.0.2;
+4. record failures by name, and count ffmpeg processes still running;
+5. restore with `git checkout`, and prove the restore with `git diff --quiet -- src tests`.
+
+The baseline diff was empty, every restore was empty, and the final rebuild had 0 errors.
+
+The run was split in two. The host stopped the first invocation for low system memory
+after N2 (2026-11-14). It left N3 applied, which I restored by `git checkout` and verified empty. With
+the owner's go-ahead, the remaining six ran on 2026-11-15 against the same commit, `3a1165d`.
+Round two's 19 were re-run here too, so the whole list is from this one state.
+
+| # | Fix disabled | Failed (full suite) | Failed, by name | ffmpeg left |
+|---|---|---|---|---|
+| M1 | D1: `FinalizePending` takes no lock | 1 | `FinalizePending_LockHeldByAnotherProcess_RefusesWithoutStartingASecondWriter` | 0 |
+| M2 | D1: package path does not count the attempt | 2 | `PackageRun_PendingMuxThatFails_CountsTheAttempt`, `RunForPackage_FailedAttempt_IsCountedAndJournaled` | 0 |
+| M3 | D1: `Package.RunAsync` reverted to round one | 1 | `PackageRun_PendingMuxThatFails_CountsTheAttempt` | 0 |
+| M4 | D1: runner ignores a held lock | 1 | `PostRecordingRun_LockHeldByAnotherProcess_LeavesTheMuxToItAndCountsNothing` | 0 |
+| M16 | D1: lock file shareable | 2 | `MuxLockTests.TryAcquire_Free_HoldsTheFileExclusivelyUntilDisposed`, `MuxLockTests.TryAcquire_SameThreadTwice_IsReentrantAndReleasesOnTheOutermostDispose` | 0 |
+| M5 | D2: dead attempt not recorded failed | 3 | `PostRecordingRun_HardKillOnTheLastAttempt_...`, `RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_...`, `RepairPass_HardKillOnTheLastAttempt_...` | 0 |
+| M6 | D2: fragment not removed | 5 | `ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite`, `PostRecordingRun_HardKillOnTheLastAttempt_...`, `PostRecordingRun_HardKillWithAttemptsLeft_...`, `RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_...`, `RepairPass_HardKillOnTheLastAttempt_...` | 0 |
+| M14 | D2: runner does not call Reconcile | 8 | the two `PostRecordingRun_HardKill*`, `RepairPass_CameraRecordingKilled...`, `RepairPass_HardKillOnTheLastAttempt_...`, and all 4 `RepairPass_DeathAfterTheMuxCompleted_*` | 0 |
+| M7 | D2: `NeedsThumb` guard removed | 1 | `NeedsThumb_PendingMuxWithAFileAtTheFinalPath_IsFalse` | 0 |
+| M8 | D2: `NeedsTranscription` guard removed | 1 | `NeedsTranscription_PendingMuxWithAFileAtTheFinalPath_IsFalse` | 0 |
+| M9 | D3: framing removed | 3 | `MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames`, `MixWavs_DefaultSettingsMicWithNanSample_...`, `ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes` | 0 |
+| M10 | D4: `RunStage` unwatched | 1 | `RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog` | 0 |
+| M11 | D4: fixed 60 s bound | 1 | `RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog` | 0 |
+| M15 | QA mutation B: no stall guard | 2 | `RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog`, `RunWatched_FilterThatStallsOnNan_FailsWithinTheBound` | 0 |
+| M12 | D5: cleanup error replaces stage error | 1 | `RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError` | 0 |
+| M17 | D7: sanitizer not pinned | 4 | `MicChain_LevelWithoutDenoise_SanitizesBeforeSpeechnorm`, `MicChain_SanitizerIsPinnedToTheMeasuredMicLayout`, `MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg`, `MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg` | 0 |
+| M18 | D6: raw `KillOnCloseJob.Assign` | 1 | `RunCore_TiesItsChildOnlyThroughTieToLifetime_InTheCompiledProduct` | 0 |
+| M19 | D6: exited child treated as live | 1 | `TieToLifetime_ProcessAlreadyExited_DoesNotReplaceTheRealResult` | 0 |
+| M13 | early return for an exhausted mux, alone | **0 - SURVIVES** | equivalent mutant; see R2-4 for how that was established | 0 |
+| N1 | R2-1: `NeedsMuxReconcile` always false | 4 | `RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_...`, `RepairPass_DeathAfterTheMuxCompleted_*`(attempts 3, both), `RepairPass_HardKillOnTheLastAttempt_...` | 0 |
+| N2 | R2-1: `Outstanding` ignores it | 4 | same 4 as N1 | 0 |
+| N3 | R2-3: Reconcile does not publish | 5 | `Reconcile_FinalFilePresentButRawInputGone_KeepsTheFile`, all 4 `RepairPass_DeathAfterTheMuxCompleted_*` | 0 |
+| N9 | R2-3: `Execute` stops after publishing | 4 | all 4 `RepairPass_DeathAfterTheMuxCompleted_*` | 0 |
+| N8 | R2-3: only newly-renamed backups recorded | 4 | all 4 `RepairPass_DeathAfterTheMuxCompleted_*` | 0 |
+| N4 | R2-3: missing-input check removed | 1 | `RepairPass_InputGoneWithoutABackup_KeepsTheFinalFileAndNamesTheMissingInput` | 0 |
+| N5 | R2-4: `NeedsCompose` guard removed | 3 | `NeedsCompose_PendingMux_IsFalse_AndTrueOnceTheMuxIsDone`, `RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_...`, `RepairPass_CameraRecordingWithAnExhaustedMux_...` | 0 |
+| N7 | R2-4: M13 and the compose guard both removed | 3 | same 3 as N5 | 0 |
+
+Totals: 27 mutations; 26 fail by name; 1 survives (M13, equivalent); 0 ffmpeg left after any run.
+
+N7 note: under N7 `RepairPass_CameraRecordingWithAnExhaustedMux_...` fails at its discovery
+assertion (the recording is listed) before the pass runs. So N7 shows the hole is caught. It does not
+by itself re-observe QA's burned compose attempt. N5 and the round-two paired run cover that test's
+other assertions.
+
+Not mutated: R2-2's retry loop. The paired evidence is the 2 of 40 cases above that needed a second
+bare run, plus the 8.1.1 run that fires. A single-shot mutation would fail about 1 run in 20, so a
+single mutation run could not show it reliably.
+
+## Round three: what is still not covered, and how I know
+
+- **M13**: an equivalent mutant, established by enumeration plus three killing mutations (R2-4
+  above). It is not a belief.
+- **"Proven complete" trusts the order in `FinalizePending`**: mux, then `Preserve`, then the
+  manifest. It does not re-verify the media (no ffprobe of a moov atom). I checked the order by
+  reading `FinalizePending` and `PublishFinalized`: `Preserve` is the first statement after every
+  mux branch, and the manifest update follows it. #136 must keep that order. Its `MuxInTwoPasses`
+  publishes by `File.Move` inside the mux call, so the order still holds on 47b4da1. I read that
+  file; nothing ran it rebased.
+- **A backup that existed BEFORE the mux** (a `.original` from somewhere else, with the raw input
+  also missing) would read as proof. `grep -rn "\.original" src/AgentEyes.Core --include=*.cs` finds
+  two writers of a backup:
+  - `OriginalBackup.Preserve`, reached from `PublishFinalized`, which runs only after the mux;
+  - the CLI's direct `audio`/`video` paths in `Commands.cs` (e.g. `Commands.cs:213`). QA's round-two
+    enumeration found that these write no `PendingMux`, and the manifest only after the mux.
+
+  So no writer leaves a backup beside a still-pending mux it did not complete. `SelfTest.cs` only
+  asserts backups exist, and `CameraCompose.cs` only mentions the name in a comment. This is a code
+  search, not a test.
+- **macOS and Linux**: `MuxCoordinatorTests` is in the Windows suite only. Its project is
+  `AgentEyes.Tests`, not `tests/Shared`; I checked the three test `.csproj` compile lists. The
+  predicates and `Reconcile` are platform-neutral code. CI's mac (232) and linux (274) jobs build
+  them but do not run these tests.
+- **Nothing in round three was run in the real app.** QA's reproduction kit is the route. Expected
+  values for each defect:
+  - R2-1 (QA's launch 4 after three kills): `FindUnfinished: <dir> needs mux`, then
+    `Reconcile: ... interrupted: mux attempt 3`, `RemoveFragment: removed 18350128-byte fragment`,
+    and `"mux":{"State":"failed","Attempts":3,"Error":"interrupted: ..."}`. The next repair tick logs
+    `unfinished=0`.
+  - R2-3 (QA's probe): `Reconcile: ... is a COMPLETED mux ... publishing it`, then
+    `PublishFinalized`, then `"mux":{"State":"done"}`, with `recording.mp4` kept and a thumbnail made.
+  - R2-4: a camera recording with an exhausted mux is not listed, and has no `compose` record.
+- **Round two's other admissions stand**: the Unix lock proven by a second handle, the probabilistic
+  D7 runtime tests, and the thumbnail partial-write window. I did not re-examine them this round.
+
+## Gate (round three)
+
+```
+dotnet build AgentEyes.sln -c Release  -> Build succeeded.  0 Error(s)
+dotnet test  AgentEyes.sln -c Release  -> Passed!  - Failed: 0, Passed: 2357, Skipped: 0, Total: 2357
+   QA_RECORD_FFMPEG_DIR = shipped 9.0.2-essentials: 2357/0, 0 ffmpeg left
+   unpinned (PATH, 8.1.1-full - confirmed by the 8.1.1 version line in the CI=true run above): 2357/0
+```
+2357 = 2348 + 9 new tests: R2-1 x1, R2-3 x5 (a 4-case theory plus 1), R2-4 x3. The round-two
+`Reconcile_FinalFilePresentButRawInputGone_KeepsTheFile` was changed to assert the publication. Its
+old assertion described the defect.
+
+CI at code commit 3a1165d. Both runs succeeded, all three jobs each:
+```
+push         43642456237  windows 2357/0  linux 274/0  macos 232/0
+pull_request 43642460188  windows 2357/0  linux 274/0  macos 232/0
+```
+The runs at the final handoff head are reported in the issue comment. That commit adds only files
+under `docs/`.
+
+## For the #136 rebase (additions to round two's list)
+
+- **Three test `.csproj` conflicts**: `AgentEyes.Tests`, `AgentEyes.Tests.Linux` and
+  `AgentEyes.Tests.Mac`. Both branches add a `tests/Shared` compile link at the same spot: this
+  branch adds `MuxLockTests.cs`, #136 adds `FfmpegMuxShapeTests.cs`. **Keep both.**
+- **`ManifestWriterIlTests`**: this round renamed the pinned manifest-writer entry
+  `RecordingService::FinalizePending -> ManifestStore::Update` to
+  `RecordingService::PublishFinalized -> ManifestStore::Update`. Keep the rename beside #136's own
+  `MuxInTwoPasses` delete pins.
+- **`FinalizePending` refuses a missing input before any mux call.** #136's passes run inside
+  `AudioMix.MuxVideoMixed` / `ProcessVideoMic`, after that check, so it needs no change. It is also
+  why #136's `!ok` delete can no longer reach R2-3's case: a mux whose raw input was preserved is
+  published by `Reconcile` and never started.
+- **Known, NOT mine, NOT fixed: #136's unguarded deletes.** On 47b4da1, `AudioMix.MuxInTwoPasses`
+  has **four** unguarded `File.Delete` calls. Both QA seats were counting the same four sites; one
+  counted the `finally` only. The Lead confirmed this on 2026-11-14.
+  - Line 137: the processed temp, in the `finally`. **Can mask a stage error** (D5's pattern).
+  - Line 142: the muxing temp, in the `finally`. **Can mask a stage error.**
+  - Line 152: the `!ok` delete of the final output, in the `finally`. **Can mask a stage error.**
+  - Line 167: `RemoveStaleTemp`, which runs BEFORE either pass. **Cannot mask one.** It can only
+    fail a mux before any work starts, with its own error.
+
+  This branch's D5 fix covers `RunStage`, so each PASS is safe, not the mux as a whole. These four
+  belong to #136 after the rebase. They are named here so the stack's merge does not leave a hole
+  each seat thought the other had closed.
+
 # ROUND TWO (after QA FAIL, report `qa-report-windows.md`, defects D1-D5, plus D6-D7)
 
 Round one (everything below the line "ROUND ONE") stands: the head sanitizer, the progress
@@ -335,8 +618,8 @@ segfaulting (the D3 addendum above), and the test now treats that as the defect 
 
 ## What the tests do NOT catch
 
-- **M13** (above): the early return in `Execute` for an exhausted pending mux. It is redundant with
-  the predicate guards and has no observable effect beyond a log line.
+- **M13** (above): SUPERSEDED in round three. This declaration was wrong - it missed `NeedsCompose`
+  (QA R2-4). See ROUND THREE, R2-4, for the corrected statement and how it was established.
 - **The cross-process lock on macOS and Linux.** `MuxLockTests` is compiled into the macOS and
   Linux suites, and it stands in for another process with a second handle. A second handle is
   refused by `flock` exactly like another process, so that run proves the flock mechanism. The
