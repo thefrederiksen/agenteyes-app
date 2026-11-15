@@ -293,3 +293,15 @@ Always-on is Windows-only in the engine until Phase 5 (#119). Not runnable on Li
 `row7-player-selfrender-video-area-black.png`, `row8-details-open.png`, `row8-details-saved.png`,
 `row8-settings-open.png`, `row8-settings-saved-unchecked.png`, `row8-dictionary-open.png`,
 `row8-dictionary-saved.png`, `row9-tray-idle.png`, `row9-tray-recording.png`, `row10.txt`.
+
+---
+
+## Addendum, 2026-11-15 10:28 EST: row 10 re-confirmed at 0e1b889
+
+`SingleInstance.cs` changed after this report (commit 729059e, the macOS quit-hang fix), so row 10 was
+run again on devlinux at **0e1b88998feca76e6244e93a83297819ff667c35**, with the app built from that commit.
+**Row 10 still passes.** In three runs the window was closed to the tray (`mapped=0`). Then a second
+launch with no arguments handed off `show` (`Accept: 'show'` -> `[App] Run: show` -> `[App] ShowWindow`)
+and exited 0, and the window was mapped again (`mapped=1`). In all four runs there were 16 second
+launches, and every one exited by itself. Load 2.0 - 2.8 on 32 cores. Details and log lines:
+`../issue-116/qa-report-linux-criterion11.md`. Nothing above this addendum was changed.
