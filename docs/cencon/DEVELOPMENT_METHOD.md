@@ -249,8 +249,13 @@ Before labeling `flow:ready-qa`, the Developer Agent must have ALL of:
    > after it changes the code. The Developer Agent never ends its turn asking the human to run
    > tests, and never hands QA or the human an unrun suite. Doing so is a defect, not caution.
 
-   `dotnet test` is FAST and SILENT - 288 tests in ~2 seconds, no app launch, no audio, no ffmpeg.
-   There is no reason to skip it. The heavy smokes (`api-smoke.ps1`, `gui-smoke.ps1`,
+   What `dotnet test AgentEyes.sln` costs, measured (issue #151, 2026-11-15, Windows CI runner):
+   2382 tests in 33-50 s, silent (no app launch, no audio) but NOT ffmpeg-free - end-to-end tests
+   start about 235 short ffmpeg runs. The tests that exist only to run a real ffmpeg against the mic
+   chain are opt-in (`AGENTEYES_FFMPEG_TESTS=1`); CI and the release build always run them. The old
+   figure here, "288 tests in ~2 seconds, no ffmpeg", was the LINUX suite's count
+   (`tests/AgentEyes.Tests.Linux`), written as if it described the Windows gate. None of this is a
+   reason to skip it: it runs after every change, by the agent that made it. The heavy smokes (`api-smoke.ps1`, `gui-smoke.ps1`,
    `agenteyes selftest`, `run-all.ps1`) DO launch the app and record audio, so the Developer runs
    them **only when the change actually touches that area** - targeted, not reflexive, and never
    delegated upward. The 2026-06-16 rule was aimed at agents firing a minutes-long audible sweep on
