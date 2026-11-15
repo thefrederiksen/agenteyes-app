@@ -184,12 +184,21 @@ namespace AgentEyes.Tests
                 foreach (var line in report) _out.WriteLine("KillOwned: " + line);
                 Assert.Equal($"pid {mine.Pid}: killed", Assert.Single(report));
 
-                // Criterion 5: the stuck run is over and its ffmpeg is gone - nothing left spinning.
-                Assert.True(Finishes(run, TimeSpan.FromSeconds(15)), "the owned run is still blocked after its ffmpeg was killed");
+                // Criterion 5: the owned ffmpeg is gone - nothing left spinning (KillTree waited for it).
+                Assert.False(FfmpegChildRegistry.IsSameProcess(mine.Pid, mine.StartUtc!.Value), $"owned pid {mine.Pid} is still running after KillOwned");
+
+                // And the stuck run is over, because its ffmpeg was killed. The bound is generous on
+                // purpose, like the #128 tests' 60-90 s: after the exit the runner still drains
+                // ffmpeg's stdout/stderr on thread-pool callbacks, and on a loaded 2-core CI runner
+                // (the whole suite in parallel) a 15 s bound once expired before they ran. It is still
+                // well short of the 120 s the unrelated processes run for, so a run held open by them
+                // fails here by name.
+                var drain = Stopwatch.StartNew();
+                Assert.True(Finishes(run, TimeSpan.FromSeconds(60)), "the owned run is still blocked 60 s after its ffmpeg was killed");
+                _out.WriteLine($"the owned run returned {drain.Elapsed.TotalSeconds:F1}s after the kill");
                 var ended = Assert.IsType<UsageException>(run.Exception?.InnerException);
                 Assert.True(ended.Message.StartsWith("ffmpeg failed during test owned (exit ", StringComparison.Ordinal),
                     "the owned run did not end because its ffmpeg was killed: " + ended.Message);
-                Assert.False(FfmpegChildRegistry.IsSameProcess(mine.Pid, mine.StartUtc!.Value), $"owned pid {mine.Pid} is still running");
 
                 // Criterion 4: the unrelated processes are still running.
                 Assert.False(recorder.HasExited, $"the RECORDER ffmpeg (pid {recorder.Id}) was killed by a test that did not start it");

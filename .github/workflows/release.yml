@@ -51,8 +51,13 @@ jobs:
           "FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "QA_RECORD_FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
+      # Issue #151: AGENTEYES_FFMPEG_TESTS=1, because the tests that launch a real ffmpeg (the #128
+      # mic-chain guards among them) are opt-in so the everyday gate stays fast. A release is built
+      # with every test, not the everyday subset.
       - name: Run tests
         shell: pwsh
+        env:
+          AGENTEYES_FFMPEG_TESTS: "1"
         run: dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release
 
       # Publish the four first-party exes + the ffmpeg zip into dist/release, but

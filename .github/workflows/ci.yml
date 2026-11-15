@@ -25,7 +25,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Download ffmpeg (essentials build)
-        # The suite exercises the real encoder and refuses to skip (see release.yml).
+        # The suite exercises the real encoder (see release.yml); the opted-in pass below needs it most.
         shell: pwsh
         run: |
           $zip = "$env:RUNNER_TEMP/ffmpeg-essentials.zip"
