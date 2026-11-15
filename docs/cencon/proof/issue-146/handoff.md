@@ -1,6 +1,12 @@
 # Issue #146 - Developer handoff to QA
 
-Branch `issue-146-resample-before-framing`, off `main` 432105b. Windows seat, SORENLAPTOP.
+Branch `issue-146-resample-before-framing`, commit 19667c5, rebased onto current `main` 90c9118. Windows seat, SORENLAPTOP.
+
+**Measured on the shipping base, as the lead asked.** The #142 report that filed this ran main 93681fa, before #136's
+two-pass mux. Control on unmodified main 90c9118 (has #136), 44.1 kHz mic: **0 of 10 completed** - 9 stalled, 1 crashed
+(0xC0000005). Deterministic; #136 does not touch this defect. The same raw captures then completed on the fixed build
+(6 of 6 that still had retry budget). Passing counts re-taken on 19667c5: **10 of 10**. Files:
+`windows/control-main-90c9118-unfixed.txt`, `windows/c1-retake-on-main-90c9118.txt`.
 
 ## The change
 
@@ -23,7 +29,7 @@ platforms, so this one stage covers every mic source at any rate.
 
 | # | Expected | Actual | Evidence |
 |---|---|---|---|
-| 1 | Default-settings recording, 44.1 kHz mic, completes 10 of 10 | **10 of 10.** App driven over REST, mic "Microphone (2- Realtek(R) Audio)" at its native 44100 Hz, ffmpeg 9.0.2. Each run: every PostProcessing stage `done`, `Attempts 1`, settled 4.1-4.2 s after stop. Before the fix, same machine, mic and ffmpeg: 10 of 10 stalled. | `windows/c1-44k-ten-recordings.txt` |
+| 1 | Default-settings recording, 44.1 kHz mic, completes 10 of 10 | **10 of 10, twice**: on b6d9b32 and re-taken on 19667c5 (main 90c9118 + fix). Unfixed main 90c9118: 0 of 10. App driven over REST, mic "Microphone (2- Realtek(R) Audio)" at its native 44100 Hz, ffmpeg 9.0.2. Each run: every PostProcessing stage `done`, `Attempts 1`, settled 4.1-4.2 s after stop. Before the fix, same machine, mic and ffmpeg: 10 of 10 stalled. | `windows/c1-44k-ten-recordings.txt` |
 | 2 | 48 kHz case still 10 of 10 | **10 of 10.** Real 48 kHz captures, all ten ending on a partial 480-sample frame, through the product's `AudioMix.ProcessVideoMic`. Not app recordings: the app cannot be made to capture this mic at 48 kHz. Why, stated in the file. | `windows/c2-48k-ten-captures.txt` |
 | 3 | Order pinned: graph quoted, a test fails if swapped | Graph quoted from the app log. GATE GUARD: `tests/Shared/MicChainOrderTests.cs` sweeps every mic-chain builder by reflection (the #136 pattern, no ffmpeg) and fails by name in 21 ms when swapped; it runs on all three CI jobs. With the stages **swapped**, 5 of 7 tests FAIL. On ffmpeg 8.1.1, which does not stall, the executed-graph test still fails the unfixed chain: `into arnndn: from G0_auto_aresample_1`. Fixed: 10 of 10 pass on 9.0.2 and on 8.1.1. | `windows/c3-order-pinned.txt` |
 | 4 | macOS and Linux audited | Both deliver 48 kHz on `main`. macOS since #114 resamples to 48 kHz in `AvfStream`. Linux pulse defaults to 48 kHz. The fix is in the shared chain anyway, so it is pinned by a 16/22.05/44.1/48 kHz test and a shared order test that runs on all three CI jobs. No seat needed. | `c4-macos-linux-audit.md` |
