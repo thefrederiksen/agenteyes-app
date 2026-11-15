@@ -116,7 +116,7 @@ namespace AgentEyes.Video
         }
 
         /// <summary>True when a process with <paramref name="pid"/> exists and started at <paramref name="startUtc"/>.</summary>
-        private static bool IsSameProcess(int pid, DateTime startUtc)
+        internal static bool IsSameProcess(int pid, DateTime startUtc)
         {
             Process p;
             try { p = Process.GetProcessById(pid); }
@@ -132,7 +132,7 @@ namespace AgentEyes.Video
             }
         }
 
-        private static void KillTree(int pid)
+        internal static void KillTree(int pid)
         {
             using var p = Process.GetProcessById(pid);
             p.Kill(entireProcessTree: true);

@@ -23,6 +23,17 @@ namespace AgentEyes.Video
         /// </summary>
         internal static readonly System.Threading.AsyncLocal<TimeSpan?> PostProcessStallTimeoutOverride = new();
 
+        /// <summary>
+        /// Issue #151: a test-only observer of every ffmpeg child <see cref="RunCore"/> starts in the
+        /// current async flow. It is how a test learns the pid of an ffmpeg it started THROUGH THE
+        /// PRODUCT RUNNER, so that its failure path can kill exactly that process and nothing else -
+        /// never a sweep over every ffmpeg on the machine, which on a developer machine includes a live
+        /// recording's. AsyncLocal, like <see cref="PostProcessStallTimeoutOverride"/>: it flows into a
+        /// Task.Run the test starts and cannot see a child started by a parallel test or by the product.
+        /// Production never sets it.
+        /// </summary>
+        internal static readonly System.Threading.AsyncLocal<Action<Process>?> ChildStartedObserver = new();
+
         /// <summary>The stall bound a post-processing stage runs under right now.</summary>
         internal static TimeSpan CurrentPostProcessStallTimeout =>
             PostProcessStallTimeoutOverride.Value ?? PostProcessStallTimeout;
@@ -79,6 +90,12 @@ namespace AgentEyes.Video
 
             var clock = Stopwatch.StartNew();
             using var p = Process.Start(psi)!;
+            var observer = ChildStartedObserver.Value;
+            if (observer != null)
+            {
+                Log.Info($"ffmpeg [{label}]: pid {p.Id} reported to the test observer (issue #151)");
+                observer(p);
+            }
             var err = new StringBuilder();
             p.ErrorDataReceived += (_, e) => { if (e.Data != null) err.AppendLine(e.Data); };
             p.BeginErrorReadLine();

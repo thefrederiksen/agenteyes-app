@@ -66,6 +66,12 @@
          three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
          graph, because on macOS that command never finalizes. -->
     <Compile Include="../Shared/FfmpegMuxShapeTests.cs" Link="Shared/FfmpegMuxShapeTests.cs" />
+
+    <!-- Issue #151: a test's failure path kills only the ffmpeg it started (OwnedFfmpeg), never a
+         sweep over every ffmpeg on the machine - which would include a live recording's. Linked into
+         all three suites so each platform's process handling is proven by its own gate. -->
+    <Compile Include="../Shared/OwnedFfmpeg.cs" Link="Shared/OwnedFfmpeg.cs" />
+    <Compile Include="../Shared/OwnedFfmpegTests.cs" Link="Shared/OwnedFfmpegTests.cs" />
   </ItemGroup>
 
 </Project>
