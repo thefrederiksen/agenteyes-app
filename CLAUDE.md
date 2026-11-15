@@ -26,6 +26,7 @@ Four single-purpose agents carry work down a `flow:*` label state machine on Git
 | `flow:rejected` | spec too weak; bounced back | Product Agent | `.claude/skills/product-agent` |
 | `flow:ready-qa` | implemented + proof linked | QA Agent | `.claude/skills/qa-agent` |
 | `flow:qa-failed` | defect; bounced back | Developer Agent | `.claude/skills/developer-agent` |
+| `flow:ready-gate` | QA verified; awaiting the merge decision | Review Gate (**other vendor**) | - |
 | `flow:done` | verified with proof; closed | - | - |
 | `flow:needs-human` | 3-strike escalation | the human | - |
 
@@ -35,8 +36,8 @@ it meet the Definition of Ready, and let the Developer and QA agents carry it th
 To drive a ready issue autonomously, the **implementation-loop** orchestrator
 (`.claude/skills/implementation-loop`, `/implementation-loop <issue#>`) spawns the Developer Agent
 and the QA Agent as separate sub-agent contexts and loops Developer -> QA -> Developer on
-`flow:qa-failed` until QA passes (then QA squash-merges to `main`). It stops early on `flow:rejected`
-(spec too weak) or a 3-strike `flow:needs-human` escalation.
+`flow:qa-failed` until QA passes, which sets `flow:ready-gate` for the Review Gate (see below). It
+stops early on `flow:rejected` (spec too weak) or a 3-strike `flow:needs-human` escalation.
 
 ---
 
@@ -214,11 +215,14 @@ ASCII. No emojis, no checkmarks, no arrows, no box-drawing. Use `->`, `[OK]`, `[
 - **Two authorized exceptions (CenCon):**
   1. The **Developer Agent**, while implementing a `flow:ready-dev` issue, may commit to that
      issue's **PR branch** (never `main`) because the branch + proof is the handoff artifact to QA.
-  2. The **QA Agent**, when it PASSES an issue (sets `flow:done` and closes it), squash-merges that
-     issue's PR to `main` and deletes the branch - the QA pass IS the merge authorization (method
-     D5). The QA Agent merges only an issue it has just passed with proof; it never merges anything
-     else. **Deploying** the merged change (build-release + `agenteyes-setup install`) remains a separate,
-     explicitly-requested step.
+  2. The **Review Gate** - an independent session of a DIFFERENT AGENT VENDOR - authorizes and performs
+     the squash-merge to `main` and deletes the branch (method **D7**, decided 2026-08-12, which
+     **SUPERSEDES D5**). **QA NO LONGER MERGES**: a QA pass commits the proof report and sets
+     `flow:ready-gate`, and there it stops. D7's rationale is measured, not procedural - on
+     2026-08-11/12 QA passed six PRs the gate then rejected, including one that reintroduced the
+     original recording-stranding defect and one that let the microphone keep capturing after the app
+     reported idle. Same-vendor review shares the same blind spots. **Deploying** the merged change
+     (build-release + `agenteyes-setup install`) remains a separate, explicitly-requested step.
   Everything else still requires an explicit ask.
 
 ---
