@@ -1,0 +1,8 @@
+=== #114 FRAME-RATE SIGNATURE vs ProcessType ===
+20 s screen-only captures, each a one-shot launchd job running the installed binary.
+The arms differ ONLY in the ProcessType key. Machine load 3.3 - 4.3 on 10 cores throughout.
+
+ARM           ProcessType    DURATION   FRAMES       FPS FRAME ERR  SIZE MB
+interactive   Interactive      20.867      626   30.0000      -0.0     10.5
+background    Background       21.100      633   30.0000       0.0      7.0
+absent        <absent>         21.733      652   30.0000       0.0      8.9

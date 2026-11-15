@@ -1,0 +1,18 @@
+=== WHICH BUILD IS ANSWERING: markers on the INSTALLED dll vs reference publishes ===
+installed   = ~/Library/Application Support/AgentEyes/bin/agenteyes.dll   (sha 1b9092d0, main f9ef230, published from agenteyes-qa-mac)
+main-altpath= same commit f9ef230, built at a different path            (sha 81ae5fda)
+113pub      = #113 branch head ad21557                                  (sha 1ff0c669)
+
+marker             encoding  installed  main-alt    113pub
+frag_keyframe      utf-16LE          0         0         1
+CaptureLiveness    utf-8             0         0         3
+FragmentedOutput   utf-8             0         0         1
+CaptureWatchdog    utf-8             0         0         1
+capture-stalled    utf-16LE          0         0         0
+MuxInTwoPasses     utf-8             1         1         1
+avfoundation       utf-16LE          2         2         2
+screencapture      utf-16LE          4         4         4
+x11grab            utf-16LE          0         0         0
+pulse              utf-16LE          0         0         0
+v4l2               utf-16LE          0         0         0
+xrandr             utf-16LE          0         0         0

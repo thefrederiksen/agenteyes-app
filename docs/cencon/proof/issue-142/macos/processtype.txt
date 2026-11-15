@@ -1,0 +1,20 @@
+=== ProcessType in the REPO TEMPLATE scripts/mac/com.agenteyes.recorder.plist ===
+38:         preference. A launchd agent with no ProcessType is throttled by macOS as background work:
+39-         deprioritized CPU, deprioritized I/O and coalesced timers. ffmpeg's AVFoundation capture
+--
+54:    <key>ProcessType</key>
+55-    <string>Interactive</string>
+
+=== ProcessType in the INSTALLED plist ~/Library/LaunchAgents/com.agenteyes.recorder.plist ===
+38:         preference. A launchd agent with no ProcessType is throttled by macOS as background work:
+39-         deprioritized CPU, deprioritized I/O and coalesced timers. ffmpeg's AVFoundation capture
+--
+54:    <key>ProcessType</key>
+55-    <string>Interactive</string>
+
+=== launchd's own view (the value that actually took effect) ===
+	state = running
+	runs = 2
+		state = active
+		state = active
+	job state = running

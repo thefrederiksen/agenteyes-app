@@ -1,0 +1,29 @@
+=== #147 SHAPE PROBE (Windows: installer set DOTNET_BUNDLE_EXTRACT_BASE_DIR user-wide) ===
+--- does install.sh set ANY environment outside the plist? (every assignment/export in the script) ---
+  (no export, no launchctl setenv, no profile append in the script)
+
+--- INSTRUMENT CHECK: the same grep DOES find the one env it sets, inside the plist ---
+81:    <key>EnvironmentVariables</key>
+86:        <key>PATH</key>
+
+--- user-wide launchd env actually set on this Mac ---
+  DOTNET_BUNDLE_EXTRACT_BASE_DIR     
+  DOTNET_ROOT                        
+  PATH                               
+  AGENTEYES_HOME                     
+
+--- any AgentEyes line in the shell profiles? ---
+  (none)
+
+--- is the macOS publish even a single-file bundle? (a bundle is what needs an extract dir) ---
+  files in the install dir: 192
+  loose .dylib files (so: not single-file): 13
+=== INSTRUMENT CHECK: does 'launchctl getenv' report a value when one EXISTS? ===
+  after setenv AGENTEYES_QA_PROBE : 'present-1234'
+  after unsetenv                  : ''
+
+  => the instrument reports a present value and an absent one differently.
+  => therefore the empty readings below are a real ABSENCE, not a dead command:
+     DOTNET_BUNDLE_EXTRACT_BASE_DIR     ''
+     DOTNET_ROOT                        ''
+     AGENTEYES_HOME                     ''

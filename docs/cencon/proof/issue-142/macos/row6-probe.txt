@@ -1,0 +1,75 @@
+=== ROW 6 / #113-adjacent CHECK: a 10-minute recording completes and is playable ===
+--- directory ---
+total 1464592
+drwxr-xr-x@ 11 soren  staff        352 Nov 15 13:59 .
+drwxr-xr-x@ 76 soren  staff       2432 Nov 15 13:48 ..
+-rw-r--r--@  1 soren  staff   19346578 Nov 15 13:59 audio_16k.wav
+-rw-r--r--@  1 soren  staff       1326 Nov 15 13:59 manifest.json
+-rw-r--r--@  1 soren  staff   57993260 Nov 15 13:58 mic_native.wav
+-rw-r--r--@  1 soren  staff          0 Nov 15 13:59 mux.lock
+-rw-r--r--@  1 soren  staff     145290 Nov 15 13:59 raw.mp4.ffmpeg.log
+-rw-r--r--@  1 soren  staff  332943283 Nov 15 13:59 recording.mp4
+-rw-r--r--@  1 soren  staff  322738819 Nov 15 13:59 recording.original.mp4
+drwxr-xr-x@  2 soren  staff         64 Nov 15 13:48 shots
+-rw-r--r--@  1 soren  staff      16965 Nov 15 13:59 thumb.jpg
+
+--- manifest: duration, ffmpeg command, post-processing ---
+DurationSeconds : 605.67
+FfmpegCommand   : "/opt/homebrew/bin/ffmpeg" -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 30 /Users/soren/Movies/AgentEyes/2026-11-15_134854_video/raw.mp4
+PostProcessing  : {
+  "mux": {
+    "State": "done",
+    "Attempts": 1,
+    "LastAttemptUtc": "2026-11-15T18:59:00.813828Z"
+  },
+  "thumbnail": {
+    "State": "done",
+    "Attempts": 1,
+    "LastAttemptUtc": "2026-11-15T18:59:14.740819Z"
+  },
+  "package": {
+    "State": "failed",
+    "Attempts": 1,
+    "LastAttemptUtc": "2026-11-15T18:59:15.051148Z",
+    "Error": "Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in."
+  }
+}
+
+--- streams ---
+index=0
+codec_name=h264
+codec_type=video
+avg_frame_rate=30/1
+duration=605.666667
+index=1
+codec_name=aac
+codec_type=audio
+sample_rate=48000
+channels=1
+avg_frame_rate=0/0
+duration=604.578125
+--- format ---
+nb_streams=2
+duration=605.666667
+size=332943283
+
+--- exact video frame count (decoded, not estimated) ---
+18170
+--- exact audio packet count ---
+28341
+
+=== THE moov ATOM, AT A NAMED OFFSET (top-level atom map) ===
+  ftyp   size=32           offset=0
+  free   size=8            offset=32
+  mdat   size=332364505    offset=40
+  moov   size=578738       offset=332364545
+
+  => moov PRESENT at offset 332364545, size 578738 bytes
+
+=== FULL DECODE OF EVERY STREAM (must exit 0) ===
+full-decode exit=0
+
+--- mic_native.wav (the mic capture before the chain) ---
+sample_rate=48000
+channels=1
+duration=604.096000

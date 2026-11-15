@@ -1,0 +1,16 @@
+=== #148 PROBE: does the macOS installer no-op over a DIFFERENT build with the SAME version? ===
+before: pid=39753  dll=1b9092d077892723  version=1.11.11
+installing ad21557 (different code, SAME <Version>1.11.11</Version>) ...
+[OK] ffmpeg: /opt/homebrew/bin/ffmpeg
+[OK] built
+[OK] stopped the running agent
+[OK] installed to /Users/soren/Library/Application Support/AgentEyes/bin
+[OK] linked /Users/soren/.local/bin/agenteyes
+[OK] wrote /Users/soren/Library/LaunchAgents/com.agenteyes.recorder.plist
+[OK] agent loaded (starts at login)
+[OK] agent started
+exit=0
+after : pid=50425  dll=dc6ddf455c8f6185
+
+commit now embedded in the installed binary:
+  ['ad21557bb177d52323a8484b3f6e9d73f16daf52']

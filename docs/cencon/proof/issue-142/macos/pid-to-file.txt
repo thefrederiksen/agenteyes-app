@@ -1,0 +1,16 @@
+=== the answering pid holds the file I hashed ===
+	pid = 39753
+agenteyes 39753 Support/AgentEyes/bin/agenteyes
+agenteyes 39753 Support/AgentEyes/bin/agenteyes.dll
+agenteyes 39753 Support/AgentEyes/bin/agenteyes.dll
+agenteyes 39753 Support/AgentEyes/bin/agenteyes.dll
+
+=== /status (idle) ===
+{
+  "State": "idle",
+  "Mode": null,
+  "Source": null,
+  "ElapsedSeconds": 0,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,

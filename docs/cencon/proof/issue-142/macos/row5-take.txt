@@ -1,0 +1,32 @@
+18:47:06Z LOAD before: 2.84 2.71 2.87
+18:47:06Z service pid: 39753
+18:47:06Z START ROW5 screen+mic 30s body={"mode":"video","screen":1,"source":"mic","mic":"Yealink UH36","fps":30}
+{
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.18,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_134706_video",
+}
+18:47:07Z   t+0s recording 1.21 mic=0.0000 lvl=0.0000
+18:47:12Z   t+5s recording 6.28 mic=0.0000 lvl=0.0000
+18:47:17Z   t+10s recording 11.36 mic=0.0000 lvl=0.0000
+18:47:22Z   t+15s recording 16.44 mic=0.0000 lvl=0.0000
+18:47:27Z   t+20s recording 21.51 mic=0.0000 lvl=0.0000
+18:47:33Z   t+26s recording 26.58 mic=0.0000 lvl=0.0000
+18:47:38Z   t+31s recording 31.66 mic=0.0000 lvl=0.0000
+18:47:38Z LOAD at stop: 2.60 2.65 2.85
+18:47:38Z STOP
+{
+  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_134706_video",
+  "File": "/Users/soren/Movies/AgentEyes/2026-11-15_134706_video/recording.mp4",
+  "DurationSeconds": 31.72,
+}
+18:47:39Z   +0s idle LastStopFailed=False LastStopError=None dir=None
+18:47:39Z post-stop settle: 0s
+18:47:39Z LOAD after: 2.56 2.64 2.84
+18:47:39Z newest recording dir:
+2026-11-15_134706_video
