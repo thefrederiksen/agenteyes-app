@@ -1,0 +1,48 @@
+#142 ROW 6 (a ten-minute recording completes and is playable) - re-run on issue-146-resample-before-framing @ b9bdec1
+(main 90c9118 + the UNMERGED #146 fix). Also QA's independent run of #146 criterion 6.
+Host: agenteyes serve --port 7894, pid 8304 (agenteyes.exe sha256 a3c54f9a...097215f), ffmpeg 9.0.2.
+Body: {"mode":"video","screen":1,"source":"mixed","mic":"Microphone (2- Realtek(R) Audio)"} - screen + mic + system, DEFAULT settings
+(denoise on, level on): the shape that stalled 3 attempts on main 93681fa in the #142 report.
+Timed to start just after the installed app's 14:22:53 repair pass (next 14:37:53) so a foreign pass could not touch it (see F2).
+
+  [ROW6 branch b9bdec1] start 14:23:04.690 load=28% body={"mode":"video","screen":1,"source":"mixed","mic":"Microphone (2- Realtek(R) Audio)"}
+  [ROW6 branch b9bdec1] status before stop: State=recording Elapsed=614.89 load=58%
+  [ROW6 branch b9bdec1] stop 14:33:22.065 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_142305_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_142305_video\\recording.mp4","DurationSeconds":616.92,"Shots":0}
+  [ROW6 branch b9bdec1] dir=2026-11-15_142305_video settled=True after 47.2s load=18%
+  [ROW6 branch b9bdec1]   mux: State=done Attempts=1 
+  [ROW6 branch b9bdec1]   thumbnail: State=done Attempts=1 
+  [ROW6 branch b9bdec1]   package: State=done Attempts=1 
+  [ROW6 branch b9bdec1]   recording.mp4 present: True
+
+== log (pid 8304); no line from any other pid names this directory
+14:33:23.028 [pid 8304] [INFO] stop: return dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_142305_video dur=616.9s deferredMux=True (HUD may close now)
+14:34:00.692 [pid 8304] [INFO] [PostRecording] stage mux: done dir=2026-11-15_142305_video in 37.6s
+14:34:01.051 [pid 8304] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-15_142305_video in 0.3s
+14:34:09.127 [pid 8304] [INFO] [PostRecording] stage package: done dir=2026-11-15_142305_video in 8.1s
+mic chain logged: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+
+== 2026-11-15_142305_video
+size 28320093
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=617.533333|nb_frames=17770
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=616.720000|nb_frames=28910
+format|duration=617.533333
+stream|index=0|codec_type=video|nb_read_packets=17770
+stream|index=1|codec_type=audio|nb_read_packets=28910
+stream|nb_read_frames=17770
+stream|sample_rate=48000|nb_read_frames=28909
+atoms: ftyp 32 @ 0 | free 8 @ 32 | mdat 27648519 @ 40 | moov 671534 @ 27648559 | file size 28320093
+full decode: exit 0, stderr 0 bytes, 23.7 s
+recording.original.mp4: stream|codec_name=h264|codec_type=video|duration=617.533333
+ stream|codec_name=aac|codec_type=audio|sample_rate=44100|channels=2|duration=616.738005
+ 
+system.original.wav: stream|codec_name=pcm_f32le|codec_type=audio|sample_rate=48000|channels=2|duration=616.030000
+ 
+
+== audio vs video: final audio 616.720 s (aac 48000 Hz, 28909 decoded frames) vs video 617.533 s (17770 frames) = 99.87%, 0.813 s short.
+   The capture already had it: capture audio 616.738 s at 44100 Hz vs capture video 617.533 s (0.795 s short). Processing changed the audio length by -0.018 s.
+   Frame delivery: 17770 frames over 617.53 s = 95.9% of nominal 30 fps (gdigrab under load, timestamps kept) - stated, not judged.
+   system.original.wav 616.030 s: 1.50 s short of the video (#121, system audio starts late) - recorded, not a failure of this row.
+== thumbnail: thumb.jpg read by QA - a real frame of the desktop. Not committed (the owner's screen).
+
+RESULT: PASS - every PostProcessing stage done, Attempts 1 (mux 37.6 s, thumbnail 0.3 s, package 8.1 s; settled 47.2 s after stop);
+moov 671,534 bytes at offset 27,648,559; full decode exit 0, 0 bytes stderr, 23.7 s.
