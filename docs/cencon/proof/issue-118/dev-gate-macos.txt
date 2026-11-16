@@ -1,0 +1,16 @@
+host: macOS 26.5.2 arm64; SDK 10.0.403; no .NET 8 SDK on this machine; DOTNET_ROLL_FORWARD=LatestMajor exported in this shell only (test hosts roll forward to .NET 10)
+branch issue-118-macos-app-bundle on 2d60f77 + working tree
+1) dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=mac
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+2) dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release
+Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 50 ms - AgentEyes.Tests.Mac.dll (net8.0)
+3) dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=linux
+Build succeeded.
+    1 Warning(s)
+    0 Error(s)
+4) dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release   (ON A MAC: this is NOT a Linux run)
+Passed!  - Failed:     0, Passed:   324, Skipped:     2, Total:   326, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+5) dotnet test tests/AgentEyes.Tests.DesktopApp/AgentEyes.Tests.DesktopApp.csproj -c Release
+Passed!  - Failed:     0, Passed:    23, Skipped:     0, Total:    23, Duration: 107 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)

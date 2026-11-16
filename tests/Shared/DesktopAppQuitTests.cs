@@ -233,7 +233,19 @@ namespace AgentEyes.Tests.Shared
     /// Windows (Close -> Dispose -> HandleClosed -> ... -> Close again). The window records each close's
     /// FINAL Cancel, after every Closing handler (the guard's included) has run.
     /// </summary>
-    public sealed class TrayPopupCloseGuardWindowTests : IClassFixture<GuardHeadlessSession>
+    /// <summary>
+    /// The ONE headless Avalonia session of the test assembly, shared by every class that needs it
+    /// (issue #118 added the second: MacBundleTests). A collection fixture, not a class fixture: Avalonia
+    /// can be set up once per process, so a second class fixture would start a second session and fail.
+    /// </summary>
+    [CollectionDefinition(Name)]
+    public sealed class HeadlessAvaloniaCollection : ICollectionFixture<GuardHeadlessSession>
+    {
+        public const string Name = "Headless Avalonia session";
+    }
+
+    [Collection(HeadlessAvaloniaCollection.Name)]
+    public sealed class TrayPopupCloseGuardWindowTests
     {
         private readonly GuardHeadlessSession _session;
 
@@ -317,6 +329,10 @@ namespace AgentEyes.Tests.Shared
                 window.Close();
                 return window.Verdicts;
             }, CancellationToken.None).GetAwaiter().GetResult();
+
+        /// <summary>Run <paramref name="work"/> on the session's UI thread and return its result (issue #118: MacBundleTests).</summary>
+        public T Dispatch<T>(Func<T> work) =>
+            _session.Dispatch(work, CancellationToken.None).GetAwaiter().GetResult();
 
         public void Dispose() => _session.Dispose();
     }
