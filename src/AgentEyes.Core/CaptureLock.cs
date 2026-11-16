@@ -429,7 +429,7 @@ namespace AgentEyes
                 }
                 File.Delete(ownerPath);
                 Log.Info($"[CaptureLock] ClearStaleClaim: {name} ({purpose}) - CLEARED {OwnerFileName} (lock held shared): {live.Reason}. " +
-                         "The capture's owner stays on record in manifest.json (CaptureOwner)");
+                         "The capture's owner stays on record in the manifest (CaptureOwner)");
                 return true;
             }
         }

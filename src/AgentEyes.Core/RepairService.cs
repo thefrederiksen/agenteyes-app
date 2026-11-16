@@ -212,14 +212,6 @@ namespace AgentEyes
         {
             try
             {
-                // Issue #156 pass 2 (D1): the start-up reap must have ended every orphaned writer -
-                // gracefully, so its file is complete - before a pass decides what is unfinished.
-                if (!_reap.IsCompleted)
-                {
-                    Log.Info($"[RepairService] RunAsync: trigger={trigger} - waiting for the start-up orphan reap to finish");
-                    await _reap;
-                }
-
                 if (!RepairSchedule.ShouldRunNow(_isRecording()))
                 {
                     Log.Info($"[RepairService] RunAsync: trigger={trigger} - recording in progress; skipped");
@@ -242,6 +234,17 @@ namespace AgentEyes
                 try
                 {
                     Log.Info($"[RepairService] RunAsync: trigger={trigger}");
+
+                    // Issue #156 pass 2 (D1): the start-up reap must have ended every orphaned
+                    // writer - gracefully, so its file can be finished - before a pass decides what
+                    // is unfinished. Awaited HERE, after the cheap recording-in-progress check and
+                    // the gate, so those still answer at once and a second trigger meanwhile is
+                    // skipped by the gate rather than queued behind the reap.
+                    if (!_reap.IsCompleted)
+                    {
+                        Log.Info($"[RepairService] RunAsync: trigger={trigger} - waiting for the start-up orphan reap to finish");
+                        await _reap;
+                    }
 
                     if (CaptureYielded(epoch, $"RunAsync trigger={trigger}")) return;
 
