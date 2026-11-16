@@ -1460,10 +1460,13 @@ test (row 4). A comment now stands where the loop was, saying why it went and po
 
 ### Not covered
 
-- **Windows and macOS.** The test's `Fact` compiles into both. The Mac test project builds here, but
-  neither suite was run here; CI on this head runs them.
-- **CI's subject branch.** I did not see which branch the hosted runner takes. Both branches are
-  measured above.
+- **CI on `efb6b98` (run 43923824623): all three jobs are green, and every count moved by exactly one.**
+  - linux: 391/2 and 392/1. The new test **ran** on the hosted runner: passed went from 390 to 391 and
+    the skip count stayed at 2.
+  - macos: 384/1 (was 383/1).
+  - windows: 2475/16 and 2494/1 (was 2474/16 and 2493/1).
+  - On macOS and Windows the test returns early (Linux only), so its pass there carries no information.
+  - I did not see which subject branch the runner took. Both branches are measured above.
 - **Product doc comments.** Two comments in `FfmpegChildRegistry.cs` still describe the stat pin as "a
   file whose owner and group differ". The pin now reads the subject's `/proc` entry instead. Per the
   no-product-change rule, I left them.
