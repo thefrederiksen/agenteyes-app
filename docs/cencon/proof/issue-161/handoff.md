@@ -831,6 +831,18 @@ The marker write is pinned in `ManifestWriterIlTests.PinnedFileWrites` (Windows 
 
 ## 10. CI
 
-(filled in below once the pushed head has run)
+First run, head b7b0d7a (run 43940190095): **linux green; macos and windows each failed ONE new test, both
+test defects of mine, fixed in the next commit:**
+- macos: `RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused` asserted the relocated
+  root unresolved (`/var/folders/...`); the refusal names it resolved (`/private/var/...`), as every other refusal
+  does. Fixed to assert the resolved path. (The test is SKIPPED on devlinux - 7882 is the owner's - and ran in my
+  container on Linux, where /tmp is not a link; CI's macOS runner is the first place it met a linked temp folder.)
+- windows: `AskRunningService_NothingListening_Throws` expected `HttpRequestException`; Windows retries a connect to
+  a closed loopback port until the 2 s timeout and throws `TaskCanceledException`. `ApplyFromEnvironment` already
+  treats both as "nothing answered", so the product was right and the test now accepts either. **The product
+  consequence, now in the isolation doc:** on Windows a redirected start with no service on 7882 is 2 s slower.
+  Everything else on windows passed, including `ManifestWriterIlTests` with the new marker-write pin.
+
+Second run: see the issue comment (head and run id).
 
 I believe this pass is finished.

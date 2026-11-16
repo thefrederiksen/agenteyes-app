@@ -1259,8 +1259,13 @@ namespace AgentEyes.Tests.Shared
         [Fact]
         public void AskRunningService_NothingListening_Throws()
         {
+            // Linux / macOS refuse a connect to a closed loopback port at once (HttpRequestException); Windows
+            // retries until the timeout (TaskCanceledException, measured on CI 43940190095). ApplyFromEnvironment
+            // treats both as "nothing answered".
             int port = FreePort();
-            Assert.ThrowsAny<System.Net.Http.HttpRequestException>(() => RealLibrary.AskRunningService(port));
+            var ex = Record.Exception(() => RealLibrary.AskRunningService(port));
+            Assert.True(ex is System.Net.Http.HttpRequestException or System.Threading.Tasks.TaskCanceledException,
+                $"expected 'nothing answered' (HttpRequestException or TaskCanceledException), got {ex?.GetType().FullName ?? "no exception"}");
         }
 
         [DefaultPortFreeFact]
@@ -1309,7 +1314,8 @@ namespace AgentEyes.Tests.Shared
 
                 Assert.True(code == LibraryRedirect.RefusedExitCode,
                     $"a redirect onto the library the running service names was accepted (exit {code}): {stderr}");
-                Assert.Contains("overlaps the REAL state root " + Path.Combine(reloc, "AgentEyes"), stderr);
+                // The real root is named RESOLVED (macOS: the temp folder /var/... is /private/var/...).
+                Assert.Contains("overlaps the REAL state root " + Path.Combine(LibraryRedirect.ResolveLinks(reloc), "AgentEyes"), stderr);
                 Assert.Contains("(/status DataRoot)", stderr);
                 Assert.False(Directory.Exists(Path.Combine(reloc, "AgentEyes")), "a refused start created the state root");
             }
