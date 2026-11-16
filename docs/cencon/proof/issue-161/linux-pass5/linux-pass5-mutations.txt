@@ -1,0 +1,24 @@
+## M1: new System.Net.Http.SocketsHttpHandler { ConnectTimeout = connectTimeout }  ->  new System.Net.Http.SocketsHttpHandler()
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout [5 s]
+Failed!  - Failed:     1, Passed:     6, Skipped:     0, Total:     7, Duration: 11 s
+## M2: { Timeout = responseTimeout }  ->  { Timeout = connectTimeout }
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpAtTheResponseTimeout [516 ms]
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard [1 s]
+Failed!  - Failed:     2, Passed:     5, Skipped:     0, Total:     7, Duration: 2 s
+## M3: { Timeout = responseTimeout }  ->  { Timeout = System.Threading.Timeout.InfiniteTimeSpan }
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpAtTheResponseTimeout [15 s]
+Failed!  - Failed:     1, Passed:     6, Skipped:     0, Total:     7, Duration: 17 s
+## M4:             psi.Environment[LibraryRedirect.ServiceProbePortVariable] =
+                (serviceProbePort ?? FreePort()).ToString(System.Globalization.CultureInfo.InvariantCulture);  ->  
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.ChildStartInfo_EveryRedirectedChild_ProbesAPortOfItsOwnNeverTheDefault [6 ms]
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: < 1 ms
+## M5 (in a --network none container: its 7882 is its own): ApplyFromEnvironment ignores AGENTEYES_SERVICE_PROBE_PORT and asks the default port
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheInjectedPortNamesARelocatedLibrary_RedirectOntoItRefused [273 ms]
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceProbePortNotAPort_RefusedWithExit5AndWritesNothing [175 ms]
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_FullRedirect_BannerNamesTheRealRootsItDerived [188 ms]
+Failed!  - Failed:     3, Passed:     1, Skipped:     0, Total:     4, Duration: 553 ms

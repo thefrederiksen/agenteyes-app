@@ -1,0 +1,25 @@
+# Landlock control, 2026-11-16T15:24:28-05:00
+lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls: cannot open directory '<home>/.local/share/AgentEyes': Permission denied
+ls <home>/.local/share/AgentEyes -> exit 2
+lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls: cannot open directory '<home>/Videos/AgentEyes': Permission denied
+ls <home>/Videos/AgentEyes -> exit 2
+lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+touch: cannot touch '<home>/.local/share/AgentEyes/logs/.p5-probe': Permission denied
+touch <home>/.local/share/AgentEyes/logs/.p5-probe -> exit 1
+lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+touch: cannot touch '<home>/Videos/AgentEyes/.p5-probe': Permission denied
+touch <home>/Videos/AgentEyes/.p5-probe -> exit 1
+lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+touch <scratchpad>/ll/ok -> exit 0

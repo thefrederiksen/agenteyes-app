@@ -1073,3 +1073,181 @@ says so, and rule 2 still refuses a non-empty unmarked library. There is a refin
 nothing when nothing is there" without making a slow live service count as absent: a short CONNECT timeout
 (Windows' closed-port retry happens before a connection exists), with a longer bound once a service has
 accepted. I did not build it, because pass 4 is three items and no new design. If you want it, it is small.
+
+---
+
+# Pass 5 (Developer Agent, Linux seat) - the timeout split, the probe's port injectable
+
+The Lead's two items and nothing else. Evidence: `linux-pass5/`. Everything on devlinux ran under `lldeny` on
+BOTH real roots, with the denial control proven first (`linux-pass5-landlock-control.txt`: `ls` and `touch` of
+each real root EACCES, a scratch `touch` exit 0). Anything that asks port 7882 on purpose ran in a
+`--network none` container (its 7882 is its own). After item 2, only one test does that, and only one
+mutation run needs the container (section 4).
+
+## 1. Two bounds instead of one
+
+`RealLibrary.AskRunningService` now uses a `SocketsHttpHandler` with a CONNECT bound and an `HttpClient` with a
+RESPONSE bound. `ServiceTimeout` is gone.
+
+| Bound | Value | Question it answers | Who pays it |
+|---|---|---|---|
+| `ConnectTimeout` | **500 ms** | is anything listening? | Windows, every redirected start where nothing listens (Linux and macOS refuse at once) |
+| `ResponseTimeout` | **5 s** | is what listens answering? | only a service that accepts and then never answers |
+
+**Why 500 ms to connect.**
+- A loopback connect to a LISTENING socket is completed by the kernel's handshake. It does not wait for the
+  service to accept, let alone answer, so a busy service does not make it slower.
+- What the bound can catch is a stall of the probing process itself. A connect that the kernel has already
+  completed is queued ahead of the timer that fires 500 ms later.
+- 500 ms keeps the Windows nothing-listening cost exactly where pass 4 measured it and the Lead accepted it.
+  A lower number would buy Windows less than half a second and give a stalled machine less room.
+
+**Why 5 s for the response.**
+- A real service's `/status` scans its recordings root for pending transcriptions, the one part that grows with
+  the library.
+- An answered probe costs about 20 ms on devlinux (pass 4), so 5 s is about 250x that.
+- 5 s is twice the worst stall CI has shown: a 500 ms timer that fired at 2354 ms (43944621928).
+- The upper end, pinned at 10 s, keeps a hung service from holding a redirected start for longer than that.
+
+## 2. The three shapes, re-measured (plus two)
+
+A redirected start of the real `agenteyes.dll`, 10 runs each, in a `--network none` container. Before is pass
+4's tree (6ee962d, built in a scratch worktree), measured today alongside after. Files:
+`linux-pass5-start-times-{before,after}.txt` and `linux-pass5-slow-service.txt`. Scripts: `measure.sh`,
+`measure-slow.sh`, `fullq.py`, `slow.py` (the stand-ins from pass 4 are in `../linux-pass4/`).
+
+| 7882 in the container | pass 4 (one 500 ms bound) | pass 5 (500 ms connect, 5 s response) | what the banner says (pass 5) |
+|---|---|---|---|
+| nothing listening | 183 ms | 193 ms | named none: Connection refused |
+| a service answering | 204 ms | 215 ms | its roots are in the list (`/status DataRoot`) |
+| accepts, never answers (a hung service) | 641 ms | **5143 ms** | named none: HttpClient.Timeout of 5 seconds |
+| connect never completes (full accept queue; the Windows closed-port retry, on Linux) | 650 ms | **710 ms** | named none: The operation was canceled |
+| **a service that answers after 1.5 s** | 640 ms, **roots DROPPED** (10 of 10) | 1715 ms, **roots ADDED** (10 of 10) | its roots are in the list |
+
+- The last row is the point of the ruling. Under pass 4 a listening but slow service did not count. Under pass
+  5 it does, every time.
+- The price is the third row: a service that accepts and hangs now holds a redirected start for 5 s instead of
+  0.5 s. It is a broken service, and the banner names it.
+- The fourth row shows that the connect bound, not the response bound, ends a connect that never completes.
+- The connect-bound message is .NET's generic "The operation was canceled." I left the text alone: changing the
+  note's wording is not one of the two items.
+- **Windows: not measured.** Still owed, and routed separately as the Lead said.
+
+## 3. The test serialisation came OUT
+
+Both of pass 4's workarounds are removed:
+- `LoopbackServerCollection` is back to pass 3's exact declaration: no `[CollectionDefinition]`, so no
+  `DisableParallelization`.
+- The dedicated-thread `StandIn` is gone. The stand-ins (one `StatusStandIn` class now) serve from `Task.Run`
+  again, on the shared pool, as in pass 3.
+
+The cause was a bound tighter than a loaded runner can keep. The bound that has to survive a stall is now 5 s,
+and a stand-in that starts late only leaves the connection waiting in the kernel's accept queue. Evidence:
+- Host gates under lldeny, parallel again: Linux 553 / 1 / 3, opt-in 554 / 1 / 2. The 1 is #156's `sg` test,
+  which cannot run under Landlock and passes alone outside it. DesktopApp 25 / 25 (`linux-pass5-gates.txt`).
+- Pass 4's stress repeated, whole opt-in suite in the container: `--cpus=1` x2 and `--cpus=0.25` x2. Every
+  probe test passed every time, including the default-port test, which can run there
+  (`linux-pass5-stress-container.txt`). The same four container-only failures appear as in pass 4's baseline
+  (`../linux-pass4/linux-pass4b-stress-before.txt`): spoofed HOME, XDG path, ffmpeg kill, claim. None is a
+  probe test.
+- **What this does not prove.** Pass 4 never reproduced the CI failure on devlinux either, so a local pass
+  cannot show the cause is gone. CI on this commit is the test, on the same runners that failed. Section 7
+  records it.
+
+## 4. The probe's port is injectable; no test asks the owner's service
+
+**The product.**
+- `LibraryRedirect.ServiceProbePortVariable = "AGENTEYES_SERVICE_PROBE_PORT"`. Unset means 7882, as before.
+  Set means the probe asks `127.0.0.1:<that port>`. A value that is not a port in 1-65535 REFUSES the start
+  (`ServiceProbePort`, pure). It is never quietly sent to 7882 instead.
+- It sits deliberately OUTSIDE the `AGENTEYES_REDIRECT_` prefix, so the two-variable rule and its unknown-variable
+  refusal are untouched.
+- **The trade-off, stated for the Lead.** The variable can only take the service half of the union away. The
+  passwd and environment halves still apply, and so does rule 2. It is therefore never silent: every banner of a
+  process that honored it begins the service note with "the service probe was pointed at 127.0.0.1:N by
+  AGENTEYES_SERVICE_PROBE_PORT, so the default port 7882 was NOT asked" (`ServiceProbeNote`, pure).
+- A child process can only be told a port through its environment. An in-process seam would not have reached
+  the ~18 real children that sent the GETs.
+- `TestIsolationTests.PinnedEnvironmentReads` gains the one line for it (Windows-only test; CI runs it).
+
+**The tests.**
+- Every child the suite starts gets a port of its own, a fresh closed one unless the test passes a stand-in's.
+  This covers `LibraryRedirectTests.ChildStartInfo` and `DesktopAppRedirectTests.RunDesktopApp`.
+- **Pin:** `ChildStartInfo_EveryRedirectedChild_ProbesAPortOfItsOwnNeverTheDefault`.
+- `RealProcess_ServiceOnTheInjectedPortNamesARelocatedLibrary_RedirectOntoItRefused` is the rule-1 wiring test on
+  EVERY machine. A real child asks the stand-in's port and is refused by the library the stand-in names, and the
+  stand-in records exactly one request, `GET /status HTTP/1.1`.
+- The default-port twin stays as `[DefaultPortFreeFact]`. It is the one test that still plays the service on
+  7882, and it does so only where 7882 is free. It pins the production default.
+- Also new: `ServiceProbePort_*` (unset, three ports, eight non-ports), `ServiceProbeNote_*` (2), and
+  `RealProcess_ServiceProbePortNotAPort_RefusedWithExit5AndWritesNothing`. The banner test now asserts the
+  "NOT asked" note with its port.
+
+**Measured: zero.** Each gate ran under `strace -f -e trace=connect`:
+
+| Run | connects to 127.0.0.1 | to port 7882 |
+|---|---|---|
+| Linux default | 49 | **0** |
+| Linux opt-in | 49 | **0** |
+| DesktopApp | 3 | **0** |
+
+- Pass 4 counted about 18 `GET /status` per host suite run in the owner's service log.
+- **Instrument control first** (`linux-pass5-trace-control.txt`). One real child pointed at a closed port P
+  shows exactly one `port=htons(P)` connect. It appears in the dual-mode form `sin6_port=htons(P) ...
+  ::ffff:127.0.0.1`. My first grep (`sin_port=`) saw only 2 of the 49 connects and reported 0 for 7882 vacuously.
+  I caught that, corrected the pattern, and every count above uses the corrected one.
+- I did not re-run pass 4's suite on the host for a fresh "before": that would have sent the owner's service
+  another 18 GETs.
+
+**The container is no longer needed for the tests.** It is needed only to run the default-port test on a machine
+whose 7882 is taken, and for mutation M5 below.
+
+## 5. Regression tests and mutations (`linux-pass5-mutations.txt`)
+
+New timeout tests:
+- `ConnectTimeout_IsAFewHundredMilliseconds`: 100 to 500 ms.
+- `ResponseTimeout_IsSeconds`: 5 to 10 s.
+- `AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard`: the stand-in answers after
+  ConnectTimeout + 1 s.
+- `AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout`: a full accept queue, on every
+  platform. It FAILS, rather than passes, if a platform refuses instead of hanging.
+- `..._AcceptsButNeverAnswers_GivesUpAtTheResponseTimeout`: now also asserts it was NOT cut short at the connect
+  bound.
+
+| Mutation | Fails |
+|---|---|
+| M1 no `ConnectTimeout` | `..._AConnectThatNeverCompletes_...` (5 s) |
+| M2 response bound = connect bound (pass 4's single 500 ms) | `..._SlowerThanTheConnectTimeout_IsStillHeard`, `..._AcceptsButNeverAnswers_...` |
+| M3 unbounded response | `..._AcceptsButNeverAnswers_...` (15 s) |
+| M4 the test launcher sets no probe port | `ChildStartInfo_..._NeverTheDefault` (no child started) |
+| M5 the product ignores the variable (container: its children ask 7882) | `..._InjectedPort...`, `..._ServiceProbePortNotAPort_...`, `..._BannerNames...`; the default-port test still passes |
+
+## 6. Untouched, by diff (`linux-pass5-untouched.txt`)
+
+- Changed: `LibraryRedirect.cs`, `RealLibrary.cs`, three test files.
+- Every hunk in the two source files is in the probe: the new constant, the probe block of
+  `ApplyFromEnvironment`, the two new pure helpers, the timeouts and `AskRunningService`.
+- No diff: `AppDataPaths`, `LocalAppConfig`, `Program` (CLI), `HeadlessHost`, `App`, `DesktopApp/Program`,
+  `RecordingService`.
+- Byte-identical bodies at 6ee962d and now: `Decide`, `UsableFolderProblem` (N1, write probe last),
+  `FirstEscapingLink` (F2), `UnmarkedLibraryProblem` and `WriteScratchMarker` (the marker rule), `Banner`,
+  `ComparisonLimit`, `RealRootsStatement`, `ServicePortRefusal`, `ResolveLinks`, `DeriveForThisProcess`,
+  `Derive`, `Distinct`, `FromServiceStatus`, `VideosFromUserDirs`, `AccountHome`, `StatusUri`, `Native`.
+
+## 7. CI
+
+Pending at the time of this commit; recorded in the follow-up commit and the issue comment.
+
+## The owner's library and service
+
+- No process of mine opened either real root. Every host build and test ran under lldeny. The one exception
+  is #156's `sg` test, run alone outside Landlock; it reads only `/proc`.
+- **One read-only look, reported.** Right after the control, I ran `ls` OUTSIDE Landlock on the two control
+  paths (`<real state root>/logs/.p5-probe`, `<real recordings root>/.p5-probe`) to confirm the control had
+  created nothing. Both are "No such file or directory". It was a lookup only; nothing was opened or written.
+- No request of mine reached the owner's service. Zero connects to 7882 is traced above.
+- Foreign processes, left alone and identified by command line: the owner's service (`agenteyes serve`), the
+  installed `AgentEyesLinux --tray`, the camera wall (`go2rtc` and its ffmpeg), the `agenteyes-161fix` seat's
+  test host and its two ffmpeg (x11grab, pulse), and a root `dotnet publish` of another product.
+
+I believe this pass is finished, pending CI.

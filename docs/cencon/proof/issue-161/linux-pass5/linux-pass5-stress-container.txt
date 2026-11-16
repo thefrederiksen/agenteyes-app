@@ -1,0 +1,32 @@
+== pass 5 tests (no serialisation), --cpus=1, opt-in
+ Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [168 ms]
+ Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [2 ms]
+ Failed AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [1 ms]
+ Failed AgentEyes.Tests.CaptureOwnershipTests.TryAcquire_HolderProcessKilled_ClaimIsFreedByTheOs [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed! - Failed: 4, Passed: 551, Skipped: 2, Total: 557, Duration: 19 s
+== pass 5 tests (no serialisation), --cpus=1, opt-in
+ Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [178 ms]
+ Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [2 ms]
+ Failed AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [1 ms]
+ Failed AgentEyes.Tests.CaptureOwnershipTests.TryAcquire_HolderProcessKilled_ClaimIsFreedByTheOs [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed! - Failed: 4, Passed: 551, Skipped: 2, Total: 557, Duration: 18 s
+== pass 5 tests (no serialisation), --cpus=0.25, opt-in
+ Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [3 ms]
+ Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [798 ms]
+ Failed AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [1 ms]
+ Failed AgentEyes.Tests.CaptureOwnershipTests.TryAcquire_HolderProcessKilled_ClaimIsFreedByTheOs [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed! - Failed: 4, Passed: 551, Skipped: 2, Total: 557, Duration: 38 s
+== pass 5 tests (no serialisation), --cpus=0.25, opt-in
+ Failed AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [89 ms]
+ Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [2 ms]
+ Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [1 s]
+ Failed AgentEyes.Tests.CaptureOwnershipTests.TryAcquire_HolderProcessKilled_ClaimIsFreedByTheOs [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [1 ms]
+ Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed! - Failed: 4, Passed: 551, Skipped: 2, Total: 557, Duration: 38 s
