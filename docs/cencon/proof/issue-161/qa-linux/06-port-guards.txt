@@ -1,0 +1,56 @@
+# Port guards. Every CLI run under strace + Landlock. Owner's service on 7882 is a pre-#161 build (no DataRoot on /status).
+
+[A1-same-lib-status] exit=0 realroot=0 eacces-on-real=0
+  stdout: state=idle elapsed=0.0s level=0.000
+  stdout: signedIn=False pendingTranscriptions=0
+
+[A2-start] exit=0 realroot=0 eacces-on-real=0
+  stdout: [ok] recording -> <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+  stdout:      source=none mode=video
+  stdout:      stop with: agenteyes record stop
+
+[A3-stop] exit=0 realroot=0 eacces-on-real=0
+  stdout: [ok] saved <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video (5.2s)
+  stdout:      mixing, thumbnail, transcription and title continue in the service;
+  stdout:      watch with: agenteyes record status   (or GET /recordings)
+
+[B1-to-owner-status] exit=1 realroot=0 eacces-on-real=0
+  stderr: [error] the AgentEyes service at http://127.0.0.1:7882/ does not report which library it is acting on (it predates issue #161), so it is on its machine's REAL library - and this command is redirected to <scratch>/port/b/videos/AgentEyes. Fix: start a redirected service with the same AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS and point this command at its port (Port in the scratch config.json).
+
+[B2-to-owner-stop] exit=1 realroot=0 eacces-on-real=0
+  stderr: [error] the AgentEyes service at http://127.0.0.1:7882/ does not report which library it is acting on (it predates issue #161), so it is on its machine's REAL library - and this command is redirected to <scratch>/port/b/videos/AgentEyes. Fix: start a redirected service with the same AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS and point this command at its port (Port in the scratch config.json).
+
+[C-nothing] exit=1 realroot=0 eacces-on-real=0
+  stderr: [error] the AgentEyes service is not answering on http://127.0.0.1:17162/ (Connection refused (127.0.0.1:17162)). Start it: systemctl --user start agenteyes   (logs: journalctl --user -u agenteyes)
+
+[D-other-redirected] exit=1 realroot=0 eacces-on-real=0
+  stderr: [error] the AgentEyes service at http://127.0.0.1:17161/ is acting on a DIFFERENT library: state <scratch>/lib/data/AgentEyes, recordings <scratch>/lib/videos/AgentEyes; this command's library is state <scratch>/port/d/data/AgentEyes, recordings <scratch>/port/d/videos/AgentEyes. Nothing was sent to it. Fix: run this command with the same AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS as the service (or neither), and the port of THAT service in its config.json.
+
+[E-unredir-to-redir] exit=1 realroot=0 eacces-on-real=0
+  stderr: [error] the AgentEyes service at http://127.0.0.1:17161/ is acting on a DIFFERENT library: state <scratch>/lib/data/AgentEyes, recordings <scratch>/lib/videos/AgentEyes; this command's library is state <scratch>/port/e/xdg/AgentEyes, recordings <home>/Videos/AgentEyes. Nothing was sent to it. Fix: run this command with the same AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS as the service (or neither), and the port of THAT service in its config.json.
+
+[F-unredir-to-owner] exit=0 realroot=25 eacces-on-real=8
+  stdout: state=idle elapsed=0.0s level=0.000
+  stdout: signedIn=True pendingTranscriptions=0
+
+[S1-serve-7882-flag] exit=1 realroot=0 eacces-on-real=0
+  stderr: [error] a redirected AgentEyes (AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS) must not listen on the default port 7882 - that is the address of the person's real AgentEyes. Fix: pass --port N (agenteyes serve), or put {"Port": N} in the scratch config.json, which the redirected CLI client reads too.
+
+[S2-serve-default-port] exit=1 realroot=0 eacces-on-real=0
+  stderr: [error] a redirected AgentEyes (AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS) must not listen on the default port 7882 - that is the address of the person's real AgentEyes. Fix: pass --port N (agenteyes serve), or put {"Port": N} in the scratch config.json, which the redirected CLI client reads too.
+
+# What reached the redirected service 17161 between 12:34:20 and 12:35:00 (its own log): D and E sent only GET /status; A2/A3 sent GET /status then POST
+12:34:25.036 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:27.518 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:28.138 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:47.556 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:47.577 [pid 1733556] [INFO] [HeadlessControlServer] POST /record/start
+12:34:52.844 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:52.877 [pid 1733556] [INFO] [HeadlessControlServer] POST /record/stop
+
+# Linux app
+ (AgentEyesLinux) redirected / partial:
+[LA1-linuxapp-redirected] exit=5 realroot=0 connects: sun_path="/var/run/lttng/lttng-ust-sock-8" sun_path="<home>/.lttng/lttng-ust-sock-8" 
+  stderr: [error] library redirect refused: the Linux app always drives the service at http://127.0.0.1:7882, the person's REAL AgentEyes, so it cannot run redirected. Fix: unset AGENTEYES_REDIRECT_DATA and AGENTEYES_REDIRECT_VIDEOS, or drive a redirected 'agenteyes serve --port N' with the redirected 'agenteyes record ...' commands.
+[LA2-linuxapp-partial] exit=5 realroot=0 connects: sun_path="/var/run/lttng/lttng-ust-sock-8" sun_path="<home>/.lttng/lttng-ust-sock-8" 
+  stderr: [error] library redirect refused: partial library redirect: AGENTEYES_REDIRECT_DATA is set but AGENTEYES_REDIRECT_VIDEOS is not. Both roots move together or not at all - a scratch state root with the REAL recordings root would mix the two libraries. Fix: set AGENTEYES_REDIRECT_VIDEOS as well, or unset AGENTEYES_REDIRECT_DATA.

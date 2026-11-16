@@ -1,0 +1,8 @@
+  Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [275 ms]
+  Passed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpWithinTheTimeout [520 ms]
+  Passed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_NothingListening_Throws [8 ms]
+  Passed AgentEyes.Tests.Shared.LibraryRedirectTests.StatusUri_AnyPort_IsTheIPv4LoopbackLiteralNotAName [7 ms]
+  Passed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AServiceAnswering_ItsRootsComeBack [45 ms]
+  Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceTimeout_IsAFewHundredMilliseconds [< 1 ms]
+Total tests: 6
+     Passed: 6

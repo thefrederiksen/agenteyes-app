@@ -1,0 +1,68 @@
+# What pass 3 left untouched, shown by diff (FINAL pass-3 code)
+
+## 1. The merge of main 277a9bc (57806ae) changed NOTHING in the redirect code
+$ git diff --stat f9aba6a 57806ae -- src/AgentEyes.Core/LibraryRedirect.cs src/AgentEyes.Core/RealLibrary.cs src/AgentEyes.Core/AppDataPaths.cs src/AgentEyes.Core/Program.cs src/AgentEyes.Core/CliDispatcher.cs src/AgentEyes.Core/Headless src/AgentEyes.DesktopApp/Program.cs src/AgentEyes.App/App.xaml.cs
+(empty above = untouched)
+
+## 2. Pass 3's own change to src: git diff --stat 57806ae -- src
+ src/AgentEyes.Core/Headless/HeadlessHost.cs |   7 +-
+ src/AgentEyes.Core/LibraryRedirect.cs       | 257 ++++++++++++++++++++++++++--
+ src/AgentEyes.Core/RealLibrary.cs           |  61 ++++++-
+ 3 files changed, 305 insertions(+), 20 deletions(-)
+
+## 3. EVERY line pass 3 removed or rewrote in src (git diff -U0 57806ae -- src | grep '^-'):
+@@ -87 +87,2 @@ namespace AgentEyes.Headless
+-                // each came from, so a reader can check it.
+@@ -89 +90 @@ namespace AgentEyes.Headless
+-                                  + "this is NOT the person's real library, which this process derived as:");
+@@ -91,0 +93,2 @@ namespace AgentEyes.Headless
+@@ -58,0 +59,6 @@ namespace AgentEyes
+@@ -151,0 +158,6 @@ namespace AgentEyes
+@@ -154 +166,2 @@ namespace AgentEyes
+-            Func<string, string>? resolveLinks = null, Func<string, string?>? usableFolder = null)
+@@ -229,0 +243,47 @@ namespace AgentEyes
+@@ -278,0 +339,97 @@ namespace AgentEyes
+@@ -324,8 +481,45 @@ namespace AgentEyes
+-            var decision = Decide(
+-                Environment.GetEnvironmentVariable(DataVariable),
+-                Environment.GetEnvironmentVariable(VideosVariable),
+-                names,
+-                realRoots,
+-                OperatingSystem.IsWindows(),
+-                ResolveLinks,
+-                UsableFolderProblem);
+@@ -346,0 +541,12 @@ namespace AgentEyes
+@@ -349 +555,2 @@ namespace AgentEyes
+-            // exactly as Decide resolved it - the real AgentEyes folder itself is never touched).
+@@ -350,0 +558 @@ namespace AgentEyes
+@@ -352,0 +561 @@ namespace AgentEyes
+@@ -358,0 +568,5 @@ namespace AgentEyes
+@@ -370,2 +584,15 @@ namespace AgentEyes
+-        /// "real library kept out: ..." - every real root the guard compared against, with its derivation.
+-        /// Empty list (a test host, which never ran the guard) says so rather than claiming anything.
+@@ -376,2 +603,4 @@ namespace AgentEyes
+-                : "real library kept out (each root with where it was derived from): "
+-                  + string.Join(" ; ", _realRoots.Select(r => $"{r.Name} {Shown(r)} [{r.DerivedFrom}]"));
+@@ -142,4 +142,10 @@ namespace AgentEyes
+-            // One entry per distinct folder; a folder found both ways says so. Compared ORDINALLY: two names
+-            // that differ only in case are two folders on Linux, and each needs its own link resolution.
+-            // (On a case-insensitive file system the worst case is the same folder listed twice.)
+-            return roots
+@@ -149,0 +156,47 @@ namespace AgentEyes
+
+## Reading:
+- LibraryRedirect.cs: Decide's signature gains two optional parameters (escapingLink, unmarkedLibrary); ApplyFromEnvironment's
+  Decide call is wrapped (IOException/UnauthorizedAccessException -> refused) and passes the two new checks; the banner
+  statement's wording (F1); _realRoots keeps only the roots Decide compared. Nothing else removed.
+- RealLibrary.cs: Derive's own dedupe block moved, unchanged, into Distinct() (so the service's roots join the same union).
+  The passwd derivation itself (AccountHome, VideosFromUserDirs, the Linux/macOS layouts, SUDO_UID) has no removed line.
+- HeadlessHost.cs: the serve banner's 'this is NOT the person's real library' line (F1).
+- So untouched: both-or-neither, absolute paths, unknown variables, the overlap rules, N1's refusal and its write probe -
+  still LAST (the new disk checks are inserted ABOVE it; see the diff hunk), the /status fields, the three port guards,
+  the DesktopApp refusal (DesktopApp/Program.cs: no diff).
+
+## 4. EVERY existing test line pass 3 removed or rewrote (git diff -U0 57806ae -- tests | grep '^-'):
+-            Directory.CreateDirectory(Path.Combine(data, "AgentEyes"));
+-            Assert.Contains("real library kept out (each root with where it was derived from):", stderr);
+(the pass-2 banner assertion, re-worded for F1; and the record-status test's hand-written config.json fixture now
+ sits in a MARKED scratch root - rule 2 would otherwise refuse it, by design)

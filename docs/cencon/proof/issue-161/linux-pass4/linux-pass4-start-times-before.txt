@@ -1,0 +1,39 @@
+# Redirected start time, BEFORE (pass 3 code, 71dc345: 2 s timeout). Container --network none; 7882 there is the container's own.
+# Command per run: AGENTEYES_REDIRECT_DATA/VIDEOS=<fresh tmpfs root> dotnet agenteyes.dll (no arguments: the guard runs, then usage, exit 1).
+# 7882 before: free
+no-service run 1: exit 1, 173 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 2: exit 1, 189 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 3: exit 1, 192 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 4: exit 1, 169 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 5: exit 1, 203 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 6: exit 1, 181 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 7: exit 1, 212 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 8: exit 1, 178 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 9: exit 1, 205 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 10: exit 1, 179 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service MEAN: 188 ms over 10 runs
+# stand-in service pid 221 on 7882: LISTENING
+service run 1: exit 1, 193 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 2: exit 1, 205 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 3: exit 1, 210 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 4: exit 1, 203 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 5: exit 1, 214 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 6: exit 1, 213 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 7: exit 1, 200 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 8: exit 1, 208 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 9: exit 1, 186 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 10: exit 1, 213 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service MEAN: 204 ms over 10 runs
+# stand-in stopped; 7882: free
+# silent stand-in pid 454 on 7882 (accepts, never answers): LISTENING
+silent run 1: exit 1, 2146 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 2: exit 1, 2135 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 3: exit 1, 2150 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 4: exit 1, 2162 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 5: exit 1, 2146 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 6: exit 1, 2146 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 7: exit 1, 2150 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 8: exit 1, 2141 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 9: exit 1, 2140 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent run 10: exit 1, 2149 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 2 seconds elapsing.) 
+silent MEAN: 2146 ms over 10 runs

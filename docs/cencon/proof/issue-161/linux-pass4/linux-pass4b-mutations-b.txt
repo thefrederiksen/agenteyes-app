@@ -1,0 +1,3 @@
+## M2 re-run on the 4b tests
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpWithinTheTimeout [10 s]
+Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5, Duration: 106 ms

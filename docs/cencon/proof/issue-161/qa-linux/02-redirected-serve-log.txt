@@ -1,0 +1,207 @@
+12:33:46.301 [pid 1733556] [INFO] [AppDataPaths] RedirectForThisProcess: localAppData=<scratch>/lib/data videos=<scratch>/lib/videos
+12:33:46.307 [pid 1733556] [WARN] [LibraryRedirect] ApplyFromEnvironment: LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/lib/data/AgentEyes ; recordings -> <scratch>/lib/videos/AgentEyes ; log -> <scratch>/lib/data/AgentEyes/logs (pid 1733556)
+12:33:46.319 [pid 1733556] [INFO] [CliDispatcher] Run: args=3 command=serve state=<scratch>/lib/data/AgentEyes recordings=<scratch>/lib/videos/AgentEyes redirect=environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)
+12:33:46.327 [pid 1733556] [INFO] [CliDispatcher] Dispatch: parsed serve options=[port] positionals=0
+12:33:46.332 [pid 1733556] [INFO] [CliDispatcher] Dispatch: running serve
+12:33:46.337 [pid 1733556] [INFO] [HeadlessHost] Run: starting, platform=linux port=17161 pid=1733556 data=<scratch>/lib/data/AgentEyes recordings=<scratch>/lib/videos/AgentEyes redirect=environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)
+12:33:46.338 [pid 1733556] [WARN] [HeadlessHost] Run: LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/lib/data/AgentEyes ; recordings -> <scratch>/lib/videos/AgentEyes ; log -> <scratch>/lib/data/AgentEyes/logs (pid 1733556)
+12:33:46.339 [pid 1733556] [INFO] [HeadlessHost] Run: ffmpeg=/usr/bin/ffmpeg
+12:33:46.345 [pid 1733556] [INFO] [ToolRunner] Run: xrandr --listmonitors
+12:33:46.431 [pid 1733556] [INFO] [ToolRunner] Run: xrandr exit=0 stdout=55B stderr=0B
+12:33:46.502 [pid 1733556] [INFO] [HeadlessHost] Run: DISPLAY=:0, 1 monitor(s): HDMI-0 1920x1080+0+0
+12:33:46.548 [pid 1733556] [INFO] [HeadlessControlServer] Start: binding http://127.0.0.1:17161/
+12:33:46.555 [pid 1733556] [INFO] [HeadlessControlServer] Start: listening on http://127.0.0.1:17161/
+12:33:46.560 [pid 1733556] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=<scratch>/lib/data/AgentEyes/run/ffmpeg
+12:33:46.561 [pid 1733556] [INFO] [FfmpegChildRegistry] ReapOrphans: no records
+12:33:46.561 [pid 1733556] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:33:46.567 [pid 1733556] [INFO] [RepairService] Start: first pass in 20s, then every 15 minute(s)
+12:33:46.569 [pid 1733556] [INFO] [HeadlessHost] Run: ready on http://127.0.0.1:17161/
+12:33:54.115 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:33:54.125 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=0
+12:33:54.301 [pid 1733556] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1055 bytes)
+12:34:06.567 [pid 1733556] [INFO] [RepairService] RunAsync: trigger=timer
+12:34:06.578 [pid 1733556] [INFO] [RepairService] ResumeUnfinishedAsync: root=<scratch>/lib/videos/AgentEyes
+12:34:06.684 [pid 1733556] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_123335_clip1 needs thumbnail
+12:34:06.688 [pid 1733556] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_123338_clip2 needs thumbnail
+12:34:06.689 [pid 1733556] [INFO] [PostRecordingPlan] FindUnfinished: root=<scratch>/lib/videos/AgentEyes, unfinished=2
+12:34:06.693 [pid 1733556] [INFO] [RepairService] ResumeAsync: 2 recording(s) with unfinished post-processing (hostedWork=False)
+12:34:06.697 [pid 1733556] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_123335_clip1#1 (no claim)
+12:34:06.701 [pid 1733556] [INFO] [PostRecording] Resume: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1 hostedWork=False
+12:34:06.702 [pid 1733556] [INFO] [PostRecording] TrackWork: resume 2026-11-16_123335_clip1 (in flight=1)
+12:34:06.710 [pid 1733556] [INFO] [RecordingWorkset] TryClaim: <scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1 claimed by FullPipeline/resume#2
+12:34:06.713 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123335_clip1 - nothing to mux
+12:34:06.714 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123335_clip1 - no camera to compose
+12:34:06.717 [pid 1733556] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_123335_clip1
+12:34:06.718 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1
+12:34:06.757 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1 written
+12:34:06.758 [pid 1733556] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_123335_clip1 attempt 1/3
+12:34:06.762 [pid 1733556] [INFO] ffmpeg [poster thumbnail]: "/usr/bin/ffmpeg" -y -ss 0.3 -i <scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1/clip1.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1/thumb.jpg
+12:34:07.268 [pid 1733556] [INFO] ffmpeg [poster thumbnail] ok
+12:34:07.269 [pid 1733556] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_123335_clip1 in 0.6s
+12:34:07.271 [pid 1733556] [INFO] [PostRecordingState] NoteDone: 2026-11-16_123335_clip1 stage=thumbnail
+12:34:07.273 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1
+12:34:07.293 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1 written
+12:34:07.294 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123335_clip1 - already transcribed (or out of attempts); nothing to package
+12:34:07.296 [pid 1733556] [INFO] [RecordingWorkset] Release: <scratch>/lib/videos/AgentEyes/2026-11-16_123335_clip1 released by FullPipeline/resume#2
+12:34:07.297 [pid 1733556] [INFO] [PostRecording] TrackWork released: resume 2026-11-16_123335_clip1 (in flight=0)
+12:34:07.300 [pid 1733556] [INFO] [RecordingWorkset] EndStep: resume 2026-11-16_123335_clip1#1 (no claim) finished
+12:34:07.302 [pid 1733556] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_123338_clip2#3 (no claim)
+12:34:07.303 [pid 1733556] [INFO] [PostRecording] Resume: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2 hostedWork=False
+12:34:07.303 [pid 1733556] [INFO] [PostRecording] TrackWork: resume 2026-11-16_123338_clip2 (in flight=1)
+12:34:07.304 [pid 1733556] [INFO] [RecordingWorkset] TryClaim: <scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2 claimed by FullPipeline/resume#4
+12:34:07.305 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123338_clip2 - nothing to mux
+12:34:07.307 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123338_clip2 - no camera to compose
+12:34:07.308 [pid 1733556] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_123338_clip2
+12:34:07.309 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2
+12:34:07.317 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2 written
+12:34:07.318 [pid 1733556] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_123338_clip2 attempt 1/3
+12:34:07.319 [pid 1733556] [INFO] ffmpeg [poster thumbnail]: "/usr/bin/ffmpeg" -y -ss 0.3 -i <scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2/clip2.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2/thumb.jpg
+12:34:07.820 [pid 1733556] [INFO] ffmpeg [poster thumbnail] ok
+12:34:07.823 [pid 1733556] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_123338_clip2 in 0.5s
+12:34:07.823 [pid 1733556] [INFO] [PostRecordingState] NoteDone: 2026-11-16_123338_clip2 stage=thumbnail
+12:34:07.824 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2
+12:34:07.836 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2 written
+12:34:07.837 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123338_clip2 - already transcribed (or out of attempts); nothing to package
+12:34:07.838 [pid 1733556] [INFO] [RecordingWorkset] Release: <scratch>/lib/videos/AgentEyes/2026-11-16_123338_clip2 released by FullPipeline/resume#4
+12:34:07.839 [pid 1733556] [INFO] [PostRecording] TrackWork released: resume 2026-11-16_123338_clip2 (in flight=0)
+12:34:07.839 [pid 1733556] [INFO] [RecordingWorkset] EndStep: resume 2026-11-16_123338_clip2#3 (no claim) finished
+12:34:07.841 [pid 1733556] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+12:34:07.845 [pid 1733556] [INFO] [Thumbnails] FindMissing: root=<scratch>/lib/videos/AgentEyes, missing=0
+12:34:07.855 [pid 1733556] [INFO] [Housekeeper] Run: trigger=repair-pass, reportOnly=True, root=<scratch>/lib/videos/AgentEyes
+12:34:07.919 [pid 1733556] [INFO] [Housekeeper] Run: trigger=repair-pass done - 2 recording(s), 0 action(s), would reclaim 0 MB
+12:34:07.921 [pid 1733556] [INFO] [RepairService] RunAsync: trigger=timer done
+12:34:25.036 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:25.037 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=0
+12:34:25.039 [pid 1733556] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1055 bytes)
+12:34:27.518 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:27.520 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=0
+12:34:27.522 [pid 1733556] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1055 bytes)
+12:34:28.138 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:28.140 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=0
+12:34:28.142 [pid 1733556] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1055 bytes)
+12:34:47.556 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:47.558 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=0
+12:34:47.559 [pid 1733556] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1055 bytes)
+12:34:47.577 [pid 1733556] [INFO] [HeadlessControlServer] POST /record/start
+12:34:47.606 [pid 1733556] [INFO] [HeadlessControlServer] StartFrom: mode=video screen=1 source=None mic=(none) camera=(none) fps=30
+12:34:47.611 [pid 1733556] [INFO] [ToolRunner] Run: xrandr --listmonitors
+12:34:47.679 [pid 1733556] [INFO] [ToolRunner] Run: xrandr exit=0 stdout=55B stderr=0B
+12:34:47.684 [pid 1733556] [INFO] [RecordingService] StartVideo: framing=(none)
+12:34:47.686 [pid 1733556] [INFO] [RecordingService] StartVideo: preview armed=False screenTap=False cameraTap=False
+12:34:47.689 [pid 1733556] [INFO] [RecordingStartSequence] Run: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video steps=1
+12:34:47.690 [pid 1733556] [INFO] [RecordingService] BeginSession: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:47.691 [pid 1733556] [INFO] [RecordingWorkset] TryClaim: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video claimed by Capture/capture session#5
+12:34:47.692 [pid 1733556] [INFO] [CaptureSignal] CaptureStarted: epoch=1 - any repair pass in flight must yield
+12:34:47.693 [pid 1733556] [INFO] [ManifestStore] Replace: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:47.701 [pid 1733556] [INFO] [ManifestStore] Replace: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video written
+12:34:47.702 [pid 1733556] [INFO] [RecordingStartSequence] Run: starting video dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:47.705 [pid 1733556] [INFO] [ToolRunner] Run: xrandr --listmonitors
+12:34:47.775 [pid 1733556] [INFO] [ToolRunner] Run: xrandr exit=0 stdout=55B stderr=0B
+12:34:48.188 [pid 1733556] [INFO] [RecordingStartSequence] Run: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video started with no failures
+12:34:48.189 [pid 1733556] [INFO] start video src=None dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video camera=(none)
+12:34:48.193 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=1
+12:34:48.195 [pid 1733556] [INFO] [HeadlessControlServer] POST /record/start: 200 answer written (1210 bytes)
+12:34:52.844 [pid 1733556] [INFO] [HeadlessControlServer] GET /status
+12:34:52.850 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=1
+12:34:52.851 [pid 1733556] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1211 bytes)
+12:34:52.877 [pid 1733556] [INFO] [HeadlessControlServer] POST /record/stop
+12:34:52.884 [pid 1733556] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/lib/videos/AgentEyes, pending=1
+12:34:52.885 [pid 1733556] [INFO] [RecordingStop] Keep: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video mode=video
+12:34:52.887 [pid 1733556] [INFO] [PostRecording] TrackWork: keep <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video (in flight=1)
+12:34:52.891 [pid 1733556] [INFO] stop: begin (synchronous raw save only)
+12:34:52.893 [pid 1733556] [INFO] stop: saving video (flush raw + writers)
+12:34:52.895 [pid 1733556] [INFO] [RecordingStopSequence] Run: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video steps=1
+12:34:53.429 [pid 1733556] [INFO] [FfmpegRecorder] Stop: pipeline drained in 528ms (take 3149ms, media origin 1972ms) - full take captured
+12:34:53.749 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:53.764 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video written
+12:34:53.765 [pid 1733556] [INFO] [RecordingStopSequence] Run: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video completed with no failures
+12:34:53.767 [pid 1733556] [INFO] [RecordingWorkset] Release: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video released by Capture/capture session#5
+12:34:53.768 [pid 1733556] [INFO] stop: return dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video dur=5.2s deferredMux=False (HUD may close now)
+12:34:53.769 [pid 1733556] [INFO] [RecordingStop] Keep: raw files saved, queuing post-processing for <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:53.770 [pid 1733556] [INFO] [HeadlessControlServer] Stop: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video saved; post-processing running in the background
+12:34:53.771 [pid 1733556] [INFO] [PostRecording] Run: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video hostedWork=True
+12:34:53.772 [pid 1733556] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_123447_video (in flight=2)
+12:34:53.773 [pid 1733556] [INFO] [RecordingWorkset] TryClaim: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video claimed by FullPipeline/post-recording#6
+12:34:53.774 [pid 1733556] [INFO] [HeadlessControlServer] POST /record/stop: 200 answer written (373 bytes)
+12:34:53.780 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123447_video - nothing to mux
+12:34:53.781 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123447_video - no camera to compose
+12:34:53.783 [pid 1733556] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_123447_video
+12:34:53.784 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:53.793 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video written
+12:34:53.794 [pid 1733556] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_123447_video attempt 1/3
+12:34:53.795 [pid 1733556] [INFO] ffmpeg [poster thumbnail]: "/usr/bin/ffmpeg" -y -ss 0.52 -i <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/thumb.jpg
+12:34:54.494 [pid 1733556] [INFO] ffmpeg [poster thumbnail] ok
+12:34:54.495 [pid 1733556] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_123447_video in 0.7s
+12:34:54.496 [pid 1733556] [INFO] [PostRecordingState] NoteDone: 2026-11-16_123447_video stage=thumbnail
+12:34:54.497 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:54.510 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video written
+12:34:54.513 [pid 1733556] [INFO] [PostRecording] stage package: start dir=2026-11-16_123447_video
+12:34:54.514 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:54.523 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video written
+12:34:54.523 [pid 1733556] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_123447_video attempt 1/3
+12:34:54.528 [pid 1733556] [INFO] [MuxCoordinator] RunForPackage: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:54.529 [pid 1733556] [INFO] [MuxCoordinator] RunForPackage: 2026-11-16_123447_video - no pending mux
+12:34:54.531 [pid 1733556] [INFO] ffmpeg [extract audio]: "/usr/bin/ffmpeg" -y -i <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/recording.mp4 -vn -ac 1 -ar 16000 -f wav <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/audio_16k.wav
+12:34:54.861 [pid 1733556] [ERROR] ffmpeg [extract audio] failed (exit 234). ...   handler_name    : VideoHandler
+12:34:54.861 [pid 1733556] [ERROR]       vendor_id       : [0][0][0][0]
+12:34:54.861 [pid 1733556] [ERROR]       encoder         : Lavc60.31.102 libx264
+12:34:54.861 [pid 1733556] [ERROR] Output #0, wav, to '<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/audio_16k.wav':
+12:34:54.861 [pid 1733556] [ERROR] [out#0/wav @ 0x62de26089840] Output file does not contain any stream
+12:34:54.861 [pid 1733556] [ERROR] Error opening output file <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/audio_16k.wav.
+12:34:54.861 [pid 1733556] [ERROR] Error opening output files: Invalid argument
+12:34:54.861 [pid 1733556] [ERROR] 
+12:34:54.897 [pid 1733556] [ERROR] [PostRecording] stage package FAILED: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:54.897 [pid 1733556] [ERROR] AgentEyes.UsageException: ffmpeg failed during extract audio (exit 234). ...   handler_name    : VideoHandler
+12:34:54.897 [pid 1733556] [ERROR]       vendor_id       : [0][0][0][0]
+12:34:54.897 [pid 1733556] [ERROR]       encoder         : Lavc60.31.102 libx264
+12:34:54.897 [pid 1733556] [ERROR] Output #0, wav, to '<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/audio_16k.wav':
+12:34:54.897 [pid 1733556] [ERROR] [out#0/wav @ 0x62de26089840] Output file does not contain any stream
+12:34:54.897 [pid 1733556] [ERROR] Error opening output file <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video/audio_16k.wav.
+12:34:54.897 [pid 1733556] [ERROR] Error opening output files: Invalid argument
+12:34:54.897 [pid 1733556] [ERROR] 
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.Video.Ffmpeg.RunCore(IReadOnlyList`1 args, String label, Nullable`1 stallTimeout) in <repo>/src/AgentEyes.Core/Video/Ffmpeg.cs:line 129
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.Video.Ffmpeg.Run(IReadOnlyList`1 args, String label) in <repo>/src/AgentEyes.Core/Video/Ffmpeg.cs:line 42
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.Package.ResolveAudioWav(String dir, Manifest manifest) in <repo>/src/AgentEyes.Core/Package.cs:line 288
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in <repo>/src/AgentEyes.Core/Package.cs:line 125
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.Package.Run(String path, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in <repo>/src/AgentEyes.Core/Package.cs:line 46
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.PostRecording.<>c.<DefaultPackageStep>b__19_0(String d) in <repo>/src/AgentEyes.Core/PostRecording.cs:line 144
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.PostRecording.RunCountingAttempt(String dir, Action`1 package) in <repo>/src/AgentEyes.Core/PostRecording.cs:line 153
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.PostRecording.DefaultPackageStep(String dir) in <repo>/src/AgentEyes.Core/PostRecording.cs:line 144
+12:34:54.897 [pid 1733556] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in <repo>/src/AgentEyes.Core/PostRecording.cs:line 492
+12:34:54.899 [pid 1733556] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_123447_video stage=package error=ffmpeg failed during extract audio (exit 234). ...   handler_name    : VideoHandler
+12:34:54.899 [pid 1733556] [INFO]       vendor_id       : [0][0][0][0]
+12:34:54.899 [pid 1733556] [INFO]       encoder         : Lavc60.31.102 libx264
+12:34:54.899 [pid 1733556] [INFO] Output #0, wav, to '<scratch>/lib/videos/A
+12:34:54.900 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video
+12:34:54.912 [pid 1733556] [INFO] [ManifestStore] Update: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video written
+12:34:54.913 [pid 1733556] [INFO] [PostRecording] Run: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video done
+12:34:54.914 [pid 1733556] [INFO] [RecordingWorkset] Release: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video released by FullPipeline/post-recording#6
+12:34:54.915 [pid 1733556] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_123447_video
+12:34:54.916 [pid 1733556] [INFO] [RepairService] RunAsync: trigger=recording finished (2026-11-16_123447_video)
+12:34:54.917 [pid 1733556] [INFO] [RepairService] ResumeUnfinishedAsync: root=<scratch>/lib/videos/AgentEyes
+12:34:54.918 [pid 1733556] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_123447_video (in flight=1)
+12:34:54.919 [pid 1733556] [INFO] [PostRecording] TrackWork released: keep <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video (in flight=0)
+12:34:54.941 [pid 1733556] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_123447_video needs package
+12:34:54.942 [pid 1733556] [INFO] [PostRecordingPlan] FindUnfinished: root=<scratch>/lib/videos/AgentEyes, unfinished=1
+12:34:54.943 [pid 1733556] [INFO] [RepairService] ResumeAsync: 1 recording(s) with unfinished post-processing (hostedWork=False)
+12:34:54.943 [pid 1733556] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_123447_video#7 (no claim)
+12:34:54.944 [pid 1733556] [INFO] [PostRecording] Resume: dir=<scratch>/lib/videos/AgentEyes/2026-11-16_123447_video hostedWork=False
+12:34:54.945 [pid 1733556] [INFO] [PostRecording] TrackWork: resume 2026-11-16_123447_video (in flight=1)
+12:34:54.946 [pid 1733556] [INFO] [RecordingWorkset] TryClaim: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video claimed by FullPipeline/resume#8
+12:34:54.947 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123447_video - nothing to mux
+12:34:54.949 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123447_video - no camera to compose
+12:34:54.950 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123447_video - thumbnail already present or not applicable
+12:34:54.952 [pid 1733556] [INFO] [PostRecording] Execute: 2026-11-16_123447_video - not signed in; leaving the packaging stage outstanding
+12:34:54.953 [pid 1733556] [INFO] [RecordingWorkset] Release: <scratch>/lib/videos/AgentEyes/2026-11-16_123447_video released by FullPipeline/resume#8
+12:34:54.954 [pid 1733556] [INFO] [PostRecording] TrackWork released: resume 2026-11-16_123447_video (in flight=0)
+12:34:54.955 [pid 1733556] [INFO] [RecordingWorkset] EndStep: resume 2026-11-16_123447_video#7 (no claim) finished
+12:34:54.956 [pid 1733556] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+12:34:54.957 [pid 1733556] [INFO] [Thumbnails] FindMissing: root=<scratch>/lib/videos/AgentEyes, missing=0
+12:34:54.958 [pid 1733556] [INFO] [Housekeeper] Run: trigger=repair-pass, reportOnly=True, root=<scratch>/lib/videos/AgentEyes
+12:34:54.965 [pid 1733556] [INFO] [Housekeeper] Run: trigger=repair-pass done - 3 recording(s), 0 action(s), would reclaim 0 MB
+12:34:54.966 [pid 1733556] [INFO] [RepairService] RunAsync: trigger=recording finished (2026-11-16_123447_video) done
+12:38:12.081 [pid 1733556] [INFO] [HeadlessHost] Run: SIGTERM received - shutting down
+12:38:12.082 [pid 1733556] [INFO] [HeadlessHost] Run: stopped
+12:38:12.084 [pid 1733556] [INFO] [RepairService] Dispose: repair triggers disarmed
+12:38:12.085 [pid 1733556] [INFO] [HeadlessControlServer] Dispose
+12:38:12.090 [pid 1733556] [INFO] [CliDispatcher] Run: exit=0

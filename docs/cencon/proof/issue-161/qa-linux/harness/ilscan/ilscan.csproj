@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>disable</ImplicitUsings><NoWarn>CS8632;CS0168</NoWarn></PropertyGroup>
+  <ItemGroup><Compile Include="../../../../../../../tests/AgentEyes.Tests/CompiledCode.cs" Link="CompiledCode.cs" /></ItemGroup>
+</Project>

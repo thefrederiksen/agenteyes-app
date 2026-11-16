@@ -1,0 +1,18 @@
+# QA job 3 - is the loopback collection parallel again? Same 22ec8cb build, Linux suite, under lldeny, TRX per run.
+# First version of this script used TRX startTime: every test read 0 ms and 0 overlaps in BOTH runs - a broken instrument, fixed (start = end - duration).
+## parallel
+  AskRunningService_AServiceAnswering_ItsRootsComeBack                                                                7 ms  overlapped by   0 tests of other classes
+  AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpAtTheResponseTimeout                                 5009 ms  overlapped by   5 tests of other classes
+  AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout                                           822 ms  overlapped by  17 tests of other classes
+  AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard                                               1503 ms  overlapped by   0 tests of other classes
+  AskRunningService_NothingListening_Throws                                                                          43 ms  overlapped by   3 tests of other classes
+loopback-collection tests executed: 146; of them overlapped by another class's test: 61; total overlaps: 479
+loopback collection span 16:22:02.300954 .. 16:22:13.276020; other-class tests running inside that span: 321 of 408
+## serial-control
+  AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpAtTheResponseTimeout                                 5010 ms  overlapped by   0 tests of other classes
+  AskRunningService_AServiceAnswering_ItsRootsComeBack                                                                7 ms  overlapped by   0 tests of other classes
+  AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard                                               1502 ms  overlapped by   0 tests of other classes
+  AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout                                           820 ms  overlapped by   0 tests of other classes
+  AskRunningService_NothingListening_Throws                                                                          34 ms  overlapped by   0 tests of other classes
+loopback-collection tests executed: 146; of them overlapped by another class's test: 0; total overlaps: 0
+loopback collection span 16:22:24.320858 .. 16:22:35.117804; other-class tests running inside that span: 0 of 408

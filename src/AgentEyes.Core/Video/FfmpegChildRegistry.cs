@@ -387,10 +387,11 @@ namespace AgentEyes.Video
                 OperatingSystem.IsLinux() ? ReadLinuxProcOwner : null);
 
         /// <summary>Linux: this process's real and effective uid (getuid / geteuid, which cannot fail) -
-        /// the two uids kill(2) compares with the target's.</summary>
+        /// the two uids kill(2) compares with the target's. The effective uid comes from the product's ONE
+        /// geteuid import, in <see cref="RealLibrary.EffectiveUid"/> (issue #161 pass 4).</summary>
         private static Func<uint, bool> OwnUidsOnLinux()
         {
-            uint ruid = GetUid(), euid = GetEuid();
+            uint ruid = GetUid(), euid = RealLibrary.EffectiveUid();
             return uid => uid == ruid || uid == euid;
         }
 
@@ -710,9 +711,6 @@ namespace AgentEyes.Video
 
         [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "getuid")]
         private static extern uint GetUid();
-
-        [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "geteuid")]
-        private static extern uint GetEuid();
 
         [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "sysctl", SetLastError = true)]
         private static extern int Sysctl(int[] name, uint namelen, byte[] oldp, ref UIntPtr oldlenp, IntPtr newp, UIntPtr newlen);

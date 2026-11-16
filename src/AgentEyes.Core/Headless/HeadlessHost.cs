@@ -28,8 +28,19 @@ namespace AgentEyes.Headless
         public static int Run(CliArgs opts)
         {
             int port = opts.Has("port") ? opts.RequireInt("port", "agenteyes serve [--port N]") : LocalAppConfig.Port;
+            // Issue #161: a redirected service never takes the real service's address.
+            if (LibraryRedirect.ServicePortRefusal(port) is { } portRefusal)
+            {
+                Log.Error($"[HeadlessHost] Run: refused - {portRefusal}");
+                throw new UsageException(portRefusal);
+            }
             Log.Info($"[HeadlessHost] Run: starting, platform={HeadlessControlServer.PlatformName()} port={port} "
-                     + $"pid={Environment.ProcessId} data={AppDataPaths.Root} recordings={RecordingPaths.Root}");
+                     + $"pid={Environment.ProcessId} data={AppDataPaths.Root} recordings={RecordingPaths.Root} "
+                     + $"redirect={LibraryRedirect.Source ?? "none"}");
+            // Issue #161: a redirected service says so at WARN as well, so it cannot be mistaken in the
+            // log for the person's own service on their real library.
+            if (LibraryRedirect.AppliedFromEnvironment)
+                Log.Warn($"[HeadlessHost] Run: {LibraryRedirect.Banner()}");
 
             // Fail at start, with the fix, rather than at the first recording: a service that is
             // "active" but cannot record is the worst state to be in.
@@ -69,6 +80,19 @@ namespace AgentEyes.Headless
 
             Console.WriteLine($"[ok] AgentEyes headless service listening on {server.Url}");
             Console.WriteLine($"     recordings -> {RecordingPaths.Root}");
+            Console.WriteLine($"     data       -> {AppDataPaths.Root}");
+            if (LibraryRedirect.AppliedFromEnvironment)
+            {
+                // Issue #161 pass 2: not a bare claim - the real roots it was compared against, and where
+                // each came from, so a reader can check it. Pass 3 (F1): and what the comparison cannot see,
+                // instead of asserting that this is not the person's real library.
+                Console.WriteLine($"     [redirect] LIBRARY REDIRECTED by {LibraryRedirect.DataVariable}/{LibraryRedirect.VideosVariable} - "
+                                  + "compared against these real roots this process derived, and overlaps none:");
+                foreach (var r in LibraryRedirect.RealRoots)
+                    Console.WriteLine($"     [redirect]   {r.Name} {LibraryRedirect.Shown(r)} [{r.DerivedFrom}]");
+                Console.WriteLine($"     [redirect] {LibraryRedirect.ServiceNote}");
+                Console.WriteLine($"     [redirect] {LibraryRedirect.ComparisonLimit}");
+            }
             Console.WriteLine($"     signed in to DevThrottle: {(DevThrottle.DevThrottleAccount.IsSignedIn ? "yes" : "NO - run 'agenteyes signin' (recordings will not be transcribed)")}");
             Log.Info($"[HeadlessHost] Run: ready on {server.Url}");
 

@@ -1,0 +1,119 @@
+#### 0. POSITIVE CONTROL for the real-root counter: an UNREDIRECTED --help, real HOME (must touch the real state root, refused by Landlock)
+
+[P0] exit=0 real-root syscalls=11 opens/creates=6 EACCES=3 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+
+#### 1. D1 attack (serve) and x1-x4
+
+[ATK] exit=5 real-root syscalls=7 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>/.local/share/AgentEyes.
+
+[x1] exit=5 real-root syscalls=6 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>/.local/share/AgentEyes.
+
+[x2] exit=5 real-root syscalls=7 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>/.local/share/AgentEyes.
+
+[x3] exit=5 real-root syscalls=7 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>/.local/share/AgentEyes.
+
+[x4] exit=5 real-root syscalls=6 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at <home>/Videos/AgentEyes, which overlaps the REAL recordings root <home>/Videos/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside <home>/Videos/AgentEyes.
+
+[y1] exit=5 real-root syscalls=7 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>/.local/share/AgentEyes.
+
+[y5] exit=5 real-root syscalls=7 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-guard/y5/dlink/AgentEyes (which resolves to <home>/.local/share/AgentEyes), which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>/.local/share/AgentEyes.
+
+[y8] exit=5 real-root syscalls=6 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /proc/self/root<home>/.local/share/AgentEyes (which resolves to <home>/.local/share/AgentEyes), which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>/.local/share/AgentEyes.
+
+#### 2. N1 refusals, and the write probe runs LAST (after overlap, link and marker rules)
+
+[n1] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA=<qa-scratch>/qa5-guard/n1/data does not exist. A redirect never creates its own roots, so a mistyped path cannot quietly become a new, empty library. Fix: create it (mkdir -p '<qa-scratch>/qa5-guard/n1/data') or correct the path.
+  tree after: . ./videos 
+
+[n2] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=2 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS=<qa-scratch>/qa5-guard/n2/videos does not exist. A redirect never creates its own roots, so a mistyped path cannot quietly become a new, empty library. Fix: create it (mkdir -p '<qa-scratch>/qa5-guard/n2/videos') or correct the path.
+  tree after: . ./data 
+
+[n3] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=5 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS=<qa-scratch>/qa5-guard/n3/videos is not writable: a test write of <qa-scratch>/qa5-guard/n3/videos/.agenteyes-redirect-probe-2304723-10384d0aff59484e9a0059f664b8a02c failed (UnauthorizedAccessException: Access to the path '<qa-scratch>/qa5-guard/n3/videos/.agenteyes
+  line 5859: openat(AT_FDCWD, "<qa-scratch>/qa5-guard/n3/data/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONLY|
+  line 5866: unlink("<qa-scratch>/qa5-guard/n3/data/.agenteyes-redirect-probe-<pid>-<guid>") = 0
+  line 5870: openat(AT_FDCWD, "<qa-scratch>/qa5-guard/n3/videos/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONL
+  line 5890: write(59, "nteyes-app/8f0f4de3-9398-41fa-92cd-07058c255856/scratchpad/qa5-guard/n3/videos/.agenteyes-redirect-probe-<pid>-<guid> failed (UnauthorizedAccessException: Access to the pat"...
+  line 5891: write(59, "8f0f4de3-9398-41fa-92cd-07058c255856/scratchpad/qa5-guard/n3/videos/.agenteyes-redirect-probe-<pid>-<guid>' is denied.). Fix: point it at a folder this account can write to"...
+  tree after: . ./data ./videos 
+
+[n6] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA=<qa-scratch>/qa5-guard/n6/data is a file, not a folder. Fix: point it at a directory.
+
+[n7-overlap-before-probe] exit=5 real-root syscalls=6 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at <home>/Videos/AgentEyes, which overlaps the REAL recordings root <home>/Videos/AgentEyes (derived from: passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside <home>/Videos/AgentEyes.
+
+[n8-link-before-probe] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-guard/n8/data/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'logs' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected s
+
+[n9-marker-before-probe] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-guard/n9/data/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'hand-made.txt' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a red
+
+#### 3. The scratch-marker rule (rule 2)
+
+[m1-unmarked-nonempty] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-guard/m1/data/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'hand-made.txt' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a red
+
+[m2-fresh-empty] exit=0 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-guard/m2/data/AgentEyes ; recordings -> <qa-scratch>/qa5-guard/m2/videos/AgentEyes ; log -> <qa-scratch>/qa5-guard/m2/data/AgentEyes/logs (pid 2305172) ; compared against these real roots and overlaps none (each with
+  markers after m2: ./data/AgentEyes/.agenteyes-scratch-library ./videos/AgentEyes/.agenteyes-scratch-library 
+  tree after m2: . ./data ./data/AgentEyes ./data/AgentEyes/.agenteyes-scratch-library ./data/AgentEyes/logs ./data/AgentEyes/logs/AgentEyes-20261116.log ./videos ./videos/AgentEyes ./videos/AgentEyes/.agenteyes-scratch-library 
+
+[m3-same-roots-again-nonempty-marked] exit=0 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-guard/m2/data/AgentEyes ; recordings -> <qa-scratch>/qa5-guard/m2/videos/AgentEyes ; log -> <qa-scratch>/qa5-guard/m2/data/AgentEyes/logs (pid 2305241) ; compared against these real roots and overlaps none (each with
+
+#### 4. F2 - links inside a scratch root are JUDGED, not followed
+
+[L1-abs-link-to-real-state] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-guard/L1/data/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'logs' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected s
+  syscalls THROUGH the link (path contains L1/data/AgentEyes/logs/): 0
+
+[L2-link-to-real-videos-serve] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at <qa-scratch>/qa5-guard/L2/videos/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'linked-real' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_VIDEOS at a folder whose AgentEyes folder is EMPTY or abse
+  syscalls THROUGH the link: 0
+
+[L3-relative-dotdot-out] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-guard/L3/data/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'up' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected sta
+
+[L4-CONTROL-link-stays-inside] exit=0 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-guard/L4/data/AgentEyes ; recordings -> <qa-scratch>/qa5-guard/L4/videos/AgentEyes ; log -> <qa-scratch>/qa5-guard/L4/data/AgentEyes/logs (pid 2305497) ; compared against these real roots and overlaps none (each with
+
+#### 5. Rule 1 (the service half) on the host, via the injected port: a stand-in names a RELOCATED library
+
+[s1-service-names-relocated] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[ 1 "GET /status HTTP;]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-guard/s1/reloc/AgentEyes, which overlaps the REAL state root <qa-scratch>/qa5-guard/s1/reloc/AgentEyes (derived from: the AgentEyes service answering on 127.0.0.1:17611 (/status DataRoot)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch direct
+
+[s2-CONTROL-same-service-unrelated-redirect] exit=0 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[ 1 "GET /status HTTP;]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-guard/s2/data/AgentEyes ; recordings -> <qa-scratch>/qa5-guard/s2/videos/AgentEyes ; log -> <qa-scratch>/qa5-guard/s2/data/AgentEyes/logs (pid 2305669) ; compared against these real roots and overlaps none (each with
+  stand-in saw: REQ GET /status;REQ GET /status;
+
+#### 6. The port guards
+
+[P1-redirected-serve-default-port] exit=1 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-guard/m2/data/AgentEyes ; recordings -> <qa-scratch>/qa5-guard/m2/videos/AgentEyes ; log -> <qa-scratch>/qa5-guard/m2/data/AgentEyes/logs (pid 2305807) ; compared against these real roots and overlaps none (each with
+  stderr: [error] a redirected AgentEyes (AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS) must not listen on the default port 7882 - that is the address of the person's real AgentEyes. Fix: pass --port N (agenteyes serve), or put {"Port": N} in the scratch config.json, which the redirected CLI client reads too.
+  my scratch service (unredirected, HOME=<scratch>) on 17481 /status: {'DataRoot': '<qa-scratch>/qa5-guard/svchome/.local/share/AgentEyes', 'RecordingsRoot': '<qa-scratch>/qa5-guard/svchome/Videos/AgentEyes', 'LibraryRedirected': False, 'State': 'idle'}
+
+[P2-redirected-status-vs-unredirected-service] exit=1 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[ 1 "GET /status HTTP;]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-guard/rc/data/AgentEyes ; recordings -> <qa-scratch>/qa5-guard/rc/videos/AgentEyes ; log -> <qa-scratch>/qa5-guard/rc/data/AgentEyes/logs (pid 2305908) ; compared against these real roots and overlaps none (each with
+  stderr: [error] the AgentEyes service at http://127.0.0.1:17481/ is acting on a DIFFERENT library: state <qa-scratch>/qa5-guard/svchome/.local/share/AgentEyes, recordings <qa-scratch>/qa5-guard/svchome/Videos/AgentEyes; this command's library is state <qa-scratch>/qa5-guard/rc/data/AgentEyes, recordings <tmp-scratch>
+
+[P3-redirected-START-vs-unredirected-service] exit=1 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[ 1 "GET /status HTTP;]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-guard/rc/data/AgentEyes ; recordings -> <qa-scratch>/qa5-guard/rc/videos/AgentEyes ; log -> <qa-scratch>/qa5-guard/rc/data/AgentEyes/logs (pid 2305971) ; compared against these real roots and overlaps none (each with
+  stderr: [error] the AgentEyes service at http://127.0.0.1:17481/ is acting on a DIFFERENT library: state <qa-scratch>/qa5-guard/svchome/.local/share/AgentEyes, recordings <qa-scratch>/qa5-guard/svchome/Videos/AgentEyes; this command's library is state <qa-scratch>/qa5-guard/rc/data/AgentEyes, recordings <tmp-scratch>
+
+[P4-CONTROL-unredirected-cli-drives-it] exit=0 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[ 1 "GET /status HTTP;]
+  my scratch service still idle after P3: idle None
+
+#### TOTAL connects to 127.0.0.1:7882 across every trace of this harness: 0 ; binds to 7882: 0
+#### positive control for that counter in the SAME traces: connects to the closed probe port 57009: 25 ; to the injected stand-in 17611: 2

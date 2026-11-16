@@ -1,0 +1,39 @@
+2272314 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272315, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+2272314 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272316, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---
+2272326 connect(3, {sa_family=AF_UNIX, sun_path="/var/run/lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272327 connect(3, {sa_family=AF_UNIX, sun_path="<home>/.lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272317 bind(9, {sa_family=AF_UNIX, sun_path="/tmp/dotnet-diagnostic-2272317-3508361-socket"}, 110) = 0
+2272317 connect(33, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+2272317 connect(33, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+2272357 connect(59, {sa_family=AF_INET6, sin6_port=htons(41903), sin6_flowinfo=htonl(0), inet_pton(AF_INET6, "::ffff:127.0.0.1", &sin6_addr), sin6_scope_id=0}, 28) = -1 EINPROGRESS (Operation now in progress)
+2272314 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272317, si_uid=1000, si_status=0, si_utime=21 /* 0.21 s */, si_stime=12 /* 0.12 s */} ---
+2272380 connect(3, {sa_family=AF_UNIX, sun_path="/var/run/lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272381 connect(3, {sa_family=AF_UNIX, sun_path="<home>/.lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272368 bind(9, {sa_family=AF_UNIX, sun_path="/tmp/dotnet-diagnostic-2272368-3508412-socket"}, 110) = 0
+2272549 connect(3, {sa_family=AF_UNIX, sun_path="/var/run/lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272550 connect(3, {sa_family=AF_UNIX, sun_path="<home>/.lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272543 bind(9, {sa_family=AF_UNIX, sun_path="/tmp/dotnet-diagnostic-2272543-3508539-socket"}, 110) = 0
+2272594 bind(127, {sa_family=AF_INET, sin_port=htons(0), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+2272611 connect(3, {sa_family=AF_UNIX, sun_path="/var/run/lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272612 connect(3, {sa_family=AF_UNIX, sun_path="<home>/.lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272599 bind(9, {sa_family=AF_UNIX, sun_path="/tmp/dotnet-diagnostic-2272599-3508603-socket"}, 110) = 0
+2272599 connect(72, {sa_family=AF_INET6, sin6_port=htons(38889), sin6_flowinfo=htonl(0), inet_pton(AF_INET6, "::ffff:127.0.0.1", &sin6_addr), sin6_scope_id=0}, 28) = -1 EINPROGRESS (Operation now in progress)
+2272755 bind(174, {sa_family=AF_INET, sin_port=htons(0), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+2272777 connect(3, {sa_family=AF_UNIX, sun_path="/var/run/lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272778 connect(3, {sa_family=AF_UNIX, sun_path="<home>/.lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272763 bind(9, {sa_family=AF_UNIX, sun_path="/tmp/dotnet-diagnostic-2272763-3508741-socket"}, 110) = 0
+2272763 connect(43, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+2272763 connect(43, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+2272802 connect(69, {sa_family=AF_INET6, sin6_port=htons(43315), sin6_flowinfo=htonl(0), inet_pton(AF_INET6, "::ffff:127.0.0.1", &sin6_addr), sin6_scope_id=0}, 28) = -1 EINPROGRESS (Operation now in progress)
+2272758 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272763, si_uid=1000, si_status=5, si_utime=15 /* 0.15 s */, si_stime=14 /* 0.14 s */} ---
+2272755 bind(190, {sa_family=AF_INET, sin_port=htons(0), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+2272837 connect(3, {sa_family=AF_UNIX, sun_path="/var/run/lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272838 connect(3, {sa_family=AF_UNIX, sun_path="<home>/.lttng/lttng-ust-sock-8"}, 110) = -1 ENOENT (No such file or directory)
+2272820 bind(9, {sa_family=AF_UNIX, sun_path="/tmp/dotnet-diagnostic-2272820-3508792-socket"}, 110) = 0
+2272820 connect(43, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+2272820 connect(43, {sa_family=AF_UNIX, sun_path="/var/run/nscd/socket"}, 110) = -1 ENOENT (No such file or directory)
+2272864 connect(69, {sa_family=AF_INET6, sin6_port=htons(43717), sin6_flowinfo=htonl(0), inet_pton(AF_INET6, "::ffff:127.0.0.1", &sin6_addr), sin6_scope_id=0}, 28) = -1 EINPROGRESS (Operation now in progress)
+2272626 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272820, si_uid=1000, si_status=5, si_utime=20 /* 0.20 s */, si_stime=15 /* 0.15 s */} ---
+2272598 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272599, si_uid=1000, si_status=0, si_utime=133 /* 1.33 s */, si_stime=46 /* 0.46 s */} ---
+2272467 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272543, si_uid=1000, si_status=0, si_utime=118 /* 1.18 s */, si_stime=26 /* 0.26 s */} ---
+2272314 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=2272369, si_uid=1000, si_status=0, si_utime=0, si_stime=0} ---

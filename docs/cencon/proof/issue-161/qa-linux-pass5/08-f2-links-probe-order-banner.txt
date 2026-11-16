@@ -1,0 +1,37 @@
+#### 4b. F2 on MARKED roots (so the marker rule passes and only the link rule can refuse)
+
+[K1-marked-abs-link-to-real-state-log] exit=5 real-root syscalls=5 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-links/K1/data/AgentEyes, and <qa-scratch>/qa5-links/K1/data/AgentEyes/logs is a link to '<home>/.local/share/AgentEyes/logs', which leads outside <qa-scratch>/qa5-links/K1/data/AgentEyes (to <home>/.local/sh
+  syscalls THROUGH the link (K1/data/AgentEyes/logs/...): 0 ; readlink/lstat of the link itself:  2 newfstatat; 1 readlink;
+
+[K2-marked-link-to-real-videos-SERVE] exit=5 real-root syscalls=5 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at <qa-scratch>/qa5-links/K2/videos/AgentEyes, and <qa-scratch>/qa5-links/K2/videos/AgentEyes/linked-real is a link to '<home>/Videos/AgentEyes', which leads outside <qa-scratch>/qa5-links/K2/videos/AgentEyes (to <home>/
+  syscalls THROUGH the link: 0
+
+[K3-marked-relative-dotdot-out] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-links/K3/data/AgentEyes, and <qa-scratch>/qa5-links/K3/data/AgentEyes/up is a link to '../../../..', which contains '..' (a link inside a redirected root may only point further down into <qa-scratch>/qa5-links/K3/data
+
+[K4-marked-nested-link-out] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-links/K4/data/AgentEyes, and <qa-scratch>/qa5-links/K4/data/AgentEyes/deep/er/esc is a link to '../../../../../..', which contains '..' (a link inside a redirected root may only point further down into <qa-scratch>/qa
+
+[K5-CONTROL-marked-link-stays-inside] exit=0 real-root syscalls=4 opens/creates=0 EACCES=0 probe-syscalls=4 connects-7882=0 binds-7882=0 http=[]
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-links/K5/data/AgentEyes ; recordings -> <qa-scratch>/qa5-links/K5/videos/AgentEyes ; log -> <qa-scratch>/qa5-links/K5/data/AgentEyes/logs (pid 2309762) ; compared against these real roots and overlaps none (each with
+
+#### 2b. the write probe runs LAST: a MARKED root with an escaping link AND 0555 -> refused by the LINK rule, with NO probe syscall
+
+[N8-link-before-probe] exit=5 real-root syscalls=5 opens/creates=0 EACCES=0 probe-syscalls=0 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <qa-scratch>/qa5-links/N8/data/AgentEyes, and <qa-scratch>/qa5-links/N8/data/AgentEyes/logs is a link to '<home>/.local/share/AgentEyes/logs', which leads outside <qa-scratch>/qa5-links/N8/data/AgentEyes (to <home>/.local/sh
+
+[N9-CONTROL-same-0555-no-link] exit=5 real-root syscalls=2 opens/creates=0 EACCES=0 probe-syscalls=3 connects-7882=0 binds-7882=0 http=[]
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA=<qa-scratch>/qa5-links/N9/data is not writable: a test write of <qa-scratch>/qa5-links/N9/data/.agenteyes-redirect-probe-2309901-c7b99b303f994316b4a8c13baf26e51f failed (UnauthorizedAccessException: Access to the path '<qa-scratch>/qa5-links/N9/data/.agenteyes-redirec
+
+#### the banner's comparison list, in full (m2-style accepted start, K5):
+  | [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <qa-scratch>/qa5-links/K5/data/AgentEyes 
+  |  recordings -> <qa-scratch>/qa5-links/K5/videos/AgentEyes 
+  |  log -> <qa-scratch>/qa5-links/K5/data/AgentEyes/logs (pid 2309762) 
+  |  compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)] 
+  |  the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)] 
+  |  the service probe was pointed at 127.0.0.1:37353 by AGENTEYES_SERVICE_PROBE_PORT, so the default port 7882 was NOT asked: the service on 127.0.0.1:37353 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:37353)) 
+  |  NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+
+#### connects to 7882 in these traces: 0 ; to the closed probe port 37353: 7

@@ -1,0 +1,72 @@
+# Pass 3 live measurements on the FINAL code, devlinux, 2026-11-16T14:29:04-05:00
+# Every run: AGENTEYES_REDIRECT_* set, under lldeny on BOTH real roots (control: linux-pass3-landlock-control.txt)
+# + strace -f -e trace=%file,%desc. Binary: tests/AgentEyes.Tests.Linux/bin/Release/net8.0/agenteyes.dll (pass-3 tree).
+# strace prints a LINK's path, not its target: opens through a scratch link are counted by the link's path.
+
+## A - QA's F2 attack exactly: <scratch>/data/AgentEyes holds ONLY logs -> <home>/.local/share/AgentEyes/logs (no marker). Refused by rule 2 (content) before the walk.
+exit 5 | openat of a real root: 0 | openat THROUGH the scratch logs link: 0 | following stat of the link: 1
+[error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <scratchpad>/live3/a/data/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'logs' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected start marks it), or - if this IS a scratch library you populated yourself - create the marker: touch '<scratchpad>/live3/a/data/AgentEyes/.agenteyes-scratch-library'.
+
+## B - the same link in a MARKED root: the content check passes, the LINK WALK refuses.
+exit 5 | openat of a real root: 0 | openat THROUGH the scratch logs link: 0 | following stat of the link: 1
+[error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <scratchpad>/live3/b/data/AgentEyes, and <scratchpad>/live3/b/data/AgentEyes/logs is a link to '<home>/.local/share/AgentEyes/logs', which leads outside <scratchpad>/live3/b/data/AgentEyes (to <home>/.local/share/AgentEyes/logs). A link out of a scratch library is a way into a real library this guard cannot see. Fix: remove the link, or copy what it points at into <scratchpad>/live3/b/data/AgentEyes.
+
+## BC - POSITIVE CONTROL for B: the same marked root, walk removed (mutation F2-apply). QA's five opens of the owner's live log, each EACCES from Landlock:
+exit 0 | openat of a real root: 0 | openat THROUGH the scratch logs link: 5 | following stat of the link: 5
+[redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratchpad>/live3/bc/data/AgentEyes ; recordings -> <scratchpad>/live3/bc/videos/AgentEyes ; log -> <scratchpad>/live3/bc/data/AgentEyes/logs (pid 1960733) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)] ; the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+AgentEyes - screen + audio recorder (CLI: agenteyes)
+openat(AT_FDCWD, "<scratchpad>/live3/bc/data/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+openat(AT_FDCWD, "<scratchpad>/live3/bc/data/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+openat(AT_FDCWD, "<scratchpad>/live3/bc/data/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+openat(AT_FDCWD, "<scratchpad>/live3/bc/data/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+openat(AT_FDCWD, "<scratchpad>/live3/bc/data/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+
+## C1 - the Lead's measurement: a scratch root a seat populated BY HAND with a fixture (config.json), no marker. REFUSED, telling how to proceed:
+exit 5 | openat of a real root: 0 | openat THROUGH the scratch logs link: 0 | following stat of the link: 0
+[error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <scratchpad>/live3/c/data/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'config.json' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected start marks it), or - if this IS a scratch library you populated yourself - create the marker: touch '<scratchpad>/live3/c/data/AgentEyes/.agenteyes-scratch-library'.
+
+## C2 - the same root after: touch <scratch>/data/AgentEyes/.agenteyes-scratch-library  -> ACCEPTED (its own log lands in its own scratch logs folder)
+exit 0 | openat of a real root: 0 | openat THROUGH the scratch logs link: 0 | following stat of the link: 0
+[redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratchpad>/live3/c/data/AgentEyes ; recordings -> <scratchpad>/live3/c/videos/AgentEyes ; log -> <scratchpad>/live3/c/data/AgentEyes/logs (pid 1953415) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)] ; the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+AgentEyes - screen + audio recorder (CLI: agenteyes)
+C's folder afterwards:
+.agenteyes-scratch-library
+config.json
+logs
+
+## D - QA's F1 'za': the person's library relocated to <scratch>/reloc/xdg/AgentEyes (holds MARKER), redirect run with XDG_DATA_HOME SPOOFED to another folder - no path rule can see it. At f9aba6a: exit 0 and the log landed IN that library. Now refused by its content:
+exit 5 | openat of a real root: 0 | openat THROUGH the scratch logs link: 0 | following stat of the link: 0
+[error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <scratchpad>/live3/d/reloc/xdg/AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'MARKER' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected start marks it), or - if this IS a scratch library you populated yourself - create the marker: touch '<scratchpad>/live3/d/reloc/xdg/AgentEyes/.agenteyes-scratch-library'.
+the relocated library afterwards:
+MARKER
+
+## E - a clean redirected serve --port 17964 (fresh empty scratch): stdout+stderr, then GET /status
+openat of a real root: 0
+[redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratchpad>/live3/e/data/AgentEyes ; recordings -> <scratchpad>/live3/e/videos/AgentEyes ; log -> <scratchpad>/live3/e/data/AgentEyes/logs (pid 1953797) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)] ; the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+[ok] AgentEyes headless service listening on http://127.0.0.1:17964/
+     recordings -> <scratchpad>/live3/e/videos/AgentEyes
+     data       -> <scratchpad>/live3/e/data/AgentEyes
+     [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS - compared against these real roots this process derived, and overlaps none:
+     [redirect]   the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)]
+     [redirect]   the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)]
+     [redirect] the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing
+     [redirect] NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+     signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+{
+ "DataRoot": "<scratchpad>/live3/e/data/AgentEyes",
+ "RecordingsRoot": "<scratchpad>/live3/e/videos/AgentEyes",
+ "LibraryRedirected": true,
+ "LibraryRedirect": "environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)"
+}
+E's scratch roots afterwards:
+<scratchpad>/live3/e/data/AgentEyes:
+.agenteyes-scratch-library
+logs
+
+<scratchpad>/live3/e/videos/AgentEyes:
+.agenteyes-scratch-library
+
+# Reading: A, B, C1, D refused (exit 5), C2 and E accepted; 0 opens of a real root in every run; 0 opens through a
+# scratch link except the control BC (5). The following stat (A, B: 1) is .NET's directory enumerator classifying the
+# link entry while listing the scratch folder - a metadata read of the target, nothing opened; Landlock does not govern stat.
+# The 7882 line in E: the owner's installed service on this machine predates #161 and names no roots - stated, not hidden.

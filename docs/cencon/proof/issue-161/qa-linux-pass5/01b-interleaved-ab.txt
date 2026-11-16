@@ -1,0 +1,24 @@
+# QA interleaved A/B, 2026-11-16T21:15:33Z, load: 27.63 11.63 7.33
+nothing-listening pair 1: pass4 187 ms, pass5 193 ms
+nothing-listening pair 2: pass4 188 ms, pass5 203 ms
+nothing-listening pair 3: pass4 186 ms, pass5 194 ms
+nothing-listening pair 4: pass4 208 ms, pass5 207 ms
+nothing-listening pair 5: pass4 205 ms, pass5 172 ms
+nothing-listening pair 6: pass4 200 ms, pass5 201 ms
+nothing-listening pair 7: pass4 180 ms, pass5 205 ms
+nothing-listening pair 8: pass4 184 ms, pass5 196 ms
+nothing-listening pair 9: pass4 197 ms, pass5 205 ms
+nothing-listening pair 10: pass4 208 ms, pass5 199 ms
+nothing-listening INTERLEAVED MEAN: pass4 194 ms, pass5 197 ms (n=10 each)
+# READY fullq (queue filled after 2 connects)
+connect-never-completes pair 1: pass4 647 ms, pass5 710 ms
+connect-never-completes pair 2: pass4 642 ms, pass5 697 ms
+connect-never-completes pair 3: pass4 653 ms, pass5 700 ms
+connect-never-completes pair 4: pass4 629 ms, pass5 702 ms
+connect-never-completes pair 5: pass4 634 ms, pass5 698 ms
+connect-never-completes pair 6: pass4 642 ms, pass5 703 ms
+connect-never-completes pair 7: pass4 647 ms, pass5 705 ms
+connect-never-completes pair 8: pass4 635 ms, pass5 701 ms
+connect-never-completes pair 9: pass4 631 ms, pass5 699 ms
+connect-never-completes pair 10: pass4 639 ms, pass5 682 ms
+connect-never-completes INTERLEAVED MEAN: pass4 639 ms, pass5 699 ms (n=10 each)

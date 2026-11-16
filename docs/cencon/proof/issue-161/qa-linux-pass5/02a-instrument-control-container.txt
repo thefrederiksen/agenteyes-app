@@ -1,0 +1,10 @@
+# QA instrument control for 7882, 2026-11-16T21:16:35Z, docker --network none, binary 22ec8cb
+## C1: redirected child, AGENTEYES_SERVICE_PROBE_PORT UNSET (production default) -> must show a connect to 7882
+exit 0
+connects with htons(7882): 1  [v4: 0 ; v4-mapped: 1]
+   connect(59, {sa_family=AF_INET6, sin6_port=htons(7882), sin6_flowinfo=htonl(0), inet_pton(AF_INET6, "::ffff:127.0.0.1", &sin6_addr), sin6_scope_id=0}, 28) = -1 EINPROGRESS (Operation now in progres
+## C2: same child, AGENTEYES_SERVICE_PROBE_PORT=41999 -> must show 0 to 7882 and 1 to 41999
+exit 0
+connects with htons(7882): 0  [v4: 0 ; v4-mapped: 0]
+connects with htons(41999): 1  [v4: 0 ; v4-mapped: 1]
+the service probe was pointed at 127.0.0.1

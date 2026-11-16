@@ -203,6 +203,14 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::TruncateToTail -> System.IO.FileStream::.ctor x2",
             "agenteyes.dll!AgentEyes.Video.VideoFrame::ExtractJpeg -> System.IO.File::Delete x1",                      // the on-demand frame's temp file (issue #59), deleted in a finally
             "agenteyes.dll!AgentEyes.Housekeeping.PreservedAudioTranscode::TryDeletePartial -> System.IO.File::Delete x1",
+            // Issue #161 pass 2 (ruling N1): the redirect's real-write probe - a uniquely named empty-ish file in
+            // the folder a person named in AGENTEYES_REDIRECT_DATA / _VIDEOS, created, written, then deleted.
+            // Never a manifest, never inside a real root (it runs only after the overlap rules pass).
+            "agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.FileStream::.ctor x1",
+            "agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.File::Delete x1",
+            // Issue #161 pass 3 (the Lead's rule 2): the scratch-library marker, written into each redirected root
+            // only after the redirect was accepted (never beside or inside a real root). Never a manifest.
+            "agenteyes.dll!AgentEyes.LibraryRedirect::WriteScratchMarker -> System.IO.File::WriteAllText x1",
             "agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1",                        // the app log
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Delete x1",               // THE manifest path: temp cleanup after a failed rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Move x1",                 // THE manifest path: the atomic rename
@@ -322,13 +330,18 @@ namespace AgentEyes.Tests
         /// System.IO can see.</summary>
         private static readonly string[] PinnedNativeImports =
         {
+            // Issue #161 pass 2: the passwd lookup that names the person's REAL library on Linux and macOS
+            // (no file access; never called on Windows).
+            "/usr/lib/libSystem.B.dylib!geteuid",
+            "/usr/lib/libSystem.B.dylib!getpwuid_r",
             "dwmapi.dll!DwmSetWindowAttribute",     // dark title bar on the main window
             "kernel32.dll!AssignProcessToJobObject", // always-on ffmpeg into its kill-on-close job (no file access)
             "kernel32.dll!CreateJobObject",          // the kill-on-close job object (no file access)
             "kernel32.dll!GetModuleHandle",         // module handle for the keyboard hook
             "kernel32.dll!SetInformationJobObject", // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (no file access)
+            "libc.so.6!geteuid",                     // issue #161 pass 2: the passwd lookup (Linux); since pass 4 also #156's own-uid check - the ONE geteuid import
+            "libc.so.6!getpwuid_r",
             "libc!kill",                            // SIGTERM to an orphaned capture ffmpeg, macOS/Linux only (no file access; issue #156 pass 2, D1)
-            "libc!geteuid",                         // this process's effective uid, Linux only (no file access; issue #156 pass 5)
             "libc!getuid",                          // this process's real uid, Linux only (no file access; issue #156 pass 5)
             "libc!statx",                           // the owner of /proc/<pid>, Linux only: a metadata READ, never a write (issue #156 pass 5)
             "libc!sysctl",                          // KERN_PROC_PID read-only (newp NULL): proves a zombie on macOS (no file access; issue #156 pass 4)

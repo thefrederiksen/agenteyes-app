@@ -1,0 +1,45 @@
+# Job 2 (N1), harness/n1.sh: each refusal under strace + Landlock; probe syscalls listed in order.
+
+[n1] exit=5 real-root syscalls=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA=<scr>/m/n1/n1/data does not exist. A redirect never creates its own roots, so a mistyped path cannot quietly become a new, empty library. Fix: create it (mkdir -p '<scratch>
+  probe syscalls in order:
+  tree after: . ./videos 
+
+[n2] exit=5 real-root syscalls=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS=<scr>/m/n1/n2/videos does not exist. A redirect never creates its own roots, so a mistyped path cannot quietly become a new, empty library. Fix: create it (mkdir -p '<scratch>
+  probe syscalls in order:
+    openat(AT_FDCWD, "<scr>/m/n1/n2/data/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 30
+    unlink("<scr>/m/n1/n2/data/.agenteyes-redirect-probe-<pid>-<guid>") = 0
+  tree after: . ./data 
+
+[n3] exit=5 real-root syscalls=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS=<scr>/m/n1/n3/videos is not writable: a test write of <scr>/m/n1/n3/videos/.agenteyes-redirect-probe-1876698-d690cc5693754b3390bb971d6
+  probe syscalls in order:
+    openat(AT_FDCWD, "<scr>/m/n1/n3/data/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 30
+    unlink("<scr>/m/n1/n3/data/.agenteyes-redirect-probe-<pid>-<guid>") = 0
+    openat(AT_FDCWD, "<scr>/m/n1/n3/videos/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+  tree after: . ./data ./videos 
+
+[n4] exit=0 real-root syscalls=0
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scr>/m/n1/n4/ro/data/AgentEyes ; recordings -> <scr>/m/n1/n4/ro/videos/AgentEyes ; log -> <stage>
+  probe syscalls in order:
+    openat(AT_FDCWD, "<scr>/m/n1/n4/ro/data/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 30
+    unlink("<scr>/m/n1/n4/ro/data/.agenteyes-redirect-probe-<pid>-<guid>") = 0
+    openat(AT_FDCWD, "<scr>/m/n1/n4/ro/videos/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 30
+    unlink("<scr>/m/n1/n4/ro/videos/.agenteyes-redirect-probe-<pid>-<guid>") = 0
+  tree after: . ./ro ./ro/data ./ro/data/AgentEyes ./ro/data/AgentEyes/logs ./ro/data/AgentEyes/logs/AgentEyes-20261116.log ./ro/videos 
+
+[n5] exit=5 real-root syscalls=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA=<scr>/m/n1/n5/ro/data does not exist. A redirect never creates its own roots, so a mistyped path cannot quietly become a new, empty library. Fix: create it (mkdir -p '<scratch>
+  probe syscalls in order:
+  tree after: . ./ro ./videos 
+
+[n6] exit=5 real-root syscalls=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA=<scr>/m/n1/n6/data is a file, not a folder. Fix: point it at a directory.
+  probe syscalls in order:
+  tree after: . ./data ./videos 
+
+[n7] exit=5 real-root syscalls=3
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at <home>/Videos/AgentEyes, which overlaps the REAL recordings root <home>/Videos/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)). A redirect exists to keep
+  probe syscalls in order:
+  tree after: . ./data 

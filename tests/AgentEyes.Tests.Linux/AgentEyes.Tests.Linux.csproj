@@ -47,10 +47,16 @@
     <Compile Include="..\Shared\RecordingStopOrderTests.cs" Link="Shared\RecordingStopOrderTests.cs" />
     <!-- Issue #116: the desktop app's quit-path tests, shared with AgentEyes.Tests.DesktopApp (Windows gate). -->
     <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
+    <!-- Issue #161 pass 2: a redirected desktop app refuses to start (it always drives the REAL service on 7882). -->
+    <Compile Include="..\Shared\DesktopAppRedirectTests.cs" Link="Shared\DesktopAppRedirectTests.cs" />
+
+    <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
+    <!-- Issue #161: the library-redirect rules, /status roots, and a real child process refusing a
+         partial redirect - linked into all three suites so each platform's engine is held to them. -->
+    <Compile Include="..\Shared\LibraryRedirectTests.cs" Link="Shared\LibraryRedirectTests.cs" />
     <!-- Issue #118: the macOS bundle's committed inputs (Info.plist, AgentEyes.icns) and the app name. -->
     <Compile Include="..\Shared\MacBundleTests.cs" Link="Shared\MacBundleTests.cs" />
 
-    <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
     <Compile Include="..\Shared\CaptureOwnershipTests.cs" Link="Shared\CaptureOwnershipTests.cs" />
     <Compile Include="..\Shared\CaptureWriterReapTests.cs" Link="Shared\CaptureWriterReapTests.cs" />
     <Compile Include="..\Shared\ProcessIdentityTests.cs" Link="Shared\ProcessIdentityTests.cs" />

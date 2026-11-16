@@ -1,0 +1,37 @@
+# Job 4: trial merge of CURRENT origin/main 277a9bc into f9aba6a, in a scratch worktree (local commit 29334b3, NEVER pushed).
+## git merge --no-commit origin/main -> 5 conflicts (GitHub also reports PR #175 mergeable=CONFLICTING):
+  tests/AgentEyes.Tests.DesktopApp/AgentEyes.Tests.DesktopApp.csproj  - #161 DesktopAppRedirectTests vs #118 MacBundleTests
+  tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj          - #161 DesktopAppRedirect+LibraryRedirect vs #118 MacBundle + #156 CaptureOwnership/CaptureWriterReap/ProcessIdentity (MuxLockTests on both sides)
+  tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj              - #161 LibraryRedirectTests vs #156's three
+  tests/AgentEyes.Tests/AgentEyes.Tests.csproj                      - same
+  tests/AgentEyes.Tests/ManifestWriterIlTests.cs                    - #161 libc.so.6!geteuid/getpwuid_r pins vs #156 libc!kill/geteuid/getuid/statx/sysctl + SystemNative_Stat pins
+## All five are add/add at the same anchor. QA resolved each as the UNION of both sides (MuxLockTests kept once). This is QA's resolution for measurement, not the branch's.
+## Entry points on the merged tree (exactly one guard call each, no duplicate):
+src/AgentEyes.Core/Program.cs:30:            var redirect = LibraryRedirect.ApplyFromEnvironment(out string redirectMessage);
+src/AgentEyes.App/App.xaml.cs:68:            var redirect = LibraryRedirect.ApplyFromEnvironment(out string redirectMessage);
+src/AgentEyes.DesktopApp/Program.cs:37:            var redirect = LibraryRedirect.ApplyFromEnvironment(out string redirectMessage);
+src/AgentEyes.DesktopApp/Program.cs:32:        public static int Main(string[] args)
+src/AgentEyes.Core/Program.cs:24:        private static int Main(string[] args)
+## Merged binary: 1.11.11+29334b32f74ff9e7abe6a8a2165c77be0a8b9953 (the scratch merge commit)
+## Gates on the merged tree, under Landlock:
+== test tests/AgentEyes.Tests.Linux (merged 29334b3)
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [170 ms]
+Failed!  - Failed:     1, Passed:   494, Skipped:     2, Total:   497, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+== test tests/AgentEyes.Tests.DesktopApp (merged 29334b3)
+Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 404 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+## The one failure is main's own (#156), not the merge: the same test on PURE main 277a9bc under the same Landlock:
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [167 ms]
+Failed!  - Failed:     1, Passed:   424, Skipped:     2, Total:   427, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+## Cause: 'sg adm' is setgid, and Landlock sets no_new_privs:
+  sg adm -c 'id -g' outside the sandbox -> 4
+  sg adm -c 'id -g' inside the sandbox  -> setgid: Operation not permitted
+## 497 (merged) = 427 (main alone) + 70 (#161's Linux tests).
+## Merged AgentEyesDesktop under strace (%file,%desc,%network) + Landlock:
+[redirected] real-root syscalls=0 opens=0 connect-7882=0
+[error] library redirect refused: the desktop app always drives the service at http://127.0.0.1:7882, the person's REAL AgentEyes, so it cannot run redirected. Fix: unset AGENTEYES_REDIRECT_DATA and AGENTEYES_REDIRECT_VIDEOS, or drive a redirected 'agenteyes s
+[partial] real-root syscalls=0 opens=0 connect-7882=0
+[error] library redirect refused: partial library redirect: AGENTEYES_REDIRECT_DATA is set but AGENTEYES_REDIRECT_VIDEOS is not. Both roots move together or not at all - a scratch state root with the REAL recordings root would mix the two libraries. Fix: set A
+[spoofedHOME-onto-real] real-root syscalls=3 opens=0 connect-7882=0
+[error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XD
+## (exit codes: all three 5.) Positive control for the connect grep: curl to closed port 17999 under strace -> 1 hit:
+connect(5, {sa_family=AF_INET, sin_port=htons(17999), sin_addr=inet_addr("127.0.0.1")}, 16) = -1 EINPROGRESS (Operation now in progress)

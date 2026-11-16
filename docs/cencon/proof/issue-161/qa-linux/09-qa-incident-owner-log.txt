@@ -1,0 +1,4 @@
+# QA incident (this seat): 'agenteyes --help' run UNsandboxed and UNredirected at 12:29:58 appended these lines to the owner's live log <home>/.local/share/AgentEyes/logs/AgentEyes-20261116.log. Left in place.
+12:29:58.454 [pid 1725969] [INFO] [CliDispatcher] Run: args=1 command=--help state=<home>/.local/share/AgentEyes recordings=<home>/Videos/AgentEyes redirect=none
+12:29:58.462 [pid 1725969] [INFO] [CliDispatcher] Dispatch: top-level help
+12:29:58.463 [pid 1725969] [INFO] [CliDispatcher] Run: exit=0

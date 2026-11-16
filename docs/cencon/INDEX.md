@@ -72,6 +72,13 @@ Loopback only, `http://127.0.0.1:7882`. Key routes: `/health`, `/status`, `/devi
 returns `409`. This API is the most reliable, focus-free way for the Developer and QA agents to
 drive and inspect a running app for proof. See `scripts\api-smoke.ps1`.
 
+`/status` always names the library the process is acting on (issue #161): `DataRoot`,
+`RecordingsRoot`, `LibraryRedirected` and `LibraryRedirect`. A REAL process started to verify
+something must be redirected to a scratch library with `AGENTEYES_REDIRECT_DATA` +
+`AGENTEYES_REDIRECT_VIDEOS` and a port other than 7882 - see
+[ISOLATING_A_REAL_PROCESS.md](ISOLATING_A_REAL_PROCESS.md). Posture: a redirect is never silent (stderr
+banner, WARN log line, `/status`), and a partial or real-library-overlapping redirect refuses to start.
+
 ---
 
 ## Verification (user-invoked)

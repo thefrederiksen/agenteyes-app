@@ -31,7 +31,9 @@ namespace AgentEyes
         public static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr,
             IReadOnlyList<CliCommand> commands)
         {
-            Log.Info($"[CliDispatcher] Run: args={args.Count} command={(args.Count > 0 ? args[0] : "(none)")}");
+            // Issue #161: every command names the library it is acting on, and whether it was redirected.
+            Log.Info($"[CliDispatcher] Run: args={args.Count} command={(args.Count > 0 ? args[0] : "(none)")} "
+                     + $"state={AppDataPaths.Root} recordings={RecordingPaths.Root} redirect={LibraryRedirect.Source ?? "none"}");
             int code;
             try
             {

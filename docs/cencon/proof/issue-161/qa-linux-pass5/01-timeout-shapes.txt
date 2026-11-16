@@ -1,0 +1,129 @@
+# QA pass-5 timeout shapes (re-run after fixing the runner), 2026-11-16T21:13:18Z. docker --network none (127.0.0.1:7882 is the container's own), host /usr ro, nothing of the owner's home mounted. 10 runs per shape, production default probe (no AGENTEYES_SERVICE_PROBE_PORT).
+# PASS4(6ee962d); dll embeds 1.11.11+6ee962d493577cf3fe86f1f5d18f45fa98850a5d; 7882 before: free
+PASS4(6ee962d) nothing-listening run 1: exit 0, 177 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 2: exit 0, 164 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 3: exit 0, 166 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 4: exit 0, 195 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 5: exit 0, 181 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 6: exit 0, 174 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 7: exit 0, 182 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 8: exit 0, 183 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 9: exit 0, 175 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 10: exit 0, 191 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening SUMMARY: mean 178 ms over 10 runs; service roots added in 0 of 10
+# stand-in: READY answer
+PASS4(6ee962d) answering run 1: exit 0, 195 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 2: exit 0, 199 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 3: exit 0, 205 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 4: exit 0, 205 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 5: exit 0, 207 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 6: exit 0, 201 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 7: exit 0, 198 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 8: exit 0, 196 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 9: exit 0, 196 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 10: exit 0, 198 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering SUMMARY: mean 200 ms over 10 runs; service roots added in 10 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# stand-in: READY silent
+PASS4(6ee962d) accepts-never-answers run 1: exit 0, 637 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 2: exit 0, 630 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 3: exit 0, 674 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 4: exit 0, 640 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 5: exit 0, 627 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 6: exit 0, 642 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 7: exit 0, 648 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 8: exit 0, 632 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 9: exit 0, 639 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers run 10: exit 0, 638 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) accepts-never-answers SUMMARY: mean 640 ms over 10 runs; service roots added in 0 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# stand-in: READY fullq (queue filled after 2 connects)
+PASS4(6ee962d) connect-never-completes run 1: exit 0, 619 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 2: exit 0, 625 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 3: exit 0, 628 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 4: exit 0, 640 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 5: exit 0, 628 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 6: exit 0, 629 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 7: exit 0, 649 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 8: exit 0, 621 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 9: exit 0, 630 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes run 10: exit 0, 624 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) connect-never-completes SUMMARY: mean 629 ms over 10 runs; service roots added in 0 of 10
+# stand-in stopped; requests it saw: 0 ()
+# stand-in: READY answer
+PASS4(6ee962d) answers-after-1.5s run 1: exit 0, 628 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 2: exit 0, 638 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 3: exit 0, 631 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 4: exit 0, 630 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 5: exit 0, 636 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 6: exit 0, 627 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 7: exit 0, 636 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 8: exit 0, 624 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 9: exit 0, 641 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 10: exit 0, 633 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s SUMMARY: mean 632 ms over 10 runs; service roots added in 0 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# PASS5(22ec8cb); dll embeds 1.11.11+22ec8cb9d5e05e28ffe6d31a0ae6b5d0f49bef5f; 7882 before: free
+PASS5(22ec8cb) nothing-listening run 1: exit 0, 187 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 2: exit 0, 190 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 3: exit 0, 166 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 4: exit 0, 163 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 5: exit 0, 163 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 6: exit 0, 201 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 7: exit 0, 179 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 8: exit 0, 167 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 9: exit 0, 181 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 10: exit 0, 177 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening SUMMARY: mean 177 ms over 10 runs; service roots added in 0 of 10
+# stand-in: READY answer
+PASS5(22ec8cb) answering run 1: exit 0, 191 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 2: exit 0, 191 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 3: exit 0, 185 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 4: exit 0, 191 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 5: exit 0, 193 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 6: exit 0, 216 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 7: exit 0, 220 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 8: exit 0, 196 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 9: exit 0, 239 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 10: exit 0, 204 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering SUMMARY: mean 202 ms over 10 runs; service roots added in 10 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# stand-in: READY silent
+PASS5(22ec8cb) accepts-never-answers run 1: exit 0, 5130 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 2: exit 0, 5136 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 3: exit 0, 5123 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 4: exit 0, 5145 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 5: exit 0, 5135 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 6: exit 0, 5132 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 7: exit 0, 5146 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 8: exit 0, 5169 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 9: exit 0, 5147 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers run 10: exit 0, 5151 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seco
+PASS5(22ec8cb) accepts-never-answers SUMMARY: mean 5141 ms over 10 runs; service roots added in 0 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# stand-in: READY fullq (queue filled after 2 connects)
+PASS5(22ec8cb) connect-never-completes run 1: exit 0, 882 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 2: exit 0, 782 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 3: exit 0, 808 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 4: exit 0, 897 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 5: exit 0, 782 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 6: exit 0, 801 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 7: exit 0, 834 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 8: exit 0, 888 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 9: exit 0, 799 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes run 10: exit 0, 952 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+PASS5(22ec8cb) connect-never-completes SUMMARY: mean 842 ms over 10 runs; service roots added in 0 of 10
+# stand-in stopped; requests it saw: 0 ()
+# stand-in: READY answer
+PASS5(22ec8cb) answers-after-1.5s run 1: exit 0, 2056 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 2: exit 0, 2073 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 3: exit 0, 1969 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 4: exit 0, 1946 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 5: exit 0, 1882 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 6: exit 0, 1796 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 7: exit 0, 1793 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 8: exit 0, 1792 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 9: exit 0, 1731 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 10: exit 0, 1746 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s SUMMARY: mean 1878 ms over 10 runs; service roots added in 10 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)

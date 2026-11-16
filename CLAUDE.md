@@ -125,7 +125,7 @@ Capture a screenshot or an API/UIA response showing the expected result, and sta
 vs Actual** for each acceptance criterion. Read every screenshot - a blank render is a
 STOP-and-diagnose, never a silent pass.
 
-### Two AgentEyes-specific traps
+### Three AgentEyes-specific traps
 
 - **NEVER force-foreground the app and synthesize input** (SetForegroundWindow + SendKeys/mouse)
   without warning the human first - it steals focus from whatever they are doing and collides
@@ -135,6 +135,13 @@ STOP-and-diagnose, never a silent pass.
   NOT appear in any screen capture - this is why the snipping tool seems to make it "disappear."
   Do not try to prove HUD state with a full-screen screenshot; assert it via **UIA** (the HUD's
   controls) or the `/status` API instead.
+- **A real process acts on the person's REAL library unless redirected.** Any real `agenteyes` /
+  `AgentEyesApp` you start to verify something (serve, package, record, the startup repair pass) reads
+  and writes the owner's state, log and recordings. Set BOTH `AGENTEYES_REDIRECT_DATA` and
+  `AGENTEYES_REDIRECT_VIDEOS` to a scratch folder, use a port other than 7882, and check the
+  `[redirect]` banner and `/status` `LibraryRedirected`. **An isolated `HOME` does NOT isolate it on
+  macOS** (measured, #161). How, per platform, and what it does not cover:
+  [docs/cencon/ISOLATING_A_REAL_PROCESS.md](docs/cencon/ISOLATING_A_REAL_PROCESS.md).
 
 ---
 

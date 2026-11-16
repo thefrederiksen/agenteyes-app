@@ -1,0 +1,5 @@
+# Instrument control for the connect trace, 2026-11-16T15:38:05-05:00: ONE real redirected child, its probe pointed at a closed port P.
+# Expect exactly one connect to P. It appears in the dual-mode IPv6 form, which a 'sin_port=' grep does NOT see.
+P=46653 ; grep -c 'port=htons(46653)': 1 ; grep -c 'sin_port=htons(46653)': 0
+connect(59, {sa_family=AF_INET6, sin6_port=htons(46653), sin6_flowinfo=htonl(0), inet_pton(AF_INET6, "::ffff:127.0.0.1", &sin6_addr), sin6_scope_id=0}, 28) = -1 EINPROGRESS (Operation now in progress)
+the service probe was pointed at 127.0.0.1:46653 by AGENTEYES_SERVICE_PROBE_PORT, so the default port 7882 was NOT asked: the service on 127.0.0.1:46653 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:46653)) 

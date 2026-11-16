@@ -1,0 +1,49 @@
+# pass 5 diff against 6ee962d (pass 4). 2026-11-16T15:35:04-05:00
+## files changed
+ src/AgentEyes.Core/LibraryRedirect.cs       |  58 +++-
+ src/AgentEyes.Core/RealLibrary.cs           |  43 ++-
+ tests/AgentEyes.Tests/TestIsolationTests.cs |   3 +
+ tests/Shared/DesktopAppRedirectTests.cs     |  14 +
+ tests/Shared/LibraryRedirectTests.cs        | 429 +++++++++++++++++++---------
+ 5 files changed, 400 insertions(+), 147 deletions(-)
+## src files NOT changed by pass 5 (diff empty):
+  unchanged: src/AgentEyes.Core/AppDataPaths.cs
+  unchanged: src/AgentEyes.Core/LocalAppConfig.cs
+  unchanged: src/AgentEyes.Core/Program.cs
+  unchanged: src/AgentEyes.Core/Headless/HeadlessHost.cs
+  unchanged: src/AgentEyes.App/App.xaml.cs
+  unchanged: src/AgentEyes.DesktopApp/Program.cs
+  unchanged: src/AgentEyes.Core/RecordingService.cs
+## every hunk in the two changed src files, with the member it sits in
++++ b/src/AgentEyes.Core/LibraryRedirect.cs
+@@ -58,0 +59,10 @@ namespace AgentEyes
+@@ -484,0 +495,14 @@ namespace AgentEyes
+@@ -488 +512 @@ namespace AgentEyes
+@@ -490 +514 @@ namespace AgentEyes
+@@ -495 +519 @@ namespace AgentEyes
+@@ -567,0 +592,26 @@ namespace AgentEyes
+@@ -570 +620 @@ namespace AgentEyes
++++ b/src/AgentEyes.Core/RealLibrary.cs
+@@ -158,7 +158,9 @@ namespace AgentEyes
+@@ -166 +168,13 @@ namespace AgentEyes
+@@ -181 +195,9 @@ namespace AgentEyes
+@@ -183 +205,2 @@ namespace AgentEyes
+## members that must be untouched: body identical at 6ee962d and now (extracted by brace matching)
+  identical: LibraryRedirect.cs internal static Decision Decide
+  identical: LibraryRedirect.cs internal static string? UsableFolderProblem
+  identical: LibraryRedirect.cs internal static string? FirstEscapingLink
+  identical: LibraryRedirect.cs internal static string? UnmarkedLibraryProblem
+  identical: LibraryRedirect.cs internal static void WriteScratchMarker
+  identical: LibraryRedirect.cs public static string Banner()
+  identical: LibraryRedirect.cs public const string ComparisonLimit
+  identical: LibraryRedirect.cs public static string RealRootsStatement()
+  identical: LibraryRedirect.cs internal static string? ServicePortRefusal(int port, bool redirected)
+  identical: LibraryRedirect.cs internal static string ResolveLinks
+  identical: RealLibrary.cs public static IReadOnlyList<Root> DeriveForThisProcess()
+  identical: RealLibrary.cs internal static IReadOnlyList<Root> Derive
+  identical: RealLibrary.cs internal static IReadOnlyList<Root> Distinct
+  identical: RealLibrary.cs internal static (IReadOnlyList<Root> Roots, string Note) FromServiceStatus
+  identical: RealLibrary.cs internal static string? VideosFromUserDirs
+  identical: RealLibrary.cs internal static string AccountHome
+  identical: RealLibrary.cs internal static Uri StatusUri
+  identical: RealLibrary.cs private static class Native

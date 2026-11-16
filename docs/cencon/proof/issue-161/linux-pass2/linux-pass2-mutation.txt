@@ -1,0 +1,25 @@
+# Mutation, on the FINAL pass-2 code: RealLibrary.DeriveForThisProcess reads $HOME instead of the passwd entry
+#   - accountHome = AccountHome(uid);
+#   + accountHome = Environment.GetEnvironmentVariable("HOME"); // MUTATION: reads $HOME again
+# Rebuilt, then the LibraryRedirect + DesktopAppRedirect tests run under lldeny + strace -f:
+
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [336 ms]
+Failed!  - Failed:     1, Passed:    68, Skipped:     0, Total:    69, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+# The banner under the mutation names SCRATCH folders as 'the REAL ... root' - the pass-2 banner puts
+# that lie on the page for a reader, where pass 1's 'this is NOT the person's real library' hid it.
+
+# What the REGRESSED children did to the real roots (why the test aims the VIDEOS variable at the real folder):
+# open/openat under R1/R2: 0
+      3 access("/home/<owner>/Videos", R_OK
+      9 access("/home/<owner>/Videos", R_OK) = 0
+      6 newfstatat(AT_FDCWD, "/home/<owner>/Videos", 
+      1 newfstatat(AT_FDCWD, "/home/<owner>/Videos/AgentEyes", {st_mode=S_IFDIR|0775, st_size=4096, ...}, 0) = 0
+      1 newfstatat(AT_FDCWD, "/home/<owner>/Videos/AgentEyes", {st_mode=S_IFDIR|0775, st_size=4096, ...}, AT_SYMLINK_NOFOLLOW) = 0
+     11 newfstatat(AT_FDCWD, "/home/<owner>/Videos", {st_mode=S_IFDIR|0755, st_size=4096, ...}, 0) = 0
+      9 newfstatat(AT_FDCWD, "/home/<owner>/Videos", {st_mode=S_IFDIR|0755, st_size=4096, ...}, AT_SYMLINK_NOFOLLOW) = 0
+      4 readlink("/home/<owner>/Videos", 
+      9 readlink("/home/<owner>/Videos", 0x.., 256) = -1 EINVAL (Invalid argument)
+      1 readlink("/home/<owner>/Videos/AgentEyes", 0x.., 256) = -1 EINVAL (Invalid argument)
+
+# Restored (RealLibrary.cs copied back from the saved good file; grep -c MUTATION -> 0), rebuilt, gates green - linux-pass2-gates.txt

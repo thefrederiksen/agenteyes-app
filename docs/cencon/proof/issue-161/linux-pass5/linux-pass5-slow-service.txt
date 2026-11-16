@@ -1,0 +1,25 @@
+# BEFORE (pass 4, 6ee962d) - a service that answers after 1.5 s. 2026-11-16T15:31:49-05:00
+slow-service run 1: exit 1, 632 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 2: exit 1, 638 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 3: exit 1, 638 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 4: exit 1, 657 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 5: exit 1, 637 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 6: exit 1, 644 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 7: exit 1, 633 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 8: exit 1, 631 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 9: exit 1, 639 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service run 10: exit 1, 652 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 seconds elapsing.) 
+slow-service MEAN: 640 ms over 10 runs
+
+# AFTER (pass 5)
+slow-service run 1: exit 1, 1706 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 2: exit 1, 1719 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 3: exit 1, 1713 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 4: exit 1, 1732 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 5: exit 1, 1716 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 6: exit 1, 1717 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 7: exit 1, 1733 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 8: exit 1, 1700 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 9: exit 1, 1701 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service run 10: exit 1, 1718 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+slow-service MEAN: 1715 ms over 10 runs

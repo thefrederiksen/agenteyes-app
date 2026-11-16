@@ -235,7 +235,9 @@ namespace AgentEyes.Tests
         {
             // The ONE place per-user AgentEyes state is found. Redirected in a test host.
             "agenteyes.dll!AgentEyes.AppDataPaths::get_MachineLocalAppData -> LocalApplicationData x1",
-            "agenteyes.dll!AgentEyes.AppDataPaths::get_Videos -> MyVideos x1",
+            // Issue #161: the never-redirected Videos folder, read by get_Videos (the fallback) and by
+            // LibraryRedirect to name the real recordings root a redirect must stay out of.
+            "agenteyes.dll!AgentEyes.AppDataPaths::get_MachineVideos -> MyVideos x1",
             // The install root: honors AGENTEYES_ROOT first, which the test host sets for its own process.
             "AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallLayout::Default -> LocalApplicationData x1",
             // Shortcut PATHS. Tests only read them (the uninstall plan checks existence); none creates one.
@@ -258,6 +260,15 @@ namespace AgentEyes.Tests
             "AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.RegistryUserEnvironment::Get -> <not a literal> x1",
             "AgentEyesApp.dll!AgentEyes.App.HudWindow::ApplyWindowStyles -> MQS_HUD_CAPTURABLE x1",
             "agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> PATH x1",
+            // Issue #161: the supported redirect of a REAL process to a scratch library. They name
+            // stand-ins for the user folders; they are not routes to the real ones.
+            "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_DATA x1",
+            "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_VIDEOS x1",
+            // Pass 5: the port the redirect's service probe asks, so a test plays the person's service on a port of its
+            // own and never sends a request to the real one. Never silent: a banner that honored it says 7882 was not asked.
+            "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_SERVICE_PROBE_PORT x1",
+            // Pass 2: under sudo, the account that ran it - used only to ADD protected roots, never to remove one.
+            "agenteyes.dll!AgentEyes.RealLibrary::DeriveForThisProcess -> SUDO_UID x1",
             "agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> QA_RECORD_FFMPEG_DIR x1",
         };
 
@@ -305,6 +316,10 @@ namespace AgentEyes.Tests
         {
             // The redirectable root falls back to it when no redirect is set - the normal product path.
             "agenteyes.dll!AgentEyes.AppDataPaths::get_LocalAppData -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
+            // Issue #161: naming the REAL state root a redirect is refused for overlapping. Read only to
+            // compare against; no path built from it is ever handed out. Pass 2 moved the read into
+            // RealLibrary, which unions it with the account's (passwd) folders.
+            "agenteyes.dll!AgentEyes.RealLibrary::DeriveForThisProcess -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
             // The winget package folder ffmpeg may be installed in: a tool location, not AgentEyes state.
             "agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
             // This class, naming the real folder it asserts the test run stays out of.

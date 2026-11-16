@@ -1,0 +1,157 @@
+# QA pass-5 timeout shapes, 2026-11-16T21:11:53Z. docker --network none (127.0.0.1:7882 is the container's own), host /usr ro, nothing of the owner's home mounted. 10 runs per shape, production default probe.
+# PASS4(6ee962d); dll embeds 1.11.11+6ee962d493577cf3fe86f1f5d18f45fa98850a5d; 7882 before: free
+PASS4(6ee962d) nothing-listening run 1: exit 0, 170 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 2: exit 0, 181 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 3: exit 0, 171 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 4: exit 0, 179 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 5: exit 0, 164 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 6: exit 0, 177 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 7: exit 0, 186 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 8: exit 0, 185 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 9: exit 0, 182 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening run 10: exit 0, 165 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) nothing-listening SUMMARY: mean 176 ms over 10 runs; service roots added in 0 of 10
+# stand-in: READY answer
+PASS4(6ee962d) answering run 1: exit 0, 203 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 2: exit 0, 181 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 3: exit 0, 180 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 4: exit 0, 188 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 5: exit 0, 177 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 6: exit 0, 204 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 7: exit 0, 196 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 8: exit 0, 195 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 9: exit 0, 187 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering run 10: exit 0, 190 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS4(6ee962d) answering SUMMARY: mean 190 ms over 10 runs; service roots added in 10 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# stand-in: Traceback (most recent call last):
+  File "/svc.py", line 7, in <module>
+    port = int(sys.argv[1]); mode = sys.argv[2]; delay = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
+                                                         ^^^^^^^^^^^^^^^^^^
+ValueError: could not convert string to float: '/tmp/svc.log'
+PASS4(6ee962d) accepts-never-answers run 1: exit 0, 187 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 2: exit 0, 168 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 3: exit 0, 163 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 4: exit 0, 178 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 5: exit 0, 180 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 6: exit 0, 180 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 7: exit 0, 172 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 8: exit 0, 178 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 9: exit 0, 177 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers run 10: exit 0, 173 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) accepts-never-answers SUMMARY: mean 175 ms over 10 runs; service roots added in 0 of 10
+/shapes.sh: line 23: kill: (542) - No such process
+/shapes.sh: line 23: /tmp/svc.log: No such file or directory
+cut: /tmp/svc.log: No such file or directory
+# stand-in stopped; requests it saw:  ()
+# stand-in: Traceback (most recent call last):
+  File "/svc.py", line 7, in <module>
+    port = int(sys.argv[1]); mode = sys.argv[2]; delay = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
+                                                         ^^^^^^^^^^^^^^^^^^
+ValueError: could not convert string to float: '/tmp/svc.log'
+PASS4(6ee962d) connect-never-completes run 1: exit 0, 165 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 2: exit 0, 172 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 3: exit 0, 177 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 4: exit 0, 157 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 5: exit 0, 172 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 6: exit 0, 174 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 7: exit 0, 169 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 8: exit 0, 168 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 9: exit 0, 182 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes run 10: exit 0, 162 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS4(6ee962d) connect-never-completes SUMMARY: mean 169 ms over 10 runs; service roots added in 0 of 10
+/shapes.sh: line 23: kill: (904) - No such process
+/shapes.sh: line 23: /tmp/svc.log: No such file or directory
+cut: /tmp/svc.log: No such file or directory
+# stand-in stopped; requests it saw:  ()
+# stand-in: READY answer
+PASS4(6ee962d) answers-after-1.5s run 1: exit 0, 626 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 2: exit 0, 624 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 3: exit 0, 641 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 4: exit 0, 621 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 5: exit 0, 626 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 6: exit 0, 636 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 7: exit 0, 630 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 8: exit 0, 636 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 9: exit 0, 635 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s run 10: exit 0, 629 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 0.5 se
+PASS4(6ee962d) answers-after-1.5s SUMMARY: mean 630 ms over 10 runs; service roots added in 0 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# PASS5(22ec8cb); dll embeds 1.11.11+22ec8cb9d5e05e28ffe6d31a0ae6b5d0f49bef5f; 7882 before: free
+PASS5(22ec8cb) nothing-listening run 1: exit 0, 188 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 2: exit 0, 195 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 3: exit 0, 169 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 4: exit 0, 188 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 5: exit 0, 173 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 6: exit 0, 173 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 7: exit 0, 169 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 8: exit 0, 174 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 9: exit 0, 179 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening run 10: exit 0, 171 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) nothing-listening SUMMARY: mean 177 ms over 10 runs; service roots added in 0 of 10
+# stand-in: READY answer
+PASS5(22ec8cb) answering run 1: exit 0, 199 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 2: exit 0, 195 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 3: exit 0, 205 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 4: exit 0, 193 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 5: exit 0, 185 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 6: exit 0, 193 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 7: exit 0, 200 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 8: exit 0, 292 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 9: exit 0, 249 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering run 10: exit 0, 228 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answering SUMMARY: mean 213 ms over 10 runs; service roots added in 10 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)
+# stand-in: Traceback (most recent call last):
+  File "/svc.py", line 7, in <module>
+    port = int(sys.argv[1]); mode = sys.argv[2]; delay = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
+                                                         ^^^^^^^^^^^^^^^^^^
+ValueError: could not convert string to float: '/tmp/svc.log'
+PASS5(22ec8cb) accepts-never-answers run 1: exit 0, 177 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 2: exit 0, 159 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 3: exit 0, 159 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 4: exit 0, 173 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 5: exit 0, 160 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 6: exit 0, 168 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 7: exit 0, 181 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 8: exit 0, 167 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 9: exit 0, 164 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers run 10: exit 0, 167 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) accepts-never-answers SUMMARY: mean 167 ms over 10 runs; service roots added in 0 of 10
+/shapes.sh: line 23: kill: (542) - No such process
+/shapes.sh: line 23: /tmp/svc.log: No such file or directory
+cut: /tmp/svc.log: No such file or directory
+# stand-in stopped; requests it saw:  ()
+# stand-in: Traceback (most recent call last):
+  File "/svc.py", line 7, in <module>
+    port = int(sys.argv[1]); mode = sys.argv[2]; delay = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
+                                                         ^^^^^^^^^^^^^^^^^^
+ValueError: could not convert string to float: '/tmp/svc.log'
+PASS5(22ec8cb) connect-never-completes run 1: exit 0, 163 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 2: exit 0, 162 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 3: exit 0, 161 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 4: exit 0, 168 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 5: exit 0, 168 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 6: exit 0, 189 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 7: exit 0, 173 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 8: exit 0, 168 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes run 9: exit 0, 189 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+/shapes.sh: line 23: kill: (904) - No such process
+PASS5(22ec8cb) connect-never-completes run 10: exit 0, 174 ms, service roots not-added | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+PASS5(22ec8cb) connect-never-completes SUMMARY: mean 171 ms over 10 runs; service roots added in 0 of 10
+/shapes.sh: line 23: /tmp/svc.log: No such file or directory
+cut: /tmp/svc.log: No such file or directory
+# stand-in stopped; requests it saw:  ()
+# stand-in: READY answer
+PASS5(22ec8cb) answers-after-1.5s run 1: exit 0, 1700 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 2: exit 0, 1711 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 3: exit 0, 1714 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 4: exit 0, 1704 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 5: exit 0, 1698 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 6: exit 0, 1722 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 7: exit 0, 1725 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 8: exit 0, 1700 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 9: exit 0, 1711 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s run 10: exit 0, 1725 ms, service roots ADDED | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+PASS5(22ec8cb) answers-after-1.5s SUMMARY: mean 1711 ms over 10 runs; service roots added in 10 of 10
+# stand-in stopped; requests it saw: 10 ( 10 GET /status HTTP/1.1)

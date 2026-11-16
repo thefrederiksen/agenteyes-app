@@ -1,0 +1,51 @@
+# AFTER: pass 5 (connect 500 ms, response 5 s). 2026-11-16T15:30:21-05:00. --network none container.
+# 7882 before: free
+no-service run 1: exit 1, 198 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 2: exit 1, 209 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 3: exit 1, 188 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 4: exit 1, 185 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 5: exit 1, 208 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 6: exit 1, 178 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 7: exit 1, 188 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 8: exit 1, 166 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 9: exit 1, 195 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service run 10: exit 1, 220 ms | the service on 127.0.0.1:7882 was asked for its library and named none (HttpRequestException: Connection refused (127.0.0.1:7882)) 
+no-service MEAN: 193 ms over 10 runs
+# stand-in service pid 222 on 7882: LISTENING
+service run 1: exit 1, 222 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 2: exit 1, 211 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 3: exit 1, 217 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 4: exit 1, 238 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 5: exit 1, 217 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 6: exit 1, 212 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 7: exit 1, 207 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 8: exit 1, 228 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 9: exit 1, 199 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service run 10: exit 1, 208 ms | the AgentEyes service answering on 127.0.0.1:7882 (/status DataRoot)] 
+service MEAN: 215 ms over 10 runs
+# stand-in stopped; 7882: free
+# silent stand-in pid 458 on 7882 (accepts, never answers): LISTENING
+silent run 1: exit 1, 5150 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 2: exit 1, 5152 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 3: exit 1, 5143 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 4: exit 1, 5137 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 5: exit 1, 5155 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 6: exit 1, 5135 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 7: exit 1, 5131 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 8: exit 1, 5154 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 9: exit 1, 5145 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent run 10: exit 1, 5136 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The request was canceled due to the configured HttpClient.Timeout of 5 seconds elapsing.) 
+silent MEAN: 5143 ms over 10 runs
+# silent stand-in stopped; 7882: free
+# full-queue listener pid 692 on 7882 (connect never completes): queue filled
+connect-hangs run 1: exit 1, 711 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 2: exit 1, 744 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 3: exit 1, 696 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 4: exit 1, 702 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 5: exit 1, 728 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 6: exit 1, 707 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 7: exit 1, 701 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 8: exit 1, 708 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 9: exit 1, 712 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs run 10: exit 1, 698 ms | the service on 127.0.0.1:7882 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+connect-hangs MEAN: 710 ms over 10 runs
