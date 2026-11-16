@@ -1,0 +1,4 @@
+== WITHOUT delay_moov, kill at 1.0s: bytes=1241
+   counted frames: N/A | ffprobe exit 0 
+== WITHOUT delay_moov, kill at 1.8s: bytes=1241
+   counted frames: N/A | ffprobe exit 0 

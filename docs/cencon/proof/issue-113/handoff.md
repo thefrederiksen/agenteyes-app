@@ -15,10 +15,17 @@ merged in. What changed, and what QA should check:
 3. **The watchdog's fail-open catch is gone** (`9f45b33`, `00c9df9`). Check: `WatchdogFailOpenTests`
    and the four mutations in the report.
 4. **The fragmented container started the video 0.7-1.0 s late on Windows** (0.067 s at 30 fps on a
-   synthetic source). Fixed with `+delay_moov` (`3debd3d`). **This changes the capture command line
-   on all three platforms**, so on macOS and Linux QA must re-run criteria 1, 2 and 5 (frozen and
-   killed captures, and the file they leave) and check `start_time` of both streams in raw.mp4 and
-   recording.mp4 (expected 0.000 and 0.000).
+   synthetic source - a synthetic source under-reports this class of defect, so measure it on the
+   real device). Fixed with `+delay_moov` (`3debd3d`); `-bf 0` would spend B-frames and
+   `negative_cts_offsets` does not fix it. Price, measured: a kill in the first ~2 s leaves a 0-byte
+   file (the reviewed flags left a zero-frame header - nothing recoverable either way); a watchdog
+   kill is never in that window.
+   **THIS CHANGES THE CAPTURE COMMAND LINE ON ALL THREE PLATFORMS. On macOS and Linux QA must re-run
+   criteria 1, 2 and 5 on a real capture at 30 fps (frozen capture, killed capture, and the playable
+   file they leave - criterion 5 now depends on when the index is written), and check `start_time`
+   of both streams in raw.mp4 and recording.mp4 (expected 0.000 and 0.000).** Do not take criteria
+   1/2/5 evidence at 5 fps: a pre-existing audio shortfall there (being filed separately) would
+   contaminate it.
 5. **Windows recorded, stalled and killed** with this code for the first time; the rename on Windows
    fails with a sharing violation, measured.
 6. Every file cited is decoded in full to exit 0 with a frame read from the last second.

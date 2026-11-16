@@ -1,0 +1,10 @@
+== kill at 1.0s after process start (1s): file exists=True bytes=0 first-box=b''
+== kill at 1.8s after process start (1.8s): file exists=True bytes=0 first-box=b''
+== kill at 2.6s after process start (2.6s): file exists=True bytes=245008 first-box=b'ftyp'
+   ffprobe exit 0 video,0.000000 | audio,0.000000 | 2.000000 
+   counted frames: 20 
+   full decode exit 0 
+== kill at 3.5s after process start (3.5s): file exists=True bytes=254075 first-box=b'ftyp'
+   ffprobe exit 0 video,0.000000 | audio,0.000000 | 2.100000 
+   counted frames: 3 
+   full decode exit 0 

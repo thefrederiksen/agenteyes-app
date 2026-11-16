@@ -185,9 +185,39 @@ container choice, so it is fixed here (`3debd3d`) and the lead was told when I s
 | **+ `delay_moov`** | **0.000** | yes | **chosen**: the index is written when the first fragment is cut, so it carries the edit list |
 | + `delay_moov`, TerminateProcess at ~12 s | 0.000 | yes | **decodes to exit 0**, 250 frames, a frame from the last second |
 
-Cost of `delay_moov`: `raw.mp4` stays at 0 bytes until the first fragment (~2 s; measured
-`[0, 0, 247352, ...]` per second), well inside the watchdog's 45 s start-up window. It changes the
-capture command line on **all three platforms** (one muxer flag) - see "What this does not cover".
+**Why not the alternatives, one line each:** `-bf 0` fixes the offset by spending B-frames on every
+recording. `+negative_cts_offsets` does not fix it (measured 0.833 s).
+
+**The price, measured: a kill in the first ~2 s** (`evidence/debug-ts-early-kill*.txt`, real
+devices, TerminateProcess on an ffmpeg this script started, final flags):
+
+| Killed at | With `+delay_moov` | As reviewed (no `delay_moov`) |
+|---|---|---|
+| 1.0 s | **0 bytes** - no ftyp, no moov, nothing to recover | 1,241 bytes - header only, **zero frames** |
+| 1.8 s | **0 bytes** - nothing to recover | 1,241 bytes - header only, **zero frames** |
+| 2.6 s | 245,008 bytes, decodes to exit 0, 20 frames, both streams at 0.000 | - |
+| 3.5 s | 254,075 bytes, decodes to exit 0, both streams at 0.000 | - |
+
+So the early window loses nothing that was recoverable before: as reviewed, a kill there left a
+playable-looking header with no frames; now it leaves an empty file. The difference a reader sees is
+"0 bytes" instead of "0 frames". Exposure is a crash or a power loss in a capture's first two seconds.
+**A watchdog kill is never inside it**: the watchdog's earliest verdict is the 45 s start-up window.
+`raw.mp4` stays at 0 bytes until the first fragment (measured `[0, 0, 247352, ...]` per second),
+and the watchdog reads that as "starting", as it always has.
+
+**One lesson, from the lead, and it is right.** The gate's lavfi measurement (0.067 s, "two frames")
+was correct for lavfi and under-reported the defect ten-fold: "two frames" is a measure of TIME, and
+a synthetic source has no gap between its first frames, while gdigrab's second frame arrives ~0.7 s
+after its first. **A synthetic source systematically under-reports this class of defect**; a
+timestamp defect has to be measured on the real capture device.
+
+> **QA, macOS and Linux: `+delay_moov` changes the capture command line on ALL THREE platforms.
+> Criteria 1 (frozen capture), 2 (killed capture) and 5 (the file an unclean end leaves) must be
+> re-run there on a real capture, because criterion 5's playable file now depends on when the index
+> is written; and check both streams' `start_time` in raw.mp4 and recording.mp4 (expected 0.000).**
+
+Every criteria 1/2/5 run in this pass was taken at 30 fps. The 5 fps runs are used only for the
+offset measurement, because at 5 fps the pre-existing audio shortfall below would contaminate them.
 
 Regression test: `FragmentedOutputTimelineTests` runs a real ffmpeg through `FragmentedOutput()`;
 removing `+delay_moov` fails it with the video at **0.066667 s** - the gate's own number.
@@ -196,7 +226,7 @@ removing `+delay_moov` fails it with the video at **0.066667 s** - the gate's ow
 video on BOTH trees (`main`: 39.4 s of audio in 44.0 s of video; final: 39.06 in 44.0). #113's
 `behind` check is what surfaces it (`the capture wrote 39.04s of a 42.86s session`), because
 ffmpeg's progress time follows the shortest stream. Pre-existing audio truncation, #114's territory;
-I recommend its own issue.
+the lead is filing it as its own issue with these numbers.
 
 ## Item 5 - the Windows run nobody had done
 
@@ -316,9 +346,9 @@ runtime stall above shows the real path - verdict, kill, claim released, the own
    runtime, because #156 now prevents it.
 3. **`check-failed` keeps the last byte count on `/status`.** That number is the last one READ, not a
    current one; the state word says so, and a client must read the state, not just the bytes.
-4. **`delay_moov` leaves the first ~2 s empty.** A capture killed in its first two seconds leaves no
-   index at all. That loses at most two seconds that plain empty_moov would have kept as a zero-frame
-   file, and the start-up window (45 s) is unaffected.
+4. **`delay_moov` leaves the first ~2 s empty.** Measured in item 4: a capture killed at 1.0 s or
+   1.8 s leaves a 0-byte file, where the reviewed flags left a header with zero frames. Nothing that
+   was recoverable is lost; the watchdog never kills inside that window.
 
 ## Housekeeping
 
