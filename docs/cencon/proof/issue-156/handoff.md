@@ -629,7 +629,9 @@ that the predicate it calls can no longer throw.
 | `dotnet test tests/AgentEyes.Tests.Mac -c Release` | **340 passed, 0 failed, 0 skipped** (326 before; 14 new) |
 | `dotnet test tests/AgentEyes.Tests.Linux -c Release` | **347 passed, 1 skipped, 0 failed** - ON THIS MAC, **not a Linux run** |
 | `AgentEyes.sln` | not built: it cannot build on a Mac. Windows build and test are CI's and QA's |
-| merge onto `main` `17c244d` | clean (`git merge-tree` at the pre-commit head = `2f628db`, the gate's merged tree) |
+| merge onto `main` `17c244d` | **CONFLICTED once pass 3 was committed.** My checks before the commit were clean, but pass 3's predicate summary sits on the lines next to `main`'s #151 change (`IsSameProcess` and `KillTree` made `internal`). I merged `main` into the PR branch (`9a1accb`): this branch's code, plus `main`'s `internal KillTree`, which `main`'s `tests/Shared/OwnedFfmpeg.cs` calls. Against the branch, the resolution changes `FfmpegChildRegistry.cs` only by that visibility. `main` carries no #113 code |
+| `dotnet test tests/AgentEyes.Tests.Mac -c Release` on the MERGED branch (`9a1accb`) | **345 passed, 1 skipped, 0 failed**. The gate measured 331 + 1 on its merged tree; the +14 is `ProcessIdentityTests` |
+| `dotnet test tests/AgentEyes.Tests.Linux -c Release` on the MERGED branch, ON THIS MAC | **352 passed, 2 skipped, 0 failed**. The gate measured 338 + 2; the +14 again. Not a Linux run |
 
 ### Unchanged, by scope
 
