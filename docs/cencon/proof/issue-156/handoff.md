@@ -1062,3 +1062,11 @@ test project: compiles; CI runs it.
   host. A foreign owner pid would read gone, and the child is killed only on a start-time match within
   1 s, which another host's process essentially never has. The worst case is a deleted reap record, not a
   kill. Read, not measured.
+
+**CI on round 2** (run 43908206886, head `57259ea`, all three jobs green): macOS 375 passed / 1 skipped
+with the opt-in set, so both sandbox arms of the real-CLI test ran on the hosted runner. Linux 382 / 2
+and 383 / 1. Windows 2466 / 16 and 2485 / 1.
+
+I believe this is finished. Open and owned elsewhere: pid namespaces (the follow-up), Windows prober
+tokens (#171), Linux EPERM under seccomp or an LSM (named, unmeasured), the macOS sudo writer (QA, needs
+a password).
