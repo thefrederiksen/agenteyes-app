@@ -1,33 +1,48 @@
-M1 Alive -> NotMine (the pass 3 behaviour): ('Failed!', '2', '88', '1')
+M1 Alive -> NotMine (the pass 3 behaviour): ('Failed!', '2', '95', '1')
     FAILS ClassifyUnreadable_OursOnMacAlive_Unknown
     FAILS PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim
-M2 Zombie -> Unknown: ('Failed!', '2', '88', '1')
+M2 Zombie -> Unknown: ('Failed!', '2', '95', '1')
     FAILS ClassifyUnreadable_OursOnMacZombie_NotMine
     FAILS IdentifyProcess_ThisUsersZombie_NotMineProvedBySzomb
-M3 Gone -> Unknown: ('Failed!', '1', '89', '1')
+M3 Gone -> Unknown: ('Failed!', '1', '96', '1')
     FAILS ClassifyUnreadable_OursOnMacGoneBetweenCalls_NotMine
-M4 state unreadable -> NotMine: ('Failed!', '2', '88', '1')
+M4 state unreadable -> NotMine: ('Failed!', '2', '95', '1')
     FAILS ClassifyUnreadable_OursOnMacStateRefused_Unknown
     FAILS MacProcessState_Default_IsUnreadableNotAProof
-M5 EPERM -> Unknown: ('Failed!', '7', '83', '1')
-    FAILS ClassifyUnreadable_KillEperm_NotMineAnotherUser
+M5 EPERM on Linux -> Unknown: ('Failed!', '1', '96', '1')
+    FAILS ClassifyUnreadable_KillEpermOnLinux_NotMineAnotherUser
+M5b macOS EPERM -> NotMine without the uid check (the pass 4 first-cut behaviour): ('Failed!', '4', '93', '1')
+    FAILS ClassifyUnreadable_KillEpermOnMacTargetIsThisUsers_Unknown(ruid:
+    FAILS PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim
+M5c macOS EPERM, uid other -> Unknown: ('Failed!', '7', '90', '1')
+    FAILS ClassifyUnreadable_KillEpermOnMacTargetOfAnotherUid_NotMine
     FAILS ClassifyUnreadable_RealProbePidOne_NotMineAnotherUser
     FAILS FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording
     FAILS IdentifyProcess_PidHeldByAnotherUsersProcess_NotMineWithoutThrowing
     FAILS Inspect_WriterPidHeldByAnotherUser_IsAStaleClaim
     FAILS ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord
     FAILS Resume_WriterPidHeldByAnotherUser_RecoversTheRecording
-M6 ESRCH -> Unknown: ('Failed!', '1', '89', '1')
+M5d macOS EPERM, saved uid ignored: ('Failed!', '1', '96', '1')
+    FAILS ClassifyUnreadable_KillEpermOnMacTargetIsThisUsers_Unknown(ruid:
+M5e RuidOffset wrong (388): ('Failed!', '7', '90', '1')
+    FAILS ClassifyUnreadable_RealProbePidOne_NotMineAnotherUser
+    FAILS FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording
+    FAILS IdentifyProcess_PidHeldByAnotherUsersProcess_NotMineWithoutThrowing
+    FAILS Inspect_WriterPidHeldByAnotherUser_IsAStaleClaim
+    FAILS ReadMacProcessState_Uids_MatchThisUserAndRoot
+    FAILS ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord
+    FAILS Resume_WriterPidHeldByAnotherUser_RecoversTheRecording
+M6 ESRCH -> Unknown: ('Failed!', '1', '96', '1')
     FAILS ClassifyUnreadable_KillEsrch_NotMineGone
-M7 other errno -> NotMine: ('Failed!', '1', '89', '1')
+M7 other errno -> NotMine: ('Failed!', '1', '96', '1')
     FAILS ClassifyUnreadable_KillOtherErrno_Unknown
-M8 ours on Linux -> NotMine: ('Failed!', '1', '89', '1')
+M8 ours on Linux -> NotMine: ('Failed!', '1', '96', '1')
     FAILS ClassifyUnreadable_OursOnLinux_Unknown
-M9 Windows refusal -> Unknown: ('Failed!', '1', '89', '1')
+M9 Windows refusal -> Unknown: ('Failed!', '1', '96', '1')
     FAILS ClassifyUnreadable_Windows_NotMineWithoutAskingPosix
-M10 SZOMB constant wrong (4 = SSTOP): ('Failed!', '1', '89', '1')
+M10 SZOMB constant wrong (4 = SSTOP): ('Failed!', '1', '96', '1')
     FAILS IdentifyProcess_ThisUsersZombie_NotMineProvedBySzomb
-M11 equal start time -> Unknown: ('Failed!', '7', '83', '1')
+M11 equal start time -> Unknown: ('Failed!', '7', '90', '1')
     FAILS Dispose_AWriterIsStillRunning_KeepsTheClaimLiveForOtherProcesses
     FAILS ReapOrphansIn_RealWriterThatHandlesSigterm_ExitsGracefully
     FAILS ReapOrphansIn_RealWriterThatIgnoresSigterm_IsSigkilledAfterTheBound
@@ -35,20 +50,20 @@ M11 equal start time -> Unknown: ('Failed!', '7', '83', '1')
     FAILS Inspect_OneWriterUnknownOneRunning_ReportsStillRunningNotUndetermined
     FAILS Inspect_WriterStillRunning_IsLive
     FAILS PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim
-M12 FreeLockLiveness ignores Unknown: ('Failed!', '4', '86', '1')
+M12 FreeLockLiveness ignores Unknown: ('Failed!', '4', '93', '1')
     FAILS FindUnfinished_WriterUnknownBesideAStaleClaim_AdmitsOnlyTheStaleOne
     FAILS Inspect_WriterIdentityUnknown_LiveUndeterminedAndNothingCleared
     FAILS PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim
     FAILS Resume_WriterUnknownBesideAStaleClaim_DeclinesOneRecoversTheOther
-M13 Release treats Unknown as exited: ('Failed!', '1', '89', '1')
+M13 Release treats Unknown as exited: ('Failed!', '1', '96', '1')
     FAILS Release_WriterIdentityUnknown_OwnerRecordKept
-M14 reaper: Unknown owner treated as gone: ('Failed!', '1', '89', '1')
+M14 reaper: Unknown owner treated as gone: ('Failed!', '1', '96', '1')
     FAILS ReapOrphans_OwnerIdentityUnknown_LeftAloneRecordKept
-M15 reaper: Unknown child treated as exited: ('Failed!', '1', '89', '1')
+M15 reaper: Unknown child treated as exited: ('Failed!', '1', '96', '1')
     FAILS ReapOrphans_ChildIdentityUnknown_NotSignalledRecordKept
-M16 reaper: Unknown at the deadline is killed: ('Failed!', '1', '89', '1')
+M16 reaper: Unknown at the deadline is killed: ('Failed!', '1', '96', '1')
     FAILS ReapOrphans_WriterUnknownAfterSigterm_NotKilledAtTheDeadline
-M17 Windows: any error -> NotMine: ('Failed!', '1', '89', '1')
+M17 Windows: any error -> NotMine: ('Failed!', '1', '96', '1')
     FAILS ClassifyUnreadable_WindowsOtherError_Unknown
-M18 MacProcessStateKind: Zombie is value 0: ('Failed!', '1', '89', '1')
+M18 MacProcessStateKind: Zombie is value 0: ('Failed!', '1', '96', '1')
     FAILS MacProcessState_Default_IsUnreadableNotAProof

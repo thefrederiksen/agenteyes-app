@@ -755,7 +755,9 @@ accident. `Unknown` is enum value 0, so an answer nobody filled in reads as the 
 | Windows, any error other than 5 | Unknown | not a refusal, so not the measured fact (added after self-review) |
 | Windows, open refused (error 5) | NotMine | MEASURED (Windows QA, pass 3): .NET opens with `PROCESS_QUERY_LIMITED_INFORMATION`, which Windows grants the same user across integrity levels, so a refusal means another user's or a protected process. The "elevated case is unmeasured" sentence is gone from the code and the log line. #171 keeps the KillTree-across-elevation measurement and the two unpinned mappings. |
 | `kill` ESRCH | NotMine | gone |
-| `kill` EPERM | NotMine | another user's; our writer ran as us |
+| `kill` EPERM, Linux | NotMine | another user's; our writer ran as us (as ruled; same premise unmeasured - see round 2) |
+| `kill` EPERM, macOS, target uids not ours | NotMine | **PROVED** another user from the target's `p_ruid`/`p_svuid` (round 2) |
+| `kill` EPERM, macOS, target uid IS ours | **Unknown** | **measured in round 2: a signal-denying sandbox refuses kill for a live process of this user** |
 | `kill` other errno | Unknown | the probe failed |
 | `kill` 0, Linux | Unknown | no second probe exists. Linux reads a zombie's start time anyway. |
 | `kill` 0, macOS, p_stat SZOMB | NotMine | **PROVED zombie** |
@@ -977,3 +979,86 @@ Dismissed, with reasons:
 
 I believe this is finished, with the Linux pid-namespace case and the Windows AppContainer case named
 as open and sent to the lead for a decision.
+
+## Pass 4, round 2 - after the lead's decisions (fleet message, 2026-11-16 16:04Z)
+
+**The lead's rulings.** (2) Windows error 5 stays NotMine. Error 5 is the ordinary signal for a pid
+reused by a SYSTEM service (nine measured), and making it Unknown would strand those crashes, which is
+D2. The prober-token discriminator goes to **#171** and is not written blind from a Mac. The code now
+says the case is unmeasured and names #171. (1) Pid namespaces go to a follow-up, provided pids are only
+compared when the claim's host matches.
+
+**Answer to (1): the host guard IS there, so the namespace case is the exotic one.**
+`CaptureLock.FreeLockLiveness` calls `IsThisHost(owner)` before any writer pid is probed. That check
+passes on the same host id OR the same machine name. A writer of another host is reported LIVE with the
+exact fix ("Finalize it from <host>, or ... delete capture.owner.json"), never NotMine-by-pid. It is
+pinned by `Inspect_WriterOnAnotherHost_IsLiveWithTheExactFix`, whose probe THROWS if it is ever called.
+The reaper's registry has no host field, but it lives in per-user local app data, not in the shared
+library. What remains for the follow-up is "passes the host check, other pid namespace". That is a Linux
+container given the host's name, or one that mounts the user's home and so reads the same `host-id`
+file. The expected defect, by reading and NOT measured: the host writer's pid gives "no such process" in
+that namespace (`ArgumentException`), the answer is NotMine, the claim is cleared and an attempt spent.
+The predicate's PREMISE paragraph now says exactly this, for the follow-up to inherit.
+
+**The case I was tempted to assume away, written down and then measured: it was a defect.** My first cut
+kept "kill EPERM = another user" as the lead had ruled. But the gate's sandbox was only one sandbox. One
+that ALSO denies signals outside itself makes `kill(pid, 0)` fail with EPERM for a LIVE process of this
+same user. The EPERM row then answers "ANOTHER USER, NotMine", which is the gate's defect through the
+next door. Measured with `sandbox-exec` and the gate's profile plus
+`(deny signal)(allow signal (target same-sandbox))`:
+
+| Target | prober | `kill(pid, 0)` | `sysctl` p_stat | uid offsets 392 / 396 / 420 |
+|---|---|---|---|---|
+| live same-user `sleep` | plain | rc 0 | 2 | (this process: 501 at all three) |
+| live same-user `sleep` | **signal-denying sandbox** | **rc -1, EPERM** | 2 | readable |
+| pid 1 (root) | both | rc -1, EPERM | 2 | 0 |
+
+The fix reads a positive fact about the TARGET. The same `sysctl` reply carries the uids that kill(2)
+checks: `p_ruid` at 392 and `p_svuid` at 396, with this process's euid at 420. On macOS, EPERM is
+NotMine only when neither target uid is ours. If one is ours, the uids permit the signal, so something
+else refused it, and the answer is Unknown. If the process is gone the answer is NotMine; if the uids are
+unreadable it is Unknown. This needs no new native import: our own uids come from the same read of our
+own pid. Linux keeps the ruled row. Its same premise (a seccomp or LSM policy refusing kill(2) for a
+same-user process) is named in the code and NOT measured; Linux normally never reaches this row, because
+it reads any start time.
+
+**Measured end to end** (`pass4/repro-sandbox.sh` now has a `live-sigdeny` arm; `run-before-384e3fe.txt`,
+`run-after-pass4.txt` and `product-log-sandbox-arm.txt` are re-run on the final code):
+
+| Arm | BEFORE `384e3fe` | AFTER (final) |
+|---|---|---|
+| live, plain | declined STILL RUNNING, claim PRESENT | declined STILL RUNNING, claim PRESENT |
+| live, gate sandbox | ADMITTED, Attempts=1, claim ABSENT | declined UNDETERMINED, no attempt, claim PRESENT |
+| **live, signal-denying sandbox** | **ADMITTED, Attempts=1, claim ABSENT** (log: "pid 71983 belongs to ANOTHER USER" - a uid-501 process) | **declined UNDETERMINED, no attempt, claim PRESENT** (log: "pid 72330 is THIS USER's (uid 501) but kill(pid, 0) was refused") |
+| stale, plain (positive control) | recovered, claim cleared | recovered, claim cleared |
+| stale, gate sandbox | recovered, claim cleared | recovered, claim cleared |
+
+The opt-in CLI test now runs the signal-denying arm too. New default-gate tests: the four macOS EPERM
+rows (the "this user's" row as a three-case theory: both uids ours, only the real uid, only the saved
+uid), and `ReadMacProcessState_Uids_MatchThisUserAndRoot`, which reads this process and pid 1 for real,
+so a layout change fails on the first macOS run. Mutations M5b-M5e join the set. **All 22 fail at least
+one test** (`pass4/mutations.txt`). M5b is this pass's own first cut (EPERM -> NotMine without the uid
+check). It fails the theory AND the real-CLI test.
+
+**Gates on the final code** (SDK 10.0.403, roll-forward to 10.0.15): macOS **374 passed / 2 skipped**
+(default) and **375 / 1** (opt-in). Linux configuration on this Mac (NOT a Linux run): 381 / 3. Windows
+test project: compiles; CI runs it.
+
+**What else I am still tempted to assume, written down so the next reader is not:**
+- **The `kinfo_proc` layout off arm64 macOS 26.** Measured only here. The size is checked (any other
+  size is Unreadable, so Unknown) and the offsets are pinned by real reads on every macOS run. But an
+  Intel Mac, or a future macOS that kept the size and moved a field, would first show up as a failing
+  test, not in the field. A layout change that kept the size is caught by the uid test and the zombie
+  test, not by the size check.
+- **A sandbox that ALSO denies `sysctl` (sysctl-read).** Then the state and the uids are Unreadable and
+  every unreadable-start-time row is Unknown. That is safe. It also means such a prober never recovers a
+  crash whose writer pid was reused, but the service recovers it.
+- **A same-user process that is not ours in the gate's sandbox.** It is answered Unknown even when its
+  start time would have differed. That is a delayed recovery, which is acceptable by the ruling.
+- **Windows AppContainer or restricted token:** #171, as ruled.
+- **Linux EPERM under seccomp or an LSM:** unmeasured, named in the code.
+- **Pid namespaces:** the follow-up, as above.
+- **The reaper registry on a shared home** (two hosts with one roaming LocalAppData). Its records have no
+  host. A foreign owner pid would read gone, and the child is killed only on a start-time match within
+  1 s, which another host's process essentially never has. The worst case is a deleted reap record, not a
+  kill. Read, not measured.

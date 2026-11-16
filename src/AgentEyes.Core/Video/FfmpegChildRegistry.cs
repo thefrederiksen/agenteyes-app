@@ -341,10 +341,15 @@ namespace AgentEyes.Video
         ///   from a second, positive fact - see there. Only facts map to NotMine; the rest is Unknown.
         ///
         /// PREMISE NOT HANDLED, stated so nobody assumes it away: this predicate assumes the prober sees
-        /// the SAME pid namespace the recorder did. A Linux prober in its own pid namespace (a container)
-        /// with the recordings directory mounted in would get "no such process" for a live writer of
-        /// the host and answer NotMine. Unmeasured as of pass 4 (no Linux machine in that seat); see
-        /// docs/cencon/proof/issue-156/handoff.md, pass 4.
+        /// the SAME pid namespace the recorder did. Pids from ANOTHER HOST never reach it: CaptureLock
+        /// checks the claim's host (host id, or machine name) first and reports a foreign-host writer as
+        /// live (pinned by Inspect_WriterOnAnotherHost_IsLiveWithTheExactFix). What remains is a prober
+        /// that passes that check but sees another pid namespace - a Linux container given the host's
+        /// name, or one that mounts the user's home and so reads the same host-id file. For a live writer
+        /// of the host it gets "no such process" (ArgumentException) and answers NotMine: the claim is
+        /// cleared and an attempt spent - the gate's defect class. Expected by reading, NOT measured (pass
+        /// 4 had no Linux machine). A follow-up issue owns it; a fix records the writer's pid-namespace
+        /// identity in the owner record, which changes the owner file format.
         /// </summary>
         internal static ProcessAnswer IdentifyProcess(int pid, DateTime startUtc)
         {
@@ -377,7 +382,17 @@ namespace AgentEyes.Video
         /// <summary>The start time of <paramref name="pid"/> was refused: ask the second question with
         /// the real platform probes.</summary>
         internal static ProcessAnswer ClassifyUnreadable(int pid, int nativeError, string refusal) =>
-            ClassifyUnreadable(pid, nativeError, refusal, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(), ProbeSignal, ReadMacProcessState);
+            ClassifyUnreadable(pid, nativeError, refusal, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(), ProbeSignal, ReadMacProcessState,
+                OperatingSystem.IsMacOS() ? OwnUidsOnMac() : null);
+
+        /// <summary>This process's real and effective uid, from the same kernel read as any other pid
+        /// (so no further native import is needed). Null when that read fails.</summary>
+        private static Func<uint, bool>? OwnUidsOnMac()
+        {
+            var self = ReadMacProcessState(Environment.ProcessId);
+            if (self.RealUid is not uint ruid || self.EffectiveUid is not uint euid) return null;
+            return uid => uid == ruid || uid == euid;
+        }
 
         /// <summary>
         /// Testable core of the unreadable-start-time decision. The probes are injected so EVERY row is
@@ -393,15 +408,28 @@ namespace AgentEyes.Video
         /// WINDOWS, any other error - Unknown: it is not a refusal, so it is not that fact.
         /// NOT MEASURED, and stated so nobody assumes it away: a prober inside an AppContainer or under a
         /// restricted token may be refused (5) for a LIVE process of the same user - the Windows
-        /// counterpart of the macOS sandbox row below. The pass 3 measurement covered integrity levels
-        /// only. Left as the lead ruled (5 is NotMine) and raised with the lead in the pass 4 handoff.
+        /// counterpart of the macOS sandbox rows below. The pass 3 measurement covered integrity levels
+        /// only. Kept NotMine by the lead's ruling (pass 4): error 5 is the ordinary signal for a pid
+        /// reused by a SYSTEM service (nine measured), and making it Unknown would strand those crashes.
+        /// The fix keys on the PROBER's own token (TokenIsAppContainer / IsTokenRestricted -> Unknown) and
+        /// is issue #171's, to be written and measured on Windows.
         ///
         /// POSIX, kill(pid, 0) - which can fail only with ESRCH or EPERM, since signal 0 is valid:
         /// * ESRCH: NotMine - the process is gone.
-        /// * EPERM: NotMine - it belongs to ANOTHER USER (after a crash and a reboot, low pids are reused
-        ///   by root daemons; pid 1 is the measured stand-in). The writer ran as this user, so a process
-        ///   this user may not signal is not it. (A writer started under sudo is root's, and is read the
-        ///   same way: see the pass 4 handoff for what that case does and does not reach.)
+        /// * EPERM on macOS: EPERM is NOT by itself proof of another user. MEASURED (pass 4, after the
+        ///   lead asked for the case I was tempted to assume away): a prober in a sandbox that denies
+        ///   signals outside its sandbox gets EPERM for a LIVE process of this same user. So the target's
+        ///   uids are read (sysctl KERN_PROC_PID: p_ruid and p_svuid, the uids kill(2) checks) and
+        ///   compared with this process's real and effective uid:
+        ///     - no match: NotMine, PROVED another user (after a crash and a reboot, low pids are reused
+        ///       by root daemons; pid 1 is the measured stand-in). Our writer ran as us.
+        ///     - a match: Unknown - the uids permit the signal, so something else (a sandbox) refused it.
+        ///     - the process gone: NotMine. The uids unreadable: Unknown.
+        ///   (A writer started under sudo is root's, and reads as another user: see the pass 4 handoff for
+        ///   what that case does and does not reach.)
+        /// * EPERM on Linux: NotMine, as ruled - but the same premise, NOT measured there: a seccomp or LSM
+        ///   policy that refuses kill(2) for a same-user process would read as another user. Named in the
+        ///   pass 4 handoff; Linux normally never reaches this row, because it reads any start time.
         /// * any other errno: Unknown - the probe itself failed.
         /// * 0 - the process EXISTS AND IS THIS USER'S. This is the row pass 3 got wrong. A refused start
         ///   time here is not evidence of anything. On macOS the kernel state is read with sysctl
@@ -415,7 +443,7 @@ namespace AgentEyes.Video
         ///   Linux reads a zombie's start time anyway: Unknown.
         /// </summary>
         internal static ProcessAnswer ClassifyUnreadable(int pid, int nativeError, string refusal, bool isWindows, bool isMac,
-            Func<int, (int Rc, int Errno)> signalProbe, Func<int, MacProcessState> macState)
+            Func<int, (int Rc, int Errno)> signalProbe, Func<int, MacProcessState> macState, Func<uint, bool>? isOurUid = null)
         {
             if (pid <= 0) return ProcessAnswer.NotMine($"pid {pid} is not a process id (a record holding it is corrupt)");
 
@@ -432,9 +460,24 @@ namespace AgentEyes.Video
             if (rc != 0)
             {
                 if (errno == Esrch) return ProcessAnswer.NotMine($"pid {pid} exited while being read");
-                if (errno == Eperm)
+                if (errno == Eperm && !isMac)
                     return ProcessAnswer.NotMine(
                         $"pid {pid} belongs to ANOTHER USER (kill(pid, 0) errno {errno}); the recorded process ran as this user, so this is not it");
+                if (errno == Eperm)
+                {
+                    var target = macState(pid);
+                    if (target.Kind == MacProcessStateKind.Gone)
+                        return ProcessAnswer.NotMine($"pid {pid} exited while being read (sysctl KERN_PROC_PID returned no process)");
+                    if (isOurUid == null || target.RealUid is not uint ruid || target.SavedUid is not uint svuid)
+                        return ProcessAnswer.Unknown(
+                            $"pid {pid}: kill(pid, 0) was refused (EPERM) and whose process it is could not be read ({target.Detail})");
+                    if (isOurUid(ruid) || isOurUid(svuid))
+                        return ProcessAnswer.Unknown(
+                            $"pid {pid} is THIS USER's (uid {ruid}) but kill(pid, 0) was refused (EPERM) and its start time too ({refusal}) - " +
+                            "typically a sandboxed prober - so whether it is the recorded process cannot be proved from here");
+                    return ProcessAnswer.NotMine(
+                        $"pid {pid} belongs to ANOTHER USER (uid {ruid}; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it");
+                }
                 return ProcessAnswer.Unknown(
                     $"pid {pid}: its start time is refused ({refusal}) and kill(pid, 0) failed with errno {errno}, which says nothing about it");
             }
@@ -470,11 +513,13 @@ namespace AgentEyes.Video
 
         /// <summary>
         /// macOS: the kernel's state for <paramref name="pid"/>, from sysctl {CTL_KERN, KERN_PROC,
-        /// KERN_PROC_PID, pid} - the call ps uses. The reply is one struct kinfo_proc (648 bytes on every
-        /// 64-bit macOS); p_stat is the char at offset 36 of its extern_proc (two pointers' union of 16,
-        /// p_vmspace, p_sigacts, p_flag). Measured 2026-11-16 on this layout: a running process reads 2
-        /// (SRUN), a zombie 5 (SZOMB), a missing pid an empty reply - from a plain prober and from the
-        /// gate's sandbox alike. Any other reply size is reported, never guessed at.
+        /// KERN_PROC_PID, pid} - the call ps uses. The reply is one struct kinfo_proc; p_stat is the char at
+        /// offset 36 of its extern_proc (two pointers' union of 16, p_vmspace, p_sigacts, p_flag), and the
+        /// uids follow (see <see cref="RuidOffset"/>). MEASURED 2026-11-16 on arm64 macOS 26 only: 648
+        /// bytes; a running process reads 2 (SRUN), a zombie 5 (SZOMB), a missing pid an empty reply, from
+        /// a plain prober and from the gate's sandbox alike. Intel (x86_64) macOS has the same LP64 layout
+        /// by the headers - NOT measured. A reply of any other size is Unreadable, never guessed at; the
+        /// offsets are pinned by tests that read this process and pid 1 for real on every macOS run.
         /// </summary>
         internal static MacProcessState ReadMacProcessState(int pid)
         {
@@ -491,15 +536,20 @@ namespace AgentEyes.Video
             if (n != KinfoProcSize)
                 return new MacProcessState(MacProcessStateKind.Unreadable, 0, $"sysctl KERN_PROC_PID returned {n} bytes, not the {KinfoProcSize} of a kinfo_proc");
             int stat = buf[PStatOffset];
+            uint ruid = BitConverter.ToUInt32(buf, RuidOffset), svuid = BitConverter.ToUInt32(buf, SvuidOffset), euid = BitConverter.ToUInt32(buf, EuidOffset);
             return stat == SZomb
-                ? new MacProcessState(MacProcessStateKind.Zombie, stat, "zombie")
-                : new MacProcessState(MacProcessStateKind.Alive, stat, "alive");
+                ? new MacProcessState(MacProcessStateKind.Zombie, stat, "zombie", ruid, svuid, euid)
+                : new MacProcessState(MacProcessStateKind.Alive, stat, "alive", ruid, svuid, euid);
         }
 
         private const int ErrorAccessDenied = 5;   // Windows ERROR_ACCESS_DENIED
         private const int Eperm = 1;       // "operation not permitted", the same number on Linux and macOS
         private const int CtlKern = 1, KernProc = 14, KernProcPid = 1;
         private const int KinfoProcSize = 648, PStatOffset = 36, SZomb = 5;
+        // In kinfo_proc after the 296-byte extern_proc: eproc's e_paddr and e_sess (8 each), then
+        // e_pcred (pc_lock[72], pc_ucred 8, p_ruid, p_svuid, ...) and e_ucred (cr_ref, cr_uid, ...).
+        // MEASURED 2026-11-16 (arm64, macOS 26): this process reads 501 at all three, pid 1 reads 0.
+        private const int RuidOffset = 392, SvuidOffset = 396, EuidOffset = 420;
 
         [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "sysctl", SetLastError = true)]
         private static extern int Sysctl(int[] name, uint namelen, byte[] oldp, ref UIntPtr oldlenp, IntPtr newp, UIntPtr newlen);

@@ -53,5 +53,6 @@ namespace AgentEyes.Video
     }
 
     /// <summary>One read of a pid's kernel state on macOS.</summary>
-    internal readonly record struct MacProcessState(MacProcessStateKind Kind, int PStat, string Detail);
+    internal readonly record struct MacProcessState(MacProcessStateKind Kind, int PStat, string Detail,
+        uint? RealUid = null, uint? SavedUid = null, uint? EffectiveUid = null);
 }

@@ -40,6 +40,12 @@ namespace AgentEyes.Tests
         internal const string GateSandboxProfile =
             "(version 1)(allow default)(deny process-info*)(allow process-info* (target same-sandbox))";
 
+        /// <summary>Pass 4's second measured case: the gate's profile plus signals denied outside the
+        /// sandbox, so kill(pid, 0) on a live same-user writer fails with EPERM too.</summary>
+        internal const string SignalDenyingSandboxProfile =
+            "(version 1)(allow default)(deny process-info*)(allow process-info* (target same-sandbox))" +
+            "(deny signal)(allow signal (target same-sandbox))";
+
         private readonly string _root;
         private readonly Func<int, DateTime, ProcessAnswer> _seamAtStart = CaptureLock.IdentifyProcess;
         private readonly Func<string> _realHostId = CaptureLock.ThisHostId;
@@ -216,6 +222,32 @@ namespace AgentEyes.Tests
 
         /// <summary>The other two kernel reads the classifier relies on, against real processes: this
         /// (running) process is Alive, and a pid that does not exist is Gone.</summary>
+        /// <summary>The uid offsets, read for real: this process carries this user's uid in all three,
+        /// root's pid 1 carries 0. A layout change fails here on the first macOS run.</summary>
+        [Fact]
+        public void ReadMacProcessState_Uids_MatchThisUserAndRoot()
+        {
+            if (!OperatingSystem.IsMacOS()) return;
+            uint me = uint.Parse(Run("/usr/bin/id", "-u"));
+            Assert.NotEqual(0u, me);   // precondition: not root, or pid 1 would not be another user
+            var self = FfmpegChildRegistry.ReadMacProcessState(Environment.ProcessId);
+            Assert.Equal((uint?)me, self.RealUid);
+            Assert.Equal((uint?)me, self.SavedUid);
+            Assert.Equal((uint?)me, self.EffectiveUid);
+            var init = FfmpegChildRegistry.ReadMacProcessState(1);
+            Assert.Equal((uint?)0u, init.RealUid);
+            Assert.Equal((uint?)0u, init.SavedUid);
+        }
+
+        private static string Run(string file, string arg)
+        {
+            var psi = new ProcessStartInfo(file, arg) { RedirectStandardOutput = true, UseShellExecute = false };
+            using var p = Process.Start(psi)!;
+            string s = p.StandardOutput.ReadToEnd().Trim();
+            p.WaitForExit();
+            return s;
+        }
+
         [Fact]
         public void ReadMacProcessState_RunningAndMissingPids_AliveAndGone()
         {
@@ -276,12 +308,58 @@ namespace AgentEyes.Tests
             Assert.Contains("exited", a.Why);
         }
 
+        /// <summary>Linux keeps the ruled row: EPERM is another user (its same premise is named, unmeasured).</summary>
         [Fact]
-        public void ClassifyUnreadable_KillEperm_NotMineAnotherUser()
+        public void ClassifyUnreadable_KillEpermOnLinux_NotMineAnotherUser()
         {
-            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, true, Signal(-1, 1), NoStateRead);
+            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, isMac: false, Signal(-1, 1), NoStateRead);
             Assert.True(a.IsNotMine, $"{a.Identity}: {a.Why}");
             Assert.Contains("ANOTHER USER", a.Why);
+        }
+
+        private const uint Me = 501, Root = 0;
+        private static Func<int, MacProcessState> Owned(uint ruid, uint svuid) =>
+            _ => new MacProcessState(MacProcessStateKind.Alive, 2, "alive", ruid, svuid, ruid);
+        private static bool IsMe(uint uid) => uid == Me;
+
+        /// <summary>macOS EPERM, PROVED another user: the target's uids are not ours.</summary>
+        [Fact]
+        public void ClassifyUnreadable_KillEpermOnMacTargetOfAnotherUid_NotMine()
+        {
+            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, true, Signal(-1, 1), Owned(Root, Root), IsMe);
+            Assert.True(a.IsNotMine, $"{a.Identity}: {a.Why}");
+            Assert.Contains("ANOTHER USER", a.Why);
+        }
+
+        /// <summary>THE SECOND PASS 4 PIN - measured: a sandbox that denies signals outside itself gets
+        /// EPERM for a LIVE process of THIS user. The uids permit the signal, so EPERM is not the fact
+        /// "another user" - it must be Unknown, not NotMine.</summary>
+        [Theory]
+        [InlineData(Me, Me)]
+        [InlineData(Me, Root)]    // real uid ours
+        [InlineData(Root, Me)]    // saved uid ours (kill(2) checks both)
+        public void ClassifyUnreadable_KillEpermOnMacTargetIsThisUsers_Unknown(uint ruid, uint svuid)
+        {
+            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, true, Signal(-1, 1), Owned(ruid, svuid), IsMe);
+            Assert.True(a.IsUnknown, $"{a.Identity}: {a.Why}");
+            Assert.Contains("THIS USER", a.Why);
+        }
+
+        [Fact]
+        public void ClassifyUnreadable_KillEpermOnMacTargetGone_NotMine()
+        {
+            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, true, Signal(-1, 1), State(MacProcessStateKind.Gone), IsMe);
+            Assert.True(a.IsNotMine, $"{a.Identity}: {a.Why}");
+        }
+
+        /// <summary>Whose process it is cannot be read (the state, or our own uids): Unknown.</summary>
+        [Fact]
+        public void ClassifyUnreadable_KillEpermOnMacUidsUnreadable_Unknown()
+        {
+            var noTargetUids = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, true, Signal(-1, 1), State(MacProcessStateKind.Unreadable), IsMe);
+            var noOwnUids = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, true, Signal(-1, 1), Owned(Root, Root), isOurUid: null);
+            Assert.True(noTargetUids.IsUnknown, $"{noTargetUids.Identity}: {noTargetUids.Why}");
+            Assert.True(noOwnUids.IsUnknown, $"{noOwnUids.Identity}: {noOwnUids.Why}");
         }
 
         [Fact]
@@ -581,10 +659,12 @@ namespace AgentEyes.Tests
             {
                 DateTime writerStart = writer.StartTime.ToUniversalTime();
                 string sandboxed = Crashed("2026-11-15_120000_sandboxed", writer.Id, writerStart);
+                string signalDenied = Crashed("2026-11-15_123000_signal-denied", writer.Id, writerStart);
                 string plain = Crashed("2026-11-15_130000_plain", writer.Id, writerStart);
 
-                var (sbExit, sbOut) = RunCli(cli, sandbox: true, "package", sandboxed, "--no-frames");
-                var (plExit, plOut) = RunCli(cli, sandbox: false, "package", plain, "--no-frames");
+                var (sbExit, sbOut) = RunCli(cli, GateSandboxProfile, "package", sandboxed, "--no-frames");
+                var (sdExit, sdOut) = RunCli(cli, SignalDenyingSandboxProfile, "package", signalDenied, "--no-frames");
+                var (plExit, plOut) = RunCli(cli, profile: null, "package", plain, "--no-frames");
 
                 Assert.False(writer.HasExited, "precondition: the writer died during the test");
                 Assert.True(sbExit == 1, $"sandboxed package exit {sbExit}, expected the decline (1):\n{sbOut}");
@@ -592,6 +672,11 @@ namespace AgentEyes.Tests
                 Assert.True(File.Exists(Path.Combine(sandboxed, CaptureLock.OwnerFileName)), "the sandboxed prober deleted a live capture's claim:\n" + sbOut);
                 Assert.Null(MuxRecord(sandboxed));
                 Assert.NotNull(Manifest.Load(sandboxed).PendingMux);
+
+                Assert.True(sdExit == 1, $"signal-denied package exit {sdExit}, expected the decline (1):\n{sdOut}");
+                Assert.Contains("UNDETERMINED", sdOut);
+                Assert.True(File.Exists(Path.Combine(signalDenied, CaptureLock.OwnerFileName)), "the signal-denied prober deleted a live capture's claim:\n" + sdOut);
+                Assert.Null(MuxRecord(signalDenied));
 
                 Assert.True(plExit == 1, $"plain package exit {plExit}, expected the decline (1):\n{plOut}");
                 Assert.Contains("STILL RUNNING", plOut);
@@ -603,8 +688,9 @@ namespace AgentEyes.Tests
             }
         }
 
-        private (int Exit, string Output) RunCli(string cli, bool sandbox, params string[] args)
+        private (int Exit, string Output) RunCli(string cli, string? profile, params string[] args)
         {
+            bool sandbox = profile != null;
             var psi = new ProcessStartInfo(sandbox ? "/usr/bin/sandbox-exec" : cli)
             {
                 UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
@@ -612,7 +698,7 @@ namespace AgentEyes.Tests
             if (sandbox)
             {
                 psi.ArgumentList.Add("-p");
-                psi.ArgumentList.Add(GateSandboxProfile);
+                psi.ArgumentList.Add(profile!);
                 psi.ArgumentList.Add(cli);
             }
             foreach (string a in args) psi.ArgumentList.Add(a);
