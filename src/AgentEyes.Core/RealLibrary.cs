@@ -155,15 +155,29 @@ namespace AgentEyes
                 .ToList();
 
         /// <summary>
-        /// How long the running service gets to answer /status before the guard says it named nothing (issue #161
-        /// pass 4). It bounds EVERY redirected start where nothing answers: Linux and macOS refuse a closed loopback
-        /// port at once, but Windows retries the connect until this runs out (pass 3 measured 2 s on CI with the old
-        /// 2 s value). 500 ms: on devlinux an answering probe adds about 20 ms to a cold start (pass 4 handoff), and
-        /// a real service's /status also scans its recordings root for pending transcriptions - the one part that
-        /// grows with the library - so the bound keeps over 20x headroom while capping the Windows cost at half a
-        /// second. Pinned by <c>ServiceTimeout_IsAFewHundredMilliseconds</c>.
+        /// How long the probe waits for the CONNECTION to the service's port (issue #161 pass 5). This answers "is
+        /// anything listening?", the only question that must be fast: it bounds every redirected start where nothing
+        /// listens. Linux and macOS refuse a closed loopback port at once and never reach it; Windows retries the
+        /// connect until it runs out (pass 3 measured 2 s on CI with the old single 2 s bound). A loopback connect to a
+        /// LISTENING socket is completed by the kernel's handshake whether or not the service is busy - it does not
+        /// wait for the service to accept, let alone answer - so this bound covers only a stall of the probing process
+        /// itself. 500 ms: the Windows nothing-listening cost stays exactly where pass 4 measured and the Lead accepted
+        /// it. Pinned by <c>ConnectTimeout_IsAFewHundredMilliseconds</c> and
+        /// <c>AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout</c>.
         /// </summary>
-        internal static readonly TimeSpan ServiceTimeout = TimeSpan.FromMilliseconds(500);
+        internal static readonly TimeSpan ConnectTimeout = TimeSpan.FromMilliseconds(500);
+
+        /// <summary>
+        /// How long the WHOLE request may take once something is listening (issue #161 pass 5): "something is listening
+        /// but slow" is a different question from "is anything listening", and a busy service must still be heard. A
+        /// real service's /status scans its recordings root for pending transcriptions - the one part that grows with
+        /// the library - and pass 4's single 500 ms bound fired at 2354 ms on a loaded CI runner (43944621928), i.e. on
+        /// a loaded machine the service half of the union went silent. 5 s: about 250x an answered probe on devlinux
+        /// (about 20 ms, pass 4) and twice the worst stall CI has shown. Only a service that accepts and then never
+        /// answers pays it. Pinned by <c>ResponseTimeout_IsSeconds</c> and
+        /// <c>AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard</c>.
+        /// </summary>
+        internal static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(5);
 
         /// <summary>
         /// The address asked. 127.0.0.1 literally, never "localhost": a name can resolve to ::1 first and fall back,
@@ -178,9 +192,18 @@ namespace AgentEyes
         /// body that is not JSON throw, and <see cref="LibraryRedirect.ApplyFromEnvironment"/> records that the
         /// service named nothing. A GET of /status changes nothing in the service.
         /// </summary>
-        internal static (IReadOnlyList<Root> Roots, string Note) AskRunningService(int port)
+        internal static (IReadOnlyList<Root> Roots, string Note) AskRunningService(int port) =>
+            AskRunningService(port, ConnectTimeout, ResponseTimeout);
+
+        /// <summary>
+        /// <see cref="AskRunningService(int)"/> with the two bounds as parameters, so a test can show each one reaches
+        /// the request without waiting out the production response bound. Production passes
+        /// <see cref="ConnectTimeout"/> and <see cref="ResponseTimeout"/>.
+        /// </summary>
+        internal static (IReadOnlyList<Root> Roots, string Note) AskRunningService(int port, TimeSpan connectTimeout, TimeSpan responseTimeout)
         {
-            using var http = new System.Net.Http.HttpClient { Timeout = ServiceTimeout };
+            using var handler = new System.Net.Http.SocketsHttpHandler { ConnectTimeout = connectTimeout };
+            using var http = new System.Net.Http.HttpClient(handler) { Timeout = responseTimeout };
             string body = http.GetStringAsync(StatusUri(port)).GetAwaiter().GetResult();
             return FromServiceStatus(body, port);
         }

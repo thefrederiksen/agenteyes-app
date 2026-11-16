@@ -27,6 +27,7 @@ namespace AgentEyes.Tests.Shared
         // desktop-app test project, and a test that spells the contract out cannot drift with the code.
         private const string DataVariable = "AGENTEYES_REDIRECT_DATA";
         private const string VideosVariable = "AGENTEYES_REDIRECT_VIDEOS";
+        private const string ServiceProbePortVariable = "AGENTEYES_SERVICE_PROBE_PORT";
         private const int RefusedExitCode = 5;
 
         private static readonly string Scratch = Path.Combine(Path.GetTempPath(), "agenteyes-161-tests", $"desk-{Environment.ProcessId}-{Guid.NewGuid():N}");
@@ -64,6 +65,16 @@ namespace AgentEyes.Tests.Shared
             Assert.False(Directory.Exists(data), $"a refused start created {data}");
         }
 
+        /// <summary>A loopback port nothing listens on: bound by the OS, then released.</summary>
+        private static int ClosedPort()
+        {
+            var l = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            l.Start();
+            int port = ((System.Net.IPEndPoint)l.LocalEndpoint).Port;
+            l.Stop();
+            return port;
+        }
+
         private static (int Code, string Stderr) RunDesktopApp(string data, string? videos, string args)
         {
             string dll = Path.Combine(AppContext.BaseDirectory, "AgentEyesDesktop.dll");
@@ -79,6 +90,9 @@ namespace AgentEyes.Tests.Shared
                 psi.Environment.Remove(name);
             psi.Environment[DataVariable] = data;
             if (videos != null) psi.Environment[VideosVariable] = videos;
+            // Issue #161 pass 5: the redirect's service probe asks a port nothing listens on, never the person's real
+            // service on 7882.
+            psi.Environment[ServiceProbePortVariable] = ClosedPort().ToString(System.Globalization.CultureInfo.InvariantCulture);
             psi.Environment["DOTNET_ROLL_FORWARD"] = "Major";
 
             using var p = Process.Start(psi)!;

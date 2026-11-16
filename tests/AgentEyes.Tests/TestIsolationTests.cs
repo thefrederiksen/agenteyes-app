@@ -264,6 +264,9 @@ namespace AgentEyes.Tests
             // stand-ins for the user folders; they are not routes to the real ones.
             "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_DATA x1",
             "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_VIDEOS x1",
+            // Pass 5: the port the redirect's service probe asks, so a test plays the person's service on a port of its
+            // own and never sends a request to the real one. Never silent: a banner that honored it says 7882 was not asked.
+            "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_SERVICE_PROBE_PORT x1",
             // Pass 2: under sudo, the account that ran it - used only to ADD protected roots, never to remove one.
             "agenteyes.dll!AgentEyes.RealLibrary::DeriveForThisProcess -> SUDO_UID x1",
             "agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> QA_RECORD_FFMPEG_DIR x1",

@@ -56,6 +56,16 @@ namespace AgentEyes
         /// <summary>Any variable with this prefix that is not one of the two above is refused.</summary>
         public const string VariablePrefix = "AGENTEYES_REDIRECT_";
 
+        /// <summary>
+        /// Points the redirect's service probe at a port other than <see cref="LocalAppConfig.DefaultPort"/> (issue #161
+        /// pass 5). It exists so a TEST can play the person's service on a port of its own and never send a request to
+        /// the real service on the default port. It is deliberately outside <see cref="VariablePrefix"/>: it is not a
+        /// redirect variable and does not change the two-variable rule. It can only take the service half of the union
+        /// AWAY (the passwd and environment halves still apply), so it is never silent: every banner of a process that
+        /// honored it says the default port was NOT asked. A value that is not a port refuses the start.
+        /// </summary>
+        public const string ServiceProbePortVariable = "AGENTEYES_SERVICE_PROBE_PORT";
+
         /// <summary>The file that marks an AgentEyes folder as a SCRATCH library (issue #161 pass 3). Written by
         /// the first redirected start into each redirected root; a redirect refuses an existing, non-empty root
         /// without it, because that root may be the person's real library, relocated where the path rules
@@ -482,17 +492,31 @@ namespace AgentEyes
             // half of rule 1). It decides where the real library is, and its environment is not this process's -
             // so a library it relocated is added to the union whenever it is running. Nothing answering, or a
             // service older than #161 that names no roots, adds nothing, and the banner SAYS which it was.
+            // The port asked is the default one unless a test pointed it at its own stand-in (pass 5); that is said in
+            // the banner, never silent.
+            int probePort;
+            try
+            {
+                probePort = ServiceProbePort(Environment.GetEnvironmentVariable(ServiceProbePortVariable));
+            }
+            catch (InvalidOperationException ex)
+            {
+                message = $"library redirect refused: {ex.Message}";
+                return Outcome.Refused;
+            }
+            string probeNote = ServiceProbeNote(probePort);
+
             string serviceNote;
             try
             {
-                var asked = RealLibrary.AskRunningService(LocalAppConfig.DefaultPort);
+                var asked = RealLibrary.AskRunningService(probePort);
                 realRoots = RealLibrary.Distinct(realRoots.Concat(asked.Roots));
-                serviceNote = asked.Note;
+                serviceNote = probeNote + asked.Note;
             }
             catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or System.Threading.Tasks.TaskCanceledException
                                            or System.Text.Json.JsonException)
             {
-                serviceNote = $"the service on 127.0.0.1:{LocalAppConfig.DefaultPort} was asked for its library and named none "
+                serviceNote = probeNote + $"the service on 127.0.0.1:{probePort} was asked for its library and named none "
                               + $"({ex.GetType().Name}: {ex.Message})";
             }
             catch (InvalidOperationException ex)
@@ -565,9 +589,35 @@ namespace AgentEyes
             return Outcome.Redirected;
         }
 
+        /// <summary>
+        /// The port the service probe asks: <see cref="LocalAppConfig.DefaultPort"/> when
+        /// <paramref name="value"/> (the <see cref="ServiceProbePortVariable"/> value) is unset, else that port. PURE.
+        /// Throws InvalidOperationException for a value that is not a port in 1-65535 - the start is refused, never
+        /// quietly sent to the default port instead.
+        /// </summary>
+        internal static int ServiceProbePort(string? value)
+        {
+            if (value == null) return LocalAppConfig.DefaultPort;
+            if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int port)
+                || port < 1 || port > 65535)
+                throw new InvalidOperationException(
+                    $"{ServiceProbePortVariable} is '{value}', which is not a port (1-65535). Fix: unset it - it exists only "
+                    + "for tests that play the person's service on a port of their own.");
+            return port;
+        }
+
+        /// <summary>
+        /// "" for the default port; otherwise the banner's statement that the default port was NOT asked. PURE.
+        /// </summary>
+        internal static string ServiceProbeNote(int port) =>
+            port == LocalAppConfig.DefaultPort
+                ? ""
+                : $"the service probe was pointed at 127.0.0.1:{port} by {ServiceProbePortVariable}, so the default port "
+                  + $"{LocalAppConfig.DefaultPort} was NOT asked: ";
+
         private static string _serviceNote = "";
 
-        /// <summary>What asking the running service on the default port found (for the banner).</summary>
+        /// <summary>What asking the running service found (for the banner), and which port was asked when it was not the default.</summary>
         public static string ServiceNote => _serviceNote;
 
         /// <summary>

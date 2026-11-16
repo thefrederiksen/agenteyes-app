@@ -762,14 +762,17 @@ namespace AgentEyes.Tests.Shared
             string data = Made(Path.Combine(Scratch, "banner", "data"));
             string videos = Made(Path.Combine(Scratch, "banner", "videos"));
 
-            var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+            int probePort = FreePort();
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help", serviceProbePort: probePort);
 
             Assert.Equal(0, code);
             Assert.Contains("compared against these real roots and overlaps none (each with where it was derived from):", stderr);
             // Pass 3 (F1): what the comparison cannot see is stated, and the old claim is gone.
             Assert.Contains(LibraryRedirect.ComparisonLimit, stderr);
-            // Pass 3 rule 1: the running service on the default port was ASKED, and the banner says what it found.
-            Assert.Contains("127.0.0.1:" + LocalAppConfig.DefaultPort, stderr);
+            // Pass 3 rule 1: the running service was ASKED, and the banner says what it found. Pass 5: this child was
+            // pointed at a port of its own, and the banner says the default port was NOT asked - never silent.
+            Assert.Contains($"the service on 127.0.0.1:{probePort} was asked for its library and named none", stderr);
+            Assert.Contains(LibraryRedirect.ServiceProbeNote(probePort), stderr);
             Assert.DoesNotContain("kept out", stderr);
             Assert.DoesNotContain("NOT the person's real library", stderr);
             Assert.Contains(RealLibrary.StateName + " ", stderr);
@@ -1228,61 +1231,69 @@ namespace AgentEyes.Tests.Shared
         [Fact]
         public void AskRunningService_AServiceAnswering_ItsRootsComeBack()
         {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             string body = JsonSerializer.Serialize(new { DataRoot = Abs("data", "x", "AgentEyes"), RecordingsRoot = Abs("v", "AgentEyes") });
-            var serve = StartStandIn(() =>
-            {
-                using var client = listener.AcceptTcpClient();
-                using var stream = client.GetStream();
-                var buf = new byte[4096];
-                stream.Read(buf, 0, buf.Length);
-                byte[] payload = System.Text.Encoding.ASCII.GetBytes(body);
-                byte[] head = System.Text.Encoding.ASCII.GetBytes(
-                    $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
-                stream.Write(head, 0, head.Length);
-                stream.Write(payload, 0, payload.Length);
-            });
-            try
-            {
-                var (roots, _) = RealLibrary.AskRunningService(port);
-                Assert.Contains(roots, r => r.Name == RealLibrary.StateName && r.Parent == Abs("data", "x"));
-            }
-            finally
-            {
-                serve.Join(5000);
-                listener.Stop();
-            }
+            using var service = new StatusStandIn(body);
+
+            var (roots, _) = RealLibrary.AskRunningService(service.Port);
+
+            Assert.Contains(roots, r => r.Name == RealLibrary.StateName && r.Parent == Abs("data", "x"));
+            Assert.Equal(new[] { "GET /status HTTP/1.1" }, service.Requests);
         }
 
         /// <summary>
-        /// A stand-in service on its OWN thread, never the thread pool: a pool starved by the parallel suite made one
-        /// answer after the probe's bound (pass 4, CI 43944621928), which measured the runner instead of the probe.
+        /// A stand-in for the person's service on a loopback port of its own (0 = any free one): it answers every
+        /// connection with <c>body</c> after <c>delay</c> and records the request line of each. Disposing stops it.
         /// </summary>
-        private static StandIn StartStandIn(Action serve) => new StandIn(serve);
-
-        /// <summary>A stand-in's thread. Join rethrows what it threw (as Task.Wait did), instead of an unhandled
-        /// exception on a bare thread taking the whole test host down.</summary>
-        private sealed class StandIn
+        private sealed class StatusStandIn : IDisposable
         {
-            private readonly System.Threading.Thread _thread;
-            private Exception? _error;
+            private readonly TcpListener _listener;
+            private readonly System.Threading.Tasks.Task _serving;
+            private readonly System.Collections.Concurrent.ConcurrentQueue<string> _requests = new();
 
-            public StandIn(Action serve)
+            public StatusStandIn(string body, int port = 0, TimeSpan delay = default)
             {
-                _thread = new System.Threading.Thread(() =>
+                _listener = new TcpListener(IPAddress.Loopback, port);
+                _listener.Start();
+                Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
+                _serving = System.Threading.Tasks.Task.Run(() =>
                 {
-                    try { serve(); }
-                    catch (Exception ex) { _error = ex; }
-                }) { IsBackground = true, Name = "stand-in service" };
-                _thread.Start();
+                    while (true)
+                    {
+                        TcpClient client;
+                        try { client = _listener.AcceptTcpClient(); }
+                        catch (SocketException) { return; }          // the listener was stopped: the test is over
+                        catch (ObjectDisposedException) { return; }
+                        using (client)
+                        {
+                            try
+                            {
+                                using var stream = client.GetStream();
+                                var buf = new byte[4096];
+                                int n = stream.Read(buf, 0, buf.Length);
+                                _requests.Enqueue(System.Text.Encoding.ASCII.GetString(buf, 0, n).Split("\r\n")[0]);
+                                if (delay > TimeSpan.Zero) System.Threading.Thread.Sleep(delay);
+                                byte[] payload = System.Text.Encoding.ASCII.GetBytes(body);
+                                byte[] head = System.Text.Encoding.ASCII.GetBytes(
+                                    $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                                stream.Write(head, 0, head.Length);
+                                stream.Write(payload, 0, payload.Length);
+                            }
+                            catch (IOException) { }   // the asker gave up and closed: serve the next one
+                        }
+                    }
+                });
             }
 
-            public void Join(int milliseconds)
+            /// <summary>The port it listens on.</summary>
+            public int Port { get; }
+
+            /// <summary>The request line of every request it was sent, in order.</summary>
+            public IReadOnlyList<string> Requests => _requests.ToList();
+
+            public void Dispose()
             {
-                _thread.Join(milliseconds);
-                if (_error != null) throw new AggregateException(_error);
+                _listener.Stop();
+                _serving.Wait(5000);
             }
         }
 
@@ -1290,22 +1301,12 @@ namespace AgentEyes.Tests.Shared
         public void AskRunningService_NothingListening_Throws()
         {
             // Linux / macOS refuse a connect to a closed loopback port at once (HttpRequestException); Windows
-            // retries until the timeout (TaskCanceledException, measured on CI 43940190095 at the old 2 s; bounded since pass 4). ApplyFromEnvironment
-            // treats both as "nothing answered".
+            // retries the connect until the connect bound (measured on CI 43940190095 at the old single 2 s bound).
+            // ApplyFromEnvironment treats both as "nothing answered".
             int port = FreePort();
             var ex = Record.Exception(() => RealLibrary.AskRunningService(port));
             Assert.True(ex is System.Net.Http.HttpRequestException or System.Threading.Tasks.TaskCanceledException,
                 $"expected 'nothing answered' (HttpRequestException or TaskCanceledException), got {ex?.GetType().FullName ?? "no exception"}");
-        }
-
-        // ---- pass 4: the probe is BOUNDED - a few hundred milliseconds, on 127.0.0.1 ----------------------------
-
-        [Fact]
-        public void ServiceTimeout_IsAFewHundredMilliseconds()
-        {
-            // Every redirected start where nothing answers pays up to this on Windows (pass 3: 2 s). Raising it back
-            // to seconds, or to infinite, must fail here.
-            Assert.InRange(RealLibrary.ServiceTimeout, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(500));
         }
 
         [Fact]
@@ -1317,45 +1318,226 @@ namespace AgentEyes.Tests.Shared
             Assert.Equal(UriHostNameType.IPv4, uri.HostNameType);
         }
 
+        // ---- pass 5: TWO bounds - "is anything listening?" fast, "is it answering?" generous ----------------------
+
         [Fact]
-        public void AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpWithinTheTimeout()
+        public void ConnectTimeout_IsAFewHundredMilliseconds()
         {
-            // The bound must reach the REQUEST, not just sit in a constant: a listener that accepts the connection and
-            // never answers stands for the Windows closed-port retry and for a hung service alike. An unbounded client
-            // would hang here; the outer wait turns that into a failure instead of a stuck test run.
+            // Every redirected start where nothing listens pays up to this on Windows (pass 3: 2 s). Raising it to
+            // seconds, or to infinite, must fail here.
+            Assert.InRange(RealLibrary.ConnectTimeout, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(500));
+        }
+
+        [Fact]
+        public void ResponseTimeout_IsSeconds()
+        {
+            // At least twice the worst stall CI has shown (a 500 ms timer that fired at 2354 ms, run 43944621928), so a
+            // busy machine does not switch the service half of the union off; at most 10 s, so a service that accepts
+            // and hangs cannot hold a redirected start for longer than that.
+            Assert.InRange(RealLibrary.ResponseTimeout, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10));
+        }
+
+        [Fact]
+        public void AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard()
+        {
+            // The point of the split: a service that is listening but slow - scanning its recordings under load - is
+            // still asked to the end. Pass 4's single 500 ms bound gave up on it and the union lost its roots.
+            string body = JsonSerializer.Serialize(new { DataRoot = Abs("slow", "AgentEyes"), RecordingsRoot = Abs("slowv", "AgentEyes") });
+            using var service = new StatusStandIn(body, delay: RealLibrary.ConnectTimeout + TimeSpan.FromSeconds(1));
+
+            var (roots, _) = RealLibrary.AskRunningService(service.Port);
+
+            Assert.Contains(roots, r => r.Name == RealLibrary.StateName && r.Parent == Abs("slow"));
+            Assert.Contains(roots, r => r.Name == RealLibrary.RecordingsName && r.Parent == Abs("slowv"));
+        }
+
+        [Fact]
+        public void AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpAtTheResponseTimeout()
+        {
+            // The response bound must reach the REQUEST, not just sit in a constant: a listener that accepts the
+            // connection and never answers is a hung service. An unbounded client would hang here; the outer wait
+            // turns that into a failure instead of a stuck test run.
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            var held = new List<TcpClient>();
-            var accept = StartStandIn(() => { try { held.Add(listener.AcceptTcpClient()); } catch (SocketException) { } });
+            var held = new System.Collections.Concurrent.ConcurrentBag<TcpClient>();
+            var accept = System.Threading.Tasks.Task.Run(() => { try { held.Add(listener.AcceptTcpClient()); } catch (SocketException) { } });
             try
             {
                 var sw = Stopwatch.StartNew();
                 var ask = System.Threading.Tasks.Task.Run(() => Record.Exception(() => RealLibrary.AskRunningService(port)));
-                Assert.True(ask.Wait(TimeSpan.FromSeconds(10)), "AskRunningService did not give up within 10 s: the probe is unbounded");
+                Assert.True(ask.Wait(RealLibrary.ResponseTimeout + TimeSpan.FromSeconds(10)),
+                    "AskRunningService did not give up: the request is unbounded");
                 sw.Stop();
 
                 Assert.IsType<System.Threading.Tasks.TaskCanceledException>(ask.Result);
-                Assert.True(sw.Elapsed < RealLibrary.ServiceTimeout + TimeSpan.FromSeconds(1),
-                    $"the probe took {sw.ElapsedMilliseconds} ms against a {RealLibrary.ServiceTimeout.TotalMilliseconds} ms bound");
+                // Not cut short at the CONNECT bound: the connection was made, so only the response bound may end it.
+                Assert.True(sw.Elapsed >= RealLibrary.ResponseTimeout - TimeSpan.FromMilliseconds(100),
+                    $"the probe gave up after {sw.ElapsedMilliseconds} ms, before the {RealLibrary.ResponseTimeout.TotalMilliseconds} ms response bound");
             }
             finally
             {
                 listener.Stop();
-                accept.Join(5000);
+                accept.Wait(5000);
                 foreach (var c in held) c.Dispose();
             }
+        }
+
+        [Fact]
+        public void AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout()
+        {
+            // "Nothing is listening" in the shape that takes time: a connect that is never completed. A listener whose
+            // accept queue is full and never drained drops (Linux, macOS) or refuses-and-retries (Windows) every
+            // further connect - the Windows closed-port retry, reproduced on every platform. The CONNECT bound must end
+            // it, well before the response bound would.
+            using var server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            server.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            server.Listen(0);
+            var endpoint = (IPEndPoint)server.LocalEndPoint!;
+            var fillers = new List<Socket>();
+            try
+            {
+                bool full = false;
+                for (int i = 0; i < 64 && !full; i++)
+                {
+                    var c = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    fillers.Add(c);
+                    var connect = c.ConnectAsync(endpoint);
+                    full = !((IAsyncResult)connect).AsyncWaitHandle.WaitOne(TimeSpan.FromMilliseconds(300));
+                    Assert.False(connect.IsFaulted,
+                        $"a connect to a full accept queue was refused at once ({connect.Exception?.InnerException?.Message}), so none hangs "
+                        + "on this platform: this test would measure nothing");
+                }
+                Assert.True(full, "the listener's accept queue never filled, so no connect hung: this test measured nothing");
+
+                var sw = Stopwatch.StartNew();
+                var ask = System.Threading.Tasks.Task.Run(() => Record.Exception(() => RealLibrary.AskRunningService(endpoint.Port)));
+                Assert.True(ask.Wait(RealLibrary.ResponseTimeout + TimeSpan.FromSeconds(10)),
+                    "AskRunningService did not give up: the connect is unbounded");
+                sw.Stop();
+
+                Assert.True(ask.Result is System.Net.Http.HttpRequestException or System.Threading.Tasks.TaskCanceledException,
+                    $"expected 'nothing answered' (HttpRequestException or TaskCanceledException), got {ask.Result?.GetType().FullName ?? "no exception"}");
+                Assert.True(sw.Elapsed < RealLibrary.ResponseTimeout - TimeSpan.FromSeconds(1),
+                    $"the probe took {sw.ElapsedMilliseconds} ms to give up on a connect: the {RealLibrary.ConnectTimeout.TotalMilliseconds} ms "
+                    + $"connect bound did not end it (the {RealLibrary.ResponseTimeout.TotalMilliseconds} ms response bound did)");
+            }
+            finally
+            {
+                foreach (var c in fillers) c.Dispose();
+            }
+        }
+
+        // ---- pass 5: the probe's PORT is injectable, so no test asks the person's real service ---------------------
+
+        [Fact]
+        public void ServiceProbePort_Unset_IsTheDefaultPort()
+        {
+            Assert.Equal(LocalAppConfig.DefaultPort, LibraryRedirect.ServiceProbePort(null));
+        }
+
+        [Theory]
+        [InlineData("41234", 41234)]
+        [InlineData("1", 1)]
+        [InlineData("65535", 65535)]
+        public void ServiceProbePort_APort_IsThatPort(string value, int expected)
+        {
+            Assert.Equal(expected, LibraryRedirect.ServiceProbePort(value));
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("0")]
+        [InlineData("65536")]
+        [InlineData("-1")]
+        [InlineData("+80")]
+        [InlineData(" 41234")]
+        [InlineData("abc")]
+        [InlineData("4.5")]
+        public void ServiceProbePort_NotAPort_Throws(string value)
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() => LibraryRedirect.ServiceProbePort(value));
+            Assert.Contains(LibraryRedirect.ServiceProbePortVariable, ex.Message);
+        }
+
+        [Fact]
+        public void ServiceProbeNote_TheDefaultPort_SaysNothing()
+        {
+            Assert.Equal("", LibraryRedirect.ServiceProbeNote(LocalAppConfig.DefaultPort));
+        }
+
+        [Fact]
+        public void ServiceProbeNote_AnotherPort_SaysTheDefaultPortWasNotAsked()
+        {
+            string note = LibraryRedirect.ServiceProbeNote(41234);
+
+            Assert.Contains("127.0.0.1:41234", note);
+            Assert.Contains(LibraryRedirect.ServiceProbePortVariable, note);
+            Assert.Contains($"the default port {LocalAppConfig.DefaultPort} was NOT asked", note);
+        }
+
+        [Fact]
+        public void ChildStartInfo_EveryRedirectedChild_ProbesAPortOfItsOwnNeverTheDefault()
+        {
+            // The pin for "no test reaches the person's real service": every child this suite starts is pointed at a
+            // port of its own, whatever the test host inherited. A child with no variable would ask 7882 - on a
+            // developer machine, the owner's live recorder.
+            var psi = ChildStartInfo(Path.Combine(Scratch, "pin", "data"), Path.Combine(Scratch, "pin", "videos"), "--help");
+
+            Assert.True(psi.Environment.TryGetValue(LibraryRedirect.ServiceProbePortVariable, out string? value),
+                $"a child is started without {LibraryRedirect.ServiceProbePortVariable}, so it asks the real service on the default port");
+            Assert.NotEqual(LocalAppConfig.DefaultPort, LibraryRedirect.ServiceProbePort(value));
+        }
+
+        [Fact]
+        public void RealProcess_ServiceProbePortNotAPort_RefusedWithExit5AndWritesNothing()
+        {
+            string data = Path.Combine(Scratch, "probe-nan", "data");
+            string videos = Path.Combine(Scratch, "probe-nan", "videos");
+
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help", extra: (LibraryRedirect.ServiceProbePortVariable, "abc"));
+
+            Assert.Equal(LibraryRedirect.RefusedExitCode, code);
+            Assert.Contains($"library redirect refused: {LibraryRedirect.ServiceProbePortVariable} is 'abc', which is not a port", stderr);
+            Assert.False(Directory.Exists(data), $"a refused start created {data}");
+        }
+
+        [Fact]
+        public void RealProcess_ServiceOnTheInjectedPortNamesARelocatedLibrary_RedirectOntoItRefused()
+        {
+            // The WIRING of rule 1, on every machine: a REAL child asks the port it was given, and a library the
+            // stand-in names - relocated where neither the passwd entry nor the child's environment looks - is in the
+            // union. The redirect points at the relocated parent with no AgentEyes folder yet, so rule 2 has nothing to
+            // see: only the service's roots can refuse it. Dropping them from the union, or asking any other port,
+            // makes this test fail. The stand-in also shows what the child sent: one GET /status, nothing else.
+            string t = Path.Combine(Scratch, "r1-injected");
+            string reloc = Made(Path.Combine(t, "reloc"));
+            string videos = Made(Path.Combine(t, "v"));
+            string body = JsonSerializer.Serialize(new
+            {
+                DataRoot = Path.Combine(reloc, "AgentEyes"),
+                RecordingsRoot = Path.Combine(t, "relocated-videos", "AgentEyes"),
+                LibraryRedirected = false,
+            });
+            using var service = new StatusStandIn(body);
+
+            var (code, _, stderr) = RunAgentEyes(reloc, videos, "--help", serviceProbePort: service.Port);
+
+            Assert.True(code == LibraryRedirect.RefusedExitCode,
+                $"a redirect onto the library the running service names was accepted (exit {code}): {stderr}");
+            // The real root is named RESOLVED (macOS: the temp folder /var/... is /private/var/...).
+            Assert.Contains("overlaps the REAL state root " + Path.Combine(LibraryRedirect.ResolveLinks(reloc), "AgentEyes"), stderr);
+            Assert.Contains($"the AgentEyes service answering on 127.0.0.1:{service.Port} (/status DataRoot)", stderr);
+            Assert.Equal(new[] { "GET /status HTTP/1.1" }, service.Requests);
+            Assert.False(Directory.Exists(Path.Combine(reloc, "AgentEyes")), "a refused start created the state root");
         }
 
         [DefaultPortFreeFact]
         public void RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused()
         {
-            // The WIRING of rule 1: a REAL child asks whatever answers on the default port, and a library that
-            // service names - relocated where neither the passwd entry nor the child's environment looks - is in
-            // the union. A stand-in service plays the person's (it can only run where the default port is free:
-            // CI, or an isolated network namespace; elsewhere this is reported SKIPPED). The redirect points at the
-            // relocated parent with no AgentEyes folder yet, so rule 2 has nothing to see: only the service's roots
-            // can refuse it. Dropping them from the union makes this test fail.
+            // The PRODUCTION default: a child given no probe port asks the default one. The stand-in plays the person's
+            // service there, so this runs only where that port is free (CI, or an isolated network namespace) and is
+            // reported SKIPPED elsewhere; the injected-port twin above covers the rule on every machine.
             string t = Path.Combine(Scratch, "r1-service");
             string reloc = Made(Path.Combine(t, "reloc"));
             string videos = Made(Path.Combine(t, "v"));
@@ -1365,44 +1547,16 @@ namespace AgentEyes.Tests.Shared
                 RecordingsRoot = Path.Combine(t, "relocated-videos", "AgentEyes"),
                 LibraryRedirected = false,
             });
-            var listener = new TcpListener(IPAddress.Loopback, LocalAppConfig.DefaultPort);
-            listener.Start();
-            var serving = StartStandIn(() =>
-            {
-                try
-                {
-                    while (true)
-                    {
-                        using var client = listener.AcceptTcpClient();
-                        using var stream = client.GetStream();
-                        var buf = new byte[4096];
-                        stream.Read(buf, 0, buf.Length);
-                        byte[] payload = System.Text.Encoding.ASCII.GetBytes(body);
-                        byte[] head = System.Text.Encoding.ASCII.GetBytes(
-                            $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
-                        stream.Write(head, 0, head.Length);
-                        stream.Write(payload, 0, payload.Length);
-                    }
-                }
-                catch (SocketException) { }          // the listener was stopped: the test is over
-                catch (ObjectDisposedException) { }
-            });
-            try
-            {
-                var (code, _, stderr) = RunAgentEyes(reloc, videos, "--help");
+            using var service = new StatusStandIn(body, LocalAppConfig.DefaultPort);
 
-                Assert.True(code == LibraryRedirect.RefusedExitCode,
-                    $"a redirect onto the library the running service names was accepted (exit {code}): {stderr}");
-                // The real root is named RESOLVED (macOS: the temp folder /var/... is /private/var/...).
-                Assert.Contains("overlaps the REAL state root " + Path.Combine(LibraryRedirect.ResolveLinks(reloc), "AgentEyes"), stderr);
-                Assert.Contains("(/status DataRoot)", stderr);
-                Assert.False(Directory.Exists(Path.Combine(reloc, "AgentEyes")), "a refused start created the state root");
-            }
-            finally
-            {
-                listener.Stop();
-                serving.Join(5000);
-            }
+            var (code, _, stderr) = RunAgentEyes(reloc, videos, "--help", probeTheDefaultPort: true);
+
+            Assert.True(code == LibraryRedirect.RefusedExitCode,
+                $"a redirect onto the library the running service names was accepted (exit {code}): {stderr}");
+            Assert.Contains("overlaps the REAL state root " + Path.Combine(LibraryRedirect.ResolveLinks(reloc), "AgentEyes"), stderr);
+            Assert.Contains($"the AgentEyes service answering on 127.0.0.1:{LocalAppConfig.DefaultPort} (/status DataRoot)", stderr);
+            Assert.DoesNotContain(LibraryRedirect.ServiceProbePortVariable, stderr);
+            Assert.False(Directory.Exists(Path.Combine(reloc, "AgentEyes")), "a refused start created the state root");
         }
 
         /// <summary>A folder created and marked as a scratch library, so a test that pre-populates it is accepted
@@ -1488,8 +1642,37 @@ namespace AgentEyes.Tests.Shared
         /// under the dotnet host this test runs on. <paramref name="data"/> is ALWAYS set, so a child
         /// can never run with neither variable - i.e. on the machine's real library.
         /// </summary>
+        /// <param name="serviceProbePort">The port the child's service probe asks (issue #161 pass 5); null = a fresh port
+        /// nothing listens on. Never the person's real service.</param>
+        /// <param name="probeTheDefaultPort">True only for the test that plays the service on the default port itself
+        /// (<see cref="DefaultPortFreeFactAttribute"/>): the child is then given no probe port at all.</param>
         private static (int Code, string Stdout, string Stderr) RunAgentEyes(string data, string? videos, string args,
-            (string Name, string Value)? extra = null, Action<ProcessStartInfo>? tweak = null)
+            (string Name, string Value)? extra = null, Action<ProcessStartInfo>? tweak = null,
+            int? serviceProbePort = null, bool probeTheDefaultPort = false)
+        {
+            var psi = ChildStartInfo(data, videos, args, serviceProbePort);
+            if (probeTheDefaultPort) psi.Environment.Remove(LibraryRedirect.ServiceProbePortVariable);
+            if (extra is { } e) psi.Environment[e.Name] = e.Value;
+            tweak?.Invoke(psi);
+
+            using var p = Process.Start(psi)!;
+            var stdout = p.StandardOutput.ReadToEndAsync();
+            var stderr = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit(60_000))
+            {
+                p.Kill(entireProcessTree: true);
+                throw new TimeoutException($"agenteyes {args} did not exit within 60s");
+            }
+            return (p.ExitCode, stdout.Result, stderr.Result);
+        }
+
+        /// <summary>
+        /// How every child is started: the built agenteyes.dll under this test's dotnet host, with the redirect
+        /// variables set and its service probe pointed at <paramref name="serviceProbePort"/> (a fresh closed port when
+        /// null), so no child asks the person's real service. Pinned by
+        /// <c>ChildStartInfo_EveryRedirectedChild_ProbesAPortOfItsOwnNeverTheDefault</c>.
+        /// </summary>
+        private static ProcessStartInfo ChildStartInfo(string data, string? videos, string args, int? serviceProbePort = null)
         {
             string dll = Path.Combine(AppContext.BaseDirectory, "agenteyes.dll");
             Assert.True(File.Exists(dll), $"the engine was not built next to the tests: {dll}");
@@ -1510,20 +1693,11 @@ namespace AgentEyes.Tests.Shared
                 psi.Environment.Remove(name);
             psi.Environment[LibraryRedirect.DataVariable] = data;
             if (videos != null) psi.Environment[LibraryRedirect.VideosVariable] = videos;
-            if (extra is { } e) psi.Environment[e.Name] = e.Value;
-            tweak?.Invoke(psi);
+            psi.Environment[LibraryRedirect.ServiceProbePortVariable] =
+                (serviceProbePort ?? FreePort()).ToString(System.Globalization.CultureInfo.InvariantCulture);
             // The engine refuses to roll forward on its own; run it on whatever runtime runs the tests.
             psi.Environment["DOTNET_ROLL_FORWARD"] = "Major";
-
-            using var p = Process.Start(psi)!;
-            var stdout = p.StandardOutput.ReadToEndAsync();
-            var stderr = p.StandardError.ReadToEndAsync();
-            if (!p.WaitForExit(60_000))
-            {
-                p.Kill(entireProcessTree: true);
-                throw new TimeoutException($"agenteyes {args} did not exit within 60s");
-            }
-            return (p.ExitCode, stdout.Result, stderr.Result);
+            return psi;
         }
 
         private static string ReadShared(string path)
@@ -1580,15 +1754,8 @@ namespace AgentEyes.Tests.Shared
         }
     }
 
-    /// <summary>
-    /// The name of the collection every loopback-server test class joins (see LibraryRedirectTests).
-    /// Issue #161 pass 4: NOT parallel with the rest of the suite. These tests hold time bounds - the service probe's
-    /// 500 ms - and on a loaded CI runner (pull_request run 43944621928) the thread pool they share with the parallel
-    /// suite starved: a 500 ms client timeout fired after 2354 ms, and stand-in services answered after a cold child
-    /// had already given up. Run alone, after the parallel collections, the bound measures the probe, not the runner.
-    /// </summary>
-    [CollectionDefinition(Name, DisableParallelization = true)]
-    public sealed class LoopbackServerCollection
+    /// <summary>The name of the collection every loopback-server test class joins (see LibraryRedirectTests).</summary>
+    public static class LoopbackServerCollection
     {
         public const string Name = "loopback control servers";
     }
