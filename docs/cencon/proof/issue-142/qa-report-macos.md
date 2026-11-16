@@ -161,6 +161,11 @@ this machine and each says why above - none is blank.
 > Current verdicts: row 4 PASS, row 6 PASS on the sharpened criterion, **row 5 FAIL as measured on a
 > virtual input** - see **"Wave A re-run, 2026-11-16"** at the end of this report. The rows above are the
 > record of `f9ef230` on a physical microphone.
+>
+> **Row 5 re-run again on 2026-11-16 evening on the PHYSICAL Yealink UH36, same build `b0e6ae8`: PASS,
+> 2 of 2 takes (0.614 s and 0.670 s), plus a single 3661 s drift take (1.094 s).** See **"Row 5 on the
+> physical microphone, and the hour-scale drift take"** at the end of this report. That verdict
+> supersedes the virtual-input FAIL for row 5.
 
 ## Row 1 - Installs by the platform's supported route: PASS
 
@@ -1424,3 +1429,204 @@ loss figure is not re-measured here, and neither is any other frame rate.
 `product-log-excerpt.txt`, `end-state.txt`, `frames/`, and the instruments in `tools/` (`take.sh`,
 `probe.py`, `emptywin.py`, `MicHook.cs`, `QaMicHook.csproj`). The capture hook is the committed
 `docs/cencon/proof/issue-116/mac-pass3-capture-tools/StartupHook.cs`, unchanged.
+
+---
+
+# Row 5 on the physical microphone, and the hour-scale drift take - 2026-11-16, 17:13 - 18:20 EST
+
+**Headline: row 5 PASSES on macOS on physical hardware - 0.614 s and 0.670 s on two 66 s takes against a
+1.5 s bound, with real, non-silent audio and no detectable dropped samples. The virtual-input FAIL earlier
+tonight was the device. The single hour take measured 1.094 s video-minus-audio at 3661 s, and a mic-side
+drift of 43.9 ppm, inside yesterday's 95 % prediction interval; adding it to yesterday's 20 captures narrows
+the drift term to 44.9 ppm, 95 % CI 27.4 - 62.4 ppm.**
+
+| | |
+|---|---|
+| Machine | `devthrottle-mac-mini`, the same as above |
+| Build | **`main` at `b0e6ae8`**, the install left by the re-run above - **not reinstalled**. Confirmed before the first take: service pid **88521**, `agenteyes.dll` embeds `1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb`, apphost sha256 `348b93b8...` and dll sha256 `439966ea...` unchanged |
+| Screen Recording grant | `CGPreflightScreenCaptureAccess() = True`, read at 17:13:21 from the **installed** `agenteyes` in a one-shot launchd job with the committed `QaCaptureHook` (no captures requested), booted out afterwards (`physical-yealink/preflight-before.txt`) |
+| Microphone | **Yealink UH36** (reconnected by the owner): default input, USB, 2 input channels, **Current SampleRate 16000** (`system_profiler`); `GET /devices` lists it as mic 0 |
+| Settings | defaults: screen 1 + `source: mic`, no `fps` (manifest records `-framerate 30 ... -r 30`) |
+| Driver | the re-run's `tools/take.sh` and `tools/probe.py`, unchanged; "finished" = manifest `PostProcessing.mux.State` = `done`, never `/status` |
+
+## Row 5 - Records screen + microphone, audio within 1.5 s of video: PASS on physical hardware
+
+| | take A (`2026-11-16_171328_video`) | take B (`2026-11-16_171441_video`) |
+|---|---|---|
+| wall clock (start returned -> stop sent) | 65.122 s | 65.114 s |
+| video | **1995 frames**, last 66.467 s, end **66.500 s**, 30.0000 fps | **1996 frames**, last 66.500 s, end **66.533 s**, 30.0000 fps |
+| audio stream | AAC 48 kHz mono, duration **65.886 s** | **65.863 s** |
+| **\|video end - audio end\|** | **0.614 s** - bound 1.5 s | **0.670 s** - bound 1.5 s |
+| mean / max volume, final track (`volumedetect`) | **-71.2 dB** / -54.3 dB | **-69.3 dB** / -45.1 dB |
+| mean / max volume, `mic_native.wav` (as captured, before the chain) | -82.5 dB / -66.2 dB | -71.7 dB / -40.3 dB |
+| product accounting | `[AudioCapture] Stop: wrote 6282240 bytes of PCM = 65.44s of audio over a 65.67s capture` (INFO) | `... = 65.41s of audio over a 65.65s capture` (INFO) |
+| full decode | exit 0, empty stderr | exit 0, empty stderr |
+| mux | `done`, attempt 1 | `done`, attempt 1 |
+
+**The accounting closes:** video end - (`adelay` + `mic_native.wav`) = 66.500 - (0.4456 + 65.440) = **0.614 s**,
+exactly the measured gap (take A); 66.533 - (0.4533 + 65.408) = 0.672 s against 0.670 s (take B).
+
+### Beside both prior sets - the comparison is the finding
+
+| Take | device | build | take | video - audio | samples captured / capture time |
+|---|---|---|---|---|---|
+| row 5, 2026-11-15 | Yealink UH36 (physical) | f9ef230 | 32.5 s | 1.049 s | 30.98 of 31.22 s |
+| row 6, 2026-11-15 | Yealink UH36 (physical) | f9ef230 | 605.7 s | 1.089 s | 604.10 of 604.38 s |
+| row 5 A, 2026-11-16 16:44 | Teams Audio (virtual) | b0e6ae8 | 31.5 s | **7.433 s** | 23.70 of 30.68 s = 0.773 |
+| row 5 B, 2026-11-16 16:44 | Teams Audio (virtual) | b0e6ae8 | 31.4 s | **7.651 s** | 23.39 of 30.59 s = 0.765 |
+| **row 5 A, tonight** | **Yealink UH36 (physical)** | **b0e6ae8** | 66.5 s | **0.614 s** | 65.44 of 65.67 s |
+| **row 5 B, tonight** | **Yealink UH36 (physical)** | **b0e6ae8** | 66.5 s | **0.670 s** | 65.41 of 65.65 s |
+
+**Tonight lands near yesterday's physical figures - about 0.4 s better, not worse - and nowhere near the
+virtual device's 7.4 - 7.7 s.** Same build as the virtual-input FAIL, different device, so the device class
+explains that failure, as the out-of-the-loop control had already attributed. I did not isolate why tonight
+is ~0.4 s better than yesterday; the build changed (#113's container) and so did the take length.
+
+### Was something actually recorded? Yes - live samples; acoustic content only in the hour take
+
+The two 66 s takes are quiet: raw RMS -82.6 dB and -71.6 dB, peaks -66.2 dB and -40.3 dB. That is a real,
+varying, non-zero signal, against the virtual input's **digital silence (max -91.0 dB)**, and it matches the
+same device yesterday measured the same way tonight (`2026-11-15_134706_video`: raw -81.3 / -66.2 dB, final
+-70.0 / -54.2 dB). I made no sound - it is the owner's machine - so the row 5 takes prove live device samples,
+not captured speech. **The hour take does prove acoustic capture**: its raw track peaks at **-3.7 dB**, with
+loud events at 549 - 550 s, ~1022 s, 1502 s and 3567 s into the take (`hour-loudest-seconds.txt`) - sounds
+in the room, not made by me.
+
+### (1) The 16 kHz device and #146's resample
+
+The chain the product built, from its own log (`row5-product-log-excerpt.txt`):
+
+```
+capture: ffmpeg -f avfoundation -thread_queue_size 1024 -i :0 -ac 1 -ar 48000 -f s16le pipe:1
+mux:     [0:a]aeval=...,aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,
+         arnndn=m='.../bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]adelay=445.625:all=1,alimiter=...
+```
+
+**The 16 kHz -> 48 kHz conversion happens at capture**, in the reader's ffmpeg (`-ar 48000`), so
+`mic_native.wav` is already 48000 Hz (ffprobe). In the mux chain `aresample=48000` sits **before**
+`asetnsamples` and `arnndn`, where #146 put it - but on macOS it receives 48 kHz and does no work. **So a 16 kHz
+device does not exercise #146's ordering on this platform**; it exercises ffmpeg's capture-side resampler, and
+every recording completed with the mux `done` on attempt 1. Whether a 16 kHz device on Windows, where #146
+bit, reaches the chain at 16 kHz is not covered here.
+
+### (2) Were samples dropped? None detectable - and that does not retire #157
+
+The capture deficit is **0.23 s (A) and 0.24 s (B)**. The product's clock starts at `AudioCapture Start` and the
+first sample arrives at `capture clock start`: **0.199 s and 0.200 s** later. The unexplained residual is
+**0.03 - 0.04 s**, well under the product's 1.0 s WARN slack, and both lines logged at INFO. Limit: the `s16le`
+pipe discards timestamps, so a gap below ~50 ms could not be seen by this method. **A clean row 5 does not
+retire #157** - its timestamp-collapsing mux only bites when samples are dropped, and these takes dropped none.
+#157 remains provoked only by the virtual device, as above.
+
+### (3) The product's own accounting
+
+Quoted in the table: `65.44s of audio over a 65.67s capture` and `65.41s ... over a 65.65s capture`, both INFO,
+neither saying MISSING. On the virtual device the same line read `6.98s MISSING` and `7.20s MISSING`.
+
+## The hour-scale drift take
+
+One take, as asked. `2026-11-16_171737_video`, Yealink UH36, defaults, 17:17:37 - 18:18:39.
+
+| Measurement | Value |
+|---|---|
+| wall clock | 3660.212 s (3660.21 - 3662.76 s between the inner and outer bounds); manifest `DurationSeconds` **3661.87** |
+| video | **109,856 frames**, last 3661.833 s, end **3661.867 s**, **30.0000 fps**; 59 frames in the last 2 s of the expected take; full decode exit 0, empty stderr |
+| audio stream | AAC 48 kHz mono, **3660.772 s** |
+| **video end - audio end** | **1.094 s** - under 1.5 s with 0.406 s headroom |
+| product accounting | `[AudioCapture] Stop: wrote 351390720 bytes of PCM = 3660.32s of audio over a 3660.74s capture` (INFO) |
+| warm-up (Start -> capture clock start) | 0.197 s |
+| mux | `done`, attempt 1, **75.3 s** (`stage mux: done ... in 75.3s`); the driver waited **75.5 s past `idle`** - #159 again, at hour scale |
+| volume | final track mean -66.7 dB, max -9.9 dB; raw mean -52.3 dB, max **-3.7 dB** |
+| file | 2,020,728,599 bytes, `ftyp / free / mdat / moov`, atom walk ends at the file size |
+
+**Accounting closes:** 3661.867 - (0.45223 + 3660.320) = 1.095 s against 1.094 s measured.
+
+### Instrument A - the mic drift, the quantity yesterday's fit measured
+
+| | value |
+|---|---|
+| deficit at T = 3660.74 s | **0.420 s** (bytes are exact; the capture time is logged to 0.01 s, so +/- 1.4 ppm) |
+| yesterday's fit predicts (0.2593 s + 49.6 ppm x T) | **0.441 s**, 95 % prediction interval **0.297 - 0.584 s** -> **INSIDE** |
+| **implied drift** using yesterday's intercept, (0.420 - 0.2593) / T | **43.9 ppm** |
+| implied drift using tonight's measured warm-up, (0.420 - 0.197) / T | 60.9 ppm |
+| **refit, yesterday's 20 + this take** (n = 21) | **0.2603 s + 44.9 ppm x T**, SE 8.4 ppm, **95 % CI 27.4 - 62.4 ppm**, t = 5.38 |
+| refit with tonight's two 66 s takes too (n = 23) | 0.2573 s + 46.2 ppm x T, 95 % CI 29.1 - 63.2 ppm |
+
+**Consistent with yesterday's fit.** The point estimate barely moves (49.6 -> 44.9 ppm), and the interval
+narrows from 12.8 - 86.4 to **27.4 - 62.4 ppm**: the hour of lever arm halves the slope's standard error. The
+drift is real, still excludes zero, and is crystal-mismatch-sized. (Mixed builds: yesterday's 20 points are
+`f9ef230`, tonight's are `b0e6ae8`. The mic path the deficit measures - `AvfStream`, `AudioCapture` - is
+the same code in both as far as these log lines show; I did not diff it.)
+
+### Instrument B - video minus audio, the quantity the criterion measures
+
+| Take | build | T | video - audio |
+|---|---|---|---|
+| row 5, yesterday | f9ef230 | 32.5 s | 1.049 s |
+| row 6, yesterday | f9ef230 | 605.7 s | 1.089 s |
+| long take, yesterday | f9ef230 | 1802.5 s | 0.847 s |
+| row 5 A / B, tonight | b0e6ae8 | 66.5 s | 0.614 / 0.670 s |
+| **hour take, tonight** | **b0e6ae8** | **3661.9 s** | **1.094 s** |
+
+Against tonight's two short takes on the same build, the gap grew **0.45 s over 3595 s - 126 ppm if read as
+pure drift. It is not all drift**, and the decomposition says where it went (video end - audio end =
+[video length - mic capture window] - adelay + mic deficit):
+
+| term | take A | take B | hour |
+|---|---|---|---|
+| mic deficit (instrument A) | 0.23 | 0.24 | **0.42** (+0.19 s: the drift) |
+| video length - mic capture window | 0.83 | 0.88 | **1.13** (+0.27 s) |
+| - adelay | -0.446 | -0.453 | -0.452 |
+| = video - audio | 0.614 | 0.670 | 1.094 |
+
+The second term grew by 0.27 s, and the log shows where: the mic stops first and the video pipeline drains
+after it - **86 ms and 132 ms on the 66 s takes, 414 ms on the hour** (`FfmpegRecorder Stop: pipeline drained
+in ...`). That is a stop-time tail on the video side, not a clock rate. **One hour-long point cannot say
+whether the tail grows with take length or is scatter** (yesterday's 30-minute take came in *lower* than its
+short takes); I flag it rather than fit it.
+
+### What this means for row 12's criterion
+
+- **At one hour, both candidate criteria hold:** flat 1.5 s (1.094 s, 0.41 s headroom) and **1.0 s + 100 ppm x T**
+  (1.366 s at 3661.9 s; 0.27 s headroom).
+- **A flat 1.5 s is still not safe for always-on.** From 1.094 s at one hour, the mic drift alone (44.9 ppm,
+  upper 62.4 ppm) adds 0.16 - 0.22 s per hour, reaching 1.5 s at roughly **3.0 h (point) / 2.8 h (upper)**; if
+  the whole 126 ppm growth of instrument B were proportional, at about **1.9 h**.
+- **1.0 s + 100 ppm x T has room on the mic drift** (the 95 % upper bound, 62 ppm, is well inside 100 ppm), but
+  **not necessarily on the video stop tail**: if instrument B really grew at 126 ppm from a 0.6 s base it would
+  cross 1.0 s + 100 ppm x T at about 4 h. Whether it does is what a second long take, or a fix that stops the
+  mic after the video drains, would settle. This is the data; the criterion is the lead's to write.
+
+## What this run did NOT cover
+
+- **Captured speech in the row 5 takes** - they record live device noise only; acoustic content is shown only
+  by the hour take's loud events. **A/V alignment of any event** - nothing in the picture (a locked screen)
+  marks when a sound happened, so sync is inferred from durations and accounting, not observed.
+- **Why tonight's short takes are ~0.4 s better than yesterday's** - build vs take length vs scatter, not isolated.
+- **#146 on a 16 kHz device where it matters** - on macOS the conversion is at capture, so the chain's
+  `aresample` is a no-op here. Windows with a 16 kHz device is untested.
+- **#157** - no samples were dropped, so it was not exercised. Sub-50 ms gaps are below this method's resolution.
+- **Whether the video stop tail grows with length** - one hour-long point; flagged, not fitted.
+- **Any frame rate other than 30, stall resilience, the desktop app** - unchanged from the re-run above.
+- **The gate** - no product code changed and nothing was built from source; the macOS gate result above
+  (`b0e6ae8`, 430 passed) is the previous seat's and was not re-run.
+
+## Hazards - what I touched and what I did not
+
+- **Nothing reinstalled.** Service pid 88521 answered every take and is still running; apphost and dll hashes
+  unchanged. `com.agenteyes.recorder` not touched. `AgentEyes.app` not touched.
+- **Added three recordings to the owner's library** (91 -> 94): `2026-11-16_171328_video`, `2026-11-16_171441_video`,
+  `2026-11-16_171737_video` (2.0 GB). **Nothing deleted.** Yesterday's Yealink recordings were read, not modified.
+- **No audio settings, default input, preset, TCC or privacy setting changed.** No `screencapture` run.
+- **One one-shot launchd job** (`com.agenteyes.qa142r5p.preflight`), exit 0, booted out (`print exit=113`);
+  `launchctl list | grep -c qa142` = 0.
+- **ffmpeg**: I started none directly against the device and killed none. The only ffmpeg runs of mine were
+  `ffprobe`/`ffmpeg -f null` analyses of files.
+
+## Evidence (all under `macos/main-b0e6ae8/physical-yealink/`)
+
+`preflight-before.txt`, `device.txt`, `row5A-take.txt`, `row5A-probe.txt`, `row5B-take.txt`, `row5B-probe.txt`,
+`row5-product-log-excerpt.txt`, `hour-take.txt`, `hour-probe.txt`, `hour-product-log-excerpt.txt`,
+`hour-fit.txt`, `hour-loudest-seconds.txt`, and `tools/fit.py` (refits yesterday's 20 points from
+`macos/audiocapture-stop-lines.txt` and tests new points against it; it reproduces yesterday's
+0.2593 s + 49.6 ppm, t = 2.83, exactly).
