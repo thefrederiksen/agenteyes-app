@@ -1,0 +1,41 @@
+# Job 5: port / library guards re-run (harness/ports.sh). Strace captured every HTTP request line written to the socket.
+# The stand-in service is UNREDIRECTED and post-#161 (reports its roots); its roots are scratch through a spoofed HOME.
+# O1/O2 sent ONE read-only GET /status each to the owner's real service on 7882 (pre-#161 binary). Nothing else was sent to it.
+# Exit codes captured: G1 1, G2 1. The others were NOT captured (my summarising shell was killed by my own pkill -f pattern after the runs finished; this summary was rebuilt from the saved per-case stdout/stderr/strace files). Outcome per case is from its own stdout/stderr and strace below.
+stand-in /status: {'DataRoot': '<scr>/m/ports/svchome/.local/share/AgentEyes', 'RecordingsRoot': '<scr>/m/ports/svchome/Videos/AgentEyes', 'LibraryRedirected': False, 'LibraryRedirect': None, 'State': 'idle'}
+
+[G1-redirected-status-vs-unredirected] real-root opens=0 EACCES-on-real=0
+  HTTP requests sent:  1 "GET /status HTTP;
+  connect ports:  1 port=htons(17481); bind ports: 
+  | [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scr>/m/ports/rc/data/AgentEyes ; recordings -> <scratch>
+  | [error] the AgentEyes service at http://127.0.0.1:17481/ is acting on a DIFFERENT library: state <scr>/m/ports/svchome/.local/share/AgentEyes, recordings <scratch>
+
+[G2-redirected-START-vs-unredirected] real-root opens=0 EACCES-on-real=0
+  HTTP requests sent:  1 "GET /status HTTP;
+  connect ports:  1 port=htons(17481); bind ports: 
+  | [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scr>/m/ports/rc/data/AgentEyes ; recordings -> <scratch>
+  | [error] the AgentEyes service at http://127.0.0.1:17481/ is acting on a DIFFERENT library: state <scr>/m/ports/svchome/.local/share/AgentEyes, recordings <scratch>
+
+[G3-unredirected-status-drives-it] real-root opens=0 EACCES-on-real=0
+  HTTP requests sent:  1 "GET /status HTTP;
+  connect ports:  1 port=htons(17481); bind ports: 
+  | state=idle elapsed=0.0s level=0.000
+  | signedIn=False pendingTranscriptions=0
+
+[O1-redirected-noport-vs-OWNER-7882] real-root opens=0 EACCES-on-real=0
+  HTTP requests sent:  1 "GET /status HTTP;
+  connect ports:  1 port=htons(7882); bind ports: 
+  | [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scr>/m/ports/ro/data/AgentEyes ; recordings -> <scratch>
+  | [error] the AgentEyes service at http://127.0.0.1:7882/ does not report which library it is acting on (it predates issue #161), so it is on its machine's REAL library - and this command is redirected to <scratch>
+
+[O2-unredirected-vs-OWNER-7882] real-root opens=16 EACCES-on-real=8
+  HTTP requests sent:  1 "GET /status HTTP;
+  connect ports:  1 port=htons(7882); bind ports: 
+  | state=idle elapsed=0.0s level=0.000
+  | signedIn=True pendingTranscriptions=0
+
+[O3-redirected-serve-on-7882] real-root opens=0 EACCES-on-real=0
+  HTTP requests sent: 
+  connect ports:  bind ports: 
+  | [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scr>/m/ports/ro/data/AgentEyes ; recordings -> <scratch>
+  | [error] a redirected AgentEyes (AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS) must not listen on the default port 7882 - that is the address of the person's real AgentEyes. Fix: pass --port N (agenteyes serve), or put {"Port": N} in the scratch config.json, which the redirected CLI client r

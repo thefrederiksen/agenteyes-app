@@ -1,0 +1,12 @@
+# The UNION, by mutation (scratch worktree from f9aba6a; Linux suite, filter LibraryRedirectTests|DesktopAppRedirectTests; Landlock).
+## M-A: drop the ENVIRONMENT half  - RealLibrary.cs DeriveForThisProcess: AppDataPaths.MachineLocalAppData, AppDataPaths.MachineVideos -> "", ""
+   Passed!  - Failed: 0, Passed: 69, Skipped: 0, Total: 69   <- NOT CAUGHT
+## M-B: drop the ACCOUNT half - accountHome = AccountHome(uid) -> accountHome = null
+   Failed RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5
+   Failed RealProcess_FullRedirect_BannerNamesTheRealRootsItDerived
+   Failed!  - Failed: 2, Passed: 67, Total: 69   <- caught
+## M-C: run the N1 write probe BEFORE the overlap rules (block moved above 'string stateResolved = resolve(stateRoot);')
+   Failed RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 (its probe into <home>/Videos hit Landlock first)
+   Failed Decide_UsableFolderCheck_RunsOnlyAfterEveryOverlapRuleSoItNeverProbesTheRealLibrary
+   Failed!  - Failed: 2, Passed: 67, Total: 69   <- caught
+## After M-C: find <home>/Videos <home>/.local/share -maxdepth 1 -name '.agenteyes-redirect-probe*' -> 0 (positive control: a planted probe in scratch -> 1)

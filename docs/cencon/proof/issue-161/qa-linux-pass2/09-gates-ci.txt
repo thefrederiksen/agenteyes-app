@@ -1,0 +1,31 @@
+# Job 7, local, head f9aba6a, Landlock on both real roots, MSBuild node reuse OFF:
+== tests/AgentEyes.Tests.Linux @ f9aba6a (default gate)
+Passed!  - Failed:     0, Passed:   387, Skipped:     1, Total:   388, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+== tests/AgentEyes.Tests.DesktopApp @ f9aba6a (default gate)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 287 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+== tests/AgentEyes.Tests.Linux @ f9aba6a (AGENTEYES_FFMPEG_TESTS=1)
+Passed!  - Failed:     0, Passed:   388, Skipped:     0, Total:   388, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+== tests/AgentEyes.Tests.Mac: build only (cannot run on Linux)
+Build succeeded.
+    0 Error(s)
+
+# CI run 43929135704 at b780cd8 (f9aba6a = b780cd8 + handoff.md only), fetched PER ATTEMPT (gh run view --attempt N --log).
+# WARNING for the next reader: 'gh run view --job <attempt-1 job id> --log' returned the ATTEMPT-2 log here (identical md5) - fetch by --attempt.
+## attempt 1 (log md5 38cef218a0): job time + result
+  macos 18:28:35 Passed!  - Failed:     0, Passed:   351, Skipped:     1, Total:   352, Duration: 1 s - AgentEyes.Tests.Mac.dll (net8.0)
+  linux 18:28:55 Passed!  - Failed:     0, Passed:   387, Skipped:     1, Total:   388, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+  linux 18:29:22 Passed!  - Failed:     0, Passed:   388, Skipped:     0, Total:   388, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+  windows 18:30:22 Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 777 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows 18:31:04 Passed!  - Failed:     0, Passed:  2436, Skipped:    22, Total:  2458, Duration: 44 s - AgentEyes.Tests.dll (net8.0)
+  windows 18:31:09 Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 476 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows 18:31:57 Passed!  - Failed:     0, Passed:  2455, Skipped:     7, Total:  2462, Duration: 48 s - AgentEyes.Tests.dll (net8.0)
+## attempt 2 (log md5 9fc106e808): job time + result
+  linux 18:33:15 Passed!  - Failed:     0, Passed:   387, Skipped:     1, Total:   388, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+  linux 18:33:44 Passed!  - Failed:     0, Passed:   388, Skipped:     0, Total:   388, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+  windows 18:34:42 Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 427 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows 18:35:20 Passed!  - Failed:     0, Passed:  2436, Skipped:    22, Total:  2458, Duration: 38 s - AgentEyes.Tests.dll (net8.0)
+  windows 18:35:25 Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 332 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows 18:36:19 Passed!  - Failed:     0, Passed:  2455, Skipped:     7, Total:  2462, Duration: 54 s - AgentEyes.Tests.dll (net8.0)
+  macos 18:33:23 Passed!  - Failed:     0, Passed:   351, Skipped:     1, Total:   352, Duration: 2 s - AgentEyes.Tests.Mac.dll (net8.0)
+## Attempt 2 is a re-run of all three jobs at the SAME commit on fresh runners; it changed no code. Its value is a second sample of the port-collision fix.
+## Run 43930682195 at the head f9aba6a itself: windows success, linux success, macos QUEUED at the time of this report.

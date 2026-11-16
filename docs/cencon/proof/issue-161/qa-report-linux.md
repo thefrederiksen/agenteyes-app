@@ -1,5 +1,7 @@
 # Issue #161 / PR #175 - QA report, LINUX HALF ONLY
 
+> **Pass 2 (head f9aba6a) is verified in [qa-report-linux-pass2.md](qa-report-linux-pass2.md)** - D1 is fixed on Linux; F1, F2 and M-A go to a pass 3.
+
 **Verdict: FAIL -> flow:qa-failed.** One blocking defect (D1): on Linux, the guard that refuses a
 redirect into the REAL library can be defeated by the process's own `HOME` or `XDG_DATA_HOME`.
 When that happens, the process goes into the person's real state root (credential, ffmpeg registry,
