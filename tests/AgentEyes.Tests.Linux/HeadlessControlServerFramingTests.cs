@@ -21,6 +21,8 @@ namespace AgentEyes.Tests.Linux
     /// a dispatched stop gives while idle - not by a recording surviving. The live stop-while-recording
     /// case is driven through the installed service and recorded in docs/cencon/proof/issue-123/.
     /// </summary>
+    // Shares a collection with LibraryRedirectTests: both start loopback servers on probed ports (issue #161 pass 2).
+    [Collection(AgentEyes.Tests.Shared.LoopbackServerCollection.Name)]
     public sealed class HeadlessControlServerFramingTests : IDisposable
     {
         private readonly HeadlessControlServer _server;

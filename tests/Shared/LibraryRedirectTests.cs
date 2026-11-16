@@ -30,6 +30,12 @@ namespace AgentEyes.Tests.Shared
     ///    is the TEST HOST's, so it reports "in-process (test host)"; the "environment" source is
     ///    asserted on the child process's log, and on a real service in the proof.
     /// </summary>
+    // Issue #161 pass 2: one xunit collection for every class in a suite that starts a loopback
+    // HeadlessControlServer. Each picks a "free" port by probing and releasing it, and two classes running in
+    // parallel can be handed the same one; the managed HttpListener then shares that port between two
+    // servers, and the second Dispose fails with "Address already in use" (CI 43925309084 and 43928220679,
+    // HeadlessControlServerFramingTests). A collection runs its classes one at a time.
+    [Collection(LoopbackServerCollection.Name)]
     public sealed class LibraryRedirectTests
     {
         private static readonly string Scratch = Path.Combine(Path.GetTempPath(), "agenteyes-161-tests", $"run-{Environment.ProcessId}-{Guid.NewGuid():N}");
@@ -840,5 +846,11 @@ namespace AgentEyes.Tests.Shared
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 Skip = "needs an unprivileged symbolic link (macOS / Linux); the pure resolver test covers Windows";
         }
+    }
+
+    /// <summary>The name of the collection every loopback-server test class joins (see LibraryRedirectTests).</summary>
+    public static class LoopbackServerCollection
+    {
+        public const string Name = "loopback control servers";
     }
 }
