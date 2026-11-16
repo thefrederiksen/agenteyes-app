@@ -156,6 +156,11 @@ this machine and each says why above - none is blank.
 > and those six rows have been run. Their current verdicts are in **"Wave B, 2026-11-16 - the macOS
 > application rows"** at the end of this report. The "NOT RUNNABLE" entries above are kept as the
 > record of what was true on 2026-11-15.
+>
+> **Rows 4, 5 and 6 were re-run on 2026-11-16 against `main` at `b0e6ae8` (with #113 and #156).**
+> Current verdicts: row 4 PASS, row 6 PASS on the sharpened criterion, **row 5 FAIL as measured on a
+> virtual input** - see **"Wave A re-run, 2026-11-16"** at the end of this report. The rows above are the
+> record of `f9ef230` on a physical microphone.
 
 ## Row 1 - Installs by the platform's supported route: PASS
 
@@ -1129,3 +1134,293 @@ Under `docs/cencon/proof/issue-142/macos-app/`:
 | `cap-*.txt` | every capture job: the plist bootstrap, the hook report, the bootout, the service either side |
 | `machine-left.txt` | the end state, measured twice (after row 10, and after the row 9 reproduction) |
 | `tools/cap.sh`, `tools/redact.swift` | my capture driver and the redaction tool |
+
+---
+
+# Wave A re-run, 2026-11-16 - recorder rows 4, 5 and 6 on `main` at `b0e6ae8` (with #113 and #156)
+
+**Headline: rows 4 and 6 PASS on main with #113 in it - the fragmented container is in use and a
+ten-minute take decodes to its expected end, which a truncation control shows the check can tell apart
+from a cut file. Row 5 FAILS as measured, on a VIRTUAL input: the only audio input left on this Mac is
+"Microsoft Teams Audio", which delivers about 0.78 x real time. A capture with the product out of the
+loop reproduces that shortfall, so it is the device's - but the product then lays the remaining samples
+end to end, which is #157's mechanism, provoked on macOS for the first time.**
+
+| | |
+|---|---|
+| Machine | `devthrottle-mac-mini`, Mac16,10, macOS 26.5.2 arm64, **10 cores** |
+| Commit tested | **`main` at `b0e6ae8`** (`b0e6ae8213c9777781ba28b588c5edc04c0a85fb`), the #113 merge; `git fetch origin` at 16:34 EST, `origin/main` = that commit; built from a detached checkout of it |
+| Installed service, before | pid **50642**, `agenteyes.dll` reports **`1.11.11+f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab`** - **pre-#113 and pre-#156**. Tarballed before replacement at `~/qa-backups/agenteyes-142-mac/` |
+| Installed service, for every row below | pid **88521** (new pid; launchd `state = running`), `lsof` shows it holding the installed `agenteyes` and `agenteyes.dll`; the dll reports **`1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb`**. It answered every take and did not restart |
+| App | `scripts/mac/install.sh` also reinstalled and opened `AgentEyes.app` (pid 89913), now reporting `1.11.11+b0e6ae82...` too; it polls `/status` once a second and does not record |
+| Settings | **defaults**: no `fps` sent; the manifest records `-framerate 30 ... -r 30` |
+| ffmpeg | 9.0.2, Homebrew; libx264 reports `threads=15 lookahead_threads=5 rc_lookahead=10 bframes=3` |
+| Screen | **LOCKED** throughout (`CGSSessionScreenIsLocked=Yes` at 16:34 and 17:01) |
+| Load | 1.9 - 3.3 on 10 cores; **no `ffmpeg` running** before the first take or after the last |
+| Time | 16:34 - 17:03 EST |
+
+## The verdicts
+
+| # | Check | Verdict | Measured |
+|---|---|---|---|
+| 4 | Records the screen, no audio | **PASS** | 1 stream (h264), 626 frames, 30.0000 fps, last frame 20.833 s vs expected 20.76 s, 60 frames in the last 2 s, full decode exit 0 with empty stderr |
+| 5 | Records screen + microphone, audio within 1.5 s of video | **FAIL as measured, on a VIRTUAL input (Microsoft Teams Audio) - shortfall reproduced without the product, so attributed to the device; NOT verified on physical hardware** | 2 of 2 takes: \|video - audio\| = **7.433 s** and **7.651 s**. The Yealink UH36 used for yesterday's physical measurement is no longer connected |
+| 6 | A 10-minute recording completes and is playable (sharpened criterion) | **PASS** | expected 607.2 s; last frame **607.167 s** (-0.033 s); **60 frames in the last 2 s of a 607.2 s recording**; full decode exit 0, empty stderr. **Truncation control FAILS the check** on a copy cut at a clean fragment boundary |
+
+## Reinstall: the apphost comparison and the Screen Recording grant
+
+The protocol was: build `main`, byte-compare the new apphost against the installed one and compare their
+cdhashes, install only if identical, and read `CGPreflightScreenCaptureAccess` for the service before and after.
+
+| | installed (`f9ef230`) | built from `b0e6ae8` (`dotnet publish` with `install.sh`'s exact arguments) |
+|---|---|---|
+| `agenteyes` (apphost) sha256 | `348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022` | `348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022` |
+| `cmp` | | **byte-identical** (exit 0) |
+| `codesign` CDHash | `0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb` | `0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb` |
+| `agenteyes.dll` sha256 | `1b9092d0...4111ddb0` | `439966ea...ccf0ff63` - differs, as expected |
+| embedded commit | `f9ef2306...` | `b0e6ae82...` |
+
+Identical, so I installed with `scripts/mac/install.sh` (exit 0, `macos/main-b0e6ae8/install-transcript.txt`).
+`install.sh` rebuilds rather than copying my build; after install the apphost on disk is again
+`348b93b8...` with CDHash `0b2bc9d9`, so what was installed is what I compared. The plist the script
+writes is byte-identical to the one it replaced (`diff` empty).
+
+`CGPreflightScreenCaptureAccess()` was read from a one-shot launchd job running the **installed**
+`agenteyes` with the committed `QaCaptureHook` startup hook (no captures requested):
+
+| Reading | Binary | Result |
+|---|---|---|
+| before install, 16:35:28 | installed `agenteyes` (`f9ef230`) | **True** |
+| **negative control**, 16:35:36 | `AgentEyes.app`'s `AgentEyesDesktop`, which holds no grant | **False** |
+| after install, 16:36:39 | installed `agenteyes` (`b0e6ae8`) | **True** |
+
+The negative control is what makes the True readings mean something. The behavioural confirmation is
+stronger than either: every take below captured a real, fully rendered picture of the lock screen,
+which a service without the grant cannot do.
+
+## Which build answered - by what it DID
+
+The manifest of every take records the capture command the service ran, and it now ends
+`-movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1`.
+The `f9ef230` build had no `-movflags` at all (see "Which build answered" above). The atom walks agree:
+row 4's file is `ftyp / moov(28) / 13 x moof+mdat / mfra` - a fragmented file whose index is at the
+front - where yesterday's row 4 had `moov` at the end. The log shows #113's watchdog
+(`StartWatchdog: watching .../raw.mp4 (stall 45s, start-up 45s, every 2s)`) and #156's claim
+(`CaptureLock TryAcquire ... claimed by capture session of pid 88521`, `Release ... released by pid 88521`)
+on every take.
+
+## Row 4 - Records the screen, no audio: PASS
+
+20.10 s by my wall clock (20.10 - 21.58 s between the inner and outer bounds of the two API calls);
+manifest `DurationSeconds` 20.76. `~/Movies/AgentEyes/2026-11-16_164310_video`.
+
+| Measurement | Value |
+|---|---|
+| Streams | exactly 1 - h264 video, no audio, as asked |
+| Decoded frames | **626**, first 0.000 s, last **20.833 s**, **30.0000 fps** |
+| Container duration | 20.867 s |
+| Frames in [18.76, 20.76] s | **60** |
+| Full decode (`ffmpeg -map 0 -f null -`) | **exit 0, empty stderr** |
+| Atoms | `ftyp`, `moov` at 28, 13 `moof`+`mdat`, `mfra`; the walk ends exactly at the file size |
+
+Frame at t = 19.5 s (`macos/main-b0e6ae8/frames/row4-t19.5s.jpg`): a complete, correctly rendered image
+of the lock-screen wallpaper. `package` failed with `extract audio (exit 234)` - #126, as on every platform.
+
+**A driver error of mine, kept rather than hidden.** My first row 4 stop request had no body; the
+service answered **411 Length Required** and logged
+`POST /record/stop REJECTED before any effect`, so that take kept recording until I stopped it 5 min
+29 s later (`2026-11-16_163736_video`, 328.98 s; `macos/main-b0e6ae8/row4-driver-error-take.txt`). That is
+the API refusing a malformed request as designed, not a product defect. The row 4 above is the clean re-take.
+
+## Row 5 - Records screen + microphone: FAIL as measured, on a VIRTUAL input (Microsoft Teams Audio) - shortfall reproduced without the product, so attributed to the device; NOT verified on physical hardware
+
+**The input.** `system_profiler SPAudioDataType` and `GET /devices` list exactly one audio input,
+**"Microsoft Teams Audio"** - a virtual device from Microsoft Teams' Core Audio driver (Teams is running;
+no call). The Yealink UH36 USB microphone used for yesterday's rows 5 and 6 is not connected. I asked the
+lead, who ruled: measure on the virtual input and label it.
+
+Two 30 s takes, `source: mic`, shipping defaults:
+
+| | take A (`2026-11-16_164424_video`) | take B (`2026-11-16_164458_video`) |
+|---|---|---|
+| video | 946 frames, **31.533 s**, 30.0000 fps | 943 frames, **31.433 s**, 30.0000 fps |
+| frames in the last 2 s of the expected take | 60 | 60 |
+| audio track | AAC 48 kHz mono, ends at **24.100 s** | ends at **23.783 s** |
+| **\|video end - audio end\|** | **7.433 s** - bound 1.5 s | **7.651 s** - bound 1.5 s |
+| product's own log | `WARN [AudioCapture] Stop: ... = 23.70s of audio over a 30.68s capture - 6.98s MISSING` | `... = 23.39s of audio over a 30.59s capture - 7.20s MISSING` |
+| mux | `done`, attempt 1, 0.3 s | `done`, attempt 1, 0.3 s |
+| audio content | digital silence, `volumedetect` max **-91.0 dB** | max -91.0 dB |
+
+**Beside yesterday's physical-device numbers** (Yealink UH36, `main` at `f9ef230`, from this report above):
+
+| Take | device | build | video | audio | shortfall | samples captured / capture time |
+|---|---|---|---|---|---|---|
+| row 5, 2026-11-15 | Yealink UH36 (physical) | f9ef230 | 32.500 s | 31.451 s | **1.049 s** | 30.976 s of ~31 s |
+| row 6, 2026-11-15 | Yealink UH36 (physical) | f9ef230 | 605.667 s | 604.578 s | **1.089 s** | 604.096 s |
+| row 5 A, today | Teams Audio (virtual) | b0e6ae8 | 31.533 s | 24.100 s | **7.433 s** | 23.70 of 30.68 s = **0.773** |
+| row 5 B, today | Teams Audio (virtual) | b0e6ae8 | 31.433 s | 23.783 s | **7.651 s** | 23.39 of 30.59 s = **0.765** |
+| row 6, today | Teams Audio (virtual) | b0e6ae8 | 607.200 s | 472.764 s | **134.436 s** | 472.38 of 605.92 s = **0.780** |
+
+The device class changed the answer completely, and the build is not what changed it - see the discriminator.
+
+### The discriminator: the same device with the product out of the loop
+
+If the recorder were losing samples, a capture that bypasses it would get them. So I ran **ffmpeg
+directly**, writing the device **straight to a file** - no pipe, no product reader, no mux - from a one-shot
+launchd job, inside the granted `agenteyes` binary through a startup hook (`macos/main-b0e6ae8/tools/MicHook.cs`)
+so it has the same microphone attribution as the service:
+
+| Direct capture | wall-clock | samples written | ratio |
+|---|---|---|---|
+| 1, to WAV | 30.033 s | **23.520 s** | **0.783** |
+| 2, to Matroska | 20.028 s | **15.966 s** | **0.797** |
+
+**The same ~22 % shortfall, without the product.** The device delivers about 0.78 x real time. The
+product's WARN line reports exactly what the device gave it.
+
+**And the deficit is proportional, not a fixed loss.** The take grew 19.75 x (30.68 s -> 605.92 s of
+capture) and the missing audio grew 19.1 x (6.98 s -> 133.54 s). A start-up loss would have stayed
+near 7 s at ten minutes; it reached 133.5 s. That is a rate characteristic of the device.
+
+### Two defects stacked, which this report keeps apart
+
+1. **The SHORTFALL is the device's.** 7.4 s of samples per 30 s are never delivered to anyone. If
+   #157 were fixed tomorrow those samples would still be missing, and the file would still have 7 s
+   less audio content than video.
+2. **The MISALIGNMENT is the product's, and it is #157.** The device's packets carry timestamps that
+   follow wall-clock time: in direct capture 2, **1,486 packets span 20.266 s** of timestamps (20.028 s
+   of wall-clock), yet hold 15.97 s of samples. The missing samples are **414 small gaps** (> 5 ms each,
+   4.69 s in total), spread evenly - 78, 83, 82, 82 and 83 in each 4 s of the take - not a few large
+   holes (`macos/main-b0e6ae8/row5-direct-device-timestamps.txt`; Matroska timestamps have 1 ms resolution).
+   So the timing information exists at capture. The product's mic path reads the device as headerless
+   `s16le` over a pipe (`AvfStream Start mic: ... -f s16le pipe:1`), which keeps the samples and drops
+   the timestamps, and the mux then lays the samples end to end. The audio track's length is exactly
+   that: `mic_native.wav` + the start-offset `adelay` = 23.701 + 0.390 = 24.091 s against 24.100 s
+   measured (take A), and 472.384 + 0.374 = 472.758 s against 472.764 s (row 6). With the gaps preserved,
+   each sample would sit at its capture time with silence where none arrived, and the file would stay
+   **in sync while short**. Here, instead, audio drifts progressively early - by 7.4 s at the end of a
+   30 s take and 134 s at the end of ten minutes.
+
+**What I could NOT measure, stated plainly:** the misalignment is *inferred*, from the timestamps and
+the accounting above, and not observed in the file. The audio is digital silence (-91 dB), so no
+event in it can be lined up against the picture. Where in the pipeline the timestamps are lost
+(the `s16le` pipe) is read from the product's own logged command line; I did not instrument it.
+
+### What a virtual device cannot tell us
+
+Yesterday's seat measured a real **~49.6 ppm** drift term on the Yealink (95 % CI 12.8 - 86.4 ppm, excluding
+zero), attributed to a crystal mismatch between the microphone's clock and the system timebase. A virtual
+input has no crystal of its own. Here that point cuts the other way from the one I expected: this device
+is **dramatically worse** than the physical one, not better, so nothing here could be misread as an
+improvement. But it does mean **today's macOS row 5 says nothing about drift on physical hardware**, and
+yesterday's **1.049 s and 1.089 s on the Yealink at `f9ef230` remain the only physical-microphone
+evidence on this platform.** In particular it does not show whether #113's container change affects sync
+on a real microphone. The lead has asked the owner to reconnect it.
+
+## Row 6 - A 10-minute recording completes and is playable: PASS
+
+605.13 s by my wall clock (605.13 - 608.14 s between the inner and outer bounds); manifest
+`DurationSeconds` **607.2**, `CapturedSeconds` 607.13. Screen + the Teams input (the only audio this Mac
+now has), defaults. `~/Movies/AgentEyes/2026-11-16_164737_video`, 325,009,201 bytes.
+
+**The expected length is not read from the file.** For a healthy stop the manifest's `DurationSeconds` is
+the session's elapsed time (`RecordingService.cs:997`), set before and independently of the file. (For an
+*abandoned* capture #113 replaces it with a probe of the file, `RecordingService.cs:1011` - which would make
+this check circular - so I also bound it with my own wall clock, and 607.2 s sits inside 605.13 - 608.14 s.)
+**Tolerance: +/- 1.0 s** on the last frame, and **>= 54 of the 60** frames a 30 fps capture produces in the
+last 2 s.
+
+| Measurement | final `recording.mp4` (muxed) | raw fragmented capture (`recording.original.mp4`) |
+|---|---|---|
+| decoded video frames | **18,216**, 30.0000 fps | 18,216, 30.0000 fps |
+| last frame | **607.167 s** vs expected 607.200 s: **-0.033 s** | 607.167 s |
+| **frames in [605.2, 607.2] s** | **60** (605.200 ... 607.167) | 60 |
+| full decode | exit 0, empty stderr | exit 0, empty stderr |
+| atoms | `ftyp / free / mdat / moov` at 324,528,271 | `ftyp / moov(28) / 363 x moof+mdat / mfra` |
+| **sharpened check** | **PASS** | **PASS** |
+
+Mux `done`, attempt 1, **2.7 s** - read from the manifest's `PostProcessing.mux.State` and the product's
+`stage mux: start` / `done ... in 2.7s` lines, not from `/status`. (Yesterday's 13.68 s on `f9ef230` was a
+different build and a real microphone's audio; I did not investigate the difference.) Frames at 5 s, 300 s
+and **606 s** (`macos/main-b0e6ae8/frames/row6-t*.jpg`) are complete, correctly rendered images.
+
+Row 6's audio is 134.4 s short, for the reason given under row 5. It is not part of row 6's criterion.
+
+### The truncation control - the check fails on a cut file
+
+| Copy, in scratch (never in the library) | `moov` present | decode exit 0 | stderr | last frame | frames in the last 2 s of the **expected** end | **check** |
+|---|---|---|---|---|---|---|
+| row 6 raw, cut at a fragment boundary (offset 285,706,294 = start of fragment 327 of 363) | **yes**, at 28 | **0** | **empty** | 544.900 s (-62.3 s) | **0** | **FAIL** |
+| row 4, cut at a fragment boundary (start of fragment 9 of 13) | yes | 0 | empty | 14.300 s (-6.46 s) | 0 | **FAIL** |
+| row 4, cut mid-atom at 70 % of its bytes | yes | 0 | `Invalid NAL unit size ... partial file` | 14.833 s | 0 | **FAIL** |
+
+This reproduces on macOS what the Linux seat found: **"`moov` present" and "decode exits 0" both pass on a
+truncated fragmented file** - cut on a fragment boundary, even stderr is empty. And a "frame near the end of
+the bytes" check passes too, since the cut copy decodes 30 fps continuously up to 544.9 s. Only the frames
+at the **expected** end separate the real file from the cut one. Evidence:
+`macos/main-b0e6ae8/truncation-control-row6.txt`, `truncation-control-row4.txt`.
+
+## The empty window on this machine
+
+Measured, not carried over: two screen-only takes at the default 30 fps, polling the file every 50 ms
+(`macos/main-b0e6ae8/tools/emptywin.py`, output `emptywin.txt`).
+
+| Run | start POST took | first byte on disk, after the POST returned | first byte, from the start command |
+|---|---|---|---|
+| 1 | 0.802 s | **2.888 s** | **3.69 s** |
+| 2 | 0.800 s | **2.909 s** | **3.71 s** |
+
+**About 3.7 s from the start command (2.9 s after the API returns), at 30 fps on 10 cores, libx264
+`threads=15`.** Before then the file is empty (`delay_moov`), so an unclean end leaves nothing. The first
+byte arrives as one complete fragment, and in the same run, as a positive control, a copy of it decoded to
+**60 frames**. Not measured: an unclean end itself. I killed nothing, so the "fragment plus start-up delay"
+loss figure is not re-measured here, and neither is any other frame rate.
+
+## What this run did NOT cover
+
+- **Physical microphone.** Neither row 5 nor row 6 on macOS speaks to physical hardware today. The Yealink
+  UH36 is disconnected, so yesterday's 1.049 s and 1.089 s on that device, at `f9ef230`, remain the only
+  physical-microphone evidence on this platform. Whether #113's container change affects A/V sync on a real
+  microphone is **unmeasured on macOS**.
+- **#157 under its intended trigger.** It was provoked here by a device, not by load. Neither a loaded
+  physical mic nor a fix was tested, and the misalignment is inferred from timestamps, not seen.
+- **Stall resilience (#113's failure path).** Every take was healthy. No capture was frozen or killed, so
+  the watchdog was observed starting and stopping, never firing.
+- **#156's protection against a second process.** The claim was observed being taken and released. Nothing
+  tried to take it from another process.
+- **Any frame rate other than 30**, and therefore #184 and #188's low-fps behaviour.
+- **The desktop app.** It was reinstalled by `install.sh` as a side effect and not re-tested; rows 2, 3 and
+  7 - 10 stand as measured at `277a9bc` above.
+- **System audio** - still impossible on this Mac without a virtual loopback device.
+- **CLAUDE.md's gate does not apply on a Mac.** The macOS gate was run on `b0e6ae8`:
+  `dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=mac` **0 errors** (1 warning);
+  `dotnet test tests/AgentEyes.Tests.Mac -c Release` **430 passed, 0 failed, 2 skipped**
+  (`macos/main-b0e6ae8/gate.txt`). The Linux test project was not run.
+
+## Hazards - what I touched and what I did not
+
+- **Replaced the owner's service**: pid 50642 (`f9ef230`) -> pid **88521** (`b0e6ae8`), via the supported
+  installer, after the apphost check. It is left installed and running. The previous `bin/` and plist are in
+  `~/qa-backups/agenteyes-142-mac/`.
+- **Reinstalled and opened `AgentEyes.app`** - `install.sh` does this unconditionally. Left running (pid 89913).
+- **Added seven recordings to the owner's library** (84 -> 91 directories): row 4, the 411 driver-error
+  take, rows 5 A and B, row 6, and two empty-window takes. Each is
+  named in its evidence file. **Nothing was deleted.** All truncated copies were made in scratch and removed
+  from there.
+- **No TCC or privacy setting changed.** No `screencapture` was run from my shell. Five one-shot launchd jobs
+  (`com.agenteyes.qa142r6.preflight-before`, `.preflight-negctl`, `.preflight-after`, `.micdirect1`,
+  `.micdirect2`), each bootstrapped, polled with a hard timeout, finished on its own with exit 0 and was booted
+  out (`post-bootout print exit=113`). `launchctl list | grep -c qa142` = 0 at the end.
+- **ffmpeg**: none was killed by me or by the watchdog. The only ffmpeg processes I started were the two in the
+  direct captures, and both exited on `q` with exit 0. `pgrep ffmpeg` was empty at the end.
+
+## Evidence (re-run, all under `macos/main-b0e6ae8/`)
+
+`install-transcript.txt`, `post-install-identity.txt`, `preflight-before-service.txt`,
+`preflight-after-service.txt`, `preflight-negative-control-app.txt`, `gate.txt`, `row4-take.txt`,
+`row4-probe.txt`, `row4-driver-error-take.txt`, `row5A-take.txt`, `row5A-probe.txt`, `row5B-take.txt`,
+`row5B-probe.txt`, `row5-direct-device-capture.txt`, `row5-direct-device-timestamps.txt`, `row6-take.txt`,
+`row6-probe.txt`, `truncation-control-row6.txt`, `truncation-control-row4.txt`, `emptywin.txt`,
+`product-log-excerpt.txt`, `end-state.txt`, `frames/`, and the instruments in `tools/` (`take.sh`,
+`probe.py`, `emptywin.py`, `MicHook.cs`, `QaMicHook.csproj`). The capture hook is the committed
+`docs/cencon/proof/issue-116/mac-pass3-capture-tools/StartupHook.cs`, unchanged.

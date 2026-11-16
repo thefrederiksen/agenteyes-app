@@ -1,0 +1,58 @@
+16:36:09 start
+b0e6ae8213c9777781ba28b588c5edc04c0a85fb
+[OK] ffmpeg: /opt/homebrew/bin/ffmpeg
+Building agenteyes (Release, osx-arm64, self-contained) ...
+[OK] built
+[OK] stopped the running agent
+[OK] installed to ~/Library/Application Support/AgentEyes/bin
+[OK] linked ~/.local/bin/agenteyes
+[OK] wrote ~/Library/LaunchAgents/com.agenteyes.recorder.plist
+[OK] agent loaded (starts at login)
+[OK] agent started
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp>/tmp.XEPsHLZ3na/AgentEyes.app: replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <tmp>/tmp.NvKSp6hkfY/AgentEyes.app (198M)
+[OK] installed ~/Applications/AgentEyes.app
+[OK] registered with Launch Services
+[OK] AgentEyes opened - its window, its icon in the dock, and its icon in the menu bar
+
+AgentEyes.app is in ~/Applications/AgentEyes.app - open it from Finder, Launchpad or Spotlight.
+It needs no permission of its own: recording is done by the AgentEyes service,
+which is the one that appears as "agenteyes" under System Settings > Privacy
+and Security > Screen and System Audio Recording.
+
+-------------------------------------------------------------------------
+ONE THING IS LEFT, AND ONLY YOU CAN DO IT.
+
+macOS will not let any program record the screen until you allow it, per
+application. Open:
+
+  System Settings > Privacy and Security > Screen and System Audio Recording
+
+and switch on "agenteyes" - the recorder service. Not "AgentEyes": the app
+(~/Applications/AgentEyes.app) is a separate application to macOS and needs
+no permission, because every recording is made by the service. If "agenteyes"
+is not in the list yet, run this once to make macOS ask:
+
+  agenteyes shot --screen 1 --out ~/Desktop
+
+Then check it worked:
+
+  agenteyes screens          the displays, microphones and cameras it can see
+  agenteyes record status    the service, on http://127.0.0.1:7882
+
+NOTE ON SOUND. macOS has no way to record what it is PLAYING without a
+virtual audio device - unlike Windows and Linux. The microphone works on its
+own (--mic). For system sound (--mix / --loopback), install one first:
+
+  brew install blackhole-2ch
+
+Logs: ~/Library/Application Support/AgentEyes/logs
+Stop:  launchctl bootout gui/501/com.agenteyes.recorder
+Start: launchctl kickstart -k gui/501/com.agenteyes.recorder
+-------------------------------------------------------------------------
+exit=0
+16:36:30 end

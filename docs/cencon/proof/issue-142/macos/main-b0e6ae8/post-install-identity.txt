@@ -1,0 +1,15 @@
+16:36:39
+	state = running
+	pid = 88521
+pgrep serve: 88521
+agenteyes 88521 <user>  txt       REG               1,16   106792            59311689 ~/Library/Application Support/AgentEyes/bin/agenteyes
+agenteyes 88521 <user>  txt       REG               1,16  1117184            59311547 ~/Library/Application Support/AgentEyes/bin/agenteyes.dll
+agenteyes 88521 <user>   16r      REG               1,16  1117184            59311547 ~/Library/Application Support/AgentEyes/bin/agenteyes.dll
+agenteyes 88521 <user>   17r      REG               1,16  1117184            59311547 ~/Library/Application Support/AgentEyes/bin/agenteyes.dll
+348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022  ~/Library/Application Support/AgentEyes/bin/agenteyes
+439966ea632323eb8b1223a29bc285a8e3c3bc3b0bd4e73974fc638fccf0ff63  ~/Library/Application Support/AgentEyes/bin/agenteyes.dll
+CDHash=0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb
+embedded: ['b0e6ae8213c9777781ba28b588c5edc04c0a85fb']
+app embedded: ['b0e6ae8213c9777781ba28b588c5edc04c0a85fb']
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+89913 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
