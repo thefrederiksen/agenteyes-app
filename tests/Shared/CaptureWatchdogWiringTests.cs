@@ -58,7 +58,15 @@ namespace AgentEyes.Tests.Shared
         public int ArmCount { get; private set; }
         public TimeSpan? LastDue { get; private set; }
         public bool Disposed { get; private set; }
-        public void Arm(TimeSpan due) { ArmCount++; LastDue = due; _log.Add("watchdog armed"); }
+        /// <summary>When set, the Nth Arm (1-based) throws - a failure inside the tick but outside the read.</summary>
+        public int? ThrowOnArm;
+        public void Arm(TimeSpan due)
+        {
+            ArmCount++;
+            if (ArmCount == ThrowOnArm) { _log.Add("watchdog arm threw"); throw new InvalidOperationException("injected arm failure"); }
+            LastDue = due;
+            _log.Add("watchdog armed");
+        }
         public void Dispose() { Disposed = true; _log.Add("watchdog disposed"); }
 
         /// <summary>Run one check, as the real timer would on its own thread.</summary>
@@ -137,6 +145,9 @@ namespace AgentEyes.Tests.Shared
         public FakeWatchdogTimer? WatchdogTimer;
         public string? Dir;
         public readonly RecordingService Service;
+
+        /// <summary>When set, the watchdog's read of the capture file THROWS this instead of reading it.</summary>
+        public volatile Exception? SizeReadFails;
         private int _starts;
 
         /// <summary>What the fake probe says the abandoned file holds.</summary>
@@ -161,6 +172,7 @@ namespace AgentEyes.Tests.Shared
                     Recorder = new FakeScreenRecorder(outPath, Log);
                     return Recorder;
                 },
+                OutputFileSize = path => SizeReadFails is { } fail ? throw fail : CaptureWatchdog.FileSize(path),
                 NewWatchdogClock = () => Clock,
                 NewWatchdogTimer = tick =>
                 {
@@ -405,6 +417,87 @@ namespace AgentEyes.Tests.Shared
             Assert.False(next.LastStopFailed);
             Assert.Null(next.LastCaptureFault);
             h.Service.Stop();
+        }
+    }
+
+    /// <summary>
+    /// The Review Gate's fail-open finding on #113: OnWatchdogTick's catch logged and returned WITHOUT
+    /// re-arming, so one throw ended watching for the rest of the recording while /status kept serving
+    /// CaptureLiveness=growing with a frozen byte count. These pin the replacement through the real
+    /// service: a failed read keeps watching and is called "check-failed"; a read that keeps failing
+    /// ends the recording loudly; a throw elsewhere in the tick is called "watchdog-failed" and re-armed.
+    /// MUTATION: restoring the silent return in either catch fails these.
+    /// </summary>
+    [Collection(WatchdogHarnessCollection.Name)]
+    public sealed class WatchdogFailOpenTests
+    {
+        [Fact]
+        public void Tick_SizeReadThrowsOnce_ReArmsAndStatusSaysCheckFailed_ThenRecovers()
+        {
+            using var h = new WatchdogHarness();
+            h.StartVideo();
+            h.Check(growBy: 40_000);
+            var timer = WatchdogHarness.Require(h.WatchdogTimer, "no watchdog timer");
+            Assert.Equal("growing", h.Service.Status().CaptureLiveness);
+            int armsBefore = timer.ArmCount;
+
+            h.SizeReadFails = new IOException("injected read failure");
+            h.Check(growBy: 40_000);    // the file grows, but the read cannot see it
+
+            var failed = h.Service.Status();
+            Assert.Equal("recording", failed.State);
+            Assert.Equal("check-failed", failed.CaptureLiveness);       // NOT a stale "growing"
+            Assert.Equal(40_000, failed.CaptureBytes);
+            Assert.Equal(armsBefore + 1, timer.ArmCount);               // still watching
+
+            h.SizeReadFails = null;
+            h.Check();
+            var recovered = h.Service.Status();
+            Assert.Equal("growing", recovered.CaptureLiveness);
+            Assert.Equal(80_000, recovered.CaptureBytes);
+        }
+
+        [Fact]
+        public void Tick_SizeReadKeepsThrowing_EndsTheRecordingInsideTheStallWindow_NamingTheError()
+        {
+            using var h = new WatchdogHarness();
+            h.StartVideo();
+            for (int i = 0; i < 3; i++) h.Check(growBy: 40_000);
+            h.SizeReadFails = new UnauthorizedAccessException("injected: access denied");
+
+            int checks = 0;
+            while (h.Service.Status().State == "recording" && checks < 100) { h.Check(); checks++; }
+
+            Assert.Equal((int)Math.Ceiling(CaptureWatchdog.DefaultStallTimeout.TotalSeconds
+                                           / CaptureWatchdog.DefaultCheckInterval.TotalSeconds), checks);
+            var after = h.Service.Status();
+            Assert.Equal("idle", after.State);
+            Assert.True(after.LastStopFailed);
+            Assert.StartsWith("capture stalled: recording.mp4 stopped growing at 120000 bytes", after.LastCaptureFault);
+            Assert.Contains("could not read it (UnauthorizedAccessException: injected: access denied)", after.LastCaptureFault);
+            Assert.Equal("stalled", h.ReadManifest().GetProperty("CaptureFault").GetString());
+        }
+
+        [Fact]
+        public void Tick_ThrowsOutsideTheRead_StatusSaysWatchdogFailed_AndItKeepsWatching()
+        {
+            using var h = new WatchdogHarness();
+            h.StartVideo();
+            h.Check(growBy: 40_000);
+            var timer = WatchdogHarness.Require(h.WatchdogTimer, "no watchdog timer");
+            timer.ThrowOnArm = timer.ArmCount + 1;      // the re-arm at the end of the next healthy check
+
+            h.Check(growBy: 40_000);
+            var failed = h.Service.Status();
+            Assert.Equal("recording", failed.State);
+            Assert.Equal("watchdog-failed", failed.CaptureLiveness);    // NOT "growing"
+            Assert.Equal(timer.ThrowOnArm + 1, timer.ArmCount);        // re-armed by the catch
+            Assert.Equal(CaptureWatchdog.DefaultCheckInterval, timer.LastDue);
+
+            // And it still decides: the next check reads the file again.
+            h.Check(growBy: 40_000);
+            Assert.Equal("growing", h.Service.Status().CaptureLiveness);
+            Assert.Equal(120_000, h.Service.Status().CaptureBytes);
         }
     }
 

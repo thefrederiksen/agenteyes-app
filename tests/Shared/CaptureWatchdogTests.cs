@@ -133,6 +133,82 @@ namespace AgentEyes.Tests.Shared
             Assert.Equal("growing", resumed.State);
         }
 
+        // ---- a check whose read fails (the Review Gate's fail-open finding) -----------------
+
+        [Fact]
+        public void CheckFailed_OneFailedRead_IsCountedAsNoGrowth_AndTheNextGoodReadClearsIt()
+        {
+            var (dog, clock, capture) = NewWatchdog();
+            Step(dog, clock, () => capture.Grow(1_000));
+
+            clock.Advance(Interval);
+            var failed = dog.CheckFailed(new IOException("the disk went away"));
+            Assert.Equal("check-failed", failed.State);
+            Assert.Null(failed.Fault);
+            Assert.Equal(1_000, failed.Bytes);
+            Assert.Equal(Interval, failed.SecondsSinceGrowth);   // the window kept running
+
+            var good = Step(dog, clock, () => capture.Grow(1_000));
+            Assert.Equal("growing", good.State);
+            Assert.Equal(2_000, good.Bytes);
+        }
+
+        [Fact]
+        public void CheckFailed_ReadKeepsFailing_FiresStalledInsideTheWindow_NamingTheReadError()
+        {
+            // Expected: a read that never succeeds again reaches the SAME verdict, at the same time, as a
+            // file that stopped growing. Bad (the shape the gate found): nothing is ever decided.
+            var (dog, clock, capture) = NewWatchdog();
+            Step(dog, clock, () => capture.Grow(1_000));
+            CaptureOutputLiveness live;
+            int checks = 0;
+            do
+            {
+                clock.Advance(Interval);
+                live = dog.CheckFailed(new UnauthorizedAccessException("access denied"));
+                checks++;
+            } while (live.Fault == null && checks < 100);
+
+            Assert.NotNull(live.Fault);
+            Assert.Equal(CaptureFault.KindStalled, live.Fault!.Kind);
+            Assert.Equal((int)Math.Ceiling(CaptureWatchdog.DefaultStallTimeout.TotalSeconds / Interval), checks);
+            Assert.Contains($"the last {checks} checks could not read it (UnauthorizedAccessException: access denied)",
+                live.Fault.Message);
+        }
+
+        [Fact]
+        public void CheckFailed_BeforeAnyOutput_FiresNeverStartedAtTheStartupLimit()
+        {
+            var (dog, clock, _) = NewWatchdog();
+            CaptureOutputLiveness live;
+            int checks = 0;
+            do
+            {
+                clock.Advance(Interval);
+                live = dog.CheckFailed(new IOException("x"));
+                checks++;
+            } while (live.Fault == null && checks < 100);
+            Assert.Equal(CaptureFault.KindNeverStarted, live.Fault!.Kind);
+            Assert.Equal((int)Math.Ceiling(CaptureWatchdog.DefaultStartupTimeout.TotalSeconds / Interval), checks);
+        }
+
+        [Fact]
+        public void Stall_FileLeavesItsPathAfterOutput_FaultSaysItIsNoLongerThere_NotThatItStoppedGrowing()
+        {
+            // The Review Gate's chain: a foreign process renamed raw.mp4 out from under a capture that
+            // was still writing it. #156 now refuses that rename; if anything ever moves the file
+            // again, the verdict must say what was SEEN - "stopped growing" was a false reason.
+            var (dog, clock, capture) = NewWatchdog();
+            Step(dog, clock, () => capture.Grow(5_000));
+            capture.Size = null;
+            CaptureOutputLiveness live;
+            int checks = 0;
+            do { live = Step(dog, clock); checks++; } while (live.Fault == null && checks < 100);
+            Assert.Equal(CaptureFault.KindStalled, live.Fault!.Kind);
+            Assert.StartsWith("raw.mp4 is no longer at its path (last seen at 5000 bytes)", live.Fault.Message);
+            Assert.DoesNotContain("stopped growing", live.Fault.Message);
+        }
+
         // ---- growth stops: fires ---------------------------------------------------------------
 
         [Fact]

@@ -109,7 +109,9 @@ namespace AgentEyes
         // watchdog, every two seconds. All null when no screen capture is running.
 
         // "starting" (no output yet), "growing", "not-growing" (did not grow at the latest check,
-        // not yet a fault) or "faulted" (the watchdog is ending the recording).
+        // not yet a fault), "check-failed" (the latest check could not read the file - counted as no
+        // growth), "watchdog-failed" (the latest check itself threw; the numbers below are the last
+        // good reading, not current) or "faulted" (the watchdog is ending the recording).
         public string? CaptureLiveness { get; set; }
 
         // The file being watched (raw.mp4 or recording.mp4).
@@ -1728,8 +1730,9 @@ namespace AgentEyes
         {
             string path = video.OutputPath;
             _watchedFile = Path.GetFileName(path);
+            var size = _seams.OutputFileSize;
             _watchdog = new CaptureWatchdog(
-                _watchedFile, () => CaptureWatchdog.FileSize(path), () => video.ExitCode, _seams.NewWatchdogClock());
+                _watchedFile, () => size(path), () => video.ExitCode, _seams.NewWatchdogClock());
             _liveness = _watchdog.Last;
             _watchdogTimer = _seams.NewWatchdogTimer(OnWatchdogTick);
             _watchdogTimer.Arm(CaptureWatchdog.DefaultCheckInterval);
@@ -1756,12 +1759,23 @@ namespace AgentEyes
         /// One watchdog check (timer thread - an entry point, so it catches). Reads the capture's
         /// file, publishes the reading for /status, and on a fault publishes the verdict and ends the
         /// recording.
+        ///
+        /// NEVER FAILS OPEN (issue #113, the Review Gate's finding). The catch used to log and return
+        /// WITHOUT re-arming the timer: one throw ended watching for the rest of the recording while
+        /// /status kept serving the last reading - CaptureLiveness=growing with a frozen byte count,
+        /// the exact silent shape this issue exists to remove. Now:
+        ///  - a check whose READ throws is counted as a check that saw no growth
+        ///    (<see cref="CaptureWatchdog.CheckFailed"/>), published as "check-failed", and re-armed;
+        ///    a read that keeps failing ends the recording with the ordinary stall verdict, inside the
+        ///    same window, with the read error in the fault;
+        ///  - anything else that throws before a verdict publishes "watchdog-failed" (the old numbers
+        ///    are kept but no longer called growing) and re-arms, so the next check can still decide.
         /// </summary>
         internal void OnWatchdogTick()
         {
+            CaptureWatchdog? watchdog = null;
             try
             {
-                CaptureWatchdog? watchdog;
                 lock (_lock)
                 {
                     if (_state != "recording") return;
@@ -1771,7 +1785,17 @@ namespace AgentEyes
 
                 // Outside the lock: a stat of one file, but on a wedged disk even that can block, and
                 // /status must keep answering meanwhile.
-                var live = watchdog.Check();
+                CaptureOutputLiveness live;
+                try
+                {
+                    live = watchdog.Check();
+                }
+                catch (Exception readEx)
+                {
+                    Log.Error($"[RecordingService] OnWatchdogTick: the check of {_watchedFile} FAILED - counted as no "
+                              + "growth; watching continues", readEx);
+                    live = watchdog.CheckFailed(readEx);
+                }
 
                 string? dir;
                 lock (_lock)
@@ -1798,7 +1822,42 @@ namespace AgentEyes
             }
             catch (Exception ex)
             {
-                Log.Error("[RecordingService] OnWatchdogTick FAILED - the capture watchdog stopped checking", ex);
+                Log.Error("[RecordingService] OnWatchdogTick FAILED", ex);
+                KeepWatchingAfterFailedTick(watchdog, ex);
+            }
+        }
+
+        /// <summary>
+        /// The tick threw somewhere other than the evidence read. If that was BEFORE a verdict on the
+        /// live session, say so on /status ("watchdog-failed" - the numbers shown are the last good
+        /// reading, not current ones) and re-arm, so watching does not silently end. After a verdict
+        /// there is nothing to re-arm: the verdict is already on /status and the stop owns the session.
+        /// Called from the tick's catch; a throw here would escape onto the timer thread, so its own
+        /// failure is logged and stops at this boundary.
+        /// </summary>
+        private void KeepWatchingAfterFailedTick(CaptureWatchdog? watchdog, Exception cause)
+        {
+            try
+            {
+                lock (_lock)
+                {
+                    if (watchdog == null || _state != "recording" || !ReferenceEquals(_watchdog, watchdog)
+                        || watchdog.Last.Fault != null)
+                    {
+                        Log.Warn($"[RecordingService] KeepWatchingAfterFailedTick: not re-arming (state={_state}, "
+                                 + $"verdict={(watchdog?.Last.Fault != null ? "published" : "none")}) - {cause.Message}");
+                        return;
+                    }
+                    _liveness = (_liveness ?? watchdog.Last).WithState("watchdog-failed");
+                    _watchdogTimer?.Arm(CaptureWatchdog.DefaultCheckInterval);
+                    Log.Warn("[RecordingService] KeepWatchingAfterFailedTick: /status now reports "
+                             + $"CaptureLiveness=watchdog-failed for {_dir}; re-armed for the next check");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("[RecordingService] KeepWatchingAfterFailedTick FAILED - the capture watchdog could not be "
+                          + "re-armed and has STOPPED checking this recording", ex);
             }
         }
 

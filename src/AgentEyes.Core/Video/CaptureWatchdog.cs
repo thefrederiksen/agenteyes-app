@@ -35,9 +35,17 @@ namespace AgentEyes.Video
         /// "starting" - no output yet, inside the start-up window;
         /// "growing" - the file grew at the latest check;
         /// "not-growing" - the file did not grow at the latest check, not yet long enough to be a fault;
+        /// "check-failed" - the latest check could not read the evidence at all (counted as no growth,
+        /// so a read that keeps failing reaches the same verdict a file that stopped growing does);
+        /// "watchdog-failed" - the service's handling of the latest check threw; the numbers are the
+        /// last good reading and are NOT current (set by the service, never by <see cref="CaptureWatchdog"/>);
         /// "faulted" - the watchdog has decided the capture is not producing output (see <see cref="Fault"/>).
         /// </summary>
         public string State { get; }
+
+        /// <summary>The same reading under another state - the numbers are kept, the claim about them changes.</summary>
+        public CaptureOutputLiveness WithState(string state) =>
+            new(state, Bytes, LastGrowthUtc, SecondsSinceGrowth, SecondsWatched, Fault);
 
         /// <summary>Bytes in the output file at the latest check (0 when it does not exist yet).</summary>
         public long Bytes { get; }
@@ -175,6 +183,9 @@ namespace AgentEyes.Video
         private long _bytes;
         private DateTime? _lastGrowthUtc;
         private CaptureFault? _fault;
+        private int _failedChecks;              // consecutive checks whose read threw (CheckFailed)
+        private string? _lastReadError;
+        private bool _missing;                  // the file left its path after output began
 
         /// <param name="label">The output file's name, for the fault message (e.g. "raw.mp4").</param>
         /// <param name="sizeSource">Bytes in the output file now, or null when it does not exist.</param>
@@ -203,11 +214,44 @@ namespace AgentEyes.Video
         /// <summary>
         /// Look at the capture once and decide. Once a fault is decided it is final: later checks
         /// return the same fault, so a file that grows again after the decision cannot un-decide it.
+        /// Throws when a source throws; the owner then reports the failed read through
+        /// <see cref="CheckFailed"/>, which keeps the decision going instead of losing it.
         /// </summary>
         public CaptureOutputLiveness Check()
         {
             if (_fault != null) return Last;
+            Advance();
+            long? size = _size();
+            int? exit = _exitCode();
+            _failedChecks = 0;
+            _lastReadError = null;
+            return Decide(size, exit, readFailed: false);
+        }
 
+        /// <summary>
+        /// The owner's latest <see cref="Check"/> threw before it could read the evidence (issue #113,
+        /// the Review Gate's fail-open finding). A failed read is NOT evidence of output, so it is
+        /// counted exactly as a check that saw no growth: the stall and start-up windows keep running,
+        /// and a read that keeps failing reaches the same verdict a file that stopped growing does,
+        /// with the read error in its message. The alternative - stop watching - is the shape that
+        /// served "growing" with a frozen byte count for the rest of the recording.
+        /// </summary>
+        public CaptureOutputLiveness CheckFailed(Exception error)
+        {
+            if (error == null) throw new ArgumentNullException(nameof(error));
+            if (_fault != null) return Last;
+            // Check may or may not have advanced the clock before it threw; advancing again adds only
+            // the time since then, so the watched time is right either way.
+            Advance();
+            _failedChecks++;
+            _lastReadError = error.GetType().Name + ": " + error.Message;
+            Log.Warn($"[CaptureWatchdog] CheckFailed: {_label} - check {_failedChecks} in a row could not read the "
+                     + $"evidence ({_lastReadError}); counted as no growth");
+            return Decide(size: null, exit: null, readFailed: true);
+        }
+
+        private void Advance()
+        {
             TimeSpan now = _clock.Monotonic;
             TimeSpan sinceLast = now - _lastCheck;
             _lastCheck = now;
@@ -223,8 +267,16 @@ namespace AgentEyes.Video
             {
                 _watched += sinceLast;
             }
+        }
 
-            long? size = _size();
+        private CaptureOutputLiveness Decide(long? size, int? exit, bool readFailed)
+        {
+            // The file left its path after output began (issue #113, the Review Gate's chain: a
+            // foreign process renamed raw.mp4 from under the live capture). Still no growth - this
+            // process can no longer see any output - but the verdict must say WHAT was seen, not
+            // "stopped growing", which is a false reason for a capture that may still be writing.
+            _missing = !readFailed && size == null && _lastGrowthWatched != null;
+
             long bytes = size ?? 0;
             bool grew = bytes > _bytes;
             if (grew)
@@ -234,7 +286,6 @@ namespace AgentEyes.Video
                 _lastGrowthUtc = _clock.UtcNow;
             }
 
-            int? exit = _exitCode();
             double watchedS = _watched.TotalSeconds;
             if (exit != null)
             {
@@ -248,26 +299,33 @@ namespace AgentEyes.Video
                 if (_watched >= StartupTimeout)
                     _fault = new CaptureFault(CaptureFault.KindNeverStarted,
                         $"{_label} received no output in the first {_watched.TotalSeconds:F0}s "
-                        + $"(limit {StartupTimeout.TotalSeconds:F0}s) - the capture never started",
+                        + $"(limit {StartupTimeout.TotalSeconds:F0}s) - the capture never started" + ReadFailureNote(),
                         _clock.UtcNow, watchedS);
             }
             else if (_watched - _lastGrowthWatched.Value >= StallTimeout)
             {
+                string what = _missing
+                    ? $"{_label} is no longer at its path (last seen at {_bytes} bytes) and no output has been seen for "
+                    : $"{_label} stopped growing at {_bytes} bytes and has not grown for ";
                 _fault = new CaptureFault(CaptureFault.KindStalled,
-                    $"{_label} stopped growing at {_bytes} bytes and has not grown for "
+                    what
                     + $"{(_watched - _lastGrowthWatched.Value).TotalSeconds:F0}s (limit {StallTimeout.TotalSeconds:F0}s); "
-                    + $"last growth {Iso(_lastGrowthUtc)}",
+                    + $"last growth {Iso(_lastGrowthUtc)}" + ReadFailureNote(),
                     _clock.UtcNow, watchedS);
             }
 
             double? sinceGrowth = _lastGrowthWatched == null ? null : Math.Round((_watched - _lastGrowthWatched.Value).TotalSeconds, 1);
             string state = _fault != null ? "faulted"
+                : readFailed ? "check-failed"
                 : _lastGrowthWatched == null ? "starting"
                 : grew ? "growing"
                 : "not-growing";
             Last = new CaptureOutputLiveness(state, _bytes, _lastGrowthUtc, sinceGrowth, Math.Round(watchedS, 1), _fault);
             return Last;
         }
+
+        private string ReadFailureNote() =>
+            _failedChecks == 0 ? "" : $"; the last {_failedChecks} checks could not read it ({_lastReadError})";
 
         /// <summary>The size of a file, or null when it does not exist - the production size source.</summary>
         public static long? FileSize(string path)

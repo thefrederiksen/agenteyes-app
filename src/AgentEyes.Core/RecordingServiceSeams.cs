@@ -56,6 +56,13 @@ namespace AgentEyes
             (capture, mic, fps, crf, outPath, preview, screenNumber) =>
                 FfmpegRecorder.Start(capture, mic, fps, crf, outPath, preview, screenNumber);
 
+        /// <summary>
+        /// Bytes in the capture's output file, or null when it does not exist - what the watchdog reads
+        /// as evidence. A seam so a test can make the read itself THROW and see that the watchdog keeps
+        /// deciding rather than going silent (issue #113, the Review Gate's fail-open finding).
+        /// </summary>
+        public Func<string, long?> OutputFileSize { get; init; } = CaptureWatchdog.FileSize;
+
         public Func<ICaptureClock> NewWatchdogClock { get; init; } = () => new SystemCaptureClock();
 
         public Func<Action, IWatchdogTimer> NewWatchdogTimer { get; init; } = tick => new ThreadingWatchdogTimer(tick);
