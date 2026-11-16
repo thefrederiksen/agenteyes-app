@@ -135,7 +135,12 @@ If, while planning, you discover the spec is underspecified after all, go back t
    > **THE HUMAN NEVER RUNS TESTS. EVER.** You run them, right after you change the code. Never end
    > your turn asking the human to run tests, and never hand QA an unrun suite. That is a defect.
 
-   `dotnet test` is fast and silent (~2s, no app launch, no audio) - there is no reason to skip it.
+   `dotnet test` takes about a minute on Windows and it is NOT silent: the default gate starts
+   roughly 235 ffmpeg and 115 ffprobe processes (measured 16 Nov 2026 on two machines, issue #151;
+   #153 owns the question of whether that is what the default gate should be). It does not launch
+   the app and needs no audio device, and there is still no reason to skip it - but do not start it
+   while a recording is running: until #151 lands, its failure path can kill an ffmpeg it does not
+   own. Check `GET http://127.0.0.1:7882/status` first.
    Add or update unit tests in the SOURCE for the logic you changed, then run them. The heavy smokes
    (`api-smoke.ps1`, `gui-smoke.ps1`, `agenteyes selftest`, `run-all.ps1 -Confirm`) DO launch the app
    and record audio - run one ONLY when your change actually touches that area. Targeted, not
