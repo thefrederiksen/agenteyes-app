@@ -18,6 +18,21 @@ namespace AgentEyes.Platform.Linux
     {
         public static ToolResult Run(string exe, IReadOnlyList<string> args, TimeSpan timeout)
         {
+            if (TryRun(exe, args, timeout, out var result)) return result;
+            throw new UsageException($"{exe} did not finish within {timeout.TotalSeconds:0}s.");
+        }
+
+        /// <summary>
+        /// Run a tool and REPORT a timeout instead of throwing on one - for the one caller that has
+        /// something specific to say about a tool that produced nothing in time (issue #115: an
+        /// AVFoundation still that never gets a frame is what a missing Screen Recording grant looks
+        /// like, and nothing else about the run says so). The hung process is killed either way;
+        /// false means the budget expired, and <paramref name="result"/> then holds whatever the
+        /// tool had printed by then, with an exit code of -1 because it never reported one.
+        /// </summary>
+        public static bool TryRun(
+            string exe, IReadOnlyList<string> args, TimeSpan timeout, out ToolResult result)
+        {
             Log.Info($"[ToolRunner] Run: {exe} {string.Join(" ", args)}");
             var psi = new ProcessStartInfo
             {
@@ -56,13 +71,14 @@ namespace AgentEyes.Platform.Linux
                     try { p.Kill(true); }
                     catch (Exception ex) { Log.Error($"[ToolRunner] Run: killing the hung {exe} FAILED", ex); }
                     Log.Error($"[ToolRunner] Run FAILED: {exe} did not finish within {timeout.TotalSeconds:0}s");
-                    throw new UsageException($"{exe} did not finish within {timeout.TotalSeconds:0}s.");
+                    lock (stdout) lock (stderr) result = new ToolResult(-1, stdout.ToString(), stderr.ToString());
+                    return false;
                 }
                 p.WaitForExit(); // flush the async readers
 
-                var result = new ToolResult(p.ExitCode, stdout.ToString(), stderr.ToString());
+                result = new ToolResult(p.ExitCode, stdout.ToString(), stderr.ToString());
                 Log.Info($"[ToolRunner] Run: {exe} exit={result.ExitCode} stdout={result.StdOut.Length}B stderr={result.StdErr.Length}B");
-                return result;
+                return true;
             }
         }
     }

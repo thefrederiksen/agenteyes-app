@@ -6,9 +6,9 @@ namespace AgentEyes.Tests.Mac
     /// <summary>
     /// Regression tests for issue 108, defect 1.
     ///
-    /// Screenshot proves a capture happened by asking whether the file exists afterwards, because
-    /// screencapture can exit ZERO and write nothing when the Screen Recording permission is
-    /// refused. That proof is only worth anything if the file could not already have been there.
+    /// Screenshot proves a capture happened by asking whether the file exists afterwards, because a
+    /// capture can exit ZERO and write nothing. That proof is only worth anything if the file could
+    /// not already have been there.
     /// Before the fix, nothing removed the target, so an earlier run's image satisfied the check
     /// and a capture that wrote nothing was reported as a success.
     /// </summary>
