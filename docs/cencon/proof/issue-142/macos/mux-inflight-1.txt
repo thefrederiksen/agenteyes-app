@@ -1,0 +1,25 @@
+=== MUX IN PROGRESS - STATE CAPTURE 19:51:18Z (nothing killed) ===
+--- directory ---
+total 4818832
+drwxr-xr-x@ 10 soren  staff        320 Nov 15 14:50 .
+drwxr-xr-x@ 77 soren  staff       2464 Nov 15 14:20 ..
+-rw-r--r--@  1 soren  staff  345917440 Nov 15 14:50 audio_processed.wav
+-rw-r--r--@  1 soren  staff       1387 Nov 15 14:50 manifest.json
+-rw-r--r--@  1 soren  staff  172913708 Nov 15 14:50 mic_native.wav
+-rw-r--r--@  1 soren  staff          0 Nov 15 14:50 mux.lock
+-rw-r--r--@  1 soren  staff  962167670 Nov 15 14:50 raw.mp4
+-rw-r--r--@  1 soren  staff     442505 Nov 15 14:50 raw.mp4.ffmpeg.log
+-rw-r--r--@  1 soren  staff  945553456 Nov 15 14:51 recording.mp4.muxing.tmp
+drwxr-xr-x@  2 soren  staff         64 Nov 15 14:20 shots
+
+--- ffmpeg processes (pid ppid %cpu state elapsed) ---
+63761 50642 102.6 R          00:31 /opt/homebrew/bin/ffmpeg -hide_banner -progress pipe:1 -stats_period 1 -y -i /Users/soren/Movies/AgentEyes/2026-11-15_142036_video/raw.mp4 -i /Users/soren/Movies/Age
+97901 94952   0.0 Ss   01-02:16:02 /bin/zsh -c source /Users/soren/.claude/shell-snapshots/snapshot-zsh-1794677409015-phvndq.sh 2>/dev/null || true && \builtin setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUA
+97905 97901   0.0 S    01-02:16:02 /bin/zsh -c source /Users/soren/.claude/shell-snapshots/snapshot-zsh-1794677409015-phvndq.sh 2>/dev/null || true && \builtin setopt NO_EXTENDED_GLOB NO_BARE_GLOB_QUA
+
+--- service %cpu ---
+  PID  %CPU STAT ELAPSED
+50642   0.0 S      41:08
+
+--- /status ---
+ State=idle LastStopFailed=False LastStopError=None

@@ -1,0 +1,25 @@
+Issue #146 - where to fix it, MEASURED on this machine before deciding. Windows, SORENLAPTOP, ffmpeg 9.0.2.
+Mic: "Microphone (2- Realtek(R) Audio)".
+
+1. dshow mode list for the mic (ffmpeg -list_options true -f dshow -i audio=...): rates offered
+   8000 11025 22050 32000 44100 48000 96000 (8 and 16 bit, 1 and 2 channels).
+
+2. No -sample_rate (what the app passes today):       Stream #0:0: Audio: pcm_s16le, 44100 Hz, stereo   -> exit 0
+3. -sample_rate 48000 (offered):                      Stream #0:0: Audio: pcm_s16le, 48000 Hz, stereo   -> exit 0
+4. -sample_rate 16000 (NOT offered by this device):
+     [in#0] Could not set audio only options
+     [in#0] Could not find audio only device with name [Microphone (2- Realtek(R) Audio)] among source devices of type video.
+     Error opening input file audio=Microphone (2- Realtek(R) Audio).                                  -> NO RECORDING
+   dshow does not resample: ask for a rate the device does not list and the capture fails to open at all.
+
+5. The Windows endpoint's shared-mode format (IPolicyConfig::GetDeviceFormat, read only, nothing changed):
+     tag=0xFFFE ch=2 rate=48000 avgBytes=192000 align=4 bits=16
+   i.e. Windows says 48 kHz, and dshow still captures 44.1 kHz - the dshow default does not follow the Windows
+   "Default Format" setting, so it is not something a user can see or fix in Sound settings.
+
+DECISION: an explicit aresample=48000 ahead of the framing in the shared mic chain, NOT a forced capture rate.
+ - Forcing 48 kHz at the capture would have worked on THIS mic (row 3), but row 4 shows what it does on a mic that
+   does not offer 48 kHz: the recording fails to start. That trades a stalled post-process for no recording.
+ - Forcing the capture rate changes what is recorded; the resample changes only what arnndn sees.
+ - The capture-side fix would cover Windows only. The chain is shared by all three platforms' post-processing,
+   so the resample covers any mic from any platform at any rate (16/22.05/44.1/48 kHz pinned by test).

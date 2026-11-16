@@ -1,0 +1,4 @@
+### MODE=audio  (20 s per arm) ###
+interactive    ProcessType=Interactive  wall=23  s exit=0    load=3.20 3.47 3.24
+background     ProcessType=Background   wall=24  s exit=0    load=3.09 3.41 3.23
+absent         ProcessType=<absent>     wall=22  s exit=0    load=3.79 3.55 3.28

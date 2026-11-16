@@ -1,0 +1,16 @@
+=== POST-INSTALL IDENTITY, 2026-11-15T18:43:27Z ===
+--- pid: pre-install was 34201 ---
+	state = running
+	runs = 2
+	pid = 39753
+--- last exit status ---
+--- installed dll + apphost sha256 ---
+1b9092d077892723730e042bf062eb18b32964326e3d67fa228df0874111ddb0  /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes.dll
+348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022  /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+--- /health ---
+{
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "macos"
+}

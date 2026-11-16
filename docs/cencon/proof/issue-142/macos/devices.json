@@ -1,0 +1,29 @@
+{
+  "monitors": [
+    {
+      "Index": 1,
+      "Width": 1920,
+      "Height": 1080,
+      "Primary": true,
+      "Name": "Display 1",
+      "X": 0,
+      "Y": 0
+    }
+  ],
+  "mics": [
+    {
+      "Number": 0,
+      "Name": "Yealink UH36"
+    },
+    {
+      "Number": 1,
+      "Name": "Microsoft Teams Audio"
+    }
+  ],
+  "dshow": [
+    "Yealink UH36",
+    "Microsoft Teams Audio"
+  ],
+  "cameras": [],
+  "systemAudio": "(unavailable: none of the audio inputs on this Mac is a loopback device that carries the system output. macOS needs a virtual audio device such as BlackHole)"
+}

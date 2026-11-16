@@ -1,0 +1,39 @@
+DOES THE macOS AUDIO/VIDEO SKEW GROW WITH TAKE LENGTH?
+Answer for the lead, measured on main f9ef230 / dll 1b9092d0 / pid 50642.
+
+== INSTRUMENT A: the product's own mic measurement (no video, no mux) ==
+   the [AudioCapture] Stop line: "X s of audio over a Y s capture".
+   n = 20 captures today, 20.5 s to 1801.5 s (an 88x range).
+
+   deficit(T) = 0.2593 s + 49.6 ppm * T
+   slope standard error 17.5 ppm, t = 2.83 on 18 df, critical t = 2.101
+   95% interval on the slope: 12.8 to 86.4 ppm
+
+   t = 2.83 > 2.10, so with the 1800 s point added the slope IS significant at 95%
+   and the interval EXCLUDES zero. Earlier, with only 604 s of lever arm, it was not
+   (52 +/- 39 ppm, t = 1.32). The longest capture is the point that resolved it.
+   Predicted deficit at 1801.5 s: 0.349 s. Measured: 0.350 s.
+   ~50 ppm is the magnitude of an ordinary crystal mismatch between the audio device
+   clock and the system timebase, so there is a plausible mechanism, not just a fit.
+
+== INSTRUMENT B: the quantity the CRITERION actually measures, video minus audio ==
+   row 5          32.5 s -> shortfall 1.0493 s   headroom under 1.5 s: 0.451 s
+   row 6         605.7 s -> shortfall 1.0885 s   headroom under 1.5 s: 0.411 s
+   long take    1802.5 s -> shortfall 0.8473 s   headroom under 1.5 s: 0.653 s
+
+   This did NOT grow. 56x the take length and the LONGEST take has the MOST headroom.
+   The reason both can be true: a 50 ppm drift accumulates only 89 ms over 1800 s,
+   while the video tail varies by +/-120 ms run to run. The drift is real but is still
+   smaller than the scatter at half-hour scale.
+
+   My own two-point estimate (68 ppm, breach at 1.84 h) predicted 1.170 s here.
+   Measured 0.847 s. That prediction is REFUTED as a predictor of the shortfall.
+
+== THE ANSWER ==
+   1.5 s is RIGHT for macOS for takes up to at least 30 minutes - verified directly at
+   1802 s with 0.65 s to spare, and the bound was never approached at any length.
+   But it is NOT safe to extrapolate to always-on. A real ~50 ppm term exists on the
+   mic side; drift alone adds 0.18 s per hour, so a base of ~1.0-1.1 s reaches 1.5 s at
+   roughly 2.2 h (point estimate) and as early as 1.3 h at the 95% upper bound.
+   Recommendation: keep 1.5 s absolute for takes up to an hour, and for Phase 5
+   always-on either state the bound as 1.0 s + 100 ppm * T or re-measure at hour scale.

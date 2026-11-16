@@ -1,0 +1,11 @@
+=== THE PRODUCT DIAGNOSED MY OWN #114 THROTTLE ARMS, UNPROMPTED ===
+The three ProcessType arms ran at 14:06-14:07. AudioCapture's own Stop line classified them:
+
+14:06:55.644 [pid 48929] [AudioCapture] Stop: wrote 1944576 bytes of PCM = 20.26s of audio over a 20.51s capture
+14:07:19.494 [pid 49105] WARN [AudioCapture] Stop: wrote 310272 bytes of PCM = 3.23s of audio over a 20.42s capture - 17.19s MISSING. The AVFoundation device dropped samples this end did not take in time; the recording will be short of audio by that much.
+14:07:42.354 [pid 49334] WARN [AudioCapture] Stop: wrote 771072 bytes of PCM = 8.03s of audio over a 20.35s capture - 12.32s MISSING. The AVFoundation device dropped samples this end did not take in time; the recording will be short of audio by that much.
+
+Arm 1 (Interactive) logged at INFO with no complaint. Arms 2 and 3 logged at WARN naming the
+exact mechanism - the AVFoundation device dropping samples the reader did not take in time -
+which is the mechanism #114 was filed about. The instrument is not just my arithmetic: the
+product itself distinguishes the healthy arm from the throttled ones.

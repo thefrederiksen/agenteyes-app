@@ -1,0 +1,26 @@
+=== ROW 4 ffprobe streams ===
+index=0
+codec_name=h264
+codec_type=video
+r_frame_rate=30/1
+avg_frame_rate=30/1
+duration=21.300000
+nb_read_packets=639
+--- all streams (prove there is exactly one, no audio) ---
+0,h264,video
+--- format ---
+nb_streams=1
+duration=21.300000
+size=12309217
+
+=== exact decoded frame count ===
+639
+
+=== FULL DECODE (null muxer) ===
+decode exit=0
+
+=== moov atom offset ===
+  ftyp   size=32           offset=0
+  free   size=8            offset=32
+  mdat   size=12304824     offset=40
+  moov   size=4353         offset=12304864

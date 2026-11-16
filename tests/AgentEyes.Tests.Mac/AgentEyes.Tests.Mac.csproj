@@ -66,6 +66,7 @@
     <!-- The opt-in for tests that launch a real ffmpeg (AGENTEYES_FFMPEG_TESTS=1), shared with the
          Windows suite so the repo has one convention. -->
     <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
+    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
   </ItemGroup>
 
 </Project>

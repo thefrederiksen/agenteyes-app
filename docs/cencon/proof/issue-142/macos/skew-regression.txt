@@ -1,0 +1,50 @@
+=== IS THE MIC CAPTURE DEFICIT PROPORTIONAL TO TAKE LENGTH? ===
+Source: the product's own [AudioCapture] Stop line, which reports seconds of PCM written
+against the wall-clock duration of the capture. This isolates the MICROPHONE - no video,
+no mux, no adelay. 18 captures on this Mac today, 20 s to 604 s.
+
+ capture (s)  deficit (s)        ppm
+       20.51        0.250      12189
+       20.52        0.230      11209
+       22.56        0.260      11525
+       22.61        0.340      15038
+       24.61        0.260      10565
+       31.22        0.240       7687
+       60.59        0.240       3961
+       66.60        0.300       4505
+       66.77        0.240       3594
+       66.77        0.240       3594
+       68.72        0.340       4948
+       68.86        0.250       3631
+       68.88        0.240       3484
+       68.92        0.250       3627
+      231.83        0.250       1078
+      601.50        0.280        466
+      601.95        0.320        532
+      604.38        0.280        463
+
+  n = 18, capture length 20.5 s to 604.4 s (a 29x range)
+  least squares: deficit = 0.2594 s + 5.202e-05 * T
+  slope = 52.0 ppm
+
+  mean deficit, captures under 100 s : 0.263 s  (n=14)
+  mean deficit, captures over  200 s : 0.282 s  (n=4)
+  difference: 20 ms, across a mean length difference of ~500 s
+
+  A 68 ppm drift would add 34 ms between those two groups. Observed: 20 ms.
+
+=== IS THAT RESIDUAL SLOPE DISTINGUISHABLE FROM ZERO? ===
+  slope        = 52.02 ppm
+  std error    = 39.29 ppm
+  t            = 1.32 on 16 degrees of freedom
+  95% interval = -31.3 to 135.3 ppm
+  residual scatter (1 sigma) = 35 ms
+
+  |t| < 2.12, so the slope is NOT significant at 95%. The deficit is consistent with a
+  CONSTANT ~259 ms stop latency, and any drift is too small to resolve in this data.
+
+=== WHAT THIS MEANS FOR THE 1.5 s BOUND ===
+  Worst case inside the 95% interval: 135.3 ppm.
+  Total shortfall(T) = 1.047 s + drift*T. At the 95%% upper bound that reaches 1.5 s at:
+    T = 3348 s = 0.9 hours
+  At the point estimate (52 ppm): T = 8707 s = 2.4 hours

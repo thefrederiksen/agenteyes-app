@@ -72,6 +72,7 @@
          all three suites so each platform's process handling is proven by its own gate. -->
     <Compile Include="../Shared/OwnedFfmpeg.cs" Link="Shared/OwnedFfmpeg.cs" />
     <Compile Include="../Shared/OwnedFfmpegTests.cs" Link="Shared/OwnedFfmpegTests.cs" />
+    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
   </ItemGroup>
 
 </Project>

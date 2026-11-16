@@ -1,0 +1,36 @@
+Row 5, take A - reproduction of L1: the #136 two-pass mux discards the raw audio's timestamp gaps
+
+Input (read-only): ~/Videos/AgentEyes/2026-11-15_142203_video/recording.original.mp4
+  (the raw capture, renamed by post-processing; video 104.600 s / 3138 frames;
+   audio 4641 AAC packets = 99.01 s of samples spread over pts -0.021 .. 104.523, i.e. ~5.5 s of holes)
+Outputs went to a scratch directory, never into the recording's folder.
+ffmpeg 6.1.1-3ubuntu5. CHAIN below is the exact mic chain from the service's logged pass-1 command:
+
+  CHAIN = aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,
+          asetnsamples=n=480:p=1,arnndn=m='<models>/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];
+          [m]alimiter=limit=0.95:level=false[a]
+
+1. As shipped on main (#136 pass 1: chain -> pcm_f32le WAV, which carries no timestamps)
+   ffmpeg -i recording.original.mp4 -filter_complex "[0:a]CHAIN" -map [a] -c:a pcm_f32le -rf64 auto asis.wav
+   -> exit 0, duration 98.990 s
+   matches the final recording.mp4's audio (98.990 s, last pts 98.987) against 104.600 s of video.
+   Every gap is closed up, so audio after pts 26.7 runs ~5.5 s EARLY for the rest of the recording.
+
+2. The same chain with the gaps filled first
+   ffmpeg -i recording.original.mp4 -filter_complex "[0:a]aresample=async=1:first_pts=0,CHAIN" ... async.wav
+   -> exit 0, duration 104.560 s   (video: 104.567 s last pts)
+
+3. The pre-#136 single-pass shape (FfmpegArgs.cs at 1b1b266^: chain straight into AAC in the MP4,
+   "-map 0:v -c:v copy -map [a] -c:a aac -b:a 160k")
+   -> exit 0, audio duration 104.548 s, 24 pts gaps > 50 ms (~5.58 s) KEPT, last audio pts 104.545.
+   The gaps survive as timestamp holes, so the audio stays in sync with the picture.
+
+Reading: when the raw capture has holes, the old one-pass mux kept them in place and #136's WAV
+intermediate does not, so a short dropout becomes a desync that lasts the rest of the recording.
+Step 2 shows a one-filter way to keep the timing. That is a direction for whoever fixes it, not a
+tested fix: it was not run through the service or the test suite.
+
+What this does NOT show: why the capture dropped samples in the first place. That was CPU starvation
+under load 32-43 from other sessions' builds (capture speed 0.68x, both input thread queues reporting
+"Thread message queue blocking"). Take B, under load 16-44 with the capture keeping up (speed 1x,
+0 queue warnings), had no gaps and passed.
