@@ -1,0 +1,35 @@
+#156 pass 5b - M1..M3 re-run on the FINAL source and test file (after the M4 test addition); M4 as recorded.
+#156 pass 5b - mutations of the change, each run against `dotnet test tests/AgentEyes.Tests.Linux -c Release
+--filter FullyQualifiedName~ProcessIdentityTests` (48 tests: 47 run, 1 macOS-only skipped), source restored after
+each. Unmutated: Passed 47, Failed 0.
+
+===== M1: ReadIfPresent without its catch - a missing symbol propagates (the pass 5 behaviour)
+  Failed AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxWithoutStatxOrStat_UnknownAndNeverThrows [8 ms]
+   libc without statx, stat missing: the ownership predicate THREW instead of answering: System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_StatxAbsent_StatAnswersTheSameOwner [1 ms]
+Failed!  - Failed:     2, Passed:    45, Skipped:     1, Total:    48
+
+===== M2: "neither statx nor stat available" throws InvalidOperationException instead of answering Unreadable
+  Failed AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxWithoutStatxOrStat_UnknownAndNeverThrows [8 ms]
+   libc without statx, stat missing: the ownership predicate THREW instead of answering: System.InvalidOperationException: this libc has no statx, and stat(2) is not available either
+Failed!  - Failed:     1, Passed:    46, Skipped:     1, Total:    48
+
+===== M3: ENOSYS from statx not treated as absent (no stat fallback for a kernel without statx)
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_StatxAbsent_StatAnswersTheSameOwner [8 ms]
+Expected: Tuple (Owned, 1000)
+Actual:   Tuple (Unreadable, null)
+Failed!  - Failed:     1, Passed:    46, Skipped:     1, Total:    48
+
+===== M4a: FileStatus Uid offset 8 -> 12 (Gid) - FIRST RUN SURVIVED: this user is 1000:1000 and pid 1 is 0:0,
+       so no read could tell Uid from Gid. The test then gained a file whose owner and group differ
+       (/etc/shadow, root:shadow = 0:42, compared with stat(1)). Re-run:
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_StatxAbsent_StatAnswersTheSameOwner [70 ms]
+Expected: Tuple (0, 0)
+Actual:   Tuple (0, 42)
+Failed!  - Failed:     1, Passed:    46, Skipped:     1, Total:    48
+
+===== M4b: FileStatus Uid offset 8 -> 4 (Mode)
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_StatxAbsent_StatAnswersTheSameOwner [13 ms]
+Expected: Tuple (0, 1000)
+Actual:   Tuple (0, 16749)
+Failed!  - Failed:     1, Passed:    46, Skipped:     1, Total:    48

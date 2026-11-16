@@ -1264,3 +1264,131 @@ was not reinstalled or touched. Audio settings were not touched. No service was 
 ownership predicate.
 
 I believe this is finished.
+
+## Pass 5b - the owner read answers where statx does not exist (lead's ruling 6923655214)
+
+**The defect, now measured rather than predicted.** Pass 5's Linux EPERM row reads the owner of
+`/proc/<pid>` with `statx`, imported from `libc`. glibc before 2.28 (and musl before 1.2.5) has no `statx`
+symbol, so the import throws `EntryPointNotFoundException` and the throw leaves the ownership predicate.
+.NET 8 supports glibc 2.23 and up, so 2.23 to 2.27 is in support. Measured in an Ubuntu 18.04 container
+(glibc 2.27, Microsoft .NET 8.0.34, prober uid 1000) on the pass 5 build `3e818e6`. On all three rows the
+real `ReadLinuxProcOwner` and the real EPERM row of `ClassifyUnreadable` THREW
+`System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.`
+Those rows were this process, a root process and a missing pid
+(`pass5b/oldglibc-run.txt`).
+
+**The fix (the only product change, in `FfmpegChildRegistry.ReadLinuxProcOwner`):**
+
+| what the libc / kernel does | read used | answer reaching the predicate |
+|---|---|---|
+| statx present, answers | statx (unchanged from pass 5) | Owned / Gone, as pass 5 |
+| statx present, refuses (EINVAL, EPERM, ...) | statx only, no second read | Unreadable -> **Unknown**, as pass 5 |
+| statx symbol missing (`EntryPointNotFoundException`), or kernel ENOSYS | **stat(2)** for the same `st_uid` | Owned / Gone / Unreadable, decided as before |
+| statx missing AND stat missing or its library not loadable | none | Unreadable -> **Unknown**, never a throw |
+
+No new notion of "cannot tell" was added. Unreadable already maps to Unknown in `ClassifyUnreadable`, and
+every caller already treats Unknown as do-not-touch.
+
+**Why `SystemNative_Stat`, not libc's `stat` (a correction to the ruling's premise, measured).** glibc
+exports a `stat` symbol only from **2.33** (`nm -D` on this machine: `stat@@GLIBC_2.33`). Before that,
+`stat()` was an inline wrapper around `__xstat`, whose version argument and `struct stat` layout differ
+per architecture. A `DllImport("libc", "stat")` would therefore throw on exactly the 2.23-2.27 range that
+lacks `statx`. The fallback calls the runtime's own `SystemNative_Stat` in `libSystem.Native`, the export
+.NET's file APIs use. It is `stat(2)` behind one fixed struct (`FileStatus`: Flags, Mode, Uid, Gid; Uid is
+the u32 at offset 8) on every libc and architecture .NET 8 ships for. It is not a public API. The offset is
+pinned by a test against real files on every Linux run, so a runtime that moved it would fail the suite,
+not silently misread.
+
+**No fallback programming, stated.** Both reads answer the same question (the owner uid of one
+directory, from one syscall). The second is asked ONLY when the first does not exist: a missing symbol or
+ENOSYS. It is never asked when statx exists and refuses. Each step is logged:
+`ReadLinuxProcOwner: pid N - this libc has no statx; asking stat(2) for the same owner`. The only exceptions
+caught are `EntryPointNotFoundException` and `DllNotFoundException`, which mean "this read does not exist
+here". That is a try/catch inside a helper, which CLAUDE.md rule 4 normally keeps at entry points. It is
+deliberate, because the invariant is that this helper's caller never throws.
+
+### Measured: before and after, on a real glibc without statx
+
+`pass5b/oldglibc-run.sh` + `oldglibc-harness.cs` (reflection over the built `agenteyes.dll`, so both
+builds run unmodified; the EPERM probe is injected exactly as `ProcessIdentityTests` does, everything else
+is real). The container's root `sleep` stands in for another user's process.
+
+| container | build | this process (ours) | root process | missing pid |
+|---|---|---|---|---|
+| 18.04, glibc 2.27 | pass 5 `3e818e6` | **THREW** EntryPointNotFound | **THREW** | **THREW** |
+| 18.04, glibc 2.27 | pass 5b | **Unknown** "THIS USER's (/proc/8 owned by uid 1000)", read via `stat` | **NotMine** "ANOTHER USER (owned by uid 0)" via `stat` | **NotMine** "exited" |
+| 24.04, glibc 2.39 (control) | pass 5 | Unknown | NotMine | NotMine |
+| 24.04, glibc 2.39 (control) | pass 5b | Unknown, read via **`statx`** (the stat path is not taken) | NotMine via `statx` | NotMine |
+
+### Tests (two new, in `tests/Shared/ProcessIdentityTests.cs`)
+
+- `ClassifyUnreadable_KillEpermOnLinuxWithoutStatxOrStat_UnknownAndNeverThrows` is THE TOTALITY PIN. On
+  the Linux EPERM row it runs five arms: libc without statx with stat missing; the same with stat's
+  library missing; kernel ENOSYS with stat ENOSYS; kernel ENOSYS with stat missing; and statx EINVAL. In
+  each arm the predicate must answer Unknown, and `Record.Exception` must be null.
+- `ReadLinuxProcOwner_StatxAbsent_StatAnswersTheSameOwner` is the fallback decides, not degrades. It checks:
+  - a missing statx symbol plus stat reads another uid -> Owned, and the predicate says NotMine;
+  - our uid -> Unknown; ENOENT -> Gone;
+  - stat is never asked when statx exists and refuses.
+  It also runs the real `SystemNative_Stat` on this process, pid 1, a missing pid and `/etc/shadow`
+  (root:shadow, 0:42, compared with `stat(1)`), which separates the Uid offset from the Gid's.
+- **The seam added**, and the only one: an internal overload `ReadLinuxProcOwner(pid, statx, stat)` taking
+  the two native reads as `Func<int, (int Errno, uint? Uid)>`. The production overload passes the real
+  imports. `StatOwnerOfPath` is internal so the offset test can read a non-/proc path.
+
+**Mutations** (`pass5b/mutations.txt`; quoted):
+
+| mutation | caught by | message |
+|---|---|---|
+| M1 remove the catch (pass 5 behaviour) | the totality pin (+ fallback test) | `libc without statx, stat missing: the ownership predicate THREW instead of answering: System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.` |
+| M2 "neither available" throws | the totality pin | `... THREW instead of answering: System.InvalidOperationException: this libc has no statx, and stat(2) is not available either` |
+| M3 ENOSYS not treated as absent | fallback test | `Expected: Tuple (Owned, 1000) Actual: Tuple (Unreadable, null)` |
+| M4 Uid offset 8 -> 12 (Gid) | fallback test | **survived the first version** (this user is 1000:1000, pid 1 is 0:0); after adding `/etc/shadow`: `Expected: Tuple (0, 0) Actual: Tuple (0, 42)` |
+| M4b Uid offset 8 -> 4 (Mode) | fallback test | `Expected: Tuple (0, 1000) Actual: Tuple (0, 16749)` |
+
+**Suites (devlinux, SDK building net8.0, runtime 8.0.34):** Linux
+`dotnet test tests/AgentEyes.Tests.Linux -c Release` **390 passed, 2 skipped, 0 failed** (pass 5: 388/2).
+Opt-in `AGENTEYES_FFMPEG_TESTS=1` **391 passed, 1 skipped, 0 failed** (pass 5: 389/1). Each count moved by
+exactly the two new tests. `tests/AgentEyes.Tests.Mac` builds (it compiles the shared tests); it was not
+run here, and CI runs it. The Windows project cannot build on Linux. Its IL guard
+`ManifestWriterIlTests.EveryNativeImport_IsPinned` gains one pinned line, `libSystem.Native!SystemNative_Stat`.
+The same metadata scan over the Linux-built `agenteyes.dll` yields exactly `libc!geteuid, libc!getuid,
+libc!kill, libc!statx, libc!sysctl, libSystem.Native!SystemNative_Stat`. Windows CI is the verifier.
+
+### Nothing else moved
+
+`git diff 3e818e6 -- src` is one file, `FfmpegChildRegistry.cs`. Every hunk falls inside
+`ReadLinuxProcOwner` and the constant and import block after it (old lines 597-626). The diff has zero lines in
+`ClassifyUnreadable`, `IdentifyProcess`, `ProcessIdentity.cs` (the tri-state and `LinuxProcOwner`),
+`CaptureLock` and the other callers, and the macOS and Windows rows. The same holds for the shared hold, the
+SIGTERM bound, G1's manifest field and the host guard. The change in what `ReadLinuxProcOwner` returns is
+limited to `Detail` strings: "owned by uid N" becomes "owned by uid N (statx)" or "(stat)". The predicate
+does not show `Detail` for Owned, and no test or caller matched the old string.
+
+### What this does NOT cover
+
+- **Kernel ENOSYS for real.** It is covered only by the injected test. glibc 2.28+ emulates statx on
+  ENOSYS, so this path is reached only by a libc that does not. I tried a seccomp profile making `statx`
+  return ENOSYS in a container, but runc itself calls `statx` before the filter applies, so the container
+  never started. Not measured.
+- **musl.** It was not run (no Alpine .NET runtime here). The symbol-missing path is the same code that
+  glibc 2.27 exercised for real.
+- **The pass 5 Landlock + kill-EPERM arms (`llprobe`)** were NOT re-run, as allowed: they are pass 5's, and
+  QA re-verifies them. On glibc 2.39 the statx path is the pass 5 code with the same result (the 24.04
+  control above, and the real-statx tests in the suite). I did not confirm it under `llprobe` myself.
+- **The statx offset has the same uid==gid blind spot** that M4 exposed for stat. `stx_uid` at 20 vs `stx_gid`
+  at 24 is pinned only by reads where uid equals gid. That is pass 5's code, so I did not touch it. It is
+  worth one line in a follow-up: the same `/etc/shadow` read via statx.
+
+### Out of scope, untouched
+
+#170 (sweep fragility), #171 (Windows restricted-token prober, KillTree across elevation) and #172 (the
+pid-namespace prober). **D3 stays #113's:** the two `CaptureLiveness` types and `IScreenRecorder` lacking
+`ProcessId` still conflict. No #113 code was pulled in.
+
+**#161 footprint: none.** No service was started and no repair pass ran. The installed recorder (pids 6560,
+1298614) was not touched or reinstalled. Nothing under `~/Videos/AgentEyes` changed during the session, and
+`2026-11-14_102532_video` is present. The foreign go2rtc ffmpeg (pid 72110, identified by command line) was
+never signalled. This work started no ffmpeg of its own; any were the opt-in suite's test processes.
+
+I believe this is finished.
