@@ -208,6 +208,9 @@ namespace AgentEyes.Tests
             // Never a manifest, never inside a real root (it runs only after the overlap rules pass).
             "agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.FileStream::.ctor x1",
             "agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.File::Delete x1",
+            // Issue #161 pass 3 (the Lead's rule 2): the scratch-library marker, written into each redirected root
+            // only after the redirect was accepted (never beside or inside a real root). Never a manifest.
+            "agenteyes.dll!AgentEyes.LibraryRedirect::WriteScratchMarker -> System.IO.File::WriteAllText x1",
             "agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1",                        // the app log
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Delete x1",               // THE manifest path: temp cleanup after a failed rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Move x1",                 // THE manifest path: the atomic rename

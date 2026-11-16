@@ -1,0 +1,111 @@
+# Mutations on the FINAL pass-3 code. Each applied, built, run, then reverted from a saved copy.
+# host = under lldeny, LibraryRedirectTests (104; the 7882 test SKIPPED: the owner's service holds the port).
+# container = --network none (own loopback, 7882 free), host .NET + passwd read-only, owner's library NOT mounted.
+
+### mutation F2-apply (host): in src/AgentEyes.Core/LibraryRedirect.cs
+### -                     FirstEscapingLink,
+
+### +                     null,
+
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_LinkInsideTheScratchStateRootLeadsOut_RefusedWithExit5AndTheTargetUntouched [230 ms]
+  Error Message:
+   a link out of the scratch state root was accepted (exit 0): [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> /tmp/agenteyes-161-tests/run-1945850-d4ce25edaa5a4b6e9cf2195a5de93a83/f2-real/data/AgentEyes ; recordings -> /tmp/agenteyes-161-tests/run-1945850-d4ce25edaa5a4b6e9cf2195a5de93a83/f2-real/videos/AgentEyes ; log -> /tmp/agenteyes-161-tests/run-1945850-d4ce25edaa5a4b6e9cf2195a5de93a83/f2-real/data/AgentEyes/logs (pid 1945914) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)] ; the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+
+Failed!  - Failed:     1, Passed:   102, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation F2-dotdot (host): in src/AgentEyes.Core/LibraryRedirect.cs
+### - if (segments.Contains(".."))
+### + if (false && segments.Contains(".."))
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.LinkEscape_DotDotInTheTarget_EscapesEvenWhenItLooksInsideAsWritten [< 1 ms]
+  Error Message:
+   Assert.NotNull() Failure: Value is null
+  Stack Trace:
+Failed!  - Failed:     1, Passed:   102, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation F2-hidden (host): in src/AgentEyes.Core/LibraryRedirect.cs
+### -             var options = new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 };
+### +             var options = new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false };
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.FirstEscapingLink_DeepHiddenFileLinkedOut_Reported [1 ms]
+  Error Message:
+   Assert.NotNull() Failure: Value is null
+  Stack Trace:
+Failed!  - Failed:     1, Passed:   102, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation F2-alias (host): in src/AgentEyes.Core/LibraryRedirect.cs
+### - foreach (string r in new[] { root, rootAsWritten })
+### + foreach (string? r in new[] { root, (string?)null })
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.LinkEscape_AbsoluteTargetThroughTheRootAsWritten_StaysInside [2 ms]
+  Error Message:
+   Assert.Null() Failure: Value is not null
+Expected: null
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.FirstEscapingLink_RootReachedThroughAnAlias_AbsoluteLinksThroughTheAliasStayInside [< 1 ms]
+  Error Message:
+   Assert.Null() Failure: Value is not null
+Expected: null
+Failed!  - Failed:     2, Passed:   101, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation R2-apply (host): in src/AgentEyes.Core/LibraryRedirect.cs
+### -                     UnmarkedLibraryProblem);
+### +                     null);
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_RelocatedLibraryUnderASpoofedEnvironment_RefusedByItsContent [240 ms]
+  Error Message:
+   a redirect onto a library relocated where no path rule looks was accepted (exit 0): [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> /tmp/agenteyes-161-tests/run-1948471-9a61fedbf76f4ab688ad85c2f8cccf5a/r2-reloc/reloc/xdg/AgentEyes ; recordings -> /tmp/agenteyes-161-tests/run-1948471-9a61fedbf76f4ab688ad85c2f8cccf5a/r2-reloc/v/AgentEyes ; log -> /tmp/agenteyes-161-tests/run-1948471-9a61fedbf76f4ab688ad85c2f8cccf5a/r2-reloc/reloc/xdg/AgentEyes/logs (pid 1948630) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)] ; the REAL state root /tmp/agenteyes-161-tests/run-1948471-9a61fedbf76f4ab688ad85c2f8cccf5a/r2-reloc/spoof/AgentEyes [this process's environment (.NET special folders)] ; the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ScratchRootPopulatedByHand_RefusedTellingHowToProceed_ThenAcceptedOnceMarked [246 ms]
+  Error Message:
+   a hand-populated, unmarked scratch root was accepted (exit 0): [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> /tmp/agenteyes-161-tests/run-1948471-9a61fedbf76f4ab688ad85c2f8cccf5a/r2-fixture/data/AgentEyes ; recordings -> /tmp/agenteyes-161-tests/run-1948471-9a61fedbf76f4ab688ad85c2f8cccf5a/r2-fixture/videos/AgentEyes ; log -> /tmp/agenteyes-161-tests/run-1948471-9a61fedbf76f4ab688ad85c2f8cccf5a/r2-fixture/data/AgentEyes/logs (pid 1948671) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default + this process's environment (.NET special folders)] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs + this process's environment (.NET special folders)] ; the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+
+Failed!  - Failed:     2, Passed:   101, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation R2-hidden (host): in src/AgentEyes.Core/LibraryRedirect.cs
+### -             string? first = Directory.EnumerateFileSystemEntries(root, "*",
+                new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 }).FirstOrDefault();
+### +             string? first = Directory.EnumerateFileSystemEntries(root, "*",
+                new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false }).FirstOrDefault();
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.UnmarkedLibraryProblem_OnlyAHiddenFile_StillContent [1 ms]
+  Error Message:
+   Assert.NotNull() Failure: Value is null
+  Stack Trace:
+Failed!  - Failed:     1, Passed:   102, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation R2-marker-write (host): in src/AgentEyes.Core/LibraryRedirect.cs
+### -                 WriteScratchMarker(Path.Combine(decision.Data!, AppDataPaths.ProductFolder));
+                WriteScratchMarker(Path.Combine(decision.Videos!, AppDataPaths.ProductFolder));
+### + 
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_FullRedirect_MarksBothRootsAsScratch [240 ms]
+  Error Message:
+   Assert.True() Failure
+Expected: True
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_LegacyQaRecordLinkBesideAFreshScratchRoot_NeverAdopted [227 ms]
+  Error Message:
+   Assert.True() Failure
+Expected: True
+Failed!  - Failed:     2, Passed:   101, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation R1-service-roots (container): in src/AgentEyes.Core/LibraryRedirect.cs
+### -                 realRoots = RealLibrary.Distinct(realRoots.Concat(asked.Roots));
+
+### + 
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [307 ms]
+  Error Message:
+   a redirect onto the library the running service names was accepted (exit 0): [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> /tmp/agenteyes-161-tests/run-21-89e8090d6d5c4551b745438eb049fa96/r1-service/reloc/AgentEyes ; recordings -> /tmp/agenteyes-161-tests/run-21-89e8090d6d5c4551b745438eb049fa96/r1-service/v/AgentEyes ; log -> /tmp/agenteyes-161-tests/run-21-89e8090d6d5c4551b745438eb049fa96/r1-service/reloc/AgentEyes/logs (pid 50) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG default (no <home>/.config/user-dirs.dirs)] ; the AgentEyes service answering on 127.0.0.1:7882 named its library on /status, and it is in this list ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: < 1 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+### mutation MA-deriveForThisProcess (host): in src/AgentEyes.Core/RealLibrary.cs
+### - AppDataPaths.MachineLocalAppData, AppDataPaths.MachineVideos));
+### + "", ""));
+    0 Error(s)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_RedirectOntoTheLibraryTheEnvironmentRelocated_RefusedWithExit5 [223 ms]
+  Error Message:
+   a redirect onto the library XDG_DATA_HOME relocated to /tmp/agenteyes-161-tests/run-1950501-28cf324298c54e7fa9902a3223a79c63/m-a/relocated-share was accepted (exit 0): [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> /tmp/agenteyes-161-tests/run-1950501-28cf324298c54e7fa9902a3223a79c63/m-a/relocated-share/AgentEyes ; recordings -> /tmp/agenteyes-161-tests/run-1950501-28cf324298c54e7fa9902a3223a79c63/m-a/videos/AgentEyes ; log -> /tmp/agenteyes-161-tests/run-1950501-28cf324298c54e7fa9902a3223a79c63/m-a/relocated-share/AgentEyes/logs (pid 1950728) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid 1000, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs] ; the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue #161), so it added nothing ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+
+Failed!  - Failed:     1, Passed:   102, Skipped:     1, Total:   104, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)

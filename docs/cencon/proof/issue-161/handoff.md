@@ -557,3 +557,280 @@ above, not my machine.
 Landlock does not refuse `stat` - pair it with `strace -f -e trace=%file,%desc` to see metadata reads.
 
 I believe this pass is finished.
+
+# Pass 3 (Linux seat, devlinux) - a link inside the root, a library known by its content, the unpinned half, the merge
+
+Spec for this pass: the Lead's brief (F2, F1, M-A, the merge, the stale banner quote), then the Architect's
+ADDITION while I was mid-pass (fleet message, 19:03Z): implement QA's rule 2 in full and the cheap half of
+rule 1 (pass-2 QA report, section 1.4), keep the honest banner, and measure the cost of rule 2. Built on
+f9aba6a. Evidence in `linux-pass3/`. Every measurement ran under `lldeny` on BOTH real roots, with the
+denial control proven first (`linux-pass3-landlock-control.txt`). The one exception is the service-wiring
+test, which ran in a `--network none` container that mounts nothing of the owner's library
+(`incontainer.sh`). `<scratchpad>` is this session's private temp folder; `<home>` the account's home.
+
+## 1. F2 - a link INSIDE a redirected root escaped the guard. Fixed: refuse a root that contains one
+
+**Which of the two, and why.** I chose "refuse a root that contains a link escaping it", not "resolve
+what is under the root":
+
+- *Resolving under the root* is a rule about every file open the product makes, for the whole life of the
+  process: the log, config, manifests, the mux and the housekeeper. It would also have to cover ffmpeg, a
+  separate process that writes the recordings by path and that no resolver in our process can govern. The
+  rule would have to be threaded through every call site that builds a path, and one missed site is a
+  silent escape. A start-up check sits in one place, before anything has been opened, which is where every
+  other rule of this guard already sits.
+- *Escaping the root*, not *escaping into the real library*: the guard cannot know every place a real
+  library lives (F1). "Does this link leave the scratch root?" is the one test whose answer does not depend
+  on knowing that.
+
+**What it does** (`LibraryRedirect.FirstEscapingLink` / `LinkEscape`, the `escapingLink` step of `Decide`).
+It walks each redirected root's tree and never follows a link. Each link's target is judged AS WRITTEN:
+absolute, or taken against the link's own folder. Inside means under the root, spelled either as resolved
+or as the person wrote it (the code review's macOS `/var` -> `/private/var` finding). A target with a `..`
+segment is refused. That rule is what makes judging the written form sound: `sub/../x`, where `sub` is
+itself a link to the root, is inside as written but outside to the kernel. Hidden entries are walked.
+.NET skips them by default, and on Unix every dot-file counts as hidden. A folder it cannot list, or a link
+it cannot read, throws. `ApplyFromEnvironment` then refuses the start with the reason; it never assumes the
+root is clean. The legacy `qa-record` folder needs no walk: the marker write (section 2) creates
+`<it>/AgentEyes` before `StorageMigration` runs, so the migration never adopts `qa-record`. This is pinned
+by `RealProcess_LegacyQaRecordLinkBesideAFreshScratchRoot_NeverAdopted`.
+
+**Measured** (`linux-pass3-live.txt`), QA's attack on a REAL process: `<scratch>/data/AgentEyes/logs ->
+<home>/.local/share/AgentEyes/logs`.
+
+| Run | Exit | `openat` of a real root | `openat` through the link |
+|-----|------|-------------------------|---------------------------|
+| A - QA's exact shape (a root holding only the link, no marker) | 5, refused by rule 2 | 0 | 0 |
+| B - the same link in a MARKED root | 5, refused by the walk | 0 | 0 |
+| **BC - positive control**: B with the walk removed (mutation F2-apply) | 0 | 0 | **5**: `AgentEyes-20261116.log` O_WRONLY/O_CREAT, each EACCES from Landlock |
+
+BC reproduces QA's five opens of the owner's live log, so B's zero is a measurement and not a blind
+instrument. **One thing I will not round to zero:** listing a scratch folder that contains a link costs one
+FOLLOWING `stat` of that link (A and B: 1). .NET's directory enumerator classifies each entry by its target.
+That is a metadata read of the owner's logs folder. It opens nothing, and Landlock does not govern `stat`.
+The isolation doc now says so. My own first count, "0 syscalls naming a real root", was the instrument
+failing open: `strace` prints the LINK's path, not the target's. I caught it before quoting it.
+
+**Pinned:**
+- `RealProcess_LinkInsideTheScratchStateRootLeadsOut_RefusedWithExit5AndTheTargetUntouched` (Unix). It is
+  QA's shape on a REAL child, in a MARKED root, so the walk and not rule 2 is what refuses. The link points
+  at a stand-in for the real logs folder, inside the test's scratch, which is left empty.
+- Pure tests on every platform: `LinkEscape_*` x7 (down/relative, inside/absolute, the root itself, through
+  the written alias, outside, a sibling that shares the root's name as a prefix, `..`) and `Decide_*` x3
+  (the refusal text; both roots asked, resolved and as written; never asked once an overlap rule refused).
+- On disk (Unix): QA's shape, a deep hidden file, links that stay inside, the root reached through an
+  alias, and a missing folder.
+
+## 2. F1 - a relocated library: rule 2 and half of rule 1 BUILT, the wording fixed, the residue written down
+
+**The Lead's original reasoning, which still stands for the PATH rules.** If `XDG_DATA_HOME` relocates a
+person's library, the passwd entry cannot say where it went, because that location exists only in an
+environment variable we have decided not to trust. Refusing every redirect inside the derived home would
+break the ordinary scratch-under-home case, and would still miss a library relocated outside the home. The
+Architect's addition goes past the path rules:
+
+**Rule 2 - a library recognised by its CONTENT** (`UnmarkedLibraryProblem`, `WriteScratchMarker`,
+`ScratchMarker = ".agenteyes-scratch-library"`). An existing, NON-EMPTY `<value>/AgentEyes` without the
+marker is refused. The first accepted redirected start writes the marker into both roots, after `Decide`
+has accepted and before anything else touches the roots. A fresh scratch root, including one under the
+home, is empty, so it passes and gets marked. A real library holds files and no marker, so it is refused
+wherever it lives. The check costs one listing of one folder, stopped at its first entry. Hidden entries
+count.
+
+**Rule 1, the cheap half - ask the running service** (`RealLibrary.AskRunningService` / `FromServiceStatus`).
+The guard sends `GET http://127.0.0.1:7882/status` with a 2 s timeout. The service's `DataRoot` /
+`RecordingsRoot` join the union through `RealLibrary.Distinct`, the same dedupe `Derive` uses, now
+factored out unchanged. If nothing answers, or a service older than #161 names no roots, nothing is added,
+and the banner says which. A root that is not an absolute path ending in `AgentEyes` cannot be compared, so
+the redirect is refused. NOT built, per the ruling: the service's `/proc/<pid>/environ` and the systemd user
+manager's environment. Both are written into the doc as residue.
+
+**Order, and why it is now a pattern** (a comment in `Decide` says so). Every PATH rule runs first. Then
+come the steps that touch the disk, cheapest first: the library check reads one folder, the link walk reads
+a tree, and N1's write probe writes a file and stays LAST. Run before the overlap rules, each of these
+would read or write the real library itself whenever a person named it. The `Decide_*Runs*After*` tests pin
+this ordering.
+
+**The banner** still states what it compared, never a certainty. stderr/log: `... ; compared against these
+real roots and overlaps none (...): <each root [derivation]> ; <what the service on 7882 said> ; NOT CHECKED
+by path: a library kept anywhere else (...) is not in this list - it is refused only by its content (an
+existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see ...ISOLATING_A_REAL_PROCESS.md`.
+`serve` prints the same as separate lines. "real library kept out" and "this is NOT the person's real
+library" are gone. The banner test asserts both are absent, and that the limit and the 7882 statement are
+present. The stale banner quote at line 69 of the isolation doc is fixed, and so is the `serve` quote just
+below it, which carried the same retired claim.
+
+**Refused BY CONSTRUCTION now** (each one measured or pinned):
+
+| Shape | Refused by | Evidence |
+|-------|-----------|----------|
+| QA's `za`: the library relocated by XDG_DATA_HOME (it holds a file), redirect run with XDG_DATA_HOME spoofed. At f9aba6a this was **exit 0, and the log landed IN that library** | rule 2 | live D: exit 5, the library still holds only `MARKER`; `RealProcess_RelocatedLibraryUnderASpoofedEnvironment_RefusedByItsContent` |
+| a relocated library, EVEN EMPTY, while the person's post-#161 service runs on 7882 | rule 1 | `RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused` (container) |
+| a relocated library named by this process's own environment | the union's environment half | `RealProcess_RedirectOntoTheLibraryTheEnvironmentRelocated_RefusedWithExit5` (section 3) |
+| a scratch root populated BY HAND (deliberately) | rule 2 | live C1, below |
+| a link inside a root leading out | the walk | live B, section 1 |
+
+**Documented residue** (`ISOLATING_A_REAL_PROCESS.md`, "A relocated library"):
+- a relocated library folder that is empty or not yet created, set only in an environment this process does
+  not share, with no service on 7882;
+- a folder somebody marked by hand;
+- a service on a non-default port (its port is in the REAL config.json, which is never read) or one older
+  than #161 (names no roots). **The service installed on devlinux today is one of these:** live E's banner
+  says `the AgentEyes service answering on 127.0.0.1:7882 names no library on /status (it predates issue
+  #161), so it added nothing`;
+- `/proc/<pid>/environ` and the systemd environment, not read by ruling;
+- hard links and bind mounts, which are not symbolic links;
+- links created after start-up.
+
+**The cost of rule 2, measured, as the Architect asked** (live C1/C2). A seat fills its scratch root with a
+fixture (`config.json`) and starts:
+
+> library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at
+> <scratchpad>/live3/c/data/AgentEyes, which already holds an AgentEyes library that was not created as a
+> scratch library (it contains 'config.json' and no .agenteyes-scratch-library). A redirect never adopts an
+> existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix:
+> point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected start
+> marks it), or - if this IS a scratch library you populated yourself - create the marker: touch
+> '<scratchpad>/live3/c/data/AgentEyes/.agenteyes-scratch-library'.
+
+After that `touch`, the same start is accepted (C2: exit 0, 0 opens of a real root). **This is a deliberate
+trade: a legitimate pre-populated scratch root is refused so that a real library never is.** Some seat will
+hit it. The message tells them how to proceed. The isolation doc's own recipe wrote `config.json` before the
+first start, so I updated it to touch the marker (bash and PowerShell). In the suite, the record-status
+test's fixture now sits in a marked root.
+
+**A stronger rule than the two built:** none that I would add on this pass. The two residues worth closing
+next are the non-default-port service and the systemd environment; both are routing decisions for the Lead.
+
+## 3. M-A - the environment half of the union, pinned
+
+The guard protects the passwd-derived roots UNION what this process's environment names. QA dropped the
+environment half and all redirect tests stayed green. There are two places it can be dropped:
+
+- **MA-deriveForThisProcess**: `DeriveForThisProcess` passes `"", ""` instead of the machine folders. This is
+  the shape that left pass 2 green; the in-`Derive` shape already broke three pass-2 tests. It now fails
+  exactly `RealProcess_RedirectOntoTheLibraryTheEnvironmentRelocated_RefusedWithExit5`: *"a redirect onto
+  the library XDG_DATA_HOME relocated to .../m-a/relocated-share was accepted (exit 0): [redirect] LIBRARY
+  REDIRECTED ... compared against these real roots and overlaps none ...: the REAL state root
+  <home>/.local/share/AgentEyes [passwd entry for uid 1000, home <home>, XDG default] ..."*. The relocated
+  folder is missing from the list it compared against.
+- In-`Derive` removal: the two new pure tests (`Derive_EnvironmentNamesFoldersTheAccountDoesNot_...`,
+  `Derive_NoAccount_TheEnvironmentHalfAloneIsProtected`) also fail; they were measured at the first
+  pass-3 build.
+
+The real-process test runs on Linux only (`LinuxOnlyRedirectFact`; it is reported SKIPPED elsewhere,
+because XDG_DATA_HOME moves nothing on macOS or Windows). Its relocated folder has no AgentEyes folder yet,
+so rule 2 cannot be what refuses it.
+
+## 4. Mutations (`linux-pass3-mutations.txt`; each applied to the FINAL code, built, run, reverted)
+
+| Mutation | Fails (of 104 redirect tests) |
+|----------|-------------------------------|
+| F2-apply: `ApplyFromEnvironment` passes `null` for the walk | `RealProcess_LinkInsideTheScratchStateRootLeadsOut_...` |
+| F2-dotdot: the `..` rule off | `LinkEscape_DotDotInTheTarget_...` |
+| F2-hidden: the walk skips Hidden (the .NET default) | `FirstEscapingLink_DeepHiddenFileLinkedOut_Reported` |
+| F2-alias: the written spelling of the root dropped | `LinkEscape_AbsoluteTargetThroughTheRootAsWritten_...`, `FirstEscapingLink_RootReachedThroughAnAlias_...` |
+| R2-apply: `null` for the library check | `RealProcess_RelocatedLibraryUnderASpoofedEnvironment_...`, `RealProcess_ScratchRootPopulatedByHand_...` |
+| R2-hidden: the library check skips Hidden | `UnmarkedLibraryProblem_OnlyAHiddenFile_StillContent` |
+| R2-marker-write: the marker never written | `RealProcess_FullRedirect_MarksBothRootsAsScratch`, `RealProcess_LegacyQaRecordLinkBesideAFreshScratchRoot_NeverAdopted` |
+| R1-service-roots: the service's roots not added to the union (in the container: 7882 free) | `RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_...` |
+| MA-deriveForThisProcess | `RealProcess_RedirectOntoTheLibraryTheEnvironmentRelocated_...` |
+
+**The service-wiring test runs only where 7882 is free** (`DefaultPortFreeFact`). It plays the person's
+service on the default port. On devlinux the owner's service holds that port, so the test is reported
+SKIPPED here and runs in the container and on CI. It only ever tries to bind the port; it never touches
+whatever holds it. **Every redirected real-process test in the suite now sends one `GET /status` to
+127.0.0.1:7882, which is the owner's service on this machine.** That is a read, and it is what the ruling
+asks the feature itself to do; I state it so nobody discovers it later.
+
+## 5. The merge of main 277a9bc (#118 + #156), 57806ae
+
+Merge base 2d60f77. There were five add/add conflicts, each from both sides appending to the same list.
+Each is resolved as the UNION and verified to be exactly main's list plus this branch's additions, with no
+duplicates:
+
+| File | This branch added | main added | Resolution |
+|------|-------------------|------------|------------|
+| `tests/AgentEyes.Tests/AgentEyes.Tests.csproj` | `LibraryRedirectTests.cs` | #156: `CaptureOwnershipTests`, `CaptureWriterReapTests`, `ProcessIdentityTests` | both |
+| `tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj` | `DesktopAppRedirectTests.cs`, `LibraryRedirectTests.cs` | #118: `MacBundleTests`; #156: the three above | both; `MuxLockTests.cs` was on BOTH sides of the hunk and is kept once |
+| `tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj` | `LibraryRedirectTests.cs` | #156: the three | both |
+| `tests/AgentEyes.Tests.DesktopApp/AgentEyes.Tests.DesktopApp.csproj` | `DesktopAppRedirectTests.cs` | #118: `MacBundleTests` | both |
+| `tests/AgentEyes.Tests/ManifestWriterIlTests.cs` `PinnedNativeImports` | `libc.so.6!geteuid`, `libc.so.6!getpwuid_r` | #156: `libc!kill`, `libc!geteuid`, `libc!getuid`, `libc!statx`, `libc!sysctl`, `libSystem.Native!SystemNative_Stat` | all eight. The keys are `<library>!<entry>`, so #161's `libc.so.6!geteuid` and #156's `libc!geteuid` are two DIFFERENT imports, both in the product. The list is sorted before comparing, so order does not matter |
+
+Semantic checks beyond the text:
+- `git diff f9aba6a 57806ae` over the redirect code is EMPTY (`linux-pass3-untouched.txt`, part 1).
+- Main adds no entry point that could skip the guard: all three still call `ApplyFromEnvironment` first.
+- Merged tree under lldeny: Linux 494 passed / 1 failed / 2 skipped, and DesktopApp 25/25. These are QA's
+  numbers. The one failure is #156's `ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid`
+  ("sg adm did not start the subject": `sg` cannot gain a group under Landlock's `no_new_privs`). It PASSES
+  outside Landlock on the same build. It is not this issue's.
+
+Noticed by the code review, not changed: after the merge, Core has two `geteuid` imports (#161 binds
+`libc.so.6`, #156 binds `libc`). That is worth one shared declaration in a follow-up. Changing pass 2's
+binding was not in this pass.
+
+## 6. Code review (medium) on the pass-3 diff, and what I did with it
+
+The review ran on the first pass-3 build, before the Architect's addition. Eight findings:
+- **Fixed:**
+  - `LinkTarget` could throw outside the `try` and crash the process instead of exiting 5. The walk no
+    longer catches; `ApplyFromEnvironment` refuses on IOException/UnauthorizedAccessException. That also
+    clears the helper-try/catch finding.
+  - The macOS alias false refusal. Both spellings of the root now count, and two tests plus a mutation pin it.
+  - A `qa-record` walk that could refuse a folder the process never adopts. That walk is removed, made
+    unnecessary by the marker, and the `StorageMigration` edit is reverted.
+  - The banner could list roots `Decide` did not compare. It now lists only what was compared.
+- **Documented, not fixed:**
+  - Hard links. Detecting them needs `st_nlink`, which means new native surface, and the doc already said so.
+  - The walk's cost on a large scratch library and on the tray app's start-up thread. It is now stated in
+    the doc.
+  - The duplicate `geteuid` (section 5).
+
+## 7. Untouched, by diff (`linux-pass3-untouched.txt`)
+
+Every line pass 3 removed or rewrote is listed there:
+- `Decide`'s signature (two optional parameters);
+- its call in `ApplyFromEnvironment` (now wrapped, and given the two checks);
+- the banner wording;
+- `Derive`'s dedupe block, moved unchanged into `Distinct`;
+- the `serve` banner line.
+
+So these are untouched: the two variables and both-or-neither, absolute paths, unknown variables, the
+overlap rules, the passwd derivation (no removed line), N1's refusal with its write probe still LAST, the
+`/status` loudness fields, the three port guards, and the DesktopApp's refusal (no diff). In the tests, two
+existing lines changed: the pass-2 banner assertion (F1), and the record-status fixture's root, now marked.
+The marker write is pinned in `ManifestWriterIlTests.PinnedFileWrites` (Windows suite, so CI checks it).
+
+## 8. Gates (`linux-pass3-gates.txt`)
+
+- Under lldeny:
+  - `dotnet build` of the Linux, DesktopApp and Mac test projects: 0 errors, Mac 0 warnings from this code.
+    The Mac build showed one nullable warning of mine; I fixed it and re-ran.
+  - **Linux suite: 530 passed / 1 failed / 3 skipped, 534** (the merged tree's 497 + 37 new). Opt-in
+    `AGENTEYES_FFMPEG_TESTS=1`: 531 / 1 / 2.
+  - The 1 failure is #156's `sg` test, as above.
+  - The 3 skips: #156's two opt-in or sandbox tests, and the 7882 test, because the owner's service holds
+    the port.
+  - DesktopApp: 25 / 25.
+- In the container (7882 free): the 7882 test passes.
+- CI: section 10.
+
+## 9. What I did NOT do
+
+- **Windows is not measured, and I wrote no Windows-specific code.** The walk, the library check and the
+  service query are plain .NET. On Windows, `LinkTarget` also reports junctions. The pure tests and the
+  content and service tests run in the Windows suite; the on-disk link tests are SKIPPED there
+  (`UnixOnlyFact`).
+- I left the owner's service, tray app and the go2rtc ffmpeg alone, identifying each by command line. Every
+  service I started ran on a scratch port and was stopped by its own pid or its own timeout. Nothing was
+  reinstalled. The owner's library was never opened: every live run counted 0 opens of a real root.
+- **Noticed, not changed:** the isolation doc's macOS HOME-trap measurement (pass 1) quotes
+  `/Users/<the owner's account name>/...` paths, and so does this handoff's pass-1 sandbox transcript
+  (around line 71). This is the #173 class, and worth a scrub by whoever owns #173. Every line pass 3 added
+  was grepped for the account name, email domains and vendor names, with no hit.
+
+## 10. CI
+
+(filled in below once the pushed head has run)
+
+I believe this pass is finished.

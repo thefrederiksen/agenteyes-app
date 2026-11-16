@@ -29,6 +29,20 @@ Not to be confused with `AGENTEYES_ROOT`, which is the INSTALLER's variable for 
 - the two roots overlap each other, or either one is, contains or sits inside the person's REAL state
   or recordings root - **symbolic links resolved**, so `<scratch>/videos/AgentEyes -> ~/Movies/AgentEyes`
   is refused;
+- a redirected root (`<it>/AgentEyes`) ALREADY HOLDS something and does not carry the scratch marker
+  `.agenteyes-scratch-library` (#161 pass 3, rule 2). The first redirected start writes that marker into
+  both roots; a real library - relocated or not, wherever it lives - holds files and no marker, so it is
+  refused by its CONTENT, which no environment can spoof. **The deliberate cost: a scratch root YOU filled
+  by hand with fixtures is refused too** (a legitimate pre-populated scratch root is refused so that a real
+  library never is). The refusal names both ways on: start from an EMPTY folder (a redirected start marks
+  it), or, if the folder really is your scratch library, `touch <it>/AgentEyes/.agenteyes-scratch-library`;
+- a symbolic link INSIDE either redirected root points OUT of that root (#161 pass 3, F2). ANY way out,
+  not only into the real library, because the guard cannot know every place a real library lives (next
+  section). Judged from the link's target AS WRITTEN, never followed (a target spelled through the root's
+  own alias - macOS `/var` for `/private/var` - counts as inside); a target containing `..` is refused
+  too. Links that stay inside the root are fine. Fix: remove the link, or copy what it points at in. (A
+  legacy `qa-record` folder beside a root is never adopted under a redirect: the marker write creates
+  `<it>/AgentEyes` first, so the one-time migration leaves `qa-record` alone);
 - a value is not an EXISTING folder this process can write to - checked by really writing and removing a
   probe file, and only after every rule above has passed (so it never probes the real library). A
   redirect never creates its own roots: a typo is refused, not turned into a new, empty library.
@@ -46,10 +60,37 @@ The protected roots are the union of:
 | Linux | state `<home>/.local/share` (XDG default; `$XDG_DATA_HOME` not read); recordings `XDG_VIDEOS_DIR` from `<home>/.config/user-dirs.dirs` (`$XDG_CONFIG_HOME` not read), else `<home>/Videos` | what this process's environment names (.NET special folders) |
 | macOS | state `<home>/Library/Application Support`; recordings `<home>/Movies` | the same |
 | Windows | - (unchanged: the shell's known-folder lookup) | the known folders |
+| all | and whatever answers `GET http://127.0.0.1:7882/status` - the person's RUNNING service names its own `DataRoot` / `RecordingsRoot` (#161 pass 3, rule 1); nothing answering, or a service older than #161 that names none, adds nothing, and the banner says which | |
 
 The union can only ADD refusals: a spoofed environment can add a scratch folder to the list but cannot
 remove the account's. Every redirected banner prints the roots it derived and where each came from, so
 check them rather than trusting the word "redirected".
+
+**A relocated library (#161 pass 3, F1) - what is now refused, and what is still not.** If a person's
+library has been moved (`XDG_DATA_HOME` in a shell profile or in their service's systemd unit, a
+`user-dirs.dirs` under a moved `XDG_CONFIG_HOME`), the new place exists only in THAT environment, which the
+passwd entry cannot name. Refused BY CONSTRUCTION now:
+
+- a relocated library that holds anything (it always does once used) - by its content (rule 2), from any
+  environment, wherever it lives;
+- a relocated library, even an empty one, while the person's post-#161 service is running on 7882 - that
+  service names it (rule 1);
+- a relocated library this process's own environment names (the environment half of the union).
+
+Still NOT refused (documented residue - the banner ends `NOT CHECKED by path: ...` and never says the
+scratch "is not the person's real library"):
+
+- a relocated library folder that is EMPTY or not created yet, set only in an environment this process does
+  not share (a shell profile), with no service on 7882 - there is nothing yet to damage, but a redirect there
+  would put scratch files where the person's library will later live;
+- a library whose folder somebody marked with `.agenteyes-scratch-library` by hand;
+- a service on a port other than 7882 (its port is in the REAL config.json, which the guard never reads), or
+  one older than #161, which names no roots;
+- two sources deliberately NOT read (the Lead's ruling, pass 3 - more machinery than this pass carries, and
+  Linux-shaped): the running service's `/proc/<pid>/environ`, and the systemd user manager's environment
+  (`environment.d`).
+
+**Before pointing a redirect anywhere, make sure the folder is one you created for the job.**
 
 **It also refuses (exit 1):**
 
@@ -66,11 +107,12 @@ check them rather than trusting the word "redirected".
 ## It is loud - check that it is, every time
 
 - stderr of every redirected command: `[redirect] LIBRARY REDIRECTED by ...: state -> ... ; recordings -> ... ; log -> ...
-  ; real library kept out (derived from the account, not from HOME): the REAL state root ... [passwd entry for uid N, home ...] ; the REAL recordings root ... [...]`
+  (pid N) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root ... [passwd entry for uid N, home ..., XDG default + this process's environment (.NET special folders)] ; the REAL recordings root ... [...] ; the AgentEyes service answering on 127.0.0.1:7882 named its library on /status, and it is in this list (or: names no library / was asked and named none) ; NOT CHECKED by path: a library kept anywhere else (...) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md`
 - the redirected log (`<DATA>/AgentEyes/logs/AgentEyes-YYYYMMDD.log`): a `[WARN] [LibraryRedirect]` line,
   and every command's `[CliDispatcher] Run:` line carries `state=... recordings=... redirect=...`
-- `serve` stdout: `recordings ->`, `data ->`, and `[redirect] ... this is NOT the person's real library, which this
-  process derived as:` followed by one `[redirect]   the REAL ... root <path> [<derivation>]` line per root
+- `serve` stdout: `recordings ->`, `data ->`, and `[redirect] ... - compared against these real roots this process
+  derived, and overlaps none:` followed by one `[redirect]   the REAL ... root <path> [<derivation>]` line per root
+  and two last lines: what the service on 7882 said, and `[redirect] NOT CHECKED by path: ...`
 - `GET /status`: `DataRoot`, `RecordingsRoot`, `LibraryRedirected`, `LibraryRedirect`
   (`"environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)"`)
 
@@ -105,6 +147,7 @@ Pick a FREE port (not 7882) - check it first.
 ```sh
 S=$(mktemp -d)/ae161
 mkdir -p "$S/data/AgentEyes" "$S/videos" && echo '{"Port": 17961}' > "$S/data/AgentEyes/config.json"
+touch "$S/data/AgentEyes/.agenteyes-scratch-library"   # you filled this root by hand (config.json): mark it
 export AGENTEYES_REDIRECT_DATA="$S/data" AGENTEYES_REDIRECT_VIDEOS="$S/videos"
 agenteyes serve --port 17961 &          # look for the [redirect] banner on stderr
 curl -s http://127.0.0.1:17961/status   # DataRoot / RecordingsRoot under $S, LibraryRedirected true
@@ -127,6 +170,7 @@ $S = Join-Path $env:TEMP "ae161-$(Get-Random)"
 New-Item -ItemType Directory -Force "$S\data\AgentEyes" | Out-Null
 New-Item -ItemType Directory -Force "$S\videos" | Out-Null
 Set-Content "$S\data\AgentEyes\config.json" '{"Port": 17961}'
+New-Item -ItemType File "$S\data\AgentEyes\.agenteyes-scratch-library" | Out-Null   # filled by hand: mark it
 $env:AGENTEYES_REDIRECT_DATA = "$S\data"; $env:AGENTEYES_REDIRECT_VIDEOS = "$S\videos"
 & src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe serve --port 17961
 # ... GET http://127.0.0.1:17961/status ...
@@ -154,6 +198,19 @@ machine-wide, not per library. Use `agenteyes serve --port N` for a second, redi
   library only through the TARGET of a `~/Movies/AgentEyes` symlink is not caught.
 - A refused start whose redirected root IS (or links to) the real root does one metadata read
   (`stat`) of that real root folder while resolving links - measured under a sandbox in the #161 proof.
+- **A relocated library** is refused by content, by the running service, or by this process's environment -
+  and NOT in the residue cases listed under "A relocated library" above. The banner says so on every start.
+- **The checks are START-UP checks**, and they read: one listing of each redirected root (rule 2), a walk of
+  each root's whole tree (the link check - its cost grows with a scratch library's size, and the tray app runs
+  it on start-up), and one `GET /status` to 127.0.0.1:7882 with a 2 s timeout.
+- **The link walk sees only what exists at start-up.** A link created inside a redirected root AFTER the process has
+  started is not seen. Do not create links in a scratch library while a process is using it.
+- **Hard links and bind mounts are not detected.** A hard link inside the scratch root to a file of the
+  real library IS that file; a bind mount (root only) makes a folder BE another. Neither shows up as a
+  symbolic link. Copy files into a scratch library; never `ln` them without `-s`, never bind-mount.
+- Walking a root, .NET's directory enumerator does one following `stat` of each symbolic link it meets, to
+  classify it, before the link is judged and refused. That reads the target's metadata and opens nothing
+  (measured, #161 pass 3: a link to the owner's logs folder - 0 opens through it, 1 `stat`).
 
 ## Belt and braces on macOS: let the kernel enforce it
 

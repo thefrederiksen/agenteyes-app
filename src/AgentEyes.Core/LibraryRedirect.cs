@@ -56,6 +56,12 @@ namespace AgentEyes
         /// <summary>Any variable with this prefix that is not one of the two above is refused.</summary>
         public const string VariablePrefix = "AGENTEYES_REDIRECT_";
 
+        /// <summary>The file that marks an AgentEyes folder as a SCRATCH library (issue #161 pass 3). Written by
+        /// the first redirected start into each redirected root; a redirect refuses an existing, non-empty root
+        /// without it, because that root may be the person's real library, relocated where the path rules
+        /// cannot see it.</summary>
+        public const string ScratchMarker = ".agenteyes-scratch-library";
+
         /// <summary>The CLI's exit code for a refused redirect. 0-4 belong to <see cref="CliDispatcher"/>.</summary>
         public const int RefusedExitCode = 5;
 
@@ -149,9 +155,16 @@ namespace AgentEyes
         /// effective uid), never only what this process's spoofable environment says (issue #161 pass 2).
         /// PURE. A root whose parent is missing or relative is the caller's to leave out.
         /// </summary>
+        /// <param name="escapingLink">Given a redirected root (resolved, then as written), why a link inside it
+        /// leads out of it, or null when none does (<see cref="FirstEscapingLink"/> in a real process). Run after
+        /// every overlap rule and before <paramref name="usableFolder"/>. Null skips it.</param>
+        /// <param name="unmarkedLibrary">Given a redirected root (resolved), why it already holds a library that
+        /// was not created as a scratch library, or null (<see cref="UnmarkedLibraryProblem"/> in a real process).
+        /// Run after every overlap rule, before the link walk and the probe. Null skips it.</param>
         internal static Decision Decide(string? data, string? videos, IEnumerable<string> variableNames,
             IReadOnlyList<RealLibrary.Root> realRoots, bool namesAreCaseInsensitive,
-            Func<string, string>? resolveLinks = null, Func<string, string?>? usableFolder = null)
+            Func<string, string>? resolveLinks = null, Func<string, string?>? usableFolder = null,
+            Func<string, string, string?>? escapingLink = null, Func<string, string?>? unmarkedLibrary = null)
         {
             var resolve = resolveLinks ?? (p => p);
             var nameComparison = namesAreCaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -227,6 +240,53 @@ namespace AgentEyes
                 }
             }
 
+            // FROM HERE ON THE GUARD TOUCHES THE DISK, and only here (issue #161 passes 2 and 3). Everything
+            // above decides by PATH; each step below reads (the library check, the link walk) or writes (N1's
+            // probe) the folder a person named. Run before the overlap rules, each would read or write the real
+            // library itself when the person named it - so a new disk check goes BELOW the overlap rules, and
+            // the write probe stays LAST. Cheapest read first: the library check lists one folder, the walk a tree.
+            var roots = new[]
+            {
+                (Variable: DataVariable, Written: stateRoot, Resolved: stateResolved, What: "state root"),
+                (Variable: VideosVariable, Written: recordingsRoot, Resolved: recordingsResolved, What: "recordings root"),
+            };
+
+            // AN EXISTING LIBRARY, recognised by its CONTENT (pass 3, F1 - the Lead's rule 2). The path rules
+            // above cannot see a library relocated by a variable set in another environment; its content can.
+            // A fresh scratch root is empty (and is marked on first use); a real library, wherever it lives,
+            // holds files and no marker.
+            if (unmarkedLibrary != null)
+            {
+                foreach (var r in roots)
+                {
+                    if (unmarkedLibrary(r.Resolved) is { } why)
+                        return Decision.Refuse(
+                            $"{r.Variable} puts the redirected {r.What} at {Described(r.Written, r.Resolved)}, {why} "
+                            + $"Fix: point {r.Variable} at a folder whose AgentEyes folder is EMPTY or absent (a redirected start "
+                            + $"marks it), or - if this IS a scratch library you populated yourself - create the marker: "
+                            + $"touch '{Path.Combine(r.Resolved, ScratchMarker)}'.");
+                }
+            }
+
+            // A LINK INSIDE a redirected root (pass 3, F2). Only the path TO each root is resolved above; QA linked
+            // <scratch>/data/AgentEyes/logs to the owner's real logs folder, the redirect was accepted, and the
+            // process opened the owner's live log. So each root is walked, and a link that leads out of it refuses
+            // the start. ANY way out, not only into the real library: a relocated real library is invisible to
+            // the path rules, so "outside the scratch root" is the one test that does not depend on knowing where
+            // it is. (The legacy qa-record folder needs no walk: the marker write in ApplyFromEnvironment creates
+            // <it>/AgentEyes before StorageMigration runs, and the migration never adopts qa-record over it.)
+            if (escapingLink != null)
+            {
+                foreach (var r in roots)
+                {
+                    if (escapingLink(r.Resolved, r.Written) is { } why)
+                        return Decision.Refuse(
+                            $"{r.Variable} puts the redirected {r.What} at {Described(r.Written, r.Resolved)}, and {why} "
+                            + "A link out of a scratch library is a way into a real library this guard cannot see. "
+                            + $"Fix: remove the link, or copy what it points at into {r.Written}.");
+                }
+            }
+
             // LAST, and only once nothing above refused: each value must be an EXISTING folder this process
             // can really WRITE to (Lead's ruling N1, issue #161 pass 2). Last, because the check writes a
             // probe file - run before the overlap rules, it would write one beside or inside the real
@@ -277,6 +337,103 @@ namespace AgentEyes
         }
 
         /// <summary>
+        /// Why the link at <paramref name="link"/> (whose target, as stored, is <paramref name="target"/>)
+        /// leads out of the root, or null when it stays inside. The root may be spelled two ways -
+        /// <paramref name="root"/> (resolved, where the walk runs) and <paramref name="rootAsWritten"/> (as the
+        /// person wrote it; on macOS /var/... for /private/var/...) - and a target under EITHER is inside, because
+        /// the written spelling resolves to the resolved one. PURE - the target is judged as WRITTEN, never
+        /// followed, so judging a link never touches where it points (which may be the real library). Inside
+        /// also means no ".." segment: that is what makes the written form sufficient - "sub/../x", where sub is
+        /// itself a link to the root, is inside as written and outside to the kernel. Compared with case
+        /// (ordinal): a case-only difference refuses, which is the safe direction.
+        /// </summary>
+        internal static string? LinkEscape(string link, string target, string root, string? rootAsWritten = null)
+        {
+            string[] segments = target.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Contains(".."))
+                return $"{link} is a link to '{target}', which contains '..' (a link inside a redirected root may only "
+                       + $"point further down into {root}).";
+            string folder = Path.GetDirectoryName(link)!;
+            string where = Path.TrimEndingDirectorySeparator(
+                Path.GetFullPath(Path.IsPathFullyQualified(target) ? target : Path.Combine(folder, target)));
+            foreach (string? r in new[] { root, rootAsWritten })
+            {
+                if (r == null) continue;
+                string inside = Path.TrimEndingDirectorySeparator(r);
+                if (string.Equals(where, inside, StringComparison.Ordinal)
+                    || where.StartsWith(inside + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                    return null;
+            }
+            return $"{link} is a link to '{target}', which leads outside {root} (to {where}).";
+        }
+
+        /// <summary>
+        /// The first link under the redirected root <paramref name="folder"/> (resolved; also spelled
+        /// <paramref name="folderAsWritten"/>) that leads out of it (<see cref="LinkEscape"/>), or null when there
+        /// is none or the folder does not exist yet. Walks every folder below WITHOUT following a link, and reads
+        /// each link's target without following it. Does not catch: a folder it cannot list, or a link it cannot
+        /// read, throws, and <see cref="ApplyFromEnvironment"/> REFUSES the start with the reason - never assumed
+        /// clean. A link created AFTER this check is not seen (stated in docs/cencon/ISOLATING_A_REAL_PROCESS.md).
+        /// </summary>
+        internal static string? FirstEscapingLink(string folder, string folderAsWritten)
+        {
+            if (!Directory.Exists(folder)) return null;
+            var options = new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 };
+            var pending = new Stack<DirectoryInfo>();
+            pending.Push(new DirectoryInfo(folder));
+            while (pending.Count > 0)
+            {
+                foreach (FileSystemInfo entry in pending.Pop().EnumerateFileSystemInfos("*", options))
+                {
+                    if (entry.LinkTarget is { } target)
+                    {
+                        if (LinkEscape(entry.FullName, target, folder, folderAsWritten) is { } why) return why;
+                        continue;   // a link that stays inside leads to a folder this walk reaches on its own
+                    }
+                    if (entry is DirectoryInfo sub) pending.Push(sub);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Null when the redirected root <paramref name="root"/> is absent, empty, or carries
+        /// <see cref="ScratchMarker"/>; otherwise why it is refused (Lead's rule 2, issue #161 pass 3). One
+        /// listing of one folder, stopped at its first entry. Hidden entries count (on Unix every dot-file is
+        /// Hidden, and .NET skips Hidden by default). Does not catch: a folder it cannot list throws, and
+        /// <see cref="ApplyFromEnvironment"/> refuses the start with the reason.
+        /// </summary>
+        internal static string? UnmarkedLibraryProblem(string root)
+        {
+            if (!Directory.Exists(root)) return null;
+            if (File.Exists(Path.Combine(root, ScratchMarker))) return null;
+            string? first = Directory.EnumerateFileSystemEntries(root, "*",
+                new EnumerationOptions { RecurseSubdirectories = false, IgnoreInaccessible = false, AttributesToSkip = 0 }).FirstOrDefault();
+            if (first == null) return null;
+            return $"which already holds an AgentEyes library that was not created as a scratch library (it contains "
+                   + $"'{Path.GetFileName(first)}' and no {ScratchMarker}). A redirect never adopts an existing library: it may be "
+                   + "the person's REAL one, relocated somewhere the path rules cannot see.";
+        }
+
+        /// <summary>
+        /// Mark <paramref name="root"/> as a scratch library: create it if absent and write <see cref="ScratchMarker"/>
+        /// unless it is there. Called by <see cref="ApplyFromEnvironment"/> only after <see cref="Decide"/> accepted
+        /// the redirect, so it never writes beside or inside a real root. Creating the root here also means
+        /// StorageMigration finds &lt;it&gt;/AgentEyes present and never adopts a legacy qa-record folder.
+        /// </summary>
+        internal static void WriteScratchMarker(string root)
+        {
+            string marker = Path.Combine(root, ScratchMarker);
+            if (File.Exists(marker)) return;
+            Directory.CreateDirectory(root);
+            File.WriteAllText(marker,
+                "AgentEyes SCRATCH library (issue #161). Written by the first start redirected here by "
+                + $"{DataVariable}/{VideosVariable} (pid {Environment.ProcessId}, {DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}). "
+                + "A redirect refuses an existing, non-empty AgentEyes folder without this file.\n");
+        }
+
+        /// <summary>
         /// Read the two variables from this process's environment and, when they ask for it, move both
         /// roots for the rest of the process. Call it FIRST in an entry point - before anything logs or
         /// resolves a path. On <see cref="Outcome.Refused"/> nothing was moved and nothing was logged;
@@ -321,14 +478,51 @@ namespace AgentEyes
                 return Outcome.Refused;
             }
 
-            var decision = Decide(
-                Environment.GetEnvironmentVariable(DataVariable),
-                Environment.GetEnvironmentVariable(VideosVariable),
-                names,
-                realRoots,
-                OperatingSystem.IsWindows(),
-                ResolveLinks,
-                UsableFolderProblem);
+            // The person's RUNNING service, asked where its library is (Lead's ruling, issue #161 pass 3: the cheap
+            // half of rule 1). It decides where the real library is, and its environment is not this process's -
+            // so a library it relocated is added to the union whenever it is running. Nothing answering, or a
+            // service older than #161 that names no roots, adds nothing, and the banner SAYS which it was.
+            string serviceNote;
+            try
+            {
+                var asked = RealLibrary.AskRunningService(LocalAppConfig.DefaultPort);
+                realRoots = RealLibrary.Distinct(realRoots.Concat(asked.Roots));
+                serviceNote = asked.Note;
+            }
+            catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or System.Threading.Tasks.TaskCanceledException
+                                           or System.Text.Json.JsonException)
+            {
+                serviceNote = $"the service on 127.0.0.1:{LocalAppConfig.DefaultPort} was asked for its library and named none "
+                              + $"({ex.GetType().Name}: {ex.Message})";
+            }
+            catch (InvalidOperationException ex)
+            {
+                message = $"library redirect refused: {ex.Message} Fix: stop that service, or start the redirect where it cannot be confused.";
+                return Outcome.Refused;
+            }
+
+            Decision decision;
+            try
+            {
+                decision = Decide(
+                    Environment.GetEnvironmentVariable(DataVariable),
+                    Environment.GetEnvironmentVariable(VideosVariable),
+                    names,
+                    realRoots,
+                    OperatingSystem.IsWindows(),
+                    ResolveLinks,
+                    UsableFolderProblem,
+                    FirstEscapingLink,
+                    UnmarkedLibraryProblem);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The library check and the link walk read the folders a person named; one they cannot read
+                // cannot be checked, so the redirect is REFUSED with the reason - never assumed clean.
+                message = "library redirect refused: a redirected folder could not be checked "
+                          + $"({ex.GetType().Name}: {ex.Message}). Fix: make it readable, or point the redirect at a fresh folder.";
+                return Outcome.Refused;
+            }
 
             if (decision.Refused)
             {
@@ -344,17 +538,37 @@ namespace AgentEyes
                 return Outcome.NotRequested;
             }
 
+            try
+            {
+                WriteScratchMarker(Path.Combine(decision.Data!, AppDataPaths.ProductFolder));
+                WriteScratchMarker(Path.Combine(decision.Videos!, AppDataPaths.ProductFolder));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                message = $"library redirect refused: the scratch-library marker could not be written ({ex.GetType().Name}: "
+                          + $"{ex.Message}). Fix: point the redirect at folders this account can write to.";
+                return Outcome.Refused;
+            }
+
             AppDataPaths.RedirectForThisProcess(decision.Data!, decision.Videos!);
             // What the banner prints is what was COMPARED: each root with its links resolved (parent only,
-            // exactly as Decide resolved it - the real AgentEyes folder itself is never touched).
+            // exactly as Decide resolved it - the real AgentEyes folder itself is never touched), and only the
+            // roots Decide compared (it leaves out a parent that is not fully qualified).
             _realRoots = realRoots
+                .Where(r => Path.IsPathFullyQualified(r.Parent))
                 .Select(r => r with { ResolvedPath = Path.Combine(ResolveLinks(r.Parent), AppDataPaths.ProductFolder) })
                 .ToList();
+            _serviceNote = serviceNote;
             _appliedFromEnvironment = true;
             message = Banner();
             Log.Warn($"[LibraryRedirect] ApplyFromEnvironment: {message}");
             return Outcome.Redirected;
         }
+
+        private static string _serviceNote = "";
+
+        /// <summary>What asking the running service on the default port found (for the banner).</summary>
+        public static string ServiceNote => _serviceNote;
 
         /// <summary>
         /// The one-line statement of where this redirected process keeps its state and recordings - and,
@@ -367,14 +581,29 @@ namespace AgentEyes
             + RealRootsStatement();
 
         /// <summary>
-        /// "real library kept out: ..." - every real root the guard compared against, with its derivation.
-        /// Empty list (a test host, which never ran the guard) says so rather than claiming anything.
+        /// The limit of the comparison, stated wherever its result is (issue #161 pass 3, F1). The path rules
+        /// can only compare against folders something NAMES - the passwd entry, this process's environment, the
+        /// running service. A library moved by a variable set only in some other environment (a shell profile,
+        /// with no service running) is named by none of them; it is then refused only by its CONTENT. The banner
+        /// therefore states what it compared and this, and never that the scratch "is not the person's real library".
+        /// </summary>
+        public const string ComparisonLimit =
+            "NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a "
+            + "shell profile, with no service running) is not in this list - it is refused only by its content (an "
+            + "existing, non-empty AgentEyes folder without " + ScratchMarker + ") - see docs/cencon/ISOLATING_A_REAL_PROCESS.md";
+
+        /// <summary>
+        /// "compared against ...: ..." - every real root the guard compared against, with its derivation, what
+        /// the running service said, and <see cref="ComparisonLimit"/>. Empty list (a test host, which never ran
+        /// the guard) says so rather than claiming anything.
         /// </summary>
         public static string RealRootsStatement() =>
             _realRoots.Count == 0
                 ? "real library: NOT CHECKED (no derivation ran in this process)"
-                : "real library kept out (each root with where it was derived from): "
-                  + string.Join(" ; ", _realRoots.Select(r => $"{r.Name} {Shown(r)} [{r.DerivedFrom}]"));
+                : "compared against these real roots and overlaps none (each with where it was derived from): "
+                  + string.Join(" ; ", _realRoots.Select(r => $"{r.Name} {Shown(r)} [{r.DerivedFrom}]"))
+                  + " ; " + _serviceNote
+                  + " ; " + ComparisonLimit;
 
         /// <summary>A real root as printed: its path, and what it resolved to when a link moved it.</summary>
         internal static string Shown(RealLibrary.Root r) => Described(r.Path, r.ResolvedPath ?? r.Path);

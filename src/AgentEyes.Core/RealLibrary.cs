@@ -139,14 +139,67 @@ namespace AgentEyes
             if (Path.IsPathFullyQualified(processVideos))
                 roots.Add(new Root(RecordingsName, processVideos, ProcessEnvironmentSource));
 
-            // One entry per distinct folder; a folder found both ways says so. Compared ORDINALLY: two names
-            // that differ only in case are two folders on Linux, and each needs its own link resolution.
-            // (On a case-insensitive file system the worst case is the same folder listed twice.)
-            return roots
+            return Distinct(roots);
+        }
+
+        /// <summary>
+        /// One entry per distinct folder; a folder found several ways says so. Compared ORDINALLY: two names
+        /// that differ only in case are two folders on Linux, and each needs its own link resolution.
+        /// (On a case-insensitive file system the worst case is the same folder listed twice.)
+        /// </summary>
+        internal static IReadOnlyList<Root> Distinct(IEnumerable<Root> roots) =>
+            roots
                 .Select(r => r with { Parent = LibraryRedirect.Normalize(r.Parent) })
                 .GroupBy(r => (r.Name, r.Parent))
                 .Select(g => new Root(g.Key.Name, g.Key.Parent, string.Join(" + ", g.Select(r => r.DerivedFrom).Distinct())))
                 .ToList();
+
+        /// <summary>How long the running service gets to answer /status before the guard says it named nothing.</summary>
+        internal static readonly TimeSpan ServiceTimeout = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// Ask whatever answers GET http://127.0.0.1:<paramref name="port"/>/status where its library is (issue #161
+        /// pass 3, the Lead's ruling: the cheap half of rule 1). The person's service decides where the real library
+        /// is, from an environment this process does not share. Does not catch: connection refused, a timeout or a
+        /// body that is not JSON throw, and <see cref="LibraryRedirect.ApplyFromEnvironment"/> records that the
+        /// service named nothing. A GET of /status changes nothing in the service.
+        /// </summary>
+        internal static (IReadOnlyList<Root> Roots, string Note) AskRunningService(int port)
+        {
+            using var http = new System.Net.Http.HttpClient { Timeout = ServiceTimeout };
+            string body = http.GetStringAsync($"http://127.0.0.1:{port}/status").GetAwaiter().GetResult();
+            return FromServiceStatus(body, port);
+        }
+
+        /// <summary>
+        /// The real roots a /status body names, and what to say about it. PURE. A service older than #161 names
+        /// none (empty list, said so). A root that is not an absolute path ending in AgentEyes cannot be compared
+        /// and THROWS (InvalidOperationException) - the caller refuses rather than guessing at it.
+        /// </summary>
+        internal static (IReadOnlyList<Root> Roots, string Note) FromServiceStatus(string json, int port)
+        {
+            string where = $"the AgentEyes service answering on 127.0.0.1:{port}";
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            string? Read(string name) =>
+                doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && doc.RootElement.TryGetProperty(name, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? v.GetString() : null;
+            string? data = Read("DataRoot");
+            string? recordings = Read("RecordingsRoot");
+            if (string.IsNullOrEmpty(data) || string.IsNullOrEmpty(recordings))
+                return (Array.Empty<Root>(), $"{where} names no library on /status (it predates issue #161), so it added nothing");
+
+            var roots = new List<Root>();
+            foreach (var (name, root, field) in new[] { (StateName, data, "DataRoot"), (RecordingsName, recordings, "RecordingsRoot") })
+            {
+                if (!Path.IsPathFullyQualified(root)
+                    || !string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(root)), AppDataPaths.ProductFolder, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        $"{where} reports {field} '{root}', which is not an absolute path ending in {AppDataPaths.ProductFolder}, "
+                        + "so its library cannot be compared against.");
+                roots.Add(new Root(name, Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(root))!, $"{where} (/status {field})"));
+            }
+            return (roots, $"{where} named its library on /status, and it is in this list");
         }
 
         /// <summary>

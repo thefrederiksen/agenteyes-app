@@ -698,7 +698,7 @@ namespace AgentEyes.Tests.Shared
 
             string data = Path.Combine(Scratch, "client", "data");
             string videos = Made(Path.Combine(Scratch, "client", "videos"));
-            Directory.CreateDirectory(Path.Combine(data, "AgentEyes"));
+            Marked(Path.Combine(data, "AgentEyes"));   // pass 3 rule 2: a pre-populated scratch root carries the marker
             File.WriteAllText(Path.Combine(data, "AgentEyes", "config.json"), "{\"Port\": " + port + "}");
 
             var (code, stdout, stderr) = RunAgentEyes(data, videos, "record status");
@@ -765,11 +765,624 @@ namespace AgentEyes.Tests.Shared
             var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
 
             Assert.Equal(0, code);
-            Assert.Contains("real library kept out (each root with where it was derived from):", stderr);
+            Assert.Contains("compared against these real roots and overlaps none (each with where it was derived from):", stderr);
+            // Pass 3 (F1): what the comparison cannot see is stated, and the old claim is gone.
+            Assert.Contains(LibraryRedirect.ComparisonLimit, stderr);
+            // Pass 3 rule 1: the running service on the default port was ASKED, and the banner says what it found.
+            Assert.Contains("127.0.0.1:" + LocalAppConfig.DefaultPort, stderr);
+            Assert.DoesNotContain("kept out", stderr);
+            Assert.DoesNotContain("NOT the person's real library", stderr);
             Assert.Contains(RealLibrary.StateName + " ", stderr);
             Assert.Contains(RealLibrary.RecordingsName + " ", stderr);
             if (!OperatingSystem.IsWindows())
                 Assert.Contains("passwd entry for uid", stderr);
+        }
+
+        // ---- pass 3, F2: a link INSIDE a redirected root ---------------------------------------
+        //
+        // QA's measurement on pass 2: <scratch>/data/AgentEyes/logs linked to the owner's real logs folder,
+        // the redirect ACCEPTED, the banner said the real library was kept out, and the process opened the
+        // owner's live log five times. Only the path TO each root was resolved. These pin the walk under it.
+
+        [Fact]
+        public void LinkEscape_RelativeTargetFurtherDown_StaysInside()
+        {
+            string root = Abs("tmp", "s", "data", "AgentEyes");
+            Assert.Null(LibraryRedirect.LinkEscape(Path.Combine(root, "a", "logs"), Path.Combine("sub", "x"), root));
+        }
+
+        [Fact]
+        public void LinkEscape_AbsoluteTargetInsideTheRoot_StaysInside()
+        {
+            string root = Abs("tmp", "s", "data", "AgentEyes");
+            Assert.Null(LibraryRedirect.LinkEscape(Path.Combine(root, "logs"), Path.Combine(root, "elsewhere", "logs"), root));
+        }
+
+        [Fact]
+        public void LinkEscape_TargetIsTheRootItself_StaysInside()
+        {
+            string root = Abs("tmp", "s", "data", "AgentEyes");
+            Assert.Null(LibraryRedirect.LinkEscape(Path.Combine(root, "a", "self"), root, root));
+        }
+
+        [Fact]
+        public void LinkEscape_AbsoluteTargetThroughTheRootAsWritten_StaysInside()
+        {
+            // macOS: the walk runs on the RESOLVED root (/private/var/...), and a link written through the
+            // person's spelling of it (/var/...) is still inside. (Code review, pass 3.)
+            string resolved = Abs("private", "var", "s", "AgentEyes");
+            string written = Abs("var", "s", "AgentEyes");
+
+            Assert.Null(LibraryRedirect.LinkEscape(Path.Combine(resolved, "abs"), Path.Combine(written, "logs-real"), resolved, written));
+            Assert.NotNull(LibraryRedirect.LinkEscape(Path.Combine(resolved, "abs"), Path.Combine(written, "logs-real"), resolved));
+        }
+
+        [Fact]
+        public void LinkEscape_AbsoluteTargetOutsideTheRoot_EscapesNamingTheLinkAndWhereItLeads()
+        {
+            // QA's exact shape: <root>/logs -> the account's real logs folder.
+            string root = Abs("tmp", "s", "data", "AgentEyes");
+            string link = Path.Combine(root, "logs");
+            string real = Abs("home", "me", ".local", "share", "AgentEyes", "logs");
+
+            string? why = LibraryRedirect.LinkEscape(link, real, root, root);
+
+            Assert.NotNull(why);
+            Assert.Contains(link, why);
+            Assert.Contains("leads outside " + root, why);
+            Assert.Contains("(to " + real + ")", why);
+        }
+
+        [Fact]
+        public void LinkEscape_SiblingFolderSharingTheRootsNameAsAPrefix_Escapes()
+        {
+            // "/tmp/s/data/AgentEyes-other" starts with "/tmp/s/data/AgentEyes" as a string but is not inside it.
+            string root = Abs("tmp", "s", "data", "AgentEyes");
+            Assert.NotNull(LibraryRedirect.LinkEscape(Path.Combine(root, "x"), root + "-other", root));
+        }
+
+        [Fact]
+        public void LinkEscape_DotDotInTheTarget_EscapesEvenWhenItLooksInsideAsWritten()
+        {
+            // "sub/../x" is <root>/x as written; if sub is itself a link to the root, the kernel reads it as
+            // <root>/../x. The written form is only trustworthy without "..".
+            string root = Abs("tmp", "s", "data", "AgentEyes");
+            string target = Path.Combine("sub", "..", "x");
+
+            string? why = LibraryRedirect.LinkEscape(Path.Combine(root, "a"), target, root);
+
+            Assert.NotNull(why);
+            Assert.Contains("contains '..'", why);
+        }
+
+        [Fact]
+        public void Decide_ALinkInsideARedirectedRootEscapes_RefusedNamingTheVariableAndTheLink()
+        {
+            string data = Abs("tmp", "s", "data");
+            string videos = Abs("tmp", "s", "videos");
+            string stateRoot = Path.Combine(data, "AgentEyes");
+            string why = $"{Path.Combine(stateRoot, "logs")} is a link to '/elsewhere', which leads outside {stateRoot} (to /elsewhere).";
+            var asked = new List<string>();
+
+            var d = LibraryRedirect.Decide(data, videos,
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable },
+                Array.Empty<RealLibrary.Root>(), false, null,
+                usableFolder: f => { asked.Add(f); return null; },
+                escapingLink: (f, _) => f == stateRoot ? why : null);
+
+            Assert.True(d.Refused, "a redirected root with a link out of it was accepted");
+            Assert.StartsWith($"{LibraryRedirect.DataVariable} puts the redirected state root at {stateRoot}, and {why}", d.Refusal);
+            Assert.Contains("Fix: remove the link", d.Refusal);
+            // The write probe stays LAST (pass 2, verified by QA): a refused link means no probe was written.
+            Assert.Empty(asked);
+        }
+
+        [Fact]
+        public void Decide_LinkCheck_IsAskedAboutBothRootsResolvedAndAsWritten()
+        {
+            string data = Abs("tmp", "s", "data");
+            string videos = Abs("tmp", "s", "videos");
+            string stateRoot = Path.Combine(data, "AgentEyes");
+            string recRoot = Path.Combine(videos, "AgentEyes");
+            string stateResolved = Abs("private", "tmp", "s", "data", "AgentEyes");
+            var asked = new List<(string, string)>();
+
+            var d = LibraryRedirect.Decide(data, videos,
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable },
+                Array.Empty<RealLibrary.Root>(), false, p => p == stateRoot ? stateResolved : p,
+                escapingLink: (f, w) => { asked.Add((f, w)); return null; });
+
+            Assert.True(d.Redirect);
+            Assert.Equal(new[] { (stateResolved, stateRoot), (recRoot, recRoot) }, asked);
+        }
+
+        [Fact]
+        public void Decide_LinkCheck_RunsOnlyAfterEveryOverlapRule()
+        {
+            // A redirect onto the real library is refused by the overlap rule; the walk never lists it.
+            var asked = new List<string>();
+            var d = LibraryRedirect.Decide(Abs("tmp", "s", "data"), RealVideos,
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable },
+                new[] { new RealLibrary.Root(RealLibrary.RecordingsName, RealVideos, "given") }, false, null,
+                escapingLink: (f, _) => { asked.Add(f); return null; });
+
+            Assert.True(d.Refused);
+            Assert.Contains("the REAL recordings root", d.Refusal);
+            Assert.Empty(asked);
+        }
+
+        [UnixOnlyFact]
+        public void FirstEscapingLink_QasShapeOnDisk_LogsLinkedOutOfTheRoot_Reported()
+        {
+            string t = Path.Combine(Scratch, "f2-walk");
+            string root = Path.Combine(t, "data", "AgentEyes");
+            string outside = Path.Combine(t, "stand-in-real", "AgentEyes", "logs");
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(outside);
+            Directory.CreateSymbolicLink(Path.Combine(root, "logs"), outside);
+
+            string? why = LibraryRedirect.FirstEscapingLink(root, root);
+
+            Assert.NotNull(why);
+            Assert.Contains(Path.Combine(root, "logs") + " is a link to '" + outside + "'", why);
+        }
+
+        [UnixOnlyFact]
+        public void FirstEscapingLink_DeepHiddenFileLinkedOut_Reported()
+        {
+            // Deep, and a dot-file: .NET skips Hidden entries by default, and on Unix a dot-file IS Hidden.
+            string t = Path.Combine(Scratch, "f2-deep");
+            string root = Path.Combine(t, "videos", "AgentEyes");
+            string deep = Path.Combine(root, "2026", "11", "rec");
+            Directory.CreateDirectory(deep);
+            File.WriteAllText(Path.Combine(t, "outside.txt"), "x");
+            File.CreateSymbolicLink(Path.Combine(deep, ".manifest.json"), Path.Combine(t, "outside.txt"));
+
+            string? why = LibraryRedirect.FirstEscapingLink(root, root);
+
+            Assert.NotNull(why);
+            Assert.Contains(Path.Combine(deep, ".manifest.json"), why);
+        }
+
+        [UnixOnlyFact]
+        public void FirstEscapingLink_LinksThatStayInside_NoneReported()
+        {
+            string t = Path.Combine(Scratch, "f2-inside");
+            string root = Path.Combine(t, "data", "AgentEyes");
+            Directory.CreateDirectory(Path.Combine(root, "logs-real"));
+            Directory.CreateSymbolicLink(Path.Combine(root, "logs"), "logs-real");                       // relative
+            Directory.CreateSymbolicLink(Path.Combine(root, "abs"), Path.Combine(root, "logs-real"));    // absolute
+            Directory.CreateSymbolicLink(Path.Combine(root, "logs-real", "top"), root);                  // the root itself
+
+            Assert.Null(LibraryRedirect.FirstEscapingLink(root, root));
+        }
+
+        [UnixOnlyFact]
+        public void FirstEscapingLink_RootReachedThroughAnAlias_AbsoluteLinksThroughTheAliasStayInside()
+        {
+            // On disk, the macOS shape on any Unix: <t>/alias -> <t>/real; the walk runs on the RESOLVED root
+            // <t>/real/AgentEyes, and the link inside is written through the alias.
+            string t = Path.Combine(Scratch, "f2-alias");
+            string real = Path.Combine(t, "real", "AgentEyes");
+            Directory.CreateDirectory(Path.Combine(real, "logs-real"));
+            Directory.CreateSymbolicLink(Path.Combine(t, "alias"), Path.Combine(t, "real"));
+            string written = Path.Combine(t, "alias", "AgentEyes");
+            Directory.CreateSymbolicLink(Path.Combine(real, "logs"), Path.Combine(written, "logs-real"));
+
+            Assert.Null(LibraryRedirect.FirstEscapingLink(real, written));
+            Assert.NotNull(LibraryRedirect.FirstEscapingLink(real, real));   // the alias is what makes it inside
+        }
+
+        [UnixOnlyFact]
+        public void FirstEscapingLink_FolderIsMissing_NothingToCheck()
+        {
+            string missing = Path.Combine(Scratch, "f2-missing", "AgentEyes");
+            Assert.Null(LibraryRedirect.FirstEscapingLink(missing, missing));
+        }
+
+        [UnixOnlyFact]
+        public void RealProcess_LinkInsideTheScratchStateRootLeadsOut_RefusedWithExit5AndTheTargetUntouched()
+        {
+            // QA's F2 attack on a REAL child, against a STAND-IN for the real logs folder (never the owner's):
+            // <scratch>/data/AgentEyes/logs -> <scratch>/stand-in-real/logs, in a root that carries the scratch
+            // marker - so it is the LINK WALK that must refuse it, not the library check. At pass 2 the child was
+            // accepted and wrote its log THROUGH the link; a mutation that drops the walk makes this test fail.
+            string t = Path.Combine(Scratch, "f2-real");
+            string data = Made(Path.Combine(t, "data"));
+            string videos = Made(Path.Combine(t, "videos"));
+            string standIn = Made(Path.Combine(t, "stand-in-real", "logs"));
+            Marked(Path.Combine(data, "AgentEyes"));
+            string link = Path.Combine(data, "AgentEyes", "logs");
+            Directory.CreateSymbolicLink(link, standIn);
+
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+
+            Assert.True(code == LibraryRedirect.RefusedExitCode,
+                $"a link out of the scratch state root was accepted (exit {code}): {stderr}");
+            Assert.Contains(LibraryRedirect.DataVariable + " puts the redirected state root at", stderr);
+            // The walk starts at the RESOLVED root, so the link is named by its resolved path (on macOS the
+            // temp folder is under /var, a link to /private/var).
+            string linkResolved = Path.Combine(LibraryRedirect.ResolveLinks(Path.Combine(data, "AgentEyes")), "logs");
+            Assert.Contains(linkResolved + " is a link to '" + standIn + "'", stderr);
+            Assert.Empty(Directory.GetFileSystemEntries(standIn));
+        }
+
+        [UnixOnlyFact]
+        public void RealProcess_LegacyQaRecordLinkBesideAFreshScratchRoot_NeverAdopted()
+        {
+            // StorageMigration renames <parent>/qa-record to <parent>/AgentEyes when AgentEyes is absent. A
+            // redirected start writes the scratch marker - creating <parent>/AgentEyes - BEFORE the migration
+            // runs, so a qa-record link there (here to a stand-in) is never adopted and never written through.
+            string t = Path.Combine(Scratch, "legacy-real");
+            string data = Made(Path.Combine(t, "data"));
+            string videos = Made(Path.Combine(t, "videos"));
+            string standIn = Made(Path.Combine(t, "stand-in-real"));
+            string legacy = Path.Combine(data, "qa-record");
+            Directory.CreateSymbolicLink(legacy, standIn);
+
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+
+            Assert.True(code == 0, $"exit {code}: {stderr}");
+            Assert.NotNull(new DirectoryInfo(legacy).LinkTarget);                       // still the link, not renamed
+            Assert.Null(new DirectoryInfo(Path.Combine(data, "AgentEyes")).LinkTarget); // a real folder
+            Assert.True(File.Exists(Path.Combine(data, "AgentEyes", LibraryRedirect.ScratchMarker)));
+            Assert.Empty(Directory.GetFileSystemEntries(standIn));
+        }
+
+        // ---- pass 3, F1 rule 2: a library recognised by its CONTENT ------------------------------
+        //
+        // The Lead's ruling: write a marker on first redirected use, refuse an existing, NON-EMPTY AgentEyes folder
+        // without it. A relocated real library has content and no marker, wherever it lives.
+
+        [Fact]
+        public void UnmarkedLibraryProblem_MissingOrEmpty_NothingToRefuse()
+        {
+            string t = Path.Combine(Scratch, "r2-empty");
+            Assert.Null(LibraryRedirect.UnmarkedLibraryProblem(Path.Combine(t, "AgentEyes")));
+            Directory.CreateDirectory(Path.Combine(t, "AgentEyes"));
+            Assert.Null(LibraryRedirect.UnmarkedLibraryProblem(Path.Combine(t, "AgentEyes")));
+        }
+
+        [Fact]
+        public void UnmarkedLibraryProblem_ContentWithoutTheMarker_RefusedNamingAnEntry()
+        {
+            string root = Path.Combine(Scratch, "r2-content", "AgentEyes");
+            Directory.CreateDirectory(Path.Combine(root, "logs"));
+
+            string? why = LibraryRedirect.UnmarkedLibraryProblem(root);
+
+            Assert.NotNull(why);
+            Assert.Contains("already holds an AgentEyes library that was not created as a scratch library", why);
+            Assert.Contains("'logs'", why);
+        }
+
+        [Fact]
+        public void UnmarkedLibraryProblem_OnlyAHiddenFile_StillContent()
+        {
+            string root = Path.Combine(Scratch, "r2-hidden", "AgentEyes");
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, ".devthrottle-credential"), "x");
+
+            Assert.NotNull(LibraryRedirect.UnmarkedLibraryProblem(root));
+        }
+
+        [Fact]
+        public void UnmarkedLibraryProblem_ContentWithTheMarker_Allowed()
+        {
+            string root = Path.Combine(Scratch, "r2-marked", "AgentEyes");
+            Directory.CreateDirectory(Path.Combine(root, "logs"));
+            File.WriteAllText(Path.Combine(root, LibraryRedirect.ScratchMarker), "");
+
+            Assert.Null(LibraryRedirect.UnmarkedLibraryProblem(root));
+        }
+
+        [Fact]
+        public void WriteScratchMarker_CreatesTheRootAndTheMarker_AndLeavesAnExistingOneAlone()
+        {
+            string root = Path.Combine(Scratch, "r2-write", "AgentEyes");
+            LibraryRedirect.WriteScratchMarker(root);
+            string marker = Path.Combine(root, LibraryRedirect.ScratchMarker);
+            Assert.True(File.Exists(marker));
+            File.WriteAllText(marker, "kept");
+
+            LibraryRedirect.WriteScratchMarker(root);
+
+            Assert.Equal("kept", File.ReadAllText(marker));
+        }
+
+        [Fact]
+        public void Decide_AnUnmarkedLibrary_RefusedWithBothWaysToProceed_AndNeitherWalkNorProbeAsked()
+        {
+            string data = Abs("tmp", "s", "data");
+            string videos = Abs("tmp", "s", "videos");
+            string stateRoot = Path.Combine(data, "AgentEyes");
+            var walked = new List<string>();
+            var probed = new List<string>();
+
+            var d = LibraryRedirect.Decide(data, videos,
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable },
+                Array.Empty<RealLibrary.Root>(), false, null,
+                usableFolder: f => { probed.Add(f); return null; },
+                escapingLink: (f, _) => { walked.Add(f); return null; },
+                unmarkedLibrary: f => f == stateRoot ? "which already holds an AgentEyes library ..." : null);
+
+            Assert.True(d.Refused);
+            Assert.StartsWith($"{LibraryRedirect.DataVariable} puts the redirected state root at {stateRoot}, which already holds", d.Refusal);
+            Assert.Contains("is EMPTY or absent", d.Refusal);
+            Assert.Contains($"touch '{Path.Combine(stateRoot, LibraryRedirect.ScratchMarker)}'", d.Refusal);
+            Assert.Empty(walked);
+            Assert.Empty(probed);
+        }
+
+        [Fact]
+        public void Decide_LibraryCheck_RunsOnlyAfterEveryOverlapRule()
+        {
+            var asked = new List<string>();
+            var d = LibraryRedirect.Decide(Abs("tmp", "s", "data"), RealVideos,
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable },
+                new[] { new RealLibrary.Root(RealLibrary.RecordingsName, RealVideos, "given") }, false, null,
+                unmarkedLibrary: f => { asked.Add(f); return null; });
+
+            Assert.True(d.Refused);
+            Assert.Contains("the REAL recordings root", d.Refusal);
+            Assert.Empty(asked);
+        }
+
+        [Fact]
+        public void RealProcess_ScratchRootPopulatedByHand_RefusedTellingHowToProceed_ThenAcceptedOnceMarked()
+        {
+            // The cost of rule 2, measured (the Lead asked for it): a seat pre-populates its scratch root with a
+            // fixture. That is now REFUSED - a legitimate pre-populated scratch root is refused so that a real
+            // library never is - and the refusal names both ways on.
+            string t = Path.Combine(Scratch, "r2-fixture");
+            string data = Made(Path.Combine(t, "data"));
+            string videos = Made(Path.Combine(t, "videos"));
+            Directory.CreateDirectory(Path.Combine(data, "AgentEyes"));
+            File.WriteAllText(Path.Combine(data, "AgentEyes", "config.json"), "{\"Port\": 17999}");
+
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+
+            Assert.True(code == LibraryRedirect.RefusedExitCode, $"a hand-populated, unmarked scratch root was accepted (exit {code}): {stderr}");
+            Assert.Contains("already holds an AgentEyes library that was not created as a scratch library", stderr);
+            Assert.Contains("'config.json'", stderr);
+            Assert.Contains("is EMPTY or absent", stderr);
+            Assert.Contains("touch '", stderr);
+            Assert.False(Directory.Exists(Path.Combine(data, "AgentEyes", "logs")), "a refused start logged into the folder");
+
+            File.WriteAllText(Path.Combine(data, "AgentEyes", LibraryRedirect.ScratchMarker), "");
+            var (code2, _, stderr2) = RunAgentEyes(data, videos, "--help");
+            Assert.True(code2 == 0, $"the marked scratch root was still refused (exit {code2}): {stderr2}");
+        }
+
+        [Fact]
+        public void RealProcess_RelocatedLibraryUnderASpoofedEnvironment_RefusedByItsContent()
+        {
+            // QA's F1 "za" shape (pass-2 report 1.4), simulated in scratch: the person's library lives at
+            // <scratch>/reloc/xdg/AgentEyes (holding a file), the child's own environment names a DIFFERENT folder
+            // (XDG_DATA_HOME spoofed), and the passwd entry knows neither. No path rule can refuse it; its content
+            // must. At f9aba6a this was exit 0 and the child's log landed IN that library.
+            string t = Path.Combine(Scratch, "r2-reloc");
+            string reloc = Made(Path.Combine(t, "reloc", "xdg"));
+            string library = Made(Path.Combine(reloc, "AgentEyes"));
+            File.WriteAllText(Path.Combine(library, "MARKER"), "person-library");
+            string spoof = Made(Path.Combine(t, "spoof"));
+            string videos = Made(Path.Combine(t, "v"));
+
+            var (code, _, stderr) = RunAgentEyes(reloc, videos, "--help",
+                tweak: psi => psi.Environment["XDG_DATA_HOME"] = spoof);
+
+            Assert.True(code == LibraryRedirect.RefusedExitCode,
+                $"a redirect onto a library relocated where no path rule looks was accepted (exit {code}): {stderr}");
+            Assert.Contains("already holds an AgentEyes library", stderr);
+            Assert.Equal(new[] { "MARKER" }, Directory.GetFileSystemEntries(library).Select(Path.GetFileName).ToArray());
+        }
+
+        [Fact]
+        public void RealProcess_FullRedirect_MarksBothRootsAsScratch()
+        {
+            string data = Made(Path.Combine(Scratch, "r2-marks", "data"));
+            string videos = Made(Path.Combine(Scratch, "r2-marks", "videos"));
+
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+
+            Assert.True(code == 0, $"exit {code}: {stderr}");
+            Assert.True(File.Exists(Path.Combine(data, "AgentEyes", LibraryRedirect.ScratchMarker)));
+            Assert.True(File.Exists(Path.Combine(videos, "AgentEyes", LibraryRedirect.ScratchMarker)));
+        }
+
+        // ---- pass 3, F1 rule 1 (cheap half): ask the running service ------------------------------
+
+        [Fact]
+        public void FromServiceStatus_ARootReportingService_BothParentsAdded()
+        {
+            string data = Abs("data", "xdg", "AgentEyes");
+            string rec = Abs("media", "v", "AgentEyes");
+            string json = JsonSerializer.Serialize(new { DataRoot = data, RecordingsRoot = rec, LibraryRedirected = false });
+
+            var (roots, note) = RealLibrary.FromServiceStatus(json, 7882);
+
+            Assert.Equal(new[] { (RealLibrary.StateName, Abs("data", "xdg")), (RealLibrary.RecordingsName, Abs("media", "v")) },
+                roots.Select(r => (r.Name, r.Parent)).ToArray());
+            Assert.All(roots, r => Assert.Contains("the AgentEyes service answering on 127.0.0.1:7882", r.DerivedFrom));
+            Assert.Contains("named its library", note);
+        }
+
+        [Fact]
+        public void FromServiceStatus_AServiceOlderThan161_AddsNothingAndSaysSo()
+        {
+            var (roots, note) = RealLibrary.FromServiceStatus("{\"Recording\": false}", 7882);
+
+            Assert.Empty(roots);
+            Assert.Contains("names no library on /status (it predates issue #161)", note);
+        }
+
+        [Theory]
+        [InlineData("relative/AgentEyes")]
+        [InlineData("/data/xdg/NotAgentEyes")]
+        public void FromServiceStatus_ARootItCannotCompare_Throws(string data)
+        {
+            string json = JsonSerializer.Serialize(new { DataRoot = data, RecordingsRoot = Abs("v", "AgentEyes") });
+            Assert.Throws<InvalidOperationException>(() => RealLibrary.FromServiceStatus(json, 7882));
+        }
+
+        [Fact]
+        public void AskRunningService_AServiceAnswering_ItsRootsComeBack()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            string body = JsonSerializer.Serialize(new { DataRoot = Abs("data", "x", "AgentEyes"), RecordingsRoot = Abs("v", "AgentEyes") });
+            var serve = System.Threading.Tasks.Task.Run(() =>
+            {
+                using var client = listener.AcceptTcpClient();
+                using var stream = client.GetStream();
+                var buf = new byte[4096];
+                stream.Read(buf, 0, buf.Length);
+                byte[] payload = System.Text.Encoding.ASCII.GetBytes(body);
+                byte[] head = System.Text.Encoding.ASCII.GetBytes(
+                    $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                stream.Write(head, 0, head.Length);
+                stream.Write(payload, 0, payload.Length);
+            });
+            try
+            {
+                var (roots, _) = RealLibrary.AskRunningService(port);
+                Assert.Contains(roots, r => r.Name == RealLibrary.StateName && r.Parent == Abs("data", "x"));
+            }
+            finally
+            {
+                serve.Wait(5000);
+                listener.Stop();
+            }
+        }
+
+        [Fact]
+        public void AskRunningService_NothingListening_Throws()
+        {
+            int port = FreePort();
+            Assert.ThrowsAny<System.Net.Http.HttpRequestException>(() => RealLibrary.AskRunningService(port));
+        }
+
+        [DefaultPortFreeFact]
+        public void RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused()
+        {
+            // The WIRING of rule 1: a REAL child asks whatever answers on the default port, and a library that
+            // service names - relocated where neither the passwd entry nor the child's environment looks - is in
+            // the union. A stand-in service plays the person's (it can only run where the default port is free:
+            // CI, or an isolated network namespace; elsewhere this is reported SKIPPED). The redirect points at the
+            // relocated parent with no AgentEyes folder yet, so rule 2 has nothing to see: only the service's roots
+            // can refuse it. Dropping them from the union makes this test fail.
+            string t = Path.Combine(Scratch, "r1-service");
+            string reloc = Made(Path.Combine(t, "reloc"));
+            string videos = Made(Path.Combine(t, "v"));
+            string body = JsonSerializer.Serialize(new
+            {
+                DataRoot = Path.Combine(reloc, "AgentEyes"),
+                RecordingsRoot = Path.Combine(t, "relocated-videos", "AgentEyes"),
+                LibraryRedirected = false,
+            });
+            var listener = new TcpListener(IPAddress.Loopback, LocalAppConfig.DefaultPort);
+            listener.Start();
+            var serving = System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    while (true)
+                    {
+                        using var client = listener.AcceptTcpClient();
+                        using var stream = client.GetStream();
+                        var buf = new byte[4096];
+                        stream.Read(buf, 0, buf.Length);
+                        byte[] payload = System.Text.Encoding.ASCII.GetBytes(body);
+                        byte[] head = System.Text.Encoding.ASCII.GetBytes(
+                            $"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                        stream.Write(head, 0, head.Length);
+                        stream.Write(payload, 0, payload.Length);
+                    }
+                }
+                catch (SocketException) { }          // the listener was stopped: the test is over
+                catch (ObjectDisposedException) { }
+            });
+            try
+            {
+                var (code, _, stderr) = RunAgentEyes(reloc, videos, "--help");
+
+                Assert.True(code == LibraryRedirect.RefusedExitCode,
+                    $"a redirect onto the library the running service names was accepted (exit {code}): {stderr}");
+                Assert.Contains("overlaps the REAL state root " + Path.Combine(reloc, "AgentEyes"), stderr);
+                Assert.Contains("(/status DataRoot)", stderr);
+                Assert.False(Directory.Exists(Path.Combine(reloc, "AgentEyes")), "a refused start created the state root");
+            }
+            finally
+            {
+                listener.Stop();
+                serving.Wait(5000);
+            }
+        }
+
+        /// <summary>A folder created and marked as a scratch library, so a test that pre-populates it is accepted
+        /// by rule 2 and reaches the rule it is about.</summary>
+        private static string Marked(string root)
+        {
+            Directory.CreateDirectory(root);
+            File.WriteAllText(Path.Combine(root, LibraryRedirect.ScratchMarker), "");
+            return root;
+        }
+
+        // ---- pass 3, M-A: the ENVIRONMENT half of the union ------------------------------------
+        //
+        // The guard protects the passwd-derived roots UNION the ones this process's environment names. QA
+        // dropped the environment half and all 69 redirect tests stayed green. That half is what protects
+        // a person whose library really IS where their environment says (a non-default XDG_DATA_HOME).
+
+        [Fact]
+        public void Derive_EnvironmentNamesFoldersTheAccountDoesNot_BothAreProtected()
+        {
+            string relocatedData = Abs("data", "me", "share");
+            string relocatedVideos = Abs("media", "me", "vids");
+
+            var roots = RealLibrary.Derive(AccountHome, 1000, isMac: false, NoFile, relocatedData, relocatedVideos);
+
+            Assert.Contains(roots, r => r.Name == RealLibrary.StateName && r.Parent == relocatedData
+                                        && r.DerivedFrom == RealLibrary.ProcessEnvironmentSource);
+            Assert.Contains(roots, r => r.Name == RealLibrary.RecordingsName && r.Parent == relocatedVideos
+                                        && r.DerivedFrom == RealLibrary.ProcessEnvironmentSource);
+            Assert.Equal(4, roots.Count);
+        }
+
+        [Fact]
+        public void Derive_NoAccount_TheEnvironmentHalfAloneIsProtected()
+        {
+            // Windows: no passwd entry; the environment's (known-folder) answer is the whole protection.
+            string local = Abs("Users", "me", "AppData", "Local");
+            string videos = Abs("Users", "me", "Videos");
+
+            var roots = RealLibrary.Derive(null, 0, isMac: false, NoFile, local, videos);
+
+            Assert.Equal(new[] { (RealLibrary.StateName, local), (RealLibrary.RecordingsName, videos) },
+                roots.Select(r => (r.Name, r.Parent)).ToArray());
+        }
+
+        [LinuxOnlyRedirectFact]
+        public void RealProcess_RedirectOntoTheLibraryTheEnvironmentRelocated_RefusedWithExit5()
+        {
+            // A person whose XDG_DATA_HOME really moves their library: the child's own environment names
+            // <scratch>/relocated-share as local app data, and the passwd entry knows nothing of it. A redirect
+            // of the state root INTO that folder must be refused by the environment half of the union - and
+            // by nothing else, so dropping that half fails exactly this test. Everything is under scratch: on
+            // a regression the child redirects into scratch and touches nothing real.
+            string t = Path.Combine(Scratch, "m-a");
+            string relocated = Made(Path.Combine(t, "relocated-share"));
+            string videos = Made(Path.Combine(t, "videos"));
+
+            var (code, _, stderr) = RunAgentEyes(relocated, videos, "--help",
+                tweak: psi => psi.Environment["XDG_DATA_HOME"] = relocated);
+
+            Assert.True(code == LibraryRedirect.RefusedExitCode,
+                $"a redirect onto the library XDG_DATA_HOME relocated to {relocated} was accepted (exit {code}): {stderr}");
+            Assert.Contains("overlaps the REAL state root " + Path.Combine(relocated, "AgentEyes"), stderr);
+            Assert.Contains(RealLibrary.ProcessEnvironmentSource, stderr);
+            Assert.False(Directory.Exists(Path.Combine(relocated, "AgentEyes")), "a refused start created the state root");
         }
 
         /// <summary>The folder, created: a redirect is refused unless both values are existing, writable
@@ -845,6 +1458,40 @@ namespace AgentEyes.Tests.Shared
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 Skip = "needs an unprivileged symbolic link (macOS / Linux); the pure resolver test covers Windows";
+        }
+    }
+
+    /// <summary>A fact about how .NET on LINUX names local app data from XDG_DATA_HOME. Elsewhere that variable
+    /// moves nothing (macOS and Windows ask the platform), so it is reported SKIPPED there - never silently
+    /// passed. The pure Derive tests cover the union on every platform.</summary>
+    public sealed class LinuxOnlyRedirectFactAttribute : FactAttribute
+    {
+        public LinuxOnlyRedirectFactAttribute()
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                Skip = "XDG_DATA_HOME relocates local app data only on Linux; the pure Derive tests cover the rule everywhere";
+        }
+    }
+
+    /// <summary>A fact that must play the person's service on the DEFAULT port (issue #161 pass 3, rule 1). It runs
+    /// only where that port is free - CI, or an isolated network namespace - and is reported SKIPPED where something
+    /// already holds it (on a person's machine, their real service), never silently passed. It never touches
+    /// whatever holds the port: it only tries to bind it, and releases it at once.</summary>
+    public sealed class DefaultPortFreeFactAttribute : FactAttribute
+    {
+        public DefaultPortFreeFactAttribute()
+        {
+            try
+            {
+                var probe = new TcpListener(IPAddress.Loopback, LocalAppConfig.DefaultPort);
+                probe.Start();
+                probe.Stop();
+            }
+            catch (SocketException)
+            {
+                Skip = $"127.0.0.1:{LocalAppConfig.DefaultPort} is in use (a real AgentEyes service?); this test plays the "
+                       + "service there, so it runs only where the port is free (CI, or an isolated network namespace)";
+            }
         }
     }
 

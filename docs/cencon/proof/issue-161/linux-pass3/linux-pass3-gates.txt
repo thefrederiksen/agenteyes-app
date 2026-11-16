@@ -1,0 +1,35 @@
+# Gates on the FINAL pass-3 tree (merge of origin/main 277a9bc + pass 3, incl. the Lead's rules 1/2), devlinux, under lldeny (control: linux-pass3-landlock-control.txt), 2026-11-16T14:26:25-05:00
+## dotnet build tests/AgentEyes.Tests.Linux -c Release
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+## dotnet build tests/AgentEyes.Tests.DesktopApp -c Release
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+## dotnet build tests/AgentEyes.Tests.Mac -c Release
+Build succeeded.
+    8 Warning(s)
+    0 Error(s)
+## dotnet test tests/AgentEyes.Tests.Linux -c Release
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [183 ms]
+  Error Message:
+   System.InvalidOperationException : sg adm did not start the subject: first line ''
+  Stack Trace:
+Failed!  - Failed:     1, Passed:   530, Skipped:     3, Total:   534, Duration: 5 s - AgentEyes.Tests.Linux.dll (net8.0)
+## dotnet test tests/AgentEyes.Tests.DesktopApp -c Release
+Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 437 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+## AGENTEYES_FFMPEG_TESTS=1 dotnet test tests/AgentEyes.Tests.Linux -c Release (opt-in)
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [185 ms]
+Failed!  - Failed:     1, Passed:   531, Skipped:     2, Total:   534, Duration: 5 s - AgentEyes.Tests.Linux.dll (net8.0)
+## skipped here and why: dotnet test --list of skips
+  Skipped AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [1 ms]
+  Skipped AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [1 ms]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+## outside Landlock: the #156 sg test alone
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: < 1 ms - AgentEyes.Tests.Linux.dll (net8.0)
+## in a --network none container (7882 free; no owner library mounted): the service-wiring test
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: < 1 ms - AgentEyes.Tests.Linux.dll (net8.0)
+## RE-RUN after the last code edit (LinkEscape loop variable string -> string?, a nullable warning the Mac build showed): Mac build 0 warnings 0 errors (incremental); Linux suite under lldeny:
+Failed!  - Failed:     1, Passed:   530, Skipped:     3, Total:   534 - AgentEyes.Tests.Linux.dll (net8.0)
+## The 1 failure is #156's sg test ('sg adm did not start the subject' - sg cannot gain a group under Landlock's no_new_privs); identical on the merge-only tree 57806ae; passes outside Landlock (above).

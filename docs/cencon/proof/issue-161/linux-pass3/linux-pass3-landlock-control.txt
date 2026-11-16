@@ -1,0 +1,26 @@
+# Landlock control, 2026-11-16T14:00:18-05:00
+ls <home>/.local/share/AgentEyes -> exit 2 : lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls: cannot open directory '<home>/.local/share/AgentEyes': Permission denied
+ls <home>/Videos/AgentEyes -> exit 2 : lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls: cannot open directory '<home>/Videos/AgentEyes': Permission denied
+ls <home>/.local/share/AgentEyes/logs -> exit 2 : lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls: cannot open directory '<home>/.local/share/AgentEyes/logs': Permission denied
+touch <home>/.local/share/AgentEyes/logs/.p3-probe -> exit 1 : lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+touch: cannot touch '<home>/.local/share/AgentEyes/logs/.p3-probe': Permission denied
+touch <home>/Videos/AgentEyes/.p3-probe -> exit 1 : lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+touch: cannot touch '<home>/Videos/AgentEyes/.p3-probe': Permission denied
+touch <scratchpad>/ll/ok -> exit 0 : lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls: cannot access '<home>/.local/share/AgentEyes/logs/.p3-probe': No such file or directory
+ls: cannot access '<home>/Videos/AgentEyes/.p3-probe': No such file or directory
