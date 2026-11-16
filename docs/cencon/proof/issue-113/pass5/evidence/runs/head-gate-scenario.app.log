@@ -1,0 +1,198 @@
+13:41:58.992 [pid 12460] [INFO] [AppDataPaths] RedirectForThisProcess: localAppData=<evidence>\head-gate-scenario\LocalAppData videos=<evidence>\head-gate-scenario\Videos
+13:41:59.029 [pid 12460] [INFO] [HeadlessControlServer] Start: binding http://127.0.0.1:7990/
+13:41:59.032 [pid 12460] [INFO] [HeadlessControlServer] Start: listening on http://127.0.0.1:7990/
+13:41:59.467 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:41:59.567 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (924 bytes)
+13:41:59.577 [pid 12460] [INFO] [HeadlessControlServer] POST /record/start
+13:41:59.598 [pid 12460] [INFO] [HeadlessControlServer] StartFrom: mode=video screen=1 source=Mic mic=Microphone (2- Realtek(R) Audio) camera=(none) fps=30
+13:42:00.094 [pid 12460] [INFO] [RecordingService] StartVideo: framing=(none)
+13:42:00.095 [pid 12460] [INFO] [RecordingService] StartVideo: preview armed=False screenTap=False cameraTap=False
+13:42:00.096 [pid 12460] [INFO] [RecordingStartSequence] Run: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video steps=2
+13:42:00.096 [pid 12460] [INFO] [RecordingService] BeginSession: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:42:00.100 [pid 12460] [INFO] [RecordingWorkset] TryClaim: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video claimed by Capture/capture session#1
+13:42:00.101 [pid 12460] [INFO] [CaptureLock] TryAcquire: 2026-11-16_134200_video for capture session
+13:42:00.106 [pid 12460] [INFO] [CaptureLock] ReadOrCreateHostId: created <evidence>\head-gate-scenario\LocalAppData\AgentEyes\host-id
+13:42:00.126 [pid 12460] [INFO] [CaptureLock] TryAcquire: 2026-11-16_134200_video claimed by capture session of pid 12460 on host <laptop> (started 2026-11-16T18:42:00.1157367Z)
+13:42:00.128 [pid 12460] [INFO] [RecordingWorkset] Attach: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video#1 now carries CaptureLock
+13:42:00.129 [pid 12460] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_134200_video - pid 12460 on <laptop> (process started 2026-11-16T18:41:58.8229441Z)
+13:42:00.130 [pid 12460] [INFO] [CaptureSignal] CaptureStarted: epoch=1 - any repair pass in flight must yield
+13:42:00.131 [pid 12460] [INFO] [ManifestStore] Replace: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:42:00.161 [pid 12460] [INFO] [ManifestStore] Replace: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:42:00.161 [pid 12460] [INFO] [RecordingStartSequence] Run: starting video dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:42:00.602 [pid 12460] [INFO] [RecordingService] NoteCaptureWriter: video pid=16488 dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:42:00.603 [pid 12460] [INFO] [CaptureLock] NoteWriter: 2026-11-16_134200_video video pid 16488
+13:42:00.615 [pid 12460] [INFO] [FfmpegChildRegistry] Register: pid 16488 [capture video (2026-11-16_134200_video)] owner pid 12460 (capture writer)
+13:42:00.616 [pid 12460] [INFO] [CaptureLock] NoteWriter: 2026-11-16_134200_video video pid 16488 recorded (started 2026-11-16T18:42:00.1679890Z)
+13:42:00.616 [pid 12460] [INFO] [RecordingStartSequence] Run: starting mic level meter dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:42:01.319 [pid 12460] [INFO] [RecordingStartSequence] Run: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video started with no failures
+13:42:01.326 [pid 12460] [INFO] [RecordingService] StartWatchdog: watching <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+13:42:01.327 [pid 12460] [INFO] start video src=Mic dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video camera=(none)
+13:42:01.340 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:01.345 [pid 12460] [INFO] [HeadlessControlServer] POST /record/start: 200 answer written (1056 bytes)
+13:42:01.357 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:01.358 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:01.359 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1056 bytes)
+13:42:03.384 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:03.386 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:03.389 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1083 bytes)
+13:42:05.392 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:05.394 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:05.395 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1082 bytes)
+13:42:07.417 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:07.418 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:07.419 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1083 bytes)
+13:42:09.421 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:09.423 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:09.424 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1083 bytes)
+13:42:11.436 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:11.437 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:11.437 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1084 bytes)
+13:42:13.440 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:13.441 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:13.442 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1084 bytes)
+13:42:23.839 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:23.840 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:23.841 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+13:42:33.866 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:33.868 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:33.870 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+13:42:43.888 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:43.890 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:43.891 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+13:42:53.893 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:42:53.894 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:42:53.895 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1084 bytes)
+13:43:03.915 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:43:03.918 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:43:03.920 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+13:43:13.945 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:43:13.947 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:43:13.949 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1084 bytes)
+13:43:23.953 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:43:23.954 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:43:23.955 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+13:43:33.981 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:43:33.982 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:43:33.983 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+13:43:43.989 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:43:43.990 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:43:43.992 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1086 bytes)
+13:43:53.995 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:43:53.996 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:43:53.997 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+13:44:04.022 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:44:04.023 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:44:04.024 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1086 bytes)
+13:44:14.028 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:44:14.029 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:44:14.031 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1086 bytes)
+13:44:14.033 [pid 12460] [INFO] [HeadlessControlServer] POST /record/stop
+13:44:14.036 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=0
+13:44:14.036 [pid 12460] [INFO] [RecordingStop] Keep: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video mode=video
+13:44:14.037 [pid 12460] [INFO] [PostRecording] TrackWork: keep <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video (in flight=1)
+13:44:14.041 [pid 12460] [INFO] stop: begin (synchronous raw save only)
+13:44:14.041 [pid 12460] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+13:44:14.043 [pid 12460] [INFO] stop: saving video (flush raw + writers)
+13:44:14.044 [pid 12460] [INFO] [RecordingStopSequence] Run: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video steps=2
+13:44:14.274 [pid 12460] [INFO] [FfmpegRecorder] Stop: pipeline drained in 222ms (take 132831ms, media origin 1054ms) - full take captured
+13:44:14.982 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:15.007 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:15.008 [pid 12460] [INFO] [RecordingStopSequence] Run: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video completed with no failures
+13:44:15.019 [pid 12460] [INFO] [FfmpegChildRegistry] Unregister: pid 16488
+13:44:15.019 [pid 12460] [INFO] [CaptureLock] Release: 2026-11-16_134200_video released by pid 12460
+13:44:15.020 [pid 12460] [INFO] [RecordingWorkset] Release: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video - attached CaptureLock released
+13:44:15.020 [pid 12460] [INFO] [RecordingWorkset] Release: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video released by Capture/capture session#1
+13:44:15.021 [pid 12460] [INFO] stop: return dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video dur=133.9s deferredMux=True (HUD may close now)
+13:44:15.021 [pid 12460] [INFO] [RecordingStop] Keep: raw files saved, queuing post-processing for <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:15.022 [pid 12460] [INFO] [HeadlessControlServer] Stop: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video saved; post-processing running in the background
+13:44:15.023 [pid 12460] [INFO] [PostRecording] Run: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video hostedWork=True
+13:44:15.023 [pid 12460] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_134200_video (in flight=2)
+13:44:15.024 [pid 12460] [INFO] [RecordingWorkset] TryClaim: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video claimed by FullPipeline/post-recording#2
+13:44:15.025 [pid 12460] [INFO] [HeadlessControlServer] POST /record/stop: 200 answer written (320 bytes)
+13:44:15.029 [pid 12460] [INFO] [PostRecording] Execute: 2026-11-16_134200_video - capture claim: no capture holds it
+13:44:15.030 [pid 12460] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_134200_video (post-recording) - no owner record; nothing to clear
+13:44:15.035 [pid 12460] [INFO] [MuxLock] TryAcquire: 2026-11-16_134200_video (post-recording) - acquired by pid 12460
+13:44:15.036 [pid 12460] [INFO] [MuxCoordinator] Reconcile: 2026-11-16_134200_video
+13:44:15.038 [pid 12460] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_134200_video stage=mux by=AgentEyes.Tests pid 12460 on <laptop>
+13:44:15.039 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:15.043 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:15.044 [pid 12460] [INFO] [PostRecording] stage mux: start dir=2026-11-16_134200_video
+13:44:15.055 [pid 12460] [INFO] [MuxLock] TryAcquire: 2026-11-16_134200_video (finalize) - re-entered, depth 2
+13:44:15.056 [pid 12460] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_134200_video (finalize) - no capture holds it
+13:44:15.056 [pid 12460] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_134200_video (finalize) - no owner record; nothing to clear
+13:44:15.057 [pid 12460] [INFO] finalize: begin mux video src=mic dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:15.063 [pid 12460] [INFO] [MediaProbe] AudioChannels: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\raw.mp4
+13:44:15.206 [pid 12460] [INFO] [MediaProbe] AudioChannels: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\raw.mp4 -> 2
+13:44:15.208 [pid 12460] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\raw.mp4 intermediate=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\audio_processed.wav muxing=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\recording.mp4.muxing.tmp out=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\recording.mp4
+13:44:15.212 [pid 12460] [INFO] ffmpeg [process mic audio (audio)]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='C\:/ReposFred/agenteyes-evidence/issue-113-pass5/head-gate-scenario/LocalAppData/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\audio_processed.wav
+13:44:15.230 [pid 12460] [INFO] [KillOnCloseJob] Assign: pid 15324 ends when AgentEyes ends
+13:44:15.232 [pid 12460] [INFO] [FfmpegChildRegistry] Register: pid 15324 [process mic audio (audio)] owner pid 12460
+13:44:17.808 [pid 12460] [INFO] [FfmpegChildRegistry] Unregister: pid 15324
+13:44:17.808 [pid 12460] [INFO] ffmpeg [process mic audio (audio)] ok
+13:44:17.809 [pid 12460] [INFO] ffmpeg [process mic audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\raw.mp4 -i <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\recording.mp4.muxing.tmp
+13:44:17.822 [pid 12460] [INFO] [KillOnCloseJob] Assign: pid 15104 ends when AgentEyes ends
+13:44:17.823 [pid 12460] [INFO] [FfmpegChildRegistry] Register: pid 15104 [process mic audio] owner pid 12460
+13:44:21.349 [pid 12460] [INFO] [FfmpegChildRegistry] Unregister: pid 15104
+13:44:21.350 [pid 12460] [INFO] ffmpeg [process mic audio] ok
+13:44:21.351 [pid 12460] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\recording.mp4
+13:44:21.361 [pid 12460] [INFO] [AudioMix] MuxInTwoPasses: process mic audio removed the intermediate processed audio <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\audio_processed.wav
+13:44:21.481 [pid 12460] [INFO] [OriginalBackup] preserved raw.mp4 -> recording.original.mp4
+13:44:21.482 [pid 12460] [INFO] [OriginalBackup] Present: 2026-11-16_134200_video -> 1
+13:44:21.483 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:21.488 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:21.489 [pid 12460] [INFO] [RecordingService] PublishFinalized: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video dur=135.5s originals=1
+13:44:21.489 [pid 12460] [INFO] finalize: done dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:21.490 [pid 12460] [INFO] [PostRecording] stage mux: done dir=2026-11-16_134200_video in 6.4s
+13:44:21.492 [pid 12460] [INFO] [PostRecordingState] NoteDone: 2026-11-16_134200_video stage=mux
+13:44:21.492 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:21.502 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:21.503 [pid 12460] [INFO] [MuxLock] Release: 2026-11-16_134200_video - released by pid 12460
+13:44:21.516 [pid 12460] [INFO] [PostRecording] Execute: 2026-11-16_134200_video - no camera to compose
+13:44:21.518 [pid 12460] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_134200_video
+13:44:21.519 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:21.522 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:21.522 [pid 12460] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_134200_video attempt 1/3
+13:44:21.532 [pid 12460] [INFO] ffmpeg [poster thumbnail]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -ss 13.55 -i <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\thumb.jpg
+13:44:21.845 [pid 12460] [INFO] ffmpeg [poster thumbnail] ok
+13:44:21.845 [pid 12460] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_134200_video in 0.3s
+13:44:21.845 [pid 12460] [INFO] [PostRecordingState] NoteDone: 2026-11-16_134200_video stage=thumbnail
+13:44:21.846 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:21.849 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:21.861 [pid 12460] [INFO] [PostRecording] stage package: start dir=2026-11-16_134200_video
+13:44:21.862 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:21.865 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:21.866 [pid 12460] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_134200_video attempt 1/3
+13:44:21.869 [pid 12460] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_134200_video (package) - no capture holds it
+13:44:21.869 [pid 12460] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_134200_video (package) - no owner record; nothing to clear
+13:44:21.870 [pid 12460] [INFO] [MuxCoordinator] RunForPackage: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:21.876 [pid 12460] [INFO] [MuxCoordinator] RunForPackage: 2026-11-16_134200_video - no pending mux
+13:44:21.877 [pid 12460] [INFO] ffmpeg [extract audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\recording.mp4 -vn -ac 1 -ar 16000 -f wav <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\audio_16k.wav
+13:44:22.196 [pid 12460] [INFO] ffmpeg [extract audio] ok
+13:44:22.200 [pid 12460] [INFO] [Transcriber] TranscribeWavAsync: wavPath=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\audio_16k.wav
+13:44:22.202 [pid 12460] [INFO] [DevThrottleClient] TranscribeAsync: wavPath=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video\audio_16k.wav
+13:44:22.230 [pid 12460] [ERROR] [PostRecording] stage package FAILED: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:22.230 [pid 12460] [ERROR] AgentEyes.UsageException: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:44:22.230 [pid 12460] [ERROR]  ---> AgentEyes.DevThrottle.DevThrottleException: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.DevThrottle.DevThrottleAccount.RequireApiKey() in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\DevThrottle\DevThrottleAccount.cs:line 119
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.DevThrottle.DevThrottleClient.TranscribeAsync(String wavPath, CancellationToken ct) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\DevThrottle\DevThrottleClient.cs:line 283
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.Packaging.Transcriber.TranscribeWavAsync(String wavPath) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Packaging\Transcriber.cs:line 32
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 172
+13:44:22.230 [pid 12460] [ERROR]    --- End of inner exception stack trace ---
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 177
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.Package.Run(String path, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 46
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.PostRecording.<>c.<DefaultPackageStep>b__19_0(String d) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.PostRecording.RunCountingAttempt(String dir, Action`1 package) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 153
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.PostRecording.DefaultPackageStep(String dir) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+13:44:22.230 [pid 12460] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 518
+13:44:22.231 [pid 12460] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_134200_video stage=package error=Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:44:22.231 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video
+13:44:22.234 [pid 12460] [INFO] [ManifestStore] Update: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video written
+13:44:22.234 [pid 12460] [INFO] [PostRecording] Run: dir=<evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video done
+13:44:22.235 [pid 12460] [INFO] [RecordingWorkset] Release: <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video released by FullPipeline/post-recording#2
+13:44:22.238 [pid 12460] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_134200_video
+13:44:22.239 [pid 12460] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_134200_video (in flight=1)
+13:44:22.239 [pid 12460] [INFO] [PostRecording] TrackWork released: keep <evidence>\head-gate-scenario\Videos\AgentEyes\2026-11-16_134200_video (in flight=0)
+13:44:23.053 [pid 12460] [INFO] [HeadlessControlServer] GET /status
+13:44:23.057 [pid 12460] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-gate-scenario\Videos\AgentEyes, pending=1
+13:44:23.058 [pid 12460] [INFO] [HeadlessControlServer] GET /status: 200 answer written (929 bytes)
+13:44:43.078 [pid 12460] [INFO] [HeadlessControlServer] Dispose

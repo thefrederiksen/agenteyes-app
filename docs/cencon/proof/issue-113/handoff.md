@@ -1,5 +1,32 @@
 # Issue #113 - handoff to QA: the capture watchdog
 
+## PASS 5 (2026-11-16) - after the Review Gate rejected `ad21557`. READ THIS FIRST.
+
+Full report: `pass5/report.md`. Head `00c9df9`; `main` `d0d0a27` (#156) and `277a9bc` (#118) are
+merged in. What changed, and what QA should check:
+
+1. **D3 resolved** (`c7e2339`, the merge commit holds only the resolution): `ProcessId` on
+   `IScreenRecorder` (one definition, `FfmpegRecorder`'s); #113's liveness type renamed
+   `CaptureOutputLiveness` because #156's `CaptureLiveness` shadowed it. Check: the merge diff
+   against `d0d0a27` touches no #156 logic.
+2. **The gate's scenario now declines** - measured on a real Windows capture with its pre-#156
+   control (`pass5/report.md`, item 2). QA on macOS and Linux: re-run the gate's own scenario on a
+   real capture; expected the same decline, no rename, no `recording.mp4`, `/status` growing past 60 s.
+3. **The watchdog's fail-open catch is gone** (`9f45b33`, `00c9df9`). Check: `WatchdogFailOpenTests`
+   and the four mutations in the report.
+4. **The fragmented container started the video 0.7-1.0 s late on Windows** (0.067 s at 30 fps on a
+   synthetic source). Fixed with `+delay_moov` (`3debd3d`). **This changes the capture command line
+   on all three platforms**, so on macOS and Linux QA must re-run criteria 1, 2 and 5 (frozen and
+   killed captures, and the file they leave) and check `start_time` of both streams in raw.mp4 and
+   recording.mp4 (expected 0.000 and 0.000).
+5. **Windows recorded, stalled and killed** with this code for the first time; the rename on Windows
+   fails with a sharing violation, measured.
+6. Every file cited is decoded in full to exit 0 with a frame read from the last second.
+
+I believe this pass is finished. What it does not cover is listed in the report.
+
+---
+
 Branch `issue-113-capture-watchdog`, cut from `main` at `af0ddb1`. Developer seat on `devlinux`,
 2026-11-14. Platform exercised at runtime: **Linux only** (x11grab + PulseAudio). macOS and Windows
 are covered by the shared unit tests and the argument tests only - see "What is NOT covered".

@@ -1,0 +1,78 @@
+19:08:33.447Z +    0.0s evidence host pid=22440 exe=<scratch>/bin-final/AgentEyes.Tests.exe
+19:08:34.103Z +    0.7s host.out: [harness] pid=22440 core=1.11.11+3debd3d62f1c4239d6f5ef6108e37693bf871d35 | [harness] data=<evidence>\final-gate-scenario\LocalAppData\AgentEyes | [harness] recordings=<evidence>\final-gate-scenario\Videos\AgentEyes | [harness] listening http://127.0.0.1:7990/ | 
+19:08:35.400Z +    2.0s POST /record/start fps=30 -> 200 {
+
+  "State": "recording",
+
+  "Mode": "video",
+
+  "Source": "mic",
+
+  "ElapsedSeconds": 0.83,
+
+  "Level": 0,
+
+  "MicLevel": 0,
+
+  "SystemLevel": 0,
+
+  "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video",
+
+  "Camera": null,
+
+  "
+19:08:35.406Z +    2.0s /status {"State": "recording", "ElapsedSeconds": 0.84, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:35.406Z +    2.0s recording dir <evidence>\final-gate-scenario\Videos\AgentEyes\2026-11-16_140834_video
+19:08:37.413Z +    4.0s /status {"State": "recording", "ElapsedSeconds": 2.85, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 250011, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:39.435Z +    6.0s /status {"State": "recording", "ElapsedSeconds": 4.87, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 287684, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:41.440Z +    8.0s /status {"State": "recording", "ElapsedSeconds": 6.88, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 325382, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:43.461Z +   10.0s /status {"State": "recording", "ElapsedSeconds": 8.9, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 362841, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:45.477Z +   12.0s /status {"State": "recording", "ElapsedSeconds": 10.92, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 399630, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:47.504Z +   14.1s /status {"State": "recording", "ElapsedSeconds": 12.94, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 633717, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:47.505Z +   14.1s files before the second process: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 633717}
+19:08:47.505Z +   14.1s capture.owner.json: {   "Host": "<laptop>",   "HostId": "<host-id>",   "Pid": 22440,   "ProcessStartUtc": "2026-11-16T19:08:33.4392994Z",   "What": "capture session",   "StartedUtc": "2026-11-16T19:08:34.5821513Z",   "Writers": [     {       "Label": "video",       "Pid": 16108,       "StartUtc": "2026-11-16T19:08:34.6281058Z"     }   ] }
+19:08:47.505Z +   14.1s manifest at start: PendingMux={"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "FinalFile": "recording.mp4", "RawDurationSeconds": 0, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}}
+19:08:47.505Z +   14.1s SECOND PROCESS: C:/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes.exe package <evidence>\final-gate-scenario\Videos\AgentEyes\2026-11-16_140834_video --no-frames
+19:08:47.999Z +   14.6s second process exit=1 after 0.5s
+19:08:47.999Z +   14.6s   package stderr: [error] refusing to package 2026-11-16_140834_video: it is being captured by the capture session of pid 22440 on host <laptop> (started 2026-11-16T19:08:34.5821513Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+19:08:48.000Z +   14.6s files right after the second process: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 633717}
+19:08:48.001Z +   14.6s manifest after the second process: PendingMux={"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "FinalFile": "recording.mp4", "RawDurationSeconds": 0, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}} PostProcessing={} DurationSeconds=0
+19:08:58.029Z +   24.6s /status {"State": "recording", "ElapsedSeconds": 23.47, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 1028890, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:08:58.030Z +   24.6s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 1028890}
+19:09:08.045Z +   34.6s /status {"State": "recording", "ElapsedSeconds": 33.48, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 1383220, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:09:08.046Z +   34.6s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 1420643}
+19:09:18.075Z +   44.6s /status {"State": "recording", "ElapsedSeconds": 43.51, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 1777093, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:09:18.076Z +   44.6s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 1777093}
+19:09:28.081Z +   54.6s /status {"State": "recording", "ElapsedSeconds": 53.52, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 2177062, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:09:28.081Z +   54.6s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 2177062}
+19:09:38.095Z +   64.7s /status {"State": "recording", "ElapsedSeconds": 63.53, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 2766007, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:09:38.096Z +   64.7s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 2766007}
+19:09:48.100Z +   74.7s /status {"State": "recording", "ElapsedSeconds": 73.54, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 3119608, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:09:48.101Z +   74.7s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 3157086}
+19:09:58.123Z +   84.7s /status {"State": "recording", "ElapsedSeconds": 83.56, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 3515949, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:09:58.123Z +   84.7s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 3515949}
+19:10:08.138Z +   94.7s /status {"State": "recording", "ElapsedSeconds": 93.58, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 3907243, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:10:08.139Z +   94.7s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 3907243}
+19:10:18.163Z +  104.7s /status {"State": "recording", "ElapsedSeconds": 103.6, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 4306342, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:10:18.163Z +  104.7s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 4306342}
+19:10:28.180Z +  114.7s /status {"State": "recording", "ElapsedSeconds": 113.62, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 4662926, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:10:28.180Z +  114.7s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 4897047}
+19:10:38.199Z +  124.8s /status {"State": "recording", "ElapsedSeconds": 123.64, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 5250743, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:10:38.200Z +  124.8s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 5250743}
+19:10:48.222Z +  134.8s /status {"State": "recording", "ElapsedSeconds": 133.66, "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video", "CaptureLiveness": "growing", "CaptureFile": "raw.mp4", "CaptureBytes": 5642832, "CaptureSecondsSinceGrowth": 0, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:10:48.223Z +  134.8s files: {"capture.lock": 0, "capture.owner.json": 360, "manifest.json": 1063, "raw.mp4": 5642832}
+19:10:49.341Z +  135.9s POST /record/stop -> 200 {
+
+  "Dir": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video",
+
+  "File": "<evidence>\\final-gate-scenario\\Videos\\AgentEyes\\2026-11-16_140834_video\\recording.mp4",
+
+  "DurationSeconds": 133.67,
+
+  "Shots": 0
+
+}
+19:10:55.351Z +  141.9s /status after stop {"State": "idle", "ElapsedSeconds": 133.67, "Dir": null, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastStopError": null}
+19:10:55.352Z +  141.9s files after stop + mux: {"capture.lock": 0, "manifest.json": 1764, "mux.lock": 0, "raw.mp4.ffmpeg.log": 38150, "recording.mp4": 6278508, "recording.original.mp4": 5694988}
+19:10:55.353Z +  141.9s manifest final: {"DurationSeconds": 134.27, "CaptureFault": null, "CaptureFaultDetail": null, "PendingMux": null, "PostProcessing": {"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T19:10:49.3626955Z", "AttemptedBy": ["attempt 1 at 2026-11-16T19:10:49.3626955Z by AgentEyes.Tests pid 22440 on <laptop>"]}}, "VideoStartOffsetSeconds": null, "MicOffsetSeconds": null}
+19:11:15.449Z +  162.0s evidence host exited 0

@@ -1,0 +1,37 @@
+== plain.mp4 (377251 bytes)
+video,0.000000
+audio,0.000000
+  first video packets pts,dts: 0.000000,-0.733333
+  first video packets pts,dts: 0.800000,-0.033333
+  full decode exit=0
+== frag.mp4 (374013 bytes)
+video,0.733333
+audio,0.000000
+  first video packets pts,dts: 0.733333,0.000000
+  first video packets pts,dts: 1.533333,0.700000
+  full decode exit=0
+== negcts.mp4 (377962 bytes)
+video,0.833333
+audio,0.000000
+  first video packets pts,dts: 0.833333,0.000000
+  first video packets pts,dts: 1.733333,0.800000
+  full decode exit=0
+== bf0.mp4 (372863 bytes)
+video,0.000000
+audio,0.000000
+  first video packets pts,dts: 0.000000,0.000000
+  first video packets pts,dts: 0.689909,0.689909
+  full decode exit=0
+== delaymoov.mp4 (374019 bytes)
+video,0.000000
+audio,0.000000
+  first video packets pts,dts: 0.000000,-0.733333
+  first video packets pts,dts: 0.800000,-0.033333
+  full decode exit=0
+== delaymoov-killed.mp4 (393872 bytes)
+video,0.000000
+audio,0.000000
+  first video packets pts,dts: 0.000000,-0.733333
+  first video packets pts,dts: 0.800000,-0.033333
+  full decode exit=0
+flags: plain=(none) frag=+frag_keyframe+empty_moov+default_base_moof negcts=frag+negative_cts_offsets bf0=frag with -bf 0 delaymoov=frag+delay_moov delaymoov-killed=delaymoov, TerminateProcess at ~12 s

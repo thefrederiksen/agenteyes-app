@@ -1,0 +1,19 @@
+== plain.mp4 (moov edit lists; video track first)
+  /moov/trak/edts/elst [{'segment_duration_ms': 8000, 'media_time': 11264}]
+  /moov/trak/mdia/mdhd timescale 15360
+  /moov/trak/edts/elst [{'segment_duration_ms': 8000, 'media_time': 1024}]
+  /moov/trak/mdia/mdhd timescale 44100
+== frag.mp4 (moov edit lists; video track first)
+  /moov/trak/mdia/mdhd timescale 15360
+  /moov/trak/mdia/mdhd timescale 44100
+== delaymoov.mp4 (moov edit lists; video track first)
+  /moov/trak/edts/elst [{'segment_duration_ms': 0, 'media_time': 11264}]
+  /moov/trak/mdia/mdhd timescale 15360
+  /moov/trak/edts/elst [{'segment_duration_ms': 0, 'media_time': 1024}]
+  /moov/trak/mdia/mdhd timescale 44100
+== delaymoov-killed.mp4 (moov edit lists; video track first)
+  /moov/trak/edts/elst [{'segment_duration_ms': 0, 'media_time': 11264}]
+  /moov/trak/mdia/mdhd timescale 15360
+  /moov/trak/edts/elst [{'segment_duration_ms': 0, 'media_time': 1024}]
+  /moov/trak/mdia/mdhd timescale 44100
+video elst media_time 11264 / timescale 15360 = 0.7333 s: the B-frame delay the edit list cancels

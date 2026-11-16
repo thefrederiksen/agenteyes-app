@@ -1,0 +1,172 @@
+13:50:41.585 [pid 10404] [INFO] [AppDataPaths] RedirectForThisProcess: localAppData=<evidence>\head-frag-5fps\LocalAppData videos=<evidence>\head-frag-5fps\Videos
+13:50:41.622 [pid 10404] [INFO] [HeadlessControlServer] Start: binding http://127.0.0.1:7990/
+13:50:41.624 [pid 10404] [INFO] [HeadlessControlServer] Start: listening on http://127.0.0.1:7990/
+13:50:42.043 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:42.127 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (924 bytes)
+13:50:42.137 [pid 10404] [INFO] [HeadlessControlServer] POST /record/start
+13:50:42.157 [pid 10404] [INFO] [HeadlessControlServer] StartFrom: mode=video screen=1 source=Mic mic=Microphone (2- Realtek(R) Audio) camera=(none) fps=5
+13:50:42.625 [pid 10404] [INFO] [RecordingService] StartVideo: framing=(none)
+13:50:42.625 [pid 10404] [INFO] [RecordingService] StartVideo: preview armed=False screenTap=False cameraTap=False
+13:50:42.627 [pid 10404] [INFO] [RecordingStartSequence] Run: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video steps=2
+13:50:42.628 [pid 10404] [INFO] [RecordingService] BeginSession: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:50:42.633 [pid 10404] [INFO] [RecordingWorkset] TryClaim: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video claimed by Capture/capture session#1
+13:50:42.634 [pid 10404] [INFO] [CaptureLock] TryAcquire: 2026-11-16_135042_video for capture session
+13:50:42.640 [pid 10404] [INFO] [CaptureLock] ReadOrCreateHostId: created <evidence>\head-frag-5fps\LocalAppData\AgentEyes\host-id
+13:50:42.661 [pid 10404] [INFO] [CaptureLock] TryAcquire: 2026-11-16_135042_video claimed by capture session of pid 10404 on host <laptop> (started 2026-11-16T18:50:42.6508715Z)
+13:50:42.664 [pid 10404] [INFO] [RecordingWorkset] Attach: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video#1 now carries CaptureLock
+13:50:42.665 [pid 10404] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_135042_video - pid 10404 on <laptop> (process started 2026-11-16T18:50:41.4779822Z)
+13:50:42.665 [pid 10404] [INFO] [CaptureSignal] CaptureStarted: epoch=1 - any repair pass in flight must yield
+13:50:42.666 [pid 10404] [INFO] [ManifestStore] Replace: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:50:42.696 [pid 10404] [INFO] [ManifestStore] Replace: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:50:42.697 [pid 10404] [INFO] [RecordingStartSequence] Run: starting video dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:50:43.132 [pid 10404] [INFO] [RecordingService] NoteCaptureWriter: video pid=17352 dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:50:43.133 [pid 10404] [INFO] [CaptureLock] NoteWriter: 2026-11-16_135042_video video pid 17352
+13:50:43.148 [pid 10404] [INFO] [FfmpegChildRegistry] Register: pid 17352 [capture video (2026-11-16_135042_video)] owner pid 10404 (capture writer)
+13:50:43.148 [pid 10404] [INFO] [CaptureLock] NoteWriter: 2026-11-16_135042_video video pid 17352 recorded (started 2026-11-16T18:50:42.7031057Z)
+13:50:43.149 [pid 10404] [INFO] [RecordingStartSequence] Run: starting mic level meter dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:50:43.318 [pid 10404] [INFO] [RecordingStartSequence] Run: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video started with no failures
+13:50:43.321 [pid 10404] [INFO] [RecordingService] StartWatchdog: watching <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+13:50:43.322 [pid 10404] [INFO] start video src=Mic dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video camera=(none)
+13:50:43.330 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:43.337 [pid 10404] [INFO] [HeadlessControlServer] POST /record/start: 200 answer written (1051 bytes)
+13:50:43.342 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:43.345 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:43.346 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1052 bytes)
+13:50:45.368 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:45.369 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:45.371 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1077 bytes)
+13:50:47.374 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:47.375 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:47.375 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1081 bytes)
+13:50:49.392 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:49.393 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:49.394 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1081 bytes)
+13:50:51.397 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:51.398 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:51.399 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1078 bytes)
+13:50:53.425 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:53.426 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:53.427 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1079 bytes)
+13:50:55.452 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:50:55.453 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:50:55.453 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1080 bytes)
+13:51:05.479 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:51:05.480 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:51:05.481 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1080 bytes)
+13:51:15.501 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:51:15.502 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:51:15.502 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1079 bytes)
+13:51:25.523 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:51:25.525 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:51:25.526 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1079 bytes)
+13:51:25.539 [pid 10404] [INFO] [HeadlessControlServer] POST /record/stop
+13:51:25.540 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=0
+13:51:25.541 [pid 10404] [INFO] [RecordingStop] Keep: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video mode=video
+13:51:25.541 [pid 10404] [INFO] [PostRecording] TrackWork: keep <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video (in flight=1)
+13:51:25.543 [pid 10404] [INFO] stop: begin (synchronous raw save only)
+13:51:25.543 [pid 10404] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+13:51:25.544 [pid 10404] [INFO] stop: saving video (flush raw + writers)
+13:51:25.544 [pid 10404] [INFO] [RecordingStopSequence] Run: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video steps=2
+13:51:26.339 [pid 10404] [INFO] [FfmpegRecorder] Stop: pipeline drained in 776ms (take 37483ms, media origin 5377ms) - full take captured
+13:51:27.128 [pid 10404] [WARN] stop: the screen capture wrote 39.45s of a 42.92s session - recording DurationSeconds=39.45, not the session length
+13:51:27.129 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:27.153 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:27.154 [pid 10404] [INFO] [RecordingStopSequence] Run: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video completed with no failures
+13:51:27.160 [pid 10404] [INFO] [FfmpegChildRegistry] Unregister: pid 17352
+13:51:27.161 [pid 10404] [INFO] [CaptureLock] Release: 2026-11-16_135042_video released by pid 10404
+13:51:27.161 [pid 10404] [INFO] [RecordingWorkset] Release: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video - attached CaptureLock released
+13:51:27.161 [pid 10404] [INFO] [RecordingWorkset] Release: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video released by Capture/capture session#1
+13:51:27.162 [pid 10404] [INFO] stop: return dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video dur=42.9s deferredMux=True (HUD may close now)
+13:51:27.163 [pid 10404] [INFO] [RecordingStop] Keep: raw files saved, queuing post-processing for <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:27.164 [pid 10404] [INFO] [HeadlessControlServer] Stop: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video saved; post-processing running in the background
+13:51:27.165 [pid 10404] [INFO] [PostRecording] Run: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video hostedWork=True
+13:51:27.165 [pid 10404] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_135042_video (in flight=2)
+13:51:27.166 [pid 10404] [INFO] [RecordingWorkset] TryClaim: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video claimed by FullPipeline/post-recording#2
+13:51:27.167 [pid 10404] [INFO] [HeadlessControlServer] POST /record/stop: 200 answer written (311 bytes)
+13:51:27.170 [pid 10404] [INFO] [PostRecording] Execute: 2026-11-16_135042_video - capture claim: no capture holds it
+13:51:27.171 [pid 10404] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_135042_video (post-recording) - no owner record; nothing to clear
+13:51:27.177 [pid 10404] [INFO] [MuxLock] TryAcquire: 2026-11-16_135042_video (post-recording) - acquired by pid 10404
+13:51:27.177 [pid 10404] [INFO] [MuxCoordinator] Reconcile: 2026-11-16_135042_video
+13:51:27.180 [pid 10404] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_135042_video stage=mux by=AgentEyes.Tests pid 10404 on <laptop>
+13:51:27.181 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:27.184 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:27.185 [pid 10404] [INFO] [PostRecording] stage mux: start dir=2026-11-16_135042_video
+13:51:27.201 [pid 10404] [INFO] [MuxLock] TryAcquire: 2026-11-16_135042_video (finalize) - re-entered, depth 2
+13:51:27.202 [pid 10404] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_135042_video (finalize) - no capture holds it
+13:51:27.202 [pid 10404] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_135042_video (finalize) - no owner record; nothing to clear
+13:51:27.203 [pid 10404] [INFO] finalize: begin mux video src=mic dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:27.207 [pid 10404] [INFO] [MediaProbe] AudioChannels: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\raw.mp4
+13:51:27.299 [pid 10404] [INFO] [MediaProbe] AudioChannels: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\raw.mp4 -> 2
+13:51:27.300 [pid 10404] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\raw.mp4 intermediate=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\audio_processed.wav muxing=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\recording.mp4.muxing.tmp out=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\recording.mp4
+13:51:27.304 [pid 10404] [INFO] ffmpeg [process mic audio (audio)]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='C\:/ReposFred/agenteyes-evidence/issue-113-pass5/head-frag-5fps/LocalAppData/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\audio_processed.wav
+13:51:27.317 [pid 10404] [INFO] [KillOnCloseJob] Assign: pid 16536 ends when AgentEyes ends
+13:51:27.318 [pid 10404] [INFO] [FfmpegChildRegistry] Register: pid 16536 [process mic audio (audio)] owner pid 10404
+13:51:28.220 [pid 10404] [INFO] [FfmpegChildRegistry] Unregister: pid 16536
+13:51:28.221 [pid 10404] [INFO] ffmpeg [process mic audio (audio)] ok
+13:51:28.221 [pid 10404] [INFO] ffmpeg [process mic audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\raw.mp4 -i <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\recording.mp4.muxing.tmp
+13:51:28.231 [pid 10404] [INFO] [KillOnCloseJob] Assign: pid 7176 ends when AgentEyes ends
+13:51:28.232 [pid 10404] [INFO] [FfmpegChildRegistry] Register: pid 7176 [process mic audio] owner pid 10404
+13:51:29.227 [pid 10404] [INFO] [FfmpegChildRegistry] Unregister: pid 7176
+13:51:29.227 [pid 10404] [INFO] ffmpeg [process mic audio] ok
+13:51:29.228 [pid 10404] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\recording.mp4
+13:51:29.232 [pid 10404] [INFO] [AudioMix] MuxInTwoPasses: process mic audio removed the intermediate processed audio <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\audio_processed.wav
+13:51:29.326 [pid 10404] [INFO] [OriginalBackup] preserved raw.mp4 -> recording.original.mp4
+13:51:29.327 [pid 10404] [INFO] [OriginalBackup] Present: 2026-11-16_135042_video -> 1
+13:51:29.327 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.332 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:29.332 [pid 10404] [INFO] [RecordingService] PublishFinalized: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video dur=44.8s originals=1
+13:51:29.333 [pid 10404] [INFO] finalize: done dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.333 [pid 10404] [INFO] [PostRecording] stage mux: done dir=2026-11-16_135042_video in 2.1s
+13:51:29.334 [pid 10404] [INFO] [PostRecordingState] NoteDone: 2026-11-16_135042_video stage=mux
+13:51:29.334 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.345 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:29.346 [pid 10404] [INFO] [MuxLock] Release: 2026-11-16_135042_video - released by pid 10404
+13:51:29.355 [pid 10404] [INFO] [PostRecording] Execute: 2026-11-16_135042_video - no camera to compose
+13:51:29.358 [pid 10404] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_135042_video
+13:51:29.359 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.362 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:29.362 [pid 10404] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_135042_video attempt 1/3
+13:51:29.379 [pid 10404] [INFO] ffmpeg [poster thumbnail]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -ss 4.48 -i <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\thumb.jpg
+13:51:29.572 [pid 10404] [INFO] ffmpeg [poster thumbnail] ok
+13:51:29.572 [pid 10404] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_135042_video in 0.2s
+13:51:29.573 [pid 10404] [INFO] [PostRecordingState] NoteDone: 2026-11-16_135042_video stage=thumbnail
+13:51:29.573 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.577 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:29.587 [pid 10404] [INFO] [PostRecording] stage package: start dir=2026-11-16_135042_video
+13:51:29.588 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.591 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:29.591 [pid 10404] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_135042_video attempt 1/3
+13:51:29.595 [pid 10404] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_135042_video (package) - no capture holds it
+13:51:29.595 [pid 10404] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_135042_video (package) - no owner record; nothing to clear
+13:51:29.596 [pid 10404] [INFO] [MuxCoordinator] RunForPackage: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.600 [pid 10404] [INFO] [MuxCoordinator] RunForPackage: 2026-11-16_135042_video - no pending mux
+13:51:29.602 [pid 10404] [INFO] ffmpeg [extract audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\recording.mp4 -vn -ac 1 -ar 16000 -f wav <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\audio_16k.wav
+13:51:29.744 [pid 10404] [INFO] ffmpeg [extract audio] ok
+13:51:29.747 [pid 10404] [INFO] [Transcriber] TranscribeWavAsync: wavPath=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\audio_16k.wav
+13:51:29.749 [pid 10404] [INFO] [DevThrottleClient] TranscribeAsync: wavPath=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video\audio_16k.wav
+13:51:29.763 [pid 10404] [ERROR] [PostRecording] stage package FAILED: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.763 [pid 10404] [ERROR] AgentEyes.UsageException: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:51:29.763 [pid 10404] [ERROR]  ---> AgentEyes.DevThrottle.DevThrottleException: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.DevThrottle.DevThrottleAccount.RequireApiKey() in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\DevThrottle\DevThrottleAccount.cs:line 119
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.DevThrottle.DevThrottleClient.TranscribeAsync(String wavPath, CancellationToken ct) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\DevThrottle\DevThrottleClient.cs:line 283
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.Packaging.Transcriber.TranscribeWavAsync(String wavPath) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Packaging\Transcriber.cs:line 32
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 172
+13:51:29.763 [pid 10404] [ERROR]    --- End of inner exception stack trace ---
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 177
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.Package.Run(String path, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 46
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.PostRecording.<>c.<DefaultPackageStep>b__19_0(String d) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.PostRecording.RunCountingAttempt(String dir, Action`1 package) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 153
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.PostRecording.DefaultPackageStep(String dir) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+13:51:29.763 [pid 10404] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 518
+13:51:29.764 [pid 10404] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_135042_video stage=package error=Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:51:29.764 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video
+13:51:29.768 [pid 10404] [INFO] [ManifestStore] Update: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video written
+13:51:29.769 [pid 10404] [INFO] [PostRecording] Run: dir=<evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video done
+13:51:29.769 [pid 10404] [INFO] [RecordingWorkset] Release: <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video released by FullPipeline/post-recording#2
+13:51:29.771 [pid 10404] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_135042_video
+13:51:29.771 [pid 10404] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_135042_video (in flight=1)
+13:51:29.772 [pid 10404] [INFO] [PostRecording] TrackWork released: keep <evidence>\head-frag-5fps\Videos\AgentEyes\2026-11-16_135042_video (in flight=0)
+13:51:31.181 [pid 10404] [INFO] [HeadlessControlServer] GET /status
+13:51:31.185 [pid 10404] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\head-frag-5fps\Videos\AgentEyes, pending=1
+13:51:31.186 [pid 10404] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1147 bytes)
+13:51:51.354 [pid 10404] [INFO] [HeadlessControlServer] Dispose

@@ -1,0 +1,28 @@
+## 00c9df9-suspend recording.original.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=18.566667
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=18.566667 nb_frames=None r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=17.665170 nb_frames=None r_frame_rate=0/0 sample_rate=44100
+counted video frames=500 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=987650 -> OK
+## 00c9df9-suspend recording.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=17.700000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=17.700000 nb_frames=500 r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=17.630000 nb_frames=828 r_frame_rate=0/0 sample_rate=48000
+counted video frames=500 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=987650 -> OK
+## 00c9df9-kill recording.original.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=18.500000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=18.500000 nb_frames=None r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=17.778277 nb_frames=None r_frame_rate=0/0 sample_rate=44100
+counted video frames=500 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=988781 -> OK
+## 00c9df9-kill recording.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=17.800000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=17.800000 nb_frames=500 r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=17.750000 nb_frames=834 r_frame_rate=0/0 sample_rate=48000
+counted video frames=500 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=988668 -> OK
