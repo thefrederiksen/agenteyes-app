@@ -1022,3 +1022,54 @@ The merge resolution against 277a9bc is not revisited.
   cost of running the real-process tests on a machine whose 7882 is live.
 - I did not touch the go2rtc ffmpeg or any other foreign process. I started no service on the host and
   reinstalled nothing. Every stand-in ran inside a `--network none` container and ended with it.
+
+## 7. CI - one red run, what it says about the 500 ms, and the test fix
+
+**aa2d3e5, the push run (43944611944): all three green.** The pull_request run of the same code
+(43944621928) failed on macOS and in Linux's opt-in job, in three probe tests:
+- macOS, `AskRunningService_AServiceAnswering_ItsRootsComeBack`: the in-test stand-in had not answered when
+  the 500 ms timeout fired.
+- Linux opt-in, `RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused`: the stand-in
+  wrote its answer into a broken pipe. The cold child had already given up.
+- Linux opt-in, `..._GivesUpWithinTheTimeout`: **"the probe took 2354 ms against a 500 ms bound"**.
+
+**My reading, which is an inference:** this was thread-pool starvation in the parallel test host, not slowness
+in the probe. Three things support it:
+- A 500 ms client timeout cannot fire at 2354 ms unless its own timer callback was starved.
+- Linux's default job passed on the same code and runner. Only the opt-in job failed, and that job adds real
+  ffmpeg tests running in parallel.
+- The stand-ins ran on the same starved pool (`Task.Run`).
+
+I could NOT reproduce it on devlinux. I tried the whole suite in the container at 1 CPU (x3) and at 0.25 CPU
+(x2), and the opt-in suite on the host pinned to one core (x3). Every probe test passed every time
+(`linux-pass4b-stress-*.txt`).
+
+**Fix, tests only (88d9a95):**
+- `LoopbackServerCollection` is now `DisableParallelization = true`, so the loopback-server classes run alone,
+  after the parallel collections. The Linux suite on devlinux goes from 5 s to 8 s.
+- The three stand-ins serve from their own threads, never the pool. A stand-in's exception is rethrown on
+  `Join`, as `Task.Wait` did, instead of crashing the test host.
+- M2 (unbounded client) still fails `..._GivesUpWithinTheTimeout` (`linux-pass4b-mutations-b.txt`).
+- Gates under lldeny are unchanged: 533/1/3, opt-in 534/1/2, DesktopApp 25/25. In the container, the 7882
+  wiring test and the probe tests pass 6/6.
+
+**88d9a95, both runs green.** Push 43946693841 and pull_request 43946705739, each:
+
+| Job | Result |
+|---|---|
+| linux | 535 / 0 / 2 (537); opt-in 536 / 0 / 1 |
+| macos | 491 / 0 / 2 (493) |
+| windows AgentEyes.Tests | 2568 / 0 / 31 (2599); opt-in 2587 / 0 / 16 (2603) |
+| windows DesktopApp | 25 / 25, twice |
+
+Windows ran `..._GivesUpWithinTheTimeout`, so the bound holds against a listener that never answers there.
+It also ran the `ManifestWriterIlTests` pin without `libc!geteuid`. Neither is a Windows start-time
+measurement.
+
+**For the Lead, because it bears on the number you set:** the product probe runs in a fresh process with an
+idle pool, and asks another process. A starved test host is not that. But if a whole machine stalls for more
+than 500 ms during a redirected start, the service's roots drop out of the union for that start. The banner
+says so, and rule 2 still refuses a non-empty unmarked library. There is a refinement that keeps "costs
+nothing when nothing is there" without making a slow live service count as absent: a short CONNECT timeout
+(Windows' closed-port retry happens before a connection exists), with a longer bound once a service has
+accepted. I did not build it, because pass 4 is three items and no new design. If you want it, it is small.
