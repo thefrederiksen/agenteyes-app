@@ -308,13 +308,103 @@ namespace AgentEyes.Tests
             Assert.Contains("exited", a.Why);
         }
 
-        /// <summary>Linux keeps the ruled row: EPERM is another user (its same premise is named, unmeasured).</summary>
+        // ---- Linux EPERM (issue #156 pass 5, D-L1): one row per branch ----------------
+
+        private const uint LinuxMe = 1000;
+        private static bool IsLinuxMe(uint uid) => uid == LinuxMe;
+        private static Func<int, LinuxProcOwner> DirOwnedBy(uint uid) => _ => new LinuxProcOwner(LinuxProcOwnerKind.Owned, $"owned by uid {uid}", uid);
+        private static Func<int, LinuxProcOwner> Dir(LinuxProcOwnerKind kind) => _ => new LinuxProcOwner(kind, kind.ToString());
+
+        /// <summary>A pid reused by ANOTHER USER (root's daemon after a crash and reboot): /proc/&lt;pid&gt;
+        /// is owned by another uid, which is a fact - our writer ran as us. The recording is recovered.</summary>
         [Fact]
-        public void ClassifyUnreadable_KillEpermOnLinux_NotMineAnotherUser()
+        public void ClassifyUnreadable_KillEpermOnLinuxOwnedByAnotherUid_NotMine()
         {
-            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 0, "t", false, isMac: false, Signal(-1, 1), NoStateRead);
+            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead, IsLinuxMe, DirOwnedBy(Root));
             Assert.True(a.IsNotMine, $"{a.Identity}: {a.Why}");
             Assert.Contains("ANOTHER USER", a.Why);
+            Assert.Contains("owned by uid 0", a.Why);
+        }
+
+        /// <summary>THE PASS 5 PIN - D-L1, measured on Linux: a prober refused /proc reads (Landlock) whose
+        /// kill(2) answers EPERM (seccomp) probing a LIVE writer of THIS user. Pass 4 answered "ANOTHER
+        /// USER" here, cleared the claim and spent an attempt. The owner is ours: Unknown.</summary>
+        [Fact]
+        public void ClassifyUnreadable_KillEpermOnLinuxOwnedByThisUser_Unknown()
+        {
+            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead, IsLinuxMe, DirOwnedBy(LinuxMe));
+            Assert.True(a.IsUnknown, $"{a.Identity}: {a.Why}");
+            Assert.Contains("THIS USER", a.Why);
+            Assert.DoesNotContain("ANOTHER USER", a.Why);
+        }
+
+        /// <summary>/proc/&lt;pid&gt; is gone: the process exited between the reads - NotMine.</summary>
+        [Fact]
+        public void ClassifyUnreadable_KillEpermOnLinuxProcGone_NotMine()
+        {
+            var a = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead, IsLinuxMe, Dir(LinuxProcOwnerKind.Gone));
+            Assert.True(a.IsNotMine, $"{a.Identity}: {a.Why}");
+            Assert.Contains("exited", a.Why);
+        }
+
+        /// <summary>/proc/&lt;pid&gt; cannot be examined at all, or nobody read it, or our own uids are
+        /// unknown: whose process it is is not known, so the answer is Unknown - never a guess.</summary>
+        [Fact]
+        public void ClassifyUnreadable_KillEpermOnLinuxOwnerUnreadable_Unknown()
+        {
+            var refused = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead, IsLinuxMe, Dir(LinuxProcOwnerKind.Unreadable));
+            var neverRead = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead, IsLinuxMe, _ => default);
+            var noProbe = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead, IsLinuxMe, linuxOwner: null);
+            var noOwnUids = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead, isOurUid: null, DirOwnedBy(Root));
+            Assert.True(refused.IsUnknown, $"refused: {refused.Identity}: {refused.Why}");
+            Assert.True(neverRead.IsUnknown, $"never read: {neverRead.Identity}: {neverRead.Why}");
+            Assert.True(noProbe.IsUnknown, $"no probe: {noProbe.Identity}: {noProbe.Why}");
+            Assert.True(noOwnUids.IsUnknown, $"no own uids: {noOwnUids.Identity}: {noOwnUids.Why}");
+        }
+
+        /// <summary>The probe must not be asked on the rows that do not need it (ESRCH, kill succeeding).</summary>
+        [Fact]
+        public void ClassifyUnreadable_LinuxRowsWithoutEperm_DoNotReadTheOwner()
+        {
+            Func<int, LinuxProcOwner> mustNotRead = _ => throw new Exception("the /proc owner must not be read on this row");
+            var esrch = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 3), NoStateRead, IsLinuxMe, mustNotRead);
+            var ours = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(0, 0), NoStateRead, IsLinuxMe, mustNotRead);
+            Assert.True(esrch.IsNotMine, $"{esrch.Identity}: {esrch.Why}");
+            Assert.True(ours.IsUnknown, $"{ours.Identity}: {ours.Why}");
+        }
+
+        /// <summary>The real statx read, against real processes on every Linux run: this process's
+        /// /proc entry is owned by this user, pid 1's by root, and a pid that does not exist is Gone.
+        /// A layout or offset error fails here.</summary>
+        [Fact]
+        public void ReadLinuxProcOwner_ThisProcessRootAndMissingPid_OwnerAndGone()
+        {
+            if (!OperatingSystem.IsLinux()) return;
+            uint me = uint.Parse(Run("/usr/bin/id", "-u"));
+            var self = FfmpegChildRegistry.ReadLinuxProcOwner(Environment.ProcessId);
+            Assert.Equal(LinuxProcOwnerKind.Owned, self.Kind);
+            Assert.Equal((uint?)me, self.Uid);
+            Assert.Equal(LinuxProcOwnerKind.Gone, FfmpegChildRegistry.ReadLinuxProcOwner(int.MaxValue - 7).Kind);
+            if (PsUser(1) == "root")
+            {
+                var init = FfmpegChildRegistry.ReadLinuxProcOwner(1);
+                Assert.Equal(LinuxProcOwnerKind.Owned, init.Kind);
+                Assert.Equal((uint?)0u, init.Uid);
+            }
+        }
+
+        /// <summary>The real path end to end for THIS user's live process on Linux: the real kill(2) probe
+        /// is replaced by an EPERM (what a signal-scoping sandbox returns), the real /proc owner and the
+        /// real own uids answer - Unknown. The pid-1 test above is the same real path answering NotMine.</summary>
+        [Fact]
+        public void ClassifyUnreadable_RealOwnerReadOwnLiveProcessWithEperm_Unknown()
+        {
+            if (!OperatingSystem.IsLinux()) return;
+            uint ruid = uint.Parse(Run("/usr/bin/id", "-ru")), euid = uint.Parse(Run("/usr/bin/id", "-u"));
+            var a = FfmpegChildRegistry.ClassifyUnreadable(Environment.ProcessId, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead,
+                uid => uid == ruid || uid == euid, FfmpegChildRegistry.ReadLinuxProcOwner);
+            Assert.True(a.IsUnknown, $"{a.Identity}: {a.Why}");
+            Assert.Contains("THIS USER", a.Why);
         }
 
         private const uint Me = 501, Root = 0;

@@ -383,7 +383,16 @@ namespace AgentEyes.Video
         /// the real platform probes.</summary>
         internal static ProcessAnswer ClassifyUnreadable(int pid, int nativeError, string refusal) =>
             ClassifyUnreadable(pid, nativeError, refusal, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(), ProbeSignal, ReadMacProcessState,
-                OperatingSystem.IsMacOS() ? OwnUidsOnMac() : null);
+                OperatingSystem.IsMacOS() ? OwnUidsOnMac() : OperatingSystem.IsLinux() ? OwnUidsOnLinux() : null,
+                OperatingSystem.IsLinux() ? ReadLinuxProcOwner : null);
+
+        /// <summary>Linux: this process's real and effective uid (getuid / geteuid, which cannot fail) -
+        /// the two uids kill(2) compares with the target's.</summary>
+        private static Func<uint, bool> OwnUidsOnLinux()
+        {
+            uint ruid = GetUid(), euid = GetEuid();
+            return uid => uid == ruid || uid == euid;
+        }
 
         /// <summary>This process's real and effective uid, from the same kernel read as any other pid
         /// (so no further native import is needed). Null when that read fails.</summary>
@@ -427,9 +436,29 @@ namespace AgentEyes.Video
         ///     - the process gone: NotMine. The uids unreadable: Unknown.
         ///   (A writer started under sudo is root's, and reads as another user: see the pass 4 handoff for
         ///   what that case does and does not reach.)
-        /// * EPERM on Linux: NotMine, as ruled - but the same premise, NOT measured there: a seccomp or LSM
-        ///   policy that refuses kill(2) for a same-user process would read as another user. Named in the
-        ///   pass 4 handoff; Linux normally never reaches this row, because it reads any start time.
+        /// * EPERM on Linux (issue #156 pass 5): the same rule as macOS - EPERM is NOT by itself proof of
+        ///   another user. MEASURED (Linux QA pass 4, D-L1): a prober refused other processes' /proc reads
+        ///   (Landlock) whose kill(2) answers EPERM (seccomp; the errno Landlock ABI 6 signal scoping
+        ///   returns) got EPERM for a LIVE writer of this same user, and pass 4 cleared its claim. So the
+        ///   owner of /proc/&lt;pid&gt; is read - ONE statx, which answers existence and owner together
+        ///   (the counterpart of macOS reading uids and state in one sysctl), and which the measured
+        ///   prober still answers while /proc/&lt;pid&gt;/status is refused:
+        ///     - owner is not this process's real or effective uid: NotMine, PROVED another user. Our
+        ///       writer ran as us, and the kernel owns /proc/&lt;pid&gt; by the target's effective uid.
+        ///     - owner is ours: Unknown - the uids permit the signal, so something else refused it.
+        ///     - no /proc/&lt;pid&gt; (ENOENT): NotMine - it exited.
+        ///     - the statx refused or unexpected, or our own uids unknown: Unknown.
+        ///   PREMISES, written down so nobody assumes them away:
+        ///     - A NON-DUMPABLE process's /proc/&lt;pid&gt; is owned by root, so it reads as another user.
+        ///       Our writer is an ffmpeg this user exec'd: dumpable unless its binary is setuid, setgid,
+        ///       carries file capabilities or is not readable by us. Measured: the live writer's
+        ///       /proc/&lt;pid&gt; is owned by this user (pass 5 handoff). A writer in one of those
+        ///       states, probed from a prober that is ALSO refused kill(2), would read NotMine.
+        ///     - A prober in another USER namespace sees uids mapped into its own: a target whose uid
+        ///       is not mapped reads as the overflow uid (65534). Our own uid is always mapped in our
+        ///       namespace, so an unmapped owner is a different kernel uid - NotMine stays a fact.
+        ///     - A prober in another PID namespace never reaches this row for a live writer: it gets
+        ///       "no such process" first. That is issue #172's, not this row's.
         /// * any other errno: Unknown - the probe itself failed.
         /// * 0 - the process EXISTS AND IS THIS USER'S. This is the row pass 3 got wrong. A refused start
         ///   time here is not evidence of anything. On macOS the kernel state is read with sysctl
@@ -443,7 +472,8 @@ namespace AgentEyes.Video
         ///   Linux reads a zombie's start time anyway: Unknown.
         /// </summary>
         internal static ProcessAnswer ClassifyUnreadable(int pid, int nativeError, string refusal, bool isWindows, bool isMac,
-            Func<int, (int Rc, int Errno)> signalProbe, Func<int, MacProcessState> macState, Func<uint, bool>? isOurUid = null)
+            Func<int, (int Rc, int Errno)> signalProbe, Func<int, MacProcessState> macState, Func<uint, bool>? isOurUid = null,
+            Func<int, LinuxProcOwner>? linuxOwner = null)
         {
             if (pid <= 0) return ProcessAnswer.NotMine($"pid {pid} is not a process id (a record holding it is corrupt)");
 
@@ -461,8 +491,23 @@ namespace AgentEyes.Video
             {
                 if (errno == Esrch) return ProcessAnswer.NotMine($"pid {pid} exited while being read");
                 if (errno == Eperm && !isMac)
+                {
+                    if (linuxOwner == null || isOurUid == null)
+                        return ProcessAnswer.Unknown(
+                            $"pid {pid}: kill(pid, 0) was refused (EPERM) and there is no read of whose process it is on this platform");
+                    var dir = linuxOwner(pid);
+                    if (dir.Kind == LinuxProcOwnerKind.Gone)
+                        return ProcessAnswer.NotMine($"pid {pid} exited while being read (/proc/{pid} does not exist)");
+                    if (dir.Kind != LinuxProcOwnerKind.Owned || dir.Uid is not uint owner)
+                        return ProcessAnswer.Unknown(
+                            $"pid {pid}: kill(pid, 0) was refused (EPERM) and whose process it is could not be read ({dir.Detail})");
+                    if (isOurUid(owner))
+                        return ProcessAnswer.Unknown(
+                            $"pid {pid} is THIS USER's (/proc/{pid} owned by uid {owner}) but kill(pid, 0) was refused (EPERM) and its start time too ({refusal}) - " +
+                            "typically a sandboxed prober - so whether it is the recorded process cannot be proved from here");
                     return ProcessAnswer.NotMine(
-                        $"pid {pid} belongs to ANOTHER USER (kill(pid, 0) errno {errno}); the recorded process ran as this user, so this is not it");
+                        $"pid {pid} belongs to ANOTHER USER (/proc/{pid} owned by uid {owner}; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it");
+                }
                 if (errno == Eperm)
                 {
                     var target = macState(pid);
@@ -542,6 +587,32 @@ namespace AgentEyes.Video
                 : new MacProcessState(MacProcessStateKind.Alive, stat, "alive", ruid, svuid, euid);
         }
 
+        /// <summary>
+        /// Linux: the owner of /proc/&lt;pid&gt;, from ONE statx(2) call - so existence and owner come from
+        /// the same read, with no second race. struct statx has one layout on every architecture
+        /// (linux/stat.h): stx_mask is the u32 at offset 0, stx_uid the u32 at offset 20. A reply without
+        /// STATX_UID in its mask is Unreadable, never guessed at. MEASURED (Linux QA pass 4): under a
+        /// Landlock prober that is refused /proc/&lt;pid&gt;/status, this still answers - 1000 for a live
+        /// writer of uid 1000, 0 for pid 1. Pinned by tests that read this process, pid 1 and a missing
+        /// pid for real on every Linux run.
+        /// </summary>
+        internal static LinuxProcOwner ReadLinuxProcOwner(int pid)
+        {
+            var buf = new byte[StatxSize];
+            if (Statx(AtFdCwd, $"/proc/{pid}", 0, StatxUid, buf) != 0)
+            {
+                int errno = System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
+                return errno == Enoent
+                    ? new LinuxProcOwner(LinuxProcOwnerKind.Gone, "no such process")
+                    : new LinuxProcOwner(LinuxProcOwnerKind.Unreadable, $"statx /proc/{pid} refused, errno {errno}");
+            }
+            uint mask = BitConverter.ToUInt32(buf, 0);
+            if ((mask & StatxUid) == 0)
+                return new LinuxProcOwner(LinuxProcOwnerKind.Unreadable, $"statx /proc/{pid} returned no owner (mask 0x{mask:x})");
+            uint uid = BitConverter.ToUInt32(buf, StxUidOffset);
+            return new LinuxProcOwner(LinuxProcOwnerKind.Owned, $"owned by uid {uid}", uid);
+        }
+
         private const int ErrorAccessDenied = 5;   // Windows ERROR_ACCESS_DENIED
         private const int Eperm = 1;       // "operation not permitted", the same number on Linux and macOS
         private const int CtlKern = 1, KernProc = 14, KernProcPid = 1;
@@ -550,6 +621,18 @@ namespace AgentEyes.Video
         // e_pcred (pc_lock[72], pc_ucred 8, p_ruid, p_svuid, ...) and e_ucred (cr_ref, cr_uid, ...).
         // MEASURED 2026-11-16 (arm64, macOS 26): this process reads 501 at all three, pid 1 reads 0.
         private const int RuidOffset = 392, SvuidOffset = 396, EuidOffset = 420;
+
+        private const int Enoent = 2, AtFdCwd = -100, StatxSize = 256, StxUidOffset = 20;
+        private const uint StatxUid = 0x8;   // STATX_UID
+
+        [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "statx", SetLastError = true)]
+        private static extern int Statx(int dirfd, string path, int flags, uint mask, byte[] statxbuf);
+
+        [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "getuid")]
+        private static extern uint GetUid();
+
+        [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "geteuid")]
+        private static extern uint GetEuid();
 
         [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "sysctl", SetLastError = true)]
         private static extern int Sysctl(int[] name, uint namelen, byte[] oldp, ref UIntPtr oldlenp, IntPtr newp, UIntPtr newlen);

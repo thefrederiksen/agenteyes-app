@@ -55,4 +55,22 @@ namespace AgentEyes.Video
     /// <summary>One read of a pid's kernel state on macOS.</summary>
     internal readonly record struct MacProcessState(MacProcessStateKind Kind, int PStat, string Detail,
         uint? RealUid = null, uint? SavedUid = null, uint? EffectiveUid = null);
+
+    /// <summary>Issue #156 pass 5: what one statx of /proc/&lt;pid&gt; says about a pid on Linux.</summary>
+    internal enum LinuxProcOwnerKind
+    {
+        /// <summary>The directory could not be examined (refused, or an unexpected reply). Value 0 on
+        /// purpose: a read nobody made - default(LinuxProcOwner) - must not read as a proof.</summary>
+        Unreadable = 0,
+
+        /// <summary>The directory exists and its owner uid was read.</summary>
+        Owned,
+
+        /// <summary>No /proc/&lt;pid&gt; (ENOENT): the process does not exist.</summary>
+        Gone,
+    }
+
+    /// <summary>One read of the owner of /proc/&lt;pid&gt; on Linux. The kernel sets that owner to the
+    /// process's effective uid (root's when the process is not dumpable).</summary>
+    internal readonly record struct LinuxProcOwner(LinuxProcOwnerKind Kind, string Detail, uint? Uid = null);
 }
