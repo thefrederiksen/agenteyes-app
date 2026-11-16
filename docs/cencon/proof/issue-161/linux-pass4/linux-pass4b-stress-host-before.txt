@@ -1,0 +1,9 @@
+== aa2d3e5 tests, host, taskset -c 0, opt-in, run 1
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [172 ms]
+Failed!  - Failed:     1, Passed:   534, Skipped:     2, Total:   537, Duration: 14 s
+== aa2d3e5 tests, host, taskset -c 0, opt-in, run 2
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [172 ms]
+Failed!  - Failed:     1, Passed:   534, Skipped:     2, Total:   537, Duration: 15 s
+== aa2d3e5 tests, host, taskset -c 0, opt-in, run 3
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [171 ms]
+Failed!  - Failed:     1, Passed:   534, Skipped:     2, Total:   537, Duration: 15 s

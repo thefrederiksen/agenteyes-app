@@ -1232,7 +1232,7 @@ namespace AgentEyes.Tests.Shared
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             string body = JsonSerializer.Serialize(new { DataRoot = Abs("data", "x", "AgentEyes"), RecordingsRoot = Abs("v", "AgentEyes") });
-            var serve = System.Threading.Tasks.Task.Run(() =>
+            var serve = StartStandIn(() =>
             {
                 using var client = listener.AcceptTcpClient();
                 using var stream = client.GetStream();
@@ -1251,8 +1251,38 @@ namespace AgentEyes.Tests.Shared
             }
             finally
             {
-                serve.Wait(5000);
+                serve.Join(5000);
                 listener.Stop();
+            }
+        }
+
+        /// <summary>
+        /// A stand-in service on its OWN thread, never the thread pool: a pool starved by the parallel suite made one
+        /// answer after the probe's bound (pass 4, CI 43944621928), which measured the runner instead of the probe.
+        /// </summary>
+        private static StandIn StartStandIn(Action serve) => new StandIn(serve);
+
+        /// <summary>A stand-in's thread. Join rethrows what it threw (as Task.Wait did), instead of an unhandled
+        /// exception on a bare thread taking the whole test host down.</summary>
+        private sealed class StandIn
+        {
+            private readonly System.Threading.Thread _thread;
+            private Exception? _error;
+
+            public StandIn(Action serve)
+            {
+                _thread = new System.Threading.Thread(() =>
+                {
+                    try { serve(); }
+                    catch (Exception ex) { _error = ex; }
+                }) { IsBackground = true, Name = "stand-in service" };
+                _thread.Start();
+            }
+
+            public void Join(int milliseconds)
+            {
+                _thread.Join(milliseconds);
+                if (_error != null) throw new AggregateException(_error);
             }
         }
 
@@ -1297,7 +1327,7 @@ namespace AgentEyes.Tests.Shared
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             var held = new List<TcpClient>();
-            var accept = System.Threading.Tasks.Task.Run(() => { try { held.Add(listener.AcceptTcpClient()); } catch (SocketException) { } });
+            var accept = StartStandIn(() => { try { held.Add(listener.AcceptTcpClient()); } catch (SocketException) { } });
             try
             {
                 var sw = Stopwatch.StartNew();
@@ -1312,7 +1342,7 @@ namespace AgentEyes.Tests.Shared
             finally
             {
                 listener.Stop();
-                accept.Wait(5000);
+                accept.Join(5000);
                 foreach (var c in held) c.Dispose();
             }
         }
@@ -1337,7 +1367,7 @@ namespace AgentEyes.Tests.Shared
             });
             var listener = new TcpListener(IPAddress.Loopback, LocalAppConfig.DefaultPort);
             listener.Start();
-            var serving = System.Threading.Tasks.Task.Run(() =>
+            var serving = StartStandIn(() =>
             {
                 try
                 {
@@ -1371,7 +1401,7 @@ namespace AgentEyes.Tests.Shared
             finally
             {
                 listener.Stop();
-                serving.Wait(5000);
+                serving.Join(5000);
             }
         }
 
@@ -1550,8 +1580,15 @@ namespace AgentEyes.Tests.Shared
         }
     }
 
-    /// <summary>The name of the collection every loopback-server test class joins (see LibraryRedirectTests).</summary>
-    public static class LoopbackServerCollection
+    /// <summary>
+    /// The name of the collection every loopback-server test class joins (see LibraryRedirectTests).
+    /// Issue #161 pass 4: NOT parallel with the rest of the suite. These tests hold time bounds - the service probe's
+    /// 500 ms - and on a loaded CI runner (pull_request run 43944621928) the thread pool they share with the parallel
+    /// suite starved: a 500 ms client timeout fired after 2354 ms, and stand-in services answered after a cold child
+    /// had already given up. Run alone, after the parallel collections, the bound measures the probe, not the runner.
+    /// </summary>
+    [CollectionDefinition(Name, DisableParallelization = true)]
+    public sealed class LoopbackServerCollection
     {
         public const string Name = "loopback control servers";
     }

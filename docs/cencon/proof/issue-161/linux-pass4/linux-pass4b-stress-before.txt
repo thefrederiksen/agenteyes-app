@@ -1,0 +1,22 @@
+== aa2d3e5 tests, --cpus=1, run 1
+  Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [3 ms]
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [155 ms]
+  Failed AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [< 1 ms]
+  Failed AgentEyes.Tests.CaptureOwnershipTests.TryAcquire_HolderProcessKilled_ClaimIsFreedByTheOs [2 ms]
+Failed!  - Failed:     4, Passed:   531, Skipped:     2, Total:   537, Duration: 11 s
+== aa2d3e5 tests, --cpus=1, run 2
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [209 ms]
+  Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [2 ms]
+  Failed AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [< 1 ms]
+  Failed AgentEyes.Tests.CaptureOwnershipTests.TryAcquire_HolderProcessKilled_ClaimIsFreedByTheOs [2 ms]
+Failed!  - Failed:     4, Passed:   531, Skipped:     2, Total:   537, Duration: 11 s
+== aa2d3e5 tests, --cpus=1, run 3
+  Failed AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [6 ms]
+  Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [2 ms]
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5 [162 ms]
+  Failed AgentEyes.Tests.CaptureOwnershipTests.TryAcquire_HolderProcessKilled_ClaimIsFreedByTheOs [2 ms]
+Failed!  - Failed:     4, Passed:   531, Skipped:     2, Total:   537, Duration: 10 s
+== aa2d3e5 tests, --cpus=0.25, run 1
+Failed!  - Failed:     4, Passed:   531, Skipped:     2, Total:   537, Duration: 30 s
+== aa2d3e5 tests, --cpus=0.25, run 2
+Failed!  - Failed:     4, Passed:   531, Skipped:     2, Total:   537, Duration: 32 s
