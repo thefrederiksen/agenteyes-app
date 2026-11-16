@@ -418,8 +418,8 @@ parameter.
 - `dotnet test tests/AgentEyes.Tests.Linux -c Release`: **387 passed, 0 failed, 1 skipped (the #151
   opt-in), 388 total**, under Landlock.
 - `dotnet test tests/AgentEyes.Tests.DesktopApp -c Release` (net8.0, Linux): **17 passed, 0 failed**.
-- `tests/AgentEyes.Tests.Mac`: compiled only. Windows `.sln`: not buildable here. Both are first run
-  on CI for this head.
+- `tests/AgentEyes.Tests.Mac`: compiled here; RUN on CI. Windows `.sln`: not buildable here; RUN on CI.
+  Results in section 11.
 - Heavy smokes: none. No capture, audio or UI change.
 
 ## 8. Cases I was tempted to assume away (pass 2)
@@ -521,6 +521,34 @@ Not changed, deliberately (CLAUDE.md deviations, stated):
 - The try/catch that turns a failed derivation into a refusal sits in `ApplyFromEnvironment` (rule 4). It
   is the entry points' one shared decision function and returns `Refused` with the reason, which each
   entry point prints - one place instead of four copies.
+
+## 11. CI at this head, and two defects CI found that my local gates could not
+
+| Run | Head | linux | windows | macos |
+|-----|------|-------|---------|-------|
+| 43925309084 | 6ba5165 | 387/0 default; opt-in FAILED 1 (see b) | FAILED 2 (see a) | CANCELLED - no runner in 15 min, 0 steps |
+| 43928220679 | f063cb7 | FAILED 1 default (see b) | 2436/0 (22 skip); opt-in 2455/0 (7 skip); DesktopApp 17/17 | **351 passed, 0 failed, 1 skipped** |
+| 43929135704 attempt 1 | b780cd8 | 387/0 (1 skip); opt-in 388/0 | 2436/0 (22 skip); opt-in 2455/0 (7 skip); DesktopApp 17/17 x2 | **351 passed, 0 failed, 1 skipped** |
+| 43929135704 attempt 2 | b780cd8 | 387/0 (1 skip); opt-in 388/0 | 2436/0 (22 skip); opt-in 2455/0 (7 skip); DesktopApp 17/17 x2 | **351 passed, 0 failed, 1 skipped** |
+
+macOS: the job has now RUN at this branch's head, green. (The macOS suite links LibraryRedirectTests, so
+the passwd lookup on the macOS struct layout and the spoofed-HOME child ran there; the CI log at default
+verbosity does not list passing tests by name, so that is by linkage, not by a quoted line.)
+
+**(a) Windows - mine: the #155 IL inventory (`ManifestWriterIlTests`) pins every file write and native
+import in the product.** Pass 2 added the N1 write probe (`FileStream` + `File.Delete` in
+`LibraryRedirect.UsableFolderProblem`) and the four passwd imports. FOUND minus PINNED in the CI log was
+exactly those six lines and nothing else; pinned with what each does (f063cb7). This machine cannot build
+the Windows suite, which is why it surfaced on CI.
+
+**(b) Linux - introduced by #161, fixed: a port collision between test classes.**
+`HeadlessControlServerFramingTests` (#123) and `LibraryRedirectTests` (#161 pass 1 added it to the Linux
+suite) both start a `HeadlessControlServer` on a probed-then-released port. Run in parallel they can be
+handed the same port, the managed HttpListener shares it, and the second Dispose fails with
+"Address already in use" - once in each of two consecutive runs, different cases. Both classes now join
+one xunit collection (b780cd8), so they never run at the same time. I never reproduced the race locally
+(5 default + 2 opt-in runs were green before and after), so the evidence for the fix is the CI runs
+above, not my machine.
 
 ## Linux: let the kernel enforce it (the macOS sandbox-exec equivalent)
 
