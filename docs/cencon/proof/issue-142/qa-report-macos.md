@@ -152,6 +152,11 @@ contains, and it agrees with the marker table.
 Wave A on macOS is rows 1, 4, 5 and 6: **four run, four PASS.** The other eight are not runnable on
 this machine and each says why above - none is blank.
 
+> **Superseded for rows 2, 3, 7, 8, 9 and 10 on 2026-11-16.** #118 merged, so a macOS app now exists
+> and those six rows have been run. Their current verdicts are in **"Wave B, 2026-11-16 - the macOS
+> application rows"** at the end of this report. The "NOT RUNNABLE" entries above are kept as the
+> record of what was true on 2026-11-15.
+
 ## Row 1 - Installs by the platform's supported route: PASS
 
 `scripts/mac/install.sh`, transcript in `macos/install-transcript.txt`. Exit 0, every step `[OK]`,
@@ -728,3 +733,399 @@ Additional evidence: `macos/skew3-prediction.txt` (written before the measuremen
 `macos/skew3-take.txt`, `macos/skew3-probe.txt`, `macos/skew3-accounting.txt`,
 `macos/skew-regression-final.txt`, `macos/mux-durations.txt`, `macos/mux-inflight-1.txt`,
 `macos/audiocapture-stop-lines.txt`, `macos/throttle-product-warning.txt`.
+
+---
+
+# Wave B, 2026-11-16 - the macOS application rows
+
+**Headline: the first run of the six application rows on a Mac. The app installs, opens, lists the
+real library with a correct count, plays a recording, and opens its detail, settings and dictionary
+screens; its menu-bar icon was photographed idle and recording. Saving is BLOCKED (it needs a click).
+Row 10 FAILS on the route a Mac user actually takes: a second launch through Launch Services (Finder,
+Dock, Spotlight, Launchpad) does not bring back a hidden window - the app has no reopen handler. The
+app's own single-instance handoff, used by a second launch of the executable, works.**
+
+| | |
+|---|---|
+| Machine | `devthrottle-mac-mini`, macOS 26.5.2 arm64 |
+| Commit tested | **`main` at `277a9bc`** (`277a9bcf71c7f82547353177299178efc1020327`), the #118 merge; `git fetch origin` at 14:18, `origin/main` = that commit |
+| App, as installed | `~/Applications/AgentEyes.app`, `Identifier=com.agenteyes.app`, `Signature=adhoc`, `CDHash=f137a81e35efa32b27ab84afdc949aa9eac33354`, `codesign --verify --deep --strict` exit 0, 198 MB. `AgentEyesDesktop.dll` reports **`1.11.11+277a9bcf71c7f82547353177299178efc1020327`** |
+| App before my install | `1.11.11+9f668b54555cfbf35569c620b58e287eee37e220`, cdhash `9fdc7938...` (#118's QA build); not running |
+| Service (the owner's, untouched) | pid **50642**, `agenteyes.dll` reports `1.11.11+f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab`. **It is not built from 277a9bc** - the app rows exercise the app against the installed service, as a user would after `install-app.sh` |
+| Screen | **LOCKED** throughout (`CGSSessionScreenIsLocked=Yes` at 14:18:43, 14:19:47, 14:25:16 and 14:30) |
+| Load | 2.32 at the start, 2.12 at the end, 10 cores |
+| Time | 14:18 - 14:30 EST |
+
+## The verdicts
+
+| # | Check | Verdict | One-line reason |
+|---|---|---|---|
+| 2 | Launches; the main window opens | **PASS** | `open` -> pid 57343, `14:19:49.185 [MainWindow] Opened`; window 796 photographed, full Record page |
+| 3 | The library lists existing recordings | **PASS** | photograph reads **"81 recordings"**; 81 directories, all 81 with `manifest.json`; positive control: a new recording moves it to **82** |
+| 7 | Plays a recording back in the app | **PASS, opened by launch verb not by click** | `--preview <id>` -> `[PlayerWindow] Load: playing`; two photographs read `0:03 / 0:21` then `0:09 / 0:21` |
+| 8 | Detail view, settings and dictionary open and save | **OPEN: PASS. SAVE: BLOCKED** | all three opened and photographed; every save needs a click or typing |
+| 9 | Menu-bar icon shows idle and recording | **PASS for the icon itself; the in-place menu-bar photograph BLOCKED** | the status-item window photographed by id: crescent idle, red dot recording, back to the crescent after the stop, in step with the app's `Render` lines. One instance did not log its return to idle (O3, not reproduced) |
+| 10 | Single instance: a second launch raises the first window | **FAIL on the Launch Services route; PASS on the executable route** | `open` while hidden: no process, no log line, **no window**. Executable: both processes log the handoff and window 813 appears |
+
+## How anything was seen with the screen locked
+
+Reused, not rewritten: `docs/cencon/proof/issue-116/mac-pass3-capture-tools/` (`oneshot.py`,
+`StartupHook.cs`, `compose.swift`) and `docs/cencon/proof/issue-116/mac-window-probe.swift`, built
+unchanged into a scratch directory. `macos-app/tools/cap.sh` is my thin driver around `oneshot.py`.
+
+- Window ids come from the Window Server (`mac-window-probe`), not from the app's own log.
+- Each photograph is taken by a **one-shot launchd job** running the **installed service binary**
+  `agenteyes` with `DOTNET_STARTUP_HOOKS=QaCaptureHook.dll`, which runs
+  `screencapture -x -o -l <window id>` and exits before the recorder's `Main`.
+- Every hook report shows `CGPreflightScreenCaptureAccess() = True`, `AXIsProcessTrusted() = False`,
+  `CGPreflightPostEventAccess() = False`. **That last pair is why no row could click.**
+- Nine jobs (`com.agenteyes.qa142.row2`, `.row3`, `.row9rec`, `.row7a`, `.row7b`, `.row8`, `.row10`, `.rt1`, `.rt2`),
+  each bootstrapped, polled with a 40 s hard timeout, finished in about 0.5 s with exit 0, and was
+  booted out (`post-bootout print exit=113`). `launchctl list | grep -c qa142` = 0 after each.
+- The service's pid, apphost sha256 and `/health` are logged before and after every job: unchanged.
+- **No `screencapture` was run from my shell.** The app holds no grant and was given no hook.
+
+## The service was not touched - measured
+
+| When | pid | `agenteyes` sha256 | `agenteyes.dll` sha256 | `/health` |
+|---|---|---|---|---|
+| 14:18:43 baseline | 50642 | `348b93b8...d2607022` | `1b9092d0...4111ddb0` | `ok:true` |
+| 14:19:01 before `install-app.sh` | 50642 | `348b93b81d867fc3` | `1b9092d077892723` | `ok:true` |
+| 14:19:12 after `install-app.sh` | 50642 | `348b93b81d867fc3` | `1b9092d077892723` | `ok:true` |
+| 14:25:16 after row 10 | 50642, launchd `state = running` | `348b93b8...d2607022` | `1b9092d0...4111ddb0` | `ok:true`, idle |
+| 14:30 at the end | 50642, launchd `state = running` | `348b93b8...d2607022` | `1b9092d0...4111ddb0` | `ok:true`, idle |
+
+`scripts/mac/install-app.sh --no-start` built, signed, verified, installed and registered the bundle
+(`macos-app/install-app-transcript.txt`). **I did not capture its exit code** (my pipe swallowed it);
+the script runs under `set -euo pipefail` and printed its closing paragraph, which it reaches only
+after every step, and the installed bundle is verified separately above. `scripts/mac/install.sh` was
+**not** run.
+
+## Row 2 - Launches; the main window opens: PASS
+
+**Expected:** the installed app launches by the platform's route and its main window opens, shown by
+the app's log line and a photograph.
+
+**Actual** (`macos-app/row2-launch.txt`): with no app running, `open ~/Applications/AgentEyes.app` at
+14:19:47 started pid 57343 (`~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop`), which logged:
+
+```
+14:19:48.767 [pid 57343] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=57343)
+14:19:49.185 [pid 57343] [INFO] [MainWindow] Opened
+14:19:49.284 [pid 57343] [INFO] [AppState] PollAsync: service answering, state=idle
+14:19:49.308 [pid 57343] [INFO] [MainWindow] RequestScan: 81 recording(s), 68 pending, 46 ms
+```
+
+The Window Server lists `pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true bounds=1280x748`.
+**Photograph:** `macos-app/row2-window-record.png`. I read it: the Record page - REC button, Screen
+"Monitor 1 - 1920 x 1080 (primary)", Microphone "No microphone", the VIDEO / MIC / SYSTEM cards, the
+left rail. Not blank.
+
+## Row 3 - The library lists existing recordings: PASS
+
+**Expected:** the Library view lists the owner's recordings with a count, and the count is right.
+
+**Actual:** a second launch asked for the Library (`--view library`, see row 10); the window was then
+photographed: `macos-app/row3-window-library.png`. I read it: header **"81 recordings"**, a grid of
+cards, the first row dated Nov 16 1:08 PM, 12:34 PM, 9:06 AM, 9:05 AM.
+
+**Cross-check against the directory** (`macos-app/row3-crosscheck.txt`, 14:20:52). The scanner counts
+every top-level folder of `~/Movies/AgentEyes` that holds a `manifest.json`
+(`Model/LibraryEntry.cs`, `LibraryScanner.Scan`):
+
+| Measure | Value |
+|---|---|
+| top-level directories | 81 |
+| ... with `manifest.json` | **81** |
+| ... without | none |
+| by mode | 73 video, 8 audio |
+| newest four folders | `2026-11-16_130845`, `_123404`, `_090652`, `_090503` - the photographed first row, in order |
+| the app's own log | `RequestScan: 81 recording(s)` |
+
+**Positive control - the capture sees the count change.** Row 9 starts a recording. The app logged
+`RequestScan: 82 recording(s)` at 14:21:05.573, and the photograph taken at 14:21:09
+(`macos-app/row9-window-recording.png`) reads **"82 recordings"** with a new first card,
+"Recording..." / "Processing...", dated Nov 16 2:21 PM. So the "81" is read from a live window, not a
+stale image.
+
+## Row 7 - Plays a recording back in the app: PASS, opened by launch verb, not by click
+
+**Why this was reachable.** Starting playback by hand is a click on a card. But the app accepts
+launch verbs that a second launch hands to the first (`Program.cs:56-68`), and
+`--preview <id>` runs the same `OpenPreview` the card's Preview button runs
+(`MainWindow.axaml.cs`, `Preview_Click` -> `OpenPreview`). The player starts on open:
+`PlayerWindow.Load` calls `_player.Play(_media)` (`PlayerWindow.axaml.cs:79`). No click is needed.
+
+**What I played.** `2026-11-15_134545_video` - Wave A's row-4 take, 21.300 s, **one video stream
+and no audio**, chosen so that playback on an unattended machine is silent.
+
+**Actual** (`macos-app/row7-preview.txt`):
+
+```
+14:21:44.633 [pid 59004] [SingleInstance] TryAcquire: another instance is running - sent it 'preview:2026-11-15_134545_video'
+14:21:44.636 [pid 57343] [MainWindow] OpenPreview: 2026-11-15_134545_video
+14:21:44.665 [pid 57343] [PlayerWindow] ctor: ~/Movies/AgentEyes/2026-11-15_134545_video/recording.mp4 (Video)
+14:21:45.534 [pid 57343] [PlayerWindow] Load: playing ~/Movies/AgentEyes/2026-11-15_134545_video/recording.mp4
+```
+
+The player is window 802 (1000x668), owned by pid 57343. Photographed twice:
+
+| Photograph | Taken | Time label | Seek thumb | Button |
+|---|---|---|---|---|
+| `macos-app/row7-player-a.png` | 14:21:50.211 | **`0:03 / 0:21`** | about 19% | pause glyph (playing) |
+| `macos-app/row7-player-b.png` | 14:21:54.890 | **`0:09 / 0:21`** | about 43% | pause glyph |
+
+I read both: the recorded desktop (the lake wallpaper) rendered by libvlc in the player, title
+"Monitor 1", and the transport bar. **The two time labels are the positive control:** the position
+advanced, so this is playback and not a still frame.
+
+**Limit, stated:** the label moves by at least 5.0 s across 4.68 s of wall time. The label is floored
+to whole seconds and refreshed every 250 ms (`PlayerWindow.axaml.cs:25`, `:104`), which accounts for
+most of that; the remaining fraction of a second I attribute to libvlc's time reporting and have not
+measured. I claim "playback advances", not a playback rate.
+
+## Row 8 - Detail view, settings and dictionary open and save: OPEN PASS, SAVE BLOCKED
+
+**Open - PASS.** Each screen was opened by a second launch with its verb (`macos-app/row8-open.txt`):
+
+| Screen | Launch | The first instance logged | Window | Photograph |
+|---|---|---|---|---|
+| Details | `--details 2026-11-15_134545_video` | `OpenDetails`, `[DetailWindow] ctor`, `LoadAsync: ... transcript=None chars=0` | 807, 680x668 | `macos-app/row8-details.png`: title "Monitor 1", Nov 15 2026 1:45 PM, the sign-in banner, "Not transcribed.", buttons Play / Build walkthrough / Copy transcript (disabled) / Open folder / Delete |
+| Settings | `--settings general` | `OpenSettings: General`, `[SettingsWindow] ctor: tab=General` | 808, 560x508 | `macos-app/row8-settings.png`: General and Account tabs, "Run at login" unchecked, "Recorder service: running (http://127.0.0.1:7882)", the two folder buttons |
+| Dictionary | `--view dictionary` | `Rail_Changed: Dictionary`, `LoadDictionaryAsync`, `dictionary: seeded starter file at ~/Library/Application Support/AgentEyes/dictionary.json` | 796 (the main window) | `macos-app/row8-dictionary.png`: six starter terms, each with "+ misheard", Edit, Delete |
+
+**Redactions:** in `row8-settings.png` the two folder paths (they carry the account name) and in
+`row8-dictionary.png` one starter term (the owner's name) are painted over with
+`macos-app/tools/redact.swift`. Nothing else in either image was altered. The term itself is in
+`src/AgentEyes.Core/Transcription/TranscriptionDictionary.cs`, so nothing evidential is hidden.
+
+**My own error, kept in the record:** my first two attempts passed `--details <id>` and
+`--settings general` as **one** argument each (zsh does not split `$args`), so the app received
+`show` and opened nothing new. `row8-open.txt` keeps those two runs and then the correct ones.
+
+**Save - BLOCKED.** Every save on these screens is a user action: Settings' only setting is the
+"Run at login" checkbox; the dictionary saves on Add / Edit / Delete / "+ misheard"; the detail view
+renames or deletes by button. All need a click or typing, and the screen was locked
+(`CGPreflightPostEventAccess() = False`, `AXIsProcessTrusted() = False` in every hook report). I did
+not drive a save from inside the app with a hook: that would test a method call, not the screen.
+**Nothing was saved, and this report does not say saving works.**
+
+**One finding from reading the save path (F1 below):** on macOS, the "Run at login" checkbox would
+save to a file macOS never reads.
+
+## Row 9 - Menu-bar icon shows idle and recording: PASS for the icon, in-place photograph BLOCKED
+
+**Which window is the icon.** On macOS 26 every status item is a layer-25 window **owned by Control
+Center** (pid 431), never by the app, so a per-pid probe cannot find it. I listed all layer-25
+windows before and after each launch:
+
+- First launch: 10 before and 10 after, with exactly one new window, **797**, 38x30 at 1432,0
+  (one stale off-screen item, 794, was removed by the system in the same interval).
+- The tray-only launch in row 10: exactly one new window, **812**, at the same place.
+
+**Photographs, by window id:**
+
+| State | Photograph | sha1 of the raw capture | What I see |
+|---|---|---|---|
+| idle (14:20:11, pid 57343) | `macos-app/row9-item-idle.png`, enlarged `row9-item-idle-x6.png` | `3d08460349df6e0e...` | white crescent moon with a dot |
+| recording (14:21:09, 4.7 s into a recording) | `macos-app/row9-item-recording.png`, enlarged `row9-item-recording-x6.png` | `562448ea56b2a804...` | red dot with a dark ring |
+| idle again, a different instance (14:24:51, pid 60625) | `macos-app/row10-item.png` | `3d08460349df6e0e...` | identical bytes to the first idle capture |
+
+**It follows the recorder.** The recording was started through the Control API, not through the app:
+`POST /record/start {"mode":"video","screen":1,"source":"none"}` at 14:21:04, then `/status`
+`recording 4.75` before the photograph and `recording 5.45` after it, then `POST /record/stop {}`
+(5.47 s). The app logged `14:21:05.489 [TrayController] Render: idle -> recording`. These are the
+same two drawings #116's seat recorded (`3d084603...` and `562448ea...`), and what
+`TrayController.cs` draws (`DrawMoon`, `DrawDot`).
+
+**BLOCKED, and why:**
+- **The icon in place on the menu bar.** A rectangle capture fails while the screen is locked, so I
+  have no photograph of the bar with the icon among its neighbours. The `-x6` images are the item
+  window composited onto a synthetic dark fill by `compose.swift`; that fill is the tool's colour, not
+  the menu bar's. Legibility on the real bar is not shown.
+- **The icon's menu.** Opening it needs a click.
+
+**Return to idle in the same instance - measured separately** (`macos-app/row9-return-to-idle.txt`).
+While writing this report I found that the first instance (pid 57343) **never logged
+`recording -> idle`** in the three minutes it ran after the stop (see O3). So I ran it again on a fresh
+launch, pid 62329, item window 816, main window 815:
+
+| Moment | App log | Icon (sha1) | Main window |
+|---|---|---|---|
+| 14:28:57 `POST /record/start` | `14:28:57.952 Render: idle -> recording` | `562448ea...` (`row9-rt-item-recording.png`) | `row9-rt-window-recording.png`: **STOP**, `REC 00:03`, controls greyed |
+| 14:29:01 `POST /record/stop` (4.47 s) | `14:29:02.527 Render: recording -> idle` | `3d084603...` (`row9-rt-item-after-stop.png`, `-x6`) | `row9-rt-window-after-stop.png`: REC again - **byte-identical** (`cmp`) to row 2's idle photograph |
+
+A second recording on the same instance with the Library view showing (the first instance's
+condition) also returned: `14:29:32.437 idle -> recording`, `14:29:37.455 recording -> idle`.
+
+## Row 10 - Single instance, a second launch raises the first window: FAIL on the Launch Services route
+
+There are two different "second launches" on a Mac, and they behave differently.
+
+### Arm B - a second launch of the executable: PASS
+
+The app's own single-instance handoff (`SingleInstance.cs`, a Unix socket in `$TMPDIR`).
+
+**Window already showing** (`macos-app/row10-second-launch.txt`), `AgentEyesDesktop --view library`
+at 14:20:33, exit 0 after 0.05 s:
+
+```
+14:20:33.767 [pid 57818] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=57818)
+14:20:33.771 [pid 57818] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+14:20:33.772 [pid 57343] [SingleInstance] Accept: 'view:library'
+14:20:33.773 [pid 57343] [App] ShowWindow
+14:20:33.777 [pid 57343] [MainWindow] Rail_Changed: Library
+```
+
+Afterwards only pid 57343 runs. The same handoff carried `preview:`, `details:`, `settings:` and
+`view:dictionary` in rows 7 and 8, each logged by both processes.
+
+**Window hidden - the case that tests "raises"** (`macos-app/row10-tray-start.txt`,
+`macos-app/row10-armB-exe.txt`). I stopped pid 57343 with SIGTERM, then started the app tray-only with
+`open ~/Applications/AgentEyes.app --args --tray` (the login-autostart form): pid 60625,
+`tray=True`, its status item 812, and **no window** (`mac-window-probe 60625` -> `[EMPTY]`, exit 2; the
+same probe had found window 796 for the previous instance, so the empty result is not a broken
+instrument). Then the executable, no arguments, at 14:24:43:
+
+```
+14:24:43.998 [pid 60866] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+14:24:43.999 [pid 60625] [SingleInstance] Accept: 'show'
+14:24:44.001 [pid 60625] [App] ShowWindow
+14:24:44.235 [pid 60625] [MainWindow] Opened
+```
+
+Window **813** now exists for pid 60625; `macos-app/row10-window-raised.png` shows the Record page.
+Window absent before, present after: the second launch brought the first instance's window up.
+
+### Arm A - a second launch through Launch Services: FAIL
+
+On a Mac, a person launches an app from Finder, the Dock, Spotlight or Launchpad, and all of them go
+through Launch Services. Launch Services does **not** start a second process for a running app; it
+activates the running one and sends it a "reopen" event. The app's own handoff is never reached.
+
+- **Window showing** (`macos-app/row10-open-again.txt`): `open ~/Applications/AgentEyes.app` at
+  14:23:39, exit 0. Still only pid 57343; **0** app log lines. Nothing to raise was observable
+  while locked.
+- **Window hidden** (`macos-app/row10-armA-open.txt`): with the tray-only pid 60625 running,
+  `open ~/Applications/AgentEyes.app` at 14:24:22, exit 0. Still only pid 60625, **0** app log lines,
+  and **no window** (`mac-window-probe 60625` -> `[EMPTY]`). Twenty-one seconds later arm B, on the
+  same instance and the same probe, produced window 813, so the probe was working.
+
+**Why, from the code:** the app uses Avalonia 11.3.22, which offers an application-reopen event
+(`IActivatableLifetime`, `ActivationKind`, and `IAvnApplicationEvents.OnReopen` in
+`Avalonia.Native.dll` - all present in the installed bundle). The app subscribes to none of them:
+`grep -E "IActivatableLifetime|ActivationKind|TryGetFeature"` over `src/AgentEyes.DesktopApp`
+finds nothing. So a reopen has nothing to show the window, and the locked screen is not what stopped
+it.
+
+**What this means for a user (F2 below):** close the window (it hides to the menu bar,
+`App.axaml.cs`), then open AgentEyes again from Launchpad, Spotlight, Finder or the Dock - and no
+window comes back. The only way back is the menu-bar icon's "Show AgentEyes".
+
+**Limits:** I produced the hidden state by starting with `--tray`, not by closing the window (a
+click). A closed window is `Hide()`n rather than never created; I expect the same result but did not
+measure it. Whether a reopen raises a window that is showing but behind others needs an unlocked screen.
+
+## New findings, handed to the lead and NOT filed
+
+### F2 - Measured: a second launch through Launch Services does not bring back a hidden window
+
+Row 10 arm A above. Fix direction, for whoever owns it: handle Avalonia's reopen activation
+(`IActivatableLifetime.Activated` with `ActivationKind.Reopen`) by running the same `ShowWindow` the
+socket handoff runs. A test cannot easily drive Launch Services; the measurement above (tray-only
+instance, `open`, probe for a window) is a repeatable runtime check.
+
+### F1 - By code reading: "Run at login" on macOS writes an XDG autostart file that macOS never reads
+
+`Model/AppSettings.cs:61-95`: `Autostart.EntryPath` is `~/.config/autostart/agenteyes.desktop` on
+every platform, and `Enable` writes a `[Desktop Entry]` file with `Exec=... --tray` and
+`X-GNOME-Autostart-enabled=true`. macOS has no XDG autostart. And `IsEnabled` is
+`File.Exists(EntryPath)`, so after a user ticks the box, the box **reads back as ticked** - the setting
+looks saved and does nothing. **Not run:** it needs a click and a fresh login. The macOS form would be a
+LaunchAgent or `SMAppService`.
+
+### O2 - Observation, not judged: the Record page says "System sound: Recorded" on a Mac that cannot record it
+
+Every Record-page photograph shows "System sound - Recorded" and a green SYSTEM card ("what you hear,
+70%"). The service on the same machine answers `GET /devices` with `systemAudio: "(unavailable: none of
+the audio inputs on this Mac is a loopback device ...)"`. The app's default is
+`SystemSound = true` (`AppSettings.cs:19`) and its source is `system` when no microphone is set
+(`AppSettings.SourceFor`). What REC does from this state needs a click; not measured.
+
+### O3 - Observation, NOT reproduced: one app instance never logged its return to idle
+
+The first instance, pid 57343, logged `14:21:05.489 [TrayController] Render: idle -> recording` and
+then **no further `Render` line** until I stopped it at 14:24:12, although the recording stopped at
+14:21:11 and `/status` answered `idle` from 14:21:13. `TrayController.Render` logs every change of
+state (`TrayController.cs:80-81`), and the app kept polling: the service logged **60, 60 and 59
+`GET /status` a minute** for 14:22, 14:23 and 14:24, with no other app running. pid 57343 logged no
+WARN or ERROR line.
+
+- **What it may mean:** the icon (and possibly the Record page) stayed in the recording state after the
+  recording ended.
+- **What I did not see:** I did not photograph that instance's icon or Record page after the stop, so
+  this is a missing log line, not an observed wrong icon.
+- **Two attempts to reproduce it, both returned to idle within 1.4 s** (row 9 above), including one with
+  the Library view showing.
+- **A possible mechanism, from reading, unproven:** `AppState.PollAsync` runs fire-and-forget
+  (`_ = PollAsync()`, `AppState.cs:58-60`) and raises `Changed` outside its try/catch
+  (`AppState.cs:84`). `TrayController` subscribes before `MainWindow`, so if `TrayController.Render`
+  threw before its state comparison, the exception would vanish silently, and `MainWindow.Render`
+  would not run either. I have no evidence that it threw.
+
+## What this run did NOT cover
+
+- **Any click.** The REC button, the rail buttons, a card's Preview / Details buttons and its context
+  menu, the menu-bar icon and its menu, any menu item. Every screen here was reached through a launch
+  verb or the Control API. The click handlers call the same methods (`OpenPreview`, `OpenDetails`,
+  `OpenSettings`), but the click paths themselves were not exercised.
+- **Any save** (row 8).
+- **Audio playback.** The played recording has no audio track, deliberately.
+- **The icon in place on the menu bar, and its menu** (row 9).
+- **Closing the window to the menu bar, then launching again** (row 10 used a tray-only start).
+- **An unlocked screen**, Finder double-click, Dock behaviour, focus and z-order.
+- **The full `scripts/mac/install.sh`** and **a clean Mac** (row 1, owed per comment 6925350295).
+- **A service built from 277a9bc.** The app talked to the owner's service at f9ef230.
+- **No product code changed, so no build or test gate was run.** `install-app.sh` built the bundle.
+
+## Hazards - what I touched and what I did not
+
+- **Not touched:** `com.agenteyes.recorder` (never booted out or re-registered); the installed service
+  binary (sha256 unchanged); any TCC or privacy setting; the other clones on this machine.
+- **Replaced:** `~/Applications/AgentEyes.app`, from 9f668b5 to 277a9bc, by `install-app.sh` as asked.
+- **Started and stopped:** app pids 57343, 60625 and 62329 (SIGTERM; each was gone at the first check,
+  within a second); the transient second-launch processes (57818, 59004, 59657, 59664, 59726, 59734,
+  59793, 60866, and one more for row 9's Library view), each exited 0 on its own. No app was running
+  when I arrived and none is running now.
+- **Added to the owner's library, as evidence (do not delete):** three short screen-only recordings
+  from row 9 - `2026-11-16_142104_video` (h264 1920x1080, 169 frames, 5.633 s), `2026-11-16_142857_video`
+  (4.47 s) and `2026-11-16_142931_video` (4.71 s). The library went from 81 to 84; nothing was
+  deleted; `2026-11-16_123404_video` and `2026-11-16_130845_video` are still present. Each recording's
+  package stage fails on extracting audio from a file with no audio track - the service's known #126,
+  already recorded in Wave A, not new.
+- **Created by the app, left in place:** `~/Library/Application Support/AgentEyes/dictionary.json`,
+  seeded with the starter terms the first time the Dictionary view opened. `linux-app.json` was
+  rewritten by `AppSettings.Save` with the values it had loaded.
+- **ffmpeg:** none was running before; the row 9 recording's ffmpeg was the service's; none afterwards.
+- **#161:** 154 app log lines from my processes (14:19:40 - 14:30:30) went into the owner's real
+  `AgentEyes-20261116.log`. These rows are meant to use the real library, so no scratch service was
+  started.
+
+## Evidence (Wave B)
+
+Under `docs/cencon/proof/issue-142/macos-app/`:
+
+| File | What it holds |
+|---|---|
+| `baseline.txt`, `identity-before.txt` | the machine and service at 14:18, the embedded commit of the app and service |
+| `install-app-transcript.txt` | `install-app.sh --no-start`, the service before and after, the installed bundle's identity |
+| `row2-launch.txt`, `row2-window-record.png` | row 2 |
+| `row3-crosscheck.txt`, `row3-window-library.png` | row 3, and the directory count |
+| `row7-preview.txt`, `row7-player-a.png`, `row7-player-b.png` | row 7 |
+| `row8-open.txt`, `row8-details.png`, `row8-settings.png`, `row8-dictionary.png` | row 8 (two images redacted) |
+| `row9-recording.txt`, `row9-item-idle*.png`, `row9-item-recording*.png`, `row9-window-recording.png` | row 9, and row 3's positive control |
+| `row9-return-to-idle.txt`, `row9-rt-*.png`, `cap-rt1.txt`, `cap-rt2.txt` | row 9's return to idle in one instance, and the O3 reproduction attempts |
+| `row10-second-launch.txt`, `row10-open-again.txt`, `row10-tray-start.txt`, `row10-armA-open.txt`, `row10-armB-exe.txt`, `row10-window-raised.png`, `row10-item.png` | row 10, both arms |
+| `cap-*.txt` | every capture job: the plist bootstrap, the hook report, the bootout, the service either side |
+| `machine-left.txt` | the end state, measured twice (after row 10, and after the row 9 reproduction) |
+| `tools/cap.sh`, `tools/redact.swift` | my capture driver and the redaction tool |

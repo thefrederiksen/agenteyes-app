@@ -1,0 +1,19 @@
+=== capture job com.agenteyes.qa142.row7a 14:21:50  captures: row7-player-a|-x -o -l 802;
+service before: pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+14:21:50 job com.agenteyes.qa142.row7a argv ['~/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/tools/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/cap/row7a', 'QA_CAPTURES': 'row7-player-a|-x -o -l 802;', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/cap/row7a/com.agenteyes.qa142.row7a.plist
+  exit=0  
+14:21:50 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa142.row7a
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+--- hook report
+14:21:50.189 [hook] pid=59090 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+14:21:50.206 [hook] CGPreflightScreenCaptureAccess() = True
+14:21:50.210 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+14:21:50.211 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+14:21:50.211 [hook] row7-player-a: screencapture -x -o -l 802 <scratch>/cap/row7a/row7-player-a.png
+14:21:50.298 [hook] row7-player-a: exit=0 ms=86 file_bytes=675846 stderr=''
+14:21:50.298 [hook] Environment.Exit(0) - the recorder's Main is never reached
+service after:  pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+qa142 launchd labels left: 0

@@ -1,0 +1,3 @@
+repo HEAD: 277a9bcf71c7f82547353177299178efc1020327  (origin/main 277a9bcf71c7f82547353177299178efc1020327)
+installed app BEFORE: AgentEyesDesktop.dll 1.11.11+9f668b54555cfbf35569c620b58e287eee37e220; cdhash CDHash=9fdc7938cba5a1969935cf74caecc95df0fad26e
+service dll: 1.11.11+f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab

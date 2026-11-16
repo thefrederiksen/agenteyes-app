@@ -1,0 +1,7 @@
+14:20:52 recordings root ~/Movies/AgentEyes (RecordingPaths.Root on macOS)
+top-level directories:                81
+top-level dirs WITH manifest.json:    81
+top-level dirs WITHOUT manifest.json: 
+by mode:    8 audio   73 video 
+newest four (should match the first row of the photograph): 2026-11-16_130845_video/ 2026-11-16_123404_video/ 2026-11-16_090652_video/ 2026-11-16_090503_video/ 
+evidence recordings present: 2026-11-16_123404_video 2026-11-16_130845_video 

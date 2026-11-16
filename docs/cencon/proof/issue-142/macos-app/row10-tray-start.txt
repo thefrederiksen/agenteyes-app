@@ -1,0 +1,14 @@
+14:24:12 kill -TERM 57343
+14:24:12 app processes: 0
+14:24:12 $ open ~/Applications/AgentEyes.app --args --tray
+open exit=0
+tray instance pid=60625 command=~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop --tray
+14:24:12.930 [pid 60625] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=True, pid=60625)
+14:24:12.939 [pid 60625] [INFO] [SingleInstance] TryAcquire: stale socket <TMPDIR>/agenteyes-app.sock (ConnectionRefused) - taking it over
+14:24:12.939 [pid 60625] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/agenteyes-app.sock
+14:24:13.157 [pid 60625] [INFO] [TrayController] Render:  -> idle
+--- window server, pid 60625 (expect NO layer-0 window)
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+probe exit=2 (2 = no window)
+new layer-25 item:
+pid=431 owner="Control Center" window=812 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1432,0 name=(name withheld: no Screen Recording grant)

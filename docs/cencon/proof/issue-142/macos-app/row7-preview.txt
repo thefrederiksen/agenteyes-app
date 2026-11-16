@@ -1,0 +1,17 @@
+target: 2026-11-15_134545_video  ffprobe: video 21.300000 
+14:21:44 $ AgentEyesDesktop --preview 2026-11-15_134545_video
+second launch exit=0
+--- every log line since, all app pids (service lines dropped)
+14:21:44.629 [pid 59004] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=59004)
+14:21:44.630 [pid 59004] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='preview:2026-11-15_134545_video'
+14:21:44.633 [pid 59004] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'preview:2026-11-15_134545_video'
+14:21:44.634 [pid 57343] [INFO] [SingleInstance] Accept: 'preview:2026-11-15_134545_video'
+14:21:44.634 [pid 57343] [INFO] [App] Run: preview:2026-11-15_134545_video
+14:21:44.634 [pid 57343] [INFO] [App] ShowWindow
+14:21:44.635 [pid 57343] [INFO] [MainWindow] RunCommand: preview 2026-11-15_134545_video
+14:21:44.636 [pid 57343] [INFO] [MainWindow] OpenPreview: 2026-11-15_134545_video
+14:21:44.665 [pid 57343] [INFO] [PlayerWindow] ctor: ~/Movies/AgentEyes/2026-11-15_134545_video/recording.mp4 (Video)
+14:21:45.534 [pid 57343] [INFO] [PlayerWindow] Load: playing ~/Movies/AgentEyes/2026-11-15_134545_video/recording.mp4
+--- window server, pid 57343
+pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=802 layer=0 onscreen=true alpha=1.0 bounds=1000x668 at 460,216 name=(name withheld: no Screen Recording grant)

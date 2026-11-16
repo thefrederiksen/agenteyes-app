@@ -1,0 +1,50 @@
+2026-11-16 14:18:43 EST
+"CGSSessionScreenIsLocked"=Yes
+service pgrep: 50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+	state = running
+	pid = 50642
+		state = active
+		state = active
+	job state = running
+348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022  ~/Library/Application Support/AgentEyes/bin/agenteyes
+1b9092d077892723730e042bf062eb18b32964326e3d67fa228df0874111ddb0  ~/Library/Application Support/AgentEyes/bin/agenteyes.dll
+health: {
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "macos"
+}
+status: {
+  "State": "idle",
+  "Mode": null,
+  "Source": null,
+  "ElapsedSeconds": 8.42,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": null,
+  "Camera": null,
+  "SignedIn": false,
+  "AccountEmail": null,
+  "PendingTranscriptions": 68,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+  "StuckCameras": [],
+  "PreviewScreenFrame": null,
+  "PreviewCameraFrame": null,
+  "PreviewAvailable": false,
+  "PreviewArmed": false,
+  "PreviewPublishing": false,
+  "PreviewScreenFramesRead": 0,
+  "PreviewCameraFramesRead": 0,
+  "PreviewFailed": false,
+  "PreviewOverlayCorner": null,
+  "PreviewOverlayShape": null
+}
+app processes: 
+ls: /Applications/AgentEyes.app: No such file or directory
+~/Applications/AgentEyes.app
+ffmpeg running: 
+14:18  up 3 days, 23:11, 1 user, load averages: 2.32 2.06 1.96

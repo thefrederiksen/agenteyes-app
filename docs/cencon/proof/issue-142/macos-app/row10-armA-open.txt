@@ -1,0 +1,7 @@
+14:24:22 ARM A: $ open ~/Applications/AgentEyes.app   (Finder / Dock / Spotlight / Launchpad route)
+open exit=0
+app processes: 60625 
+app log lines since: 0
+--- window server, pid 60625
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+probe exit=2 (2 = no window)
