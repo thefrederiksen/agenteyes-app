@@ -1383,13 +1383,13 @@ namespace AgentEyes.Tests.Shared
             }
         }
 
-        [Fact]
+        [ConnectCanHangFact]
         public void AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout()
         {
             // "Nothing is listening" in the shape that takes time: a connect that is never completed. A listener whose
-            // accept queue is full and never drained drops (Linux, macOS) or refuses-and-retries (Windows) every
-            // further connect - the Windows closed-port retry, reproduced on every platform. The CONNECT bound must end
-            // it, well before the response bound would.
+            // accept queue is full and never drained drops (Linux) or refuses-and-retries (Windows) every further
+            // connect - the Windows closed-port retry, reproduced on Linux too. The CONNECT bound must end it, well
+            // before the response bound would. (macOS does not make this shape: see ConnectCanHangFactAttribute.)
             using var server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             server.Bind(new IPEndPoint(IPAddress.Loopback, 0));
             server.Listen(0);
@@ -1729,6 +1729,21 @@ namespace AgentEyes.Tests.Shared
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 Skip = "XDG_DATA_HOME relocates local app data only on Linux; the pure Derive tests cover the rule everywhere";
+        }
+    }
+
+    /// <summary>A fact that needs a loopback connect that never completes, made by filling a listener's accept queue
+    /// (issue #161 pass 5). Linux drops and Windows refuses-and-retries a connect to a full queue, so it hangs there;
+    /// on macOS 64 connects to a Listen(0) socket all completed in 20 ms (CI 43952024044), so no connect hangs and the
+    /// test is reported SKIPPED there - never silently passed. macOS refuses a closed loopback port at once, so its
+    /// probe never waits on the connect bound; <c>ConnectTimeout_IsAFewHundredMilliseconds</c> pins the value everywhere.</summary>
+    public sealed class ConnectCanHangFactAttribute : FactAttribute
+    {
+        public ConnectCanHangFactAttribute()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                Skip = "a full accept queue does not leave a loopback connect hanging on macOS (CI 43952024044); "
+                       + "Linux and Windows run this, and macOS refuses a closed loopback port at once";
         }
     }
 
