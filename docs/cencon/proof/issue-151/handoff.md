@@ -182,7 +182,7 @@ and so is the hard rule block.
 
 ### Noted, not touched (outside this delta's scope)
 
-- `.claude/skills/developer-agent/SKILL.md:138` and `.claude/skills/implementation-loop/SKILL.md:214`
+- The developer-agent skill (`SKILL.md:138`) and the implementation-loop skill (`SKILL.md:214`)
   still describe `dotnet test` as "~2s, no app launch, no audio". That is the same stale figure, in
   the agents' own skills. Neither says "no ffmpeg", but "~2s" is false on Windows (39-65 s). This
   belongs to #153 or a docs follow-up.
