@@ -327,6 +327,7 @@ namespace AgentEyes.Tests
             "kernel32.dll!GetModuleHandle",         // module handle for the keyboard hook
             "kernel32.dll!SetInformationJobObject", // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (no file access)
             "libc!kill",                            // SIGTERM to an orphaned capture ffmpeg, macOS/Linux only (no file access; issue #156 pass 2, D1)
+            "libc!sysctl",                          // KERN_PROC_PID read-only (newp NULL): proves a zombie on macOS (no file access; issue #156 pass 4)
             "shell32.dll!SHGetKnownFolderPath",     // the user's Videos folder
             "user32.dll!CallNextHookEx",            // the low-level keyboard hook chain
             "user32.dll!DestroyIcon",               // frees the composed always-on tray icon's handle (no file access)

@@ -891,7 +891,7 @@ asserts that the word "unmeasured" is gone.
 | `tests/AgentEyes.Tests.Mac` (default gate) | **367 passed, 2 skipped, 0 failed** (the gate measured 345/1 at `384e3fe`: +23 tests; the new skip is the opt-in CLI test) |
 | `tests/AgentEyes.Tests.Mac` with `AGENTEYES_REAL_CLI_TESTS=1` | **368 passed, 1 skipped, 0 failed** |
 | `tests/AgentEyes.Tests.Linux` built `-p:AgentEyesUnixPlatform=linux`, RUN ON THIS MAC | 374 passed, 3 skipped, 0 failed. **NOT a Linux run.** On Linux the opt-in CLI test skips as macOS-only. |
-| `tests/AgentEyes.Tests` (Windows) | **compile only**, with `-p:EnableWindowsTargeting=true`: 0 errors. It caught three call sites in `FfmpegChildRegistryTests.cs` that the Unix suites cannot see. NOT run; CI runs it. |
+| `tests/AgentEyes.Tests` (Windows) | CI run on `3090641`: 1 failure, `ManifestWriterIlTests.EveryNativeImport_IsPinned` - the new `libc!sysctl` import was not in the pinned list (a review moment for file-writing natives; `sysctl` with a NULL `newp` is a read-only kernel query). Pinned, with that reason. Every other Windows test passed (2458). Locally: **compile only**, with `-p:EnableWindowsTargeting=true`: 0 errors. It caught three call sites in `FfmpegChildRegistryTests.cs` that the Unix suites cannot see. NOT run; CI runs it. |
 | `AgentEyes.sln` | cannot build on a Mac (expected) |
 
 ### Scope kept
