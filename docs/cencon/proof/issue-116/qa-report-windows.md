@@ -600,3 +600,178 @@ working machine. I ran the targeted `AgentEyes.Tests.DesktopApp` instead. For th
 - **The rest of the app:** recording from the new app, "Show AgentEyes" and "Open recordings folder" from the
   menu, and anything on SORENLAPTOP.
 - **A fix.** QA does not implement.
+
+---
+
+# Windows QA pass 4 - delta re-QA after the Review Gate rejection (comment 6922665900)
+
+| | |
+|---|---|
+| Machine | **SorenLaptop** (Windows 11 Home 10.0.26200, x64) |
+| Head tested | PR #141 branch `issue-116-desktop-app` at **1d06d75a97aa34d9d6a845022fd704863e5ca7f2**. `git diff f940b2b 1d06d75` touches only `docs/` (the handoff and 4 developer logs), so the code under test is **f940b2b** (the merge of main `17c244d`) |
+| Embedded commit, read from the binaries I ran | ProductVersion `1.0.0+1d06d75a97aa34d9d6a845022fd704863e5ca7f2` on `AgentEyesDesktop.dll`, `AgentEyes.Tests.DesktopApp.dll` and `AgentEyes.Tests.dll`, all under `bin\x64\Release\net8.0-windows10.0.19041.0\` |
+| Toolchain | SDK 10.0.301 building net8.0, runtime Microsoft.NETCore.App 8.0.21 |
+| Build | `dotnet build AgentEyes.sln -c Release`: 0 Error(s), 22 Warning(s). A stale `bin\Release\` (no `x64`) also exists in this clone; nothing was run from it |
+| Spec | Gate rejection 6922665900, the Lead's ruling 6922692531, the developer's pass-4 comment 6923061723 |
+| Raw evidence | `qa-pass4-windows/job1-mutations.txt`, `job2-3-5-transcript.txt`, `job4-full-suite-raw.txt`, `job4-ci-excerpts.txt` |
+
+This is a DELTA re-QA. Not re-run, by instruction: the 50-run Quit repro, the guard-is-a-fix question (settled by
+the gate's Fisher test, p = 0.0006), the criterion 10 macOS ruling, the criterion 6 Linux substitution.
+
+## Verdict
+
+**PASS on all five jobs. The label moves to `flow:ready-gate`.** I did not merge anything.
+
+| Job | Verdict |
+|---|---|
+| 1. A test that pins the fix (G1, G2) | **PASS**: `TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard` fails under G1 and under G2 on this machine, passes unmutated and after restore, and stays green under an unrelated mutation that fails 3 other tests |
+| 2. Nothing else moved | **PASS**: no product source changed on the branch side. Every `src/` and `scripts/` path the merge touched is byte-identical to main's blob. The only non-main changes are the two test csprojs and the test file |
+| 3. The merge (spot-check) | **PASS**: 3 of the 16 dropped files checked by blob hash; the `issue-142` tree equals main's; ae80c4d's report with row 5 FAIL survived. One correction to the premise, below |
+| 4. Suite and CI on the landing tree | **PASS**: local Windows 2375 passed + 15 skipped = 2390, DesktopApp 15/15, 0 failed. Run 43911878522 is on the merge ref. The pull_request run for the current head failed once on Linux, from a flake in code this PR does not touch. Details below |
+| 5. The stale hypothesis | **PASS**: no test name, header or comment presents the deferral as the cure. The remaining product-comment instances are App.axaml.cs:27, TrayController.cs:47-48 and DeferredQuit.cs:7-20, and all three are recorded in #168 |
+
+## Job 1 - the test that must pin the fix
+
+These mutations were made in my working tree, built, tested and reverted with `git checkout`. None was committed or pushed. Each run is
+`dotnet test tests/AgentEyes.Tests.DesktopApp -c Release -p:Platform=x64`, which rebuilds the app from the
+mutated source. The full transcript, with each mutation's `git diff`, is in `qa-pass4-windows/job1-mutations.txt`.
+
+| Tree | `TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard` | `OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard` | Other 13 |
+|---|---|---|---|
+| Unmutated 1d06d75 | Passed | Passed | 13 passed |
+| **G1**: `TrayPopupCloseGuard.cs:63` `e.Cancel = true;` commented out | **FAILED** | Passed | 13 passed |
+| **G2**: `TrayPopupCloseGuard.cs:56` `if (!IsTrayPopup(...))` changed to `if (IsTrayPopup(...))` | **FAILED** | **FAILED** | 13 passed |
+| **N1 control**: `DeferredQuit.cs:58` `_post(Run);` changed to `Run();` (unrelated to the guard) | **Passed** | Passed | 3 failed (`Request_ReturnsWithoutRunningTheShutdown`, `Request_PostedWorkRuns_ShutsDownOnce`, `Request_Twice_PostsOneShutdown`) |
+| Restored (after `git checkout`) | Passed | Passed | 13 passed |
+
+Failure message under G1 and G2, verbatim:
+`the tray popup's re-entrant second close was NOT cancelled - TrayPopupCloseGuard did not stop the double teardown that crashes the app on Windows (issue #116)`.
+Under G2 the second test also fails:
+`TrayPopupCloseGuard cancelled a close of a window that is not the tray popup - it must guard Avalonia's Windows tray popup and nothing else`.
+
+N1 is the specificity control. It is a real behavioural break, and the suite catches it with the deferral
+tests while the guard test stays green. So the guard test is tied to the guard, and does not fail on any
+change nearby.
+
+What I read in the test itself:
+- It calls the production `TrayPopupCloseGuard.Install()` inside a headless Avalonia session and shows real
+  windows. The re-close is made from `OnClosed`, and each close records its final `Cancel` after every
+  `Closing` handler has run. It asserts exactly 2 closes before judging them, so if the re-entrant close never
+  happens, the test fails instead of passing.
+- The test's stand-in `Avalonia.Win32.TrayIconImpl+TrayPopupRoot` (declared in the test assembly) cannot
+  satisfy the separate real-type pin. `TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow` resolves
+  `"...+TrayPopupRoot, Avalonia.Win32"`, which is assembly-qualified, so a deleted or renamed upstream type still fails it.
+- Limit: this proves the guard's behaviour on Avalonia's `Closing` event under the headless platform. It does
+  not reproduce the Win32 `DestroyWindow` re-entry or the crash. That runtime proof is pass 3's 136-run tally,
+  which I did not re-run.
+
+## Job 2 - nothing else moved (0f54fba to f940b2b)
+
+The method: for every path changed between the pre-merge head 0f54fba and f940b2b, I compared f940b2b's blob with main
+17c244d's blob. The 273 changed paths include 26 under `src/` and `scripts/`, and **all 26 are identical to main's
+blob**: they arrived with main (#128, #136, #146, #151). `src/AgentEyes.DesktopApp/` and `scripts/linux/` are not
+touched at all, so the criterion 6 carry-forward basis is unchanged. Seven paths differ from main:
+
+| Path | What it is |
+|---|---|
+| `.claude/skills/developer-agent/skill.md`, `.claude/skills/implementation-loop/skill.md`, `.github/workflows/release.yml` | The branch's delta here is exactly main's delta (af0ddb1 to 17c244d); they differ from main only by older branch-side changes that were already in 0f54fba |
+| `.github/workflows/ci.yml` | Branch delta = main's delta, AND main-to-f940b2b = base-to-0f54fba. Both sides were kept intact: #116's desktop build and linkage steps, plus #151's opt-in passes |
+| `tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj` | Main's #136/#146/#151 links, plus `Avalonia.Headless 11.3.22` (test-only, for the new test) |
+| `tests/AgentEyes.Tests.DesktopApp/AgentEyes.Tests.DesktopApp.csproj` | `Avalonia.Headless 11.3.22` (test-only) |
+| `tests/Shared/DesktopAppQuitTests.cs` | The new window tests and the re-pointed header |
+
+f940b2b to 1d06d75 changes only `docs/cencon/proof/issue-116/` (5 files). **No product source changed in pass 4,
+so the three platforms' pass-3 runtime evidence still applies to this code.**
+
+## Job 3 - the merge, spot-checked
+
+The merge deleted 16 files under `docs/cencon/proof/issue-142/linux/`, and the list matches the Lead's. I chose three
+of them and compared each branch blob (at 0f54fba) against the blob of the same file in main's `linux/earlier-c80cb9d/`:
+
+| File | Branch blob | Main `earlier-c80cb9d/` blob | Result |
+|---|---|---|---|
+| `row10.txt` | 2d0621d3fb98... | 2d0621d3fb98... | identical |
+| `row8-settings-saved-unchecked.png` | 56b73d5f2df2... | 56b73d5f2df2... | identical |
+| `row1-install-transcript.txt` | 98b78de6db32... | 4d407a749e9d... | different, as the Lead said: 37 lines each, 2 lines differ, line 8 (harness temp path vs `<stage>`) and line 15 (owner's address vs `<owner account>`) |
+
+- `git diff origin/main 1d06d75 -- docs/cencon/proof/issue-142/` is **empty**. Positive control: the same command
+  for 0f54fba against main reports 79 files changed.
+- `issue-142/qa-report-linux.md` is blob `0f7d90cb...` at ae80c4d, at main and at 1d06d75. The branch's old
+  version was `efad9259...`. The surviving report records **row 5 FAIL** (table line 38 and section heading line 164).
+  `linux/row4.txt`, `row5.txt` and `row6.txt` match main.
+
+**Correction to the premise (does not block):** dropping the unredacted transcript does NOT remove the owner's address from the
+repository. At 1d06d75 it is still in 5 files. Four come from main (`issue-122/cli-log-extract.txt`, `issue-123/qa-report-linux.md`,
+`review/archived-pr-188-issue-187-review-round3.md`, `tests/AgentEyes.Tests/AccountStateTests.cs` x6). The fifth is
+**added by this PR**: `docs/cencon/proof/issue-116/linux-install-transcript.txt:14` (`[OK] signed in as <address>`,
+from c80cb9d). It is also in git history whatever the tree holds. The transcript in `job2-3-5-transcript.txt`
+masks the address. I am raising this for the Lead to rule on; I did not edit anything.
+
+## Job 4 - the suite, and CI on the tree that would land
+
+**Local, full solution** (`dotnet test AgentEyes.sln -c Release --no-build`, after the restored rebuild above; 70.7 s wall):
+- `AgentEyes.Tests.dll`: **Passed 2375, Skipped 15, Failed 0, Total 2390** (1 m 6 s)
+- `AgentEyes.Tests.DesktopApp.dll`: **Passed 15, Failed 0, Total 15**
+- ffmpeg processes before: 0, after: 0. No ffmpeg was running that the suite could have touched, and none was left behind.
+
+**CI** (read from the logs with `gh run view --log`; excerpts in `job4-ci-excerpts.txt`):
+
+| Run | Event | Checked out | Windows | Linux | macOS |
+|---|---|---|---|---|---|
+| 43911878522 | pull_request, head f940b2b | **`41831cb Merge f940b2b into 17c244d`**, which is the merge ref, on all three jobs | 2375+15=2390, opt-in 2394/2394, DesktopApp 15/15 twice | 317+1=318, opt-in 318/318 | 283+1=284 |
+| 43911867444 | push, f940b2b | the branch head (f940b2b already contains main) | same counts | same | same |
+| 43912705840 attempt 1 | pull_request, head 1d06d75 | `cd7fa74 Merge 1d06d75 into 17c244d` | pass, same counts | **FAILED**: opt-in pass 317/318 | pass, 284 |
+| 43912705840 attempt 2 | the failed Linux job, re-run once by me | `cd7fa74` | (attempt 1) | **pass**: 317+1=318, opt-in 318/318 | (attempt 1) |
+| 43912696122 | push, 1d06d75 | branch head | pass | pass | pass |
+
+So the answer to the Lead's question: **yes, 43911878522 ran on the merge ref**, and so does the green re-run on
+the current head's merge ref (cd7fa74).
+
+**The Linux failure, reported rather than hidden.** `HeadlessControlServerFramingTests.OtherPosts_NoBodyNoContentLength_Rejected411BeforeHandler(path: "/record/shot")`
+failed in the second (opt-in) pass of the Linux job with `System.Net.HttpListenerException : Address already in use`,
+thrown from `HttpListener.Close()` inside `HeadlessControlServer.Dispose()` (`src/AgentEyes.Core/Headless/HeadlessControlServer.cs:535`),
+called from the test's `Dispose()`. The same test passed in the first pass of the same job. Why I judge it a flake in
+code this PR does not own:
+- `HeadlessControlServer.cs` and `HeadlessControlServerFramingTests.cs` are identical to main (last changed by #123).
+- 1d06d75 differs from f940b2b only in `docs/`, and f940b2b's merge-ref run passed the same test in both passes.
+- The test picks its port with `FreePort()` (bind, read the port, release) and then rebinds it, which leaves a
+  window in which a parallel test class can take the port. .NET's managed (non-Windows) `HttpListener` can rebind
+  the endpoint inside `Close()`.
+- I checked the logs of the 6 other failed CI runs since 2026-11-15 (#151 and #156 branches, and #116's a8ea972).
+  None contains "Address already in use", so this is the first time it has been seen, not a known recurring failure.
+
+Limit: I could not reproduce it. The Linux suite does not run on Windows, and I did not measure whether the new
+in-process headless Avalonia session changes how often it happens. I recommend a separate issue for the `FreePort()` race. It does not block this PR.
+
+## Job 5 - the stale hypothesis
+
+- **Tests:** `DesktopAppQuitTests.cs` names the guard as THE FIX (line 17) and the window tests as THE
+  regression test (lines 23, 229). The deferral block is headed `NOT the crash fix` (line 137, and lines 30-33 in
+  the file header). The test names say what they check and do not describe the deferral as a cure. A grep of `tests/` for
+  `defer|posted|after the menu|crash`, restricted to quit/tray/menu/popup/116, finds nothing outside that file
+  except two unrelated `CameraFailurePathTests.cs` lines. The unrestricted grep finds 103 lines, which shows the grep works.
+- **Product comments still presenting the deferral as the cure:** `App.axaml.cs:27`, `TrayController.cs:47-48`, and the
+  `DeferredQuit.cs:7-20` class header. #168 records all three: its body item 1 names DeferredQuit.cs, and its 2026-11-16
+  16:52 comment names App.axaml.cs:27 and TrayController.cs:47-48 at f940b2b. The same comment also carries the gate's
+  note on the `TrayPopupCloseGuard.cs` class comment. `App.axaml.cs:100` ("never inside a menu's click handling") states the shape
+  and claims no cause, and #168's sweep of `src/AgentEyes.DesktopApp` covers it anyway. **Those are the only
+  instances.** I did not edit any of them.
+
+## Findings outside the five jobs (none blocks; none fixed here)
+
+1. The owner's address is in `docs/cencon/proof/issue-116/linux-install-transcript.txt:14`, which this PR adds (Job 3).
+2. A Linux CI flake: `FreePort()` race plus `HttpListener.Close` rebind in `HeadlessControlServerFramingTests` (Job 4).
+3. `.claude/skills/qa-agent/SKILL.md` still tells QA to set `flow:done` and squash-merge, which is the superseded D5. I followed D7, as CLAUDE.md
+   and the brief require.
+
+## What I did NOT cover
+
+- The app was not run. I did no runtime repro, no tray Quit and no heavy smoke. No product code changed, so pass 3's runtime evidence stands
+  by Job 2, but I did not re-measure it.
+- The Linux and macOS suites were not run locally. Their counts come from CI logs only.
+- Only 3 of the 16 dropped files were checked by hash. For the other 13 I rely on the Lead's check.
+- I did not measure the Linux flake's rate or cause. The FreePort/HttpListener mechanism is inferred from the stack and the test's source.
+- The headless test proves the guard's event-level behaviour, not the Win32 re-entry. G1 and G2 are the two mutations
+  the gate named; I did not attempt a wider mutation sweep of `TrayPopupCloseGuard.cs` (for example `ReopenIfNotClosed`).
+- I did not review the other ~11,000 lines of the PR again.
+- I made no dll sha256 comparisons across machines. Build identity is the embedded commit only.
