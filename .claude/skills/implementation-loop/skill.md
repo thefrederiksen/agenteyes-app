@@ -211,11 +211,11 @@ Issue #N: NEEDS-HUMAN - 3 QA fails on <recurring defect> | link
 | QA | build + `dotnet test`, then verifies by REVIEW of the diff/code; runs a smoke if the area needs it | `dotnet build` + `dotnet test` |
 
 Revised 2026-07-14 (the hard rule): **THE HUMAN NEVER RUNS TESTS. EVER.** Every agent runs
-`dotnet build` + `dotnet test` after changing code. That suite is NOT the ~2 seconds this document
-used to claim: it runs about a minute on Windows and starts roughly 235 ffmpeg and 115 ffprobe
-processes by default (measured 16 Nov 2026, issue #151; the policy question is #153). It launches no
-app and needs no audio device, but it must not be started while a recording is in progress until
-#151 lands.
+`dotnet build` + `dotnet test` after changing code. That suite is quiet - no app launch, no audio
+device, nothing audible - but it is NOT the ~2 seconds this document used to claim: about a minute
+on Windows, starting roughly 235 ffmpeg and 115 ffprobe processes by default (measured 16 Nov 2026,
+issue #151; the policy question is #153). Unless #151 is on `main`, its failure path can kill an
+ffmpeg it does not own, so it must not be started while a recording is in progress.
 The heavy smokes (`api-smoke.ps1`, `gui-smoke.ps1`, `agenteyes selftest`, `run-all.ps1 -Confirm`) DO
 launch the app and record audio, so an agent runs one only when the change actually touches that
 area - targeted, not reflexive. No agent ever asks the human to run a check. You (the orchestrator)
