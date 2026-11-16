@@ -1,0 +1,373 @@
+QA #116 pass 3 - macOS, devthrottle-mac-mini, 2026-11-16 EST. CONTINUATION SEAT's own runs (not the preceding seat's measurements; those are mac-pass3-evidence.txt, -screenshot-question.txt, -gate.txt, -linkage.txt).
+<scratch> = this seat's scratch directory, <TMPDIR> = the macOS per-user temp dir. Tools: mac-pass3-cont-tools/ (run.sh, the quit hook) and the preceding seat's mac-pass3-capture-tools/ (oneshot.py and the capture hook, rebuilt from the committed source, unmodified).
+
+===== 0. State found at 11:23:51, before anything was run (read-only)
+"CGSSessionScreenIsLocked"=Yes  (grep exit 0); re-measured Yes at the start of each run below
+launchctl list | grep -i -E 'agenteyes|qa116'  ->  50642 -15 com.agenteyes.recorder   (no qa116 label left by the preceding seat)
+processes: 50642 .../AgentEyes/bin/agenteyes serve   (no AgentEyesDesktop, no ffmpeg, no screencapture)
+socket: srwxr-xr-x 0 Nov 16 09:01 <TMPDIR>/agenteyes-app.sock   (STALE - left by the preceding seat's SIGTERM at 09:07:53)
+installed binary sha256: 348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
+codesign -dvvv <installed agenteyes>: Identifier=apphost, Format=Mach-O thin (arm64), CodeDirectory v=20400 flags=0x2(adhoc), Signature=adhoc, TeamIdentifier=not set, Info.plist=not bound, Sealed Resources=none
+   (flags 0x2 = adhoc only; the hardened-runtime flag 0x10000 'runtime' is NOT set)
+GET /health {ok:true, app:AgentEyes, host:headless, platform:macos}; GET /status State=idle SignedIn=false PendingTranscriptions=66
+recordings made by the preceding seat, all four present, none touched: 2026-11-16_090238_video 090331_video 090503_video 090652_video
+macOS 26.5.2 (25F84)
+
+===== 1. The macOS gate, re-run by this seat at 881e93b (git diff --stat e5ce76c 881e93b -- src tests scripts .github is EMPTY)
+dotnet 10.0.403, DOTNET_ROLL_FORWARD=LatestMajor in the shell only
+Mon Nov 16 11:25:17 EST 2026
+$ dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=mac
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+   exit=0
+$ dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release
+Passed!  - Failed:     0, Passed:   226, Skipped:     0, Total:   226, Duration: 38 ms - AgentEyes.Tests.Mac.dll (net8.0)
+   exit=0
+$ dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=linux
+Build succeeded.
+    1 Warning(s)
+    0 Error(s)
+   exit=0
+$ dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release
+Passed!  - Failed:     0, Passed:   291, Skipped:     1, Total:   292, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+   exit=0
+$ dotnet test tests/AgentEyes.Tests.DesktopApp/AgentEyes.Tests.DesktopApp.csproj -c Release
+Passed!  - Failed:     0, Passed:    13, Skipped:     0, Total:    13, Duration: 38 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+   exit=0
+$ dotnet build src/AgentEyes.DesktopApp -c Release
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+   exit=0
+Mon Nov 16 11:25:28 EST 2026
+after the gate and the app rebuild, UTF-16LE counts in src/AgentEyes.DesktopApp/bin/Release/net8.0/agenteyes.dll:
+  {'x11grab': 0, 'pulse': 0, 'v4l2': 0, 'xrandr': 0, 'avfoundation': 2, 'screencapture': 4}   libvlc/osx-arm64 and libvlc/osx-x64 present
+embedded commit: agenteyes.dll 1.11.11+881e93b8e86dff870a65230fe8cd4f790a52a93b ; AgentEyesDesktop.dll 1.0.0+881e93b8e86dff870a65230fe8cd4f790a52a93b
+
+===== 2. Run r1 - THE KNOWN-BAD ARM, by accident: this seat's quit hook had a bug (wrong namespace for the bridge interface), so no click was raised and run.sh killed the app with SIGKILL after 30 s.
+       Nothing here is a product failure. It is kept because it shows what the instruments report when the app does NOT exit cleanly: exit 137, no line after the trigger, the socket left behind.
+       The capture half of r1 is valid and is the source of mac-pass3-cont-window-library.png.
+===== run r1  11:26:35
+"CGSSessionScreenIsLocked"=Yes
+recorder /status State=idle
+socket before: srwxr-xr-x@ 1 soren  staff  0 Nov 16 09:01 <TMPDIR>/agenteyes-app.sock
+layer-25 windows before launch:        9
+11:26:37 app pid=72087
+11:26:36.400 [pid 72087] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=72087)
+11:26:36.401 [pid 72087] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+11:26:36.406 [pid 72087] [INFO] [SingleInstance] TryAcquire: stale socket <TMPDIR>/agenteyes-app.sock (ConnectionRefused) - taking it over
+11:26:36.406 [pid 72087] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/agenteyes-app.sock
+11:26:36.631 [pid 72087] [INFO] [TrayController] ctor
+11:26:36.887 [pid 72087] [INFO] [MainWindow] Opened
+11:26:36.983 [pid 72087] [INFO] [AppState] PollAsync: service answering, state=idle
+11:26:36.984 [pid 72087] [INFO] [TrayController] Render:  -> idle
+--- window server, pid 72087
+pid=72087 owner="AgentEyesDesktop" window=733 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+probe exit=0
+layer-25 windows while running:       10; NEW since before launch:
+pid=431 owner="Control Center" window=734 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1424,0 name=(name withheld: no Screen Recording grant)
+--- second launch 11:26:39: ./AgentEyesDesktop --view library   (no hook)
+second launch exit=0
+11:26:39.423 [pid 72159] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+11:26:39.423 [pid 72087] [INFO] [SingleInstance] Accept: 'view:library'
+11:26:39.424 [pid 72087] [INFO] [App] Run: view:library
+11:26:39.425 [pid 72087] [INFO] [MainWindow] RunCommand: view library
+11:26:39.425 [pid 72087] [INFO] [MainWindow] Rail_Changed: Library
+AgentEyesDesktop processes now: 72087 ./AgentEyesDesktop;
+socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:26 <TMPDIR>/agenteyes-app.sock
+--- capture by window id through the documented one-shot launchd job (installed binary + QaCaptureHook built from the committed source)
+installed sha256 before: 348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
+11:26:40 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+11:26:40 job com.agenteyes.qa116.cont-r1 argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r1/cap', 'QA_CAPTURES': 'win|-x -o -l 733;item|-x -o -l 734', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/run/r1/cap/com.agenteyes.qa116.cont-r1.plist
+  exit=0  
+11:26:40 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa116.cont-r1
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+11:26:40 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+--- hook report
+11:26:40.177 [hook] pid=72197 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+11:26:40.190 [hook] CGPreflightScreenCaptureAccess() = True
+11:26:40.193 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+11:26:40.193 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+11:26:40.194 [hook] win: screencapture -x -o -l 733 <scratch>/run/r1/cap/win.png
+11:26:40.280 [hook] win: exit=0 ms=86 file_bytes=577729 stderr=''
+11:26:40.280 [hook] item: screencapture -x -o -l 734 <scratch>/run/r1/cap/item.png
+11:26:40.339 [hook] item: exit=0 ms=59 file_bytes=1428 stderr=''
+11:26:40.339 [hook] Environment.Exit(0) - the recorder's Main is never reached
+installed sha256 after:  348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
+recorder still: 50642 /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes serve
+--- 11:26:40 trigger: raise the tray menu's Quit click
+11:27:12 [FAIL] the app did NOT exit within 30 s of the Quit click - sampling and killing it
+--- hook transcript
+11:26:36.383 [quit-hook pid 72087] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r1/quit.trigger
+11:26:40.774 [quit-hook pid 72087] trigger seen
+11:26:40.774 [quit-hook pid 72087] posted to the UI thread
+11:26:40.776 [quit-hook pid 72087] tray icon 1: IsVisible=True ToolTipText='AgentEyes'
+11:26:40.776 [quit-hook pid 72087]   menu item: 'Ready to record' enabled=False
+11:26:40.776 [quit-hook pid 72087]   menu item: '-' enabled=True
+11:26:40.776 [quit-hook pid 72087]   menu item: 'Start recording' enabled=True
+11:26:40.776 [quit-hook pid 72087]   menu item: 'Show AgentEyes' enabled=True
+11:26:40.776 [quit-hook pid 72087]   menu item: 'Open recordings folder' enabled=True
+11:26:40.776 [quit-hook pid 72087]   menu item: '-' enabled=True
+11:26:40.776 [quit-hook pid 72087]   menu item: 'Quit AgentEyes (the recorder keeps running)' enabled=True
+11:26:40.782 [quit-hook pid 72087] FAILED on the UI thread: System.InvalidOperationException: Sequence contains no matching element
+   at System.Linq.ThrowHelper.ThrowNoMatchException()
+   at System.Linq.Enumerable.First[TSource](IEnumerable`1 source, Func`2 predicate)
+   at StartupHook.<Initialize>g__Find|0_2(String full) in <scratch>/quithook/StartupHook.cs:line 29
+   at StartupHook.<>c__DisplayClass0_0.<Initialize>b__4() in <scratch>/quithook/StartupHook.cs:line 56
+--- every log line from pid 72087 after the trigger, unfiltered
+<scratch>/run.sh: line 19: 72087 Killed: 9               DOTNET_ROOT=$HOME/.dotnet DOTNET_ROLL_FORWARD=LatestMajor DOTNET_STARTUP_HOOKS=$S/quithook/out/QaQuitHook.dll QA_OUT="$R" ./AgentEyesDesktop > "$R/app.out" 2>&1
+--- lines of any pid after the trigger that are NOT tagged with pid 72087 (a clipped line loses its tag, #143): 0
+socket after: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:26 <TMPDIR>/agenteyes-app.sock
+AgentEyesDesktop processes after: (end)
+layer-25 windows after quit:       11; status item window 734 still listed: 1
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+probe of the dead pid exit=2 (2 = no window, as expected)
+app.out bytes:        0
+exit.txt of r1: 137
+
+===== 3. Run r2 - hook fixed
+===== run r2  11:27:37
+"CGSSessionScreenIsLocked"=Yes
+recorder /status State=idle
+socket before: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:26 <TMPDIR>/agenteyes-app.sock
+layer-25 windows before launch:       10
+11:27:37 app pid=73182
+11:27:37.303 [pid 73182] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=73182)
+11:27:37.304 [pid 73182] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+11:27:37.310 [pid 73182] [INFO] [SingleInstance] TryAcquire: stale socket <TMPDIR>/agenteyes-app.sock (ConnectionRefused) - taking it over
+11:27:37.310 [pid 73182] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/agenteyes-app.sock
+11:27:37.479 [pid 73182] [INFO] [TrayController] ctor
+11:27:37.716 [pid 73182] [INFO] [MainWindow] Opened
+11:27:37.796 [pid 73182] [INFO] [AppState] PollAsync: service answering, state=idle
+11:27:37.798 [pid 73182] [INFO] [TrayController] Render:  -> idle
+--- window server, pid 73182
+pid=73182 owner="AgentEyesDesktop" window=736 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+probe exit=0
+layer-25 windows while running:       10; NEW since before launch:
+pid=431 owner="Control Center" window=737 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1424,0 name=(name withheld: no Screen Recording grant)
+--- second launch 11:27:40: ./AgentEyesDesktop --view library   (no hook)
+second launch exit=0
+11:27:40.132 [pid 73254] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+11:27:40.132 [pid 73182] [INFO] [SingleInstance] Accept: 'view:library'
+11:27:40.132 [pid 73182] [INFO] [App] Run: view:library
+11:27:40.133 [pid 73182] [INFO] [MainWindow] RunCommand: view library
+11:27:40.133 [pid 73182] [INFO] [MainWindow] Rail_Changed: Library
+AgentEyesDesktop processes now: 73182 ./AgentEyesDesktop;
+socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:27 <TMPDIR>/agenteyes-app.sock
+--- capture by window id through the documented one-shot launchd job (installed binary + QaCaptureHook built from the committed source)
+installed sha256 before: 348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
+11:27:40 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+11:27:40 job com.agenteyes.qa116.cont-r2 argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r2/cap', 'QA_CAPTURES': 'win|-x -o -l 736;item|-x -o -l 737', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/run/r2/cap/com.agenteyes.qa116.cont-r2.plist
+  exit=0  
+11:27:41 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa116.cont-r2
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+11:27:41 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+--- hook report
+11:27:40.819 [hook] pid=73282 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+11:27:40.831 [hook] CGPreflightScreenCaptureAccess() = True
+11:27:40.834 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+11:27:40.835 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+11:27:40.835 [hook] win: screencapture -x -o -l 736 <scratch>/run/r2/cap/win.png
+11:27:40.908 [hook] win: exit=0 ms=73 file_bytes=577729 stderr=''
+11:27:40.909 [hook] item: screencapture -x -o -l 737 <scratch>/run/r2/cap/item.png
+11:27:40.958 [hook] item: exit=0 ms=49 file_bytes=1428 stderr=''
+11:27:40.958 [hook] Environment.Exit(0) - the recorder's Main is never reached
+installed sha256 after:  348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
+recorder still: 50642 /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes serve
+--- 11:27:41 trigger: raise the tray menu's Quit click
+11:27:41 process exit code = 0
+--- hook transcript
+11:27:37.292 [quit-hook pid 73182] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r2/quit.trigger
+11:27:41.373 [quit-hook pid 73182] trigger seen
+11:27:41.374 [quit-hook pid 73182] posted to the UI thread
+11:27:41.374 [quit-hook pid 73182] tray icon 1: IsVisible=True ToolTipText='AgentEyes'
+11:27:41.375 [quit-hook pid 73182]   menu item: 'Ready to record' enabled=False
+11:27:41.375 [quit-hook pid 73182]   menu item: '-' enabled=True
+11:27:41.375 [quit-hook pid 73182]   menu item: 'Start recording' enabled=True
+11:27:41.375 [quit-hook pid 73182]   menu item: 'Show AgentEyes' enabled=True
+11:27:41.375 [quit-hook pid 73182]   menu item: 'Open recordings folder' enabled=True
+11:27:41.375 [quit-hook pid 73182]   menu item: '-' enabled=True
+11:27:41.375 [quit-hook pid 73182]   menu item: 'Quit AgentEyes (the recorder keeps running)' enabled=True
+11:27:41.375 [quit-hook pid 73182] bridge interface: Avalonia.Controls.INativeMenuItemExporterEventsImplBridge in Avalonia.Controls 11.3.22.0
+11:27:41.375 [quit-hook pid 73182] raising the Quit item's click: INativeMenuItemExporterEventsImplBridge.RaiseClicked()
+11:27:41.375 [quit-hook pid 73182] RaiseClicked returned
+--- every log line from pid 73182 after the trigger, unfiltered
+11:27:41.375 [pid 73182] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+11:27:41.375 [pid 73182] [INFO] [DeferredQuit] Run: shutting down
+11:27:41.375 [pid 73182] [INFO] [App] Quit (the recorder service keeps running)
+11:27:41.398 [pid 73182] [INFO] [App] Quit: lifetime shutdown requested
+11:27:41.398 [pid 73182] [INFO] [DeferredQuit] Run: shutdown returned
+11:27:41.399 [pid 73182] [INFO] [SingleInstance] Dispose: socket <TMPDIR>/agenteyes-app.sock
+11:27:41.399 [pid 73182] [INFO] [SingleInstance] Accept: ''
+11:27:41.399 [pid 73182] [INFO] [SingleInstance] Dispose: socket listener closed and <TMPDIR>/agenteyes-app.sock removed
+11:27:41.399 [pid 73182] [INFO] [Program] Main: exited
+--- lines of any pid after the trigger that are NOT tagged with pid 73182 (a clipped line loses its tag, #143): 0
+socket after: ls: <TMPDIR>/agenteyes-app.sock: No such file or directory
+AgentEyesDesktop processes after: (end)
+layer-25 windows after quit:       11; status item window 737 still listed: 1
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+probe of the dead pid exit=2 (2 = no window, as expected)
+app.out bytes:        0
+--- the status item window 737 after the app is gone, captured the same way
+pid=431 owner="Control Center" window=737 layer=25 onscreen=false alpha=1.0 bounds=38x30 at 1424,0 name=(name withheld: no Screen Recording grant)
+11:27:41 job com.agenteyes.qa116.cont-r2-b argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r2/cap2', 'QA_CAPTURES': 'item-after|-x -o -l 737', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/run/r2/cap2/com.agenteyes.qa116.cont-r2-b.plist
+  exit=0  
+11:27:42 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa116.cont-r2-b
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+11:27:41.868 [hook] pid=73346 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+11:27:41.884 [hook] CGPreflightScreenCaptureAccess() = True
+11:27:41.888 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+11:27:41.889 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+11:27:41.889 [hook] item-after: screencapture -x -o -l 737 <scratch>/run/r2/cap2/item-after.png
+11:27:41.954 [hook] item-after: exit=0 ms=64 file_bytes=703 stderr=''
+11:27:41.954 [hook] Environment.Exit(0) - the recorder's Main is never reached
+installed sha256 after:  348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
+qa116 launchd labels left: 0
+
+===== 3. Run r3 - hook fixed
+===== run r3  11:27:55
+"CGSSessionScreenIsLocked"=Yes
+recorder /status State=idle
+socket before: ls: <TMPDIR>/agenteyes-app.sock: No such file or directory
+layer-25 windows before launch:       10
+11:27:55 app pid=73582
+11:27:55.144 [pid 73582] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=73582)
+11:27:55.145 [pid 73582] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+11:27:55.147 [pid 73582] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/agenteyes-app.sock
+11:27:55.313 [pid 73582] [INFO] [TrayController] ctor
+11:27:55.559 [pid 73582] [INFO] [MainWindow] Opened
+11:27:55.653 [pid 73582] [INFO] [AppState] PollAsync: service answering, state=idle
+11:27:55.654 [pid 73582] [INFO] [TrayController] Render:  -> idle
+--- window server, pid 73582
+pid=73582 owner="AgentEyesDesktop" window=741 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+probe exit=0
+layer-25 windows while running:       10; NEW since before launch:
+pid=431 owner="Control Center" window=742 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1424,0 name=(name withheld: no Screen Recording grant)
+--- second launch 11:27:57: ./AgentEyesDesktop --view library   (no hook)
+second launch exit=0
+11:27:58.000 [pid 73663] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+11:27:58.000 [pid 73582] [INFO] [SingleInstance] Accept: 'view:library'
+11:27:58.000 [pid 73582] [INFO] [App] Run: view:library
+11:27:58.001 [pid 73582] [INFO] [MainWindow] RunCommand: view library
+11:27:58.001 [pid 73582] [INFO] [MainWindow] Rail_Changed: Library
+AgentEyesDesktop processes now: 73582 ./AgentEyesDesktop;
+socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:27 <TMPDIR>/agenteyes-app.sock
+--- 11:27:58 trigger: raise the tray menu's Quit click
+11:27:58 process exit code = 0
+--- hook transcript
+11:27:55.131 [quit-hook pid 73582] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r3/quit.trigger
+11:27:58.617 [quit-hook pid 73582] trigger seen
+11:27:58.618 [quit-hook pid 73582] posted to the UI thread
+11:27:58.618 [quit-hook pid 73582] tray icon 1: IsVisible=True ToolTipText='AgentEyes'
+11:27:58.618 [quit-hook pid 73582]   menu item: 'Ready to record' enabled=False
+11:27:58.618 [quit-hook pid 73582]   menu item: '-' enabled=True
+11:27:58.618 [quit-hook pid 73582]   menu item: 'Start recording' enabled=True
+11:27:58.618 [quit-hook pid 73582]   menu item: 'Show AgentEyes' enabled=True
+11:27:58.618 [quit-hook pid 73582]   menu item: 'Open recordings folder' enabled=True
+11:27:58.619 [quit-hook pid 73582]   menu item: '-' enabled=True
+11:27:58.619 [quit-hook pid 73582]   menu item: 'Quit AgentEyes (the recorder keeps running)' enabled=True
+11:27:58.619 [quit-hook pid 73582] bridge interface: Avalonia.Controls.INativeMenuItemExporterEventsImplBridge in Avalonia.Controls 11.3.22.0
+11:27:58.619 [quit-hook pid 73582] raising the Quit item's click: INativeMenuItemExporterEventsImplBridge.RaiseClicked()
+11:27:58.619 [quit-hook pid 73582] RaiseClicked returned
+--- every log line from pid 73582 after the trigger, unfiltered
+11:27:58.619 [pid 73582] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+11:27:58.619 [pid 73582] [INFO] [DeferredQuit] Run: shutting down
+11:27:58.619 [pid 73582] [INFO] [App] Quit (the recorder service keeps running)
+11:27:58.645 [pid 73582] [INFO] [App] Quit: lifetime shutdown requested
+11:27:58.646 [pid 73582] [INFO] [DeferredQuit] Run: shutdown returned
+11:27:58.647 [pid 73582] [INFO] [SingleInstance] Dispose: socket <TMPDIR>/agenteyes-app.sock
+11:27:58.648 [pid 73582] [INFO] [SingleInstance] Accept: ''
+11:27:58.648 [pid 73582] [INFO] [SingleInstance] Dispose: socket listener closed and <TMPDIR>/agenteyes-app.sock removed
+11:27:58.648 [pid 73582] [INFO] [Program] Main: exited
+--- lines of any pid after the trigger that are NOT tagged with pid 73582 (a clipped line loses its tag, #143): 0
+socket after: ls: <TMPDIR>/agenteyes-app.sock: No such file or directory
+AgentEyesDesktop processes after: (end)
+layer-25 windows after quit:       11; status item window 742 still listed: 1
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+probe of the dead pid exit=2 (2 = no window, as expected)
+app.out bytes:        0
+qa116 launchd labels left: 0
+
+===== 3. Run r4 - hook fixed
+===== run r4  11:27:59
+"CGSSessionScreenIsLocked"=Yes
+recorder /status State=idle
+socket before: ls: <TMPDIR>/agenteyes-app.sock: No such file or directory
+layer-25 windows before launch:       11
+11:27:59 app pid=73762
+11:27:59.140 [pid 73762] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=73762)
+11:27:59.141 [pid 73762] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+11:27:59.144 [pid 73762] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/agenteyes-app.sock
+11:27:59.310 [pid 73762] [INFO] [TrayController] ctor
+11:27:59.551 [pid 73762] [INFO] [MainWindow] Opened
+11:27:59.635 [pid 73762] [INFO] [AppState] PollAsync: service answering, state=idle
+11:27:59.635 [pid 73762] [INFO] [TrayController] Render:  -> idle
+--- window server, pid 73762
+pid=73762 owner="AgentEyesDesktop" window=744 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+probe exit=0
+layer-25 windows while running:       10; NEW since before launch:
+pid=431 owner="Control Center" window=745 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1424,0 name=(name withheld: no Screen Recording grant)
+--- second launch 11:28:01: ./AgentEyesDesktop --view library   (no hook)
+second launch exit=0
+11:28:01.999 [pid 73826] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+11:28:01.999 [pid 73762] [INFO] [SingleInstance] Accept: 'view:library'
+11:28:01.999 [pid 73762] [INFO] [App] Run: view:library
+11:28:02.000 [pid 73762] [INFO] [MainWindow] RunCommand: view library
+11:28:02.001 [pid 73762] [INFO] [MainWindow] Rail_Changed: Library
+AgentEyesDesktop processes now: 73762 ./AgentEyesDesktop;
+socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:27 <TMPDIR>/agenteyes-app.sock
+--- 11:28:02 trigger: raise the tray menu's Quit click
+11:28:02 process exit code = 0
+--- hook transcript
+11:27:59.128 [quit-hook pid 73762] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r4/quit.trigger
+11:28:02.701 [quit-hook pid 73762] trigger seen
+11:28:02.702 [quit-hook pid 73762] posted to the UI thread
+11:28:02.702 [quit-hook pid 73762] tray icon 1: IsVisible=True ToolTipText='AgentEyes'
+11:28:02.703 [quit-hook pid 73762]   menu item: 'Ready to record' enabled=False
+11:28:02.703 [quit-hook pid 73762]   menu item: '-' enabled=True
+11:28:02.703 [quit-hook pid 73762]   menu item: 'Start recording' enabled=True
+11:28:02.703 [quit-hook pid 73762]   menu item: 'Show AgentEyes' enabled=True
+11:28:02.703 [quit-hook pid 73762]   menu item: 'Open recordings folder' enabled=True
+11:28:02.703 [quit-hook pid 73762]   menu item: '-' enabled=True
+11:28:02.703 [quit-hook pid 73762]   menu item: 'Quit AgentEyes (the recorder keeps running)' enabled=True
+11:28:02.703 [quit-hook pid 73762] bridge interface: Avalonia.Controls.INativeMenuItemExporterEventsImplBridge in Avalonia.Controls 11.3.22.0
+11:28:02.703 [quit-hook pid 73762] raising the Quit item's click: INativeMenuItemExporterEventsImplBridge.RaiseClicked()
+11:28:02.703 [quit-hook pid 73762] RaiseClicked returned
+--- every log line from pid 73762 after the trigger, unfiltered
+11:28:02.703 [pid 73762] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+11:28:02.703 [pid 73762] [INFO] [DeferredQuit] Run: shutting down
+11:28:02.703 [pid 73762] [INFO] [App] Quit (the recorder service keeps running)
+11:28:02.739 [pid 73762] [INFO] [App] Quit: lifetime shutdown requested
+11:28:02.740 [pid 73762] [INFO] [DeferredQuit] Run: shutdown returned
+11:28:02.742 [pid 73762] [INFO] [SingleInstance] Dispose: socket <TMPDIR>/agenteyes-app.sock
+11:28:02.744 [pid 73762] [INFO] [SingleInstance] Accept: ''
+11:28:02.744 [pid 73762] [INFO] [SingleInstance] Dispose: socket listener closed and <TMPDIR>/agenteyes-app.sock removed
+11:28:02.744 [pid 73762] [INFO] [Program] Main: exited
+--- lines of any pid after the trigger that are NOT tagged with pid 73762 (a clipped line loses its tag, #143): 0
+socket after: ls: <TMPDIR>/agenteyes-app.sock: No such file or directory
+AgentEyesDesktop processes after: (end)
+layer-25 windows after quit:       11; status item window 745 still listed: 1
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+probe of the dead pid exit=2 (2 = no window, as expected)
+app.out bytes:        0
+qa116 launchd labels left: 0
+
+===== 4. Captures, read by this seat
+sha1 3d08460349df6e0e2ddc9e283ef29cd6781d4a95  r1 and r2 item.png (idle)  = the preceding seat's F/i712.png, byte for byte (window ids differ: 734, 737 here, 712 there)
+sha1 3cbdf3792316cdb0fbb1033ef9317c79cb00b997  r2 item-after.png (after the clean quit) = the preceding seat's H/i712.png, byte for byte
+sha1 dec21bdcb71560fea77e708b3481190287d0c0c7  r1 and r2 win.png, 1280x748, 577729 bytes (Library view, 79 recordings)
+
+===== 5. State left at 11:28:12
+AgentEyesDesktop processes: none. Socket: absent (removed by the app's own Dispose). qa116 launchd labels: 0. Recorder pid 50642 unchanged, sha256 unchanged.
+layer-25 windows: the nine that were there before, plus window 745 (the last run's status item) still listed by the window server with onscreen=false. 734, 737 and 742 from the earlier runs are no longer listed.
+settings file ~/Library/Application Support/AgentEyes/linux-app.json: {Screen:1, Mic:'', SystemSound:true, LibraryMode:'grid'} - Mic was already '' before this seat's first launch (the app's own log: 09:01:09.259 Save: mic= , by the preceding seat's launch; 'Yealink UH36' had been written by the 11-13 experiment's first launch, 09:43:37.781).

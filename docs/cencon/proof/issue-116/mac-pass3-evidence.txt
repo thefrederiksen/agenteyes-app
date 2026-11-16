@@ -1,0 +1,176 @@
+QA #116 pass 3 - macOS half, devthrottle-mac-mini. Transcripts. <scratch> = this seat's scratch directory, <TMPDIR> = the macOS per-user temp dir, <repo> = the clone.
+
+===== 0. Lock state
+08:58:09 EST  "CGSSessionScreenIsLocked"=Yes   (ioreg -n Root -d1 | grep -o '"CGSSessionScreenIsLocked"=[A-Za-z]*', grep exit 0)
+re-measured Yes at 09:01:25, 09:04:31, 09:04:40, 09:05:02, 09:06:50, 09:09:30
+
+===== 1. Build (criterion 2, build half)
+$ dotnet build src/AgentEyes.DesktopApp -c Release      (08:58:59, exit 0)
+    0 Error(s)
+    1 Warning(s)
+  AgentEyes.Core -> <repo>/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll
+  AgentEyes.DesktopApp -> <repo>/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop.dll
+<repo>/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [<repo>/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+Build succeeded.
+
+commit embedded in the binaries run (UTF-8 and UTF-16 search of the built DLLs):
+  agenteyes.dll (engine)          1.11.11+881e93b8e86dff870a65230fe8cd4f790a52a93b
+  AgentEyesDesktop.dll (the app)  1.0.0+881e93b8e86dff870a65230fe8cd4f790a52a93b
+  881e93b = branch head; git diff --stat e5ce76c 881e93b -- src tests scripts .github is EMPTY (docs only since e5ce76c)
+
+===== 2. First launch and the app's own log (criterion 2)
+$ nohup ./AgentEyesDesktop &   (09:01:06.50, pid 27892; DOTNET_ROOT and DOTNET_ROLL_FORWARD=LatestMajor in the shell only)
+09:01:06.831 [pid 27892] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=27892)
+09:01:06.832 [pid 27892] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+09:01:06.840 [pid 27892] [INFO] [SingleInstance] TryAcquire: stale socket <TMPDIR>/agenteyes-app.sock (ConnectionRefused) - taking it over
+09:01:06.840 [pid 27892] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/agenteyes-app.sock
+09:01:08.028 [pid 27892] [INFO] [App] OnFrameworkInitializationCompleted
+09:01:08.029 [pid 27892] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+09:01:08.049 [pid 27892] [INFO] [TrayController] ctor
+09:01:08.098 [pid 27892] [INFO] [AppSettings] Load: screen=1 mic=Yealink UH36 system=True mode=grid
+09:01:08.099 [pid 27892] [INFO] [AppState] StartPolling
+09:01:08.105 [pid 27892] [INFO] [App] Run: show
+09:01:08.105 [pid 27892] [INFO] [App] ShowWindow
+09:01:08.433 [pid 27892] [INFO] [MainWindow] ctor
+09:01:08.518 [pid 27892] [INFO] [MainWindow] Opened
+09:01:08.520 [pid 27892] [INFO] [ControlClient] GetDevicesAsync
+09:01:08.585 [pid 27892] [INFO] [MainWindow] StartWatchingLibrary: /Users/soren/Movies/AgentEyes
+09:01:08.723 [pid 27892] [INFO] [AppState] PollAsync: service answering, state=idle
+09:01:08.724 [pid 27892] [INFO] [TrayController] Render:  -> idle
+09:01:08.725 [pid 27892] [INFO] [MainWindow] RequestScan: 75 recording(s), 66 pending, 139 ms
+09:01:08.752 [pid 27892] [INFO] [MainWindow] RequestScan: 75 recording(s), 66 pending, 24 ms
+09:01:09.245 [pid 27892] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+09:01:09.259 [pid 27892] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=grid
+
+===== 3. Window server probe + Control API
+09:01:25
+"CGSSessionScreenIsLocked"=Yes
+--- app pid 27892
+pid=27892 owner="AgentEyesDesktop" window=711 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+exit=0
+--- control: recorder service pid 50642 (owns no window)
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+exit=2
+--- GET /health
+{
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "macos"
+}
+http=200
+--- GET /status (State fields)
+{'State': 'idle', 'Mode': None, 'Dir': None, 'ElapsedSeconds': 1801.93, 'LastStopFailed': False, 'PendingTranscriptions': 62}
+
+===== 4. Criterion 9 - live state, screen-only recording (no microphone: the only mic on the machine is 'Microsoft Teams Audio')
+09:02:38 POST /record/start {"mode":"video","screen":1,"source":"none"}  (screen only - no microphone, deliberately)
+http=200 {'State': 'recording', 'Mode': 'video', 'Source': 'none', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090238_video', 'error': None, 'code': None, 'message': None}
+09:02:47 GET /status
+{'State': 'recording', 'Mode': 'video', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090238_video', 'ElapsedSeconds': 8.7}
+09:02:47 POST /record/stop
+{
+  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090238_video",
+  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090238_video/recording.mp4",
+  "DurationSeconds": 8.74,
+  "Shots": 0
+}
+http=200
+
+09:02:52 GET /status
+{'State': 'idle', 'LastStopFailed': False, 'LastStopDir': None}
+--- the desktop app's own log (pid 27892), state lines
+09:02:39.377 [pid 27892] [INFO] [TrayController] Render: idle -> recording
+09:02:48.544 [pid 27892] [INFO] [TrayController] Render: recording -> idle
+
+09:03:28 ./AgentEyesDesktop --view record
+exit=0
+09:03:30 GET /health
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+09:03:30 GET /status State=idle
+snap idle exit=0
+09:03:31 POST /record/start screen-only (source none)
+{'State': 'recording', 'Source': 'none', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090331_video'}
+09:03:37 GET /health
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+09:03:37 GET /status recording 5.73
+snap rec exit=0
+09:03:38 POST /record/stop
+{  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090331_video",  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090331_video/recording.mp4",  "DurationSeconds": 6.84,  "Shots": 0}
+09:03:42 GET /status State=idle
+--- desktop app log
+09:03:28.189 [pid 28941] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'
+09:03:28.189 [pid 27892] [INFO] [SingleInstance] Accept: 'view:record'
+09:03:28.189 [pid 27892] [INFO] [App] Run: view:record
+09:03:28.190 [pid 27892] [INFO] [App] ShowWindow
+09:03:28.192 [pid 27892] [INFO] [MainWindow] RunCommand: view record
+09:03:28.192 [pid 27892] [INFO] [MainWindow] Rail_Changed: Record
+09:03:30.318 [pid 28950] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'snap:<scratch>/snap-idle'
+09:03:30.318 [pid 27892] [INFO] [SingleInstance] Accept: 'snap:<scratch>/snap-idle'
+09:03:30.319 [pid 27892] [INFO] [App] Run: snap:<scratch>/snap-idle
+09:03:30.435 [pid 27892] [INFO] [App] SnapWindows: <scratch>/snap-idle/AgentEyes.png
+09:03:32.237 [pid 27892] [INFO] [TrayController] Render: idle -> recording
+09:03:32.277 [pid 27892] [INFO] [MainWindow] RequestScan: 77 recording(s), 68 pending, 34 ms
+09:03:32.303 [pid 27892] [INFO] [MainWindow] RequestScan: 77 recording(s), 68 pending, 6 ms
+09:03:37.393 [pid 28971] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'snap:<scratch>/snap-rec'
+09:03:37.393 [pid 27892] [INFO] [SingleInstance] Accept: 'snap:<scratch>/snap-rec'
+09:03:37.393 [pid 27892] [INFO] [App] Run: snap:<scratch>/snap-rec
+09:03:37.418 [pid 27892] [INFO] [App] SnapWindows: <scratch>/snap-rec/AgentEyes.png
+09:03:39.306 [pid 27892] [INFO] [TrayController] Render: recording -> idle
+09:03:39.327 [pid 27892] [INFO] [MainWindow] RequestScan: 77 recording(s), 68 pending, 18 ms
+09:03:40.061 [pid 27892] [INFO] [MainWindow] RequestScan: 77 recording(s), 68 pending, 16 ms
+<scratch>/snap-idle:
+total 120
+drwxr-xr-x@  3 soren  wheel     96 Nov 16 09:03 .
+drwxr-xr-x@ 22 soren  wheel    704 Nov 16 09:03 ..
+-rw-r--r--@  1 soren  wheel  60228 Nov 16 09:03 AgentEyes.png
+
+<scratch>/snap-rec:
+total 96
+drwxr-xr-x@  3 soren  wheel     96 Nov 16 09:03 .
+drwxr-xr-x@ 22 soren  wheel    704 Nov 16 09:03 ..
+-rw-r--r--@  1 soren  wheel  46188 Nov 16 09:03 AgentEyes.png
+
+===== 5. Criterion 11 - single instance
+09:03:04 second launch: ./AgentEyesDesktop --view library
+exit=0
+09:03:06 third launch: ./AgentEyesDesktop --snap <scratch>/snap1
+exit=0
+--- log, every line from a desktop-app pid
+09:03:04.057 [pid 28813] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=28813)
+09:03:04.058 [pid 28813] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='view:library'
+09:03:04.061 [pid 28813] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+09:03:04.061 [pid 27892] [INFO] [SingleInstance] Accept: 'view:library'
+09:03:04.061 [pid 27892] [INFO] [App] Run: view:library
+09:03:04.061 [pid 27892] [INFO] [App] ShowWindow
+09:03:04.062 [pid 27892] [INFO] [MainWindow] RunCommand: view library
+09:03:04.062 [pid 27892] [INFO] [MainWindow] Rail_Changed: Library
+09:03:04.139 [pid 27892] [INFO] [MainWindow] RequestScan: 76 recording(s), 67 pending, 76 ms
+09:03:06.161 [pid 28816] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=28816)
+09:03:06.162 [pid 28816] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='snap:<scratch>/snap1'
+09:03:06.166 [pid 28816] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'snap:<scratch>/snap1'
+09:03:06.166 [pid 27892] [INFO] [SingleInstance] Accept: 'snap:<scratch>/snap1'
+09:03:06.166 [pid 27892] [INFO] [App] Run: snap:<scratch>/snap1
+09:03:06.238 [pid 27892] [INFO] [App] SnapWindows: <scratch>/snap1/AgentEyes.png
+--- AgentEyesDesktop processes now
+27892 ./AgentEyesDesktop
+total 1000
+drwxr-xr-x@  3 soren  wheel      96 Nov 16 09:03 .
+drwxr-xr-x@ 18 soren  wheel     576 Nov 16 09:03 ..
+-rw-r--r--@  1 soren  wheel  510216 Nov 16 09:03 AgentEyes.png
+
+===== 6. Stopping the app: SIGTERM (NOT the menu-bar Quit - see the report, section 5)
+09:07:53
+before: 27892 ./AgentEyesDesktop
+srwxr-xr-x@ 1 soren  staff  0 Nov 16 09:01 <TMPDIR>/agenteyes-app.sock
+pid=27892 owner="AgentEyesDesktop" window=711 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+items: 10
+09:07:53 kill -TERM 27892  (NOT the menu-bar Quit - that needs a click, see report)
+gone after 0.0s
+after: none
+srwxr-xr-x@ 1 soren  staff  0 Nov 16 09:01 <TMPDIR>/agenteyes-app.sock
+[EMPTY] no window matched - an empty result is a broken instrument, not a clean run
+winlist exit=2
+window 712: 1 ; items: 10
+app1.out:
+--- log lines from pid 27892 since the signal
+09:08:04 status-item window 712 still listed by the window server (Control Center owns it); captured 09:08:12 -> a blank 703-byte image, the icon is gone
