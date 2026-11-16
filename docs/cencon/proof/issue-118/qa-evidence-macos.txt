@@ -1,0 +1,294 @@
+Issue #118 / PR #179 - independent QA measurements on devthrottle-mac-mini, 2026-11-16 (EST).
+Head tested: 9f668b54555cfbf35569c620b58e287eee37e220. Screen LOCKED throughout (ioreg CGSSessionScreenIsLocked = true; lsappinfo front = loginwindow ASN 0x0-0x1001).
+No .NET 8 SDK on this machine: SDK 10.0.403 builds net8.0; DOTNET_ROLL_FORWARD=LatestMajor only for test hosts and the ilscan tool.
+
+=================== 0. Build identity ===================
+Bundle built by QA from the head (scripts/mac/build-app.sh <scratch>/b1), then installed by scripts/mac/install-app.sh (section 4).
+AgentEyesDesktop.dll in <scratch>/b1 and in the installed bundle reports: 1.11.11+9f668b54555cfbf35569c620b58e287eee37e220
+Bundle installed BEFORE QA (the developer's) reported: 1.11.11+a56752a06f1d6efd4f688872fee9b729ee9376d2 - NOT the head; replaced by QA's install.
+Installed service agenteyes.dll reports: 1.11.11+f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab (untouched).
+
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp>/AgentEyes.app: replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <scratch>/b1/AgentEyes.app (198M)
+
+=================== 1. Criterion 1: self-contained, empty environment, with control ===================
+$ env -i HOME=$HOME USER=$USER PATH=/usr/bin:/bin:/usr/sbin:/sbin COREHOST_TRACE=1 COREHOST_TRACEFILE=<scratch>/out/sc-trace.txt ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+13:07:53.762 [pid 34786] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=34786)
+13:07:54.157 [pid 34786] [INFO] [MainWindow] Opened
+13:07:54.255 [pid 34786] [INFO] [AppState] PollAsync: service answering, state=idle
+Environment of the running process (ps -E), every HOME/USER/PATH/COREHOST/DOTNET_ entry - the positive control that the reader sees variables:
+  HOME=~ USER=<user> PATH=/usr/bin:/bin:/usr/sbin:/sbin COREHOST_TRACE=1 COREHOST_TRACEFILE=<scratch>/out/sc-trace.txt ; DOTNET_* entries: 0
+Host trace: 1695 lines; lines naming a global .NET location (~/.dotnet, /usr/local/share/dotnet, /etc/dotnet): 0; lines naming the bundle: 663
+Resolved fxr [~/Applications/AgentEyes.app/Contents/MacOS/libhostfxr.dylib]...
+--- Invoked hostfxr_main_startupinfo [version: 8.0.33 @Commit: da7a9beabf4cccc624399d583f52f080a4c858c2]
+Executing as a self-contained app as per config file [~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop.runtimeconfig.json]
+Mode: apphost
+Window (Window Server, mac-window-probe): pid=34786 owner="AgentEyes" window=780 layer=0 onscreen=true bounds=1280x748 at 320,162
+Photographed by window id: qa-macos-window-envi.png (hook report in section 2, job com.agenteyes.qa118.shot1).
+
+CONTROL - framework-dependent build of the SAME head (dotnet build src/AgentEyes.DesktopApp -c Release -o <scratch>/fdd; runtimeconfig framework Microsoft.NETCore.App 8.0.0; dll reports 1.11.11+9f668b5...), same empty environment:
+  exit=131
+  You must install .NET to run this application.
+  
+  App: <scratch>/fdd/AgentEyesDesktop
+  Architecture: arm64
+  App host version: 8.0.33
+  .NET location: Not found
+  host trace: 24 lines; lines naming a global .NET location: 6
+  Using global installation location [/usr/local/share/dotnet] as runtime location.
+  The required library libhostfxr.dylib could not be found. Searched with root path [<scratch>/fdd/]
+
+=================== 2. Criterion 6: the grant facts ===================
+2a. Service binary (positive control) - one-shot launchd job com.agenteyes.qa118.shot1, hook, ONE window capture:
+13:08:14.104 [hook] pid=35261 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+13:08:14.124 [hook] CGPreflightScreenCaptureAccess() = True
+13:08:14.127 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+13:08:14.128 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+13:08:14.128 [hook] qa-window-envi: screencapture -x -o -l 780 <scratch>/shots/qa-window-envi.png
+13:08:14.204 [hook] qa-window-envi: exit=0 ms=75 file_bytes=74194 stderr=''
+13:08:14.205 [hook] Environment.Exit(0) - the recorder's Main is never reached
+2b. Bundle's own process - one-shot launchd job com.agenteyes.qa118.bundlepf, hook, NO capture requested (QA_CAPTURES unset):
+13:08:34.803 [hook] pid=35655 exe=~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+13:08:34.819 [hook] CGPreflightScreenCaptureAccess() = False
+13:08:34.822 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+13:08:34.823 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+13:08:34.823 [hook] Environment.Exit(0) - the recorder's Main is never reached
+2c. The app (pid 34786, no grant) displaying a live service recording:
+13:08:45 GET /status: idle 8.35 None
+13:08:45 POST /record/start
+{
+  "State": "recording",
+  "Mode": "video",
+  "Source": "none",
+  "ElapsedSeconds": 0.7,
+  "Dir": "~/Movies/AgentEyes/2026-11-16_130845_video",
+
+13:08:51 GET /status: recording 5.73 ~/Movies/AgentEyes/2026-11-16_130845_video
+13:08:51 job com.agenteyes.qa118.shotrec argv ['~/Library/Application Support/AgentEyes/bin/agenteyes'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/tools/hook/bin/QaCaptureHook.dll', 'QA_OUT': '<scratch>/rec', 'QA_CAPTURES': 'qa-window-recording|-x -o -l 780'}
+$ launchctl bootstrap gui/501 <scratch>/rec/com.agenteyes.qa118.shotrec.plist
+  exit=0  
+13:08:51 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa118.shotrec
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+13:08:51 GET /status: recording 6.36 ~/Movies/AgentEyes/2026-11-16_130845_video
+13:08:53 POST /record/stop
+{
+  "Dir": "~/Movies/AgentEyes/2026-11-16_130845_video",
+  "File": "~/Movies/AgentEyes/2026-11-16_130845_video/recording.mp4",
+  "DurationSeconds": 8.42,
+  "Shots": 0
+}
+13:08:55 GET /status: idle 8.42 None
+13:08:51.416 [hook] pid=35749 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+13:08:51.434 [hook] CGPreflightScreenCaptureAccess() = True
+13:08:51.438 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+13:08:51.439 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+13:08:51.439 [hook] qa-window-recording: screencapture -x -o -l 780 <scratch>/rec/qa-window-recording.png
+13:08:51.515 [hook] qa-window-recording: exit=0 ms=75 file_bytes=61873 stderr=''
+13:08:51.515 [hook] Environment.Exit(0) - the recorder's Main is never reached
+ffprobe (criterion 9):
+codec_name=h264
+width=1920
+height=1080
+avg_frame_rate=30/1
+nb_read_frames=261
+duration=8.700000
+2d. cdhash - SERVICE:
+installed service reports: 1.11.11+f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab
+fresh publish reports:     1.11.11+9f668b54555cfbf35569c620b58e287eee37e220
+apphost: cmp IDENTICAL
+agenteyes.dll: DIFFERS (expected - different commit)
+installed: # designated => cdhash H"0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb"
+fresh:     # designated => cdhash H"0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb"
+Identifier=apphost
+CDHash=0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb
+Signature=adhoc
+TeamIdentifier=not set
+2e. cdhash - BUNDLE:
+b1 (9f668b5, 1.11.11):            CDHash=9fdc7938cba5a1969935cf74caecc95df0fad26e # designated => cdhash H"9fdc7938cba5a1969935cf74caecc95df0fad26e" 
+b2 (9f668b5, 1.11.11, rebuilt):   CDHash=9fdc7938cba5a1969935cf74caecc95df0fad26e # designated => cdhash H"9fdc7938cba5a1969935cf74caecc95df0fad26e" 
+installed (9f668b5 via install-app.sh): CDHash=9fdc7938cba5a1969935cf74caecc95df0fad26e # designated => cdhash H"9fdc7938cba5a1969935cf74caecc95df0fad26e" 
+b3 (9f668b5 + Version 1.11.12):  CDHash=353ed2d8f5652762851cb02e77ef5a2b432b543d # designated => cdhash H"353ed2d8f5652762851cb02e77ef5a2b432b543d" 
+dev's earlier bundle (a56752a): CDHash=b2b257b5a9594d7f20784f2489bb1d899b83b200 (quoted from dev-evidence I; that bundle was replaced by my install)
+1.11.12
+  (b3 = temporary <Version>1.11.12</Version> in AgentEyes.DesktopApp.csproj, reverted with git checkout; tree clean after.)
+
+=================== 3. The 'Avalonia Application' defect, runtime control ===================
+MUTANT = scratch bundle b4 built from the head with Name="AgentEyes" removed from App.axaml (reverted; tree clean). Each run directly from its own path, one at a time.
+MUTANT (Name removed): "LSDisplayName"="Avalonia Application"  window server: owner="AgentEyes"
+INSTALLED (9f668b5, Name=AgentEyes): "LSDisplayName"="AgentEyes"  window server: owner="AgentEyes"
+"CFBundleIdentifier"="com.agenteyes.app"
+NOTE: the Window Server owner name is "AgentEyes" in BOTH arms, so it does not discriminate; LSDisplayName does.
+IL scan (developer's tools/ilscan, rebuilt by QA) over the Avalonia assemblies inside QA's bundle:
+Avalonia.Native.dll: Avalonia.Native.AvaloniaNativeMenuExporter::PopulateStandardOSXMenuItems calls Avalonia.Application::get_Name
+Avalonia.Native.dll: Avalonia.Native.AvaloniaNativePlatform::SetupApplicationName calls Avalonia.Application::get_Name
+Avalonia.Native.dll: Avalonia.Native.AvaloniaNativePlatform::SetupApplicationName calls Avalonia.Application::get_Name
+Avalonia.FreeDesktop.dll: Avalonia.FreeDesktop.DBusIme.DBusTextInputMethodBase::GetAppName calls Avalonia.Application::get_Name
+Avalonia.Controls.dll: .<>c::<.cctor>b__81_0 calls Avalonia.Application::get_Name
+positive control:
+Avalonia.X11.dll: Avalonia.X11.X11Window::.ctor calls Avalonia.X11PlatformOptions::get_WmClass
+Avalonia.X11.dll: Avalonia.X11.X11Window::SetWmClass calls Avalonia.X11PlatformOptions::get_WmClass
+Avalonia.X11.dll: Avalonia.X11.X11Window::CreateIC calls Avalonia.X11PlatformOptions::get_WmClass
+Avalonia.X11.dll: Avalonia.X11.X11Window::CreateIC calls Avalonia.X11PlatformOptions::get_WmClass
+Code: src/AgentEyes.DesktopApp/Program.cs:23 WmClass = "AgentEyesDesktop"; Program.cs:74 .With(new X11PlatformOptions { WmClass = WmClass }); scripts/linux/install.sh:132 StartupWMClass=AgentEyesDesktop.
+
+=================== 4. install-app.sh (app only) over a RUNNING install ===================
+== BEFORE 13:07:24
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+1b9092d077892723
+	state = running
+	pid = 50642
+		state = active
+		state = active
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+32759 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+$ scripts/mac/install-app.sh
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp>/AgentEyes.app: replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <tmp>/AgentEyes.app (198M)
+[OK] stopped the running app (pid 32759)
+[OK] installed ~/Applications/AgentEyes.app
+[OK] registered with Launch Services
+[OK] AgentEyes opened - its window, its icon in the dock, and its icon in the menu bar
+
+AgentEyes.app is in ~/Applications/AgentEyes.app - open it from Finder, Launchpad or Spotlight.
+It needs no permission of its own: recording is done by the AgentEyes service,
+which is the one that appears as "agenteyes" under System Settings > Privacy
+and Security > Screen and System Audio Recording.
+exit=0
+== AFTER 13:07:36
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+1b9092d077892723
+	state = running
+	pid = 50642
+		state = active
+		state = active
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+34500 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+"LSDisplayName"="AgentEyes"
+installed bundle verifies
+1.11.11+9f668b54555cfbf35569c620b58e287eee37e220
+(the two 16-hex lines are sha256 prefixes of the installed service's agenteyes and agenteyes.dll)
+
+=================== 5. Gate and mutations ===================
+host: macOS 26.5.2 arm64; SDK 10.0.403; NO .NET 8 SDK; DOTNET_ROLL_FORWARD=LatestMajor in this shell for test hosts only; HEAD 9f668b5
+1) engine mac
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+2) Tests.Mac
+Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 68 ms - AgentEyes.Tests.Mac.dll (net8.0)
+3) engine linux config
+Build succeeded.
+    1 Warning(s)
+    0 Error(s)
+4) Tests.Linux (ON A MAC - NOT a Linux run)
+Passed!  - Failed:     0, Passed:   324, Skipped:     2, Total:   326, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+5) Tests.DesktopApp
+Passed!  - Failed:     0, Passed:    23, Skipped:     0, Total:    23, Duration: 104 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+
+=== Q0 unmutated
+    Passed!  - Failed:     0, Passed:     8, Skipped:     0, Total:     8, Duration: 37 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+    restored: tree clean
+=== Q1 App.axaml Name present but wrong (AgentEyesDesktop)
+    diff: -             Name="AgentEyes"
+    diff: +             Name="AgentEyesDesktop"
+    [xUnit.net 00:00:00.12]     AgentEyes.Tests.Shared.MacBundleTests.AppName_LoadedFromXaml_EqualsTheBundleName [FAIL]
+       Assert.Equal() Failure: Strings differ
+    Expected: "AgentEyes"
+    Actual:   "AgentEyesDesktop"
+    Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 41 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+    restored: tree clean
+=== Q2 CFBundleIdentifier case change -> com.agenteyes.App
+    diff: -    <string>com.agenteyes.app</string>
+    diff: +    <string>com.agenteyes.App</string>
+    [xUnit.net 00:00:00.12]     AgentEyes.Tests.Shared.MacBundleTests.InfoPlist_BundleIdentifier_IsThePermanentOne [FAIL]
+       Assert.Equal() Failure: Strings differ
+    Expected: "com.agenteyes.app"
+    Actual:   "com.agenteyes.App"
+    Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 41 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+    restored: tree clean
+=== Q3 CFBundleExecutable -> AgentEyes (bundle would not launch)
+    diff: -    <string>AgentEyesDesktop</string>
+    diff: +    <string>AgentEyes</string>
+    [xUnit.net 00:00:00.12]     AgentEyes.Tests.Shared.MacBundleTests.InfoPlist_Executable_IsTheAppsAssemblyName [FAIL]
+       Assert.Equal() Failure: Strings differ
+    Expected: "AgentEyesDesktop"
+    Actual:   "AgentEyes"
+    Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 42 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+    restored: tree clean
+=== Q4 NSCameraUsageDescription removed
+    diff: -    <key>NSCameraUsageDescription</key>
+    diff: -    <string>AgentEyes records your camera only while a recording you started with the camera on is running, and keeps the recording on this Mac.</string>
+    [xUnit.net 00:00:00.08]     AgentEyes.Tests.Shared.MacBundleTests.InfoPlist_UsageDescriptions_ArePresentAndSayWhatHappens [FAIL]
+       Info.plist has 0 'NSCameraUsageDescription' keys, expected exactly one
+    Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 39 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+    restored: tree clean
+=== S1 SPECIFICITY (must stay green): CFBundleIdentifier moved to the end of the dict + LSApplicationCategoryType changed
+    diff: -    <key>CFBundleIdentifier</key>
+    diff: -    <string>com.agenteyes.app</string>
+    diff: -    <string>public.app-category.productivity</string>
+    diff: +    <string>public.app-category.video</string>
+    diff: +    <key>CFBundleIdentifier</key>
+    diff: +    <string>com.agenteyes.app</string>
+    Passed!  - Failed:     0, Passed:     8, Skipped:     0, Total:     8, Duration: 38 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+    restored: tree clean
+
+=================== 6. Extended attributes round trip ===================
+source: scratch build b1 (9f668b5)
+xattrs on a managed dll: com.apple.cs.CodeDirectory com.apple.cs.CodeRequirements com.apple.cs.CodeSignature com.apple.provenance 
+xattrs on a Mach-O (libhostfxr.dylib): 'com.apple.provenance '
+== baseline
+  -> exit 0
+== cp -R
+  -> exit 0
+== ditto -c -k --keepParent  then  ditto -x -k
+  -> exit 0
+== same ditto zip  then  unzip
+<scratch>/xattr/dittounzip/AgentEyes.app: code object is not signed at all
+In subcomponent: <scratch>/xattr/dittounzip/AgentEyes.app/Contents/MacOS/System.Xml.XPath.XDocument.dll
+  -> exit 1
+== zip -r -y  then  unzip
+<scratch>/xattr/zip/AgentEyes.app: code object is not signed at all
+In subcomponent: <scratch>/xattr/zip/AgentEyes.app/Contents/MacOS/System.Net.WebSockets.Client.dll
+  -> exit 1
+xattrs on the dll after zip/unzip: 'com.apple.provenance '
+81246732 <scratch>/xattr/a-ditto.zip
+81033695 <scratch>/xattr/a-zip.zip
+
+=================== 7. Size ===================
+$ du -sh ~/Applications/AgentEyes.app
+198M	~/Applications/AgentEyes.app
+$ python3 -I docs/cencon/proof/issue-118/tools/sizes.py ~/Applications/AgentEyes.app
+Bundle: 206.7 MB in files (657 under Contents/MacOS); du: see below
+     80.5 MB   38.9%   397 files  libvlc (in-app player: VideoLAN.LibVLC.Mac)
+     77.4 MB   37.5%   180 files  .NET 8 runtime (runtime pack 8.0.33)
+     27.4 MB   13.2%    29 files  UI toolkit: Avalonia, Skia, HarfBuzz, LibVLCSharp
+     17.5 MB    8.5%    35 files  Whisper natives for 8 platforms (runtimes/, copied by Whisper.net.Runtime; only macos-arm64 is usable here)
+      2.3 MB    1.1%     5 files  other NuGet dependencies
+      0.6 MB    0.3%     4 files  not listed in deps.json
+      0.5 MB    0.2%     3 files  AgentEyes own assemblies (AgentEyesDesktop.dll, agenteyes.dll)
+      0.2 MB    0.1%     3 files  apphost + its config
+      0.1 MB    0.1%     1 files  Whisper natives (Whisper.net.Runtime, all platforms)
+      0.2 MB    0.1%        Info.plist, PkgInfo, icon, signature
+    unlisted:   0.45 MB ggml-metal.metal
+    unlisted:   0.12 MB agenteyes
+    unlisted:   0.03 MB agenteyes.deps.json
+    unlisted:   0.00 MB agenteyes.runtimeconfig.json
+
+=================== 8. Footprint in the owner's real library and app data (#161) ===================
+Recording ADDED (evidence, do not delete): ~/Movies/AgentEyes/2026-11-16_130845_video (section 2c). Nothing deleted; 2026-11-16_123404_video still present.
+Log lines in ~/Library/Application Support/AgentEyes/logs/AgentEyes-20261116.log from QA's app processes: pid 34500 (opened by install-app.sh), 34786 (env -i launch), 40742 (name mutant), 40769 (installed, name arm): about 80 lines; plus headless DesktopApp test hosts (pids 41393..41660, ~23 lines). pids 35303/35399/35434 are 'agenteyes package' children of the owner's service, not QA's.
+~/Library/Application Support/AgentEyes/linux-app.json rewritten by the app's AppSettings.Save on exit with the values it loaded (screen=1 mic= system=True mode=grid).
+launchd jobs: com.agenteyes.qa118.shot1, .bundlepf, .shotrec - each bootstrapped, polled with a 40 s hard timeout, booted out (post-bootout print exit=113). com.agenteyes.recorder never touched; service pid 50642 throughout.
+LaunchServices: the scratch mutant b4 was unregistered (lsregister -u).
