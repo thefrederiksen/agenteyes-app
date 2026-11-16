@@ -1,0 +1,105 @@
+12:39:50.467 === v2 run: bin=merged embedded=1.11.11+1855af6426991387bebaee3ebaa43143856d8053 CaptureLock=9 frag=1 watchdog=1 host=devlinux ffmpeg=6.1.1-3ubuntu5 load=10.07
+12:39:50.470   foreign go2rtc ffmpeg 72110 alive: yes
+12:39:50.737 [s0] merged serve pid 1145250 port 17730; recordings root inside scratch: $SCRATCH/runs/v2-merged/home/Videos/AgentEyes
+12:39:54.771 [s0c] merged serve pid 1145915 port 17733; recordings root inside scratch: $SCRATCH/runs/v2-merged/home/Videos/AgentEyes
+12:40:08.660 B = 2026-11-16_073950_video owner S0 pid 1145250, writer pid 1145426;  C = 2026-11-16_073954_video owner S0c pid 1145915, writer pid 1146031
+12:40:08.667   B capture.owner.json: {"Host":"devlinux","HostId":"bb32f3e3a1fe4a1687ce8f0b5abff390","Pid":1145250,"ProcessStartUtc":"2026-11-16T12:39:50.462785Z","What":"capturesession","StartedUtc":"2026-11-16T12:39:50.9856433Z","Writers":[{"Label":"video","Pid":1145426,"StartUtc":"2026-11-16T12:39:51.282785Z"}]}
+12:40:08.693   /proc/locks for capture.lock inode 1332105: 19: FLOCK  ADVISORY  WRITE 1145250 fc:00:1332105 0 EOF;
+12:40:08.698   independent probe: flock -n -s capture.lock REFUSED (exclusive lock held)
+12:40:09.769 S0 and S0c SIGKILLed mid-capture (alive: NO NO); writers alive: B yes C yes, B writer ppid now 2221
+12:40:12.785   B raw.mp4 growth with its owner dead: 2907070 -> 3640579 in 3s
+12:40:12.815   /proc/locks for capture.lock inode 1332105: NONE
+12:40:12.821   independent probe: flock -n -s capture.lock SUCCEEDED (lock free)
+12:40:12.826 SECOND PROCESS (merged): agenteyes package 2026-11-16_073950_video --no-frames  [Borphan1]
+12:40:13.096   exit 1: [error] refusing to package 2026-11-16_073950_video: its capture owner (capture session of pid 1145250 on host devlinux (started 2026-11-16T12:39:50.9856433Z)) is gone but its video ffmpeg pid 1145426 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone. Nothing was muxed, renamed or counted as an attempt; the recording is finalized when 
+12:40:13.133   raw.mp4=3640579 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=345 | PendingMux=pending | mux: none | DurationSeconds=0
+12:40:16.153   B writer alive: yes; B raw.mp4 growth: 3640579 -> 4134678 in 3s
+12:40:16.158 SECOND PROCESS (merged): agenteyes package 2026-11-16_073950_video --no-frames  [Borphan2]
+12:40:16.422   exit 1: [error] refusing to package 2026-11-16_073950_video: its capture owner (capture session of pid 1145250 on host devlinux (started 2026-11-16T12:39:50.9856433Z)) is gone but its video ffmpeg pid 1145426 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone. Nothing was muxed, renamed or counted as an attempt; the recording is finalized when 
+12:40:16.463   raw.mp4=4134678 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=345 | PendingMux=pending | mux: none | DurationSeconds=0
+12:40:19.481   B writer alive: yes; B raw.mp4 growth: 4134678 -> 4408087 in 3s
+12:40:20.774 [s1] merged serve pid 1147866 port 17731; recordings root inside scratch: $SCRATCH/runs/v2-merged/home/Videos/AgentEyes
+12:40:21.783 after S1 start: B writer alive NO, C writer alive NO
+    07:40:20.573 [pid 1147866] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1145426 [capture video (2026-11-16_073950_video)]: ORPHAN (owner pid 1145250 gone) - killed
+    07:40:20.574 [pid 1147866] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1146031 [capture video (2026-11-16_073954_video)]: ORPHAN (owner pid 1145915 gone) - killed
+    07:40:20.574 [pid 1147866] [INFO] [RepairService] Start: orphan ffmpeg reap examined 2 record(s)
+12:40:24.801   B raw.mp4 after reap: 4408087 -> 4408087 in 3s
+12:40:38.384 A = 2026-11-16_074025_video owner S1 pid 1147866, writer pid 1148175
+12:40:38.391   A capture.owner.json: {"Host":"devlinux","HostId":"bb32f3e3a1fe4a1687ce8f0b5abff390","Pid":1147866,"ProcessStartUtc":"2026-11-16T12:40:19.4726313Z","What":"capturesession","StartedUtc":"2026-11-16T12:40:25.0149039Z","Writers":[{"Label":"video","Pid":1148175,"StartUtc":"2026-11-16T12:40:25.2326313Z"}]}
+12:40:38.415   /proc/locks for capture.lock inode 1332126: 58: FLOCK  ADVISORY  WRITE 1147866 fc:00:1332126 0 EOF;
+12:40:38.419   independent probe: flock -n -s capture.lock REFUSED (exclusive lock held)
+12:40:38.460   A: raw.mp4=1807279 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:40:38.466 SECOND PROCESS (merged): agenteyes package 2026-11-16_074025_video --no-frames  [A1]
+12:40:38.724   exit 1: [error] refusing to package 2026-11-16_074025_video: it is being captured by the capture session of pid 1147866 on host devlinux (started 2026-11-16T12:40:25.0149039Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:40:38.759   raw.mp4=1807279 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:40:41.816   A writer alive: yes; A raw.mp4 growth: 1807279 -> 2334845 in 3s; S1 State=recording Elapsed=16.78 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:40:41.822 SECOND PROCESS (merged): agenteyes package 2026-11-16_074025_video --no-frames  [A2]
+12:40:42.063   exit 1: [error] refusing to package 2026-11-16_074025_video: it is being captured by the capture session of pid 1147866 on host devlinux (started 2026-11-16T12:40:25.0149039Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:40:42.103   raw.mp4=2334845 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:40:45.149   A writer alive: yes; A raw.mp4 growth: 2334845 -> 2598147 in 3s; S1 State=recording Elapsed=20.12 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:40:45.155 SECOND PROCESS (merged): agenteyes package 2026-11-16_074025_video --no-frames  [A3]
+12:40:45.414   exit 1: [error] refusing to package 2026-11-16_074025_video: it is being captured by the capture session of pid 1147866 on host devlinux (started 2026-11-16T12:40:25.0149039Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:40:45.444   raw.mp4=2598147 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:40:48.489   A writer alive: yes; A raw.mp4 growth: 2598147 -> 3542930 in 3s; S1 State=recording Elapsed=23.46 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:40:48.496 SECOND PROCESS (merged): agenteyes package 2026-11-16_073954_video --no-frames  [Cdead]
+12:40:51.237   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:40:51.272   raw.mp4=absent recording.mp4=4247237 recording.original.mp4=4147317 capture.lock=0 capture.owner.json=347 | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:40:48.8018280Z by agenteyes pid 1150395 on devlinux'] Error= | DurationSeconds=22.73
+12:40:55.013   decode recording.mp4: duration=22.732683s video_frames=680 full-decode exit=0 errors=0 streams=video,audio,
+12:40:55.536 [s2] merged serve pid 1151377 port 17732; recordings root inside scratch: $SCRATCH/runs/v2-merged/home/Videos/AgentEyes
+    07:40:55.314 [pid 1151377] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1148175 [capture video (2026-11-16_074025_video)]: owner pid 1147866 is alive - left alone
+    07:40:55.315 [pid 1151377] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
+12:40:56.548   A writer alive after S2's reap: yes
+12:40:56.553 waiting for S2's first repair pass (+20 s)...
+12:41:18.692 S2 repair-pass lines (pid 1151377):
+    07:41:15.319 [pid 1151377] [INFO] [RepairService] RunAsync: trigger=timer
+    07:41:15.324 [pid 1151377] [INFO] [RepairService] ResumeUnfinishedAsync: root=$SCRATCH/runs/v2-merged/home/Videos/AgentEyes
+    07:41:15.407 [pid 1151377] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073950_video needs mux
+    07:41:15.411 [pid 1151377] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073954_video needs thumbnail, package
+    07:41:15.411 [pid 1151377] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_074025_video - it is being captured by the capture session of pid 1147866 on host devlinux (started 2026-11-16T12:40:25.0149039Z)
+    07:41:15.411 [pid 1151377] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/v2-merged/home/Videos/AgentEyes, unfinished=2
+    07:41:15.414 [pid 1151377] [INFO] [RepairService] ResumeAsync: 2 recording(s) with unfinished post-processing (hostedWork=False)
+    07:41:15.418 [pid 1151377] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073950_video#1 (no claim)
+    07:41:15.429 [pid 1151377] [INFO] [PostRecording] Execute: 2026-11-16_073950_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1145250 on host devlinux (started 2026-11-16T12:39:50.9856433Z)) is gone and its 1 writer(s) have exited
+    07:41:15.440 [pid 1151377] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073950_video stage=mux by=agenteyes pid 1151377 on devlinux
+    07:41:15.501 [pid 1151377] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_073950_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1145250 on host devlinux (started 2026-11-16T12:39:50.9856433Z)) is gone and its 1 writer(s) have exited
+    07:41:17.561 [pid 1151377] [INFO] [PostRecordingState] NoteDone: 2026-11-16_073950_video stage=mux
+    07:41:18.004 [pid 1151377] [INFO] [PostRecordingState] NoteDone: 2026-11-16_073950_video stage=thumbnail
+    07:41:18.020 [pid 1151377] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073954_video#3 (no claim)
+    07:41:18.021 [pid 1151377] [INFO] [PostRecording] Execute: 2026-11-16_073954_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1145915 on host devlinux (started 2026-11-16T12:39:55.0077169Z)) is gone and its 1 writer(s) have exited
+    07:41:18.385 [pid 1151377] [INFO] [PostRecordingState] NoteDone: 2026-11-16_073954_video stage=thumbnail
+    07:41:18.395 [pid 1151377] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+    07:41:18.445 [pid 1151377] [INFO] [RepairService] RunAsync: trigger=timer done
+12:41:18.731   A: raw.mp4=8597532 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:41:18.775   B: raw.mp4=absent recording.mp4=4517842 recording.original.mp4=4408087 capture.lock=0 capture.owner.json=345 | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:41:15.4342036Z by agenteyes pid 1151377 on devlinux'] Error= | DurationSeconds=25.07
+12:41:22.628   decode recording.mp4: duration=25.066016s video_frames=750 full-decode exit=0 errors=0 streams=video,audio,
+12:41:22.677   S1 State=recording Elapsed=57.63 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:41:22.683 SECOND PROCESS (merged): agenteyes package 2026-11-16_074025_video --no-frames  [A4]
+12:41:22.932   exit 1: [error] refusing to package 2026-11-16_074025_video: it is being captured by the capture session of pid 1147866 on host devlinux (started 2026-11-16T12:40:25.0149039Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:41:22.966   raw.mp4=9520087 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:41:33.010   +10s A writer alive yes; raw.mp4=11262493 recording.mp4=absent original=absent; S1 State=recording Elapsed=67.98 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:41:43.058   +20s A writer alive yes; raw.mp4=12956331 recording.mp4=absent original=absent; S1 State=recording Elapsed=78.03 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:41:53.101   +30s A writer alive yes; raw.mp4=15147866 recording.mp4=absent original=absent; S1 State=recording Elapsed=88.08 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:42:03.152   +40s A writer alive yes; raw.mp4=16629509 recording.mp4=absent original=absent; S1 State=recording Elapsed=98.12 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:42:13.201   +50s A writer alive yes; raw.mp4=18287044 recording.mp4=absent original=absent; S1 State=recording Elapsed=108.17 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:42:23.251   +60s A writer alive yes; raw.mp4=19733021 recording.mp4=absent original=absent; S1 State=recording Elapsed=118.22 CaptureLiveness=growing LastStopFailed=False LastStopError=
+12:42:23.255 S1 watchdog / stall lines:
+    07:40:26.159 [pid 1147866] [INFO] [RecordingService] StartWatchdog: watching $SCRATCH/runs/v2-merged/home/Videos/AgentEyes/2026-11-16_074025_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+12:42:24.270 S2 stopped by SIGTERM (alive: NO)
+12:42:24.655 owner S1 POST /record/stop -> None None None
+12:42:32.979 mux settled: cleared done
+12:42:33.011   A: raw.mp4=absent recording.mp4=21214512 recording.original.mp4=20695439 capture.lock=0 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:42:24.6599350Z by agenteyes pid 1147866 on devlinux'] Error= | DurationSeconds=119.2
+12:42:47.009   decode recording.mp4: duration=119.199349s video_frames=3574 full-decode exit=0 errors=0 streams=video,audio,
+12:42:47.035   /proc/locks for capture.lock inode 1332126: NONE
+12:42:47.041   independent probe: flock -n -s capture.lock SUCCEEDED (lock free)
+12:42:47.044 S1 finalize lines:
+    07:42:24.648 [pid 1147866] [INFO] [PostRecording] Execute: 2026-11-16_074025_video - capture claim: no capture holds it
+    07:42:24.661 [pid 1147866] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_074025_video stage=mux by=agenteyes pid 1147866 on devlinux
+    07:42:30.823 [pid 1147866] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=$SCRATCH/runs/v2-merged/home/Videos/AgentEyes/2026-11-16_074025_video/recording.mp4
+    07:42:33.094 [pid 1147866] [INFO] [PostRecording] Execute: 2026-11-16_073950_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1145250 on host devlinux (started 2026-11-16T12:39:50.9856433Z)) is gone and its 1 writer(s) have exited
+    07:42:33.097 [pid 1147866] [INFO] [PostRecording] Execute: 2026-11-16_073954_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1145915 on host devlinux (started 2026-11-16T12:39:55.0077169Z)) is gone and its 1 writer(s) have exited
+    07:42:33.098 [pid 1147866] [INFO] [PostRecording] Execute: 2026-11-16_074025_video - capture claim: no capture holds it
+12:42:48.059 S1 stopped by SIGTERM (alive: NO)
+12:42:48.092   final B: raw.mp4=absent recording.mp4=4517842 recording.original.mp4=4408087 capture.lock=0 capture.owner.json=345 | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:41:15.4342036Z by agenteyes pid 1151377 on devlinux'] Error= | DurationSeconds=25.07
+12:42:48.129   final C: raw.mp4=absent recording.mp4=4247237 recording.original.mp4=4147317 capture.lock=0 capture.owner.json=347 | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:40:48.8018280Z by agenteyes pid 1150395 on devlinux'] Error= | DurationSeconds=22.73
+12:42:48.134   foreign go2rtc ffmpeg 72110 alive: yes
+12:42:48.137 === v2 run merged done

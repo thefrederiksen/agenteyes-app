@@ -1,0 +1,72 @@
+assembly: C:\ReposFred\agenteyes-app\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+version:  1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+redirected: recordings root=<scratch>\pp-head\Videos\AgentEyes  log dir=<scratch>\pp-head\LocalAppData\AgentEyes\logs
+probe: pid 3024 user soren admin-token=False runtime .NET 8.0.21
+
+== (1) ANOTHER USER'S PROCESS: IsSameProcess(pid, 2026-11-15T12:00:01Z) - expected False, no throw
+  System         pid 4      IsSameProcess -> False
+  services.exe   pid 1248   IsSameProcess -> False
+  lsass.exe      pid 1276   IsSameProcess -> False
+  wininit.exe    pid 1100   IsSameProcess -> False
+  winlogon.exe   pid 1168   IsSameProcess -> False
+  spoolsv.exe    pid 4040   IsSameProcess -> False
+  svchost.exe    pid 1420   IsSameProcess -> False
+  svchost.exe    pid 1592   IsSameProcess -> False
+  svchost.exe    pid 1656   IsSameProcess -> False
+
+== (2) ELEVATED, SAME USER: IsSameProcess with its REAL start time (expected True = live) and a WRONG one (expected False)
+  ctfmon                     pid 14552  start 2026-11-11T16:23:40.4440278Z  real -> True   wrong(-10min) -> False   OpenProcess(PROCESS_TERMINATE) -> ok (handle closed, nothing sent)
+  AsusOSD                    pid 2996   start 2026-11-11T16:24:37.6122047Z  real -> True   wrong(-10min) -> False   OpenProcess(PROCESS_TERMINATE) -> ok (handle closed, nothing sent)
+  AsusSoftwareManagerAgent   pid 21740  start 2026-11-11T16:45:10.1102420Z  real -> True   wrong(-10min) -> False   OpenProcess(PROCESS_TERMINATE) -> ok (handle closed, nothing sent)
+  taskhostw                  pid 4752   start 2026-11-13T01:23:08.3490816Z  real -> True   wrong(-10min) -> False   OpenProcess(PROCESS_TERMINATE) -> ok (handle closed, nothing sent)
+
+== controls: this process (medium, real start -> True), a dead pid (False), pid 0
+  self pid 3024 -> True
+  dead pid 99996 -> False
+  pid 0 (Idle) -> False
+
+== crashed recordings (free lock, owner pid 99996 gone, one writer) under the redirected root
+  2026-11-15_120000_writer-is-system-pid4  writer 4      Inspect -> Live=False Reason="stale capture claim taken over: its owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited"
+  2026-11-15_120100_elevated-writer-live   writer 14552  Inspect -> Live=True Reason="its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 14552 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone"
+  2026-11-15_120200_elevated-pid-reused    writer 14552  Inspect -> Live=False Reason="stale capture claim taken over: its owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited"
+  2026-11-15_120300_elevated-writer-live   writer 2996   Inspect -> Live=True Reason="its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 2996 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone"
+  2026-11-15_120400_elevated-pid-reused    writer 2996   Inspect -> Live=False Reason="stale capture claim taken over: its owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited"
+  2026-11-15_120500_elevated-writer-live   writer 21740  Inspect -> Live=True Reason="its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 21740 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone"
+  2026-11-15_120600_elevated-pid-reused    writer 21740  Inspect -> Live=False Reason="stale capture claim taken over: its owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited"
+  2026-11-15_120700_elevated-writer-live   writer 4752   Inspect -> Live=True Reason="its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 4752 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone"
+  2026-11-15_120800_elevated-pid-reused    writer 4752   Inspect -> Live=False Reason="stale capture claim taken over: its owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited"
+  2026-11-15_125900_healthy-no-claim       writer 0      Inspect -> Live=False Reason="no capture holds it"
+  FindUnfinished(root) -> [2026-11-15_120000_writer-is-system-pid4 | 2026-11-15_120200_elevated-pid-reused | 2026-11-15_120400_elevated-pid-reused | 2026-11-15_120600_elevated-pid-reused | 2026-11-15_120800_elevated-pid-reused | 2026-11-15_125900_healthy-no-claim]
+
+== reaper: record a = OWNER pid is SYSTEM's pid 4, child gone (the gate's item 3); record b = owner and child gone
+  ReapOrphansIn -> [pid 99996 [video]: already exited (or pid reused) - record removed | pid 99996 [mux]: already exited (or pid reused) - record removed]
+  records left: 0
+
+== IsSameProcess / CaptureLock / ReapOrphans / FindUnfinished lines from the redirected product log:
+  09:58:55.749 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 4 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.751 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1248 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.752 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1276 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.752 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1100 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.753 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1168 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.754 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 4040 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.754 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1420 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.755 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1592 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.756 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1656 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:55.760 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 0 - start time cannot be read (5: Access is denied.); not a process id (a record holding it is corrupt) - answered NOT the recorded process
+  09:58:55.946 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 4 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:56.090 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 4 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:56.150 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_120000_writer-is-system-pid4 needs mux
+  09:58:56.151 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-15_120100_elevated-writer-live - its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 14552 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+  09:58:56.154 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_120200_elevated-pid-reused needs mux
+  09:58:56.155 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-15_120300_elevated-writer-live - its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 2996 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+  09:58:56.158 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_120400_elevated-pid-reused needs mux
+  09:58:56.159 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-15_120500_elevated-writer-live - its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 21740 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+  09:58:56.163 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_120600_elevated-pid-reused needs mux
+  09:58:56.164 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-15_120700_elevated-writer-live - its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 4752 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+  09:58:56.167 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_120800_elevated-pid-reused needs mux
+  09:58:56.170 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_125900_healthy-no-claim needs mux
+  09:58:56.171 [pid 3024] [INFO] [PostRecordingPlan] FindUnfinished: root=<scratch>\pp-head\Videos\AgentEyes, unfinished=6
+  09:58:56.177 [pid 3024] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=<scratch>\pp-head\reap
+  09:58:56.205 [pid 3024] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 4 - start time cannot be read (5: Access is denied.); Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, or possibly an elevated process; the elevated case is unmeasured) - answered NOT the recorded process
+  09:58:56.224 [pid 3024] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 99996 [video]: already exited (or pid reused) - record removed
+  09:58:56.224 [pid 3024] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 99996 [mux]: already exited (or pid reused) - record removed

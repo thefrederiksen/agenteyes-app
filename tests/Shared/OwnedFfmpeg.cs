@@ -55,10 +55,10 @@ namespace AgentEyes.Tests
         /// <summary>Kill every recorded child that is provably still the same process. One report
         /// line per child, saying what was done and why.</summary>
         public List<string> KillOwned() =>
-            KillOwned(Children, FfmpegChildRegistry.IsSameProcess, FfmpegChildRegistry.KillTree);
+            KillOwned(Children, FfmpegChildRegistry.IdentifyProcess, FfmpegChildRegistry.KillTree);
 
         /// <summary>Testable core: the identity probe and the kill are injected.</summary>
-        internal static List<string> KillOwned(IReadOnlyList<Child> children, Func<int, DateTime, bool> isSameProcess, Action<int> kill)
+        internal static List<string> KillOwned(IReadOnlyList<Child> children, Func<int, DateTime, ProcessAnswer> identify, Action<int> kill)
         {
             var report = new List<string>();
             foreach (var c in children)
@@ -68,9 +68,15 @@ namespace AgentEyes.Tests
                     report.Add($"pid {c.Pid}: start time never read - not provably ours, left alone");
                     continue;
                 }
-                if (!isSameProcess(c.Pid, c.StartUtc.Value))
+                var answer = identify(c.Pid, c.StartUtc.Value);
+                if (answer.IsNotMine)
                 {
                     report.Add($"pid {c.Pid}: already exited (or the pid was reused) - left alone");
+                    continue;
+                }
+                if (answer.IsUnknown)
+                {
+                    report.Add($"pid {c.Pid}: identity cannot be proved ({answer.Why}) - not provably ours, left alone");
                     continue;
                 }
                 kill(c.Pid);

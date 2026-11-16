@@ -1,0 +1,115 @@
+12:30:24.588 === v2 run: bin=fix embedded=1.11.11+d24503771c63b5da92dcb4e9dad42dca397121cf CaptureLock=9 frag=0 watchdog=0 host=devlinux ffmpeg=6.1.1-3ubuntu5 load=2.80
+12:30:24.591   foreign go2rtc ffmpeg 72110 alive: yes
+12:30:24.855 [s0] fix serve pid 1113283 port 17700; recordings root inside scratch: $SCRATCH/runs/v2-fix/home/Videos/AgentEyes
+12:30:28.835 [s0c] fix serve pid 1113713 port 17703; recordings root inside scratch: $SCRATCH/runs/v2-fix/home/Videos/AgentEyes
+12:30:42.642 B = 2026-11-16_073025_video owner S0 pid 1113283, writer pid 1113392;  C = 2026-11-16_073029_video owner S0c pid 1113713, writer pid 1113844
+12:30:42.650   B capture.owner.json: {"Host":"devlinux","HostId":"9519eaede266461e8c2fb31f7b499744","Pid":1113283,"ProcessStartUtc":"2026-11-16T12:30:24.5829371Z","What":"capturesession","StartedUtc":"2026-11-16T12:30:25.0818171Z","Writers":[{"Label":"video","Pid":1113392,"StartUtc":"2026-11-16T12:30:25.3629371Z"}]}
+12:30:42.684   /proc/locks for capture.lock inode 1200797: 45: FLOCK  ADVISORY  WRITE 1113283 fc:00:1200797 0 EOF;
+12:30:42.688   independent probe: flock -n -s capture.lock REFUSED (exclusive lock held)
+12:30:43.752 S0 and S0c SIGKILLed mid-capture (alive: NO NO); writers alive: B yes C yes, B writer ppid now 2221
+12:30:46.769   B raw.mp4 growth with its owner dead: 2621488 -> 3670064 in 3s
+12:30:46.795   /proc/locks for capture.lock inode 1200797: NONE
+12:30:46.800   independent probe: flock -n -s capture.lock SUCCEEDED (lock free)
+12:30:46.806 SECOND PROCESS (fix): agenteyes package 2026-11-16_073025_video --no-frames  [Borphan1]
+12:30:47.058   exit 1: [error] refusing to package 2026-11-16_073025_video: its capture owner (capture session of pid 1113283 on host devlinux (started 2026-11-16T12:30:25.0818171Z)) is gone but its video ffmpeg pid 1113392 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone. Nothing was muxed, renamed or counted as an attempt; the recording is finalized when 
+12:30:47.094   raw.mp4=3670064 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:30:50.112   B writer alive: yes; B raw.mp4 growth: 3670064 -> 3932208 in 3s
+12:30:50.118 SECOND PROCESS (fix): agenteyes package 2026-11-16_073025_video --no-frames  [Borphan2]
+12:30:50.370   exit 1: [error] refusing to package 2026-11-16_073025_video: its capture owner (capture session of pid 1113283 on host devlinux (started 2026-11-16T12:30:25.0818171Z)) is gone but its video ffmpeg pid 1113392 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone. Nothing was muxed, renamed or counted as an attempt; the recording is finalized when 
+12:30:50.411   raw.mp4=3932208 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:30:53.429   B writer alive: yes; B raw.mp4 growth: 3932208 -> 4718640 in 3s
+12:30:54.728 [s1] fix serve pid 1114760 port 17701; recordings root inside scratch: $SCRATCH/runs/v2-fix/home/Videos/AgentEyes
+12:30:55.736 after S1 start: B writer alive NO, C writer alive NO
+    07:30:54.531 [pid 1114760] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1113392 [capture video (2026-11-16_073025_video)]: ORPHAN (owner pid 1113283 gone) - killed
+    07:30:54.531 [pid 1114760] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1113844 [capture video (2026-11-16_073029_video)]: ORPHAN (owner pid 1113713 gone) - killed
+    07:30:54.531 [pid 1114760] [INFO] [RepairService] Start: orphan ffmpeg reap examined 2 record(s)
+12:30:58.754   B raw.mp4 after reap: 4718640 -> 4718640 in 3s
+12:31:12.327 A = 2026-11-16_073058_video owner S1 pid 1114760, writer pid 1115301
+12:31:12.332   A capture.owner.json: {"Host":"devlinux","HostId":"9519eaede266461e8c2fb31f7b499744","Pid":1114760,"ProcessStartUtc":"2026-11-16T12:30:53.4220265Z","What":"capturesession","StartedUtc":"2026-11-16T12:30:58.9678927Z","Writers":[{"Label":"video","Pid":1115301,"StartUtc":"2026-11-16T12:30:59.1920265Z"}]}
+12:31:12.356   /proc/locks for capture.lock inode 1205299: 47: FLOCK  ADVISORY  WRITE 1114760 fc:00:1205299 0 EOF;
+12:31:12.360   independent probe: flock -n -s capture.lock REFUSED (exclusive lock held)
+12:31:12.403   A: raw.mp4=2097200 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:31:12.409 SECOND PROCESS (fix): agenteyes package 2026-11-16_073058_video --no-frames  [A1]
+12:31:12.660   exit 1: [error] refusing to package 2026-11-16_073058_video: it is being captured by the capture session of pid 1114760 on host devlinux (started 2026-11-16T12:30:58.9678927Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:31:12.690   raw.mp4=2097200 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:31:15.734   A writer alive: yes; A raw.mp4 growth: 2097200 -> 2359344 in 3s; S1 State=recording Elapsed=16.76 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:31:15.739 SECOND PROCESS (fix): agenteyes package 2026-11-16_073058_video --no-frames  [A2]
+12:31:15.996   exit 1: [error] refusing to package 2026-11-16_073058_video: it is being captured by the capture session of pid 1114760 on host devlinux (started 2026-11-16T12:30:58.9678927Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:31:16.031   raw.mp4=2359344 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:31:19.079   A writer alive: yes; A raw.mp4 growth: 2359344 -> 3407920 in 3s; S1 State=recording Elapsed=20.1 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:31:19.085 SECOND PROCESS (fix): agenteyes package 2026-11-16_073058_video --no-frames  [A3]
+12:31:19.339   exit 1: [error] refusing to package 2026-11-16_073058_video: it is being captured by the capture session of pid 1114760 on host devlinux (started 2026-11-16T12:30:58.9678927Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:31:19.375   raw.mp4=3407920 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:31:22.437   A writer alive: yes; A raw.mp4 growth: 3407920 -> 3670064 in 3s; S1 State=recording Elapsed=23.44 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:31:22.442 SECOND PROCESS (fix): agenteyes package 2026-11-16_073029_video --no-frames  [Cdead]
+12:31:22.950   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073029_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+12:31:22.987   raw.mp4=3932208 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:31:22.7350724Z by agenteyes pid 1116788 on devlinux'] Error=could not read the audio channel count of $SCRATCH/runs/v2-fix/home/ | DurationSeconds=0
+12:31:22.991   decode: $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073029_video/recording.mp4 absent
+12:31:23.519 [s2] fix serve pid 1116859 port 17702; recordings root inside scratch: $SCRATCH/runs/v2-fix/home/Videos/AgentEyes
+    07:31:23.304 [pid 1116859] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1115301 [capture video (2026-11-16_073058_video)]: owner pid 1114760 is alive - left alone
+    07:31:23.304 [pid 1116859] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
+12:31:24.531   A writer alive after S2's reap: yes
+12:31:24.534 waiting for S2's first repair pass (+20 s)...
+12:31:44.662 S2 repair-pass lines (pid 1116859):
+    07:31:43.308 [pid 1116859] [INFO] [RepairService] RunAsync: trigger=timer
+    07:31:43.315 [pid 1116859] [INFO] [RepairService] ResumeUnfinishedAsync: root=$SCRATCH/runs/v2-fix/home/Videos/AgentEyes
+    07:31:43.407 [pid 1116859] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073025_video needs mux
+    07:31:43.412 [pid 1116859] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073029_video needs mux
+    07:31:43.413 [pid 1116859] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_073058_video - it is being captured by the capture session of pid 1114760 on host devlinux (started 2026-11-16T12:30:58.9678927Z)
+    07:31:43.413 [pid 1116859] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/v2-fix/home/Videos/AgentEyes, unfinished=2
+    07:31:43.415 [pid 1116859] [INFO] [RepairService] ResumeAsync: 2 recording(s) with unfinished post-processing (hostedWork=False)
+    07:31:43.421 [pid 1116859] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073025_video#1 (no claim)
+    07:31:43.430 [pid 1116859] [INFO] [PostRecording] Execute: 2026-11-16_073025_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1113283 on host devlinux (started 2026-11-16T12:30:25.0818171Z)) is gone and its 1 writer(s) have exited
+    07:31:43.438 [pid 1116859] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073025_video stage=mux by=agenteyes pid 1116859 on devlinux
+    07:31:43.491 [pid 1116859] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_073025_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1113283 on host devlinux (started 2026-11-16T12:30:25.0818171Z)) is gone and its 1 writer(s) have exited
+    07:31:43.592 [pid 1116859] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073025_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:31:43.605 [pid 1116859] [ERROR] [PostRecording] stage mux FAILED: dir=$SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073025_video
+    07:31:43.605 [pid 1116859] [ERROR] AgentEyes.UsageException: could not read the audio channel count of $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073025_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:31:43.605 [pid 1116859] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_073025_video stage=mux error=could not read the audio channel count of $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073025_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:31:43.623 [pid 1116859] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073029_video#3 (no claim)
+    07:31:43.623 [pid 1116859] [INFO] [PostRecording] Execute: 2026-11-16_073029_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1113713 on host devlinux (started 2026-11-16T12:30:29.0617589Z)) is gone and its 1 writer(s) have exited
+    07:31:43.626 [pid 1116859] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073029_video stage=mux by=agenteyes pid 1116859 on devlinux
+    07:31:43.634 [pid 1116859] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_073029_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1113713 on host devlinux (started 2026-11-16T12:30:29.0617589Z)) is gone and its 1 writer(s) have exited
+    07:31:43.736 [pid 1116859] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073029_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:31:43.736 [pid 1116859] [ERROR] [PostRecording] stage mux FAILED: dir=$SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073029_video
+    07:31:43.736 [pid 1116859] [ERROR] AgentEyes.UsageException: could not read the audio channel count of $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073029_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:31:43.736 [pid 1116859] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_073029_video stage=mux error=could not read the audio channel count of $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073029_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:31:43.745 [pid 1116859] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+    07:31:43.793 [pid 1116859] [INFO] [RepairService] RunAsync: trigger=timer done
+12:31:44.704   A: raw.mp4=7864368 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:31:44.742   B: raw.mp4=4718640 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:31:43.4341101Z by agenteyes pid 1116859 on devlinux'] Error=could not read the audio channel count of $SCRATCH/runs/v2-fix/home/ | DurationSeconds=0
+12:31:44.745   decode: $SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073025_video/recording.mp4 absent
+12:31:44.781   S1 State=recording Elapsed=45.8 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:31:44.787 SECOND PROCESS (fix): agenteyes package 2026-11-16_073058_video --no-frames  [A4]
+12:31:45.042   exit 1: [error] refusing to package 2026-11-16_073058_video: it is being captured by the capture session of pid 1114760 on host devlinux (started 2026-11-16T12:30:58.9678927Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:31:45.074   raw.mp4=7864368 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:31:55.125   +10s A writer alive yes; raw.mp4=9437232 recording.mp4=absent original=absent; S1 State=recording Elapsed=56.14 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:32:05.173   +20s A writer alive yes; raw.mp4=11010096 recording.mp4=absent original=absent; S1 State=recording Elapsed=66.19 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:32:15.218   +30s A writer alive yes; raw.mp4=12845104 recording.mp4=absent original=absent; S1 State=recording Elapsed=76.24 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:32:25.267   +40s A writer alive yes; raw.mp4=14942256 recording.mp4=absent original=absent; S1 State=recording Elapsed=86.28 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:32:35.319   +50s A writer alive yes; raw.mp4=16515120 recording.mp4=absent original=absent; S1 State=recording Elapsed=96.33 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:32:45.367   +60s A writer alive yes; raw.mp4=18087984 recording.mp4=absent original=absent; S1 State=recording Elapsed=106.38 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:32:45.372 S1 watchdog / stall lines:
+12:32:46.385 S2 stopped by SIGTERM (alive: NO)
+12:32:47.097 owner S1 POST /record/stop -> None None None
+12:32:53.355 mux settled: cleared done
+12:32:53.388   A: raw.mp4=absent recording.mp4=19332322 recording.original.mp4=18903938 capture.lock=0 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:32:47.0994593Z by agenteyes pid 1114760 on devlinux'] Error= | DurationSeconds=107.6
+12:33:06.514   decode recording.mp4: duration=107.600000s video_frames=3228 full-decode exit=0 errors=0 streams=video,audio,
+12:33:06.537   /proc/locks for capture.lock inode 1205299: NONE
+12:33:06.543   independent probe: flock -n -s capture.lock SUCCEEDED (lock free)
+12:33:06.547 S1 finalize lines:
+    07:32:47.090 [pid 1114760] [INFO] [PostRecording] Execute: 2026-11-16_073058_video - capture claim: no capture holds it
+    07:32:47.100 [pid 1114760] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073058_video stage=mux by=agenteyes pid 1114760 on devlinux
+    07:32:52.606 [pid 1114760] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=$SCRATCH/runs/v2-fix/home/Videos/AgentEyes/2026-11-16_073058_video/recording.mp4
+    07:32:53.775 [pid 1114760] [INFO] [PostRecording] Execute: 2026-11-16_073025_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1113283 on host devlinux (started 2026-11-16T12:30:25.0818171Z)) is gone and its 1 writer(s) have exited
+    07:32:53.776 [pid 1114760] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073025_video stage=mux by=agenteyes pid 1114760 on devlinux
+    07:32:53.784 [pid 1114760] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_073025_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1113283 on host devlinux (started 2026-11-16T12:30:25.0818171Z)) is gone and its 1 writer(s) have exited
+    07:32:53.888 [pid 1114760] [INFO] [PostRecording] Execute: 2026-11-16_073029_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1113713 on host devlinux (started 2026-11-16T12:30:29.0617589Z)) is gone and its 1 writer(s) have exited
+    07:32:53.889 [pid 1114760] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073029_video stage=mux by=agenteyes pid 1114760 on devlinux
+    07:32:53.897 [pid 1114760] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_073029_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1113713 on host devlinux (started 2026-11-16T12:30:29.0617589Z)) is gone and its 1 writer(s) have exited
+    07:32:54.003 [pid 1114760] [INFO] [PostRecording] Execute: 2026-11-16_073058_video - capture claim: no capture holds it
+12:33:07.561 S1 stopped by SIGTERM (alive: NO)
+12:33:07.598   final B: raw.mp4=4718640 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=2 AttemptedBy=['attempt 1 at 2026-11-16T12:31:43.4341101Z by agenteyes pid 1116859 on devlinux', 'attempt 2 at 2026-11-16T12:32:53.7762032Z by agenteyes pid 1114760 on devlinux'] Error=could not read the audio channel count of $SCRATCH/runs/v2-fix/home/ | DurationSeconds=0
+12:33:07.627   final C: raw.mp4=3932208 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=['attempt 1 at 2026-11-16T12:31:22.7350724Z by agenteyes pid 1116788 on devlinux', 'attempt 2 at 2026-11-16T12:31:43.6249899Z by agenteyes pid 1116859 on devlinux', 'attempt 3 at 2026-11-16T12:32:53.8889051Z by agenteyes pid 1114760 on devlinux'] Error=could not read the audio channel count of $SCRATCH/runs/v2-fix/home/ | DurationSeconds=0
+12:33:07.631   foreign go2rtc ffmpeg 72110 alive: yes
+12:33:07.635 === v2 run fix done

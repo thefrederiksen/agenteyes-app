@@ -1,0 +1,49 @@
+13:49:01.235 === QA #156 pass 2 scenario=crash binary=pre scratch=$SCRATCH/runs/crash-pre-134901
+13:49:01.238 binary: $SCRATCH/wt-pre/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+13:49:01.257 embedded version: 1.11.11+d24503771c63b5da92dcb4e9dad42dca397121cf
+13:49:01.335   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+13:49:01.703 isolation: report-only housekeep (no service) -> this host root=$SCRATCH/runs/crash-pre-134901/home/Videos/AgentEyes ; other host root=$SCRATCH/runs/crash-pre-134901/home/Videos/AgentEyes ; data roots $SCRATCH/runs/crash-pre-134901/home/.local/share/AgentEyes/logs/.. and $SCRATCH/runs/crash-pre-134901/other/.local/share/AgentEyes/logs/..
+13:49:01.707 isolation positive control: the same probe under a second scratch env reports $SCRATCH/runs/isoctrl-1289076/h/Videos/AgentEyes (it follows the env, so it can fail)
+13:49:01.973 [s1] serve pid 1289152 port 7970; its recordings root is inside scratch: $SCRATCH/runs/crash-pre-134901/home/Videos/AgentEyes
+13:49:03.466 S1 pid 1289152 capturing into 2026-11-16_084902_video
+13:49:06.510 G1 at START (3 s into the capture): "<<field absent>>"
+13:49:06.595   S1 /proc start: Mon Nov 16 08:49:01 2026 ; owner record pid: 1289152
+13:49:43.636 writer pid 1289357 confirmed by command line to write into 2026-11-16_084902_video (comm=ffmpeg)
+13:49:43.678   raw.mp4=6291504 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none | CaptureOwner="<<field absent>>"
+13:49:43.682 SIGKILL S1 pid 1289152 mid-capture
+13:49:47.758 after S1's death: writer 1289357 alive=yes ppid=2221 raw.mp4 6291504 -> 7077936 bytes in 4 s
+13:49:47.762 OTHER HOST package before recovery (must decline, uncounted):
+13:49:48.011   exit 1: [error] refusing to package 2026-11-16_084902_video: its capture owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone, but its video ffmpeg pid 1289357 ran on host devlinux and cannot be checked from otherhost. Finalize it from devlinux, or - once you have checked nothing is writ
+13:49:48.043   raw.mp4=7077936 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none | CaptureOwner="<<field absent>>"
+13:49:48.826 [s2] serve pid 1291324 port 7971; its recordings root is inside scratch: $SCRATCH/runs/crash-pre-134901/home/Videos/AgentEyes
+13:49:48.898   S2 /health right after start: {
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "linux"
+}
+13:49:48.937 writer 1289357 alive after S2's start-up reap: NO (externally observed 0.86 s after S2 was launched); raw.mp4 now 7340080 bytes
+13:49:48.945   log: 08:49:01.911 [pid 1289152] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+13:49:48.948   log: 08:49:48.719 [pid 1291324] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1289357 [capture video (2026-11-16_084902_video)]: ORPHAN (owner pid 1289152 gone) - killed
+13:49:48.951   log: 08:49:48.719 [pid 1291324] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
+13:49:49.045   raw.mp4 probe after the reap: [mov,mp4,m4a,3gp,3g2,mj2 @ 0x5612e8847180] moov atom not found $SCRATCH/runs/crash-pre-134901/home/Videos/Ag
+13:49:49.168   copied the crashed recording to 8 fixtures (outside the library) before S2's first pass: fx1 fx2 fx3 fx4 fx5 fx6 fx7 fx8 
+13:50:09.923 recovery by S2 (manifest PostProcessing.mux, not /status): pending/failed
+13:50:09.952   raw.mp4=7340080 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T13:50:08.8434585Z by agenteyes pid 1291324 on devlinux"] Error=could not read the audio channel count of $SCRATCH/... | CaptureOwner="<<field absent>>"
+13:50:09.960   log: 08:50:08.839 [pid 1291324] [INFO] [PostRecording] Execute: 2026-11-16_084902_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone and its 1 writer(s) have exited
+13:50:09.963   log: 08:50:08.888 [pid 1291324] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_084902_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone and its 1 writer(s) have exited
+13:50:09.995 G1 after the recovered crash: CaptureOwner must name S1 = pid 1289152 on devlinux: "<<field absent>>"
+13:50:09.998 OTHER HOST package after recovery:
+13:50:10.217   exit 1: [error] refusing to package 2026-11-16_084902_video: its capture owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone, but its video ffmpeg pid 1289357 ran on host devlinux and cannot be checked from otherhost. Finalize it from devlinux, or - once you have checked nothing is writing into $SCRATCH/...
+13:50:10.253   raw.mp4=7340080 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T13:50:08.8434585Z by agenteyes pid 1291324 on devlinux"] Error=could not read the audio channel count of $SCRATCH/... | CaptureOwner="<<field absent>>"
+13:50:10.256 OTHER HOST service S3, its own real repair pass over the same library:
+13:50:10.524 [s3] serve pid 1292223 port 7972; its recordings root is inside scratch: $SCRATCH/runs/crash-pre-134901/home/Videos/AgentEyes
+13:50:42.537   S3 log: 08:49:47.997 [pid 1291266] [WARN] [CliDispatcher] Run: usage error: refusing to package 2026-11-16_084902_video: its capture owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone, but its video ffmpeg pid 1289357 ran on host devlinux and cannot be checked from otherhost. Finalize 
+13:50:42.541   S3 log: 08:50:10.202 [pid 1292196] [INFO] [CaptureLock] ThrowIfLive DECLINED: refusing to package 2026-11-16_084902_video: its capture owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone, but its video ffmpeg pid 1289357 ran on host devlinux and cannot be checked from otherhost. Finaliz
+13:50:42.545   S3 log: 08:50:10.203 [pid 1292196] [WARN] [CliDispatcher] Run: usage error: refusing to package 2026-11-16_084902_video: its capture owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone, but its video ffmpeg pid 1289357 ran on host devlinux and cannot be checked from otherhost. Finalize 
+13:50:42.548   S3 log: 08:50:30.585 [pid 1292223] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_084902_video - its capture owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone, but its video ffmpeg pid 1289357 ran on host devlinux and cannot be checked from otherhost. Finalize it from 
+13:50:42.552   S3 log: 08:50:30.593 [pid 1292223] [INFO] [Thumbnails] NeedsThumb: skipping 2026-11-16_084902_video - its capture owner (capture session of pid 1289152 on host devlinux (started 2026-11-16T13:49:02.1839442Z)) is gone, but its video ffmpeg pid 1289357 ran on host devlinux and cannot be checked from otherhost. Finalize it from devlinux, o
+13:50:42.559   S3 identifies as: from otherhost
+13:50:42.590   raw.mp4=7340080 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T13:50:08.8434585Z by agenteyes pid 1291324 on devlinux"] Error=could not read the audio channel count of $SCRATCH/... | CaptureOwner="<<field absent>>"
+13:50:42.670   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+13:50:42.673 === done; transcript $SCRATCH/runs/crash-pre-134901/transcript.txt

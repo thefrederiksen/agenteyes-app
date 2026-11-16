@@ -33,7 +33,7 @@ namespace AgentEyes.Tests
             var probed = new List<int>();
             var killed = new List<int>();
 
-            var report = OwnedFfmpeg.KillOwned(children, (pid, _) => { probed.Add(pid); return true; }, killed.Add);
+            var report = OwnedFfmpeg.KillOwned(children, TestIdentity.From((pid, _) => { probed.Add(pid); return true; }), killed.Add);
 
             // Exactly the recorded pids were probed and killed - nothing else on the machine was even looked at.
             Assert.Equal(new[] { 101, 102 }, killed);
@@ -48,10 +48,23 @@ namespace AgentEyes.Tests
             var children = new[] { new OwnedFfmpeg.Child(101, T1) };
             var killed = new List<int>();
 
-            var report = OwnedFfmpeg.KillOwned(children, (_, start) => start == T2, killed.Add);
+            var report = OwnedFfmpeg.KillOwned(children, TestIdentity.From((_, start) => start == T2), killed.Add);
 
             Assert.Empty(killed);
             Assert.Equal("pid 101: already exited (or the pid was reused) - left alone", Assert.Single(report));
+        }
+
+        /// <summary>Issue #156 pass 4: an Unknown identity is not proof - the child is left alone.</summary>
+        [Fact]
+        public void KillOwned_IdentityUnknown_LeavesItAlone()
+        {
+            var children = new[] { new OwnedFfmpeg.Child(101, T1) };
+            var killed = new List<int>();
+
+            var report = OwnedFfmpeg.KillOwned(children, (_, _) => ProcessAnswer.Unknown("test"), killed.Add);
+
+            Assert.Empty(killed);
+            Assert.Contains("not provably ours, left alone", Assert.Single(report));
         }
 
         [Fact]
@@ -61,7 +74,7 @@ namespace AgentEyes.Tests
             var probed = new List<int>();
             var killed = new List<int>();
 
-            var report = OwnedFfmpeg.KillOwned(children, (pid, _) => { probed.Add(pid); return true; }, killed.Add);
+            var report = OwnedFfmpeg.KillOwned(children, TestIdentity.From((pid, _) => { probed.Add(pid); return true; }), killed.Add);
 
             Assert.Empty(probed);
             Assert.Empty(killed);
@@ -185,7 +198,7 @@ namespace AgentEyes.Tests
                 Assert.Equal($"pid {mine.Pid}: killed", Assert.Single(report));
 
                 // Criterion 5: the owned ffmpeg is gone - nothing left spinning (KillTree waited for it).
-                Assert.False(FfmpegChildRegistry.IsSameProcess(mine.Pid, mine.StartUtc!.Value), $"owned pid {mine.Pid} is still running after KillOwned");
+                Assert.True(FfmpegChildRegistry.IdentifyProcess(mine.Pid, mine.StartUtc!.Value).IsNotMine, $"owned pid {mine.Pid} is still running after KillOwned");
 
                 // And the stuck run is over, because its ffmpeg was killed. The bound is generous on
                 // purpose, like the #128 tests' 60-90 s: after the exit the runner still drains
@@ -202,7 +215,7 @@ namespace AgentEyes.Tests
 
                 // Criterion 4: the unrelated processes are still running.
                 Assert.False(recorder.HasExited, $"the RECORDER ffmpeg (pid {recorder.Id}) was killed by a test that did not start it");
-                Assert.True(FfmpegChildRegistry.IsSameProcess(theirs.Pid, theirs.StartUtc!.Value),
+                Assert.True(FfmpegChildRegistry.IdentifyProcess(theirs.Pid, theirs.StartUtc!.Value).IsMine,
                     $"the PARALLEL test's ffmpeg (pid {theirs.Pid}) was killed by a test that did not start it");
                 _out.WriteLine($"owned pid {mine.Pid} killed; recorder pid {recorder.Id} alive; parallel pid {theirs.Pid} alive");
             }

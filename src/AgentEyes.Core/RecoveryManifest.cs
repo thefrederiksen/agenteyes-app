@@ -58,6 +58,9 @@ namespace AgentEyes
                 VideoFile = source.VideoFile,
                 AudioFile = source.AudioFile,
                 PendingMux = source.PendingMux,
+                // Issue #156 (G1): who captured it is identity, not decoration - the only durable
+                // record of it once capture.owner.json is gone.
+                CaptureOwner = source.CaptureOwner,
             };
 
             foreach (string name in FilesOnDisk(dir)) recovery.Files.Add(name);
@@ -92,7 +95,10 @@ namespace AgentEyes
             return Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly)
                 .Select(Path.GetFileName)
                 .Where(name => !string.IsNullOrEmpty(name)
-                            && !name!.StartsWith(ManifestStore.FileName, StringComparison.OrdinalIgnoreCase))
+                            && !name!.StartsWith(ManifestStore.FileName, StringComparison.OrdinalIgnoreCase)
+                            // Issue #156: the capture's claim files are bookkeeping, not capture media.
+                            && !string.Equals(name, CaptureLock.FileName, StringComparison.OrdinalIgnoreCase)
+                            && !name.StartsWith(CaptureLock.OwnerFileName, StringComparison.OrdinalIgnoreCase))
                 .Select(name => name!)
                 .OrderBy(name => name, StringComparer.Ordinal)
                 .ToList();

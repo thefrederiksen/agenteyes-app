@@ -1,0 +1,45 @@
+M1 Alive -> NotMine (the pass 3 behaviour): ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_OursOnMacAlive_Unknown
+M2 Zombie -> Unknown: ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_OursOnMacZombie_NotMine
+M3 Gone -> Unknown: ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_OursOnMacGoneBetweenCalls_NotMine
+M4 state unreadable -> NotMine: ('Failed!', '2', '87', '2')
+    FAILS ClassifyUnreadable_OursOnMacStateRefused_Unknown
+    FAILS MacProcessState_Default_IsUnreadableNotAProof
+M5 EPERM -> Unknown: ('Failed!', '2', '87', '2')
+    FAILS ClassifyUnreadable_KillEperm_NotMineAnotherUser
+    FAILS ClassifyUnreadable_RealProbePidOne_NotMineAnotherUser
+M6 ESRCH -> Unknown: ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_KillEsrch_NotMineGone
+M7 other errno -> NotMine: ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_KillOtherErrno_Unknown
+M8 ours on Linux -> NotMine: ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_OursOnLinux_Unknown
+M9 Windows refusal -> Unknown: ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_Windows_NotMineWithoutAskingPosix
+M10 SZOMB constant wrong (4 = SSTOP): ('Passed!', '0', '89', '2')
+M11 equal start time -> Unknown: ('Failed!', '6', '83', '2')
+    FAILS Dispose_AWriterIsStillRunning_KeepsTheClaimLiveForOtherProcesses
+    FAILS ReapOrphansIn_RealWriterThatHandlesSigterm_ExitsGracefully
+    FAILS ReapOrphansIn_RealWriterThatIgnoresSigterm_IsSigkilledAfterTheBound
+    FAILS IdentifyProcess_OwnProcessRecordedStartTime_Mine
+    FAILS Inspect_OneWriterUnknownOneRunning_ReportsStillRunningNotUndetermined
+    FAILS Inspect_WriterStillRunning_IsLive
+M12 FreeLockLiveness ignores Unknown: ('Failed!', '3', '86', '2')
+    FAILS FindUnfinished_WriterUnknownBesideAStaleClaim_AdmitsOnlyTheStaleOne
+    FAILS Inspect_WriterIdentityUnknown_LiveUndeterminedAndNothingCleared
+    FAILS Resume_WriterUnknownBesideAStaleClaim_DeclinesOneRecoversTheOther
+M13 Release treats Unknown as exited: ('Failed!', '1', '88', '2')
+    FAILS Release_WriterIdentityUnknown_OwnerRecordKept
+M14 reaper: Unknown owner treated as gone: ('Failed!', '1', '88', '2')
+    FAILS ReapOrphans_OwnerIdentityUnknown_LeftAloneRecordKept
+M15 reaper: Unknown child treated as exited: ('Failed!', '1', '88', '2')
+    FAILS ReapOrphans_ChildIdentityUnknown_NotSignalledRecordKept
+M16 reaper: Unknown at the deadline is killed: ('Failed!', '1', '88', '2')
+    FAILS ReapOrphans_WriterUnknownAfterSigterm_NotKilledAtTheDeadline
+M17 Windows: any error -> NotMine: ('Failed!', '1', '88', '2')
+    FAILS ClassifyUnreadable_WindowsOtherError_Unknown
+M18 MacProcessStateKind: Zombie is value 0: ('Failed!', '1', '88', '2')
+    FAILS MacProcessState_Default_IsUnreadableNotAProof
+done rc=0

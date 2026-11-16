@@ -236,6 +236,15 @@ namespace AgentEyes
         /// </summary>
         private static readonly object Gate = new();
 
+        /// <summary>
+        /// Issue #156: what a claim carries on DISK, keyed by claim identity - the capture's
+        /// <see cref="CaptureLock"/>. Disposed by <see cref="Release"/> of that same claim, so the
+        /// cross-process claim lives exactly as long as the in-process one on every path that ends
+        /// a capture: a stop, a start rollback, and a stranded camera that keeps the claim.
+        /// Guarded by <c>Gate</c>.
+        /// </summary>
+        private static readonly Dictionary<long, IDisposable> Attached = new();
+
         /// <summary>Hands out claim and admission identities. Never reused within the process, so a
         /// stale ticket can never match a later claim on the same directory.</summary>
         private static long _nextId;
@@ -424,6 +433,11 @@ namespace AgentEyes
                 }
             }
 
+            // The on-disk half goes with the in-process half (issue #156), BEFORE the release is
+            // announced: a queued pipeline retried by that announcement must find the capture lock
+            // free, not decline the recording for a claim that has just ended.
+            if (removed) DisposeAttached(ticket.Id, key);
+
             if (removed) Log.Info($"[RecordingWorkset] Release: {key} released by {held}");
             else Log.Info($"[RecordingWorkset] Release: {key} is no longer claim #{ticket.Id} "
                     + $"(it holds {held}) - nothing was released");
@@ -447,8 +461,54 @@ namespace AgentEyes
             if (string.IsNullOrWhiteSpace(dir) || !TryKey(dir, out string key)) return;
 
             bool removed;
-            lock (Gate) removed = Claimed.TryRemove(key, out _);
+            RecordingClaim claim;
+            lock (Gate) removed = Claimed.TryRemove(key, out claim);
+            if (removed) DisposeAttached(claim.Id, key);
             if (removed) NotifyReleased(key);
+        }
+
+        /// <summary>
+        /// Issue #156: hand the claim <paramref name="ticket"/> names a resource that must live
+        /// exactly as long as it - the capture's on-disk <see cref="CaptureLock"/>. Disposed when that
+        /// claim is released. Throws when the ticket no longer names the claim on its directory, or
+        /// when something is already attached to it: attaching to a claim that is gone would leak the
+        /// resource with nothing left to release it.
+        /// </summary>
+        public static void Attach(in RecordingClaimTicket ticket, IDisposable resource)
+        {
+            if (resource == null) throw new ArgumentNullException(nameof(resource));
+            if (!ticket.Held) throw new InvalidOperationException("cannot attach to a claim that is not held");
+
+            lock (Gate)
+            {
+                if (!Claimed.TryGetValue(ticket.Key, out var current) || current.Id != ticket.Id)
+                    throw new InvalidOperationException($"cannot attach to claim #{ticket.Id} on {ticket.Key}: it is no longer held");
+                if (Attached.ContainsKey(ticket.Id))
+                    throw new InvalidOperationException($"claim #{ticket.Id} on {ticket.Key} already carries an attached resource");
+                Attached[ticket.Id] = resource;
+            }
+            Log.Info($"[RecordingWorkset] Attach: {ticket} now carries {resource.GetType().Name}");
+        }
+
+        /// <summary>Disposes what <see cref="Attach"/> gave claim <paramref name="id"/>, outside <c>Gate</c>.
+        /// A dispose that throws is logged and does not stop the release: the in-process claim is
+        /// already gone, and a release must not fail half-done.</summary>
+        private static void DisposeAttached(long id, string key)
+        {
+            IDisposable? resource;
+            lock (Gate)
+            {
+                if (!Attached.Remove(id, out resource)) return;
+            }
+            try
+            {
+                resource.Dispose();
+                Log.Info($"[RecordingWorkset] Release: {key} - attached {resource.GetType().Name} released");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RecordingWorkset] Release: {key} - disposing the attached {resource.GetType().Name} FAILED", ex);
+            }
         }
 
         /// <summary>True while any path holds a claim on <paramref name="dir"/>.</summary>

@@ -1,0 +1,63 @@
+15:17:21.253 tree: C:\ReposFred\ae-main-17c244d  embedded: 1.11.11+17c244df603fd30115b145523e9a6d76d48c6fa5
+15:17:21.274 ffmpeg running before: []
+    owner: owner pid 1700; version 1.11.11+17c244df603fd30115b145523e9a6d76d48c6fa5
+    owner: recordings root <scratch>\rc-main\Videos\AgentEyes; data root <scratch>\rc-main\LocalAppData\AgentEyes
+    owner: capturing into <scratch>\rc-main\Videos\AgentEyes\2026-11-16_101721_video
+15:17:35.532 start manifest: PendingMux={"Mode":"video","Source":"mic","RawVideo":"raw.mp4","FinalFile":"recording.mp4","RawDurationSeconds":0,"Options":{"MicGain":1,"SystemGain":0.7,"NoiseSuppression":true,"NoiseGate":true,"GateCalibrated":false,"VoiceLeveling":true,"MicProcessing":true,"GateApplies":false}} capture file=raw.mp4
+powershell : Get-Content : Cannot find path 
+'C:\Users\soren\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69d
+At line:1 char:560
++ ... llName)" }; powershell -NoProfile -ExecutionPolicy Bypass -File C:\Re ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Get-Content : C...40e8-a4f2-1b69d:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+0f84802\scratchpad\rc-main\Videos\AgentEyes\2026-11-16_101721_video\capture.owner.json' because it does not exist.
+At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:46 char:8
++ $own = Get-Content -Raw (Join-Path $dir 'capture.owner.json') | Conve ...
++        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (C:\Users\soren\...ture.owner.json:String) [Get-Content], ItemNotFoundEx 
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+ 
+15:17:35.607 owner record: pid , writers []; raw.mp4 48 bytes
+Get-Process : Cannot bind argument to parameter 'Id' because it is null.
+At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:49 char:50
++ foreach ($w in $writers) { $wp = Get-Process -Id $w; Say ("  writer { ...
++                                                  ~~
+    + CategoryInfo          : InvalidData: (:) [Get-Process], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.GetProcessC 
+   ommand
+ 
+15:17:35.629   writer   parent-started-by-harness: True
+15:17:35.631 HARD KILL of the owner pid 1700 (TerminateProcess)
+Get-Process : Cannot bind argument to parameter 'Id' because it is null.
+At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:55 char:54
++ $alive = @($writers | Where-Object { Get-Process -Id $_ -ErrorAction  ...
++                                                      ~~
+    + CategoryInfo          : InvalidData: (:) [Get-Process], ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.GetProcessC 
+   ommand
+ 
+15:17:38.657 after the kill: owner exited=True; orphan writers alive []; raw.mp4 48 -> 48 bytes in 3 s
+15:17:39.730 SECOND PROCESS package (while-the-orphan-writes): exit 1
+    [error] could not read the audio channel count of <scratch>\rc-main\Videos\AgentEyes\2026-11-16_101721_video\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+15:17:39.756   PendingMux=pending mux.State=failed mux.Attempts=1 AttemptedBy= recording.mp4=absent capture.owner.json=absent
+15:17:39.816 raw.mp4 after the writer ended: 262192 bytes; probe: [mov,mp4,m4a,3gp,3g2,mj2 @ 00000216b80d2dc0] moov atom not found <scratch>\rc-main\Videos\AgentEyes\2026-11-16_101721_video\raw.mp4: Invalid data found when processing input
+15:17:40.848 SECOND PROCESS package (after-the-writer-ended): exit 1
+    [error] could not read the audio channel count of <scratch>\rc-main\Videos\AgentEyes\2026-11-16_101721_video\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+15:17:40.852   PendingMux=pending mux.State=failed mux.Attempts=2 AttemptedBy= recording.mp4=absent capture.owner.json=absent
+15:17:40.853 capture-related log lines (redirected data root):
+15:17:40.862 ffmpeg running after: [20580]
+Remove-Item : Cannot remove item C:\Users\soren\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69
+d0f84802\scratchpad\rc-main\Videos\AgentEyes\2026-11-16_101721_video\raw.mp4: The process cannot access the file 'C:\Us
+ers\soren\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69d0f84802\scratchpad\rc-main\Videos\Age
+ntEyes\2026-11-16_101721_video\raw.mp4' because it is being used by another process.
+At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:88 char:67
++ ... dir -Include *.mp4, *.mkv, *.png, *.jpg -Recurse | Remove-Item -Force
++                                                        ~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\soren\...1_video\raw.mp4:FileInfo) [Remove-Item], IOException
+    + FullyQualifiedErrorId : RemoveFileSystemItemIOError,Microsoft.PowerShell.Commands.RemoveItemCommand
+15:17:40.887 captured media deleted from <scratch>\rc-main\Videos\AgentEyes\2026-11-16_101721_video (manifest and logs kept)
+
+[exited with code 0]

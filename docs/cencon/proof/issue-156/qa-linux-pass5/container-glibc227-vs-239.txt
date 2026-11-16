@@ -1,0 +1,118 @@
+===== container ubuntu:18.04, build b3e (1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3)
+isolation: PATHS recordings=/w/home/Videos/AgentEyes state=/w/home/.local/share/AgentEyes registry=/w/home/.local/share/AgentEyes/run/ffmpeg
+live same-user stand-in writer L=18 (uid 1000), root process R=6 (uid 0)
+--- 1. totality probe (EPERM injected on the row, real owner read):
+  17:45:19.161 harness pid 21, product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3
+  product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3; Ubuntu 18.04.6 LTS; glibc 2.27; runtime .NET 8.0.34; uid 1000 euid 1000
+    ReadLinuxProcOwner(18): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+    predicate EPERM row(18): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+    ReadLinuxProcOwner(6): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+    predicate EPERM row(6): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+    ReadLinuxProcOwner(2147483640): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+    predicate EPERM row(2147483640): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+OWNER pid 32 claimed 2026-11-16_190000_video with writer 18; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+Killed
+--- 2. plain prober, real path (control):
+  17:45:19.479   recorded writer pid 18: IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 18 is running and started at the recorded time 2026-11-16T17:45:19.1028292Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+  17:45:19.571   [Inspect] Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 32 on host 4fbe2fee8fde (started 2026-11-16T17:45:19.2636746Z)) is gone but its video ffmpeg pid 18 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which
+--- 3. Landlock + kill EPERM, real path:
+  llprobe: Landlock ABI 4 confined pid 53 thread 53: reads of 7 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+  llprobe: seccomp: kill(2) answers EPERM
+  Unhandled exception. System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+   ---> System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+Aborted (core dumped)
+--- 4. the real CLI under Landlock + kill EPERM: agenteyes package --no-frames
+  exit 3: [error] Unable to find an entry point named 'statx' in shared library 'libc'.
+  after: owner record PRESENT; manifest has a PostProcessing mux state: 0; live writer L ALIVE
+--- 5. writer pid now held by ANOTHER USER (root R=6), Landlock + kill EPERM, real path (positive control):
+  Writers":[{"Label":"video","Pid":6,"StartUtc":"2026-11-16T17:45:19.1028292Z"}]}
+  Unhandled exception. System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+   ---> System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+Aborted (core dumped)
+===== container ubuntu:18.04, build head (1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e)
+isolation: PATHS recordings=/w/home/Videos/AgentEyes state=/w/home/.local/share/AgentEyes registry=/w/home/.local/share/AgentEyes/run/ffmpeg
+live same-user stand-in writer L=19 (uid 1000), root process R=7 (uid 0)
+--- 1. totality probe (EPERM injected on the row, real owner read):
+  17:45:21.087 harness pid 22, product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e
+  product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e; Ubuntu 18.04.6 LTS; glibc 2.27; runtime .NET 8.0.34; uid 1000 euid 1000
+    ReadLinuxProcOwner(19): LinuxProcOwner { Kind = Owned, Detail = owned by uid 1000 (stat), Uid = 1000 }
+    predicate EPERM row(19): ProcessAnswer { Identity = Unknown, Why = pid 19 is THIS USER's (/proc/19 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here, IsMine = False, IsNotMine = False, IsUnknown = True }
+    ReadLinuxProcOwner(7): LinuxProcOwner { Kind = Owned, Detail = owned by uid 0 (stat), Uid = 0 }
+    predicate EPERM row(7): ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+    ReadLinuxProcOwner(2147483640): LinuxProcOwner { Kind = Gone, Detail = no such process, Uid =  }
+    predicate EPERM row(2147483640): ProcessAnswer { Identity = NotMine, Why = pid 2147483640 exited while being read (/proc/2147483640 does not exist), IsMine = False, IsNotMine = True, IsUnknown = False }
+OWNER pid 33 claimed 2026-11-16_190000_video with writer 19; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+--- 2. plain prober, real path (control):
+Killed
+  17:45:21.458   recorded writer pid 19: IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 19 is running and started at the recorded time 2026-11-16T17:45:21.0026321Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+  17:45:21.548   [Inspect] Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 33 on host 80080c7a2c03 (started 2026-11-16T17:45:21.2249067Z)) is gone but its video ffmpeg pid 19 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which
+--- 3. Landlock + kill EPERM, real path:
+  llprobe: Landlock ABI 4 confined pid 54 thread 54: reads of 7 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+  llprobe: seccomp: kill(2) answers EPERM
+  17:45:21.690   recorded writer pid 19: IdentifyProcess -> ProcessAnswer { Identity = Unknown, Why = pid 19 is THIS USER's (/proc/19 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (13: Unable to retrieve the specified information about the process or thread.  It may ha
+  17:45:21.789   [Inspect] Live=True Undetermined=True Reason=UNDETERMINED: its capture owner (qa crashed owner of pid 33 on host 80080c7a2c03 (started 2026-11-16T17:45:21.2249067Z)) is gone, but whether its video ffmpeg pid 19 is still writing into it CANNOT BE ESTABLISHED from this process (pid 54):
+--- 4. the real CLI under Landlock + kill EPERM: agenteyes package --no-frames
+  exit 1: [error] refusing to package 2026-11-16_190000_video: UNDETERMINED: its capture owner (qa crashed owner of pid 33 on host 80080c7a2c03 (started 2026-11-16T17:45:21.2249067Z)) is gone, but whether its video ffmpeg pid 19 is still writing into it CANNOT BE ESTABL
+  after: owner record PRESENT; manifest has a PostProcessing mux state: 0; live writer L ALIVE
+--- 5. writer pid now held by ANOTHER USER (root R=7), Landlock + kill EPERM, real path (positive control):
+  Writers":[{"Label":"video","Pid":7,"StartUtc":"2026-11-16T17:45:21.0026321Z"}]}
+  17:45:22.317   recorded writer pid 7: IdentifyProcess -> ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+  17:45:22.426   [Inspect] Live=False Undetermined=False Reason=stale capture claim taken over: its owner (qa crashed owner of pid 33 on host 80080c7a2c03 (started 2026-11-16T17:45:21.2249067Z)) is gone and its 1 writer(s) have exited
+===== container ubuntu:24.04, build b3e (1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3)
+isolation: PATHS recordings=/w/home/Videos/AgentEyes state=/w/home/.local/share/AgentEyes registry=/w/home/.local/share/AgentEyes/run/ffmpeg
+live same-user stand-in writer L=19 (uid 1000), root process R=7 (uid 0)
+--- 1. totality probe (EPERM injected on the row, real owner read):
+  17:45:23.243 harness pid 22, product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3
+  product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3; Ubuntu 24.04.5 LTS; glibc 2.39; runtime .NET 8.0.34; uid 1000 euid 1000
+    ReadLinuxProcOwner(19): LinuxProcOwner { Kind = Owned, Detail = owned by uid 1000, Uid = 1000 }
+    predicate EPERM row(19): ProcessAnswer { Identity = Unknown, Why = pid 19 is THIS USER's (/proc/19 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here, IsMine = False, IsNotMine = False, IsUnknown = True }
+    ReadLinuxProcOwner(7): LinuxProcOwner { Kind = Owned, Detail = owned by uid 0, Uid = 0 }
+    predicate EPERM row(7): ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+    ReadLinuxProcOwner(2147483640): LinuxProcOwner { Kind = Gone, Detail = no such process, Uid =  }
+    predicate EPERM row(2147483640): ProcessAnswer { Identity = NotMine, Why = pid 2147483640 exited while being read (/proc/2147483640 does not exist), IsMine = False, IsNotMine = True, IsUnknown = False }
+OWNER pid 33 claimed 2026-11-16_190000_video with writer 19; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+--- 2. plain prober, real path (control):
+Killed
+  17:45:23.593   recorded writer pid 19: IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 19 is running and started at the recorded time 2026-11-16T17:45:23.1725850Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+  17:45:23.688   [Inspect] Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 33 on host 936bfe016f82 (started 2026-11-16T17:45:23.3529831Z)) is gone but its video ffmpeg pid 19 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which
+--- 3. Landlock + kill EPERM, real path:
+  llprobe: Landlock ABI 4 confined pid 54 thread 54: reads of 7 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+  llprobe: seccomp: kill(2) answers EPERM
+  17:45:23.805   recorded writer pid 19: IdentifyProcess -> ProcessAnswer { Identity = Unknown, Why = pid 19 is THIS USER's (/proc/19 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (13: Unable to retrieve the specified information about the process or thread.  It may ha
+  17:45:23.911   [Inspect] Live=True Undetermined=True Reason=UNDETERMINED: its capture owner (qa crashed owner of pid 33 on host 936bfe016f82 (started 2026-11-16T17:45:23.3529831Z)) is gone, but whether its video ffmpeg pid 19 is still writing into it CANNOT BE ESTABLISHED from this process (pid 54):
+--- 4. the real CLI under Landlock + kill EPERM: agenteyes package --no-frames
+  exit 1: [error] refusing to package 2026-11-16_190000_video: UNDETERMINED: its capture owner (qa crashed owner of pid 33 on host 936bfe016f82 (started 2026-11-16T17:45:23.3529831Z)) is gone, but whether its video ffmpeg pid 19 is still writing into it CANNOT BE ESTABL
+  after: owner record PRESENT; manifest has a PostProcessing mux state: 0; live writer L ALIVE
+--- 5. writer pid now held by ANOTHER USER (root R=7), Landlock + kill EPERM, real path (positive control):
+  Writers":[{"Label":"video","Pid":7,"StartUtc":"2026-11-16T17:45:23.172585Z"}]}
+  17:45:24.263   recorded writer pid 7: IdentifyProcess -> ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+  17:45:24.351   [Inspect] Live=False Undetermined=False Reason=stale capture claim taken over: its owner (qa crashed owner of pid 33 on host 936bfe016f82 (started 2026-11-16T17:45:23.3529831Z)) is gone and its 1 writer(s) have exited
+===== container ubuntu:24.04, build head (1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e)
+isolation: PATHS recordings=/w/home/Videos/AgentEyes state=/w/home/.local/share/AgentEyes registry=/w/home/.local/share/AgentEyes/run/ffmpeg
+live same-user stand-in writer L=19 (uid 1000), root process R=7 (uid 0)
+--- 1. totality probe (EPERM injected on the row, real owner read):
+  17:45:25.122 harness pid 22, product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e
+  product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e; Ubuntu 24.04.5 LTS; glibc 2.39; runtime .NET 8.0.34; uid 1000 euid 1000
+    ReadLinuxProcOwner(19): LinuxProcOwner { Kind = Owned, Detail = owned by uid 1000 (statx), Uid = 1000 }
+    predicate EPERM row(19): ProcessAnswer { Identity = Unknown, Why = pid 19 is THIS USER's (/proc/19 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here, IsMine = False, IsNotMine = False, IsUnknown = True }
+    ReadLinuxProcOwner(7): LinuxProcOwner { Kind = Owned, Detail = owned by uid 0 (statx), Uid = 0 }
+    predicate EPERM row(7): ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+    ReadLinuxProcOwner(2147483640): LinuxProcOwner { Kind = Gone, Detail = no such process, Uid =  }
+    predicate EPERM row(2147483640): ProcessAnswer { Identity = NotMine, Why = pid 2147483640 exited while being read (/proc/2147483640 does not exist), IsMine = False, IsNotMine = True, IsUnknown = False }
+OWNER pid 33 claimed 2026-11-16_190000_video with writer 19; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+Killed
+--- 2. plain prober, real path (control):
+  17:45:25.457   recorded writer pid 19: IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 19 is running and started at the recorded time 2026-11-16T17:45:25.0329466Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+  17:45:25.553   [Inspect] Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 33 on host 5584209aeb4a (started 2026-11-16T17:45:25.2326403Z)) is gone but its video ffmpeg pid 19 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which
+--- 3. Landlock + kill EPERM, real path:
+  llprobe: Landlock ABI 4 confined pid 54 thread 54: reads of 7 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+  llprobe: seccomp: kill(2) answers EPERM
+  17:45:25.676   recorded writer pid 19: IdentifyProcess -> ProcessAnswer { Identity = Unknown, Why = pid 19 is THIS USER's (/proc/19 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (13: Unable to retrieve the specified information about the process or thread.  It may ha
+  17:45:25.774   [Inspect] Live=True Undetermined=True Reason=UNDETERMINED: its capture owner (qa crashed owner of pid 33 on host 5584209aeb4a (started 2026-11-16T17:45:25.2326403Z)) is gone, but whether its video ffmpeg pid 19 is still writing into it CANNOT BE ESTABLISHED from this process (pid 54):
+--- 4. the real CLI under Landlock + kill EPERM: agenteyes package --no-frames
+  exit 1: [error] refusing to package 2026-11-16_190000_video: UNDETERMINED: its capture owner (qa crashed owner of pid 33 on host 5584209aeb4a (started 2026-11-16T17:45:25.2326403Z)) is gone, but whether its video ffmpeg pid 19 is still writing into it CANNOT BE ESTABL
+  after: owner record PRESENT; manifest has a PostProcessing mux state: 0; live writer L ALIVE
+--- 5. writer pid now held by ANOTHER USER (root R=7), Landlock + kill EPERM, real path (positive control):
+  Writers":[{"Label":"video","Pid":7,"StartUtc":"2026-11-16T17:45:25.0329466Z"}]}
+  17:45:26.101   recorded writer pid 7: IdentifyProcess -> ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+  17:45:26.209   [Inspect] Live=False Undetermined=False Reason=stale capture claim taken over: its owner (qa crashed owner of pid 33 on host 5584209aeb4a (started 2026-11-16T17:45:25.2326403Z)) is gone and its 1 writer(s) have exited

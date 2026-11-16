@@ -1,0 +1,22 @@
+13:54:47.454 === QA #156 pass 2 scenario=clean binary=fix scratch=$SCRATCH/runs/clean-fix-135447
+13:54:47.457 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+13:54:47.469 embedded version: 1.11.11+2594cfc733eb58103a36055ec7b7d1295fe4d8c5
+13:54:47.546   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+13:54:47.900 isolation: report-only housekeep (no service) -> this host root=$SCRATCH/runs/clean-fix-135447/home/Videos/AgentEyes ; other host root=$SCRATCH/runs/clean-fix-135447/home/Videos/AgentEyes ; data roots $SCRATCH/runs/clean-fix-135447/home/.local/share/AgentEyes/logs/.. and $SCRATCH/runs/clean-fix-135447/other/.local/share/AgentEyes/logs/..
+13:54:47.903 isolation positive control: the same probe under a second scratch env reports $SCRATCH/runs/isoctrl-1302309/h/Videos/AgentEyes (it follows the env, so it can fail)
+13:54:48.171 [s1] serve pid 1302391 port 8000; its recordings root is inside scratch: $SCRATCH/runs/clean-fix-135447/home/Videos/AgentEyes
+13:54:49.682 S1 pid 1302391 capturing into 2026-11-16_085448_video
+13:54:52.722 G1 at START (3 s into the capture): {"Host": "devlinux", "Pid": 1302391, "ProcessStartUtc": "2026-11-16T13:54:47.9020995Z"}
+13:54:52.797   S1 /proc start: Mon Nov 16 08:54:47 2026 ; owner record pid: 1302391
+13:55:10.575 POST /record/stop -> {
+  "Dir": "$SCRATCH/runs/clean-fix-135447/home/Videos/AgentEyes/2026-11-16_085448_video",
+  "File": "$SCRATCH/runs/clean-fix-135447/home/Videos/AgentEyes/2026-11-16_085448_video/recording.mp4",
+  "DurationSeconds": 21.43,
+  "Shots": 0
+}
+13:55:12.677 followed manifest PostProcessing.mux: cleared/done
+13:55:12.708   raw.mp4=absent recording.mp4=3689946 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T13:55:10.5774237Z by agenteyes pid 1302391 on devlinux"] Error= | CaptureOwner={"Host": "devlinux", "Pid": 1302391, "ProcessStartUtc": "2026-11-16T13:54:47.9020995Z"}
+13:55:14.795   decode recording.mp4: duration=21.466667s full-decode exit=0 stderr-lines=0 last-second video read: 30 video frames decoded from the last second; last audio pts read: 42624 streams=h264,video aac,audio 
+13:55:14.823 G1 after a normal stop and mux: {"Host": "devlinux", "Pid": 1302391, "ProcessStartUtc": "2026-11-16T13:54:47.9020995Z"}
+13:55:14.896   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+13:55:14.900 === done; transcript $SCRATCH/runs/clean-fix-135447/transcript.txt

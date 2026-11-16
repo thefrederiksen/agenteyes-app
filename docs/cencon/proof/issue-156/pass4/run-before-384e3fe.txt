@@ -1,0 +1,36 @@
+flavour: AvfStream=1 PulseStream=0 (checked)
+16:26:22 binary: <scratch>/before/src/AgentEyes.Core/bin/Release/net8.0/agenteyes
+16:26:25 ARM live-plain: LIVE writer = my ffmpeg pid 71897 (uid 501), raw.mp4 262192 bytes and growing
+16:26:25   writer still running after package: YES
+16:26:25   package exit 1
+    [error] refusing to package 2026-11-15_12000pl_live-plain: its capture owner (capture session of pid 99999 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 71897 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes ser
+    PendingMux=pending  mux.State=None  mux.Attempts=None  AttemptedBy=None
+16:26:25   capture.owner.json: PRESENT  recording.mp4: absent
+16:26:25   my ffmpeg 71897 ended by me
+16:26:28 ARM live-sandbox: LIVE writer = my ffmpeg pid 71950 (uid 501), raw.mp4 262192 bytes and growing
+16:26:29   writer still running after package: YES
+16:26:29   package exit 1
+    [error] could not read the audio channel count of <scratch>/run-before/2026-11-15_12000sa_live-sandbox/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    PendingMux=pending  mux.State=failed  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T16:26:28.9471920Z by agenteyes pid 71966 on devthrottle-mac-mini']
+16:26:29   capture.owner.json: ABSENT  recording.mp4: absent
+16:26:29   my ffmpeg 71950 ended by me
+16:26:32 ARM live-sigdeny: LIVE writer = my ffmpeg pid 71983 (uid 501), raw.mp4 262192 bytes and growing
+16:26:32   writer still running after package: YES
+16:26:32   package exit 1
+    [error] could not read the audio channel count of <scratch>/run-before/2026-11-15_12000si_live-sigdeny/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    PendingMux=pending  mux.State=failed  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T16:26:32.2194170Z by agenteyes pid 71997 on devthrottle-mac-mini']
+16:26:32   capture.owner.json: ABSENT  recording.mp4: absent
+16:26:32   my ffmpeg 71983 ended by me
+16:26:35 ARM stale-plain: writer my ffmpeg pid 72014 has EXITED (gone), raw.mp4 430016 bytes
+16:26:36   package exit 1
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    PendingMux=cleared  mux.State=done  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T16:26:35.9657110Z by agenteyes pid 72055 on devthrottle-mac-mini']
+16:26:36   capture.owner.json: ABSENT  recording.mp4: 471649 bytes
+16:26:39 ARM stale-sandbox: writer my ffmpeg pid 72106 has EXITED (gone), raw.mp4 430016 bytes
+16:26:40   package exit 1
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    PendingMux=cleared  mux.State=done  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T16:26:39.8798680Z by agenteyes pid 72172 on devthrottle-mac-mini']
+16:26:40   capture.owner.json: ABSENT  recording.mp4: 471649 bytes
+16:26:40 done

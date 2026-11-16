@@ -1,0 +1,10 @@
+engine flavour: AvfStream=1 PulseStream=0 (1/0 = macOS build)
+14:34:39 binary: <scratch>/prefix/src/AgentEyes.Core/bin/Release/net8.0/agenteyes (built from: d7b7cc7 (PR head, pre-fix), -p:AgentEyesUnixPlatform=mac)
+14:34:39 pid 1: 1 root Thu Nov 12 15:07:18 2026   this user: soren
+14:34:39 raw.mp4 written: 1511558 bytes
+14:34:39 crashed recording: lock free, owner pid 99999 (gone), writer pid 1 (another user's)
+14:34:39 SECOND PROCESS: agenteyes package --no-frames
+14:34:39   exit 3
+    [error] Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+    PendingMux=pending  mux.State=None  mux.Attempts=None  DurationSeconds=None
+14:34:39   recording.mp4: absent   capture.owner.json: PRESENT

@@ -148,7 +148,12 @@ jobs:
       # Every test in this suite is pure logic - argument lists, parsers, arithmetic. None of them
       # captures a screen or opens a microphone, which is why they can run on a hosted runner that
       # has neither a granted Screen Recording permission nor any audio device.
+      # AGENTEYES_REAL_CLI_TESTS=1 (issue #156 pass 4): also run the test that drives the real
+      # agenteyes CLI under sandbox-exec. It is opt-in because on a person's Mac it writes their real
+      # AgentEyes log (#161); a hosted runner has none to protect.
       - name: Test the macOS build
+        env:
+          AGENTEYES_REAL_CLI_TESTS: "1"
         run: dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release
 
       # The macOS build must not contain the Linux capture backend. This is the regression that

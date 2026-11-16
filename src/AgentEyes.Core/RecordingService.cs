@@ -175,6 +175,13 @@ namespace AgentEyes
         private RecordingClaimTicket _captureClaim;
 
         /// <summary>
+        /// Issue #156: the on-disk half of <see cref="_captureClaim"/>. OWNED BY THE CLAIM
+        /// (<see cref="RecordingWorkset.Attach"/>), which disposes it on release; this is a reference
+        /// for recording the capture's writers, cleared with the ticket and never disposed here.
+        /// </summary>
+        private CaptureLock? _captureLock;
+
+        /// <summary>
         /// The camera ffmpeg processes this service could not kill (issue #28, AC16).
         ///
         /// It is the reference the Review Gate said was missing: the recorder correctly keeps its
@@ -669,6 +676,7 @@ namespace AgentEyes
                         _camera = FfmpegCameraRecorder.Create(
                             dshowCamera, cameraFps, 23, Path.Combine(_dir!, "camera.mp4"), _cameraTap);
                         _camera.Open();
+                        NoteCaptureWriter("camera", _camera.ProcessId);
                     }));
                 }
 
@@ -682,6 +690,7 @@ namespace AgentEyes
                     _video = FfmpegRecorder.Start(
                         capture, recorderMic, fps, 23, ffOut, _screenTap,
                         screenNumber: _monitor!.Index);
+                    NoteCaptureWriter("video", _video.ProcessId);
                     _manifest!.FfmpegCommand = _video.CommandLine;
 
                     // The alignment hint (assumption A5): how far the camera start sits from the
@@ -1011,6 +1020,7 @@ namespace AgentEyes
                     // this stop the NEXT session's ticket and release a live capture's claim.
                     claim = _captureClaim;
                     _captureClaim = default;
+                    _captureLock = null;   // owned by the claim, released with it below (issue #156)
                 }
 
                 // The capture no longer holds the recording (issue #155): the claim taken at start
@@ -1070,6 +1080,17 @@ namespace AgentEyes
             // Re-entrant for MuxCoordinator / PostRecording, which already hold it around the
             // counted attempt; anyone else either gets it here or is refused with the reason.
             using var muxLock = MuxLock.Acquire(dir, "finalize");
+
+            // Issue #156: the one call every finalizing path reaches - the post-recording runner, the
+            // repair pass's resume, `agenteyes package`, the walkthrough rebuild. Its callers decline
+            // a live capture before counting an attempt; this is the backstop for any caller that
+            // does not, and it runs before a single file is read, written or renamed. With #113's
+            // fragmented container a live raw.mp4 is READABLE, so without this the mux succeeds on
+            // the prefix and OriginalBackup.Preserve renames the file the capture is writing.
+            CaptureLock.ThrowIfLive(dir, "finalize");
+            // Issue #156 pass 2 (D2): this finalize is the takeover of any stale claim left by a
+            // crashed capture; clear it so other hosts can work on the recording afterwards.
+            CaptureLock.ClearStaleClaim(dir, "finalize");
 
             string finalPath = Path.Combine(dir, p.FinalFile);
             string? raw = p.RawVideo != null ? Path.Combine(dir, p.RawVideo) : null;
@@ -1290,9 +1311,54 @@ namespace AgentEyes
                     + "wait a second and start again");
             }
 
+            // Issue #156: and claimed for every OTHER process, before any writer starts. The
+            // in-process claim above is invisible to a second AgentEyes (the service beside the CLI,
+            // a second host on the library), whose repair pass or `agenteyes package` would otherwise
+            // mux this recording while it is still being captured. The lock is attached to the claim,
+            // so whichever path releases the claim - stop, start rollback, a stranded camera finally
+            // letting go - releases this with it, and never one without the other.
+            var diskLock = CaptureLock.TryAcquire(_dir!, "capture session", out string diskRefusal);
+            if (diskLock == null)
+            {
+                // Another process is capturing into this very directory (a name collision across
+                // processes - issue #169). This start owns nothing here: give the in-process claim
+                // back and clear the ticket BEFORE throwing, so the rollback neither releases a claim
+                // nor removes a directory that a live capture elsewhere is writing into.
+                var refused = _captureClaim;
+                _captureClaim = default;
+                RecordingWorkset.Release(refused);
+                Log.Error($"[RecordingService] BeginSession: {_dir} - {diskRefusal}. This capture will NOT start.");
+                throw new UsageException(
+                    $"the recording folder {Path.GetFileName(_dir)} is in use by another AgentEyes process: {diskRefusal} - "
+                    + "wait a second and start again");
+            }
+            RecordingWorkset.Attach(_captureClaim, diskLock);
+            _captureLock = diskLock;
+
+            // Issue #156 (G1): the durable record of who captured this, in the START manifest below -
+            // capture.owner.json does not outlive the claim, the manifest does.
+            _manifest!.CaptureOwner = diskLock.OwnerForManifest();
+
             CaptureSignal.CaptureStarted();
 
             ManifestStore.Replace(_dir!, _manifest!);   // a directory this call just created (issue #155)
+        }
+
+        /// <summary>
+        /// Issue #156: record an ffmpeg that writes straight into the recording directory as part of
+        /// this capture's cross-process claim (see <see cref="CaptureLock"/>), so the claim stays live
+        /// while that writer runs even if this process dies. A writer with no process id to record
+        /// is a programming error, not something to skip: an unrecorded writer is exactly the gap
+        /// that let a dead owner's still-running ffmpeg look unclaimed.
+        /// </summary>
+        private void NoteCaptureWriter(string label, int? pid)
+        {
+            Log.Info($"[RecordingService] NoteCaptureWriter: {label} pid={pid?.ToString() ?? "(none)"} dir={_dir}");
+            if (_captureLock == null)
+                throw new InvalidOperationException($"the {label} writer started with no capture lock held on {_dir}");
+            if (pid == null)
+                throw new InvalidOperationException($"the {label} writer for {_dir} started but reports no process id");
+            _captureLock.NoteWriter(label, pid.Value);
         }
 
         /// <summary>
@@ -1342,6 +1408,7 @@ namespace AgentEyes
             _cameraName = null;
             _dir = null; _manifest = null; _monitor = null;
             _captureClaim = default;
+            _captureLock = null;   // owned by the claim; Discard below releases it with the claim (issue #156)
             _peakMic = _peakSys = 0;
             DisposePreviewTaps();
             _previewOverlay = null;
