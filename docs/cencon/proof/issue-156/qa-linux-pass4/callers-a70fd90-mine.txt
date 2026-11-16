@@ -1,0 +1,37 @@
+16:34:57.510 === callers binary=a70fd90 mode=mine scratch=$SCRATCH/runs/callers-a70fd90-mine-163457
+16:34:57.528 product embedded: 1.11.11+a70fd907ba0261f165c95225ae42b975644bd442
+16:34:57.605 foreign go2rtc ffmpeg by command line: pid 72110 (never signalled)
+16:34:57.724 isolation: report-only housekeep under this env -> root $SCRATCH/runs/callers-a70fd90-mine-163457/home/Videos/AgentEyes (inside scratch)
+16:34:57.979 thumbnail fixture 2026-11-16_170200_video: no PendingMux, finished recording.mp4, claimed below by the crashed owner with the same live writer
+16:34:57.984 healthy sibling 2026-11-16_165900_video: finished raw.mp4, no claim (the control that the sweep still serves others)
+16:35:03.003 W state S, raw.mp4 growing: 158204 -> 363810 bytes in 2 s
+16:35:03.061 writer W=1601317 (mine, uid 1000) writing 2026-11-16_170000_video/raw.mp4; release writer RW=1601318 writing 2026-11-16_170100_video/raw.mp4
+16:35:03.304 crashed owner exited with 137 (2 claim line): OWNER also claimed thumbnail fixture 2026-11-16_170200_video with writer 1601317; owner record PRESENT
+OWNER pid 1601570 claimed 2026-11-16_170000_video with writer 1601317; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+16:35:03.362 harness pid 1601590, product 1.11.11+a70fd907ba0261f165c95225ae42b975644bd442
+16:35:03.529 RELEASE fixture: this process claims 2026-11-16_170100_video with writer pid 1601318 (alive), recorded unconfined
+16:35:03.554 --- probes, mode=mine, thread 4; crashed-owner dir 2026-11-16_170000_video writer pid 1601317 (alive)
+16:35:03.558   IdentifyProcess(writer) = IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 1601317 is running and started at the recorded time 2026-11-16T16:34:57.9827866Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+16:35:03.576   [Inspect]        Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 1601570 on host devlinux (started 2026-11-16T16:35:03.1686995Z)) is gone but its video ffmpeg pid 1601317 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+16:35:03.577   [ThrowIfLive]    REFUSED UsageException: refusing to qa 2026-11-16_170000_video: its capture owner (qa crashed owner of pid 1601570 on host devlinux (started 2026-11-16T16:35:03.1686995Z)) is gone but its video ffmpeg pid 1601317 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone. Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+16:35:03.579   [ClearStaleClaim] returned False; capture.owner.json PRESENT
+16:35:03.626   [FindUnfinished] admitted this recording: False (list: 2026-11-16_165900_video)
+16:35:03.629   [FindMissing]    would thumbnail the claimed thumbnail fixture: False; its capture.owner.json PRESENT (list: )
+16:35:03.798   [ReapOrphans]    pid 1601318 [capture video (2026-11-16_170100_video)]: owner pid 1601590 is alive - left alone
+16:35:03.798   [ReapOrphans]    pid 1601317 [capture video (2026-11-16_170200_video)]: ORPHAN capture writer (owner pid 1601570 gone) - SIGTERM, exited after 0.15s (graceful: never killed)
+16:35:03.798   after reap: writer 1601317 gone; registry record REMOVED; capture.owner.json PRESENT
+16:35:03.800   [Release]        disposed the release claim; writer 1601318 alive; capture.owner.json PRESENT
+16:35:05.853 after: W 1601317 gone; 2026-11-16_170000_video/raw.mp4 395900 -> 604461 bytes; recording.mp4 absent; manifest mux: pending None
+16:35:05.857 product log lines (this run's data root):
+11:35:03.577 [pid 1601590] [INFO] [CaptureLock] ThrowIfLive DECLINED: refusing to qa 2026-11-16_170000_video: its capture owner (qa crashed owner of pid 1601570 on host devlinux (started 2026-11-16T16:35:03.1686995Z)) is gone but its video ffmpeg pid 1601317 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone. Nothing
+11:35:03.578 [pid 1601590] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170000_video (qa) - KEPT: its capture owner (qa crashed owner of pid 1601570 on host devlinux (started 2026-11-16T16:35:03.1686995Z)) is gone but its video ffmpeg pid 1601317 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+11:35:03.625 [pid 1601590] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_165900_video needs mux
+11:35:03.625 [pid 1601590] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_170000_video - its capture owner (qa crashed owner of pid 1601570 on host devlinux (started 2026-11-16T16:35:03.1686995Z)) is gone but its video ffmpeg pid 1601317 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+11:35:03.625 [pid 1601590] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_170100_video - 2026-11-16_170100_video is being captured by this process (pid 1601590)
+11:35:03.625 [pid 1601590] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_170200_video - its capture owner (qa crashed owner of pid 1601570 on host devlinux (started 2026-11-16T16:35:03.2873494Z)) is gone but its video ffmpeg pid 1601317 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+11:35:03.625 [pid 1601590] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/callers-a70fd90-mine-163457/home/Videos/AgentEyes, unfinished=1
+11:35:03.632 [pid 1601590] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=$SCRATCH/runs/callers-a70fd90-mine-163457/home/.local/share/AgentEyes/run/ffmpeg
+11:35:03.797 [pid 1601590] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1601318 [capture video (2026-11-16_170100_video)]: owner pid 1601590 is alive - left alone
+11:35:03.797 [pid 1601590] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1601317 [capture video (2026-11-16_170200_video)]: ORPHAN capture writer (owner pid 1601570 gone) - SIGTERM, exited after 0.15s (graceful: never killed)
+11:35:03.800 [pid 1601590] [ERROR] [CaptureLock] Release: 2026-11-16_170100_video - the video ffmpeg pid 1601318 is STILL RUNNING after its capture stopped. The owner record is KEPT so no other process finalizes a file that is still being written; the next service start reaps it.
+11:35:03.800 [pid 1601590] [INFO] [CaptureLock] Release: 2026-11-16_170100_video released by pid 1601590 (1 writer(s) still running - claim stays live)

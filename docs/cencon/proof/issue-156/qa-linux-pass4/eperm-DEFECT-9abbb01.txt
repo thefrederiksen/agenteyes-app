@@ -1,0 +1,28 @@
+16:48:36.930 === Linux EPERM row; harness 9abbb01 product 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5, CLI 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:48:37.014 foreign go2rtc ffmpeg by command line: pid 72110 (never signalled)
+16:48:37.146 isolation: root $SCRATCH/runs/eperm-9abbb01-164836/home/Videos/AgentEyes
+16:48:40.372 crashed owner exit 137: OWNER pid 1631789 claimed 2026-11-16_172000_video with writer 1631594; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+16:48:40.426 LIVE writer W=1631594 uid 1000 (same as mine: 1000); state S
+16:48:40.430 --- arm P (control): plain prober
+16:48:40.547   recorded writer pid 1631594: IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 1631594 is running and started at the recorded time 2026-11-16T16:48:37.1428441Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+16:48:40.647   [Inspect] Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 1631789 on host devlinux (started 2026-11-16T16:48:40.2508188Z)) is gone but its video ffmpeg pid 1631594 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose o
+16:48:40.655 --- arm L (control): Landlock only (kill(pid,0) succeeds)
+16:48:40.779   recorded writer pid 1631594: IdentifyProcess -> ProcessAnswer { Identity = Unknown, Why = pid 1631594 exists and is this user's, but its start time is refused (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.) and this platform has no second pr
+16:48:40.879   [Inspect] Live=True Undetermined=True Reason=UNDETERMINED: its capture owner (qa crashed owner of pid 1631789 on host devlinux (started 2026-11-16T16:48:40.2508188Z)) is gone, but whether its video ffmpeg pid 1631594 is still writing into it CANNOT BE ESTABLISHED from this process (pid 1631853): pid 1631594 exists
+16:48:40.888 --- arm E (THE QUESTION): Landlock + kill(2) answers EPERM
+llprobe: Landlock ABI 4 confined pid 1631877 thread 1631877: reads of 1040 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+llprobe: seccomp: kill(2) answers EPERM
+16:48:41.014   recorded writer pid 1631594: IdentifyProcess -> ProcessAnswer { Identity = NotMine, Why = pid 1631594 belongs to ANOTHER USER (kill(pid, 0) errno 1); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+16:48:41.116   [Inspect] Live=False Undetermined=False Reason=stale capture claim taken over: its owner (qa crashed owner of pid 1631789 on host devlinux (started 2026-11-16T16:48:40.2508188Z)) is gone and its 1 writer(s) have exited
+16:48:41.157   state after the read-only arms: PendingMux=pending mux=None capture.owner.json=PRESENT recording.mp4=absent
+16:48:41.164 --- arm E2: the real CLI under the same confinement: agenteyes package <dir> --no-frames
+16:48:41.629   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/eperm-9abbb01-164836/home/Videos/AgentEyes/2026-11-16_172000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+16:48:43.673   after: PendingMux=pending mux={'State': 'failed', 'Attempts': 1, 'LastAttemptUtc': '2026-11-16T16:48:41.438167Z', 'AttemptedBy': ['attempt 1 at 2026-11-16T16:48:41.4381670Z by agenteyes pid 1631909 on devlinux'], 'Error': "could not read the audio channel count of $SCRATCH/runs/eperm-9abbb01-164836/home/Videos/AgentEyes/2026-11-16_172000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."} capture.owner.json=ABSENT recording.mp4=absent; writer W ALIVE, raw.mp4 259590 -> 505857 bytes
+16:48:43.677   product log of arm E2:
+11:48:41.392 [pid 1631909] [INFO] [FfmpegChildRegistry] IdentifyProcess: pid 1631594 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.) - answered NotMine: pid 1631594 belongs to ANOTHER USER (kill(pid, 0) errno 1); the recorded process ran as this user, so this is not it
+11:48:41.392 [pid 1631909] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_172000_video (package) - CLEARED capture.owner.json (lock held shared): stale capture claim taken over: its owner (qa crashed owner of pid 1631789 on host devlinux (started 2026-11-16T16:48:40.2508188Z)) is gone and its 1 writer(s) have exited. The capture's owner stays on record in the manifest (Captur
+11:48:41.435 [pid 1631909] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_172000_video (package) - no capture holds it
+11:48:41.444 [pid 1631909] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_172000_video stage=mux by=agenteyes pid 1631909 on devlinux
+11:48:41.499 [pid 1631909] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_172000_video (finalize) - no capture holds it
+11:48:41.499 [pid 1631909] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_172000_video (finalize) - no owner record; nothing to clear
+16:48:43.683 === done
