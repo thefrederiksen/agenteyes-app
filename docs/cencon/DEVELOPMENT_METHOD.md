@@ -249,10 +249,14 @@ Before labeling `flow:ready-qa`, the Developer Agent must have ALL of:
    > after it changes the code. The Developer Agent never ends its turn asking the human to run
    > tests, and never hands QA or the human an unrun suite. Doing so is a defect, not caution.
 
-   What `dotnet test AgentEyes.sln` costs, measured (issue #151, 2026-11-15, Windows CI runner):
-   2382 tests in 33-50 s, silent (no app launch, no audio) but NOT ffmpeg-free - end-to-end tests
-   start about 235 short ffmpeg runs. The tests that exist only to run a real ffmpeg against the mic
-   chain are opt-in (`AGENTEYES_FFMPEG_TESTS=1`); CI and the release build always run them. The old
+   What `dotnet test AgentEyes.sln` costs, measured (issue #151, 2026-11-16, main 497e9d4 merged
+   into the #151 fix): 2390 tests, 15 skipped by default, in 39 s on the Windows CI runner (run
+   43870216038) and 65 s on a laptop (SDK 10.0.301 building net8.0, runtime 8.0.21). It is silent
+   (no app launch, no audio) but NOT ffmpeg-free: on that laptop a counting shim saw the default gate
+   start 235 ffmpeg and 115 ffprobe processes. The tests that exist only to run a real ffmpeg against
+   the mic chain are opt-in (`AGENTEYES_FFMPEG_TESTS=1`: 2394 tests, 322 ffmpeg and 128 ffprobe
+   starts); CI and the release build always run them. What the default gate should start is an open
+   policy question, issue #153. The Linux and macOS suites are 292 and 284 tests on CI (same run). The old
    figure here, "288 tests in ~2 seconds, no ffmpeg", was the LINUX suite's count
    (`tests/AgentEyes.Tests.Linux`), written as if it described the Windows gate. None of this is a
    reason to skip it: it runs after every change, by the agent that made it. The heavy smokes (`api-smoke.ps1`, `gui-smoke.ps1`,

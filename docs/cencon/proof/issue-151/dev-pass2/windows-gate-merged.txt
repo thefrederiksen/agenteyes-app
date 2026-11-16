@@ -1,0 +1,20 @@
+# Issue #151 pass 2 - Windows gate on the merged head 6a65fa1 (origin/main 497e9d4 merged into 3084271)
+# Machine SORENLAPTOP. dotnet SDK 10.0.301 building net8.0; tests run on Microsoft.NETCore.App 8.0.21.
+# Test binary: tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (built 2026-11-16 07:42; the stale bin\Release copy is dated 2026-11-15 and was not used)
+
+## Arm A - default gate, no shim, AGENTEYES_FFMPEG_TESTS unset
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 1 m 5 s - AgentEyes.Tests.dll (net8.0)
+
+## Arm B - AGENTEYES_FFMPEG_TESTS=1, no shim
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 1 m 17 s - AgentEyes.Tests.dll (net8.0)
+
+## Counting shim (QA's qa-windows/counting-shim-Program.cs rebuilt unchanged; run via qa-windows/rungate.sh; real tools ffmpeg 8.1.1)
+positive control: 3 good ffmpeg + 1 ffmpeg with a bad flag (exit 8 forwarded) + 1 ffprobe -> counted ffmpeg 4, ffprobe 1
+Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 1 m 21 s - AgentEyes.Tests.dll (net8.0)
+default : ffmpeg 235, ffprobe 115
+Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 2 m 28 s - AgentEyes.Tests.dll (net8.0)
+opt-in  : ffmpeg 322, ffprobe 128
+ffmpeg/ffprobe processes alive after both runs: 0
+(the shim cannot see a launch by absolute path that bypasses QA_RECORD_FFMPEG_DIR and PATH - see qa-report-windows.md; the counts are a floor in principle)

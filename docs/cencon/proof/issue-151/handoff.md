@@ -61,3 +61,140 @@ Without that last one, moving the guards would have silently dropped them from e
 - Windows: the gate as written in CLAUDE.md. The opt-in pass is
   `set AGENTEYES_FFMPEG_TESTS=1` then `dotnet test AgentEyes.sln -c Release`.
 - To repeat the hazard on main, use the scratch test in `c4-hazard-on-main-linux.txt`.
+
+---
+
+## Pass 2 - the qa-failed delta (merge main, correct the counts, correct the ffmpeg sentence)
+
+Windows seat, SORENLAPTOP. Input: QA's `flow:qa-failed` at `3084271` (`qa-report-windows.md`,
+comment 6916669389). The scope is that delta only. **Pass 2 changes no product code, no test code,
+no opt-in mechanism and no kill-ownership code.** The only change outside the docs is three csproj
+lines, and they come from main.
+
+### 1. Merge of origin/main 497e9d4 - merge commit `6a65fa1`
+
+There were three conflicts. All three sit at the same `<Compile>` insertion point, right after the
+`FfmpegMuxShapeTests.cs` link:
+
+| File | Ours (#151) | Theirs (main, #146) | Resolution and why |
+|---|---|---|---|
+| `tests/AgentEyes.Tests/AgentEyes.Tests.csproj` | links `Shared/OwnedFfmpeg.cs` and `Shared/OwnedFfmpegTests.cs` | links `Shared/MicChainOrderTests.cs` | Keep both. These are three unrelated source files, and neither side links the other's. Dropping either side would remove a test class from the Windows gate |
+| `tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj` | the two OwnedFfmpeg links plus `../AgentEyes.Tests/FfmpegOptInAttributes.cs` | `MicChainOrderTests.cs` | Keep both. Main's Linux csproj does not link `FfmpegOptInAttributes.cs`, so it is linked once and no `Compile` item is duplicated. `MicChainOrderTests` uses plain `[Fact]` and no opt-in attribute, so it needs nothing from our side |
+| `tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj` | same as Linux | same as Linux | Keep both, for the same reasons |
+
+Both sides added `tests/AgentEyes.Tests/FfmpegOptInAttributes.cs`. `git diff HEAD origin/main` on
+that file is empty, so the two copies are byte-identical and it did not conflict. CLAUDE.md merged
+automatically: it brought in main's D7 changes (the Review Gate, `flow:ready-gate`) and kept our gate
+passage. After resolving, I checked that no conflict markers remain and that none of the three files
+has a duplicate `Compile Include`.
+
+### 2. Counts I measured on the merged head (not copied from QA)
+
+Windows, on this machine: **SDK 10.0.301 building net8.0; the tests run on
+Microsoft.NETCore.App 8.0.21.** The binary is `bin\x64\Release\...\AgentEyes.Tests.dll`, built
+07:42 on the day. The stale `bin\Release` copy is dated 2026-11-15, and the "Test run for" line
+names the x64 path.
+
+| Arm | Total | Passed | Skipped | Failed | Test time | ffmpeg / ffprobe starts (shim) |
+|---|---|---|---|---|---|---|
+| Default, no shim | 2390 | 2375 | 15 | 0 | 1 m 5 s | - |
+| `AGENTEYES_FFMPEG_TESTS=1`, no shim | 2394 | 2394 | 0 | 0 | 1 m 17 s | - |
+| Default, shim | 2390 | 2375 | 15 | 0 | 1 m 21 s | **235 / 115** |
+| Opt-in, shim | 2394 | 2394 | 0 | 0 | 2 m 28 s | **322 / 128** |
+
+The opt-in arm skips nothing, so all 15 default skips are opt-in tests. A skipped Theory reports as
+one row, which is why 2390 + 4 = 2394.
+
+The instrument is QA's `qa-windows/counting-shim-Program.cs`, rebuilt unchanged and run through
+`qa-windows/rungate.sh`, with ffmpeg 8.1.1 as the real tools. My own positive control: 4 ffmpeg
+starts (one with a bad flag, exit 8 forwarded) and 1 ffprobe start were counted as 4 and 1. No
+ffmpeg or ffprobe was alive after either run. QA's limit still applies: a launch by absolute path is
+invisible, so these counts are a floor in principle. Evidence: `dev-pass2/windows-gate-merged.txt`.
+
+**Linux and macOS come from CI and were not measured here** (those suites cannot run on this
+machine). Source: the CI job logs on merge commit `6a65fa18af8955e45fd1f5ca7105f977513de43b`.
+
+| Suite | Run | Job | Default | Opt-in |
+|---|---|---|---|---|
+| Windows | pull_request 43870216038 | 133309954668 | 2390 (15 skipped), 39 s | 2394 (0 skipped), 46 s |
+| Linux | pull_request 43870216038 | 133310001368 | 292 (1 skipped), 780 ms | 292 (0 skipped), 2 s |
+| macOS | pull_request 43870216038 | 133309957336 | 284 (1 skipped), 421 ms | (CI runs one arm) |
+| Linux | push 43870208914 | 133309946542 | 292 (1 skipped), 604 ms | 292, 2 s |
+| macOS | push 43870208914 | 133310011099 | 284 (1 skipped), 788 ms | - |
+
+The Windows job of push run 43870208914 failed twice (jobs 133309062692 and 133309944571). Both
+times it failed in "Download ffmpeg (essentials build)" with `www.gyan.dev 503 Service Unavailable`,
+before the build or any test. That is an infrastructure failure, and no test ran. The pull_request
+run's Windows job supplies the Windows CI figure. Evidence: `dev-pass2/ci-merged-head.txt`. Linux
+goes from 288 to 292 and macOS from 280 to 284 because #146's 4 `MicChainOrderTests` facts are
+linked into both suites.
+
+### 3. The governance wording, before and after
+
+**CLAUDE.md, gate policy tier 1.** Before (the branch at 3084271, lines 69-77):
+
+> Measured on the Windows CI runner (issue #151, 2026-11-15): 2382 tests (11 skipped by design) in
+> 33-50 s of test time (six runs). It is silent (no app launch, no audio) but it is NOT ffmpeg-free:
+> end-to-end tests outside the mic chain start about 235 short ffmpeg runs. [...] (2383 tests, about a
+> minute; CI and the release build always do). The Linux and macOS gates [...] are 288 and 280 tests
+> in under a second and start no ffmpeg.
+
+On main, the same passage reads "288 tests in ~2 seconds, no app launch, no audio, no ffmpeg". That
+is the false claim the lead ruled on. Pass 1 had already removed "no ffmpeg" from the branch, and the
+merge kept the branch's text.
+
+After:
+
+> It is silent (no app launch, no audio) but it is NOT ffmpeg-free. Measured by issue #151 on main
+> 497e9d4 merged into the #151 fix (2026-11-16): 2390 tests, 15 of them skipped (the opt-in tests
+> below), in 39 s of test time on the Windows CI runner (run 43870216038) and 65 s on a laptop (SDK
+> 10.0.301 building net8.0, runtime 8.0.21). On that laptop, a counting shim on ffmpeg and ffprobe saw
+> the default gate start **235 ffmpeg and 115 ffprobe** processes, all short end-to-end test runs. The
+> tests that exist only to run a real ffmpeg against the mic chain (#128, #146) are opt-in: set
+> `AGENTEYES_FFMPEG_TESTS=1` to run them too (2394 tests; 46 s on CI, 77 s on the laptop; 322 ffmpeg
+> and 128 ffprobe starts). CI and the release build always run them. What the default gate should
+> start, if anything, is an open policy question tracked in issue #153 and NOT settled here. The Linux
+> and macOS gates [...] are 292 and 284 tests (1 opt-in skip each), in under a second on CI (run
+> 43870216038). They start no ffmpeg (Linux traced with strace in #151; macOS by source review).
+
+The hard rule block ("THE HUMAN NEVER RUNS TESTS. EVER.") is untouched.
+
+**docs/cencon/DEVELOPMENT_METHOD.md, dev gate item 4.** Before:
+
+> What `dotnet test AgentEyes.sln` costs, measured (issue #151, 2026-11-15, Windows CI runner): 2382
+> tests in 33-50 s, silent (no app launch, no audio) but NOT ffmpeg-free - end-to-end tests start about
+> 235 short ffmpeg runs. The tests that exist only to run a real ffmpeg against the mic chain are opt-in
+> (`AGENTEYES_FFMPEG_TESTS=1`); CI and the release build always run them.
+
+After:
+
+> What `dotnet test AgentEyes.sln` costs, measured (issue #151, 2026-11-16, main 497e9d4 merged into
+> the #151 fix): 2390 tests, 15 skipped by default, in 39 s on the Windows CI runner (run 43870216038)
+> and 65 s on a laptop (SDK 10.0.301 building net8.0, runtime 8.0.21). It is silent (no app launch, no
+> audio) but NOT ffmpeg-free: on that laptop a counting shim saw the default gate start 235 ffmpeg and
+> 115 ffprobe processes. The tests that exist only to run a real ffmpeg against the mic chain are opt-in
+> (`AGENTEYES_FFMPEG_TESTS=1`: 2394 tests, 322 ffmpeg and 128 ffprobe starts); CI and the release build
+> always run them. What the default gate should start is an open policy question, issue #153. The Linux
+> and macOS suites are 292 and 284 tests on CI (same run).
+
+The sentence that follows, about the old "288 tests in ~2 seconds, no ffmpeg" figure, is unchanged,
+and so is the hard rule block.
+
+### Noted, not touched (outside this delta's scope)
+
+- `.claude/skills/developer-agent/SKILL.md:138` and `.claude/skills/implementation-loop/SKILL.md:214`
+  still describe `dotnet test` as "~2s, no app launch, no audio". That is the same stale figure, in
+  the agents' own skills. Neither says "no ffmpeg", but "~2s" is false on Windows (39-65 s). This
+  belongs to #153 or a docs follow-up.
+- The opt-in arm's 322 ffmpeg starts are more than QA's 297 at the pre-merge head `2f50acf`, because
+  #146's `MicChainSampleRateTests` are opt-in and launch ffmpeg. The default arm is 235 at both heads.
+
+### How QA should re-verify the delta
+
+1. `git diff 3084271 6a65fa1 -- tests/*/*.csproj` should show exactly one added
+   `MicChainOrderTests.cs` line per file and nothing removed. `git diff 6a65fa1 HEAD --stat` should
+   touch only `CLAUDE.md`, `docs/cencon/DEVELOPMENT_METHOD.md` and `docs/cencon/proof/issue-151/`.
+2. In `src` and `tests`, the only changes since `2f50acf` should be main's (`90c9118..497e9d4`) plus
+   the three csproj hunks. Nothing QA verified was touched except by main.
+3. Optionally, re-run both Windows arms with the shim for your own counts. Then check CI on the final
+   head.
