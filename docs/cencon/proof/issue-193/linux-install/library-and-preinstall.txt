@@ -1,0 +1,10 @@
+Library check, read-only. Snapshot of ~/Videos/AgentEyes taken before the install and after the take.
+Top-level entries: before 86, after 87. diff:
+86a87
+> 2026-11-16_182129_video
+Files outside the new take (path, size, mtime): before 850, after 850; diff of the two lists: none (identical)
+2026-11-14_102532_video present after: yes
+~/qa-backups/agenteyes-142 present, not opened: yes
+Pre-install /version: {"app":"AgentEyes","version":"1.11.11"}
+Pre-install agenteyes.dll InformationalVersion: 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb
+Pre-install unit sha256: db53caaff20e316a5c73e5e10bd7ce850dc9c3837f8977f0ad14561dca7fbb9c

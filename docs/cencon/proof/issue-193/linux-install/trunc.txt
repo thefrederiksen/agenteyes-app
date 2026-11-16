@@ -1,0 +1,18 @@
+Truncation control: a SCRATCH COPY of the fragmented capture (recording.original.mp4) cut to half its bytes (2158749 -> 1079374). The library file is untouched.
+moov atom present in truncated copy: True
+== trunc/half.mp4 (1079374 bytes)
+format.duration: 16.333333
+streams: index=0|codec_name=h264|codec_type=video|duration=16.333333 index=1|codec_name=aac|codec_type=audio|duration=16.306958 
+full decode (-xerror) exit=183 stderr_lines=3
+decoded video frames: 490
+last decoded video frame pts_time: 16.333333
+last decoded audio frame pts_time: 15.837604
+bare decode (no -xerror) of truncated copy: exit=0
+stderr:
+[mov,mp4,m4a,3gp,3g2,mj2 @ 0x613c096e8580] stream 1, offset 0x107962: partial file
+[aac @ 0x613c09746600] decode_band_types: Input buffer exhausted before END element found
+[aist#0:1/aac @ 0x613c09747480] Error submitting packet to decoder: Invalid data found when processing input
+-xerror stderr:
+[in#0/mov,mp4,m4a,3gp,3g2,mj2 @ 0x62d77dd414c0] corrupt input packet in stream 1
+[in#0/mov,mp4,m4a,3gp,3g2,mj2 @ 0x62d77dd414c0] Error retrieving a packet from demuxer: Invalid data found when processing input
+Error while filtering: Invalid data found when processing input

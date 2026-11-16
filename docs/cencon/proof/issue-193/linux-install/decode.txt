@@ -1,0 +1,15 @@
+Expected end: /record/stop reported DurationSeconds=32.81
+== ~/Videos/AgentEyes/2026-11-16_182129_video/recording.mp4 (2300516 bytes)
+format.duration: 32.266667
+streams: index=0|codec_name=h264|codec_type=video|duration=32.266667 index=1|codec_name=aac|codec_type=audio|duration=32.030000 
+full decode (-xerror) exit=0 stderr_lines=0
+decoded video frames: 968
+last decoded video frame pts_time: 32.233333
+last decoded audio frame pts_time: 32.021333
+== ~/Videos/AgentEyes/2026-11-16_182129_video/recording.original.mp4 (2158749 bytes)
+format.duration: 32.266667
+streams: index=0|codec_name=h264|codec_type=video|duration=32.266667 index=1|codec_name=aac|codec_type=audio|duration=32.198604 
+full decode (-xerror) exit=0 stderr_lines=0
+decoded video frames: 968
+last decoded video frame pts_time: 32.233333
+last decoded audio frame pts_time: 32.157271
