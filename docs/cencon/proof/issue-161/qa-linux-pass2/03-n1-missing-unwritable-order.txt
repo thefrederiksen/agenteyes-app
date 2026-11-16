@@ -21,7 +21,7 @@
   tree after: . ./data ./videos 
 
 [n4] exit=0 real-root syscalls=0
-  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scr>/m/n1/n4/ro/data/AgentEyes ; recordings -> <scr>/m/n1/n4/ro/videos/AgentEyes ; log -> /tmp/claud
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scr>/m/n1/n4/ro/data/AgentEyes ; recordings -> <scr>/m/n1/n4/ro/videos/AgentEyes ; log -> <stage>
   probe syscalls in order:
     openat(AT_FDCWD, "<scr>/m/n1/n4/ro/data/.agenteyes-redirect-probe-<pid>-<guid>", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 30
     unlink("<scr>/m/n1/n4/ro/data/.agenteyes-redirect-probe-<pid>-<guid>") = 0

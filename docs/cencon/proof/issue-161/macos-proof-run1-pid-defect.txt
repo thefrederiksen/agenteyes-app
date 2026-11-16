@@ -1,27 +1,27 @@
 T0=2026-11-16 12:08:33
 == 0. SANDBOX CONTROL: the profile must block ls and touch on BOTH real roots
-ls    '/Users/soren/Movies/AgentEyes' -> exit 1 : ls: /Users/soren/Movies/AgentEyes: Operation not permitted
-touch '/Users/soren/Movies/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : touch: /Users/soren/Movies/AgentEyes/.agenteyes161-sandbox-probe: Operation not permitted
+ls    '/Users/<owner account>/Movies/AgentEyes' -> exit 1 : ls: /Users/<owner account>/Movies/AgentEyes: Operation not permitted
+touch '/Users/<owner account>/Movies/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : touch: /Users/<owner account>/Movies/AgentEyes/.agenteyes161-sandbox-probe: Operation not permitted
   probe file absent afterwards: yes
-ls    '/Users/soren/Library/Application Support/AgentEyes' -> exit 1 : ls: /Users/soren/Library/Application Support/AgentEyes: Operation not permitted
-touch '/Users/soren/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : touch: /Users/soren/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe: Operation not permitted
+ls    '/Users/<owner account>/Library/Application Support/AgentEyes' -> exit 1 : ls: /Users/<owner account>/Library/Application Support/AgentEyes: Operation not permitted
+touch '/Users/<owner account>/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : touch: /Users/<owner account>/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe: Operation not permitted
   probe file absent afterwards: yes
 touch scratch -> exit 0
 == 1. RUNTIME HOME TRAP (standalone probe, touches nothing)
 -- HOME unchanged:
-runtime=10.0.15 HOME=/Users/soren
-UserProfile=/Users/soren
-MyVideos=/Users/soren/Movies
-LocalApplicationData=/Users/soren/Library/Application Support
-ApplicationData=/Users/soren/Library/Application Support
+runtime=10.0.15 HOME=/Users/<owner account>
+UserProfile=/Users/<owner account>
+MyVideos=/Users/<owner account>/Movies
+LocalApplicationData=/Users/<owner account>/Library/Application Support
+ApplicationData=/Users/<owner account>/Library/Application Support
 -- HOME=<scratch>/p161/run/home:
 runtime=10.0.15 HOME=<scratch>/p161/run/home
 UserProfile=<scratch>/p161/run/home
-MyVideos=/Users/soren/Movies
-LocalApplicationData=/Users/soren/Library/Application Support
-ApplicationData=/Users/soren/Library/Application Support
+MyVideos=/Users/<owner account>/Movies
+LocalApplicationData=/Users/<owner account>/Library/Application Support
+ApplicationData=/Users/<owner account>/Library/Application Support
 == 2. REAL LIBRARY BASELINE (directory-entry count only, read-only, before any agenteyes run)
-recording folders in /Users/soren/Movies/AgentEyes: 79
+recording folders in /Users/<owner account>/Movies/AgentEyes: 79
 owner's service /status (7882):
   "State": "idle",
   "SignedIn": false,
@@ -67,7 +67,7 @@ exit 5
 exit 5
 [error] library redirect refused: partial library redirect: AGENTEYES_REDIRECT_VIDEOS is set but AGENTEYES_REDIRECT_DATA is not. Both roots move together or not at all - a scratch recordings root with the REAL state root would mix the two libraries. Fix: set AGENTEYES_REDIRECT_DATA as well, or unset AGENTEYES_REDIRECT_VIDEOS.
 -- VIDEOS = the real Movies folder (scratch state + REAL recordings):
-[error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at /Users/soren/Movies/AgentEyes, which overlaps the REAL recordings root /Users/soren/Movies/AgentEyes. A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside /Users/soren/Movies/AgentEyes.
+[error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at /Users/<owner account>/Movies/AgentEyes, which overlaps the REAL recordings root /Users/<owner account>/Movies/AgentEyes. A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside /Users/<owner account>/Movies/AgentEyes.
 exit 5
 -- redirected serve on the default port (scratch config has no Port):
 [error] a redirected AgentEyes (AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS) must not listen on the default port 7882 - that is the address of the person's real AgentEyes. Fix: pass --port N (agenteyes serve), or put {"Port": N} in the scratch config.json, which the redirected CLI client reads too.
@@ -104,16 +104,16 @@ control serve pid=89384
 curl exit 0
   "State": "idle",
   "SignedIn": false,
-  "DataRoot": "/Users/soren/Library/Application Support/AgentEyes",
-  "RecordingsRoot": "/Users/soren/Movies/AgentEyes",
+  "DataRoot": "/Users/<owner account>/Library/Application Support/AgentEyes",
+  "RecordingsRoot": "/Users/<owner account>/Movies/AgentEyes",
   "LibraryRedirected": false,
   "LibraryRedirect": null,
   "PendingTranscriptions": 0,
 control serve exit=0
 -- control stdout:
 [ok] AgentEyes headless service listening on http://127.0.0.1:17962/
-     recordings -> /Users/soren/Movies/AgentEyes
-     data       -> /Users/soren/Library/Application Support/AgentEyes
+     recordings -> /Users/<owner account>/Movies/AgentEyes
+     data       -> /Users/<owner account>/Library/Application Support/AgentEyes
      signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
 -- control stderr:
 -- did the control's log land anywhere? files named AgentEyes-*.log under <scratch>/p161/run/home and <scratch>/p161/run (excluding the redirected run's):
@@ -131,13 +131,13 @@ total denial lines: 17
    1 touch(89294)
 -- lines for the redirected serve pid 89341: 0
 -- lines for the control serve pid 89384: 8; distinct denied paths:
-  /Users/soren/Library/Application Support/AgentEyes/logs
-  /Users/soren/Movies/AgentEyes
+  /Users/<owner account>/Library/Application Support/AgentEyes/logs
+  /Users/<owner account>/Movies/AgentEyes
 == 8. REAL RECORDINGS LIBRARY AFTER: entries modified since T0 (metadata only)
 (end of list) recording folders now: 79
 owner's service /status (7882) after:
   "State": "idle",
   "PendingTranscriptions": 66,
-50642 /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes serve
+50642 /Users/<owner account>/Library/Application Support/AgentEyes/bin/agenteyes serve
 my ffmpeg/agenteyes leftovers:
-89343 /Users/soren/.dotnet/dotnet /Users/soren/ReposFred/agenteyes-dev161/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll serve --port 17961
+89343 /Users/<owner account>/.dotnet/dotnet /Users/<owner account>/ReposFred/agenteyes-dev161/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll serve --port 17961

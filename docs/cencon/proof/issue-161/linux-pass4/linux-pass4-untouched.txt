@@ -1,0 +1,38 @@
+# pass 4: what changed, by diff against pass 3's head 71dc345 (2026-11-16T14:55:06-05:00)
+## files changed in code (src/, tests/):
+ src/AgentEyes.Core/RealLibrary.cs               | 20 ++++++++--
+ src/AgentEyes.Core/Video/FfmpegChildRegistry.cs |  8 ++--
+ tests/AgentEyes.Tests/ManifestWriterIlTests.cs  |  3 +-
+ tests/Shared/LibraryRedirectTests.cs            | 51 ++++++++++++++++++++++++-
+ 4 files changed, 71 insertions(+), 11 deletions(-)
+
+## every code line pass 4 REMOVED (all of them - nothing else in src/ lost a line):
+-        /// <summary>How long the running service gets to answer /status before the guard says it named nothing.</summary>
+-        internal static readonly TimeSpan ServiceTimeout = TimeSpan.FromSeconds(2);
+-            string body = http.GetStringAsync($"http://127.0.0.1:{port}/status").GetAwaiter().GetResult();
+-        /// the two uids kill(2) compares with the target's.</summary>
+-            uint ruid = GetUid(), euid = GetEuid();
+-        [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "geteuid")]
+-        private static extern uint GetEuid();
+-
+
+## files with NO diff (the verified rules live here):
+src/AgentEyes.Core/LibraryRedirect.cs                   no diff
+src/AgentEyes.Core/AppDataPaths.cs                      no diff
+src/AgentEyes.Core/LocalAppConfig.cs                    no diff
+src/AgentEyes.Core/RecordingService.cs                  no diff
+src/AgentEyes.Core/Headless                             no diff
+src/AgentEyes.DesktopApp                                no diff
+
+## RealLibrary.cs: the only hunks
+@@ -156,4 +156,18 @@ namespace AgentEyes
+@@ -169,3 +183,3 @@ namespace AgentEyes
+## Derive / Distinct / FromServiceStatus / VideosFromUserDirs / AccountHome / Native: no line removed or added inside them:
+(none)
+src/AgentEyes.App                                       no diff
+src/ (all, except RealLibrary.cs + FfmpegChildRegistry.cs) no diff
+
+## every TEST line pass 4 removed (a pin and a comment; no assertion removed):
+-            "libc.so.6!geteuid",                     // issue #161 pass 2: the passwd lookup (Linux)
+-            "libc!geteuid",                         // this process's effective uid, Linux only (no file access; issue #156 pass 5)
+-            // retries until the timeout (TaskCanceledException, measured on CI 43940190095). ApplyFromEnvironment

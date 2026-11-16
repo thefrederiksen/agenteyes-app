@@ -154,8 +154,22 @@ namespace AgentEyes
                 .Select(g => new Root(g.Key.Name, g.Key.Parent, string.Join(" + ", g.Select(r => r.DerivedFrom).Distinct())))
                 .ToList();
 
-        /// <summary>How long the running service gets to answer /status before the guard says it named nothing.</summary>
-        internal static readonly TimeSpan ServiceTimeout = TimeSpan.FromSeconds(2);
+        /// <summary>
+        /// How long the running service gets to answer /status before the guard says it named nothing (issue #161
+        /// pass 4). It bounds EVERY redirected start where nothing answers: Linux and macOS refuse a closed loopback
+        /// port at once, but Windows retries the connect until this runs out (pass 3 measured 2 s on CI with the old
+        /// 2 s value). 500 ms: on devlinux an answering probe adds about 20 ms to a cold start (pass 4 handoff), and
+        /// a real service's /status also scans its recordings root for pending transcriptions - the one part that
+        /// grows with the library - so the bound keeps over 20x headroom while capping the Windows cost at half a
+        /// second. Pinned by <c>ServiceTimeout_IsAFewHundredMilliseconds</c>.
+        /// </summary>
+        internal static readonly TimeSpan ServiceTimeout = TimeSpan.FromMilliseconds(500);
+
+        /// <summary>
+        /// The address asked. 127.0.0.1 literally, never "localhost": a name can resolve to ::1 first and fall back,
+        /// and the service listens on IPv4 loopback only.
+        /// </summary>
+        internal static Uri StatusUri(int port) => new Uri($"http://127.0.0.1:{port}/status");
 
         /// <summary>
         /// Ask whatever answers GET http://127.0.0.1:<paramref name="port"/>/status where its library is (issue #161
@@ -167,7 +181,7 @@ namespace AgentEyes
         internal static (IReadOnlyList<Root> Roots, string Note) AskRunningService(int port)
         {
             using var http = new System.Net.Http.HttpClient { Timeout = ServiceTimeout };
-            string body = http.GetStringAsync($"http://127.0.0.1:{port}/status").GetAwaiter().GetResult();
+            string body = http.GetStringAsync(StatusUri(port)).GetAwaiter().GetResult();
             return FromServiceStatus(body, port);
         }
 

@@ -1,10 +1,10 @@
-2026-11-16 12:20:53.006 E  kernel[0:856386] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: ls(96689) deny(1) file-read-metadata /Users/soren/Movies/AgentEyes
-2026-11-16 12:20:53.006 E  kernel[0:856386] [com.apple.sandbox.reporting:violation] Sandbox: touch(96691) deny(1) file-write-create /Users/soren/Movies/AgentEyes/.agenteyes161-sandbox-probe
-2026-11-16 12:20:53.014 E  kernel[0:85638b] [com.apple.sandbox.reporting:violation] Sandbox: ls(96693) deny(1) file-read-metadata /Users/soren/Library/Application Support/AgentEyes
-2026-11-16 12:20:53.021 E  kernel[0:856390] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: ls(96693) deny(1) file-read-metadata /Users/soren/Library/Application Support/AgentEyes
-2026-11-16 12:20:53.021 E  kernel[0:856390] [com.apple.sandbox.reporting:violation] Sandbox: touch(96695) deny(1) file-write-create /Users/soren/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe
-2026-11-16 12:20:55.922 E  kernel[0:8565cc] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: dotnet(96757) deny(1) file-read-metadata /Users/soren/Movies/AgentEyes
-2026-11-16 12:21:06.640 E  kernel[0:8566ea] [com.apple.sandbox.reporting:violation] 2 duplicate reports for Sandbox: dotnet(96762) deny(1) file-read-metadata /Users/soren/Movies/AgentEyes
+2026-11-16 12:20:53.006 E  kernel[0:856386] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: ls(96689) deny(1) file-read-metadata /Users/<owner account>/Movies/AgentEyes
+2026-11-16 12:20:53.006 E  kernel[0:856386] [com.apple.sandbox.reporting:violation] Sandbox: touch(96691) deny(1) file-write-create /Users/<owner account>/Movies/AgentEyes/.agenteyes161-sandbox-probe
+2026-11-16 12:20:53.014 E  kernel[0:85638b] [com.apple.sandbox.reporting:violation] Sandbox: ls(96693) deny(1) file-read-metadata /Users/<owner account>/Library/Application Support/AgentEyes
+2026-11-16 12:20:53.021 E  kernel[0:856390] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: ls(96693) deny(1) file-read-metadata /Users/<owner account>/Library/Application Support/AgentEyes
+2026-11-16 12:20:53.021 E  kernel[0:856390] [com.apple.sandbox.reporting:violation] Sandbox: touch(96695) deny(1) file-write-create /Users/<owner account>/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe
+2026-11-16 12:20:55.922 E  kernel[0:8565cc] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: dotnet(96757) deny(1) file-read-metadata /Users/<owner account>/Movies/AgentEyes
+2026-11-16 12:21:06.640 E  kernel[0:8566ea] [com.apple.sandbox.reporting:violation] 2 duplicate reports for Sandbox: dotnet(96762) deny(1) file-read-metadata /Users/<owner account>/Movies/AgentEyes
 2026-11-16 12:21:06.641 E  kernel[0:8566eb] [com.apple.sandbox.reporting:violation] Sandbox: contactsd(96810) deny(1) file-write-create /private/var/db/neuralengine/Library
 2026-11-16 12:21:06.643 E  kernel[0:8566ee] [com.apple.sandbox.reporting:violation] Sandbox: contactsd(96812) deny(1) mach-lookup com.apple.tccd.system
 2026-11-16 12:21:06.644 E  kernel[0:8566eb] [com.apple.sandbox.reporting:violation] Sandbox: contactsd(96810) deny(1) file-write-create /private/var/db/neuralengine/Library
@@ -62,10 +62,10 @@
 2026-11-16 12:21:17.638 E  kernel[0:85682f] [com.apple.sandbox.reporting:violation] Sandbox: contactsd(96821) deny(1) mach-lookup com.apple.tccd.system
 2026-11-16 12:21:23.126 E  kernel[0:85682f] [com.apple.sandbox.reporting:violation] Sandbox: contactsd(96822) deny(1) mach-lookup com.apple.tccd.system
 2026-11-16 12:21:26.127 E  kernel[0:856990] [com.apple.sandbox.reporting:violation] 3 duplicate reports for Sandbox: contactsd(96822) deny(1) mach-lookup com.apple.tccd.system
-2026-11-16 12:21:26.290 E  kernel[0:856990] [com.apple.sandbox.reporting:violation] 11 duplicate reports for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/soren/Library/Application Support/AgentEyes/logs
-2026-11-16 12:21:46.307 E  kernel[0:856a99] [com.apple.sandbox.reporting:violation] 5 duplicate reports for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/soren/Library/Application Support/AgentEyes/logs
-2026-11-16 12:21:46.312 E  kernel[0:856a98] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/soren/Library/Application Support/AgentEyes/logs
-2026-11-16 12:21:46.316 E  kernel[0:856a99] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/soren/Movies/AgentEyes
-2026-11-16 12:21:46.316 E  kernel[0:856a99] [com.apple.sandbox.reporting:violation] Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/soren/Library/Application Support/AgentEyes/logs
-2026-11-16 12:21:56.170 E  kernel[0:8569b5] [com.apple.sandbox.reporting:violation] 2 duplicate reports for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/soren/Library/Application Support/AgentEyes/logs
+2026-11-16 12:21:26.290 E  kernel[0:856990] [com.apple.sandbox.reporting:violation] 11 duplicate reports for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/<owner account>/Library/Application Support/AgentEyes/logs
+2026-11-16 12:21:46.307 E  kernel[0:856a99] [com.apple.sandbox.reporting:violation] 5 duplicate reports for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/<owner account>/Library/Application Support/AgentEyes/logs
+2026-11-16 12:21:46.312 E  kernel[0:856a98] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/<owner account>/Library/Application Support/AgentEyes/logs
+2026-11-16 12:21:46.316 E  kernel[0:856a99] [com.apple.sandbox.reporting:violation] 1 duplicate report for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/<owner account>/Movies/AgentEyes
+2026-11-16 12:21:46.316 E  kernel[0:856a99] [com.apple.sandbox.reporting:violation] Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/<owner account>/Library/Application Support/AgentEyes/logs
+2026-11-16 12:21:56.170 E  kernel[0:8569b5] [com.apple.sandbox.reporting:violation] 2 duplicate reports for Sandbox: dotnet(96855) deny(1) file-read-metadata /Users/<owner account>/Library/Application Support/AgentEyes/logs
 2026-11-16 12:21:59.241 Df log[96964:856caf] [com.apple.log:] log run noninteractively, parent: 96684 (zsh), args: '/usr/bin/log' 'show' '--start' '2026-11-16 12:20:53' '--style' 'compact' '--predicate' 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "deny("'

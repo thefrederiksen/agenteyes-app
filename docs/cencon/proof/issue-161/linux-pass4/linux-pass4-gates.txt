@@ -1,0 +1,25 @@
+# pass 4 gates, 2026-11-16T14:53:26-05:00, head 71dc345 + working tree, every command under lldeny on both real roots
+## dotnet build tests/AgentEyes.Tests.Linux -c Release
+    0 Error(s)
+    1 Warning(s)
+## dotnet build tests/AgentEyes.Tests.DesktopApp -c Release
+    0 Error(s)
+    0 Warning(s)
+## dotnet build tests/AgentEyes.Tests.Mac -c Release
+    0 Error(s)
+    10 Warning(s)
+## dotnet test tests/AgentEyes.Tests.Linux -c Release
+  Skipped AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [1 ms]
+  Skipped AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [1 ms]
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [193 ms]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed!  - Failed:     1, Passed:   533, Skipped:     3, Total:   537, Duration: 5 s
+## dotnet test tests/AgentEyes.Tests.DesktopApp -c Release
+Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 453 ms
+## AGENTEYES_FFMPEG_TESTS=1 dotnet test tests/AgentEyes.Tests.Linux -c Release
+  Skipped AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [1 ms]
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [213 ms]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed!  - Failed:     1, Passed:   534, Skipped:     2, Total:   537, Duration: 5 s
+## OUTSIDE Landlock (sg cannot gain a group under no_new_privs), this ONE test only - it reads /proc, id and stat, no library path:
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: < 1 ms

@@ -4,10 +4,10 @@ set -u
 S=<scratch>/p161
 OUT=$S/run
 rm -rf "$OUT"; mkdir -p "$OUT"
-BIN=/Users/soren/ReposFred/agenteyes-dev161/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll
-DN=/Users/soren/.dotnet/dotnet
-REAL_V="/Users/soren/Movies/AgentEyes"
-REAL_D="/Users/soren/Library/Application Support/AgentEyes"
+BIN=/Users/<owner account>/ReposFred/agenteyes-dev161/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll
+DN=/Users/<owner account>/.dotnet/dotnet
+REAL_V="/Users/<owner account>/Movies/AgentEyes"
+REAL_D="/Users/<owner account>/Library/Application Support/AgentEyes"
 PROFILE="(version 1)(allow default)(deny file-read* file-write* (subpath \"$REAL_V\") (subpath \"$REAL_D\"))"
 export DOTNET_ROLL_FORWARD=Major
 unset AGENTEYES_REDIRECT_DATA AGENTEYES_REDIRECT_VIDEOS
@@ -57,7 +57,7 @@ echo "   $OUT/p exists afterwards: $([ -e $OUT/p ] && echo YES || echo no)"
 echo "-- partial (VIDEOS only):"
 sandbox-exec -p "$PROFILE" env AGENTEYES_REDIRECT_VIDEOS="$OUT/p/videos" $DN $BIN record status >"$OUT/partial2.out" 2>"$OUT/partial2.err"; echo "exit $?"; cat "$OUT/partial2.err"
 echo "-- VIDEOS = the real Movies folder (scratch state + REAL recordings):"
-sandbox-exec -p "$PROFILE" env AGENTEYES_REDIRECT_DATA="$OUT/m/data" AGENTEYES_REDIRECT_VIDEOS=/Users/soren/Movies $DN $BIN serve --port 17963 2>&1 & VPID=$!; wait $VPID; echo "exit $? (pid $VPID)"
+sandbox-exec -p "$PROFILE" env AGENTEYES_REDIRECT_DATA="$OUT/m/data" AGENTEYES_REDIRECT_VIDEOS=/Users/<owner account>/Movies $DN $BIN serve --port 17963 2>&1 & VPID=$!; wait $VPID; echo "exit $? (pid $VPID)"
 echo "-- redirected serve on the default port (scratch config has no Port):"
 sandbox-exec -p "$PROFILE" env AGENTEYES_REDIRECT_DATA="$OUT/dp/data" AGENTEYES_REDIRECT_VIDEOS="$OUT/dp/videos" $DN $BIN serve 2>&1 | grep -v "^\[redirect\]"; echo "exit ${pipestatus[1]}"
 

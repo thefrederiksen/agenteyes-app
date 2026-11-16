@@ -1,0 +1,10 @@
+# pass 4 mutations, 2026-11-16T14:51:22-05:00, each under lldeny on both real roots; file restored after each
+## M1-timeout-back-to-2s: ServiceTimeout: TimeSpan.FromMilliseconds(500) -> TimeSpan.FromSeconds(2)  (the pass-3 value)
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceTimeout_IsAFewHundredMilliseconds [3 ms]
+Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5, Duration: 152 ms
+## M2-client-unbounded: AskRunningService: new HttpClient { Timeout = ServiceTimeout } -> { Timeout = Timeout.InfiniteTimeSpan }
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpWithinTheTimeout [10 s]
+Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5, Duration: 113 ms
+## M3-localhost-name: StatusUri: http://127.0.0.1:{port}/status -> http://localhost:{port}/status
+  Failed AgentEyes.Tests.Shared.LibraryRedirectTests.StatusUri_AnyPort_IsTheIPv4LoopbackLiteralNotAName [3 ms]
+Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5, Duration: 128 ms

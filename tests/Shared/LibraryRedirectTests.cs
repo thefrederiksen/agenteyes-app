@@ -1260,12 +1260,61 @@ namespace AgentEyes.Tests.Shared
         public void AskRunningService_NothingListening_Throws()
         {
             // Linux / macOS refuse a connect to a closed loopback port at once (HttpRequestException); Windows
-            // retries until the timeout (TaskCanceledException, measured on CI 43940190095). ApplyFromEnvironment
+            // retries until the timeout (TaskCanceledException, measured on CI 43940190095 at the old 2 s; bounded since pass 4). ApplyFromEnvironment
             // treats both as "nothing answered".
             int port = FreePort();
             var ex = Record.Exception(() => RealLibrary.AskRunningService(port));
             Assert.True(ex is System.Net.Http.HttpRequestException or System.Threading.Tasks.TaskCanceledException,
                 $"expected 'nothing answered' (HttpRequestException or TaskCanceledException), got {ex?.GetType().FullName ?? "no exception"}");
+        }
+
+        // ---- pass 4: the probe is BOUNDED - a few hundred milliseconds, on 127.0.0.1 ----------------------------
+
+        [Fact]
+        public void ServiceTimeout_IsAFewHundredMilliseconds()
+        {
+            // Every redirected start where nothing answers pays up to this on Windows (pass 3: 2 s). Raising it back
+            // to seconds, or to infinite, must fail here.
+            Assert.InRange(RealLibrary.ServiceTimeout, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(500));
+        }
+
+        [Fact]
+        public void StatusUri_AnyPort_IsTheIPv4LoopbackLiteralNotAName()
+        {
+            Uri uri = RealLibrary.StatusUri(7882);
+
+            Assert.Equal("http://127.0.0.1:7882/status", uri.AbsoluteUri);
+            Assert.Equal(UriHostNameType.IPv4, uri.HostNameType);
+        }
+
+        [Fact]
+        public void AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpWithinTheTimeout()
+        {
+            // The bound must reach the REQUEST, not just sit in a constant: a listener that accepts the connection and
+            // never answers stands for the Windows closed-port retry and for a hung service alike. An unbounded client
+            // would hang here; the outer wait turns that into a failure instead of a stuck test run.
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            var held = new List<TcpClient>();
+            var accept = System.Threading.Tasks.Task.Run(() => { try { held.Add(listener.AcceptTcpClient()); } catch (SocketException) { } });
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                var ask = System.Threading.Tasks.Task.Run(() => Record.Exception(() => RealLibrary.AskRunningService(port)));
+                Assert.True(ask.Wait(TimeSpan.FromSeconds(10)), "AskRunningService did not give up within 10 s: the probe is unbounded");
+                sw.Stop();
+
+                Assert.IsType<System.Threading.Tasks.TaskCanceledException>(ask.Result);
+                Assert.True(sw.Elapsed < RealLibrary.ServiceTimeout + TimeSpan.FromSeconds(1),
+                    $"the probe took {sw.ElapsedMilliseconds} ms against a {RealLibrary.ServiceTimeout.TotalMilliseconds} ms bound");
+            }
+            finally
+            {
+                listener.Stop();
+                accept.Wait(5000);
+                foreach (var c in held) c.Dispose();
+            }
         }
 
         [DefaultPortFreeFact]

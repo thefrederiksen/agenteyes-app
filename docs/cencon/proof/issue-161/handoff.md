@@ -68,10 +68,10 @@ was under `sandbox-exec` with read AND write of `~/Movies/AgentEyes` and
 ### Section 0 (the control that protects everything below): the sandbox blocks
 
 ```
-ls    '/Users/soren/Movies/AgentEyes' -> exit 1 : ls: /Users/soren/Movies/AgentEyes: Operation not permitted
-touch '/Users/soren/Movies/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : ... Operation not permitted
-ls    '/Users/soren/Library/Application Support/AgentEyes' -> exit 1 : ... Operation not permitted
-touch '/Users/soren/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : ... Operation not permitted
+ls    '/Users/<owner account>/Movies/AgentEyes' -> exit 1 : ls: /Users/<owner account>/Movies/AgentEyes: Operation not permitted
+touch '/Users/<owner account>/Movies/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : ... Operation not permitted
+ls    '/Users/<owner account>/Library/Application Support/AgentEyes' -> exit 1 : ... Operation not permitted
+touch '/Users/<owner account>/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : ... Operation not permitted
 touch scratch -> exit 0
 ```
 
@@ -83,7 +83,7 @@ Probe files absent afterwards (checked); the kernel logged each of those denials
 **Built:** the redirect moves both roots before anything runs; the repair pass, housekeeper and orphan
 reap all build their paths from those roots.
 
-**Measured (macOS):** real library present and non-empty: `recording folders in /Users/soren/Movies/AgentEyes: 79`.
+**Measured (macOS):** real library present and non-empty: `recording folders in /Users/<owner account>/Movies/AgentEyes: 79`.
 Scratch library: two imports of a 3 s ffmpeg-lavfi clip this script generated. The redirected
 `agenteyes serve --port 17961`'s OWN log (`macos-redirected-serve-log.txt`):
 
@@ -100,8 +100,8 @@ Scratch library: two imports of a 3 s ffmpeg-lavfi clip this script generated. T
 - kernel denials for the redirected serve pid: **0**; for every other redirected run (2 imports,
   package, record status, 4 refusals): **0**, except the two refusals named under "found" below.
 - **Positive control:** the SAME binary, unredirected (`HOME=<scratch>/home`), same sandbox: the kernel
-  denied it on exactly the real roots - `/Users/soren/Movies/AgentEyes` and
-  `/Users/soren/Library/Application Support/AgentEyes/logs` (6-9 lines per run). So the check can fail,
+  denied it on exactly the real roots - `/Users/<owner account>/Movies/AgentEyes` and
+  `/Users/<owner account>/Library/Application Support/AgentEyes/logs` (6-9 lines per run). So the check can fail,
   and did, for the process that should fail it.
 - `find ~/Movies/AgentEyes -newer <T0>` after the runs: empty. Folder count still 79. The owner's
   service (pid 50642) still idle, `PendingTranscriptions` 66 before and after.
@@ -151,8 +151,8 @@ non-7882 Port in the scratch config.json - check `/status` on that port) and on 
 ```
 
 and the reverse (VIDEOS only), and the disguised partial (`AGENTEYES_REDIRECT_VIDEOS=~/Movies`):
-`... puts the redirected recordings root at /Users/soren/Movies/AgentEyes, which overlaps the REAL recordings root ...`.
-Also refused: the symlinked scratch root (`... (which resolves to /Users/soren/Movies/AgentEyes) ...`),
+`... puts the redirected recordings root at /Users/<owner account>/Movies/AgentEyes, which overlaps the REAL recordings root ...`.
+Also refused: the symlinked scratch root (`... (which resolves to /Users/<owner account>/Movies/AgentEyes) ...`),
 a typo'd variable, a redirected serve on 7882. All in the transcript, Section 4.
 
 **QA:** run the same five on Windows (PowerShell `$env:`) and Linux; for the tray app, a partial set
@@ -163,13 +163,13 @@ must show the "AgentEyes did not start" dialog (exit code 5) and write NOTHING t
 1. **Runtime, touching nothing** (standalone probe, `home-trap-probe/`; .NET 10.0.15 roll-forward):
    ```
    HOME=<scratch>/home -> UserProfile=<scratch>/home
-                          MyVideos=/Users/soren/Movies
-                          LocalApplicationData=/Users/soren/Library/Application Support
+                          MyVideos=/Users/<owner account>/Movies
+                          LocalApplicationData=/Users/<owner account>/Library/Application Support
    ```
 2. **The product** (`HOME=<scratch>/home agenteyes serve --port 17962`, NO redirect, under the sandbox):
    its own `/status` (`macos-status-control-unredirected-HOME-scratch.json`) reported
-   `"RecordingsRoot": "/Users/soren/Movies/AgentEyes"`, `"DataRoot": "/Users/soren/Library/Application Support/AgentEyes"`,
-   `"LibraryRedirected": false`; its stdout said `recordings -> /Users/soren/Movies/AgentEyes`; and
+   `"RecordingsRoot": "/Users/<owner account>/Movies/AgentEyes"`, `"DataRoot": "/Users/<owner account>/Library/Application Support/AgentEyes"`,
+   `"LibraryRedirected": false`; its stdout said `recordings -> /Users/<owner account>/Movies/AgentEyes`; and
    the kernel denied it on those two real roots. That is "the service resolves the real library", proven
    by the kernel blocking it rather than by trusting either of us.
 
@@ -850,3 +850,175 @@ Second run, head c86081c (run 43940975137): **all three green.**
 - windows: AgentEyes.Tests 2565 / 0 / 31 (2596), opt-in 2584 / 0 / 16 (2600); DesktopApp 25 / 25 twice.
 
 I believe this pass is finished.
+
+---
+
+# Pass 4 (Developer Agent, Linux seat) - the probe capped, one geteuid, the account name scrubbed
+
+The Lead's three items and nothing else. Evidence: `linux-pass4/`. Everything ran on devlinux under `lldeny`
+on BOTH real roots, with the denial control proven first (`linux-pass4-landlock-control.txt`: `ls` and `touch`
+of each real root EACCES, a scratch `touch` exit 0). Anything that asks port 7882 on purpose ran in a
+`--network none` container, as in pass 3, because 7882 on devlinux is the owner's service.
+
+## 1. The probe: 500 ms, on 127.0.0.1, pinned
+
+**What the 2 s was.** The probe already addressed `127.0.0.1` (pass 3 wrote it that way), so it was not a
+`localhost` name falling back from IPv6. It was the client timeout itself: `ServiceTimeout` was 2 s, and on
+Windows a connect to a closed loopback port is retried until that timeout runs out. CI 43940190095 shows this:
+`TaskCanceledException`, not a refusal. Linux and macOS refuse at once, so the cost was Windows-only. It was
+still the cost of an unbounded-feeling constant, and it now has a bound.
+
+**The change** (`RealLibrary.cs`, two hunks):
+- `ServiceTimeout = TimeSpan.FromMilliseconds(500)` (was `FromSeconds(2)`).
+- The address is now `RealLibrary.StatusUri(port)`, which is the literal `http://127.0.0.1:{port}/status`, so a
+  test can pin it. The service listens on `127.0.0.1` only (`HeadlessControlServer.Url`).
+
+**Why 500 ms.**
+- On devlinux, a cold redirected start whose probe gets an answer costs about 20 ms more than one refused at
+  once (204 vs 188 ms before, 206 vs 184 ms after; table below). That 20 ms is the whole client side:
+  JIT, connect, request and parse.
+- A real service's `/status` does one thing that grows with the library: `TranscriptionBacklog.FindPending`
+  scans the recordings root (`RecordingService.Status`). I cannot measure that on the owner's library without
+  touching it, so the bound keeps headroom: 500 ms is 25x the measured probe.
+- 500 ms is the top of "a few hundred". I took the top because the cost of a bound that is too tight is
+  a safety loss, not a slow start. A service slower than the bound counts as having named nothing. The banner
+  then says so, quoting the .NET message ("...configured HttpClient.Timeout of 0.5 seconds elapsing"). A
+  library that only that service could name is then refused by content alone (rule 2), which means not at all
+  if that folder is empty or absent. `ISOLATING_A_REAL_PROCESS.md` now says this.
+
+**Measured on Linux, redirected start, 10 runs each, in the container** (`linux-pass4-start-times-*.txt`,
+script `measure.sh` / `run-measure.sh`). The "silent" row is a stand-in that accepts the connection and never
+answers. It is the shape of Windows' closed-port retry, and of a hung service, reproduced on Linux:
+
+| 127.0.0.1:7882 in the container | before (71dc345, 2 s) | after (500 ms) |
+|---|---|---|
+| nothing listening (refused) | mean 188 ms (169-212) | mean 184 ms (171-201) |
+| a service answering /status (stand-in naming a library; 10/10 banners list its roots) | mean 204 ms (186-214) | mean 206 ms (191-218) |
+| accepts, never answers | **mean 2146 ms (2135-2162)** | **mean 645 ms (636-656)** |
+
+So on Linux, the case the Lead named ("no service listening") was already about 190 ms and stays there. The
+2-second penalty reproduces exactly on the row that stands in for Windows, and pass 4 cuts it to the bound.
+The stand-in on the "answering" row is `standin.py`, a 12-line server that returns a post-#161 `/status`
+body. The product's own `serve` could not run in a network-less container: it needs an X display and `xrandr`.
+
+**Windows: NOT measured.** I have no Windows machine from this seat and did not try to reach one. By
+construction, a Windows redirected start with nothing on 7882 should now pay about 0.5 s instead of 2 s, but
+that is a prediction, not a measurement. The Lead is routing the Windows number separately.
+
+**Pinned** (`LibraryRedirectTests`, in the shared suite, so it runs on Linux, macOS and Windows CI):
+- `ServiceTimeout_IsAFewHundredMilliseconds`: 100 ms <= bound <= 500 ms.
+- `StatusUri_AnyPort_IsTheIPv4LoopbackLiteralNotAName`: exactly `http://127.0.0.1:7882/status`, host type IPv4.
+- `AskRunningService_AServiceThatAcceptsButNeverAnswers_GivesUpWithinTheTimeout`: a listener that accepts and
+  never answers. The probe must throw `TaskCanceledException` within the bound + 1 s. An outer 10 s wait turns
+  an unbounded client into a failure instead of a hung run. Measured: 520 ms.
+
+**Mutations** (`linux-pass4-mutations.txt`). Each fails exactly its own test, and the file is restored after:
+- M1 `FromMilliseconds(500)` -> `FromSeconds(2)` (pass 3's value): fails `ServiceTimeout_IsAFewHundredMilliseconds`.
+- M2 the client's `Timeout = ServiceTimeout` -> `InfiniteTimeSpan`: fails `..._GivesUpWithinTheTimeout` (10 s).
+- M3 `127.0.0.1` -> `localhost`: fails `StatusUri_..._IsTheIPv4LoopbackLiteralNotAName`.
+
+## 2. One geteuid import
+
+After the merge, Core had two: #161's `libc.so.6!geteuid` (`RealLibrary.Native`) and #156's `libc!geteuid`
+(`FfmpegChildRegistry`). #156's import is removed. `OwnUidsOnLinux` now takes the effective uid from
+`RealLibrary.EffectiveUid()`, which is the same syscall bound by the real library name. `getuid` stays where
+it was. The import pin in `ManifestWriterIlTests.PinnedNativeImports` loses `libc!geteuid`, so a second
+import coming back fails that test (Windows suite: CI runs it). #156's process-identity tests pass under
+Landlock. The one that cannot (`ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid`: `sg`
+under `no_new_privs`) passes when run alone outside Landlock. That test reads only `/proc`, `id` and `stat`,
+and no library path (`linux-pass4-gates.txt`).
+
+## 3. Identity scrubbed: the macOS account name
+
+Convention: `main`'s. The owner's account reads `<owner account>`, and a harness temp path reads `<stage>`
+(see `main`'s `docs/cencon/proof/issue-116/handoff.md`, "Post-QA redaction", checked there against its
+unredacted ancestor).
+
+**Scope: only what THIS branch adds.** The file list is `git diff 277a9bc HEAD` (277a9bc is the merge-base
+with `main`). My first sweep used `git grep HEAD` and also matched 39 files from other issues that `main`
+already carries (the issue #173 backlog). I reverted those before committing; they are #173's.
+
+| File (all added by #161; none exist on `main`, and `main`'s copy of the isolation doc has 0) | lines `/Users/<name>` -> `/Users/<owner account>` |
+|---|---|
+| `docs/cencon/ISOLATING_A_REAL_PROCESS.md` | 3 |
+| `docs/cencon/proof/issue-161/handoff.md` (pass 1 sections) | 13 |
+| `docs/cencon/proof/issue-161/macos-kernel-denials.txt` | 13 |
+| `docs/cencon/proof/issue-161/macos-proof-run1-pid-defect.txt` | 22 |
+| `docs/cencon/proof/issue-161/macos-proof-transcript.txt` | 26 |
+| `docs/cencon/proof/issue-161/macos-proof.sh` | 5 |
+| `docs/cencon/proof/issue-161/macos-status-control-unredirected-HOME-scratch.json` | 2 |
+
+Plus one `<stage>` redaction: `qa-linux-pass2/03-n1-missing-unwritable-order.txt` line 24 ended `log -> ` followed
+by the first characters of a harness scratch folder under `/tmp` (QA's own output was cut off mid-path there).
+It now ends `log -> <stage>`.
+
+Example (handoff section 0, pass 1):
+```
+before: ls    '/Users/<the account name>/Movies/AgentEyes' -> exit 1 : ... Operation not permitted
+after:  ls    '/Users/<owner account>/Movies/AgentEyes' -> exit 1 : ... Operation not permitted
+```
+
+**The evidence still says what it said.** For each of the six macOS proof files, the file at HEAD with only
+the account name substituted is byte-identical to the redacted file (`diff` empty). The JSON still parses.
+The rest of each path stays (`Movies/AgentEyes`, `Library/Application Support/AgentEyes`), because which real
+root was denied or refused IS the evidence.
+
+**Searched by shape over every line this branch adds** (`git diff -U0 277a9bc`, `+` lines, about 7200):
+- Email, strict pattern: 0.
+- `soren|frederiksen|mindzie|centerconsulting` outside the redacted paths: only `thefrederiksen/agenteyes-app`
+  (the repository's own name) and `CLAUDE.md`'s policy text, which is the repository's, not a path.
+- `/home/<name>`: 0, because Linux proof already used `<home>`.
+- The positive control is the same pattern before the redaction: 84 hits in the 7 files.
+- Temp paths: `/tmp/agenteyes-161-tests` (a fixed test folder name) and container-internal `/tmp/h`, `/tmp/s`,
+  `/tmp/r`. None of these is identity.
+
+## 4. Untouched, by diff (`linux-pass4-untouched.txt`)
+
+`git diff 71dc345` over `src/` touches two files, and only these lines are removed:
+- `RealLibrary.cs`: the timeout's line and its summary, and the GET's URL string (now `StatusUri`).
+- `FfmpegChildRegistry.cs`: the `GetEuid` import and its one call.
+
+NO diff in any of these:
+- `LibraryRedirect.cs`: both-or-neither, the overlap rules, N1 with its write probe LAST, rule 2's marker and
+  unmarked-root refusal, F2's link judgement, the banner and its comparison list, the service call site.
+- `AppDataPaths.cs`, `LocalAppConfig.cs`, `src/AgentEyes.Core/Headless` (the port guards).
+- `src/AgentEyes.App`.
+- `src/AgentEyes.DesktopApp` (its refusal to run redirected).
+- `RecordingService.cs` (the `/status` fields).
+
+Inside `RealLibrary.cs`, no line of `Derive`, `Distinct`, `FromServiceStatus`, `VideosFromUserDirs`,
+`AccountHome` or `Native` is added or removed (the passwd derivation and its union). In the tests, no
+assertion is removed: the only removed lines are the `libc!geteuid` pin, a pin comment and a test comment.
+The merge resolution against 277a9bc is not revisited.
+
+## 5. Gates (`linux-pass4-gates.txt`)
+
+- Under lldeny:
+  - Build: Linux, DesktopApp and Mac test projects, 0 errors, no warning from a file pass 4 touched.
+  - **Linux suite: 533 passed / 1 failed / 3 skipped (537)**. That is pass 3's 530/1/3 plus the 3 new tests,
+    and the failure and skips are the same ones. Opt-in `AGENTEYES_FFMPEG_TESTS=1`: 534 / 1 / 2.
+  - The 1 is #156's `sg` test under `no_new_privs`. It passes alone outside Landlock (section 2).
+  - DesktopApp: 25 / 25.
+- In the container (7882 free): the 7882 wiring test
+  `RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused` PASSES at the new 500 ms.
+  A real child process, starting cold, gets the stand-in's answer inside the bound. The 3 new tests and the
+  pass-3 probe tests pass there too (6/6).
+- I also ran the whole Linux suite once in that container. 3 tests fail there, all for container reasons, so
+  this run is not a gate: no `python3` (`CaptureOwnershipTests`), the passwd home `/home/...` does not exist
+  inside it (`RealProcess_SpoofedHome...`), and no `~/.local/share` (`LinuxPathsTests`).
+- CI: runs on the push. The Windows suite is where the `ManifestWriterIlTests` pin and the Windows timing of
+  `..._GivesUpWithinTheTimeout` are checked.
+
+## 6. The owner's library and the hazards
+
+- No process of mine opened either real root. Every host command ran under lldeny, except the single `sg`
+  test above.
+- **Reported, not hidden:** each host run of the Linux suite sends about 18 `GET /status` to the owner's
+  service on 7882. These come from the suite's real-process redirected children, which ask 7882 as every
+  redirected start does. The owner's service writes its own three log lines per request into its own log.
+  Read-only count (`owner-service-status-per-minute.txt`): 60/min in steady state from a client already
+  polling it, 78 at 14:48 and 14:53 (my two suite runs), and the same pattern during pass 3 (14:21-14:35).
+  Only `GET /status` appears in those minutes. This is the condition the Lead accepted in pass 3; it is the
+  cost of running the real-process tests on a machine whose 7882 is live.
+- I did not touch the go2rtc ffmpeg or any other foreign process. I started no service on the host and
+  reinstalled nothing. Every stand-in ran inside a `--network none` container and ended with it.

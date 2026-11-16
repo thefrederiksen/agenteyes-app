@@ -124,12 +124,12 @@ Measured on macOS (devthrottle-mac-mini, .NET 10.0.15 via roll-forward, 2026-11-
 
 ```
 HOME=<scratch>/home  ->  UserProfile=<scratch>/home
-                         MyVideos=/Users/soren/Movies                      <- NOT moved
-                         LocalApplicationData=/Users/soren/Library/Application Support   <- NOT moved
+                         MyVideos=/Users/<owner account>/Movies                      <- NOT moved
+                         LocalApplicationData=/Users/<owner account>/Library/Application Support   <- NOT moved
 ```
 
 and the product itself, started with `HOME=<scratch>/home` and no redirect, reported on its own
-`/status`: `"RecordingsRoot": "/Users/soren/Movies/AgentEyes"`. .NET resolves those two folders
+`/status`: `"RecordingsRoot": "/Users/<owner account>/Movies/AgentEyes"`. .NET resolves those two folders
 through the platform's own lookup, not `$HOME`. **Never use `HOME=` as isolation on a Mac.**
 
 On **Linux**, .NET builds these folders from `$XDG_DATA_HOME` / `$HOME` and the XDG user-dirs, so a
@@ -202,9 +202,12 @@ machine-wide, not per library. Use `agenteyes serve --port N` for a second, redi
   and NOT in the residue cases listed under "A relocated library" above. The banner says so on every start.
 - **The checks are START-UP checks**, and they read: one listing of each redirected root (rule 2), a walk of
   each root's whole tree (the link check - its cost grows with a scratch library's size, and the tray app runs
-  it on start-up), and one `GET /status` to 127.0.0.1:7882 with a 2 s timeout. On Windows, with NOTHING on 7882, that GET
-  waits the full 2 s (Windows retries a refused loopback connect; measured on CI) - a redirected start there is
-  2 s slower when no service runs.
+  it on start-up), and one `GET /status` to 127.0.0.1:7882 with a 500 ms timeout (#161 pass 4; it was 2 s). On
+  Linux and macOS a closed port is refused at once. On Windows, with NOTHING on 7882, that GET waits until the
+  timeout (Windows retries a refused loopback connect; pass 3 measured the full 2 s on CI), so a redirected start
+  there is up to 0.5 s slower when no service runs - the Windows number itself is not measured from Linux.
+  The other side of the bound: a service that answers /status more slowly than 500 ms is treated as having named
+  nothing (the banner says so, with the timeout), and a library only IT could name is then refused by content alone.
 - **The link walk sees only what exists at start-up.** A link created inside a redirected root AFTER the process has
   started is not seen. Do not create links in a scratch library while a process is using it.
 - **Hard links and bind mounts are not detected.** A hard link inside the scratch root to a file of the
