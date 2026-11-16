@@ -121,9 +121,12 @@ namespace AgentEyes.Tests
             foreach (string a in args) psi.ArgumentList.Add(a);
             psi.ArgumentList.Add(path);
             using var p = Process.Start(psi) ?? throw new InvalidOperationException("ffprobe did not start");
-            string stdout = p.StandardOutput.ReadToEnd();
-            string stderr = p.StandardError.ReadToEnd();
+            // Both pipes drained at once: reading one to the end while the other fills can deadlock.
+            var stdoutTask = p.StandardOutput.ReadToEndAsync();
+            var stderrTask = p.StandardError.ReadToEndAsync();
             Assert.True(p.WaitForExit(30_000), "ffprobe did not finish in 30 s");
+            string stdout = stdoutTask.Result;
+            string stderr = stderrTask.Result;
             Assert.True(p.ExitCode == 0, $"ffprobe exit {p.ExitCode}: {stderr}");
             return stdout;
         }

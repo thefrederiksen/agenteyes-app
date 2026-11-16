@@ -1768,8 +1768,10 @@ namespace AgentEyes
         ///    (<see cref="CaptureWatchdog.CheckFailed"/>), published as "check-failed", and re-armed;
         ///    a read that keeps failing ends the recording with the ordinary stall verdict, inside the
         ///    same window, with the read error in the fault;
-        ///  - anything else that throws before a verdict publishes "watchdog-failed" (the old numbers
-        ///    are kept but no longer called growing) and re-arms, so the next check can still decide.
+        ///  - anything else that throws publishes "watchdog-failed" (the old numbers are kept but no
+        ///    longer called growing) and re-arms while this is still the live session, so the next
+        ///    check can still decide - or, when the throw came after a verdict but before the stop
+        ///    began, end the recording again.
         /// </summary>
         internal void OnWatchdogTick()
         {
@@ -1823,41 +1825,35 @@ namespace AgentEyes
             catch (Exception ex)
             {
                 Log.Error("[RecordingService] OnWatchdogTick FAILED", ex);
-                KeepWatchingAfterFailedTick(watchdog, ex);
-            }
-        }
-
-        /// <summary>
-        /// The tick threw somewhere other than the evidence read. If that was BEFORE a verdict on the
-        /// live session, say so on /status ("watchdog-failed" - the numbers shown are the last good
-        /// reading, not current ones) and re-arm, so watching does not silently end. After a verdict
-        /// there is nothing to re-arm: the verdict is already on /status and the stop owns the session.
-        /// Called from the tick's catch; a throw here would escape onto the timer thread, so its own
-        /// failure is logged and stops at this boundary.
-        /// </summary>
-        private void KeepWatchingAfterFailedTick(CaptureWatchdog? watchdog, Exception cause)
-        {
-            try
-            {
-                lock (_lock)
+                // Still this entry point's catch: anything thrown here would escape onto the timer
+                // thread, so the re-arm has its own boundary.
+                try
                 {
-                    if (watchdog == null || _state != "recording" || !ReferenceEquals(_watchdog, watchdog)
-                        || watchdog.Last.Fault != null)
+                    lock (_lock)
                     {
-                        Log.Warn($"[RecordingService] KeepWatchingAfterFailedTick: not re-arming (state={_state}, "
-                                 + $"verdict={(watchdog?.Last.Fault != null ? "published" : "none")}) - {cause.Message}");
-                        return;
+                        if (watchdog == null || _state != "recording" || !ReferenceEquals(_watchdog, watchdog))
+                        {
+                            Log.Warn($"[RecordingService] OnWatchdogTick: not re-arming - the session has moved on "
+                                     + $"(state={_state}) - {ex.Message}");
+                            return;
+                        }
+                        // Still the live session, and nothing else will check it or end it unless this
+                        // timer does. Before a verdict: /status says the watchdog failed rather than
+                        // serving the last reading as "growing". After one (the throw came before the
+                        // stop began, which flips the state first): the verdict is already on /status,
+                        // and the next check returns the same final verdict and ends the recording again.
+                        if (watchdog.Last.Fault == null)
+                            _liveness = (_liveness ?? watchdog.Last).WithState("watchdog-failed");
+                        _watchdogTimer?.Arm(CaptureWatchdog.DefaultCheckInterval);
+                        Log.Warn($"[RecordingService] OnWatchdogTick: re-armed after the failure; /status reports "
+                                 + $"CaptureLiveness={_liveness?.State} for {_dir}");
                     }
-                    _liveness = (_liveness ?? watchdog.Last).WithState("watchdog-failed");
-                    _watchdogTimer?.Arm(CaptureWatchdog.DefaultCheckInterval);
-                    Log.Warn("[RecordingService] KeepWatchingAfterFailedTick: /status now reports "
-                             + $"CaptureLiveness=watchdog-failed for {_dir}; re-armed for the next check");
                 }
-            }
-            catch (Exception ex)
-            {
-                Log.Error("[RecordingService] KeepWatchingAfterFailedTick FAILED - the capture watchdog could not be "
-                          + "re-armed and has STOPPED checking this recording", ex);
+                catch (Exception armEx)
+                {
+                    Log.Error("[RecordingService] OnWatchdogTick: the capture watchdog could not be re-armed and has "
+                              + "STOPPED checking this recording", armEx);
+                }
             }
         }
 

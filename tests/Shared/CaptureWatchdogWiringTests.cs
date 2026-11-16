@@ -227,18 +227,13 @@ namespace AgentEyes.Tests.Shared
         }
     }
 
-    /// <summary>
-    /// One collection for every test that starts a capture through <see cref="WatchdogHarness"/>, so
-    /// they run one at a time. Since #156 the service records each capture writer's pid in the ffmpeg
-    /// child registry, whose record file is named by pid; every <see cref="FakeScreenRecorder"/>
-    /// reports the test host's own pid, so two harness tests in parallel opened the same record file
-    /// and failed on a sharing violation (measured on Windows on the #156 + #113 merge). A real writer's
-    /// pid is unique, so this is a property of the fake, not of the product.
-    /// </summary>
-    [CollectionDefinition(Name)]
-    public sealed class WatchdogHarnessCollection { public const string Name = "watchdog harness (one fake pid)"; }
-
-    [Collection(WatchdogHarnessCollection.Name)]
+    // In #156's collection, not run in parallel with it or with each other. Since #156 the service
+    // records each capture writer's pid in the ffmpeg child registry, whose record file is named by
+    // pid, and FakeScreenRecorder reports the test host's own pid - as #156's own ownership tests do
+    // when they call NoteWriter. Two of these at once open the same <pid>.json and fail on a sharing
+    // violation (measured on Windows on the #156 + #113 merge). A real writer's pid is unique, so this
+    // is a property of the fakes, not of the product.
+    [Collection(CaptureOwnershipCollection.Name)]
     public sealed class CaptureWatchdogWiringTests
     {
         [Fact]
@@ -428,7 +423,7 @@ namespace AgentEyes.Tests.Shared
     /// ends the recording loudly; a throw elsewhere in the tick is called "watchdog-failed" and re-armed.
     /// MUTATION: restoring the silent return in either catch fails these.
     /// </summary>
-    [Collection(WatchdogHarnessCollection.Name)]
+    [Collection(CaptureOwnershipCollection.Name)]
     public sealed class WatchdogFailOpenTests
     {
         [Fact]
@@ -473,8 +468,9 @@ namespace AgentEyes.Tests.Shared
             var after = h.Service.Status();
             Assert.Equal("idle", after.State);
             Assert.True(after.LastStopFailed);
-            Assert.StartsWith("capture stalled: recording.mp4 stopped growing at 120000 bytes", after.LastCaptureFault);
-            Assert.Contains("could not read it (UnauthorizedAccessException: injected: access denied)", after.LastCaptureFault);
+            Assert.StartsWith($"capture stalled: recording.mp4 could not be read for the last {checks} checks "
+                + "(UnauthorizedAccessException: injected: access denied); last seen at 120000 bytes", after.LastCaptureFault);
+            Assert.DoesNotContain("stopped growing", after.LastCaptureFault);
             Assert.Equal("stalled", h.ReadManifest().GetProperty("CaptureFault").GetString());
         }
 

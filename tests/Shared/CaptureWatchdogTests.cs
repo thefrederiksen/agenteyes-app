@@ -172,8 +172,27 @@ namespace AgentEyes.Tests.Shared
             Assert.NotNull(live.Fault);
             Assert.Equal(CaptureFault.KindStalled, live.Fault!.Kind);
             Assert.Equal((int)Math.Ceiling(CaptureWatchdog.DefaultStallTimeout.TotalSeconds / Interval), checks);
-            Assert.Contains($"the last {checks} checks could not read it (UnauthorizedAccessException: access denied)",
-                live.Fault.Message);
+            // It says what was observed - an unreadable file - not "stopped growing", which a file
+            // that could not be read may never have done.
+            Assert.StartsWith($"raw.mp4 could not be read for the last {checks} checks "
+                + "(UnauthorizedAccessException: access denied); last seen at 1000 bytes", live.Fault.Message);
+            Assert.DoesNotContain("stopped growing", live.Fault.Message);
+        }
+
+        [Fact]
+        public void CheckFailed_ProcessHasExited_FiresExitedAtOnce_NotAStallLater()
+        {
+            // The review's finding: Check reads the size before the exit code, so a size read that
+            // throws used to hide an exit that had already happened, and the recording ended 45 s later
+            // as a "stall". CheckFailed reads the exit code itself.
+            var (dog, clock, capture) = NewWatchdog();
+            Step(dog, clock, () => capture.Grow(1_000));
+            capture.ExitCode = 1;
+            clock.Advance(Interval);
+            var live = dog.CheckFailed(new IOException("the disk went away"));
+            Assert.NotNull(live.Fault);
+            Assert.Equal(CaptureFault.KindExited, live.Fault!.Kind);
+            Assert.StartsWith("the capture process exited (code 1)", live.Fault.Message);
         }
 
         [Fact]
@@ -205,7 +224,8 @@ namespace AgentEyes.Tests.Shared
             int checks = 0;
             do { live = Step(dog, clock); checks++; } while (live.Fault == null && checks < 100);
             Assert.Equal(CaptureFault.KindStalled, live.Fault!.Kind);
-            Assert.StartsWith("raw.mp4 is no longer at its path (last seen at 5000 bytes)", live.Fault.Message);
+            Assert.StartsWith("raw.mp4 could not be found at its path (moved, deleted or not readable; last seen at 5000 bytes)",
+                live.Fault.Message);
             Assert.DoesNotContain("stopped growing", live.Fault.Message);
         }
 

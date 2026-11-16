@@ -185,7 +185,6 @@ namespace AgentEyes.Video
         private CaptureFault? _fault;
         private int _failedChecks;              // consecutive checks whose read threw (CheckFailed)
         private string? _lastReadError;
-        private bool _missing;                  // the file left its path after output began
 
         /// <param name="label">The output file's name, for the fault message (e.g. "raw.mp4").</param>
         /// <param name="sizeSource">Bytes in the output file now, or null when it does not exist.</param>
@@ -247,7 +246,12 @@ namespace AgentEyes.Video
             _lastReadError = error.GetType().Name + ": " + error.Message;
             Log.Warn($"[CaptureWatchdog] CheckFailed: {_label} - check {_failedChecks} in a row could not read the "
                      + $"evidence ({_lastReadError}); counted as no growth");
-            return Decide(size: null, exit: null, readFailed: true);
+            // The exit code is still read: a capture that has ended is decided at once with its real
+            // exit code, not 45 s later as a stall, even while its file cannot be read (a disk that
+            // went away can end ffmpeg and the stat together). A throw here reaches the owner's
+            // catch, which keeps the timer armed.
+            int? exit = _exitCode();
+            return Decide(size: null, exit: exit, readFailed: true);
         }
 
         private void Advance()
@@ -271,11 +275,13 @@ namespace AgentEyes.Video
 
         private CaptureOutputLiveness Decide(long? size, int? exit, bool readFailed)
         {
-            // The file left its path after output began (issue #113, the Review Gate's chain: a
+            // The file is not at its path after output began (issue #113, the Review Gate's chain: a
             // foreign process renamed raw.mp4 from under the live capture). Still no growth - this
             // process can no longer see any output - but the verdict must say WHAT was seen, not
             // "stopped growing", which is a false reason for a capture that may still be writing.
-            _missing = !readFailed && size == null && _lastGrowthWatched != null;
+            // FileInfo.Exists is also false when the stat itself fails, so the wording does not claim
+            // the file moved, only that it could not be found.
+            bool missing = !readFailed && size == null && _lastGrowthWatched != null;
 
             long bytes = size ?? 0;
             bool grew = bytes > _bytes;
@@ -304,13 +310,19 @@ namespace AgentEyes.Video
             }
             else if (_watched - _lastGrowthWatched.Value >= StallTimeout)
             {
-                string what = _missing
-                    ? $"{_label} is no longer at its path (last seen at {_bytes} bytes) and no output has been seen for "
+                // Say what was OBSERVED. Only a file that was read and had not grown "stopped growing";
+                // a file that could not be read, or could not be found, may still be growing.
+                string what = readFailed
+                    ? $"{_label} could not be read for the last {_failedChecks} checks ({_lastReadError}); "
+                      + $"last seen at {_bytes} bytes, no output seen for "
+                    : missing
+                    ? $"{_label} could not be found at its path (moved, deleted or not readable; last seen at {_bytes} bytes); "
+                      + "no output seen for "
                     : $"{_label} stopped growing at {_bytes} bytes and has not grown for ";
                 _fault = new CaptureFault(CaptureFault.KindStalled,
                     what
                     + $"{(_watched - _lastGrowthWatched.Value).TotalSeconds:F0}s (limit {StallTimeout.TotalSeconds:F0}s); "
-                    + $"last growth {Iso(_lastGrowthUtc)}" + ReadFailureNote(),
+                    + $"last growth {Iso(_lastGrowthUtc)}",
                     _clock.UtcNow, watchedS);
             }
 
