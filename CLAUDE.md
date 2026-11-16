@@ -66,9 +66,21 @@ Gate policy (revised 2026-07-14 - the hard rule).
 
 Two tiers, and the difference is real - do not conflate them:
 
-1. **`dotnet test AgentEyes.sln -c Release` - ALWAYS, after every code change.** It is FAST and
-   SILENT: 288 tests in ~2 seconds, no app launch, no audio, no ffmpeg. There is never a reason
-   to skip it or defer it to the human. It is part of the gate alongside `dotnet build`.
+1. **`dotnet test AgentEyes.sln -c Release` - ALWAYS, after every code change.** It is silent (no
+   app launch, no audio) but it is NOT ffmpeg-free. Measured by issue #151 on main 497e9d4 merged
+   into the #151 fix (2026-11-16): 2390 tests, 15 of them skipped (the opt-in tests below), in 39 s
+   of test time on the Windows CI runner (run 43870216038) and 65 s on a laptop (SDK 10.0.301
+   building net8.0, runtime 8.0.21). On that laptop, a counting shim on ffmpeg and ffprobe saw the
+   default gate start **235 ffmpeg and 115 ffprobe** processes, all short end-to-end test runs. The
+   tests that exist only to run a real ffmpeg against the mic chain (#128, #146) are opt-in: set
+   `AGENTEYES_FFMPEG_TESTS=1` to run them too (2394 tests; 46 s on CI, 77 s on the laptop; 322
+   ffmpeg and 128 ffprobe starts). CI and the release build always run them. What the default gate
+   should start, if anything, is an open policy question tracked in issue #153 and NOT settled
+   here. The Linux and macOS gates (`dotnet test tests/AgentEyes.Tests.Linux` /
+   `tests/AgentEyes.Tests.Mac`) are 292 and 284 tests (1 opt-in skip each), in under a second on
+   CI (run 43870216038). They start no ffmpeg (Linux traced with strace in #151; macOS by source
+   review). There is never a reason to skip it or defer it to the human. It is part of the gate
+   alongside `dotnet build`.
 2. **The heavy smokes** (`api-smoke.ps1`, `gui-smoke.ps1`, `agenteyes selftest`, `run-all.ps1`)
    launch the app, record audio, and run ffmpeg/Whisper - minutes, and AUDIBLE. The agent runs
    these **when the change actually touches that area**, not reflexively on every issue. They

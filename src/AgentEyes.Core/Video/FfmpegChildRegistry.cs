@@ -362,7 +362,7 @@ namespace AgentEyes.Video
                 : $"it belongs to ANOTHER USER (kill(pid, 0) errno {errno}); the recorded process ran as this user, so this is not it";
         }
 
-        private static void KillTree(int pid)
+        internal static void KillTree(int pid)
         {
             Log.Info($"[FfmpegChildRegistry] KillTree: SIGKILL -> pid {pid} and its tree");
             using var p = Process.GetProcessById(pid);

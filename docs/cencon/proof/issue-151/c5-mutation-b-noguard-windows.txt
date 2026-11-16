@@ -1,0 +1,25 @@
+# Issue #151 - c5: mutation-b-noguard on Windows CI
+# Run: https://github.com/thefrederiksen/agenteyes-app/actions/runs/43747153136  (throwaway branch scratch-151-mutation-b-noguard, off f87341c; deleted after)
+# Mutation: FfmpegProgressWatchdog.IsStalled always returns false (the stall guard never fires) - #128's mutation B shape.
+# The opted-in step runs even when the default step fails (if: !cancelled()), and a last step lists every ffmpeg left on the runner.
+
+  Failed AgentEyes.Tests.MicChainStallTests.Watchdog_NoOutputEver_IsStalledFromStart [1 ms]
+  Failed AgentEyes.Tests.MicChainStallTests.Watchdog_FrozenOutputTimeWithProgressStillArriving_IsStalled [1 ms]
+  Failed AgentEyes.Tests.MicChainStallTests.Watchdog_OutputTimeGoingBackwards_DoesNotCountAsProgress [< 1 ms]
+Failed!  - Failed:     3, Passed:  2368, Skipped:    11, Total:  2382, Duration: 47 s - AgentEyes.Tests.dll (net8.0)
+  Failed AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [17 s]
+  Failed AgentEyes.Tests.MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog [29 s]
+  Failed AgentEyes.Tests.MicChainStallTests.Watchdog_NoOutputEver_IsStalledFromStart [1 ms]
+  Failed AgentEyes.Tests.MicChainStallTests.Watchdog_FrozenOutputTimeWithProgressStillArriving_IsStalled [1 ms]
+  Failed AgentEyes.Tests.MicChainStallTests.Watchdog_OutputTimeGoingBackwards_DoesNotCountAsProgress [< 1 ms]
+[xUnit.net 00:02:07.17]         failure path: pid 4996: killed
+  Failed AgentEyes.Tests.MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound [1 m]
+ failure path: pid 4996: killed
+ffmpeg processes left: 0
+
+# macOS job:
+Passed!  - Failed:     0, Passed:   279, Skipped:     1, Total:   280, Duration: 172 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+# Note: OwnedFfmpegTests failed in this run too, from a cause unrelated to the mutation: this branch is off
+# f87341c, before 6dd5ac6 moved that test off the thread pool (on a starved 2-core runner its Task.Run
+# waited >15 s for a thread). It passes at 6dd5ac6 and later on every Windows run.

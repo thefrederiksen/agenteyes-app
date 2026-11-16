@@ -1,0 +1,26 @@
+Failed AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan [1 m 4 s]
+Error Message:
+--
+[xUnit.net 00:01:13.12]         ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 960 of 960960
+--
+Failed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "stereo") [601 ms]
+Error Message:
+--
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 960 of 960960
+--
+[xUnit.net 00:01:13.69]         ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 480 of 480480
+--
+Failed AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(layout: "mono") [564 ms]
+Error Message:
+--
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 480 of 480480
+--
+Failed AgentEyes.Tests.MicChainStallTests.ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes [574 ms]
+Error Message:
+--
+Failed AgentEyes.Tests.MicChainStallTests.MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames [4 ms]
+Error Message:
+--
+Total tests: 27
+Passed: 22
+Failed: 5

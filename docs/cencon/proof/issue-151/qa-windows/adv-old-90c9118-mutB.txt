@@ -1,0 +1,19 @@
+# adversarial ownership run: old-90c9118-mutB  worktree=%QA_SCRATCH%\wt-old  optin=0
+2026-11-16T07:20:03.1591065-05:00  laptop app /status before: State=idle
+2026-11-16T07:20:03.1823863-05:00  ffmpeg processes before: 0 []
+2026-11-16T07:20:03.2228524-05:00  dotnet test started pid 5200
+2026-11-16T07:20:09.2022806-05:00  test's stalling ffmpeg seen by shim: 2026-11-16T12:20:09.0253121Z	ffmpeg	pid=9408	cwd=%QA_SCRATCH%\wt-ol
+2026-11-16T07:20:11.2424384-05:00  FOREIGN ffmpeg started: pid 19656 start 2026-11-16T07:20:11.2312214-05:00 (after the test's own ffmpeg, so inside the window)
+2026-11-16T07:21:09.2232760-05:00  dotnet test exited: code 
+2026-11-16T07:21:09.2640930-05:00    test: [xUnit.net 00:01:03.22]         killed leaked ffmpeg pid 9408
+2026-11-16T07:21:09.2741223-05:00    test: [xUnit.net 00:01:03.22]         killed leaked ffmpeg pid 5480
+2026-11-16T07:21:09.2903692-05:00    test: [xUnit.net 00:01:03.22]         killed leaked ffmpeg pid 19656
+2026-11-16T07:21:09.2978943-05:00    test: killed leaked ffmpeg pid 9408
+2026-11-16T07:21:09.3134381-05:00    test: killed leaked ffmpeg pid 5480
+2026-11-16T07:21:09.3253486-05:00    test: killed leaked ffmpeg pid 19656
+2026-11-16T07:21:09.3343831-05:00    test: Total tests: 1
+2026-11-16T07:21:09.3621150-05:00  FOREIGN pid 19656: DEAD - killed during the run
+2026-11-16T07:21:09.3645982-05:00  FOREIGN exit code: -1
+2026-11-16T07:21:09.3763742-05:00  ffmpeg processes after: 0 []
+2026-11-16T07:21:09.4254124-05:00  laptop app /status after: State=idle
+2026-11-16T07:21:09.4278707-05:00  RESULT old-90c9118-mutB foreignAlive=False testExit=

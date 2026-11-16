@@ -1,0 +1,48 @@
+# Issue #151 - criterion 4, the hazard REPRODUCED on unmodified main (Linux, devlinux), before any change
+# A scratch test (never committed) ran the #128 failure path - KillFfmpegStartedSince copied verbatim from
+# tests/AgentEyes.Tests/MicChainStallTests.cs on main - against an unrelated ffmpeg (the 'recorder') started
+# during the test, and asserted that it survives. It does not: the sweep killed it.
+
+== 2026-11-15T13:25:09-05:00 on main 90c9118 (working tree = main + this scratch file only)
+foreign go2rtc ffmpeg before:
+    PID    PPID %CPU     ELAPSED COMMAND
+2197930 1354205  115    01:09:06 ffmpeg
+[xUnit.net 00:00:05.82]         before the failure path: recorder pid 2732944 alive=True; owned run finished=False
+[xUnit.net 00:00:05.82]         killed leaked ffmpeg pid 2732944
+[xUnit.net 00:00:05.82]         killed leaked ffmpeg pid 2732945
+[xUnit.net 00:00:05.82]         after the failure path: recorder pid 2732944 alive=False; owned run finished=True
+  Failed AgentEyes.Tests.Linux.ScratchOldSweep.OldSweep_UnrelatedFfmpegStartedDuringTheTest_Survives [4 s]
+ before the failure path: recorder pid 2732944 alive=True; owned run finished=False
+ killed leaked ffmpeg pid 2732944
+ killed leaked ffmpeg pid 2732945
+ after the failure path: recorder pid 2732944 alive=False; owned run finished=True
+Test Run Failed.
+Total tests: 1
+     Failed: 1
+ Total time: 6.6182 Seconds
+foreign go2rtc ffmpeg after:
+    PID    PPID %CPU     ELAPSED COMMAND
+2197930 1354205  115    01:09:14 ffmpeg
+ffmpeg children left (ps, 'sine=f=' filter): none
+
+# ---- the scratch test, as run (dropped into tests/AgentEyes.Tests.Linux/ on main, then deleted) ----
+# KillFfmpegStartedSince below is the #128 method copied verbatim.
+#
+#   [Fact]
+#   public void OldSweep_UnrelatedFfmpegStartedDuringTheTest_Survives()
+#   {
+#       DateTime started = DateTime.Now.AddSeconds(-1);   // as RunWatched_FilterThatStallsOnNan does
+#       var psi = new ProcessStartInfo(FfmpegLocator.Ffmpeg()) { UseShellExecute = false, CreateNoWindow = true };
+#       foreach (var a in new[] { "-nostdin", "-hide_banner", "-loglevel", "error", "-re", "-f", "lavfi",
+#                                 "-i", "sine=f=440:d=120", "-f", "null", "-" })
+#           psi.ArgumentList.Add(a);
+#       using var recorder = Process.Start(psi)!;
+#       var run = Task.Run(() => Ffmpeg.RunWatched(new[] { "-nostdin", "-y", "-re", "-f", "lavfi",
+#           "-i", "sine=f=300:r=48000:d=120", "-f", "null", "-" }, "test owned", TimeSpan.FromMinutes(5)));
+#       Thread.Sleep(3000);
+#       KillFfmpegStartedSince(started);    // the failure path
+#       Thread.Sleep(1000);
+#       bool alive = !recorder.HasExited;
+#       if (alive) recorder.Kill(true);
+#       Assert.True(alive, $"the failure path KILLED the unrelated recorder ffmpeg (pid {recorder.Id})");
+#   }
