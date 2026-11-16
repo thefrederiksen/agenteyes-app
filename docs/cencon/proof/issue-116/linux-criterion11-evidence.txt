@@ -1,0 +1,335 @@
+# #116 criterion 11 (amended) and #142 row 10 re-confirmation - devlinux evidence
+# Commit 0e1b889, app built from the branch into a scratch folder (<scratch>/app). Harness paths replaced with <scratch>.
+
+## Tray-quit helper (clicks the tray menu's Quit entry over com.canonical.dbusmenu)
+#!/bin/bash
+# Click the tray menu's "Quit" entry of the AgentEyes app with the given pid, over com.canonical.dbusmenu.
+pid=$1
+N=$(gdbus call --session -d org.freedesktop.DBus -o /org/freedesktop/DBus -m org.freedesktop.DBus.ListNames | tr ',' '\n' | grep -o "org.kde.StatusNotifierItem-$pid-[0-9]*")
+[ -n "$N" ] || { echo "no SNI for pid $pid"; exit 1; }
+M=$(gdbus call --session -d $N -o /StatusNotifierItem -m org.freedesktop.DBus.Properties.Get org.kde.StatusNotifierItem Menu | grep -o "/net[^']*")
+L=$(gdbus call --session -d $N -o $M -m com.canonical.dbusmenu.GetLayout -- 0 -1 "['label']")
+id=$(echo "$L" | grep -o "([0-9]*, {'label': <'Quit[^']*" | grep -o "^([0-9]*" | tr -d '(')
+echo "SNI=$N menu=$M quit-item-id=$id"
+echo "layout: $L"
+echo "$(date +%T.%N | cut -c1-12) sending dbusmenu Event clicked to item $id"
+gdbus call --session -d $N -o $M -m com.canonical.dbusmenu.Event -- $id clicked "<int32 0>" 0
+
+## Run 1 (first instance started --tray)
+SNI=org.kde.StatusNotifierItem-132923-0 menu=/net/avaloniaui/dbusmenu/e2ed49085c5a4a1f99cbdc402b19ae9e quit-item-id=7
+10:27:57.858 sending dbusmenu Event clicked to item 7
+()
+watcher during quit: 120 samples, max mapped windows=0
+exit=0 at 10:27:58.000708230
+
+## Runs 2-4 (cycle script output)
+=== cycle 2 start 10:28:26.541 load: 2.21 3.28 3.71
+socket before: ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory
+first instance pid=135675 window=0x02400013
+socket while running: srwxrwxr-x 1 soren soren 0 2026-11-15 10:28:26.654584088 -0500 /run/user/1000/agenteyes-app.sock | users:(("AgentEyesDeskto",pid=135675,fd=48)) 
+after close-to-tray: mapped=0
+second launch (show) 10:28:29.458
+ exit=0
+after second launch: mapped=1
+ handoff '--view library' exit=0
+ handoff '--view record' exit=0
+ handoff '--view library' exit=0
+ handoff '--view record' exit=0
+before quit: mapped=0
+SNI=org.kde.StatusNotifierItem-135675-0 menu=/net/avaloniaui/dbusmenu/470f9955c6c34c14ad29c9d2c644ba5c quit-item-id=7
+10:28:33.973 sending dbusmenu Event clicked to item 7
+()
+pid 135675 alive after quit: NO
+exit=0 at 10:28:34.111381094
+socket after: ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory | ss: 0 listener(s)
+window watcher during quit: 60 samples, max mapped=0
+first instance pid for log: 135675
+=== cycle 3 start 10:28:39.610 load: 2.00 3.19 3.67
+socket before: ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory
+first instance pid=136999 window=0x02400013
+socket while running: srwxrwxr-x 1 soren soren 0 2026-11-15 10:28:39.718760735 -0500 /run/user/1000/agenteyes-app.sock | users:(("AgentEyesDeskto",pid=136999,fd=48)) 
+after close-to-tray: mapped=0
+second launch (show) 10:28:42.306
+ exit=0
+after second launch: mapped=1
+ handoff '--view library' exit=0
+ handoff '--view record' exit=0
+ handoff '--view library' exit=0
+ handoff '--view record' exit=0
+before quit: mapped=0
+SNI=org.kde.StatusNotifierItem-136999-0 menu=/net/avaloniaui/dbusmenu/05b51301480b428d832a53d17709d028 quit-item-id=7
+10:28:46.830 sending dbusmenu Event clicked to item 7
+()
+pid 136999 alive after quit: NO
+exit=0 at 10:28:46.989868628
+socket after: ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory | ss: 0 listener(s)
+window watcher during quit: 60 samples, max mapped=0
+first instance pid for log: 136999
+=== cycle 4 start 10:28:52.445 load: 2.00 3.15 3.66
+socket before: ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory
+first instance pid=138248 window=0x02400013
+socket while running: srwxrwxr-x 1 soren soren 0 2026-11-15 10:28:52.544934224 -0500 /run/user/1000/agenteyes-app.sock | users:(("AgentEyesDeskto",pid=138248,fd=48)) 
+after close-to-tray: mapped=0
+second launch (show) 10:28:55.379
+ exit=0
+after second launch: mapped=1
+ handoff '--view library' exit=0
+ handoff '--view record' exit=0
+ handoff '--view library' exit=0
+ handoff '--view record' exit=0
+before quit: mapped=0
+SNI=org.kde.StatusNotifierItem-138248-0 menu=/net/avaloniaui/dbusmenu/dfbff86010d045d081b26272ed07421a quit-item-id=7
+10:28:59.915 sending dbusmenu Event clicked to item 7
+()
+pid 138248 alive after quit: NO
+exit=0 at 10:29:00.069744352
+socket after: ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory | ss: 0 listener(s)
+window watcher during quit: 60 samples, max mapped=0
+first instance pid for log: 138248
+
+## Log lines from this session (service pid 28960 lines removed), AgentEyes-20261115.log
+10:27:39.332 [pid 132923] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=True, pid=132923)
+10:27:39.336 [pid 132923] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='tray'
+10:27:39.348 [pid 132923] [INFO] [SingleInstance] TryAcquire: listening on /run/user/1000/agenteyes-app.sock
+10:27:40.011 [pid 132923] [INFO] [App] OnFrameworkInitializationCompleted
+10:27:40.120 [pid 132923] [INFO] [TrayController] ctor
+10:27:40.233 [pid 132923] [INFO] [AppSettings] Load: screen=1 mic= system=True mode=list
+10:27:40.233 [pid 132923] [INFO] [AppState] StartPolling
+10:27:40.300 [pid 132923] [INFO] [AppState] PollAsync: service answering, state=idle
+10:27:40.302 [pid 132923] [INFO] [TrayController] Render: -> idle
+10:27:47.474 [pid 133253] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=133253)
+10:27:47.478 [pid 133253] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+10:27:47.491 [pid 133253] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+10:27:47.491 [pid 132923] [INFO] [SingleInstance] Accept: 'show'
+10:27:47.491 [pid 132923] [INFO] [App] Run: show
+10:27:47.492 [pid 132923] [INFO] [App] ShowWindow
+10:27:47.921 [pid 132923] [INFO] [MainWindow] ctor
+10:27:48.235 [pid 132923] [INFO] [MainWindow] Opened
+10:27:48.238 [pid 132923] [INFO] [ControlClient] GetDevicesAsync
+10:27:48.252 [pid 132923] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:27:48.496 [pid 132923] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 254 ms
+10:27:48.574 [pid 132923] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 68 ms
+10:27:48.709 [pid 132923] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+10:27:48.740 [pid 132923] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
+10:27:56.310 [pid 132923] [INFO] [App] window closed to the tray
+10:27:57.867 [pid 132923] [INFO] [App] Quit (the recorder service keeps running)
+10:27:57.924 [pid 132923] [INFO] [SingleInstance] Dispose: socket /run/user/1000/agenteyes-app.sock
+10:27:57.924 [pid 132923] [INFO] [SingleInstance] Accept: ''
+10:27:57.924 [pid 132923] [INFO] [SingleInstance] Dispose: socket listener closed and /run/user/1000/agenteyes-app.sock removed
+10:27:57.925 [pid 132923] [INFO] [Program] Main: exited
+10:28:26.639 [pid 135675] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=135675)
+10:28:26.644 [pid 135675] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+10:28:26.655 [pid 135675] [INFO] [SingleInstance] TryAcquire: listening on /run/user/1000/agenteyes-app.sock
+10:28:27.238 [pid 135675] [INFO] [App] OnFrameworkInitializationCompleted
+10:28:27.331 [pid 135675] [INFO] [TrayController] ctor
+10:28:27.442 [pid 135675] [INFO] [AppSettings] Load: screen=1 mic= system=True mode=list
+10:28:27.442 [pid 135675] [INFO] [AppState] StartPolling
+10:28:27.469 [pid 135675] [INFO] [App] Run: show
+10:28:27.470 [pid 135675] [INFO] [App] ShowWindow
+10:28:27.881 [pid 135675] [INFO] [MainWindow] ctor
+10:28:28.199 [pid 135675] [INFO] [MainWindow] Opened
+10:28:28.203 [pid 135675] [INFO] [ControlClient] GetDevicesAsync
+10:28:28.212 [pid 135675] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:28.230 [pid 135675] [INFO] [AppState] PollAsync: service answering, state=idle
+10:28:28.231 [pid 135675] [INFO] [TrayController] Render: -> idle
+10:28:28.371 [pid 135675] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 156 ms
+10:28:28.496 [pid 135675] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 114 ms
+10:28:28.504 [pid 135675] [INFO] [App] window closed to the tray
+10:28:28.621 [pid 135675] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+10:28:28.658 [pid 135675] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
+10:28:29.538 [pid 136099] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=136099)
+10:28:29.543 [pid 136099] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+10:28:29.554 [pid 136099] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+10:28:29.556 [pid 135675] [INFO] [SingleInstance] Accept: 'show'
+10:28:29.556 [pid 135675] [INFO] [App] Run: show
+10:28:29.557 [pid 135675] [INFO] [App] ShowWindow
+10:28:29.604 [pid 135675] [INFO] [MainWindow] Opened
+10:28:29.605 [pid 135675] [INFO] [ControlClient] GetDevicesAsync
+10:28:29.610 [pid 135675] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:29.699 [pid 135675] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 88 ms
+10:28:30.019 [pid 135675] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+10:28:30.029 [pid 135675] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
+10:28:30.664 [pid 136268] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=136268)
+10:28:30.668 [pid 136268] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:library'
+10:28:30.680 [pid 136268] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+10:28:30.680 [pid 135675] [INFO] [SingleInstance] Accept: 'view:library'
+10:28:30.680 [pid 135675] [INFO] [App] Run: view:library
+10:28:30.681 [pid 135675] [INFO] [App] ShowWindow
+10:28:30.682 [pid 135675] [INFO] [MainWindow] RunCommand: view library
+10:28:30.683 [pid 135675] [INFO] [MainWindow] Rail_Changed: Library
+10:28:30.834 [pid 135675] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 151 ms
+10:28:31.170 [pid 136291] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=136291)
+10:28:31.174 [pid 136291] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:record'
+10:28:31.186 [pid 136291] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'
+10:28:31.186 [pid 135675] [INFO] [SingleInstance] Accept: 'view:record'
+10:28:31.186 [pid 135675] [INFO] [App] Run: view:record
+10:28:31.186 [pid 135675] [INFO] [App] ShowWindow
+10:28:31.186 [pid 135675] [INFO] [MainWindow] RunCommand: view record
+10:28:31.187 [pid 135675] [INFO] [MainWindow] Rail_Changed: Record
+10:28:31.676 [pid 136310] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=136310)
+10:28:31.680 [pid 136310] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:library'
+10:28:31.691 [pid 136310] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+10:28:31.692 [pid 135675] [INFO] [SingleInstance] Accept: 'view:library'
+10:28:31.692 [pid 135675] [INFO] [App] Run: view:library
+10:28:31.692 [pid 135675] [INFO] [App] ShowWindow
+10:28:31.692 [pid 135675] [INFO] [MainWindow] RunCommand: view library
+10:28:31.692 [pid 135675] [INFO] [MainWindow] Rail_Changed: Library
+10:28:31.724 [pid 135675] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 31 ms
+10:28:32.179 [pid 136340] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=136340)
+10:28:32.184 [pid 136340] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:record'
+10:28:32.195 [pid 136340] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'
+10:28:32.196 [pid 135675] [INFO] [SingleInstance] Accept: 'view:record'
+10:28:32.196 [pid 135675] [INFO] [App] Run: view:record
+10:28:32.196 [pid 135675] [INFO] [App] ShowWindow
+10:28:32.196 [pid 135675] [INFO] [MainWindow] RunCommand: view record
+10:28:32.197 [pid 135675] [INFO] [MainWindow] Rail_Changed: Record
+10:28:32.628 [pid 135675] [INFO] [App] window closed to the tray
+10:28:33.981 [pid 135675] [INFO] [App] Quit (the recorder service keeps running)
+10:28:34.052 [pid 135675] [INFO] [SingleInstance] Dispose: socket /run/user/1000/agenteyes-app.sock
+10:28:34.052 [pid 135675] [INFO] [SingleInstance] Accept: ''
+10:28:34.052 [pid 135675] [INFO] [SingleInstance] Dispose: socket listener closed and /run/user/1000/agenteyes-app.sock removed
+10:28:34.052 [pid 135675] [INFO] [Program] Main: exited
+10:28:39.704 [pid 136999] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=136999)
+10:28:39.708 [pid 136999] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+10:28:39.719 [pid 136999] [INFO] [SingleInstance] TryAcquire: listening on /run/user/1000/agenteyes-app.sock
+10:28:40.227 [pid 136999] [INFO] [App] OnFrameworkInitializationCompleted
+10:28:40.320 [pid 136999] [INFO] [TrayController] ctor
+10:28:40.427 [pid 136999] [INFO] [AppSettings] Load: screen=1 mic= system=True mode=list
+10:28:40.427 [pid 136999] [INFO] [AppState] StartPolling
+10:28:40.453 [pid 136999] [INFO] [App] Run: show
+10:28:40.454 [pid 136999] [INFO] [App] ShowWindow
+10:28:40.867 [pid 136999] [INFO] [MainWindow] ctor
+10:28:41.165 [pid 136999] [INFO] [MainWindow] Opened
+10:28:41.170 [pid 136999] [INFO] [ControlClient] GetDevicesAsync
+10:28:41.179 [pid 136999] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:41.197 [pid 136999] [INFO] [AppState] PollAsync: service answering, state=idle
+10:28:41.197 [pid 136999] [INFO] [TrayController] Render: -> idle
+10:28:41.323 [pid 136999] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 142 ms
+10:28:41.354 [pid 136999] [INFO] [App] window closed to the tray
+10:28:41.465 [pid 136999] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 131 ms
+10:28:41.623 [pid 136999] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+10:28:41.670 [pid 136999] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
+10:28:42.384 [pid 137281] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=137281)
+10:28:42.388 [pid 137281] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+10:28:42.400 [pid 137281] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+10:28:42.400 [pid 136999] [INFO] [SingleInstance] Accept: 'show'
+10:28:42.400 [pid 136999] [INFO] [App] Run: show
+10:28:42.400 [pid 136999] [INFO] [App] ShowWindow
+10:28:42.448 [pid 136999] [INFO] [MainWindow] Opened
+10:28:42.449 [pid 136999] [INFO] [ControlClient] GetDevicesAsync
+10:28:42.453 [pid 136999] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:42.536 [pid 136999] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 82 ms
+10:28:42.861 [pid 136999] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+10:28:42.872 [pid 136999] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
+10:28:43.509 [pid 137443] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=137443)
+10:28:43.514 [pid 137443] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:library'
+10:28:43.525 [pid 137443] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+10:28:43.526 [pid 136999] [INFO] [SingleInstance] Accept: 'view:library'
+10:28:43.526 [pid 136999] [INFO] [App] Run: view:library
+10:28:43.526 [pid 136999] [INFO] [App] ShowWindow
+10:28:43.528 [pid 136999] [INFO] [MainWindow] RunCommand: view library
+10:28:43.529 [pid 136999] [INFO] [MainWindow] Rail_Changed: Library
+10:28:43.690 [pid 136999] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 160 ms
+10:28:44.016 [pid 137458] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=137458)
+10:28:44.020 [pid 137458] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:record'
+10:28:44.032 [pid 137458] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'
+10:28:44.033 [pid 136999] [INFO] [SingleInstance] Accept: 'view:record'
+10:28:44.033 [pid 136999] [INFO] [App] Run: view:record
+10:28:44.033 [pid 136999] [INFO] [App] ShowWindow
+10:28:44.033 [pid 136999] [INFO] [MainWindow] RunCommand: view record
+10:28:44.033 [pid 136999] [INFO] [MainWindow] Rail_Changed: Record
+10:28:44.521 [pid 137560] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=137560)
+10:28:44.526 [pid 137560] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:library'
+10:28:44.537 [pid 137560] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+10:28:44.538 [pid 136999] [INFO] [SingleInstance] Accept: 'view:library'
+10:28:44.538 [pid 136999] [INFO] [App] Run: view:library
+10:28:44.538 [pid 136999] [INFO] [App] ShowWindow
+10:28:44.538 [pid 136999] [INFO] [MainWindow] RunCommand: view library
+10:28:44.538 [pid 136999] [INFO] [MainWindow] Rail_Changed: Library
+10:28:44.572 [pid 136999] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 33 ms
+10:28:45.035 [pid 137582] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=137582)
+10:28:45.040 [pid 137582] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:record'
+10:28:45.052 [pid 137582] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'
+10:28:45.052 [pid 136999] [INFO] [SingleInstance] Accept: 'view:record'
+10:28:45.052 [pid 136999] [INFO] [App] Run: view:record
+10:28:45.052 [pid 136999] [INFO] [App] ShowWindow
+10:28:45.052 [pid 136999] [INFO] [MainWindow] RunCommand: view record
+10:28:45.053 [pid 136999] [INFO] [MainWindow] Rail_Changed: Record
+10:28:45.484 [pid 136999] [INFO] [App] window closed to the tray
+10:28:46.838 [pid 136999] [INFO] [App] Quit (the recorder service keeps running)
+10:28:46.914 [pid 136999] [INFO] [SingleInstance] Dispose: socket /run/user/1000/agenteyes-app.sock
+10:28:46.914 [pid 136999] [INFO] [SingleInstance] Accept: ''
+10:28:46.914 [pid 136999] [INFO] [SingleInstance] Dispose: socket listener closed and /run/user/1000/agenteyes-app.sock removed
+10:28:46.914 [pid 136999] [INFO] [Program] Main: exited
+10:28:52.529 [pid 138248] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=138248)
+10:28:52.534 [pid 138248] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+10:28:52.545 [pid 138248] [INFO] [SingleInstance] TryAcquire: listening on /run/user/1000/agenteyes-app.sock
+10:28:53.139 [pid 138248] [INFO] [App] OnFrameworkInitializationCompleted
+10:28:53.236 [pid 138248] [INFO] [TrayController] ctor
+10:28:53.342 [pid 138248] [INFO] [AppSettings] Load: screen=1 mic= system=True mode=list
+10:28:53.342 [pid 138248] [INFO] [AppState] StartPolling
+10:28:53.369 [pid 138248] [INFO] [App] Run: show
+10:28:53.369 [pid 138248] [INFO] [App] ShowWindow
+10:28:53.787 [pid 138248] [INFO] [MainWindow] ctor
+10:28:54.089 [pid 138248] [INFO] [MainWindow] Opened
+10:28:54.093 [pid 138248] [INFO] [ControlClient] GetDevicesAsync
+10:28:54.102 [pid 138248] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:54.120 [pid 138248] [INFO] [AppState] PollAsync: service answering, state=idle
+10:28:54.121 [pid 138248] [INFO] [TrayController] Render: -> idle
+10:28:54.380 [pid 138248] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 276 ms
+10:28:54.396 [pid 138248] [INFO] [App] window closed to the tray
+10:28:54.481 [pid 138248] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 90 ms
+10:28:54.538 [pid 138248] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+10:28:54.572 [pid 138248] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
+10:28:55.467 [pid 138526] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=138526)
+10:28:55.471 [pid 138526] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='show'
+10:28:55.483 [pid 138526] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+10:28:55.484 [pid 138248] [INFO] [SingleInstance] Accept: 'show'
+10:28:55.484 [pid 138248] [INFO] [App] Run: show
+10:28:55.484 [pid 138248] [INFO] [App] ShowWindow
+10:28:55.521 [pid 138248] [INFO] [MainWindow] Opened
+10:28:55.521 [pid 138248] [INFO] [ControlClient] GetDevicesAsync
+10:28:55.525 [pid 138248] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:55.615 [pid 138248] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 90 ms
+10:28:55.930 [pid 138248] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+10:28:55.941 [pid 138248] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
+10:28:56.593 [pid 138690] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=138690)
+10:28:56.597 [pid 138690] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:library'
+10:28:56.611 [pid 138690] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+10:28:56.611 [pid 138248] [INFO] [SingleInstance] Accept: 'view:library'
+10:28:56.612 [pid 138248] [INFO] [App] Run: view:library
+10:28:56.612 [pid 138248] [INFO] [App] ShowWindow
+10:28:56.613 [pid 138248] [INFO] [MainWindow] RunCommand: view library
+10:28:56.614 [pid 138248] [INFO] [MainWindow] Rail_Changed: Library
+10:28:56.793 [pid 138248] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 178 ms
+10:28:57.105 [pid 138720] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=138720)
+10:28:57.110 [pid 138720] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:record'
+10:28:57.122 [pid 138248] [INFO] [SingleInstance] Accept: 'view:record'
+stance is running - sent it 'view:record'
+10:28:57.122 [pid 138248] [INFO] [App] Run: view:record
+10:28:57.122 [pid 138248] [INFO] [App] ShowWindow
+10:28:57.122 [pid 138248] [INFO] [MainWindow] RunCommand: view record
+10:28:57.123 [pid 138248] [INFO] [MainWindow] Rail_Changed: Record
+10:28:57.610 [pid 138738] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=138738)
+10:28:57.614 [pid 138738] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:library'
+10:28:57.626 [pid 138738] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+10:28:57.626 [pid 138248] [INFO] [SingleInstance] Accept: 'view:library'
+10:28:57.626 [pid 138248] [INFO] [App] Run: view:library
+10:28:57.626 [pid 138248] [INFO] [App] ShowWindow
+10:28:57.626 [pid 138248] [INFO] [MainWindow] RunCommand: view library
+10:28:57.627 [pid 138248] [INFO] [MainWindow] Rail_Changed: Library
+10:28:57.648 [pid 138248] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 20 ms
+10:28:58.117 [pid 138762] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=138762)
+10:28:58.122 [pid 138762] [INFO] [SingleInstance] TryAcquireSocket: /run/user/1000/agenteyes-app.sock command='view:record'
+10:28:58.133 [pid 138762] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'
+10:28:58.134 [pid 138248] [INFO] [SingleInstance] Accept: 'view:record'
+10:28:58.134 [pid 138248] [INFO] [App] Run: view:record
+10:28:58.134 [pid 138248] [INFO] [App] ShowWindow
+10:28:58.134 [pid 138248] [INFO] [MainWindow] RunCommand: view record
+10:28:58.134 [pid 138248] [INFO] [MainWindow] Rail_Changed: Record
+10:28:58.564 [pid 138248] [INFO] [App] window closed to the tray
+10:28:59.925 [pid 138248] [INFO] [App] Quit (the recorder service keeps running)
+10:29:00.001 [pid 138248] [INFO] [SingleInstance] Dispose: socket /run/user/1000/agenteyes-app.sock
+10:29:00.001 [pid 138248] [INFO] [SingleInstance] Accept: ''
+10:29:00.001 [pid 138248] [INFO] [SingleInstance] Dispose: socket listener closed and /run/user/1000/agenteyes-app.sock removed
+10:29:00.001 [pid 138248] [INFO] [Program] Main: exited

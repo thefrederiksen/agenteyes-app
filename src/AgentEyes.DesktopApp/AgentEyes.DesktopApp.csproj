@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The AgentEyes desktop app (Avalonia), ONE project for Windows, macOS and Linux (issue #116;
+       first written for Linux as AgentEyes.LinuxApp in issue #107). The window: library, in-app
+       player, details, record, dictionary, settings and the tray icon. Recording is done by the
+       agenteyes service (Control API on 127.0.0.1:7882); this app reads the library from disk and
+       sends every change through that API.
+
+         dotnet build src/AgentEyes.DesktopApp -c Release        (this host's platform)
+
+       WHICH PLATFORM A BUILD IS FOR. Each build is for one platform, the build host by default:
+         Windows  net8.0-windows10.0.19041.0, which links the engine's WINDOWS target (gdigrab, WASAPI).
+                  A net8.0 app would link the engine's net8.0 target, which is the Unix engine (x11grab,
+                  PulseAudio), so the Windows build MUST carry the windows TFM. Cross-check from Linux
+                  with -p:EnableWindowsTargeting=true, the same switch the engine uses.
+         macOS    net8.0 + the engine's mac configuration + the VideoLAN.LibVLC.Mac natives.
+         Linux    net8.0 + the engine's linux configuration + the system libvlc (apt: vlc).
+       The engine picks mac or linux itself from the host (AgentEyes.Core.csproj, AgentEyesUnixPlatform),
+       so the reference below passes nothing. -p:AgentEyesUnixPlatform=mac|linux forces both, the
+       engine and this project's choice of natives, the same way.
+
+       Platforms lists x64 and arm64 so a solution or -p:Platform build can name either; the native
+       architecture of a shipped build is set by its runtime identifier at publish
+       (-r linux-x64, -r osx-arm64, -r win-x64). Publishing for another OS than the host is not
+       supported: publish on the platform you ship. -->
+  <PropertyGroup>
+    <AgentEyesDesktopPlatform Condition="'$(OS)' == 'Windows_NT' Or '$(EnableWindowsTargeting)' == 'true'">windows</AgentEyesDesktopPlatform>
+    <AgentEyesDesktopPlatform Condition="'$(AgentEyesDesktopPlatform)' == '' And '$(AgentEyesUnixPlatform)' != ''">$(AgentEyesUnixPlatform)</AgentEyesDesktopPlatform>
+    <AgentEyesDesktopPlatform Condition="'$(AgentEyesDesktopPlatform)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">mac</AgentEyesDesktopPlatform>
+    <AgentEyesDesktopPlatform Condition="'$(AgentEyesDesktopPlatform)' == ''">linux</AgentEyesDesktopPlatform>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework Condition="'$(AgentEyesDesktopPlatform)' == 'windows'">net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework Condition="'$(AgentEyesDesktopPlatform)' != 'windows'">net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Platforms>x64;arm64</Platforms>
+    <RootNamespace>AgentEyes.DesktopApp</RootNamespace>
+    <AssemblyName>AgentEyesDesktop</AssemblyName>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+    <PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.2" />
+  </ItemGroup>
+
+  <!-- libvlc itself, for the in-app player. Without it LibVLCSharp.Shared.Core.Initialize() throws
+       "Failed to load required native libraries" before any window opens. Each platform pulls only
+       its own: Linux uses the system library and pulls nothing. -->
+  <ItemGroup Condition="'$(AgentEyesDesktopPlatform)' == 'windows'">
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(AgentEyesDesktopPlatform)' == 'mac'">
+    <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- No AdditionalProperties: the engine chooses its own Windows / mac / linux build (see above). -->
+    <ProjectReference Include="..\AgentEyes.Core\AgentEyes.Core.csproj" />
+    <!-- Toolkit-free and shared verbatim with the Windows app: how a recording's transcript is shown. -->
+    <Compile Include="..\AgentEyes.App\TranscriptPresentation.cs" Link="Shared\TranscriptPresentation.cs" />
+    <AvaloniaResource Include="Assets\**" />
+    <InternalsVisibleTo Include="AgentEyes.Tests.Linux" />
+    <InternalsVisibleTo Include="AgentEyes.Tests.DesktopApp" />
+  </ItemGroup>
+
+</Project>

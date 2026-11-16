@@ -1,0 +1,149 @@
+=== UNMUTATED at 1d06d75 ===
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.IsTrayPopup_AnyOtherWindow_IsFalse [5 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_CloseAlreadyCancelledByOthers_DoesNotMarkClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_FirstCloseCancelledElsewhere_LetsTheNextCloseThrough [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_PostedWorkRuns_ShutsDownOnce [278 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_ReturnsWithoutRunningTheShutdown [3 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayController_QuitItem_TakesADeferredQuitNotAnAction [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_FirstClose_IsAllowedAndMarksClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [52 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.App_InstallsTheGuard_BeforeTheTrayIconExists [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_Twice_PostsOneShutdown [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_PopupClosed_KeepsCancellingLaterCloses [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled [< 1 ms]
+  Passed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard [170 ms]
+  Passed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard [16 ms]
+Total tests: 15
+=== G1 ===
+warning: in the working copy of 'src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs', LF will be replaced by CRLF the next time Git touches it
+ src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+warning: in the working copy of 'src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs', LF will be replaced by CRLF the next time Git touches it
+diff --git a/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs b/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs
+index 3c4a908..6be1639 100644
+--- a/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs
++++ b/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs
+@@ -60,7 +60,7 @@ namespace AgentEyes.DesktopApp
+             {
+                 if (state.CancelThisClose(e.Cancel))
+                 {
+-                    e.Cancel = true;
++                    // G1: e.Cancel = true; removed
+                     Log.Info($"[TrayPopupCloseGuard] cancelled a re-entrant close of tray popup '{window.Name}' (reason={e.CloseReason}, active={window.IsActive})");
+                     return;
+                 }
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.IsTrayPopup_AnyOtherWindow_IsFalse [867 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_CloseAlreadyCancelledByOthers_DoesNotMarkClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_FirstCloseCancelledElsewhere_LetsTheNextCloseThrough [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_PostedWorkRuns_ShutsDownOnce [26 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_ReturnsWithoutRunningTheShutdown [5 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayController_QuitItem_TakesADeferredQuitNotAnAction [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_FirstClose_IsAllowedAndMarksClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [80 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.App_InstallsTheGuard_BeforeTheTrayIconExists [9 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_Twice_PostsOneShutdown [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_PopupClosed_KeepsCancellingLaterCloses [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled [< 1 ms]
+  Passed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard [240 ms]
+  Failed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard [37 ms]
+  Error Message:
+   the tray popup's re-entrant second close was NOT cancelled - TrayPopupCloseGuard did not stop the double teardown that crashes the app on Windows (issue #116)
+Total tests: 15
+=== G2 ===
+warning: in the working copy of 'src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs', LF will be replaced by CRLF the next time Git touches it
+ src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+warning: in the working copy of 'src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs', LF will be replaced by CRLF the next time Git touches it
+diff --git a/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs b/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs
+index 3c4a908..2e8be9e 100644
+--- a/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs
++++ b/src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs
+@@ -53,7 +53,7 @@ namespace AgentEyes.DesktopApp
+ 
+         private static void OnWindowOpened(Window window)
+         {
+-            if (!IsTrayPopup(window.GetType())) return;
++            if (IsTrayPopup(window.GetType())) return;
+             var state = new CloseState();
+             window.Closed += (_, _) => state.MarkClosed();
+             window.Closing += (_, e) =>
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.IsTrayPopup_AnyOtherWindow_IsFalse [739 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_CloseAlreadyCancelledByOthers_DoesNotMarkClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_FirstCloseCancelledElsewhere_LetsTheNextCloseThrough [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_PostedWorkRuns_ShutsDownOnce [18 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_ReturnsWithoutRunningTheShutdown [4 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayController_QuitItem_TakesADeferredQuitNotAnAction [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_FirstClose_IsAllowedAndMarksClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [69 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow [3 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.App_InstallsTheGuard_BeforeTheTrayIconExists [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_Twice_PostsOneShutdown [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_PopupClosed_KeepsCancellingLaterCloses [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled [< 1 ms]
+  Failed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard [218 ms]
+  Error Message:
+   TrayPopupCloseGuard cancelled a close of a window that is not the tray popup - it must guard Avalonia's Windows tray popup and nothing else
+  Failed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard [14 ms]
+  Error Message:
+   the tray popup's re-entrant second close was NOT cancelled - TrayPopupCloseGuard did not stop the double teardown that crashes the app on Windows (issue #116)
+Total tests: 15
+=== N1 (control: DeferredQuit made synchronous) ===
+warning: in the working copy of 'src/AgentEyes.DesktopApp/DeferredQuit.cs', LF will be replaced by CRLF the next time Git touches it
+ src/AgentEyes.DesktopApp/DeferredQuit.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+warning: in the working copy of 'src/AgentEyes.DesktopApp/DeferredQuit.cs', LF will be replaced by CRLF the next time Git touches it
+diff --git a/src/AgentEyes.DesktopApp/DeferredQuit.cs b/src/AgentEyes.DesktopApp/DeferredQuit.cs
+index 63b782b..161a52b 100644
+--- a/src/AgentEyes.DesktopApp/DeferredQuit.cs
++++ b/src/AgentEyes.DesktopApp/DeferredQuit.cs
+@@ -55,7 +55,7 @@ namespace AgentEyes.DesktopApp
+             }
+             IsRequested = true;
+             Log.Info("[DeferredQuit] Request: shutdown posted to run after the menu has closed");
+-            _post(Run);
++            Run();
+         }
+ 
+         private void Run()
+[xUnit.net 00:00:00.64]       Assert.Equal() Failure: Values differ
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.IsTrayPopup_AnyOtherWindow_IsFalse [399 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_CloseAlreadyCancelledByOthers_DoesNotMarkClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_FirstCloseCancelledElsewhere_LetsTheNextCloseThrough [< 1 ms]
+  Failed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_PostedWorkRuns_ShutsDownOnce [12 ms]
+  Error Message:
+  Failed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_ReturnsWithoutRunningTheShutdown [9 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayController_QuitItem_TakesADeferredQuitNotAnAction [3 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_FirstClose_IsAllowedAndMarksClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [44 ms]
+[xUnit.net 00:00:00.73]       Assert.Single() Failure: The collection was empty
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.App_InstallsTheGuard_BeforeTheTrayIconExists [< 1 ms]
+  Failed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_Twice_PostsOneShutdown [4 ms]
+  Error Message:
+   Assert.Single() Failure: The collection was empty
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_PopupClosed_KeepsCancellingLaterCloses [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled [< 1 ms]
+  Passed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard [159 ms]
+  Passed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard [18 ms]
+Total tests: 15
+=== RESTORED ===
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.IsTrayPopup_AnyOtherWindow_IsFalse [639 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_CloseAlreadyCancelledByOthers_DoesNotMarkClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_FirstCloseCancelledElsewhere_LetsTheNextCloseThrough [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_PostedWorkRuns_ShutsDownOnce [15 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_ReturnsWithoutRunningTheShutdown [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayController_QuitItem_TakesADeferredQuitNotAnAction [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_FirstClose_IsAllowedAndMarksClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [55 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.App_InstallsTheGuard_BeforeTheTrayIconExists [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_Twice_PostsOneShutdown [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_PopupClosed_KeepsCancellingLaterCloses [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled [< 1 ms]
+  Passed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard [176 ms]
+  Passed AgentEyes.Tests.Shared.TrayPopupCloseGuardWindowTests.TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard [16 ms]
+Total tests: 15

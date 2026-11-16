@@ -1,0 +1,62 @@
+# Issue #116 Windows QA pass 4 - job 4, CI excerpts read with gh run view --log on 2026-11-16 12:08
+
+## run 43911878522: event=pull_request headSha=f940b2beda229fb6fa75e049e4ea8909ab7fc49a conclusion=success
+linux | Run actions/checkout@v4 | HEAD is now at 41831cb Merge f940b2beda229fb6fa75e049e4ea8909ab7fc49a into 17c244df603fd30115b145523e9a6d76d48c6fa5
+linux | Test the Linux build | Passed!  - Failed:     0, Passed:   317, Skipped:     1, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+linux | Test the Linux build with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:   318, Skipped:     0, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+windows | Run actions/checkout@v4 | HEAD is now at 41831cb Merge f940b2beda229fb6fa75e049e4ea8909ab7fc49a into 17c244df603fd30115b145523e9a6d76d48c6fa5
+windows | Test AgentEyes.sln | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 235 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | Test AgentEyes.sln | Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 42 s - AgentEyes.Tests.dll (net8.0)
+windows | Test AgentEyes.sln with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 194 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | Test AgentEyes.sln with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 49 s - AgentEyes.Tests.dll (net8.0)
+macos | Run actions/checkout@v4 | HEAD is now at 41831cb Merge f940b2beda229fb6fa75e049e4ea8909ab7fc49a into 17c244df603fd30115b145523e9a6d76d48c6fa5
+macos | Test the macOS build | Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 322 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+## run 43911867444: event=push headSha=f940b2beda229fb6fa75e049e4ea8909ab7fc49a conclusion=success
+linux | Test the Linux build | Passed!  - Failed:     0, Passed:   317, Skipped:     1, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+linux | Test the Linux build with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:   318, Skipped:     0, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+macos | Test the macOS build | Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 297 ms - AgentEyes.Tests.Mac.dll (net8.0)
+windows | Test AgentEyes.sln | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 339 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | Test AgentEyes.sln | Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 37 s - AgentEyes.Tests.dll (net8.0)
+windows | Test AgentEyes.sln with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 272 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | Test AgentEyes.sln with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 47 s - AgentEyes.Tests.dll (net8.0)
+
+## run 43912705840 ATTEMPT 1 (pull_request, head 1d06d75): linux FAILED
+linux | Run actions/checkout@v4 | HEAD is now at cd7fa74 Merge 1d06d75a97aa34d9d6a845022fd704863e5ca7f2 into 17c244df603fd30115b145523e9a6d76d48c6fa5
+linux | Test the Linux build | Passed!  - Failed:     0, Passed:   317, Skipped:     1, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+linux | Test the Linux build with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | [xUnit.net 00:00:00.77]     AgentEyes.Tests.Linux.HeadlessControlServerFramingTests.OtherPosts_NoBodyNoContentLength_Rejected411BeforeHandler(path: "/record/shot") [FAIL]
+linux | Test the Linux build with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Failed!  - Failed:     1, Passed:   317, Skipped:     0, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+windows | Run actions/checkout@v4 | HEAD is now at cd7fa74 Merge 1d06d75a97aa34d9d6a845022fd704863e5ca7f2 into 17c244df603fd30115b145523e9a6d76d48c6fa5
+windows | Test AgentEyes.sln | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 234 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | Test AgentEyes.sln | Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 39 s - AgentEyes.Tests.dll (net8.0)
+windows | Test AgentEyes.sln with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 211 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | Test AgentEyes.sln with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 45 s - AgentEyes.Tests.dll (net8.0)
+macos | Run actions/checkout@v4 | HEAD is now at cd7fa74 Merge 1d06d75a97aa34d9d6a845022fd704863e5ca7f2 into 17c244df603fd30115b145523e9a6d76d48c6fa5
+macos | Test the macOS build | Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 289 ms - AgentEyes.Tests.Mac.dll (net8.0)
+  Failed AgentEyes.Tests.Linux.HeadlessControlServerFramingTests.OtherPosts_NoBodyNoContentLength_Rejected411BeforeHandler(path: "/record/shot") [4 ms]
+  Error Message:
+   System.Net.HttpListenerException : Address already in use
+  Stack Trace:
+     at System.Net.HttpEndPointManager.GetEPListener(String host, Int32 port, HttpListener listener, Boolean secure)
+   at System.Net.HttpEndPointManager.RemovePrefixInternal(String prefix, HttpListener listener)
+   at System.Net.HttpEndPointManager.RemoveListener(HttpListener listener)
+   at System.Net.HttpListener.Close(Boolean force)
+   at System.Net.HttpListener.Dispose()
+   at System.Net.HttpListener.Close()
+   at AgentEyes.Headless.HeadlessControlServer.Dispose() in /home/runner/work/agenteyes-app/agenteyes-app/src/AgentEyes.Core/Headless/HeadlessControlServer.cs:line 535
+   at AgentEyes.Tests.Linux.HeadlessControlServerFramingTests.Dispose() in /home/runner/work/agenteyes-app/agenteyes-app/tests/AgentEyes.Tests.Linux/HeadlessControlServerFramingTests.cs:line 34
+   at ReflectionAbstractionExtensions.DisposeTestClass(ITest test, Object testClass, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 79
+
+## run 43912705840 ATTEMPT 2 (failed job re-run once by QA; windows and macos carried from attempt 1)
+linux | Run actions/checkout@v4 | HEAD is now at cd7fa74 Merge 1d06d75a97aa34d9d6a845022fd704863e5ca7f2 into 17c244df603fd30115b145523e9a6d76d48c6fa5
+linux | Test the Linux build | Passed!  - Failed:     0, Passed:   317, Skipped:     1, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+linux | Test the Linux build with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1) | Passed!  - Failed:     0, Passed:   318, Skipped:     0, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+windows | UNKNOWN STEP | HEAD is now at cd7fa74 Merge 1d06d75a97aa34d9d6a845022fd704863e5ca7f2 into 17c244df603fd30115b145523e9a6d76d48c6fa5
+windows | UNKNOWN STEP | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 234 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | UNKNOWN STEP | Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 39 s - AgentEyes.Tests.dll (net8.0)
+windows | UNKNOWN STEP | Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 211 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+windows | UNKNOWN STEP | Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 45 s - AgentEyes.Tests.dll (net8.0)
+macos | UNKNOWN STEP | HEAD is now at cd7fa74 Merge 1d06d75a97aa34d9d6a845022fd704863e5ca7f2 into 17c244df603fd30115b145523e9a6d76d48c6fa5
+macos | UNKNOWN STEP | Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 289 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+## push run 43912696122 (head 1d06d75): success

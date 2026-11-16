@@ -1,0 +1,62 @@
+== M1 Shell: mac opener becomes xdg-open
+   file: src/AgentEyes.DesktopApp/Services/Shell.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 209 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.OpenerFor_EachPlatform_ReturnsThatPlatformsOpener(platform:
+== M2 Shell: windows opener becomes xdg-open
+   file: src/AgentEyes.DesktopApp/Services/Shell.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 209 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.OpenerFor_EachPlatform_ReturnsThatPlatformsOpener(platform:
+== M3 Program: WmClass back to the old name
+   file: src/AgentEyes.DesktopApp/Program.cs
+   ['Failed!  - Failed:     3, Passed:    42, Skipped:     0, Total:    45, Duration: 206 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.InstallScript_NamesTheBuiltExecutableAndWmClass
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.WmClass_IsTheAssemblyName
+     AgentEyes.Tests.Linux.DesktopAppTests.DesktopEntry_Tray_StartsInTheTrayAndIsAutostartEnabled
+== M4 install.sh: kill by pgrep -x name (the truncation bug)
+   file: scripts/linux/install.sh
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 202 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.InstallScript_StopsTheRunningAppByPath_NotByTruncatedProcessName
+== M5 install.sh: launches the old executable name
+   file: scripts/linux/install.sh
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 204 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.InstallScript_NamesTheBuiltExecutableAndWmClass
+== M6 install.sh: StartupWMClass back to the old name
+   file: scripts/linux/install.sh
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 194 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.InstallScript_NamesTheBuiltExecutableAndWmClass
+== M7 SingleInstance pipe: the first instance never raises the command
+   file: src/AgentEyes.DesktopApp/Services/SingleInstance.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 10 s - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull
+== M8 SingleInstance pipe: serves one handoff then stops
+   file: src/AgentEyes.DesktopApp/Services/SingleInstance.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 10 s - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull
+== M9 SingleInstance pipe: the first launch does not claim the name
+   file: src/AgentEyes.DesktopApp/Services/SingleInstance.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 199 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull
+== M12 SingleInstance pipe: Dispose returns before the pipe is closed
+   file: src/AgentEyes.DesktopApp/Services/SingleInstance.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 205 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull
+== M10 SingleInstance socket: the first instance never raises the command
+   file: src/AgentEyes.DesktopApp/Services/SingleInstance.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 10 s - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull
+== M11 AppSettings: autostart entry writes the old WM class
+   file: src/AgentEyes.DesktopApp/Model/AppSettings.cs
+   ['Failed!  - Failed:     1, Passed:    44, Skipped:     0, Total:    45, Duration: 220 ms - AgentEyes.Tests.Linux.dll (net8.0)']
+   failing tests: 
+     AgentEyes.Tests.Linux.DesktopAppTests.DesktopEntry_Tray_StartsInTheTrayAndIsAutostartEnabled

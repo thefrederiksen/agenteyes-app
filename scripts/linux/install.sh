@@ -9,7 +9,7 @@
 #   ~/.local/lib/agenteyes/            the self-contained linux-x64 build of agenteyes
 #   ~/.local/bin/agenteyes             a link to it (the CLI: record start/stop, signin, screens)
 #   ~/.config/systemd/user/agenteyes.service
-#   ~/.local/lib/agenteyes-app/        the desktop app (AgentEyesLinux), self-contained linux-x64
+#   ~/.local/lib/agenteyes-app/        the desktop app (AgentEyesDesktop), self-contained linux-x64
 #   ~/.local/share/applications/agenteyes.desktop   "AgentEyes" in the app grid
 #   ~/.config/autostart/agenteyes.desktop           starts the app in the tray at login
 # Recordings land in the XDG Videos folder: ~/Videos/AgentEyes/<timestamp>_video_video/
@@ -104,11 +104,16 @@ autostart_dir="$HOME/.config/autostart"
 echo "Building the AgentEyes app (Release, linux-x64, self-contained) ..."
 app_stage="$(mktemp -d)"
 trap 'rm -rf "$stage" "$app_stage"' EXIT
-dotnet publish "$repo/src/AgentEyes.LinuxApp/AgentEyes.LinuxApp.csproj" -c Release -r linux-x64 \
+dotnet publish "$repo/src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj" -c Release -r linux-x64 \
     --self-contained true -p:Platform=x64 -o "$app_stage" -v q --nologo
-[[ -x "$app_stage/AgentEyesLinux" ]] || fail "the build did not produce $app_stage/AgentEyesLinux"
+[[ -x "$app_stage/AgentEyesDesktop" ]] || fail "the build did not produce $app_stage/AgentEyesDesktop"
 install -m 0644 "$repo/assets/icon-256.png" "$app_stage/agenteyes.png"
-for p in $(pgrep -x AgentEyesLinux || true); do kill "$p"; done
+# Stop the running app by the path it was started from. Not "pgrep -x <name>": a process name is cut
+# to 15 characters on Linux, so AgentEyesDesktop (16) would never match and the old app would keep
+# running. AgentEyesLinux is the name the app had before issue #116: an install over an older one must
+# stop that one too, or the new app finds it holding the single-instance socket, hands it the launch
+# and exits.
+for p in $(pgrep -f "^$app_lib/AgentEyes(Desktop|Linux)( |\$)" || true); do kill "$p"; done
 rm -rf "$app_lib.new"
 cp -a "$app_stage" "$app_lib.new"
 rm -rf "$app_lib"
@@ -120,11 +125,11 @@ desktop_entry() {
         "Type=Application" \
         "Name=AgentEyes" \
         "Comment=Screen, system sound and microphone recorder" \
-        "Exec=$app_lib/AgentEyesLinux$1" \
+        "Exec=$app_lib/AgentEyesDesktop$1" \
         "Icon=$app_lib/agenteyes.png" \
         "Terminal=false" \
         "Categories=AudioVideo;Recorder;" \
-        "StartupWMClass=AgentEyesLinux"
+        "StartupWMClass=AgentEyesDesktop"
 }
 desktop_entry "" > "$apps_dir/agenteyes.desktop"
 { desktop_entry " --tray"; echo "X-GNOME-Autostart-enabled=true"; } > "$autostart_dir/agenteyes.desktop"
@@ -156,7 +161,7 @@ else
 fi
 
 if [[ $start -eq 1 && -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
-    setsid "$app_lib/AgentEyesLinux" >/dev/null 2>&1 < /dev/null &
+    setsid "$app_lib/AgentEyesDesktop" >/dev/null 2>&1 < /dev/null &
     ok "AgentEyes app started - its window opens, and the moon in the top bar stays when you close it"
 fi
 

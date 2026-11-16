@@ -1,0 +1,47 @@
+QA #116 pass 3 - criterion 8, macOS half. The CI step .github/workflows/ci.yml:167-184 verbatim with the output dir as $1 (script: mac-pass3-capture-tools is not needed; the script body is reproduced at the end).
+Positive control in the SAME command: a copy of the good output with the Linux-configuration engine (dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=linux -o <scratch>/linux-engine, exit 0) swapped in.
+
+08:59:39
+counts (UTF-16LE) in each engine:
+  GOOD-mac-build {'x11grab': 0, 'pulse': 0, 'v4l2': 0, 'xrandr': 0, 'avfoundation': 2, 'screencapture': 4}
+  CONTROL-linux-engine {'x11grab': 1, 'pulse': 8, 'v4l2': 1, 'xrandr': 4, 'avfoundation': 0, 'screencapture': 0}
+--- GOOD: the macOS build made on this Mac
+[OK] the macOS desktop app links the macOS engine and carries libvlc
+exit=0
+--- POSITIVE CONTROL: same output, Linux-configuration engine swapped in
+[FAIL] the macOS app's engine contains 'x11grab'
+[FAIL] the macOS app's engine contains 'pulse'
+[FAIL] the macOS app's engine contains 'v4l2'
+[FAIL] the macOS app's engine contains 'xrandr'
+[FAIL] the macOS app's engine does NOT contain 'avfoundation'
+exit=1
+d2e2a47ce0db2c525df09fbf208e8a73ec52e841c0bbe41d78e9171b72326785  src/AgentEyes.DesktopApp/bin/Release/net8.0/agenteyes.dll
+889b663b49eff98e298b27140ee05b50689b403318ba5133efb9f707998418b9  <scratch>/bad/agenteyes.dll
+
+--- after the gate (section 12), the app rebuilt and the same check re-run:
+--- the trap: the app output after the gate
+  after gate: {'x11grab': 0, 'pulse': 0, 'avfoundation': 2}
+Build succeeded.
+    0 Error(s)
+  after rebuilding the mac app: {'x11grab': 0, 'pulse': 0, 'avfoundation': 2}
+[OK] the macOS desktop app links the macOS engine and carries libvlc
+exit=0
+
+--- the check script
+#!/bin/bash
+# The CI step at .github/workflows/ci.yml:167-184, verbatim except that the output dir is $1.
+out=$1
+dll=$out/agenteyes.dll
+test -f "$out/AgentEyesDesktop.dll" || { echo "[FAIL] AgentEyesDesktop was not built"; exit 1; }
+test -f "$dll" || { echo "[FAIL] $dll was not built"; exit 1; }
+ls "$out"/libvlc/osx-*/lib/libvlc.dylib >/dev/null 2>&1 || { echo "[FAIL] libvlc.dylib (VideoLAN.LibVLC.Mac) is missing from $out"; exit 1; }
+fail=0
+for word in x11grab pulse v4l2 xrandr; do
+  if python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('$word'.encode('utf-16-le')) else 1)"; then
+    echo "[FAIL] the macOS app's engine contains '$word'"; fail=1
+  fi
+done
+python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('avfoundation'.encode('utf-16-le')) else 1)" \
+  || { echo "[FAIL] the macOS app's engine does NOT contain 'avfoundation'"; fail=1; }
+test $fail -eq 0 && echo "[OK] the macOS desktop app links the macOS engine and carries libvlc"
+exit $fail
