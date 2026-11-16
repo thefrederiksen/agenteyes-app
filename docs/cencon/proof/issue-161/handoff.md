@@ -270,3 +270,253 @@ variable exists - so if #169's fix makes the lookup throw, normal starts are una
     (`find -maxdepth 1`) and `find -newer` over it, before/after each proof run; `GET /status` on the
     owner's 7882 service; the denied `ls`/`touch` probes. No file content was read; nothing was written.
     The owner's serve (pid 50642) and the launchd agent were not touched.
+
+---
+
+# Pass 2 (Linux seat, devlinux) - the guard derives the real library from the USER
+
+Spec for this pass: the Lead's ruling on the QA defect (issue comment 6924190378) and the Lead's brief.
+The QA seat's own defect comment is not on the issue or the PR; the ruling quotes its finding, and that
+is what this pass fixes. Evidence: `linux-pass2/` (transcript, mutation, gates, and the Landlock
+harness source `lldeny.c` - the #161 QA Linux seat's, rebuilt from source and re-proved, section 0).
+
+## 1. The defect, and the fix
+
+**Defect (QA, upheld).** The overlap guard asked .NET for the "real" roots, and on Linux .NET answers
+from this process's `HOME` / `XDG_DATA_HOME`. `HOME=<scratch> AGENTEYES_REDIRECT_DATA=~/.local/share
+AGENTEYES_REDIRECT_VIDEOS=<scratch> agenteyes serve` was ACCEPTED, printed "this is NOT the person's real
+library", and opened the owner's credential, ffmpeg registry and live log. The environment was the
+authority on what the environment may redirect.
+
+**Fix.** `src/AgentEyes.Core/RealLibrary.cs` (new). The protected roots are the UNION of:
+
+| Platform | From the ACCOUNT: passwd entry of the EFFECTIVE uid (`getpwuid_r`), never `$HOME` | Plus (pass 1's answer, kept) |
+|----------|------------------------------------------------------------------|------|
+| Linux | state `<home>/.local/share` (`$XDG_DATA_HOME` not read); recordings `XDG_VIDEOS_DIR` from `<home>/.config/user-dirs.dirs` (`$XDG_CONFIG_HOME` not read), else `<home>/Videos` | .NET's folders for this process's environment |
+| macOS | state `<home>/Library/Application Support`; recordings `<home>/Movies` | the same |
+| Windows | nothing new - known-folder lookup, as before | the known folders |
+
+- Why a union and not a replacement: a union can only ADD refusals. A spoofed environment can add a
+  scratch folder to the protected list; it cannot remove the account's. The environment half stays
+  because a person may legitimately run with a relocated `XDG_DATA_HOME`, and then that is their library.
+- The symlink resolution, the overlap rule and every refusal message shape are pass 1's, now compared
+  against the right answer. Each refusal names the root it hit and where it was derived from.
+- If the account cannot be looked up (no passwd entry, relative home, unreadable `user-dirs.dirs`,
+  libc missing) the redirect is REFUSED (exit 5) with the reason - nothing to compare against is a
+  reason to stop, not to guess a home.
+- `RealLibrary` does not log, deliberately: it runs before the redirect, when the only log is the real
+  one. What it derived is reported by the banner (into the redirected log) or the refusal (stderr).
+
+**Measured (Linux, under Landlock with both real roots denied, strace -f; `linux-pass2-transcript.txt`):**
+
+| Run | pass 1 | pass 2 | opens of a real root |
+|-----|--------|--------|----------------------|
+| 1. QA's attack exactly (spoofed HOME, DATA=`~/.local/share`) | ACCEPTED | exit 5, "overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default)" | 0 |
+| 2. control: same values, real HOME | exit 5 | exit 5 (now naming both derivations) | 0 |
+| 3. spoofed HOME, VIDEOS=`~/Videos` | (accepted by the same defect) | exit 5, "XDG_VIDEOS_DIR in /home/<owner>/.config/user-dirs.dirs" | 0 |
+| 4. spoofed HOME, both on existing scratch folders, `serve` 35 s | - | accepted; orphan reap, repair pass, housekeeper all on scratch; `/status` `LibraryRedirected: true` (transcript section 6) | 0, and 0 syscalls of any kind on a real root |
+
+The 3 non-open syscalls in runs 1-3 are pass 1's symlink resolution of the REQUESTED path (stat,
+readlink) - metadata, on a start that is then refused (pass 1 list item 2 below, unchanged).
+
+## 2. The test that pins it, and the mutation that breaks it
+
+- `LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5`
+  (Unix; Linux and macOS suites): a REAL child with `HOME` and every `XDG_*` base on scratch, and
+  `AGENTEYES_REDIRECT_VIDEOS` on the account's real Videos folder. Only the passwd derivation can refuse
+  it. It aims the VIDEOS variable, not DATA, on purpose: if the guard regresses, that child's state and
+  log stay in scratch, and the mutation run below MEASURED what it then does to the real roots - zero
+  opens, only stat/readlink/access of `~/Videos`, `~/Videos/AgentEyes` and `~/Videos/qa-record`
+  (StorageMigration). A test aimed at the real state folder would write into the person's live log
+  from a test the day it fails.
+- Pure: `Decide_SpoofedHomeRedirectOntoTheAccountHomeStateFolder_Refused` (QA's exact shape),
+  `..._VideosFolder_Refused`, `Derive_SpoofedHome_StillProtectsTheAccountHomeLibrary`, the macOS layout,
+  user-dirs parsing (6 cases + absolute), dedupe, relative passwd home throws, and
+  `AccountHome_ThisProcess_IsAnAbsoluteFolderThatExists` (the live `getpwuid_r` on the platform's
+  struct layout - the macOS CI run is what checks the macOS offset).
+- **Mutation** (`linux-pass2-mutation.txt`): `accountHome = Environment.GetEnvironmentVariable("HOME")`
+  in `DeriveForThisProcess` (final pass-2 code) -> rebuilt -> exactly that test FAILS (1 of 69 redirect tests), "a spoofed
+  HOME let a redirect onto the real Videos folder through (exit 0)". Its banner, quoted there, lists
+  SCRATCH folders as "the REAL ... root" - which is item 3 working: the lie is now on the page.
+  Restored from the saved file, rebuilt, green.
+
+## 3. The merge, and the desktop app on the MERGED tree
+
+Branch was cut from 17c244d; merged `origin/main` 2d60f77 (#116) as its own commit, da51c35. No
+conflicts; the staged merge diff was 110 files, +12722/-216 - identical to main's own diff since the
+branch point, so nothing of either side was rewritten by the merge.
+
+Verified on the merged tree, not the sides:
+- `src/AgentEyes.LinuxApp` no longer exists; `src/AgentEyes.DesktopApp/Program.cs:37` calls
+  `LibraryRedirect.ApplyFromEnvironment` FIRST in `Main` (nothing before it resolves a path or logs:
+  the class has only a const and auto-properties), refuses a bad redirect, and **refuses a good one**
+  (exit 5) because the app always drives the service at `ControlClient.BaseUrl` = `http://127.0.0.1:7882`
+  (`Services/ControlClient.cs:41`, hard-coded on main). So the 7882 rule applies to the desktop app by
+  refusal: it never runs redirected, so it can never be a half-redirect. The rename carried pass 1's
+  change across; I did not have to re-wire it.
+- Changed in that block: wording only - "the Linux app" -> "the desktop app", because since #116 the
+  same binary is the Windows and macOS desktop app too, and the message was false there.
+- New `tests/Shared/DesktopAppRedirectTests.cs`, linked into `AgentEyes.Tests.Linux` (Linux CI) and
+  `AgentEyes.Tests.DesktopApp` (Windows gate): the BUILT `AgentEyesDesktop` as a child, redirected ->
+  exit 5 with the refusal; partial -> exit 5, nothing created. A lost refusal shows as a 60 s timeout
+  failure on the scratch library, never a run on the real one. NOT in the macOS suite (it does not
+  reference the desktop app) - macOS desktop-app redirect is not gated.
+- Measured on the built binary (transcript sections 7-8): redirected -> exit 5; spoofed HOME onto the
+  real state folder -> exit 5 at the guard; 0 opens of a real root.
+
+## 4. The banner shows its work
+
+- stderr / `[WARN] [LibraryRedirect]` log line now end with `real library kept out (each root with where
+  it was derived from): the REAL state root <path> [<derivation>] ; the REAL recordings root <path>
+  [<derivation>]`. The path is the one COMPARED: when a parent is a symlink it prints
+  `<path> (which resolves to <target>)`.
+- `serve` stdout: "this is NOT the person's real library, which this process derived as:" followed by
+  one line per root with its derivation (transcript section 4, quoted).
+- Pinned by `RealProcess_FullRedirect_BannerNamesTheRealRootsItDerived`.
+- `/status` is unchanged (not asked for; its four fields are as QA verified them).
+
+## 5. macOS and Windows - stated, not inherited
+
+- **macOS, pass 1: correct by accident of the platform.** .NET on macOS resolves `MyVideos` /
+  `LocalApplicationData` through the platform's own home lookup, not `$HOME` - pass 1's AC4 measured
+  `HOME=<scratch>` still giving `/Users/<owner>/Movies/AgentEyes`. The spoof that broke Linux therefore
+  did not break macOS: the guard asked the environment, and the platform declined to listen to it.
+- **macOS, pass 2: correct by construction.** The account half applies on macOS too (passwd entry,
+  `struct passwd` `pw_dir` at offset 48), so it no longer depends on that .NET behaviour.
+- **NOT measured on macOS by me** - this is a Linux seat. Compiled the macOS suite on Linux (Build
+  succeeded, 0 errors); it RUNS on the macOS CI job. If the struct offset were wrong, `AccountHome`
+  returns a non-path and every macOS redirect is REFUSED - it fails closed, and the
+  `AccountHome_ThisProcess_...` test fails loudly first.
+- **Windows: no derivation change.** The known-folder lookup does not follow this process's
+  `USERPROFILE`/`LOCALAPPDATA` variables as far as I know - NOT measured; nobody has spoofed it. The one
+  Windows-side change is the `TestIsolationTests` pin of `MachineLocalAppData` readers: the reader moved
+  from `LibraryRedirect::ApplyFromEnvironment` to `RealLibrary::DeriveForThisProcess`. This machine's
+  SDK has no WindowsDesktop targets, so the Windows build and tests are unrun here - the CI windows job
+  is their first run.
+
+## 6. Untouched, by diff
+
+`git diff da51c35` (the pass-2 change alone): no line of `ServicePortRefusal`, `ServiceLibraryRefusal`,
+`HeadlessCli.cs`, `RecordingService.cs` (/status), `App.xaml.cs`, `Program.cs`, `CliDispatcher.cs` or
+`AppDataPaths.cs` changes, and `git diff --stat c595c41 -- <those files>` is empty across the merge
+too. In `LibraryRedirect.Decide`, the unknown-name, partial, relative and same-folder rules are
+untouched (the old signature remains as a thin overload, so every pass-1 test calls it unchanged). The
+only line removed from the pass-1 tests is the `RunAgentEyes` signature, which gained an optional
+parameter.
+
+## 7. Gates (`linux-pass2/linux-pass2-gates.txt`)
+
+- `dotnet test tests/AgentEyes.Tests.Linux -c Release`: **387 passed, 0 failed, 1 skipped (the #151
+  opt-in), 388 total**, under Landlock.
+- `dotnet test tests/AgentEyes.Tests.DesktopApp -c Release` (net8.0, Linux): **17 passed, 0 failed**.
+- `tests/AgentEyes.Tests.Mac`: compiled only. Windows `.sln`: not buildable here. Both are first run
+  on CI for this head.
+- Heavy smokes: none. No capture, audio or UI change.
+
+## 8. Cases I was tempted to assume away (pass 2)
+
+1. **A relocated library under a spoofed HOME.** If the person really keeps their state under a
+   non-default `XDG_DATA_HOME` (or user-dirs under a non-default `XDG_CONFIG_HOME`), the account half
+   does not see it, and a seat that also spoofs those variables removes the environment half. That
+   library is then unprotected. Not covered. The account half reads only the XDG defaults under the
+   passwd home, as the ruling specified.
+2. **Another account, or root without sudo.** The derivation is for the EFFECTIVE uid (plus the
+   `SUDO_UID` account under sudo - section 10). A process started as root by other means (`su -`, a root
+   service) protects root's folders, not the owner's. Not covered.
+3. **The real-process test trusts its own host.** It takes "the real Videos folder" from the TEST
+   process's unspoofed environment (CI and dev runs). A test host that itself runs under a fake HOME
+   would point the child at a fake folder and pass without proving anything.
+4. **No passwd entry** (some containers): every redirect is refused. Safe, but it means such a seat
+   cannot use the redirect at all.
+5. **`user-dirs.dirs` forms other than `"$HOME/..."` and absolute** (e.g. `${HOME}`) are not parsed and
+   fall to `<home>/Videos`. xdg-user-dirs writes only those two forms.
+6. **The banner is still the binary's own word.** It now names what it compared against, and the
+   mutation shows a broken derivation is visible in it - but a reader still has to read the paths.
+   Kernel confinement (below) remains the standard for anything risky.
+7. **My own footprint on this machine.** Every product binary and test run in this pass ran under the
+   Landlock deny on both real roots, control proven first. No probe cleared HOME (the #169 trap the
+   Lead flagged writes beside the cwd): every spoofed HOME was an existing scratch folder, and the clone
+   had no stray file afterwards. Outside it, unconfined: one `dotnet build` of
+   AgentEyes.Core before I had wrapped commands (compile only - the project has no Exec target, no
+   product code ran); `getent passwd` and a read of `~/.config/user-dirs.dirs` (configuration, not
+   library); `stat` of the real roots, the live log and the protected evidence recording before and
+   after - all unchanged except the live log, which the owner's own service (pid 6560) writes
+   continuously, so its mtime proves nothing either way; Landlock is the evidence. The owner's service,
+   tray app and the foreign go2rtc ffmpeg were identified by command line and not touched.
+
+## 9. Ruling N1: a missing or unwritable redirect folder is REFUSED at startup
+
+Added after the brief (Lead's message, from the full #161 Linux QA report): pass 1 accepted a value that
+did not exist (the process then created it) or could not be written.
+
+**Implemented as ruled.** After every other rule has passed, each value must be an existing folder in
+which this process can really create, write, flush and delete a probe file
+(`LibraryRedirect.UsableFolderProblem`). Otherwise exit 5, naming the variable, the path and why:
+`AGENTEYES_REDIRECT_DATA=<path> does not exist. ... Fix: create it (mkdir -p '<path>') or correct the
+path.` / `AGENTEYES_REDIRECT_VIDEOS=<path> is not writable: a test write of <probe> failed (...)`.
+
+**Why, in my words.** The issue's contract is that both roots move together or the start fails; a path
+that cannot be written is not a root. A mistyped path is the case the operator most needs told about in
+the first second - auto-creating it makes a new, empty library where nobody looks, and their recordings
+"disappear": the fallback CLAUDE.md forbids. I do not argue for auto-create. The one thing auto-create
+would save - typing `mkdir -p` - is printed in the refusal.
+
+**Why a real write and not access().** access() and mode bits can say writable where a write then fails
+(read-only bind mounts, ACLs, quotas, some network file systems). The probe is the operation that matters.
+
+**The order is a safety property.** The probe WRITES a file, so it runs LAST - only once the overlap rules
+have passed. Run first, `AGENTEYES_REDIRECT_VIDEOS=~/Videos` would drop a probe file into the person's
+Videos folder before being refused. Pinned by
+`Decide_UsableFolderCheck_RunsOnlyAfterEveryOverlapRuleSoItNeverProbesTheRealLibrary`.
+
+**Measured** (transcript sections 4-6): typo'd data folder -> exit 5, the folder NOT created; 0555 videos
+folder -> exit 5, strace shows the data folder's probe `openat(O_CREAT|O_EXCL)` = fd then `unlink` = 0,
+and the videos folder's `openat` = `-1 EACCES`; nothing left behind in either folder. Positive control:
+the same shape with existing writable folders starts and serves (section 6).
+
+**Tests:** `UsableFolderProblem_*` (writable -> null and no probe left; missing; a file; 0555 by a real
+write), `Decide_UsableFolderCheckFails_RefusedNamingTheVariableAndThePath`, the ordering test above,
+`RealProcess_DataFolderDoesNotExist_RefusedWithExit5NamingItAndCreatesNothing`,
+`RealProcess_VideosFolderNotWritable_RefusedWithExit5NamingIt`. Pass-1 real-process tests that expect a
+redirect to be ACCEPTED now create their folders first (`Made(...)`) - the only change to their bodies.
+The 0555 tests assert they are not running as root (root ignores mode bits) instead of passing vacuously.
+
+**This changes the operator's recipe**: `mkdir -p` both folders before starting. The isolation doc's
+examples already create them; the refusal says so if not.
+
+## 10. Code review (medium) on the pass-2 diff, and what I did with it
+
+Fixed:
+- `DllImport("libc")` on glibc probes `libc.so`, a linker script from the C dev package - absent on a
+  runtime-only machine, which would refuse EVERY redirect there. Now bound to `libc.so.6` on Linux and
+  `/usr/lib/libSystem.B.dylib` on macOS. The tests' own `geteuid` import went the same way.
+- `sudo`: the effective uid is root's and so is HOME, so neither half named the person's library. When
+  euid is 0 and `SUDO_UID` is set, that account's roots are ADDED (environment used only to add refusals;
+  spoofing it gains nothing). New pinned env read in `TestIsolationTests`. Not measured (I do not run
+  sudo on the owner's machine) - item 2 in section 8 is narrowed to "root without sudo".
+- `ArgumentException` / `NotSupportedException` from a malformed `user-dirs.dirs` value or passwd home now
+  become a refusal with the reason instead of an unhandled crash.
+- The banner said "derived from the account, not from HOME" even where a root came only from the
+  environment (always, on Windows). It now says "each root with where it was derived from", and every
+  root carries its own derivation.
+- De-duplication compared case-insensitively on every OS, so two Linux folders differing only in case
+  merged and one lost its link resolution. Now ordinal.
+- The banner printed the unresolved path while the guard compared the resolved one. It prints both.
+- `Normalize` was re-implemented in `RealLibrary`; it now uses `LibraryRedirect.Normalize`.
+- `DesktopAppRedirectTests` left its scratch folder in TEMP; it now deletes it.
+- Non-ASCII ellipsis copied from xunit names into the gates file; regenerated, ASCII.
+
+Not changed, deliberately (CLAUDE.md deviations, stated):
+- `RealLibrary` does not log (rule 2). It runs before the redirect; the only log is the person's real one,
+  and Log would create the real state folder. Its result is logged by the banner into the redirected log.
+- The try/catch that turns a failed derivation into a refusal sits in `ApplyFromEnvironment` (rule 4). It
+  is the entry points' one shared decision function and returns `Refused` with the reason, which each
+  entry point prints - one place instead of four copies.
+
+## Linux: let the kernel enforce it (the macOS sandbox-exec equivalent)
+
+`linux-pass2/lldeny.c` (gcc it; Landlock ABI >= 1): `lldeny <real-state-root> <real-recordings-root> --
+<cmd>`. PROVE it first: `lldeny R1 R2 -- ls R1` must say Permission denied (transcript section 0).
+Landlock does not refuse `stat` - pair it with `strace -f -e trace=%file,%desc` to see metadata reads.
+
+I believe this pass is finished.

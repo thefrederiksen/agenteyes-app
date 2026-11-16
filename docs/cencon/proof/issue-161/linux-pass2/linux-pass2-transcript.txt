@@ -1,0 +1,111 @@
+# Issue #161 pass 2 - Linux (devlinux, Ubuntu, kernel 6.8, Landlock ABI 4), 2026-11-16, final pass-2 build
+# Every binary below ran under lldeny (this folder, lldeny.c - the #161 QA Linux seat's harness,
+# rebuilt from source) with BOTH real roots denied, and under strace -f (file + fd syscalls).
+# R1=/home/<owner>/Videos/AgentEyes  R2=/home/<owner>/.local/share/AgentEyes
+# 'real-root-opens' counts open/openat of a path under R1 or R2; 'any' also counts stat/readlink/access.
+# No probe cleared HOME (the #169 relative-root trap): every spoofed HOME is an existing scratch folder,
+# and 'git status' of the clone showed no stray file afterwards.
+
+## 0. Denial control (the instrument can fail)
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls    /home/<owner>/Videos/AgentEyes -> exit 2 : ls: cannot open directory '/home/<owner>/Videos/AgentEyes': Permission denied
+touch /home/<owner>/Videos/AgentEyes/.dev161p2-landlock-probe -> exit 1 : touch: cannot touch '/home/<owner>/Videos/AgentEyes/.dev161p2-landlock-probe': Permission denied
+ls    /home/<owner>/.local/share/AgentEyes -> exit 2 : ls: cannot open directory '/home/<owner>/.local/share/AgentEyes': Permission denied
+touch /home/<owner>/.local/share/AgentEyes/.dev161p2-landlock-probe -> exit 1 : touch: cannot touch '/home/<owner>/.local/share/AgentEyes/.dev161p2-landlock-probe': Permission denied
+ls    /home/<owner>/.local/share/AgentEyes/logs -> exit 2 : ls: cannot open directory '/home/<owner>/.local/share/AgentEyes/logs': Permission denied
+touch /home/<owner>/.local/share/AgentEyes/logs/.dev161p2-landlock-probe -> exit 1 : touch: cannot touch '/home/<owner>/.local/share/AgentEyes/logs/.dev161p2-landlock-probe': Permission denied
+touch scratch -> exit 0
+ls ~/ReposFred (sibling) -> exit 0
+
+## 1. QA's attack, exactly: HOME=<scratch>/sc/spoofhome AGENTEYES_REDIRECT_DATA=/home/<owner>/.local/share AGENTEYES_REDIRECT_VIDEOS=<scratch>/sc/v agenteyes serve --port 17961
+##    pass 1: ACCEPTED (QA). pass 2:
+[A-qa-attack-spoofed-HOME] real-root-opens=0 real-root-syscalls(any)=3
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /home/<owner>/.local/share/AgentEyes, which overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside /home/<owner>/.local/share/AgentEyes.
+  exit=5
+  the 3 non-open syscalls (symlink resolution of the REQUESTED path, metadata only):
+    newfstatat(AT_FDCWD, "/home/<owner>/.local/share/AgentEyes", {st_mode=S_IFDIR|0700, st_size=4096, ...}, 0) = 0
+    readlink("/home/<owner>/.local/share/AgentEyes", 0x.., 256) = -1 EINVAL (Invalid argument)
+    newfstatat(AT_FDCWD, "/home/<owner>/.local/share/AgentEyes", {st_mode=S_IFDIR|0700, st_size=4096, ...}, AT_SYMLINK_NOFOLLOW) = 0
+
+## 2. Control: the same values with the REAL HOME (refused in pass 1 too)
+[B-control-real-HOME] real-root-opens=0 real-root-syscalls(any)=3
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /home/<owner>/.local/share/AgentEyes, which overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default + this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside /home/<owner>/.local/share/AgentEyes.
+  exit=5
+
+## 3. Spoofed HOME, redirect onto the REAL Videos folder
+[C-spoofed-HOME-videos-real] real-root-opens=0 real-root-syscalls(any)=3
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at /home/<owner>/Videos/AgentEyes, which overlaps the REAL recordings root /home/<owner>/Videos/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG_VIDEOS_DIR in /home/<owner>/.config/user-dirs.dirs). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside /home/<owner>/Videos/AgentEyes.
+  exit=5
+
+## 4. N1: AGENTEYES_REDIRECT_DATA names a folder that does not exist (a typo); VIDEOS exists
+[H-N1-data-does-not-exist] real-root-opens=0 real-root-syscalls(any)=0
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA=<scratch>/sc/H/dta-typo does not exist. A redirect never creates its own roots, so a mistyped path cannot quietly become a new, empty library. Fix: create it (mkdir -p '<scratch>/sc/H/dta-typo') or correct the path.
+  exit=5
+  afterwards <scratch>/sc/H contains: videos (the typo folder was NOT created)
+
+## 5. N1: AGENTEYES_REDIRECT_VIDEOS is an existing folder with mode 0555 - refused by a REAL WRITE
+[I-N1-videos-not-writable] real-root-opens=0 real-root-syscalls(any)=0
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS=<scratch>/sc/I/videos is not writable: a test write of <scratch>/sc/I/videos/.agenteyes-redirect-probe-1810116-d4b0e730bd764549b8dd3d90251c0fd3 failed (UnauthorizedAccessException: Access to the path '<scratch>/sc/I/videos/.agenteyes-redirect-probe-1810116-d4b0e730bd764549b8dd3d90251c0fd3' is denied.). Fix: point it at a folder this account can write to.
+  exit=5
+  the probe, from strace (the data folder's probe wrote and was removed; the videos folder's write was refused by the kernel):
+    openat(AT_FDCWD, "<scratch>/sc/I/data/.agenteyes-redirect-probe-1810116-1b66aec59beb4225b04dd4b81274aaaa", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = 30
+    unlink("<scratch>/sc/I/data/.agenteyes-redirect-probe-1810116-1b66aec59beb4225b04dd4b81274aaaa") = 0
+    openat(AT_FDCWD, "<scratch>/sc/I/videos/.agenteyes-redirect-probe-1810116-d4b0e730bd764549b8dd3d90251c0fd3", O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+
+## 6. Positive control: spoofed HOME, BOTH variables existing writable scratch folders -> accepted; serve 35 s (repair pass at 20 s), then SIGTERM by timeout (exit 124)
+[E-spoofed-HOME-serve-35s] real-root-opens=0 real-root-syscalls(any)=0
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/sc/E/data/AgentEyes ; recordings -> <scratch>/sc/E/videos/AgentEyes ; log -> <scratch>/sc/E/data/AgentEyes/logs (pid 1810425) ; real library kept out (each root with where it was derived from): the REAL state root /home/<owner>/.local/share/AgentEyes [passwd entry for uid 1000, home /home/<owner>, XDG default] ; the REAL recordings root /home/<owner>/Videos/AgentEyes [passwd entry for uid 1000, home /home/<owner>, XDG_VIDEOS_DIR in /home/<owner>/.config/user-dirs.dirs]
+stdout:
+  [ok] AgentEyes headless service listening on http://127.0.0.1:17962/
+       recordings -> <scratch>/sc/E/videos/AgentEyes
+       data       -> <scratch>/sc/E/data/AgentEyes
+       [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS - this is NOT the person's real library, which this process derived as:
+       [redirect]   the REAL state root /home/<owner>/.local/share/AgentEyes [passwd entry for uid 1000, home /home/<owner>, XDG default]
+       [redirect]   the REAL recordings root /home/<owner>/Videos/AgentEyes [passwd entry for uid 1000, home /home/<owner>, XDG_VIDEOS_DIR in /home/<owner>/.config/user-dirs.dirs]
+       signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+the scratch log (repair pass, housekeeper, orphan reap - all on scratch):
+  13:02:47.142 [pid 1810425] [WARN] [LibraryRedirect] ApplyFromEnvironment: LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/sc/E/data/AgentEyes ; recordings -> <scratch>/sc/E/videos/AgentEyes ; log -> <scratch>/sc/E/data/AgentEyes/logs (pid 1810425) ; real library kept out (each root with where it was derived from): the REAL state root /home/<owner>/.local/share/AgentEyes [passwd entry for uid 1000, home /home/<owner>, XDG default] ; the REAL recordings root /home/<owner>/Videos/AgentEyes [passwd entry for uid 1000, home /home/<owner>, XDG_VIDEOS_DIR in /home/<owner>/.config/user-dirs.dirs]
+  13:02:47.345 [pid 1810425] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=<scratch>/sc/E/data/AgentEyes/run/ffmpeg
+  13:02:47.345 [pid 1810425] [INFO] [FfmpegChildRegistry] ReapOrphans: no records
+  13:02:47.346 [pid 1810425] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+  13:02:47.351 [pid 1810425] [INFO] [RepairService] Start: first pass in 20s, then every 15 minute(s)
+  13:03:07.354 [pid 1810425] [INFO] [RepairService] RunAsync: trigger=timer
+  13:03:07.366 [pid 1810425] [INFO] [RepairService] ResumeUnfinishedAsync: root=<scratch>/sc/E/videos/AgentEyes
+  13:03:07.374 [pid 1810425] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+  13:03:07.390 [pid 1810425] [WARN] [Housekeeper] Run: trigger=repair-pass - the recordings root does not exist: <scratch>/sc/E/videos/AgentEyes
+  13:03:07.392 [pid 1810425] [INFO] [RepairService] RunAsync: trigger=timer done
+  13:03:21.704 [pid 1810425] [INFO] [RepairService] Dispose: repair triggers disarmed
+GET /status during that run:
+{
+ "State": "idle",
+ "DataRoot": "<scratch>/sc/E/data/AgentEyes",
+ "RecordingsRoot": "<scratch>/sc/E/videos/AgentEyes",
+ "LibraryRedirected": true,
+ "LibraryRedirect": "environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)"
+}
+
+## 7. The desktop app (src/AgentEyes.DesktopApp, MERGED tree), redirected to existing scratch folders
+[F-desktopapp-redirected] real-root-opens=0 real-root-syscalls(any)=0
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [error] library redirect refused: the desktop app always drives the service at http://127.0.0.1:7882, the person's REAL AgentEyes, so it cannot run redirected. Fix: unset AGENTEYES_REDIRECT_DATA and AGENTEYES_REDIRECT_VIDEOS, or drive a redirected 'agenteyes serve --port N' with the redirected 'agenteyes record ...' commands.
+  exit=5
+
+## 8. The desktop app, spoofed HOME, redirect onto the real state folder
+[G-desktopapp-spoofed-HOME-onto-real] real-root-opens=0 real-root-syscalls(any)=3
+stderr:
+  lldeny: landlock ABI 4 enforced, 2 deny path(s)
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /home/<owner>/.local/share/AgentEyes, which overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside /home/<owner>/.local/share/AgentEyes.
+  exit=5

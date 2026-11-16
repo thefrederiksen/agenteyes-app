@@ -43,6 +43,8 @@
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
     <!-- Issue #116: the desktop app's quit-path tests, shared with AgentEyes.Tests.DesktopApp (Windows gate). -->
     <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
+    <!-- Issue #161 pass 2: a redirected desktop app refuses to start (it always drives the REAL service on 7882). -->
+    <Compile Include="..\Shared\DesktopAppRedirectTests.cs" Link="Shared\DesktopAppRedirectTests.cs" />
 
     <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
     <!-- Issue #161: the library-redirect rules, /status roots, and a real child process refusing a

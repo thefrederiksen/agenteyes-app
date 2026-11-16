@@ -264,6 +264,8 @@ namespace AgentEyes.Tests
             // stand-ins for the user folders; they are not routes to the real ones.
             "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_DATA x1",
             "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_VIDEOS x1",
+            // Pass 2: under sudo, the account that ran it - used only to ADD protected roots, never to remove one.
+            "agenteyes.dll!AgentEyes.RealLibrary::DeriveForThisProcess -> SUDO_UID x1",
             "agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> QA_RECORD_FFMPEG_DIR x1",
         };
 
@@ -312,8 +314,9 @@ namespace AgentEyes.Tests
             // The redirectable root falls back to it when no redirect is set - the normal product path.
             "agenteyes.dll!AgentEyes.AppDataPaths::get_LocalAppData -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
             // Issue #161: naming the REAL state root a redirect is refused for overlapping. Read only to
-            // compare against; no path built from it is ever handed out.
-            "agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
+            // compare against; no path built from it is ever handed out. Pass 2 moved the read into
+            // RealLibrary, which unions it with the account's (passwd) folders.
+            "agenteyes.dll!AgentEyes.RealLibrary::DeriveForThisProcess -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
             // The winget package folder ffmpeg may be installed in: a tool location, not AgentEyes state.
             "agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1",
             // This class, naming the real folder it asserts the test run stays out of.

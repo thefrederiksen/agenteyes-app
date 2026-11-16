@@ -282,6 +282,247 @@ namespace AgentEyes.Tests.Shared
             Assert.Contains("the REAL recordings root", d.Refusal);
         }
 
+        // ---- pass 2: the real roots come from the ACCOUNT, not from HOME -----------------------
+        //
+        // QA's defect on pass 1: HOME=<scratch> made .NET (on Linux) name <scratch>/.local/share as the
+        // "real" state root, so AGENTEYES_REDIRECT_DATA=<the owner's real>/.local/share was ACCEPTED and
+        // the process opened the owner's credential, ffmpeg registry and live log. These pin the rule
+        // that a spoofed environment cannot remove the account's library from what is protected.
+
+        private static readonly string AccountHome = Abs("home", "me");
+        private static readonly string SpoofedHome = Abs("tmp", "scratch", "home");
+
+        private static string? NoFile(string _) => null;
+
+        [Fact]
+        public void Derive_SpoofedHome_StillProtectsTheAccountHomeLibrary()
+        {
+            // The process's environment says HOME is a scratch folder; the passwd entry says /home/me.
+            var roots = RealLibrary.Derive(AccountHome, 1000, isMac: false, NoFile,
+                Path.Combine(SpoofedHome, ".local", "share"), Path.Combine(SpoofedHome, "Videos"));
+
+            Assert.Contains(roots, r => r.Name == RealLibrary.StateName && r.Parent == Path.Combine(AccountHome, ".local", "share")
+                                        && r.DerivedFrom.Contains("passwd entry for uid 1000"));
+            Assert.Contains(roots, r => r.Name == RealLibrary.RecordingsName && r.Parent == Path.Combine(AccountHome, "Videos"));
+            // The environment's (spoofed) answers are kept too - a union can only add refusals.
+            Assert.Contains(roots, r => r.Parent == Path.Combine(SpoofedHome, ".local", "share"));
+        }
+
+        [Fact]
+        public void Decide_SpoofedHomeRedirectOntoTheAccountHomeStateFolder_Refused()
+        {
+            // The exact shape QA ran: HOME=<scratch> AGENTEYES_REDIRECT_DATA=<account home>/.local/share.
+            var roots = RealLibrary.Derive(AccountHome, 1000, isMac: false, NoFile,
+                Path.Combine(SpoofedHome, ".local", "share"), Path.Combine(SpoofedHome, "Videos"));
+
+            var d = LibraryRedirect.Decide(Path.Combine(AccountHome, ".local", "share"), Abs("tmp", "scratch", "videos"),
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable }, roots, false);
+
+            Assert.True(d.Refused, "a redirect onto the account's real state folder was accepted under a spoofed HOME");
+            Assert.Contains($"the REAL state root {Path.Combine(AccountHome, ".local", "share", "AgentEyes")}", d.Refusal);
+            Assert.Contains("passwd entry for uid 1000", d.Refusal);
+        }
+
+        [Fact]
+        public void Decide_SpoofedHomeRedirectOntoTheAccountHomeVideosFolder_Refused()
+        {
+            var roots = RealLibrary.Derive(AccountHome, 1000, isMac: false, NoFile,
+                Path.Combine(SpoofedHome, ".local", "share"), "");
+
+            var d = LibraryRedirect.Decide(Abs("tmp", "scratch", "data"), Path.Combine(AccountHome, "Videos"),
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable }, roots, false);
+
+            Assert.True(d.Refused);
+            Assert.Contains("the REAL recordings root", d.Refusal);
+        }
+
+        [Fact]
+        public void Derive_MacLayout_IsTheAccountsApplicationSupportAndMovies()
+        {
+            var roots = RealLibrary.Derive(Abs("Users", "me"), 501, isMac: true, NoFile, "", "");
+
+            Assert.Equal(2, roots.Count);
+            Assert.Contains(roots, r => r.Name == RealLibrary.StateName && r.Parent == Path.Combine(Abs("Users", "me"), "Library", "Application Support"));
+            Assert.Contains(roots, r => r.Name == RealLibrary.RecordingsName && r.Parent == Path.Combine(Abs("Users", "me"), "Movies"));
+        }
+
+        [Fact]
+        public void Derive_UserDirsMovesVideos_TheAccountsUserDirsDecidesNotTheEnvironments()
+        {
+            string userDirs = Path.Combine(AccountHome, ".config", "user-dirs.dirs");
+            string? Read(string path) => path == userDirs ? "XDG_VIDEOS_DIR=\"$HOME/Media/Clips\"\n" : null;
+
+            var roots = RealLibrary.Derive(AccountHome, 1000, isMac: false, Read, "", "");
+
+            var rec = Assert.Single(roots, r => r.Name == RealLibrary.RecordingsName);
+            Assert.Equal(Path.Combine(AccountHome, "Media", "Clips"), rec.Parent);
+            Assert.Contains("XDG_VIDEOS_DIR in " + userDirs, rec.DerivedFrom);
+        }
+
+        [Fact]
+        public void Derive_EnvironmentAgreesWithTheAccount_OneRootNamingBothDerivations()
+        {
+            var roots = RealLibrary.Derive(AccountHome, 1000, isMac: false, NoFile,
+                Path.Combine(AccountHome, ".local", "share"), Path.Combine(AccountHome, "Videos"));
+
+            Assert.Equal(2, roots.Count);
+            Assert.All(roots, r => Assert.Contains(RealLibrary.ProcessEnvironmentSource, r.DerivedFrom));
+            Assert.All(roots, r => Assert.Contains("passwd entry for uid 1000", r.DerivedFrom));
+        }
+
+        [Fact]
+        public void Derive_RelativeAccountHome_ThrowsRatherThanGuessing()
+        {
+            Assert.Throws<InvalidOperationException>(() => RealLibrary.Derive("home/me", 1000, false, NoFile, "", ""));
+        }
+
+        [Theory]
+        [InlineData("XDG_VIDEOS_DIR=\"$HOME/Videos\"", "Videos")]
+        [InlineData("# XDG_VIDEOS_DIR=\"$HOME/Nope\"\nXDG_VIDEOS_DIR=\"$HOME/Vids\"", "Vids")]
+        [InlineData("XDG_VIDEOS_DIR=\"$HOME/A\"\nXDG_VIDEOS_DIR=\"$HOME/B\"", "B")]
+        [InlineData("XDG_VIDEOS_DIR=\"$HOME/A\"\nXDG_VIDEOS_DIR=\"relative/x\"", "A")]
+        [InlineData("XDG_MUSIC_DIR=\"$HOME/Music\"", null)]
+        [InlineData("XDG_VIDEOS_DIR=\"$HOME\"", "")]
+        public void VideosFromUserDirs_TheXdgFormat_HomeIsTheAccountsNotTheEnvironments(string text, string? expectedUnderHome)
+        {
+            string? got = RealLibrary.VideosFromUserDirs(text, AccountHome);
+
+            if (expectedUnderHome == null) Assert.Null(got);
+            else Assert.Equal(expectedUnderHome == "" ? AccountHome : Path.Combine(AccountHome, expectedUnderHome), got);
+        }
+
+        [Fact]
+        public void VideosFromUserDirs_AbsoluteValue_TakenAsWritten()
+        {
+            Assert.Equal(Abs("data", "videos"), RealLibrary.VideosFromUserDirs($"XDG_VIDEOS_DIR=\"{Abs("data", "videos")}\"", AccountHome));
+        }
+
+        [UnixOnlyFact]
+        public void AccountHome_ThisProcess_IsAnAbsoluteFolderThatExists()
+        {
+            // The live passwd lookup (getpwuid_r through libc), on the platform's real struct layout.
+            string home = RealLibrary.AccountHome(GetEuid());
+
+            Assert.True(Path.IsPathFullyQualified(home), $"passwd home is not absolute: '{home}'");
+            Assert.True(Directory.Exists(home), $"passwd home does not exist: '{home}'");
+        }
+
+        private static uint GetEuid() => RealLibrary.EffectiveUid();
+
+        // ---- pass 2, ruling N1: each value must be an existing folder this process can WRITE to ------
+
+        [Fact]
+        public void UsableFolderProblem_ExistingWritableFolder_NullAndLeavesNoProbeBehind()
+        {
+            string dir = Made(Path.Combine(Scratch, "usable"));
+
+            Assert.Null(LibraryRedirect.UsableFolderProblem(dir));
+            Assert.Empty(Directory.GetFileSystemEntries(dir));
+        }
+
+        [Fact]
+        public void UsableFolderProblem_Missing_SaysSoWithTheFix()
+        {
+            string? why = LibraryRedirect.UsableFolderProblem(Path.Combine(Scratch, "no-such-folder"));
+
+            Assert.NotNull(why);
+            Assert.Contains("does not exist", why);
+            Assert.Contains("mkdir -p", why);
+        }
+
+        [Fact]
+        public void UsableFolderProblem_AFileNotAFolder_Refused()
+        {
+            string file = Path.Combine(Made(Path.Combine(Scratch, "afile")), "f");
+            File.WriteAllText(file, "x");
+
+            Assert.Contains("is a file, not a folder", LibraryRedirect.UsableFolderProblem(file));
+        }
+
+        [UnixOnlyFact]
+        public void UsableFolderProblem_ReadOnlyFolder_RefusedByARealWrite()
+        {
+            // Root ignores mode bits, so this proves nothing as root - the gates do not run as root.
+            Assert.True(GetEuid() != 0, "this test needs a non-root account: root can write a 0555 folder");
+            string dir = Made(Path.Combine(Scratch, "readonly"));
+            File.SetUnixFileMode(dir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            try
+            {
+                string? why = LibraryRedirect.UsableFolderProblem(dir);
+
+                Assert.NotNull(why);
+                Assert.Contains("is not writable: a test write of", why);
+            }
+            finally
+            {
+                File.SetUnixFileMode(dir, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+        }
+
+        [Fact]
+        public void Decide_UsableFolderCheck_RunsOnlyAfterEveryOverlapRuleSoItNeverProbesTheRealLibrary()
+        {
+            // The probe WRITES a file. A redirect onto the real library must be refused by the overlap rule
+            // before the probe is ever asked about it.
+            var asked = new List<string>();
+            var d = LibraryRedirect.Decide(Abs("tmp", "s", "data"), RealVideos,
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable },
+                new[] { new RealLibrary.Root(RealLibrary.RecordingsName, RealVideos, "given") }, false, null,
+                f => { asked.Add(f); return null; });
+
+            Assert.True(d.Refused);
+            Assert.Contains("the REAL recordings root", d.Refusal);
+            Assert.Empty(asked);
+        }
+
+        [Fact]
+        public void Decide_UsableFolderCheckFails_RefusedNamingTheVariableAndThePath()
+        {
+            string videos = Abs("tmp", "s", "videoz");
+            var d = LibraryRedirect.Decide(Abs("tmp", "s", "data"), videos,
+                new[] { LibraryRedirect.DataVariable, LibraryRedirect.VideosVariable },
+                Array.Empty<RealLibrary.Root>(), false, null,
+                f => f == videos ? "does not exist." : null);
+
+            Assert.True(d.Refused);
+            Assert.StartsWith($"{LibraryRedirect.VideosVariable}={videos} does not exist.", d.Refusal);
+        }
+
+        [Fact]
+        public void RealProcess_DataFolderDoesNotExist_RefusedWithExit5NamingItAndCreatesNothing()
+        {
+            string data = Path.Combine(Scratch, "missing", "data");           // a typo: never created
+            string videos = Made(Path.Combine(Scratch, "missing", "videos"));
+
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+
+            Assert.Equal(LibraryRedirect.RefusedExitCode, code);
+            Assert.Contains($"{LibraryRedirect.DataVariable}={data} does not exist", stderr);
+            Assert.False(Directory.Exists(data), $"a refused start created {data}");
+            Assert.Empty(Directory.GetFileSystemEntries(videos));
+        }
+
+        [UnixOnlyFact]
+        public void RealProcess_VideosFolderNotWritable_RefusedWithExit5NamingIt()
+        {
+            Assert.True(GetEuid() != 0, "this test needs a non-root account: root can write a 0555 folder");
+            string data = Made(Path.Combine(Scratch, "ro", "data"));
+            string videos = Made(Path.Combine(Scratch, "ro", "videos"));
+            File.SetUnixFileMode(videos, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+            try
+            {
+                var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+
+                Assert.Equal(LibraryRedirect.RefusedExitCode, code);
+                Assert.Contains($"{LibraryRedirect.VideosVariable}={videos} is not writable", stderr);
+                Assert.Empty(Directory.GetFileSystemEntries(data));
+            }
+            finally
+            {
+                File.SetUnixFileMode(videos, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+        }
+
         // ---- the service's address and library -------------------------------------------------
 
         [Fact]
@@ -408,8 +649,8 @@ namespace AgentEyes.Tests.Shared
         [Fact]
         public void RealProcess_FullRedirect_LogsBothRootsIntoTheScratchLogAndSaysSoOnStderr()
         {
-            string data = Path.Combine(Scratch, "full", "data");
-            string videos = Path.Combine(Scratch, "full", "videos");
+            string data = Made(Path.Combine(Scratch, "full", "data"));
+            string videos = Made(Path.Combine(Scratch, "full", "videos"));
             var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
 
             string stateRoot = Path.Combine(data, "AgentEyes");
@@ -450,7 +691,7 @@ namespace AgentEyes.Tests.Shared
             server.Start();
 
             string data = Path.Combine(Scratch, "client", "data");
-            string videos = Path.Combine(Scratch, "client", "videos");
+            string videos = Made(Path.Combine(Scratch, "client", "videos"));
             Directory.CreateDirectory(Path.Combine(data, "AgentEyes"));
             File.WriteAllText(Path.Combine(data, "AgentEyes", "config.json"), "{\"Port\": " + port + "}");
 
@@ -466,14 +707,68 @@ namespace AgentEyes.Tests.Shared
         [Fact]
         public void RealProcess_RedirectedServeOnTheDefaultPort_RefusedBeforeListening()
         {
-            string data = Path.Combine(Scratch, "serve", "data");
-            string videos = Path.Combine(Scratch, "serve", "videos");
+            string data = Made(Path.Combine(Scratch, "serve", "data"));
+            string videos = Made(Path.Combine(Scratch, "serve", "videos"));
 
             var (code, _, stderr) = RunAgentEyes(data, videos, "serve");
 
             Assert.Equal(1, code);
             Assert.Contains("must not listen on the default port " + LocalAppConfig.DefaultPort, stderr);
         }
+
+        [UnixOnlyFact]
+        public void RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5()
+        {
+            // QA's attack on pass 1, on a REAL child: HOME (and every XDG_* base) points at scratch, so
+            // the child's own environment names only scratch folders as "real" - and the redirect asks for
+            // the account's REAL Videos folder. Only the passwd derivation can refuse it, so a mutation
+            // that reads $HOME instead makes this test fail.
+            //
+            // Why the Videos variable and not the data one: if the guard ever regresses, a child with
+            // the real Videos folder and a SCRATCH data root does nothing to the real library on --help
+            // except StorageMigration's two Directory.Exists stats (measured under Landlock in the #161
+            // pass-2 proof) - its log and state stay in scratch. Pointing the data variable at the real
+            // state folder would, on regression, write into the person's live log from a test.
+            string realVideos = Path.IsPathFullyQualified(AppDataPaths.MachineVideos)
+                ? AppDataPaths.MachineVideos
+                : Path.Combine(Environment.GetEnvironmentVariable("HOME")!, OperatingSystem.IsMacOS() ? "Movies" : "Videos");
+            string fakeHome = Path.Combine(Scratch, "spoof", "home");
+            Directory.CreateDirectory(fakeHome);
+            string data = Path.Combine(Scratch, "spoof", "data");
+
+            var (code, _, stderr) = RunAgentEyes(data, realVideos, "--help", tweak: psi =>
+            {
+                psi.Environment["HOME"] = fakeHome;
+                foreach (string v in new[] { "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME" })
+                    psi.Environment.Remove(v);
+            });
+
+            Assert.True(code == LibraryRedirect.RefusedExitCode,
+                $"a spoofed HOME let a redirect onto the real Videos folder {realVideos} through (exit {code}): {stderr}");
+            Assert.Contains("the REAL recordings root", stderr);
+            Assert.Contains("passwd entry for uid", stderr);
+            Assert.False(Directory.Exists(data), $"a refused start created {data}");
+        }
+
+        [Fact]
+        public void RealProcess_FullRedirect_BannerNamesTheRealRootsItDerived()
+        {
+            string data = Made(Path.Combine(Scratch, "banner", "data"));
+            string videos = Made(Path.Combine(Scratch, "banner", "videos"));
+
+            var (code, _, stderr) = RunAgentEyes(data, videos, "--help");
+
+            Assert.Equal(0, code);
+            Assert.Contains("real library kept out (each root with where it was derived from):", stderr);
+            Assert.Contains(RealLibrary.StateName + " ", stderr);
+            Assert.Contains(RealLibrary.RecordingsName + " ", stderr);
+            if (!OperatingSystem.IsWindows())
+                Assert.Contains("passwd entry for uid", stderr);
+        }
+
+        /// <summary>The folder, created: a redirect is refused unless both values are existing, writable
+        /// folders (pass 2, ruling N1), so a test that expects a redirect to be ACCEPTED makes them first.</summary>
+        private static string Made(string path) => Directory.CreateDirectory(path).FullName;
 
         private static int FreePort()
         {
@@ -490,7 +785,7 @@ namespace AgentEyes.Tests.Shared
         /// can never run with neither variable - i.e. on the machine's real library.
         /// </summary>
         private static (int Code, string Stdout, string Stderr) RunAgentEyes(string data, string? videos, string args,
-            (string Name, string Value)? extra = null)
+            (string Name, string Value)? extra = null, Action<ProcessStartInfo>? tweak = null)
         {
             string dll = Path.Combine(AppContext.BaseDirectory, "agenteyes.dll");
             Assert.True(File.Exists(dll), $"the engine was not built next to the tests: {dll}");
@@ -512,6 +807,7 @@ namespace AgentEyes.Tests.Shared
             psi.Environment[LibraryRedirect.DataVariable] = data;
             if (videos != null) psi.Environment[LibraryRedirect.VideosVariable] = videos;
             if (extra is { } e) psi.Environment[e.Name] = e.Value;
+            tweak?.Invoke(psi);
             // The engine refuses to roll forward on its own; run it on whatever runtime runs the tests.
             psi.Environment["DOTNET_ROLL_FORWARD"] = "Major";
 

@@ -42,12 +42,12 @@ namespace AgentEyes.DesktopApp
             }
             if (redirect == LibraryRedirect.Outcome.Redirected)
             {
-                // The Linux app is a CLIENT of the service and always drives it on the fixed address
+                // The desktop app (the Linux app until #116) is a CLIENT of the service and always drives it on the fixed address
                 // ControlClient.BaseUrl - the person's REAL service. Redirected, it would keep scratch
                 // settings and a scratch log while showing and driving the real library: a half-redirect,
                 // which is worse than none. Refused, loudly; the redirected way to drive a scratch
                 // service is the redirected CLI (agenteyes record start|stop|status).
-                string refusal = $"library redirect refused: the Linux app always drives the service at "
+                string refusal = $"library redirect refused: the desktop app always drives the service at "
                     + $"{ControlClient.BaseUrl}, the person's REAL AgentEyes, so it cannot run redirected. Fix: unset "
                     + $"{LibraryRedirect.DataVariable} and {LibraryRedirect.VideosVariable}, or drive a redirected "
                     + "'agenteyes serve --port N' with the redirected 'agenteyes record ...' commands.";

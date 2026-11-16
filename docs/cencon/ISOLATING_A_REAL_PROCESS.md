@@ -16,7 +16,8 @@ recordings - including the startup repair pass, which goes looking for other peo
 | `AGENTEYES_REDIRECT_DATA` | the local app-data folder (`%LOCALAPPDATA%`, `~/Library/Application Support`, `~/.local/share`) | `<it>/AgentEyes` - config, **log**, credential, models, ffmpeg registry |
 | `AGENTEYES_REDIRECT_VIDEOS` | the Videos folder (`~/Movies` on macOS) | `<it>/AgentEyes` - recordings |
 
-Read once, at the very start of `agenteyes` (every command), `AgentEyesApp.exe` and the Linux app.
+Read once, at the very start of `agenteyes` (every command), `AgentEyesApp.exe` and the desktop app
+(`AgentEyesDesktop`, `src/AgentEyes.DesktopApp` - the Linux app until #116 renamed it).
 Not to be confused with `AGENTEYES_ROOT`, which is the INSTALLER's variable for its install layout.
 
 **It refuses to start (CLI exit code 5, or a dialog for the tray app), writing NOTHING, when:**
@@ -25,9 +26,30 @@ Not to be confused with `AGENTEYES_ROOT`, which is the INSTALLER's variable for 
 - a value is not an absolute path;
 - any other `AGENTEYES_REDIRECT_*` variable exists (a typo would otherwise leave you on the real
   library while you believe you are redirected);
-- the two roots overlap each other, or either one is, contains or sits inside the machine's REAL state
+- the two roots overlap each other, or either one is, contains or sits inside the person's REAL state
   or recordings root - **symbolic links resolved**, so `<scratch>/videos/AgentEyes -> ~/Movies/AgentEyes`
-  is refused.
+  is refused;
+- a value is not an EXISTING folder this process can write to - checked by really writing and removing a
+  probe file, and only after every rule above has passed (so it never probes the real library). A
+  redirect never creates its own roots: a typo is refused, not turned into a new, empty library.
+  `mkdir -p` both folders first;
+- the real library cannot be located (no passwd entry for the effective uid, an unreadable
+  `user-dirs.dirs`) - there would be nothing to check the redirect against.
+
+**How "the REAL library" is found (#161 pass 2).** NOT from this process's `HOME` / `XDG_*`: those are
+exactly what an isolation attempt changes, and pass 1 trusted them - `HOME=<scratch>` plus
+`AGENTEYES_REDIRECT_DATA=~/.local/share` was ACCEPTED and opened the owner's credential and live log.
+The protected roots are the union of:
+
+| Platform | From the ACCOUNT (passwd entry of the effective uid, never `$HOME`) | Plus |
+|----------|------------------------------------------------------------------|------|
+| Linux | state `<home>/.local/share` (XDG default; `$XDG_DATA_HOME` not read); recordings `XDG_VIDEOS_DIR` from `<home>/.config/user-dirs.dirs` (`$XDG_CONFIG_HOME` not read), else `<home>/Videos` | what this process's environment names (.NET special folders) |
+| macOS | state `<home>/Library/Application Support`; recordings `<home>/Movies` | the same |
+| Windows | - (unchanged: the shell's known-folder lookup) | the known folders |
+
+The union can only ADD refusals: a spoofed environment can add a scratch folder to the list but cannot
+remove the account's. Every redirected banner prints the roots it derived and where each came from, so
+check them rather than trusting the word "redirected".
 
 **It also refuses (exit 1):**
 
@@ -38,15 +60,17 @@ Not to be confused with `AGENTEYES_ROOT`, which is the INSTALLER's variable for 
   redirected. Nothing but the `/status` probe is sent to it. (Two unredirected processes are never
   compared - on Linux a systemd service and a shell can see different `XDG_DATA_HOME`.) The redirected
   CLI finds its service through `Port` in the scratch `config.json`, so write that file.
-- the redirected Linux app (exit 5): it always drives the service at 127.0.0.1:7882, the real one.
+- the redirected desktop app (exit 5): it always drives the service at 127.0.0.1:7882, the real one.
   Drive a redirected service with the redirected CLI instead.
 
 ## It is loud - check that it is, every time
 
-- stderr of every redirected command: `[redirect] LIBRARY REDIRECTED by ...: state -> ... ; recordings -> ... ; log -> ...`
+- stderr of every redirected command: `[redirect] LIBRARY REDIRECTED by ...: state -> ... ; recordings -> ... ; log -> ...
+  ; real library kept out (derived from the account, not from HOME): the REAL state root ... [passwd entry for uid N, home ...] ; the REAL recordings root ... [...]`
 - the redirected log (`<DATA>/AgentEyes/logs/AgentEyes-YYYYMMDD.log`): a `[WARN] [LibraryRedirect]` line,
   and every command's `[CliDispatcher] Run:` line carries `state=... recordings=... redirect=...`
-- `serve` stdout: `recordings ->`, `data ->`, and `[redirect] ... this is NOT the person's real library`
+- `serve` stdout: `recordings ->`, `data ->`, and `[redirect] ... this is NOT the person's real library, which this
+  process derived as:` followed by one `[redirect]   the REAL ... root <path> [<derivation>]` line per root
 - `GET /status`: `DataRoot`, `RecordingsRoot`, `LibraryRedirected`, `LibraryRedirect`
   (`"environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)"`)
 
@@ -80,7 +104,7 @@ Pick a FREE port (not 7882) - check it first.
 
 ```sh
 S=$(mktemp -d)/ae161
-mkdir -p "$S/data/AgentEyes" && echo '{"Port": 17961}' > "$S/data/AgentEyes/config.json"
+mkdir -p "$S/data/AgentEyes" "$S/videos" && echo '{"Port": 17961}' > "$S/data/AgentEyes/config.json"
 export AGENTEYES_REDIRECT_DATA="$S/data" AGENTEYES_REDIRECT_VIDEOS="$S/videos"
 agenteyes serve --port 17961 &          # look for the [redirect] banner on stderr
 curl -s http://127.0.0.1:17961/status   # DataRoot / RecordingsRoot under $S, LibraryRedirected true
@@ -101,6 +125,7 @@ On macOS, a shell has no Screen Recording grant: a real screen capture from it i
 ```powershell
 $S = Join-Path $env:TEMP "ae161-$(Get-Random)"
 New-Item -ItemType Directory -Force "$S\data\AgentEyes" | Out-Null
+New-Item -ItemType Directory -Force "$S\videos" | Out-Null
 Set-Content "$S\data\AgentEyes\config.json" '{"Port": 17961}'
 $env:AGENTEYES_REDIRECT_DATA = "$S\data"; $env:AGENTEYES_REDIRECT_VIDEOS = "$S\videos"
 & src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe serve --port 17961
@@ -118,7 +143,7 @@ machine-wide, not per library. Use `agenteyes serve --port N` for a second, redi
   log it could reach is the real one.
 - **Windows crash log** `%TEMP%\AgentEyes-crash.log` (the tray app's last-resort crash file) is NOT
   under the state root and is NOT redirected.
-- **Machine-wide names**: the tray app's single-instance mutex and the Linux app's socket in
+- **Machine-wide names**: the tray app's single-instance mutex and the desktop app's socket in
   `$XDG_RUNTIME_DIR` are shared with the person's own copy.
 - **ffmpeg** is still found through `PATH` / `QA_RECORD_FFMPEG_DIR`, and a redirected process can see
   (not own) every ffmpeg on the machine. Never kill an ffmpeg you did not start.
@@ -141,6 +166,11 @@ sandbox-exec -p "$P" ls "/Users/<you>/Movies/AgentEyes"   # MUST say: Operation 
 sandbox-exec -p "$P" env AGENTEYES_REDIRECT_DATA=... AGENTEYES_REDIRECT_VIDEOS=... dotnet agenteyes.dll serve --port N
 log show --start "<when you started>" --style compact --predicate 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "deny("'
 ```
+
+On **Linux** the equivalent is Landlock: `docs/cencon/proof/issue-161/linux-pass2/lldeny.c` (build with
+gcc), `lldeny <real-state-root> <real-recordings-root> -- <cmd>`. Prove it first - `lldeny R1 R2 -- ls R1`
+must say `Permission denied` - and pair it with `strace -f -e trace=%file,%desc`, because Landlock does
+not refuse `stat`.
 
 Start the process with `&` directly - not through a shell function - or `$!` is a subshell's pid and
 your `kill` misses the service (this happened once while producing the #161 proof).

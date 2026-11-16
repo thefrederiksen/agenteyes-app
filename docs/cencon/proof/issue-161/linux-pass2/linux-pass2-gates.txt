@@ -1,0 +1,77 @@
+# Gates on the final pass-2 tree (merge of origin/main 2d60f77 + pass 2), devlinux, under lldeny
+## dotnet test tests/AgentEyes.Tests.Linux -c Release
+Passed!  - Failed:     0, Passed:   387, Skipped:     1, Total:   388, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+## dotnet test tests/AgentEyes.Tests.DesktopApp -c Release (net8.0 on Linux)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 291 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+## tests/AgentEyes.Tests.Mac: compiled on Linux only; RUNS on the macOS CI job. Windows .sln: not buildable here (no WindowsDesktop SDK); CI windows job.
+## Every redirect test, by name (Linux run of the final build)
+Passed AgentEyes.Tests.Shared.DesktopAppRedirectTests.Main_PartialRedirect_RefusedWithExit5AndWritesNothing
+Passed AgentEyes.Tests.Shared.DesktopAppRedirectTests.Main_Redirected_RefusesWithExit5BeforeAnyWindowAndSaysWhy
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.AccountHome_ThisProcess_IsAnAbsoluteFolderThatExists
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_ATypoOfARedirectVariable_RefusedEvenWithNeitherRealOneSet
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_BothAbsoluteScratchFolders_RedirectsToThem
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_BothVariablesTheSameFolder_RefusedBecauseTheRootsWouldBeOne
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_DataInsideTheRealStateRoot_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_DataIsTheRealVideosFolder_RefusedBecauseStateWouldLandInTheRealLibrary
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_EmptyValues_AreUnsetSoOneEmptyIsStillPartial
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_InstallerRootVariable_IsNotARedirectVariable
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_LowerCaseName_UnknownWhereNamesAreCaseSensitive_AcceptedWhereTheyAreNot
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_MachineHasNoVideosFolder_RedirectsWithoutComparingAgainstARelativePath
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_NeitherVariableSet_NotRequested
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_OnlyDataSet_RefusedNamingTheMissingVideosVariable
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_OnlyVideosSet_RefusedNamingTheMissingDataVariable
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_RedirectedRootContainsTheRealRoot_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_RelativePath_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_ScratchRootResolvesIntoTheRealLibrary_RefusedNamingTheResolution
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_SpoofedHomeRedirectOntoTheAccountHomeStateFolder_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_SpoofedHomeRedirectOntoTheAccountHomeVideosFolder_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_UsableFolderCheckFails_RefusedNamingTheVariableAndThePath
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_UsableFolderCheck_RunsOnlyAfterEveryOverlapRuleSoItNeverProbesTheRealLibrary
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_VideosIsTheRealVideosFolder_RefusedAsAMixWithTheRealLibrary
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Decide_WithRealLinks_ScratchAgentEyesLinkedToTheRealRecordingsRoot_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Derive_EnvironmentAgreesWithTheAccount_OneRootNamingBothDerivations
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Derive_MacLayout_IsTheAccountsApplicationSupportAndMovies
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Derive_RelativeAccountHome_ThrowsRatherThanGuessing
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Derive_SpoofedHome_StillProtectsTheAccountHomeLibrary
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Derive_UserDirsMovesVideos_TheAccountsUserDirsDecidesNotTheEnvironments
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Overlaps_TwoFolders_TrueOnlyForSameOrNested(a: ["s", "AgentEyes"], b: ["s", "AgentEyes"], expected: True)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Overlaps_TwoFolders_TrueOnlyForSameOrNested(a: ["s", "AGENTEYES"], b: ["s", "AgentEyes"], expected: True)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Overlaps_TwoFolders_TrueOnlyForSameOrNested(a: ["s", "AgentEyes"], b: ["s", "AgentEyesX"], expected: False)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Overlaps_TwoFolders_TrueOnlyForSameOrNested(a: ["s", "AgentEyes"], b: ["s", "AgentEyes", "x"], expected: True)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Overlaps_TwoFolders_TrueOnlyForSameOrNested(a: ["s", "AgentEyes", "x"], b: ["s", "AgentEyes"], expected: True)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Overlaps_TwoFolders_TrueOnlyForSameOrNested(a: ["s", "data", "AgentEyes"], b: ["s", "videos", "AgentEyes"], expected: False)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_DataFolderDoesNotExist_RefusedWithExit5NamingItAndCreatesNothing
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_FullRedirect_BannerNamesTheRealRootsItDerived
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_FullRedirect_LogsBothRootsIntoTheScratchLogAndSaysSoOnStderr
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_PartialRedirect_RefusedWithExit5AndWritesNothing
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_RedirectedRecordStatus_AgainstAServiceOnAnotherLibrary_RefusedNamingBothLibraries
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_RedirectedServeOnTheDefaultPort_RefusedBeforeListening
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_SpoofedHomeRedirectOntoTheAccountsRealVideosFolder_RefusedWithExit5
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_TypoOfARedirectVariable_RefusedWithExit5
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_VideosFolderNotWritable_RefusedWithExit5NamingIt
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ResolveLinks_ALinkAlongThePath_IsFollowedAndTheMissingTailKept
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ResolveLinks_ARelativeLink_IsResolvedAgainstItsOwnFolder
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceLibraryRefusal_ClientNotRedirectedServiceOnAScratchLibrary_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceLibraryRefusal_NeitherSideRedirectedRootsDiffer_AllowedAsBefore
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceLibraryRefusal_OnlyTheRecordingsRootDiffers_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceLibraryRefusal_SameLibrary_Allowed(redirected: False)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceLibraryRefusal_SameLibrary_Allowed(redirected: True)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceLibraryRefusal_ServiceOnTheRealLibraryClientRedirected_RefusedNamingBoth
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServiceLibraryRefusal_ServicePredatesTheRoots_AllowedOnlyForAnUnredirectedClient
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServicePortRefusal_NotRedirectedOrAnotherPort_Allowed(port: 17894, redirected: False)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServicePortRefusal_NotRedirectedOrAnotherPort_Allowed(port: 17894, redirected: True)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServicePortRefusal_NotRedirectedOrAnotherPort_Allowed(port: 7882, redirected: False)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.ServicePortRefusal_RedirectedOnTheDefaultPort_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.Status_OverTheControlApi_ReportsBothRootsAndTheRedirect
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.UsableFolderProblem_AFileNotAFolder_Refused
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.UsableFolderProblem_ExistingWritableFolder_NullAndLeavesNoProbeBehind
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.UsableFolderProblem_Missing_SaysSoWithTheFix
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.UsableFolderProblem_ReadOnlyFolder_RefusedByARealWrite
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.VideosFromUserDirs_AbsoluteValue_TakenAsWritten
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.VideosFromUserDirs_TheXdgFormat_HomeIsTheAccountsNotTheEnvironments(text: "XDG_MUSIC_DIR=\"$HOME/Music\"", expectedUnderHome: null)
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.VideosFromUserDirs_TheXdgFormat_HomeIsTheAccountsNotTheEnvironments(text: "XDG_VIDEOS_DIR=\"$HOME/A\"\nXDG_VIDEOS_DIR=\"$HOME"..., expectedUnderHome: "B")
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.VideosFromUserDirs_TheXdgFormat_HomeIsTheAccountsNotTheEnvironments(text: "XDG_VIDEOS_DIR=\"$HOME/A\"\nXDG_VIDEOS_DIR=\"relat"..., expectedUnderHome: "A")
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.VideosFromUserDirs_TheXdgFormat_HomeIsTheAccountsNotTheEnvironments(text: "XDG_VIDEOS_DIR=\"$HOME\"", expectedUnderHome: "")
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.VideosFromUserDirs_TheXdgFormat_HomeIsTheAccountsNotTheEnvironments(text: "# XDG_VIDEOS_DIR=\"$HOME/Nope\"\nXDG_VIDEOS_DIR=\""..., expectedUnderHome: "Vids")
+Passed AgentEyes.Tests.Shared.LibraryRedirectTests.VideosFromUserDirs_TheXdgFormat_HomeIsTheAccountsNotTheEnvironments(text: "XDG_VIDEOS_DIR=\"$HOME/Videos\"", expectedUnderHome: "Videos")
+ Total time: 2.3602 Seconds

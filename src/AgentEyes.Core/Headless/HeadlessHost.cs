@@ -82,8 +82,14 @@ namespace AgentEyes.Headless
             Console.WriteLine($"     recordings -> {RecordingPaths.Root}");
             Console.WriteLine($"     data       -> {AppDataPaths.Root}");
             if (LibraryRedirect.AppliedFromEnvironment)
+            {
+                // Issue #161 pass 2: not a bare claim - the real roots it was compared against, and where
+                // each came from, so a reader can check it.
                 Console.WriteLine($"     [redirect] LIBRARY REDIRECTED by {LibraryRedirect.DataVariable}/{LibraryRedirect.VideosVariable} - "
-                                  + "this is NOT the person's real library");
+                                  + "this is NOT the person's real library, which this process derived as:");
+                foreach (var r in LibraryRedirect.RealRoots)
+                    Console.WriteLine($"     [redirect]   {r.Name} {LibraryRedirect.Shown(r)} [{r.DerivedFrom}]");
+            }
             Console.WriteLine($"     signed in to DevThrottle: {(DevThrottle.DevThrottleAccount.IsSignedIn ? "yes" : "NO - run 'agenteyes signin' (recordings will not be transcribed)")}");
             Log.Info($"[HeadlessHost] Run: ready on {server.Url}");
 

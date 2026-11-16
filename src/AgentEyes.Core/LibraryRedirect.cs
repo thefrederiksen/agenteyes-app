@@ -66,9 +66,14 @@ namespace AgentEyes
         public const string TestHostSource = "in-process (test host)";
 
         private static volatile bool _appliedFromEnvironment;
+        private static IReadOnlyList<RealLibrary.Root> _realRoots = Array.Empty<RealLibrary.Root>();
 
         /// <summary>True once <see cref="ApplyFromEnvironment"/> redirected this process.</summary>
         public static bool AppliedFromEnvironment => _appliedFromEnvironment;
+
+        /// <summary>The real roots <see cref="ApplyFromEnvironment"/> derived and checked the redirect
+        /// against (empty until it redirected this process).</summary>
+        public static IReadOnlyList<RealLibrary.Root> RealRoots => _realRoots;
 
         /// <summary>
         /// Where this process's roots came from, for /status: <see cref="EnvironmentSource"/>,
@@ -130,6 +135,24 @@ namespace AgentEyes
             string realLocalAppData, string realVideos, bool namesAreCaseInsensitive,
             Func<string, string>? resolveLinks = null)
         {
+            var real = new List<RealLibrary.Root>();
+            if (Path.IsPathFullyQualified(realLocalAppData))
+                real.Add(new RealLibrary.Root(RealLibrary.StateName, realLocalAppData, "given"));
+            if (Path.IsPathFullyQualified(realVideos))
+                real.Add(new RealLibrary.Root(RealLibrary.RecordingsName, realVideos, "given"));
+            return Decide(data, videos, variableNames, real, namesAreCaseInsensitive, resolveLinks);
+        }
+
+        /// <summary>
+        /// Decide what the two variables ask for, against the real roots <paramref name="realRoots"/> -
+        /// in a real process <see cref="RealLibrary.DeriveForThisProcess"/>: the ACCOUNT's folders (passwd,
+        /// effective uid), never only what this process's spoofable environment says (issue #161 pass 2).
+        /// PURE. A root whose parent is missing or relative is the caller's to leave out.
+        /// </summary>
+        internal static Decision Decide(string? data, string? videos, IEnumerable<string> variableNames,
+            IReadOnlyList<RealLibrary.Root> realRoots, bool namesAreCaseInsensitive,
+            Func<string, string>? resolveLinks = null, Func<string, string?>? usableFolder = null)
+        {
             var resolve = resolveLinks ?? (p => p);
             var nameComparison = namesAreCaseInsensitive ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             var unknown = variableNames
@@ -182,11 +205,10 @@ namespace AgentEyes
             // A real folder that is missing or relative
             // (no Videos folder - issue #169) names no fixed place to protect, and comparing against it
             // would resolve it against the working directory, so it is skipped rather than guessed at.
-            var real = new List<(string Name, string Root)>();
-            if (Path.IsPathFullyQualified(realLocalAppData))
-                real.Add(("the REAL state root", Path.Combine(resolve(Normalize(realLocalAppData)), AppDataPaths.ProductFolder)));
-            if (Path.IsPathFullyQualified(realVideos))
-                real.Add(("the REAL recordings root", Path.Combine(resolve(Normalize(realVideos)), AppDataPaths.ProductFolder)));
+            var real = realRoots
+                .Where(r => Path.IsPathFullyQualified(r.Parent))
+                .Select(r => (Name: r.Name, Root: Path.Combine(resolve(Normalize(r.Parent)), AppDataPaths.ProductFolder), r.DerivedFrom))
+                .ToList();
 
             foreach (var (variable, root, resolved, what) in new[]
                      {
@@ -194,17 +216,64 @@ namespace AgentEyes
                          (VideosVariable, recordingsRoot, recordingsResolved, "recordings root"),
                      })
             {
-                foreach (var (realName, realRoot) in real)
+                foreach (var (realName, realRoot, derivedFrom) in real)
                 {
                     if (Overlaps(resolved, realRoot))
                         return Decision.Refuse(
-                            $"{variable} puts the redirected {what} at {Described(root, resolved)}, which overlaps {realName} {realRoot}. "
+                            $"{variable} puts the redirected {what} at {Described(root, resolved)}, which overlaps {realName} {realRoot} "
+                            + $"(derived from: {derivedFrom}). "
                             + "A redirect exists to keep a process OUT of the real library. "
                             + $"Fix: point {variable} at a scratch directory outside {realRoot}.");
                 }
             }
 
+            // LAST, and only once nothing above refused: each value must be an EXISTING folder this process
+            // can really WRITE to (Lead's ruling N1, issue #161 pass 2). Last, because the check writes a
+            // probe file - run before the overlap rules, it would write one beside or inside the real
+            // library. Never created on the person's behalf: a mistyped path would silently become a new,
+            // empty library and the recordings would land where nobody looks.
+            if (usableFolder != null)
+            {
+                foreach (var (variable, folder) in new[] { (DataVariable, dataFull), (VideosVariable, videosFull) })
+                {
+                    if (usableFolder(folder) is { } why)
+                        return Decision.Refuse($"{variable}={folder} {why}");
+                }
+            }
+
             return Decision.RedirectTo(dataFull, videosFull);
+        }
+
+        /// <summary>
+        /// Null when <paramref name="folder"/> exists and a file can really be created, written and removed in
+        /// it; otherwise why not, with the fix. A REAL write, not access(): access() and permission bits can
+        /// say writable where a write then fails (read-only mounts, ACLs, quotas). The probe file is removed.
+        /// Used by <see cref="ApplyFromEnvironment"/> before anything else touches the folder.
+        /// </summary>
+        internal static string? UsableFolderProblem(string folder)
+        {
+            if (File.Exists(folder))
+                return $"is a file, not a folder. Fix: point it at a directory.";
+            if (!Directory.Exists(folder))
+                return $"does not exist. A redirect never creates its own roots, so a mistyped path cannot quietly become "
+                       + $"a new, empty library. Fix: create it (mkdir -p '{folder}') or correct the path.";
+            string probe = Path.Combine(folder, $".agenteyes-redirect-probe-{Environment.ProcessId}-{Guid.NewGuid():N}");
+            try
+            {
+                using (var fs = new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    fs.WriteByte(0x2A);
+                    fs.Flush(flushToDisk: true);
+                }
+                File.Delete(probe);
+                return null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // The probe IS the check; its failure is the answer, reported - not swallowed.
+                return $"is not writable: a test write of {probe} failed ({ex.GetType().Name}: {ex.Message}). "
+                       + "Fix: point it at a folder this account can write to.";
+            }
         }
 
         /// <summary>
@@ -230,16 +299,36 @@ namespace AgentEyes
                 return Outcome.NotRequested;
             }
 
-            // MachineLocalAppData / MachineVideos do NOT hand out a path (AppDataPaths._handedOut stays
-            // false), so the redirect below is still allowed after reading them.
+            // The REAL roots come from the USER - the passwd entry of the effective uid - and not only from
+            // this process's HOME / XDG_* (issue #161 pass 2): the environment is what a redirect manipulates,
+            // so it cannot also be the authority on what the redirect may touch. Pass 1 asked only the
+            // environment, and HOME=<scratch> turned the owner's ~/.local/share into "not the real library".
+            // MachineLocalAppData / MachineVideos (read inside) do NOT hand out a path
+            // (AppDataPaths._handedOut stays false), so the redirect below is still allowed after this.
+            IReadOnlyList<RealLibrary.Root> realRoots;
+            try
+            {
+                realRoots = RealLibrary.DeriveForThisProcess();
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException
+                                           or ArgumentException or NotSupportedException
+                                           or DllNotFoundException or EntryPointNotFoundException)
+            {
+                // Not a fallback: without the real library there is nothing to check a redirect against,
+                // so the redirect is REFUSED, with the reason.
+                message = "library redirect refused: the person's real library could not be located, so the redirect "
+                          + $"cannot be checked against it: {ex.Message} Fix: run as the account that owns the library.";
+                return Outcome.Refused;
+            }
+
             var decision = Decide(
                 Environment.GetEnvironmentVariable(DataVariable),
                 Environment.GetEnvironmentVariable(VideosVariable),
                 names,
-                AppDataPaths.MachineLocalAppData,
-                AppDataPaths.MachineVideos,
+                realRoots,
                 OperatingSystem.IsWindows(),
-                ResolveLinks);
+                ResolveLinks,
+                UsableFolderProblem);
 
             if (decision.Refused)
             {
@@ -256,16 +345,39 @@ namespace AgentEyes
             }
 
             AppDataPaths.RedirectForThisProcess(decision.Data!, decision.Videos!);
+            // What the banner prints is what was COMPARED: each root with its links resolved (parent only,
+            // exactly as Decide resolved it - the real AgentEyes folder itself is never touched).
+            _realRoots = realRoots
+                .Select(r => r with { ResolvedPath = Path.Combine(ResolveLinks(r.Parent), AppDataPaths.ProductFolder) })
+                .ToList();
             _appliedFromEnvironment = true;
             message = Banner();
             Log.Warn($"[LibraryRedirect] ApplyFromEnvironment: {message}");
             return Outcome.Redirected;
         }
 
-        /// <summary>The one-line statement of where this redirected process keeps its state and recordings.</summary>
+        /// <summary>
+        /// The one-line statement of where this redirected process keeps its state and recordings - and,
+        /// so a reader can CHECK the comparison instead of trusting it (issue #161 pass 2), the real roots
+        /// the guard derived and kept this process out of, each with where it was derived from.
+        /// </summary>
         public static string Banner() =>
             $"LIBRARY REDIRECTED by {DataVariable}/{VideosVariable}: state -> {AppDataPaths.Root} ; "
-            + $"recordings -> {AppDataPaths.RecordingsRoot} ; log -> {Log.Dir} (pid {Environment.ProcessId})";
+            + $"recordings -> {AppDataPaths.RecordingsRoot} ; log -> {Log.Dir} (pid {Environment.ProcessId}) ; "
+            + RealRootsStatement();
+
+        /// <summary>
+        /// "real library kept out: ..." - every real root the guard compared against, with its derivation.
+        /// Empty list (a test host, which never ran the guard) says so rather than claiming anything.
+        /// </summary>
+        public static string RealRootsStatement() =>
+            _realRoots.Count == 0
+                ? "real library: NOT CHECKED (no derivation ran in this process)"
+                : "real library kept out (each root with where it was derived from): "
+                  + string.Join(" ; ", _realRoots.Select(r => $"{r.Name} {Shown(r)} [{r.DerivedFrom}]"));
+
+        /// <summary>A real root as printed: its path, and what it resolved to when a link moved it.</summary>
+        internal static string Shown(RealLibrary.Root r) => Described(r.Path, r.ResolvedPath ?? r.Path);
 
         /// <summary>
         /// The refusal for a service that would listen on <paramref name="port"/>, or null when it may.
@@ -366,7 +478,7 @@ namespace AgentEyes
         private static bool SamePath(string a, string b) =>
             string.Equals(Normalize(a), Normalize(b), StringComparison.OrdinalIgnoreCase);
 
-        private static string Normalize(string path) =>
+        internal static string Normalize(string path) =>
             Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
         /// <summary>True when the two folders are the same or one is inside the other. Case is ignored
