@@ -1,0 +1,44 @@
+#142 ROW 4 (screen only, no audio) - re-run on issue-146-resample-before-framing @ b9bdec1 (main 90c9118 + the UNMERGED #146 fix).
+Host: agenteyes serve --port 7894, pid 8304 (agenteyes.exe sha256 a3c54f9a...097215f), ffmpeg 9.0.2. POST /record/start {"mode":"video","screen":1,"source":"none"}
+
+[ROW4 branch b9bdec1] start 14:02:01.901 load=60% body={"mode":"video","screen":1,"source":"none"}
+[ROW4 branch b9bdec1] status before stop: State=recording Elapsed=23.91 load=28%
+[ROW4 branch b9bdec1] stop 14:02:27.049 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140201_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140201_video\\recording.mp4","DurationSeconds":25.11,"Shots":0}
+[ROW4 branch b9bdec1] dir=2026-11-15_140201_video settled=True after 1.6s load=11%
+[ROW4 branch b9bdec1]   thumbnail: State=done Attempts=1 
+[ROW4 branch b9bdec1]   package: State=failed Attempts=1 Error=ffmpeg failed during extract audio (exit -22). ...:25.80, start: 0.000000, bitrate: 240 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, 237 kb/s, 29.23 fps, 30 tbr,
+[ROW4 branch b9bdec1]   recording.mp4 present: True
+
+== directory
+  1423	14:03:37	manifest.json
+  775690	14:02:27	recording.mp4
+  9712	14:02:28	recording.mp4.ffmpeg.log
+  0	14:02:01	shots
+  27157	14:02:28	thumb.jpg
+
+== 2026-11-15_140201_video
+size 775690
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=25.800000|nb_frames=755
+format|duration=25.800000
+stream|index=0|codec_type=video|nb_read_packets=755
+stream|nb_read_frames=755
+atoms: ftyp 32 @ 0 | free 8 @ 32 | mdat 765489 @ 40 | moov 10161 @ 765529 | file size 775690
+full decode: exit 0, stderr 0 bytes, 1.4 s
+
+== app log (pid 8304)
+14:02:02.411 [pid 8304] [INFO] start video src=None dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_140201_video camera=(none)
+14:02:28.036 [pid 8304] [INFO] stop: return dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_140201_video dur=25.1s deferredMux=False (HUD may close now)
+14:02:28.044 [pid 8304] [INFO] [PostRecording] Execute: 2026-11-15_140201_video - nothing to mux
+14:02:28.047 [pid 8304] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-15_140201_video
+14:02:28.308 [pid 8304] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-15_140201_video in 0.3s
+14:02:28.321 [pid 8304] [INFO] [PostRecording] stage package: start dir=2026-11-15_140201_video
+14:02:28.401 [pid 8304] [ERROR] [PostRecording] stage package FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_140201_video
+14:02:28.543 [pid 8304] [INFO] [PostRecording] Execute: 2026-11-15_140201_video - nothing to mux
+14:02:28.544 [pid 8304] [INFO] [PostRecording] stage package: start dir=2026-11-15_140201_video
+14:02:28.628 [pid 8304] [ERROR] [PostRecording] stage package FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_140201_video
+14:03:37.224 [pid 8304] [INFO] [PostRecording] Execute: 2026-11-15_140201_video - nothing to mux
+14:03:37.225 [pid 8304] [INFO] [PostRecording] stage package: start dir=2026-11-15_140201_video
+14:03:37.319 [pid 8304] [ERROR] [PostRecording] stage package FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_140201_video
+
+RESULT: PASS - exactly one stream (h264 1920x1080 30/1), duration 25.800 s, 755 frames (nb_frames = packets = decoded), moov at a named offset, full decode exit 0 with 0 bytes stderr. Package fails as known #126 (no-audio extract), as on main.

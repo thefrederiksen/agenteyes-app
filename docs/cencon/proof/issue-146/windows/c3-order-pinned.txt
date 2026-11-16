@@ -1,0 +1,73 @@
+Issue #146, criterion 3 - the stage ORDER is pinned, and the pin FAILS when the order is wrong.
+Windows, SORENLAPTOP, branch issue-146-resample-before-framing (off main 432105b).
+ffmpeg 9.0.2 = %LOCALAPPDATA%\AgentEyes\app\ffmpeg.exe (the published bundle); 8.1.1 = winget Gyan build.
+
+== 1. The generated graph after the fix (copied from the app's own log, mic-only default recording)
+[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='C\:/Users/<user>/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a]
+
+== 2. The tests, run with the two stages SWAPPED in FfmpegArgs.MicChain
+   (temporary edit: "{ArnndnFraming},{ArnndnRate},arnndn=" - i.e. framing first, resample after it)
+   ffmpeg 9.0.2. 5 of 7 FAIL. The two that pass do not test the order (the rate constant, and that
+   a chain with denoise off emits no resample).
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_Denoise_ResampleSitsImmediatelyAheadOfTheFraming [13 ms]
+  Error Message:
+   the resample must come BEFORE the framing: -y -i raw.mp4 -filter_complex [0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,aresample=48000,arnndn=m='C\:/m/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a] -map [a] -c:a pcm_f32le -rf64 auto audio_processed.wav
+  Passed AgentEyes.Tests.MicChainSampleRateTests.ArnndnRate_Is48kHz [4 ms]
+  Failed AgentEyes.Tests.MicChainSampleRateTests.ProcessVideoMic_DefaultSettings44kStereoMic_Completes [17 s]
+  Error Message:
+   the default chain failed on a 44.1 kHz mic (ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers): ffmpeg stalled during process mic audio (audio): output stopped advancing at 10.0s of output for 15s (limit 15s) after 16s - process killed
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kQuietVoice_LevelingIsStillApplied [16 s]
+  Error Message:
+   AgentEyes.UsageException : ffmpeg stalled during test: mic chain: output stopped advancing at 5.0s of output for 15s (limit 15s) after 16s - process killed
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kNoise_DenoiseIsStillApplied [16 s]
+  Error Message:
+   AgentEyes.UsageException : ffmpeg stalled during test: mic chain: output stopped advancing at 5.0s of output for 15s (limit 15s) after 16s - process killed
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_NoDenoise_EmitsNoResample [1 ms]
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kSource_ArnndnIsFedStraightFromTheFramingAt48k [1 m]
+  Error Message:
+   ffmpeg did not finish the default mic chain on a 44.1 kHz source within 60 s - stalled
+Total tests: 7
+     Passed: 2
+     Failed: 5
+
+   Note, measured on the way: before the test chain runs were put under the product's stall watchdog,
+   the swapped chain spun one ffmpeg at 565 CPU-seconds on
+   "asetnsamples=n=480:p=1,aresample=48000,arnndn" until it was killed by hand. An explicit resample
+   in the WRONG place reproduces the defect exactly as the auto-inserted one does - it is the position,
+   not who inserts the resampler. The test helpers now run under the watchdog (15 s), so a regression
+   fails in seconds instead of hanging CI.
+
+== 3. ffmpeg's EXECUTED graph (-print_graphs), on ffmpeg 8.1.1 - which does NOT stall, so the only thing
+   that can catch the mechanism there is the graph itself. 44.1 kHz stereo s16 source.
+   unfixed chain (main):   into arnndn: from G0_auto_aresample_1 at 48000 Hz; into asetnsamples: from G0_Parsed_aformat_1 at 44100 Hz   -> test FAILS
+   swapped chain:          into arnndn: from G0_Parsed_aresample_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aformat_1 at 44100 Hz  -> test FAILS
+   fixed chain:            into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz -> PASSES
+
+   The first line IS the defect: ffmpeg inserted "auto_aresample" between the framing and arnndn.
+
+== 4. The fixed code, both ffmpeg versions: MicChainSampleRateTests 10 of 10 pass on 9.0.2, 10 of 10 on 8.1.1
+   (graph test as a theory over source rates):
+ 16000 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+ 22050 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+ 44100 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+ 48000 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+
+== 5. THE GATE GUARD (after the lead's correction: no ffmpeg in the default gate)
+   tests/Shared/MicChainOrderTests.cs - compiled into the Windows, Linux AND macOS test projects. No process,
+   no I/O. It reflects over every FfmpegArgs builder that takes AudioMixOptions, invokes each with denoise ON
+   (doubles at 0 / +0.25 / -0.25 so the macOS alignment stages are covered), and asserts resample, framing,
+   arnndn - adjacent, resample once. A builder it cannot invoke FAILS it; FilterMicToWav, MixMicSystemToWav
+   and MixTwoWav must be present by name. Sections 2-4 above were run with the earlier, ffmpeg-launching
+   version of the order checks, which now live behind AGENTEYES_FFMPEG_TESTS=1.
+
+   With the stages SWAPPED in FfmpegArgs.MicChain (ffmpeg not involved):
+  Failed AgentEyes.Tests.Shared.MicChainOrderTests.EveryMicChainBuilder_DenoiseOn_ResamplesAheadOfTheFraming [21 ms]
+  MixTwoWav: the resample comes AFTER the framing - it undoes it: -y -i fixture.wav -i fixture.wav -filter_complex [0:a]aeval=...
+  FilterMicToWav: the resample comes AFTER the framing - it undoes it: -y -i fixture.wav -filter_complex [0:a]aeval=...
+  FilterMicToWav: the resample comes AFTER the framing - it undoes it: -y -ss 0.25 -i fixture.wav -filter_complex [0:a]aeval=...
+  MixMicSystemToWav: the resample comes AFTER the framing - it undoes it: -y -i fixture.wav -i fixture.wav -filter_complex [0:a]aeval=...
+  (... every builder x fixture combination listed)
+Failed!  - Failed:     1, Passed:     3, Skipped:     0, Total:     4, Duration: 26 ms
+
+   Fixed: 4 of 4 pass. TheGuardFires_OnTheSwappedAndTheUnfixedChains also runs the detector against the
+   unfixed (main) graph, the swapped graph, a separated pair and a doubled resample - all four flagged.

@@ -1,0 +1,52 @@
+Issue #146 QA - opt-in real-ffmpeg tests (MicChainSampleRateTests), AGENTEYES_FFMPEG_TESTS=1, verbosity detailed.
+FIXED = branch b9bdec1. MUTANT = a separate worktree of b9bdec1 with the resample removed from MicChain (QA's mutation).
+
+=== FIXED branch b9bdec1, ffmpeg 9.0.2
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 16000) [1 s]
+ 16000 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 44100) [747 ms]
+ 44100 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 48000) [552 ms]
+ 48000 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 22050) [816 ms]
+ 22050 Hz source | into arnndn: from G0_Parsed_asetnsamples_3 at 48000 Hz; into asetnsamples: from G0_Parsed_aresample_2 at 48000 Hz
+  Passed AgentEyes.Tests.MicChainSampleRateTests.ProcessVideoMic_DefaultSettings44kStereoMic_Completes [1 s]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers: completed in 0.9s
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kQuietVoice_LevelingIsStillApplied [886 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers: quiet RMS with leveling -55.1 dB, without -67.1 dB
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kNoise_DenoiseIsStillApplied [727 ms]
+ ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers: noise RMS with denoise -45.8 dB, without -15.7 dB
+
+=== MUTANT (resample removed), ffmpeg 8.1.1 (never stalls - the graph test must still see the defect)
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 16000) [1 s]
+   Assert.Contains() Failure: Sub-string not found
+ 16000 Hz source | into arnndn: from G0_auto_aresample_1 at 48000 Hz; into asetnsamples: from G0_Parsed_aformat_1 at 16000 Hz
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 44100) [627 ms]
+   Assert.Contains() Failure: Sub-string not found
+ 44100 Hz source | into arnndn: from G0_auto_aresample_1 at 48000 Hz; into asetnsamples: from G0_Parsed_aformat_1 at 44100 Hz
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 48000) [569 ms]
+   Assert.Contains() Failure: Sub-string not found
+ 48000 Hz source | into arnndn: from G0_auto_aresample_1 at 48000 Hz; into asetnsamples: from G0_Parsed_aformat_1 at 48000 Hz
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 22050) [808 ms]
+   Assert.Contains() Failure: Sub-string not found
+ 22050 Hz source | into arnndn: from G0_auto_aresample_1 at 48000 Hz; into asetnsamples: from G0_Parsed_aformat_1 at 22050 Hz
+  Passed AgentEyes.Tests.MicChainSampleRateTests.ProcessVideoMic_DefaultSettings44kStereoMic_Completes [1 s]
+ ffmpeg version 8.1.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers: completed in 1.2s
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kQuietVoice_LevelingIsStillApplied [909 ms]
+ ffmpeg version 8.1.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers: quiet RMS with leveling -55.1 dB, without -67.1 dB
+  Passed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kNoise_DenoiseIsStillApplied [739 ms]
+ ffmpeg version 8.1.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers: noise RMS with denoise -46.4 dB, without -15.8 dB
+
+=== MUTANT (resample removed), ffmpeg 9.0.2
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 16000) [1 s]
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 44100) [1 m]
+   ffmpeg did not finish the default mic chain on a 44.1 kHz source within 60 s - stalled
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 48000) [539 ms]
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k(sourceRate: 22050) [1 m]
+   ffmpeg did not finish the default mic chain on a 44.1 kHz source within 60 s - stalled
+  Failed AgentEyes.Tests.MicChainSampleRateTests.ProcessVideoMic_DefaultSettings44kStereoMic_Completes [16 s]
+   the default chain failed on a 44.1 kHz mic (ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers): ffmpeg stalled during process mic audio (audio): output stopped advancing at 10.0s of output for 15s (limit 15s) after 16s - process killed
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kQuietVoice_LevelingIsStillApplied [16 s]
+   AgentEyes.UsageException : ffmpeg stalled during test: mic chain: output stopped advancing at 5.0s of output for 15s (limit 15s) after 16s - process killed
+  Failed AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kNoise_DenoiseIsStillApplied [16 s]
+   AgentEyes.UsageException : ffmpeg stalled during test: mic chain: output stopped advancing at 5.0s of output for 15s (limit 15s) after 16s - process killed

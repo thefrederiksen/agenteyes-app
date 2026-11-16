@@ -1,0 +1,65 @@
+Issue #146 QA - INDEPENDENT CONTROL on unmodified main 90c9118 (contains #136 two-pass mux and #114).
+Build: a QA worktree at 90c9118, src/AgentEyes.Core built -c Release -p:Platform=x64 -> bin\x64\Release\...\agenteyes.exe
+  agenteyes.dll sha256 d71023d942553483c56513ebe6d6c14a491498facae5147e023811982e248fb3 (UTF-16 'aresample=48000' NOT in the binary)
+Host: 'agenteyes serve --port 7893' (headless recorder + Control API), pid 17696, started 13:55:28, version 1.11.11.
+ffmpeg: QA_RECORD_FFMPEG_DIR=%LOCALAPPDATA%\AgentEyes\app -> 9.0.2 (sha256 3256173f...8ede); the service logged
+  '[HeadlessHost] Run: ffmpeg=%LOCALAPPDATA%\AgentEyes\app\ffmpeg.exe'. (Without that variable PATH resolves 8.1.1,
+  which never stalls - the control would then fail open.)
+Mic: Microphone (2- Realtek(R) Audio), default settings (denoise on, level on). Body: {"mode":"video","screen":1,"source":"mic","mic":"..."}
+3 takes, not 10: this re-checks the developer's 0-of-10 control independently; it does not replace it.
+
+[CTRL-main90c9118 #1] start 13:56:07.074 load=40% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[CTRL-main90c9118 #1] status before stop: State=recording Elapsed=25.06 load=55%
+[CTRL-main90c9118 #1] stop 13:56:33.619 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_135607_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_135607_video\\recording.mp4","DurationSeconds":26.25,"Shots":0}
+[CTRL-main90c9118 #1] dir=2026-11-15_135607_video settled=True after 63.6s load=23%
+[CTRL-main90c9118 #1]   mux: State=running Attempts=2 
+[CTRL-main90c9118 #1]   recording.mp4 present: False
+[CTRL-main90c9118 #2] start 13:57:38.463 load=33% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[CTRL-main90c9118 #2] status before stop: State=recording Elapsed=27.92 load=51%
+[CTRL-main90c9118 #2] stop 13:58:07.987 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_135738_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_135738_video\\recording.mp4","DurationSeconds":29.15,"Shots":0}
+[CTRL-main90c9118 #2] dir=2026-11-15_135738_video settled=True after 63.6s load=18%
+[CTRL-main90c9118 #2]   mux: State=failed Attempts=1 Error=ffmpeg stalled during process mic audio (audio): output stopped advancing at 29.4s of output for 60s (limit 60s) after 62s - process killed
+[CTRL-main90c9118 #2]   recording.mp4 present: False
+[CTRL-main90c9118 #3] start 13:59:12.730 load=37% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[CTRL-main90c9118 #3] status before stop: State=recording Elapsed=31.97 load=24%
+[CTRL-main90c9118 #3] stop 13:59:46.331 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_135913_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_135913_video\\recording.mp4","DurationSeconds":33.16,"Shots":0}
+[CTRL-main90c9118 #3] dir=2026-11-15_135913_video settled=True after 62.8s load=37%
+[CTRL-main90c9118 #3]   mux: State=failed Attempts=1 Error=ffmpeg stalled during process mic audio (audio): output stopped advancing at 33.0s of output for 60s (limit 60s) after 61s - process killed
+[CTRL-main90c9118 #3]   recording.mp4 present: False
+
+== raw capture audio of each take (ffprobe):  135607 / 135738 / 135913 -> aac 44100 Hz stereo
+
+== every mux line the main service (pid 17696) logged for these takes; CHAIN = the mic pass's filter graph
+13:56:34.855 [pid 17696] [INFO] [PostRecording] stage mux: start dir=2026-11-15_135607_video
+CHAIN [0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='%USERPROFILE%/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1
+13:57:37.206 [pid 17696] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_135607_video stage=mux error=ffmpeg stalled during process mic audio (audio): output stopped advancing at 26.2s of output for 60s (limit 60s) after 61s - process killed
+13:57:37.360 [pid 17696] [INFO] [PostRecording] stage mux: start dir=2026-11-15_135607_video
+CHAIN [0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='%USERPROFILE%/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1
+13:58:09.308 [pid 17696] [INFO] [PostRecording] stage mux: start dir=2026-11-15_135738_video
+CHAIN [0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='%USERPROFILE%/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1
+13:58:38.846 [pid 17696] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_135607_video stage=mux error=ffmpeg stalled during process mic audio (audio): output stopped advancing at 26.2s of output for 60s (limit 60s) after 61s - process killed
+13:59:11.082 [pid 17696] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_135738_video stage=mux error=ffmpeg stalled during process mic audio (audio): output stopped advancing at 29.4s of output for 60s (limit 60s) after 62s - process killed
+13:59:11.226 [pid 17696] [INFO] [PostRecording] stage mux: start dir=2026-11-15_135607_video
+CHAIN [0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='%USERPROFILE%/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1
+13:59:16.912 [pid 17696] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_135607_video stage=mux error=ffmpeg failed during process mic audio (audio) (exit -1073741819). ... #0:1 (aac) -> aeval:default
+13:59:47.318 [pid 17696] [INFO] [PostRecording] stage mux: start dir=2026-11-15_135913_video
+CHAIN [0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='%USERPROFILE%/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1
+14:00:48.810 [pid 17696] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_135913_video stage=mux error=ffmpeg stalled during process mic audio (audio): output stopped advancing at 33.0s of output for 60s (limit 60s) after 61s - process killed
+14:00:49.096 [pid 17696] [INFO] [PostRecording] stage mux: start dir=2026-11-15_135738_video
+CHAIN [0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='%USERPROFILE%/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1
+
+RESULT: 0 of 3 takes completed on unfixed main. 6 mux attempts: 5 stalled at the end of the audio (killed by the
+app's 60 s watchdog), 1 crashed (exit -1073741819 = 0xC0000005). Every chain logged is the unfixed one
+(asetnsamples,arnndn - no resample). This matches the developer's control (0 of 10: 9 stalls, 1 crash).
+#136 does not fix this; the fix is necessary, not redundant.
+
+== process hygiene: before stopping, the service had one ffmpeg child: pid 16900, ppid 17696, cpu 16.4 s, started
+14:00:49, the 135738 mic pass. Killed by pid (16900, then 17696), both started by this QA seat. Nothing else touched.
+
+== the SAME raw audio on the fix: this branch's service (pid 8304) later resumed two of these takes:
+14:01:58.793 [pid 8304] [INFO] [PostRecording] stage mux: done dir=2026-11-15_135738_video in 1.6s
+14:01:58.794 [pid 8304] [INFO] [PostRecordingState] NoteDone: 2026-11-15_135738_video stage=mux
+14:02:03.839 [pid 8304] [INFO] [PostRecording] stage mux: done dir=2026-11-15_135913_video in 2.8s
+14:02:03.840 [pid 8304] [INFO] [PostRecordingState] NoteDone: 2026-11-15_135913_video stage=mux
+  135738 -> mux done/Attempts 3, thumbnail done, package done.  135913 -> mux done/Attempts 3, thumbnail done, package done.
+  135607 stays failed/Attempts 3 (all three spent on main) - left in the library as evidence.
