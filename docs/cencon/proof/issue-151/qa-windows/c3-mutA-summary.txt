@@ -1,0 +1,4 @@
+Failed AgentEyes.Tests.MicChainStallTests.MicChain_Denoise_HandsArnndnOnlyWholePaddedFrames [6 ms]
+Error Message:
+--
+Failed!  - Failed:     1, Passed:    26, Skipped:     0, Total:    27, Duration: 41 s - AgentEyes.Tests.dll (net8.0)
