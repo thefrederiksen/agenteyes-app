@@ -5,6 +5,13 @@ the Control API (rows 1, 4, 5, 6), plus rows 11 and 12, which turned out to be r
 8, 9 and 10 belong to the Avalonia desktop app, which does not ship on Windows yet. The Linux report is
 `qa-report-linux.md`. The macOS report is not part of this one and was not run here.
 
+> **Rows 4, 5 and 6 were re-run on 2026-11-16 against main b0e6ae8 (#113 and #156 merged).** See the
+> section "Re-run of rows 4, 5 and 6 on main b0e6ae8" at the end of this report: row 4 **PASS**, row 5
+> **BLOCKED** (this laptop's mic records silence), row 6 **PASS** under the sharpened criterion (duration
+> against the expected take length plus frames decoded at the expected end, with a truncation control
+> that fails). The
+> 2026-11-15 results below are kept unchanged as the record of main 93681fa.
+
 | | |
 |---|---|
 | Machine | SORENLAPTOP - Windows 11 Home 10.0.26200, Intel i5-1135G7 (4 cores / 8 threads), 15.7 GB RAM, two 1920x1080 monitors |
@@ -386,3 +393,278 @@ different build that carries the same version.**
 `row11.txt`, `row12.txt`, `repro-mic-chain-stall.txt`, `log-scan.txt`. No images are committed. The
 frames I read (row 4, the row 6 thumbnail, the row 11 camera) show the owner's screen and home, and
 each one is described in its row instead.
+
+---
+
+## Re-run of rows 4, 5 and 6 on main b0e6ae8 (2026-11-16)
+
+**Why it was re-run.** #113 (merged as b0e6ae8) changes the container of every recording: the capture
+is now fragmented MP4, and a capture watchdog ends a stalled capture. #156 (d0d0a27) makes a capture
+hold a claim (`capture.lock`) that a second process must respect. #146 (497e9d4) resamples the mic to
+48 kHz ahead of arnndn, which is the fix for W1 above. Rows 4-6 measured on 93681fa say nothing about
+any of these.
+
+| | |
+|---|---|
+| Machine | SORENLAPTOP, as above (i5-1135G7, 8 logical CPUs, two 1920x1080 monitors) |
+| Date | 2026-11-16, 15:57 - 16:31 EST |
+| Commit under test | `main` at **b0e6ae8**, clean tree, built with `scripts\build-release.ps1` |
+| Embedded commit of the binaries that ran | **1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb** (ProductVersion of the installed `AgentEyesApp.exe`, `agenteyes.exe` and `agenteyes-setup.exe`) |
+| Process answering | `%LOCALAPPDATA%\AgentEyes\app\AgentEyesApp.exe --tray`, **pid 19972**, started 16:01:27 by the app's own launch update. Every log line quoted carries `[pid 19972]`. Before each row there was no other AgentEyes process and no ffmpeg running |
+| ffmpeg in use | **9.0.2** (gyan.dev essentials, sha256 `3256173f...`), put in place by the launch update (O2 again) |
+| Test gate | `dotnet build AgentEyes.sln -c Release`: **0 Error(s)**, 24 warnings. `dotnet test AgentEyes.sln -c Release`: AgentEyes.Tests **2523 passed, 0 failed, 16 skipped** (the opt-in ffmpeg tests), and AgentEyes.Tests.DesktopApp **23 passed**. SDK 10.0.301 building net8.0, runtime 8.0.21. The gate ran before the rows, never at the same time |
+| Settings | **Defaults**: 30 fps, denoise on, leveling on. No low frame rate was used, so #184 and #188 are not inside these rows |
+
+### Summary of the re-run
+
+| # | Check | Result |
+|---|---|---|
+| 4 | Records the screen, no audio | **PASS** - 967 frames, 32.50 s, one video stream, full decode exit 0, frame read 2 s from the end |
+| 5 | Records screen + microphone, audio within 1.5 s of video | **BLOCKED on this machine** - the mic records silence (a hardware fault). The audio track's LENGTH is 0.723 s short of the video, and the default chain now completes (W1 is gone). But content and sync cannot be measured from a silent mic |
+| 6 | A 10-minute recording completes and is playable | **PASS** (sharpened criterion) - duration 613.400 s against an expected 613.057 s (0.343 s off, tolerance 2 s), **60 frames decoded in the last 2 s of the expected length**, every post-processing stage `done` at attempt 1. The same check **FAILS on all three truncated copies** |
+
+### Which binary was installed, and which one ran (limit 1)
+
+- **On arrival the installed app was 93681fa, which is pre-#156.** `AgentEyesApp.exe`, `agenteyes.exe`
+  and `agenteyes-setup.exe` all read `1.11.11+93681fa5e163624b2098c17f0acd3fc8a49a19c1` (the build the
+  2026-11-15 run installed). It was running as pid 16160 (`--tray`, started 2026-11-15 13:37) and was
+  idle. A row measured against it would not have been a row against main, and that build ignores
+  `capture.lock`.
+- **I reinstalled, from `dist\release` built from b0e6ae8.** `agenteyes-setup plan --release-dir` still
+  reports every component `UpToDate` for a same-version build (W3, unchanged). So I used the same
+  supported route as the 2026-11-15 run:
+  1. Quit pid 16160 through its own quit event.
+  2. `agenteyes-setup uninstall`: **exit 1** on the bundle cache (W2, unchanged).
+  3. `install --release-dir dist\release --autostart on --desktop-shortcut`: **exit 0**, `installed=4`.
+
+  The two recordings inside `%LOCALAPPDATA%\AgentEyes\app\recordings\` (O3) were copied out first and
+  restored afterwards. All six files are sha256-identical before and after.
+- **The installed bytes are the main build.** The sha256 of each of the three exes equals its
+  `dist\release` asset, and each embeds b0e6ae8. The launch update then replaced ffmpeg 8.1.1 with
+  9.0.2 and relaunched the app as pid 19972. It touched nothing else (`binary-identity.txt` has
+  setup-cli.log verbatim).
+- **After this run the installed app is still main b0e6ae8**, running as pid 19972. I did not put
+  93681fa back, because it lacks #113, #146 and #156.
+
+### Row 4 - Records the screen, no audio: PASS
+
+`POST /record/start {"mode":"video","screen":1,"source":"none"}` at 16:04:23.255, stopped at 16:04:55.294
+(take 30.9 s, `Stop: pipeline drained in 98ms ... full take captured`). Directory
+`2026-11-16_160423_video`.
+
+**Expected:** a recording with exactly one stream, a video stream, that decodes cleanly, with its
+ffprobe duration and frame count.
+**Actual:**
+
+| check | `recording.mp4` |
+|---|---|
+| container | **fragmented**, as #113 intends: `ftyp`, then `moov` (769 bytes at offset 28, the index written up front), then **19 `moof`+`mdat` pairs** and an `mfra`. My box walk ends exactly at the file size (837,893) |
+| streams | **exactly one**: h264 1920x1080 30/1. The positive control for "no audio" is the same ffprobe call on rows 5 and 6, which reports an `aac` stream in each |
+| duration | 32.500 s |
+| frame count | `nb_read_frames=967` (decoded with `-count_frames`), 99.2% of 30 fps x 32.5 s |
+| full decode | `ffmpeg -v error -i recording.mp4 -f null -`: **exit 0, 0 lines of stderr** |
+| frame near the end | `-sseof -2 ... -frames:v 1`: exit 0. I read it: the real desktop, with the taskbar clock at **4:04 PM 2026-11-16**, which ties it to this take. Not committed, because it is the owner's screen |
+
+- **#113 and #156, as presences:**
+  - The claim was taken: `CaptureLock TryAcquire: ... claimed by capture session of pid 19972`.
+  - The writer was recorded: `NoteWriter: ... video pid 17268`. That was the only ffmpeg running, and
+    it was a child of 19972.
+  - The watchdog was armed: `StartWatchdog: watching ...\recording.mp4 (stall 45s, start-up 45s, every 2s)`.
+  - Every `/status` sample after the first showed `CaptureLiveness=growing` and no `LastCaptureFault`.
+  - The watchdog was stopped (`StopWatchdog`, 16:04:55.350) before the writer stopped, and the claim
+    was released at 16:04:56.080.
+- **#126 (known):** the package stage `failed` with `extract audio (exit -22)`, on a recording that has
+  no audio by design. The thumbnail stage was `done`.
+
+Evidence: `windows/rerun-b0e6ae8/row4.txt`.
+
+### Row 5 - Records screen + microphone: BLOCKED on this machine
+
+`POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}`
+at 16:15:05, stopped at 16:16:38.387. Default mic settings (denoise on, leveling on). Directory
+`2026-11-16_161505_video`.
+
+**Why blocked, not failed:** this laptop's only microphone delivers silence, with a -96.7 dBFS floor
+(2026-11-15, row 12). That is a hardware fault, not a product defect.
+- The final file's audio measures mean **-68.5 dB** and max -49.5 dB, after leveling. The capture
+  measures mean -80.3 dB.
+- The row asks whether the audio lines up with the video. On a track that carries no signal, sync
+  cannot be measured, so reporting this silence as a product failure would be wrong.
+- Row 5 needs a working mic on another Windows machine.
+
+**What was measured, as a supplement and not a pass:**
+
+| file | video | audio | audio short of video |
+|---|---|---|---|
+| `recording.mp4` (final) | 93.633 s, 2752 frames | aac **48000 Hz** stereo, 92.910 s, 4357 packets | **0.723 s** (within 1.5 s) |
+| `recording.original.mp4` (the capture) | last packet ends at 93.633 s, 2752 frames | aac 44100 Hz stereo, 92.887 s | 0.746 s |
+
+- **W1 no longer reproduces at default settings.** On 93681fa this exact request never produced a
+  `recording.mp4` (three stalled mux attempts). On b0e6ae8 the manifest shows `mux done/1` at
+  **16:16:43.271, 4.0 s after the stop returned** (16:16:39.268).
+  - I followed `PostProcessing.mux.State` in the manifest, not `/status`, which said `idle` at 16:16:39.331.
+  - The final file is 48 kHz, so the #146 resample is in the chain.
+  - Thumbnail, package and plugins are all `done/1`.
+  - Both files decode to exit 0 with no stderr, and the capture is fragmented (56 `moof`+`mdat` pairs).
+- The title stage logged `transcript is empty; nothing to title`. That is the silent mic again.
+- **#157 (audio drift under load) was NOT exercised.** I did not count dropped audio samples. I only
+  measured track lengths, on one take at 23 - 42% load. A clean length on one take does not retire a
+  defect that only bites under load, and the same applies to row 6's 0.900 s.
+
+Evidence: `windows/rerun-b0e6ae8/row5.txt`.
+
+### Row 6 - A 10-minute recording completes and is playable: PASS
+
+**The criterion, sharpened after the Linux seat's truncation control.** Two earlier forms of this check
+turned out to be vacuous.
+- "The `moov` atom is present" passes on a truncated fragmented file, because the index is written up
+  front (row 4's `moov` sits at offset 28).
+- "A full decode to exit 0 plus a frame read near the end" also passes on a truncated file. ffmpeg
+  decodes whatever is there and exits cleanly, and "the end" is then the end of the surviving bytes.
+  **I measured this here** (below): on a copy cut to 50%, the full decode exits 0 and a frame reads
+  2 s from the end of the data.
+
+The form used, which has teeth:
+1. **The duration matches the EXPECTED take length.** The expected length is taken from my driver's
+   own clock: start request 16:17:39.180 to stop request 16:27:52.237 = **613.057 s**. The tolerance
+   is 2 s.
+2. **Frames decode AT that expected end.** At least 40 decoded video frames (20 fps) must have a pts
+   inside the last 2 s of the expected length, [611.057, 613.107] s.
+3. **A truncation control.** The same check is run on truncated copies, and it must FAIL on them.
+
+The full decode is still run and reported, but it no longer decides anything.
+
+`POST /record/start {"mode":"video","screen":1,"source":"mixed","mic":"Microphone (2- Realtek(R) Audio)"}`
+(screen + mic + system, defaults) at 16:17:39.58, stopped at 16:27:52.237 (take **611.95 s**,
+`Stop: pipeline drained in 273ms ... full take captured`). Directory `2026-11-16_161739_video`.
+
+| check | `recording.mp4` (the deliverable) | `recording.original.mp4` (the capture) |
+|---|---|---|
+| completes | manifest: `mux done/1`, `thumbnail done/1`, `package done/1`, `plugins done/1` | - |
+| container | `ftyp`, `free`, `mdat`, then `moov` (671,030 bytes) at the end: the mux writes a plain MP4 | **fragmented**: 360 `moof`+`mdat` pairs and an `mfra`. The walk ends at the file size |
+| video | h264 1920x1080, **613.400 s**, `nb_read_frames=17968` | 17968 frames, last packet ends at 613.400 s |
+| audio | aac 48000 Hz stereo, **612.500 s** (0.900 s short of the video) | aac 44100 Hz, 612.490 s |
+| **full decode** | `ffmpeg -v error -i recording.mp4 -f null -`: **exit 0, 0 lines of stderr**, 24.1 s | **exit 0, 0 lines of stderr**, 25.2 s |
+| frame near the end | `-sseof -2 ... -frames:v 1`: exit 0, a 982,119-byte PNG. I read it: the real desktop, taskbar clock **4:27 PM 2026-11-16**, inside the last seconds of a take that ran 16:17:39 - 16:27:52 | exit 0, the same frame |
+| **duration vs expected 613.057 s** | **613.400 s, 0.343 s off -> OK** | 614.100 s, 1.043 s off -> OK |
+| **frames decoded in [611.057, 613.107] s** | **60 (need >= 40) -> OK**, last decoded pts 613.367 | 60 -> OK, last decoded pts 613.367 |
+| **verdict of the sharpened check** | **PASS** | **PASS** |
+
+**The truncation control: the same check on copies cut short.** The copies were made in a scratch
+folder, and the recordings themselves were not modified.
+
+| truncated copy | duration (vs 613.057) | frames in the last 2 s of the expected length | full decode | sharpened check | previous form (decode exit 0 + frame 2 s before the end of the data) |
+|---|---|---|---|---|---|
+| capture, 98% of its bytes | 600.067 s (12.99 s off) | **0** | exit 0 | **FAIL** | decode passes; the frame read failed (exit 69) -> would fail |
+| capture, 50% of its bytes | 307.333 s (305.7 s off) | **0** (last decoded pts 306.7) | exit 0 | **FAIL** | **decode exit 0 and a frame read -> would PASS a half-length file** |
+| final file, 98% of its bytes | unreadable (`error reading header`: its `moov` is at the end) | 0 | exit -541478725 | **FAIL** | fails |
+
+The last line of the first table is the one that matters. The check that passes the real recording
+fails every truncated copy. The previous form passed the 50% copy, so a row 6 pass under it would not
+have meant anything.
+
+- **Completion was followed on disk, not on `/status`** (#159). `/status` said `idle` at 16:27:53.292.
+  The mux finished at **16:28:29.190**, **35.95 s after the stop returned**. The thumbnail followed at
+  16:28:29.633, the package at 16:28:41.433 and the plugins at 16:28:41.449. Load during the mux was
+  28 - 48%.
+- **The watchdog during a healthy 10 minutes, presence and absence.**
+  - Presence: it was armed at 16:17:40.368 (`stall 45s, start-up 45s, every 2s`).
+  - 55 `/status` samples were logged, about one every 11 s, and `CaptureBytes` climbed to 25,561,151.
+    The first sample said `starting` (0.93 s in). 53 said `growing`. **One said `not-growing`**:
+    92.44 s in, `CaptureSecondsSinceGrowth=2`, at the 2 s fragment cadence and far below the 45 s
+    stall limit. The next sample, 11 s later, said `growing`.
+  - The largest `CaptureSecondsSinceGrowth` in any sample was 2.
+  - The watchdog stopped at 16:27:52.282, before the writer was stopped.
+  - Absence: `LastCaptureFault` was empty throughout and after the stop, and pid 19972 logged no
+    `OnWatchdogTick` line all day. There were **0 WARN/ERROR lines from pid 19972 between 16:17 and
+    16:29**. That grep is not blind: the same pattern returns 1268 INFO lines from pid 19972 in the
+    same window, and it does find the #126 errors at 16:04 and 16:16.
+- **The claim (#156):** `capture.lock` existed in the directory at every sample (`lockfile=True`). The
+  claim was taken by pid 19972 and the writer was ffmpeg pid 23196. It was released at 16:27:53.238,
+  before post-processing claimed the directory. The zero-length `capture.lock` file stays in the
+  directory after release, which the code documents as intended.
+- **Frame delivery, stated:** 17968 frames over 613.4 s is 29.29 fps, 97.6% of nominal. Load was
+  23 - 55% during the take, from the owner's Director and agent sessions.
+- **#121 (system audio starts late), recorded and not this row's failure:** `system.original.wav` is
+  611.87 s, 1.53 s short of the video. Nothing was playing, so the offset itself cannot be measured.
+
+Evidence: `windows/rerun-b0e6ae8/row6.txt`, `windows/rerun-b0e6ae8/row6-endcheck.txt` (the check
+script, both real files and the three truncated copies).
+
+### The empty window (limit 2), measured on this machine
+
+The empty window is the period in which an unclean end leaves nothing in the capture file. **Measured on
+SORENLAPTOP: 2.98 s and 3.09 s from capture ffmpeg start to the first byte in the file, at 30 fps on
+4 cores / 8 logical CPUs**, load 8%.
+- **Method:** two extra screen-only takes at defaults (`2026-11-16_164005_video`, `_164035_video`,
+  20 s each). I polled the capture file's length every 50 ms, read-only, and timed against the ffmpeg
+  process's creation time. That ffmpeg was pid 18728, then pid 4136, each a child of 19972.
+- **What the file did:** it stayed at 0 bytes, then jumped to about 175 KB at once. That is the first
+  fragment together with the `moov` (delay_moov). It then grew about every 2 s, at the fragment
+  cadence.
+- **No row ends inside this window**, so it decides no verdict here.
+- **This is my machine's figure, at this core count and frame rate,** and it is not a platform
+  constant: #188 found the window scales with core count and inversely with frame rate. The 5 fps and
+  1 fps figures were not exercised here, because no low frame rate was run.
+- **Limits of the measurement:** two takes, screen only. The window for a capture with audio was not
+  timed separately.
+
+Evidence: `windows/rerun-b0e6ae8/empty-window.txt`.
+
+### Observations from the re-run (stated, not judged)
+
+- **O4 - the package stage's Attempts count does not grow on resume passes.** Row 4's package stage
+  (#126) failed three times in the log: at 16:04:56.507, at 16:04:56.806 (a `resume` pass), and at
+  16:16:47.083 (a later pass after row 5's stop). The manifest still says `package failed/1`. Either
+  resume passes are deliberately uncounted, or the retry bound is not enforced on them. I did not read
+  the code to decide which.
+- **W2 and W3 from 2026-11-15 are unchanged on b0e6ae8.** The uninstall still exits 1 on another app's
+  `av_libglesv2.dll`, and a same-version build is still reported `UpToDate`.
+- **O2 is unchanged.** The launch update replaced the locally built ffmpeg 8.1.1 with 9.0.2 within 25 s
+  of the first launch.
+
+### What this re-run does NOT cover
+
+- **Row 5's content and sync.** The mic is silent, so nothing here proves that speech lines up with the
+  picture on Windows.
+- **The failure paths #113 exists for.** These were healthy takes. No capture was killed, frozen or
+  starved, so I did not see the watchdog end a capture, and I did not decode a truncated fragmented
+  file. What these rows prove about #113 is narrower: it does **not** disturb a healthy recording at
+  default settings, which was the open question this morning.
+- **#156 against a second process.** I saw one process take, hold and release the claim. No second
+  process tried to touch a live capture, so I did not see the claim respected.
+- **Low frame rates (#184, #188).** Deliberately not run.
+- **Repetition.** One take per row. On 2026-11-15, W1 included a fault seen only once (the 0xC0000005),
+  and one healthy take cannot rule out an intermittent fault.
+- **The desktop-app rows, row 11 (camera) and row 12 (always-on).** Not part of this re-run.
+- **macOS and Linux.** This is the Windows half only.
+
+### State of SORENLAPTOP after the re-run
+
+- **Installed:** main b0e6ae8 (the exes embed `1.11.11+b0e6ae82...`) with ffmpeg 9.0.2. The app is
+  pid 19972, running `--tray`, idle. Run-at-login, the desktop and Start Menu shortcuts, the PATH entry
+  and `DOTNET_BUNDLE_EXTRACT_BASE_DIR` are set as before. The pre-session exe hashes are recorded in
+  `binary-identity.txt`.
+- **`%LOCALAPPDATA%\AgentEyes\app\recordings\`** was restored byte for byte. A copy is left at
+  `%LOCALAPPDATA%\AgentEyes\qa142-preserved\app-recordings-20261116\`.
+- **`%USERPROFILE%\Videos\AgentEyes`: nothing deleted.** Five recordings were added:
+  - `2026-11-16_160423_video` (row 4)
+  - `_161505_video` (row 5)
+  - `_161739_video` (row 6)
+  - `_164005_video` and `_164035_video` (the empty-window takes, 20 s each)
+
+  All five are complete, apart from the package stage on the screen-only takes (#126). The truncated
+  copies for row 6's control were made in a scratch folder outside the library and the repository.
+- **Nothing else was touched.** No ffmpeg was killed, and no preset or audio setting was changed. The
+  owner's library was used only through the real product. No process of mine is left running.
+
+Evidence files (`docs/cencon/proof/issue-142/windows/rerun-b0e6ae8/`):
+- `binary-identity.txt`: the arrival state, the build, the reinstall transcript, the launch update and
+  the gate.
+- `row4.txt`, `row5.txt`, `row6.txt`: the driver transcript, the analysis, the final manifest, app log
+  excerpts and the directory listing.
+- `row6-endcheck.txt`: the sharpened check and the truncation control.
+- `empty-window.txt`: the first-byte timing.
+
+No images are committed. The three end frames I read show the owner's screen, and each is described in
+its row.
