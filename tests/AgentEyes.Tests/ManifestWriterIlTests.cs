@@ -246,6 +246,15 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Transcription.DictionaryStore::Save -> System.IO.File::WriteAllText x1",// the transcription dictionary
             "agenteyes.dll!AgentEyes.Translator::WriteTranslatedVtt -> System.IO.File::WriteAllText x1",     // transcript.<lang>.vtt
             "agenteyes.dll!AgentEyes.Video.FfmpegCameraRecorder::WriteFfmpegLog -> System.IO.File::WriteAllText x1",   // the camera ffmpeg stderr log (issue #28; the FAILED-open path deliberately writes nothing into the recording directory)
+            "agenteyes.dll!AgentEyes.MuxCoordinator::RemoveFragment -> System.IO.File::Delete x1",          // the moov-less fragment a dead mux attempt left at the final path (issue #128 round two, D2)
+            "agenteyes.dll!AgentEyes.MuxLock::TryAcquire -> System.IO.FileStream::.ctor x1",              // <recording>\mux.lock, the cross-process one-writer lock, zero-length (issue #128 round two, D1)
+            "agenteyes.dll!AgentEyes.Audio.AudioMix::RemovePartialOutput -> System.IO.File::Delete x1",    // the partial output of a failed/stalled mix pass (issue #128; moved out of RunStage so a cleanup failure cannot mask the stall, round two D5)
+            "agenteyes.dll!AgentEyes.Audio.AudioMix::RemoveMuxScratch -> System.IO.File::Delete x1",       // the two mux temps, and the final path when the mux did not complete (issue #136; one guarded delete in a loop so a cleanup failure cannot mask the stage error - issue #128 round two, D5)
+            "agenteyes.dll!AgentEyes.Audio.AudioMix::MuxInTwoPasses -> System.IO.File::Move x1",           // THE PUBLISH: the finished mux is renamed onto the final path, so a process death cannot leave a fragment there (issue #136)
+            "agenteyes.dll!AgentEyes.Audio.AudioMix::RemoveStaleTemp -> System.IO.File::Delete x1",        // a mux temp an earlier attempt died holding (issue #136)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::ReapOrphans -> System.IO.File::Delete x2",  // run\ffmpeg\<pid>.json records of reaped/exited children (issue #128)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Register -> System.IO.File::WriteAllText x1",// run\ffmpeg\<pid>.json: a running post-processing child (issue #128)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Unregister -> System.IO.File::Delete x1",   // run\ffmpeg\<pid>.json of a child that exited (issue #128)
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Start -> System.IO.File::WriteAllText x1",        // the ffmpeg stderr log of a failed start
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Stop -> System.IO.File::WriteAllText x1",         // the ffmpeg stderr log
             "agenteyes.dll!AgentEyes.VideoImport::RunAsync -> System.IO.File::Copy x1",                      // the imported video file
@@ -281,7 +290,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Packaging.TitleBackfill::Apply -> AgentEyes.ManifestStore::Update x1",    // the generated title, and the AI cost ADDED to the total
             "agenteyes.dll!AgentEyes.PostRecordingState::Update -> AgentEyes.ManifestStore::Update x1",        // the issue #152 stage journal
             "agenteyes.dll!AgentEyes.RecordingService::BeginSession -> AgentEyes.ManifestStore::Replace x1",   // the record published at start (issue #155)
-            "agenteyes.dll!AgentEyes.RecordingService::FinalizePending -> AgentEyes.ManifestStore::Update x1", // the deferred mux result
+            "agenteyes.dll!AgentEyes.RecordingService::PublishFinalized -> AgentEyes.ManifestStore::Update x1", // the deferred mux result (FinalizePending and, issue #128 round three, a finalize completed after a process death)
             "agenteyes.dll!AgentEyes.RecordingService::Screenshot -> AgentEyes.ManifestStore::Replace x1",     // a one-shot screenshot's own record
             "agenteyes.dll!AgentEyes.RecordingService::Stop -> AgentEyes.ManifestStore::Update x1",            // the stop's own fields
             "agenteyes.dll!AgentEyes.RecoveryManifest::Save -> AgentEyes.ManifestStore::Replace x1",           // the issue #153 reduced last-resort record

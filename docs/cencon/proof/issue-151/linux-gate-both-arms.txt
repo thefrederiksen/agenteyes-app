@@ -1,0 +1,38 @@
+# Issue #151 - Linux gate on devlinux, both arms of criterion 1, at code 6dd5ac6 (+ CLAUDE.md edit only)
+# 2026-11-15T13:44:48-05:00  Linux 6.8.0-147-generic  ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers
+# Instrument: strace -f -e trace=execve over the whole 'dotnet test' process tree. An exec of ffmpeg
+# anywhere under it is counted. The opt-in arm is the positive control: it must show non-zero.
+
+## foreign ffmpeg on this machine before (go2rtc camera wall - NOT started by this work, never touched):
+    PID    PPID %CPU     ELAPSED                  STARTED COMMAND
+2197930 1354205  116    01:28:46 Sun Nov 15 12:16:02 2026 ffmpeg
+
+## ARM 1 - default gate (no opt-in)
+Passed!  - Failed:     0, Passed:   287, Skipped:     1, Total:   288, Duration: 674 ms - AgentEyes.Tests.Linux.dll (net8.0)
+wall 4.55 s
+execve total: 3   ffmpeg execve: 0
+      1 execve("/usr/bin/dotnet"
+      2 execve("/usr/lib/dotnet/dotnet"
+
+## ARM 2 - AGENTEYES_FFMPEG_TESTS=1
+ KillOwned: pid 2788810: killed
+ the owned run returned 0.0s after the kill
+ owned pid 2788810 killed; recorder pid 2788806 alive; parallel pid 2788809 alive
+Total tests: 288
+     Passed: 288
+wall 28.30 s
+execve total: 6   ffmpeg execve: 3
+2788806 execve("/usr/bin/ffmpeg", ["/usr/bin/ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-re", "-f", "lavfi", "-i", "sine=f=440:d=120", "-f", "null", "-"], 0x784f6000e590 /* 84 vars */
+2788809 execve("/usr/bin/ffmpeg", ["/usr/bin/ffmpeg", "-hide_banner", "-nostdin", "-y", "-re", "-f", "lavfi", "-i", "sine=f=300:r=48000:d=120", "-f", "null", "-"], 0x784f0c0043e0 /* 84 vars */ <unfini
+2788810 execve("/usr/bin/ffmpeg", ["/usr/bin/ffmpeg", "-hide_banner", "-progress", "pipe:1", "-stats_period", "1", "-nostdin", "-y", "-re", "-f", "lavfi", "-i", "sine=f=300:r=48000:d=120", "-f", "null
+
+## timing without strace (strace slows real-time encodes; these are the real numbers)
+Passed!  - Failed:     0, Passed:   287, Skipped:     1, Total:   288, Duration: 246 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Passed!  - Failed:     0, Passed:   288, Skipped:     0, Total:   288, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+## foreign ffmpeg after (same pid, still running):
+    PID    PPID %CPU     ELAPSED                  STARTED COMMAND
+2197930 1354205  116    01:29:26 Sun Nov 15 12:16:02 2026 ffmpeg
+## every ffmpeg on the machine after the runs:
+    PID    PPID %CPU     ELAPSED COMMAND
+2197930 1354205  116    01:29:26 ffmpeg

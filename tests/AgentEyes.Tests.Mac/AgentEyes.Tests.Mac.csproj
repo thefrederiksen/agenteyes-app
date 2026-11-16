@@ -48,6 +48,25 @@
     <!-- Issue #122: pure argument-parsing tests shared by all three suites (Windows, Linux, macOS),
          compiled from ONE source file so every platform's build of the CLI passes the same ones. -->
     <Compile Include="../Shared/CliDispatcherTests.cs" Link="Shared/CliDispatcherTests.cs" />
+    <Compile Include="../Shared/MuxLockTests.cs" Link="Shared/MuxLockTests.cs" />
+
+    <!-- Issue #136: ONE guard, compiled into all three suites. FfmpegMuxShapeTests sweeps the
+         argument builders in THIS build - which is the whole point of linking it rather than
+         duplicating it: each suite's sweep sees its own platform's FfmpegArgs partial, so the macOS
+         and Linux builders are covered by the macOS and Linux gates, and the shared ones by all
+         three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
+         graph, because on macOS that command never finalizes. -->
+    <Compile Include="../Shared/FfmpegMuxShapeTests.cs" Link="Shared/FfmpegMuxShapeTests.cs" />
+
+    <!-- Issue #151: a test's failure path kills only the ffmpeg it started (OwnedFfmpeg), never a
+         sweep over every ffmpeg on the machine - which would include a live recording's. Linked into
+         all three suites so each platform's process handling is proven by its own gate. -->
+    <Compile Include="../Shared/OwnedFfmpeg.cs" Link="Shared/OwnedFfmpeg.cs" />
+    <Compile Include="../Shared/OwnedFfmpegTests.cs" Link="Shared/OwnedFfmpegTests.cs" />
+    <!-- The opt-in for tests that launch a real ffmpeg (AGENTEYES_FFMPEG_TESTS=1), shared with the
+         Windows suite so the repo has one convention. -->
+    <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
+    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
   </ItemGroup>
 
 </Project>

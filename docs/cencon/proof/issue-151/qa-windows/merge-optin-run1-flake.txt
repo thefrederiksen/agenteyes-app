@@ -1,0 +1,4 @@
+  Failed AgentEyes.Tests.PreviewTapTests.Dispose_WhileThePublisherIsWedged_ReturnsAndDoesNoFileWorkOfItsOwn [3 s]
+  Error Message:
+   System.UnauthorizedAccessException : Access to the path 'screen.jpg' is denied.
+  Stack Trace:

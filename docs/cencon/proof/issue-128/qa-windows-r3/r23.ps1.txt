@@ -1,0 +1,34 @@
+param([string]$app, [string]$suffix, [string]$tag)
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$F = "$PSScriptRoot\..\fixture3"; $root = "$env:USERPROFILE\Videos\AgentEyes"
+$pub  = "$root\2026-11-15_101000_qa128r3pub$suffix"
+$gone = "$root\2026-11-15_101100_qa128r3gone$suffix"
+$tpl = Get-Content 'C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-128\qa-windows\qa128-crafted-manifest-template.json' -Raw | ConvertFrom-Json
+$tpl.DurationSeconds = 20; $tpl.PendingMux.RawDurationSeconds = 20; $tpl.Microphone = 'issue 128 QA round three R2-3'
+$tpl.PostProcessing = [pscustomobject]@{ mux = [pscustomobject]@{ State = 'running'; Attempts = 1; LastAttemptUtc = '2026-11-15T15:00:00Z' } }
+foreach ($d in $pub, $gone) { New-Item -ItemType Directory $d -Force | Out-Null; $tpl | ConvertTo-Json -Depth 8 | Set-Content "$d\manifest.json" -Encoding ascii; Copy-Item "$F\recording.mp4" $d }
+# pub: death AFTER the mux and AFTER Preserve renamed raw.mp4, BEFORE the manifest write
+Copy-Item "$F\raw.mp4" "$pub\recording.original.mp4"
+# gone: raw.mp4 missing and NO backup - nothing proves the file complete
+"=== $tag app=$app"
+function Show($d) {
+  $m = Get-Content "$d\manifest.json" -Raw | ConvertFrom-Json
+  "  [$(Split-Path $d -Leaf)]"
+  "    PostProcessing: $($m.PostProcessing | ConvertTo-Json -Compress)"
+  "    PendingMux set: $($null -ne $m.PendingMux); OriginalFiles: $($m.OriginalFiles -join ',')"
+  "    files: $((Get-ChildItem $d | ForEach-Object { $_.Name + '(' + $_.Length + ')' }) -join ', ')"
+  if (Test-Path "$d\recording.mp4") { "    recording.mp4 md5: $((Get-FileHash "$d\recording.mp4" -Algorithm MD5).Hash)" } else { "    recording.mp4: ABSENT" }
+}
+"--- initial state"; Show $pub; Show $gone
+for ($i = 1; $i -le 3; $i++) {
+  $a = Start-Process $app -ArgumentList '--tray' -PassThru; $t = Get-Date
+  "launch $i app pid $($a.Id) at $($t.ToString('HH:mm:ss.fff')); waiting 60 s"
+  Start-Sleep 60
+  "--- after launch $i"; Show $pub; Show $gone
+  "    ffmpeg alive now: $(@(Get-Process ffmpeg -ErrorAction SilentlyContinue).Count)"
+  "--- log lines from pid $($a.Id) naming either recording, plus FindUnfinished summaries:"
+  Get-ChildItem "$env:LOCALAPPDATA\AgentEyes\logs\*.log" | Where-Object { $_.LastWriteTime -gt $t } | ForEach-Object { Get-Content $_.FullName } |
+    Where-Object { $_ -match "pid $($a.Id)\]" -and ($_ -match "qa128r3(pub|gone)$suffix" -or $_ -match 'FindUnfinished: root=') } |
+    Where-Object { $_ -notmatch 'ManifestStore\] Update' } | ForEach-Object { if ($_.Length -gt 420) { $_.Substring(0,420) + '...' } else { $_ } }
+  Stop-Process -Id $a.Id -Force; Start-Sleep 2
+}

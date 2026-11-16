@@ -1,0 +1,25 @@
+PREDICTION RECORDED 2026-11-15T19:21:11Z, BEFORE the 1800 s take was probed.
+Build: main f9ef230, dll 1b9092d0, service pid 50642 - the same commit and binary as rows 4/5/6,
+reinstalled after the installer probes (pid 39753 -> 50642).
+
+QUESTION FROM THE LEAD: is the amended row 5 criterion - audio within 1.5 s ABSOLUTE of video -
+right for macOS, or does the skew grow with take length in a way that would eventually breach it?
+
+Two points so far:
+  row 5   32.500 s video -> shortfall 1.0493 s
+  row 6  605.667 s video -> shortfall 1.0885 s
+
+Decomposed: the HEAD term (mic start latency, measured per recording and compensated by adelay)
+grew 7.4 ms across an 18.6x take increase - effectively constant, as a device-start latency must be.
+The TAIL term (video running past the mic's last sample) grew 39.2 ms. All of the growth is there.
+
+TWO HYPOTHESES, and n=2 cannot separate them:
+  (C) CONSTANT skew. The 39 ms is run-to-run scatter in when the two processes stop.
+      Predicts a 1800 s shortfall of ~1.089 s.
+  (D) LINEAR DRIFT at ~68 ppm between the audio device clock and the video timebase.
+      68 ppm is squarely inside the 20-100 ppm band of a commodity crystal mismatch, so this
+      is a mechanism, not a curve-fit artefact.
+      Predicts a 1800 s shortfall of ~1.170 s, and 1.5 s breached at ~1.84 hours.
+
+The two predictions differ by 82 ms - 20x the 4 ms residual my audio accounting closes to -
+so an 1800 s take DISCRIMINATES them. Measurement follows in skew3-probe.txt.

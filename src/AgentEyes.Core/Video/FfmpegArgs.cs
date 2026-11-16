@@ -367,7 +367,9 @@ namespace AgentEyes.Video
                     throw new UsageException(
                         "noise suppression is on but the RNNoise model path is not set - " +
                         "call RnnoiseModel.Ensure() before building mix args");
-                denoise = $"arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
+                // Issue #146: the order is RESAMPLE, then FRAME, then DENOISE - and it is load-bearing.
+                // See ArnndnRate: a resample anywhere after the framing undoes it.
+                denoise = $"{ArnndnRate},{ArnndnFraming},arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
             }
             // The threshold is MEASURED from the capture, never assumed. Building the chain with
             // the gate on but nothing measured is a programming error and says so, exactly like the
@@ -387,7 +389,78 @@ namespace AgentEyes.Video
             }
             // e=4: boost quiet speech up to 4x (+12 dB); p=0.95: normalize peaks to 95%.
             string level = o.VoiceLeveling ? "speechnorm=e=4:p=0.95," : "";
-            return $"[0:a]{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+
+            // Issue #128: replace any non-finite sample with silence BEFORE the first stage that
+            // cannot survive one. A single NaN sample makes speechnorm spin at 100% CPU forever
+            // (measured on ffmpeg 8.1.1 and 9.0.2, Windows and macOS), and a single NaN into arnndn
+            // poisons its recurrent state so every sample after it comes out NaN - which then hangs
+            // speechnorm. NaN/Inf is not audio; zeroing that one sample is inaudible. It is only
+            // emitted when one of those two stages is in the chain.
+            string finite = (o.NoiseSuppression || o.VoiceLeveling) ? FiniteSamples + "," + PinMicLayout(o) + "," : "";
+            return $"[0:a]{finite}{denoise}{gate}{level}volume={Inv(o.MicGain)}[m]";
+        }
+
+        /// <summary>
+        /// Issue #128: per-sample, per-channel (<c>ch</c> = the channel the expression runs for;
+        /// <c>c=same</c> keeps the input layout) replacement of NaN and +/-Inf with 0. Finite
+        /// samples pass through unchanged.
+        /// </summary>
+        internal const string FiniteSamples = "aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same";
+
+        /// <summary>
+        /// Issue #128 (round two, D3): hand arnndn only whole 480-sample frames. arnndn works in
+        /// 480-sample frames and always rounds its output up to a whole frame; when the input ends
+        /// part-way through one, ffmpeg 9.0.2 (gyan.dev Windows build) emits that final frame as 480
+        /// NaN samples (measured: mono and stereo, s16 and float; 8.1.1 emits finite samples), and
+        /// speechnorm then spins forever on it. p=1 pads the last frame with digital silence, so
+        /// arnndn never sees a partial frame. The output length is unchanged - arnndn already rounds
+        /// up to the same whole frame - and every sample before the final frame is bit-identical
+        /// (measured on 8.1.1 and 9.0.2). This AVOIDS the NaN rather than masking it: nothing after
+        /// arnndn zeroes samples, so if arnndn ever emits a NaN for some other reason, speechnorm
+        /// still stalls and the watchdog still fails the stage loudly instead of shipping silence.
+        /// </summary>
+        internal const string ArnndnFraming = "asetnsamples=n=480:p=1";
+
+        /// <summary>
+        /// Issue #146: bring the mic to arnndn's one supported rate, 48 kHz, BEFORE the framing stage.
+        ///
+        /// arnndn accepts only 48000 Hz. Given any other rate, ffmpeg inserts a resampler of its own
+        /// during format negotiation - and it inserts it at arnndn's INPUT, which is AFTER
+        /// <see cref="ArnndnFraming"/>. That resampler re-chunks the audio, so the whole padded
+        /// 480-sample frames the framing stage produced are undone before arnndn sees them, the
+        /// final frame is partial again, and on ffmpeg 9.0.2 the chain stalls or crashes exactly as
+        /// it did before issue #128. Measured on a Windows dshow microphone capturing at 44.1 kHz:
+        /// 10 of 10 default-settings post-processing runs stalled; the same audio at 48 kHz, or with
+        /// this stage ahead of the framing, completed 10 of 10. ffmpeg's own graph dump shows it:
+        /// without this stage the link into arnndn comes from "auto_aresample_0"; with it, the link
+        /// into arnndn comes straight from asetnsamples at 48000 Hz.
+        ///
+        /// WHY HERE AND NOT AT THE CAPTURE. Forcing dshow to capture at 48 kHz would also avoid it,
+        /// but it changes what is RECORDED, and dshow does not resample: a microphone that does not
+        /// offer the requested rate fails to open at all (measured: "Could not set audio only
+        /// options", no recording). This stage changes only what arnndn sees, works on every
+        /// microphone, and - because the chain is shared - covers every platform's mic source,
+        /// whatever rate it arrives at. When the source is already 48 kHz it is a pass-through.
+        /// </summary>
+        internal const string ArnndnRate = "aresample=48000";
+
+        /// <summary>
+        /// Issue #128 round two (D7): pin the sanitizer's OUTPUT to the mic's own channel layout.
+        /// aeval's c=same does not hold its output to its input during format negotiation: in a MIXED
+        /// recording with a MONO mic and a STEREO system track, the downstream amix negotiates the mic
+        /// branch to stereo, aeval is configured mono-in/stereo-out, and ffmpeg segfaults (exit 139,
+        /// 8 of 10 runs on 9.0.2, also on 8.1.1). Measured with the pin: 10 of 10 complete, and the
+        /// output is bit-identical to the chain without a sanitizer. Mic-only recordings (mono or
+        /// stereo) and every other layout pair never crashed; the pin is harmless there.
+        /// </summary>
+        private static string PinMicLayout(AudioMixOptions o)
+        {
+            if (o.MicChannels is not int n || n <= 0)
+                throw new UsageException(
+                    "the mic's channel count has not been measured - call AudioMix preparation before " +
+                    "building mix args (the NaN sanitizer is pinned to the mic's own layout)");
+            string layout = n switch { 1 => "mono", 2 => "stereo", _ => n.ToString(System.Globalization.CultureInfo.InvariantCulture) + "c" };
+            return "aformat=channel_layouts=" + layout;
         }
 
         /// <summary>Safety limiter appended after the last mix stage: stops clipping when the
@@ -399,66 +472,217 @@ namespace AgentEyes.Video
         private static string FilterPath(string path) => path.Replace('\\', '/').Replace(":", "\\:");
 
         /// <summary>
+        /// The clean-voice chain on the mic alone, ending at label [a]: the mic chain plus the
+        /// safety limiter. One graph string, used by every builder that processes a microphone, so
+        /// the processing cannot drift between the WAV path and the video path.
+        /// </summary>
+        /// <param name="micDelay">
+        /// The mic's alignment stage, or "" (issue #114). See <see cref="MicDelayStage"/>: it is a
+        /// filter plus its trailing comma, so an empty string emits the graph these builders emitted
+        /// before alignment existed, byte for byte.
+        /// </param>
+        private static string MicOnlyGraph(AudioMixOptions o, string micDelay = "") =>
+            $"{MicChain(o)};[m]{micDelay}{Limiter}[a]";
+
+        /// <summary>
+        /// The clean-voice chain on the mic (input 0) mixed with a system-audio track (input 1),
+        /// ending at label [a]. normalize=0 keeps each source at the gain the preset chose instead
+        /// of halving both.
+        /// </summary>
+        /// <param name="micDelay">The mic's alignment stage, or "" - see <see cref="MicOnlyGraph"/>.
+        /// A delayed mic needs a stage of its own between [m] and the amix, so it gets one ([md]);
+        /// with no delay the graph is exactly the one this builder emitted before.</param>
+        private static string MicPlusSystemGraph(AudioMixOptions o, string micDelay = "")
+        {
+            string mic = micDelay.Length == 0 ? "[m]" : $"[m]{micDelay}anull[md];[md]";
+            return $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
+                 + $"{mic}[s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
+        }
+
+        /// <summary>
+        /// HOW THE TWO macOS CAPTURES ARE LINED UP (issue #114), as a filter stage for the mic
+        /// branch of a pass-1 graph - or "" when there is nothing to do.
+        ///
+        /// On macOS the microphone is captured by its own ffmpeg, so the two captures are different
+        /// processes with different device warm-ups and their t=0 are not the same instant.
+        /// <paramref name="micOffsetSeconds"/> is how far the mic's first sample sits AFTER the first
+        /// video frame, measured from the capture clock both ffmpegs report, and the sign convention
+        /// is ComposeArgs.CameraInset's:
+        ///  * positive - the mic started LATE, so its samples belong later in the timeline: pad the
+        ///    head with that much silence (adelay, this stage) rather than letting speech run early;
+        ///  * negative - the mic was already running, so the WAV holds audio from before the picture
+        ///    existed: that head is seeked off the INPUT instead (see <see cref="MicInputSeek"/>),
+        ///    which is the cheap form, and this stage is empty.
+        /// Zero does neither, and every non-macOS caller passes zero.
+        ///
+        /// adelay wants milliseconds, and all=1 applies the one value to every channel. A
+        /// sub-millisecond offset is rounded to what the filter can express.
+        /// </summary>
+        private static string MicDelayStage(double micOffsetSeconds) =>
+            micOffsetSeconds > 0
+                ? $"adelay={Inv(Math.Round(micOffsetSeconds * 1000.0, 3))}:all=1,"
+                : "";
+
+        /// <summary>
+        /// The other half of <see cref="MicDelayStage"/>: a NEGATIVE offset means the mic WAV holds
+        /// audio from before the first video frame, so that head is seeked off the input. Returns the
+        /// "-ss &lt;seconds&gt;" pair to place immediately before the mic's own "-i", or an empty
+        /// list. An INPUT seek, so it belongs before that -i and before nothing else.
+        /// </summary>
+        private static List<string> MicInputSeek(double micOffsetSeconds)
+        {
+            double skip = -micOffsetSeconds;
+            return skip > 0
+                ? new List<string> { "-ss", Inv(Math.Round(skip, 6)) }
+                : new List<string>();
+        }
+
+        /// <summary>
+        /// The sample format the intermediate processed-audio WAV is written in (issue #136). 32-bit
+        /// float is what the filtergraph computes in and what the AAC encoder takes, so splitting the
+        /// mux into two passes hands the encoder the SAME samples the single pass did - the two-pass
+        /// output is not a quality step down from the one-pass output it replaces.
+        /// </summary>
+        internal const string ProcessedAudioCodec = "pcm_f32le";
+
+
+        /// <summary>
         /// Mix a mic WAV and a system WAV into one WAV (48 kHz stereo): gate+volume the mic,
         /// volume the system, amix. normalize=0 keeps levels predictable.
         /// </summary>
         public static List<string> MixTwoWav(string micWav, string sysWav, string outWav, AudioMixOptions o)
         {
-            string fc = $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
-                      + $"[m][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
             return new()
             {
                 "-y", "-i", micWav, "-i", sysWav,
-                "-filter_complex", fc, "-map", "[a]", "-ar", "48000", "-ac", "2", outWav,
+                "-filter_complex", MicPlusSystemGraph(o), "-map", "[a]", "-ar", "48000", "-ac", "2", outWav,
             };
         }
 
+        // ---- the two-pass video mux (issue #136) ---------------------------
+        //
+        // WHY THERE ARE TWO PASSES AND NOT ONE. Every one of these builders used to be a single
+        // ffmpeg run that paired "-c:v copy" with a filtered audio stream, and on macOS that shape
+        // DEADLOCKS: the copied video is read and queued almost instantly while the mic is still
+        // being filtered, ffmpeg's muxing queue hits its default bound, and the process then spins
+        // at ~99% CPU past the end of the content without ever finalizing. Measured on a 76 s
+        // recording (issue #136): the shipped single-pass mux never completed, while the same filter
+        // graph with no video present completed in about a second, and so did the same video copy
+        // with no filter graph present. It needs BOTH halves in one command, which is why neither
+        // half alone ever showed it.
+        //
+        // So the two halves are run as two commands:
+        //   pass 1 - the audio filter graph alone, to an intermediate float WAV. No video stream in
+        //            the command, so there is nothing to race the filters;
+        //   pass 2 - the video copy plus that finished WAV. NO filter graph at all, so there is
+        //            nothing for the video to race.
+        // This is the architecture the system-audio path already used with sys_native.wav, and it
+        // needs no tuned queue bound: "-max_muxing_queue_size <n>" also completed, but the depth
+        // needed grows with how far the video can race ahead, so a number that is big enough for a
+        // 76 s recording says nothing about a 10-minute one.
+        //
+        // The invariant this leaves behind: NO argument list in this file pairs a copied video
+        // stream with a filter graph. FfmpegMuxShapeTests sweeps every builder here and fails if one
+        // does - including a builder added later.
+        //
+        // ONE BOUND THE INTERMEDIATE DOES HAVE, named rather than left to be discovered. A plain
+        // RIFF WAV holds its size in 32 bits and so cannot describe more than 4 GB, and float at
+        // 48 kHz is 192 kB/s per channel - about 6 hours of mono or 3 hours of stereo. Long for a
+        // recording, but not impossible, and being wrong about it silently is the same class of
+        // defect as the tuned queue bound above. So pass 1 passes "-rf64 auto": a plain RIFF header
+        // below 4 GB (measured: the same bytes apart from the 36-byte placeholder the upgrade needs)
+        // and an RF64 header only once the file really grows past it. ffmpeg reads either, so pass 2
+        // does not care which it got - also measured.
+
         /// <summary>
-        /// Mux a video that already contains a mic track (input 0) with a separate system WAV
-        /// (input 1): copy the video, mix mic+system into the audio track.
+        /// PASS 1, microphone only: run the mic through the clean-voice chain and the limiter into an
+        /// intermediate WAV. No video stream is present, which is the point (see above).
         /// </summary>
-        public static List<string> MuxVideoMixMicSystem(string rawMp4, string sysWav, string outMp4, AudioMixOptions o)
+        /// <param name="micSource">The microphone capture - a WAV, or a video file whose first audio
+        /// stream is the mic track.</param>
+        /// <param name="micOffsetSeconds">How far the mic's first sample sits after the first video
+        /// frame (issue #114, macOS - see <see cref="MicDelayStage"/>). Zero, which is what every
+        /// platform whose screen recorder captures the mic itself passes, emits the argument list
+        /// this builder emitted before alignment existed, byte for byte.</param>
+        public static List<string> FilterMicToWav(
+            string micSource, string outWav, AudioMixOptions o, double micOffsetSeconds = 0.0)
         {
-            string fc = $"{MicChain(o)};[1:a]volume={Inv(o.SystemGain)}[s];"
-                      + $"[m][s]amix=inputs=2:duration=longest:normalize=0,{Limiter}[a]";
-            return new()
+            var a = new List<string> { "-y" };
+            a.AddRange(MicInputSeek(micOffsetSeconds));
+            a.AddRange(new[]
             {
-                "-y", "-i", rawMp4, "-i", sysWav,
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            };
+                "-i", micSource,
+                "-filter_complex", MicOnlyGraph(o, MicDelayStage(micOffsetSeconds)),
+                "-map", "[a]", "-c:a", ProcessedAudioCodec,
+                // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+                "-rf64", "auto", outWav,
+            });
+            return a;
         }
 
         /// <summary>
-        /// Re-process the mic track already inside a video (input 0) through the full mic chain
-        /// plus the safety limiter: copy the video, re-encode only the audio. Used for mic-only
-        /// recordings so they get the same clean-voice treatment as mixed ones.
+        /// PASS 1, microphone plus system audio: the clean-voice chain on the mic, the system gain on
+        /// the system WAV, the two mixed and limited, into an intermediate WAV.
         /// </summary>
-        public static List<string> FilterVideoMic(string rawMp4, string outMp4, AudioMixOptions o)
+        /// <param name="micSource">The microphone capture - a WAV, or a video file whose first audio
+        /// stream is the mic track.</param>
+        /// <param name="micOffsetSeconds">The mic's alignment against the picture (issue #114,
+        /// macOS - see <see cref="MicDelayStage"/>). It applies to the MIC and never to the system
+        /// WAV: the system track is written by the same process as the picture. Zero emits the list
+        /// this builder emitted before alignment existed, byte for byte.</param>
+        public static List<string> MixMicSystemToWav(
+            string micSource, string sysWav, string outWav, AudioMixOptions o,
+            double micOffsetSeconds = 0.0)
         {
-            string fc = $"{MicChain(o)};[m]{Limiter}[a]";
-            return new()
+            var a = new List<string> { "-y" };
+            a.AddRange(MicInputSeek(micOffsetSeconds));
+            a.AddRange(new[]
             {
-                "-y", "-i", rawMp4,
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            };
+                "-i", micSource, "-i", sysWav,
+                "-filter_complex", MicPlusSystemGraph(o, MicDelayStage(micOffsetSeconds)),
+                "-map", "[a]", "-c:a", ProcessedAudioCodec,
+                // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+                "-rf64", "auto", outWav,
+            });
+            return a;
         }
 
         /// <summary>
-        /// Mux a video-only file (input 0) with a system WAV (input 1) as its sole audio track.
-        /// Used when capturing system audio for video without a microphone.
+        /// PASS 1, system audio only: apply the system gain into an intermediate WAV. The filter is
+        /// cheap enough that it has never been measured losing the race - it is split anyway so that
+        /// the no-filter-graph-beside-a-copied-video invariant holds without an exemption, and so
+        /// that a future stage added to this graph cannot reintroduce the deadlock.
         /// </summary>
-        public static List<string> MuxVideoAddSystem(string rawMp4, string sysWav, string outMp4, double sysGain)
+        public static List<string> FilterSystemToWav(string sysWav, string outWav, double sysGain) => new()
         {
-            string fc = $"[1:a]volume={Inv(sysGain)}[a]";
-            return new()
-            {
-                "-y", "-i", rawMp4, "-i", sysWav,
-                "-filter_complex", fc,
-                "-map", "0:v", "-c:v", "copy", "-map", "[a]", "-c:a", "aac", "-b:a", "160k", outMp4,
-            };
-        }
+            "-y", "-i", sysWav,
+            "-filter_complex", $"[0:a]volume={Inv(sysGain)}[a]",
+            "-map", "[a]", "-c:a", ProcessedAudioCodec,
+            // "-rf64 auto": a plain RIFF WAV cannot describe more than 4 GB. See the block comment above.
+            "-rf64", "auto", outWav,
+        };
+
+        /// <summary>
+        /// PASS 2: copy the video stream from <paramref name="rawMp4"/>, encode the ALREADY-PROCESSED
+        /// audio from <paramref name="processedWav"/>, and mux them. There is deliberately no
+        /// -filter_complex here: the audio arrives finished, so the only work beside the stream copy
+        /// is the AAC encode, and the muxing queue has nothing to deadlock over.
+        ///
+        /// "-f mp4" is explicit rather than inferred from the output's extension, because this pass
+        /// writes to a TEMP path that is renamed into place afterwards
+        /// (<c>AudioMix.MuxingTempPath</c>, issue #136) and ffmpeg guesses the container from the
+        /// file name: without it, ffmpeg refused the temp with "Unable to choose an output format
+        /// ...; use a standard extension for the filename or specify the format manually" and exited
+        /// 234. Measured, by the test that now covers the rename. Naming the format also takes the
+        /// guess out of the normal case, where it happened to guess right.
+        /// </summary>
+        public static List<string> MuxVideoWithProcessedAudio(
+            string rawMp4, string processedWav, string outMp4) => new()
+        {
+            "-y", "-i", rawMp4, "-i", processedWav,
+            "-map", "0:v", "-c:v", "copy", "-map", "1:a", "-c:a", "aac", "-b:a", "160k",
+            "-f", "mp4", outMp4,
+        };
 
         // ---- subtitle burn-in (issue #102) --------------------------------
 

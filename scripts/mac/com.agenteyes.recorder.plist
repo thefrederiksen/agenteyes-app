@@ -34,6 +34,29 @@
     <key>LimitLoadToSessionType</key>
     <string>Aqua</string>
 
+    <!-- THIS LINE IS WHY RECORDINGS KEEP THEIR AUDIO (issue #114), and it is not a tuning
+         preference. A launchd agent with no ProcessType is throttled by macOS as background work:
+         deprioritized CPU, deprioritized I/O and coalesced timers. ffmpeg's AVFoundation capture
+         cannot survive that - its demuxer holds exactly ONE sample buffer per device and silently
+         discards whatever arrives before it is read, so under throttling the samples simply vanish
+         with nothing logged anywhere.
+
+         Measured on devthrottle-mac-mini, the same ffmpeg command line, twice:
+             normal QoS                 -> 1,920,000 bytes = 20.00 s of a 20 s capture. No loss.
+             background QoS (taskpolicy -b) ->  319,392 bytes =  3.33 s of a 20 s capture. 83% GONE.
+         That second number is the defect this issue was filed about: a 30 s screen+mic recording
+         that kept 4.0 s of audio, and a screen capture that ran at 13 fps instead of 30.
+
+         Interactive is the honest classification, not an optimisation: an always-on recorder is
+         latency-sensitive work whose output is wrong, not merely late, when it is descheduled. The
+         recorder also deliberately does NOT get LowPriorityIO - it writes a video stream to disk
+         while it captures. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>LowPriorityIO</key>
+    <false/>
+
     <key>RunAtLoad</key>
     <true/>
 

@@ -1,0 +1,36 @@
+==================================================================
+ARM: interactive      ProcessType:     <key>ProcessType</key><string>Interactive</string>
+load before: 3.82 3.57 3.18
+  wall time: 2s
+	state = not running
+	last exit code = 1
+		state = active
+  stdout tail:
+    [ok] recording monitor 1 (1920x1080) + mic "Yealink UH36" (denoise+level)
+         engine: ffmpeg gdigrab + dshow
+         hotkeys: S=marker screenshot  Q=stop
+load after: 3.82 3.57 3.18
+==================================================================
+ARM: background      ProcessType:     <key>ProcessType</key><string>Background</string>
+load before: 3.82 3.57 3.18
+  wall time: 2s
+	state = not running
+	last exit code = 1
+		state = active
+  stdout tail:
+    [ok] recording monitor 1 (1920x1080) + mic "Yealink UH36" (denoise+level)
+         engine: ffmpeg gdigrab + dshow
+         hotkeys: S=marker screenshot  Q=stop
+load after: 3.59 3.52 3.17
+==================================================================
+ARM: absent      ProcessType: <absent>
+load before: 3.59 3.52 3.17
+  wall time: 3s
+	state = not running
+	last exit code = 1
+		state = active
+  stdout tail:
+    [ok] recording monitor 1 (1920x1080) + mic "Yealink UH36" (denoise+level)
+         engine: ffmpeg gdigrab + dshow
+         hotkeys: S=marker screenshot  Q=stop
+load after: 3.59 3.52 3.17

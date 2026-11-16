@@ -1,6 +1,184 @@
-# row 6 ten-minute screen+mixed  service pid 4100728  load: 4.55 6.96 9.23 4/3274 4193645
-POST /record/start {"mode":"video","screen":1,"source":"mixed","mic":"Family 17h"} at 09:39:07.013932010
-{'State': 'recording', 'Mode': 'video', 'Source': 'mixed', 'Dir': '/home/soren/Videos/AgentEyes/2026-11-15_093907_video'}
-status before stop: elapsed 612.41 s at 09:49:21
-POST /record/stop at 09:49:38.656294774  load: 3.22 3.80 6.30 2/3382 22773
-{'Dir': '/home/soren/Videos/AgentEyes/2026-11-15_093907_video', 'File': '/home/soren/Videos/AgentEyes/2026-11-15_093907_video/recording.mp4', 'DurationSeconds': 629.92, 'Shots': 0}
+Row 6 - a 10-minute recording completes and is playable. main f9ef230 (self-reported commit), service pid 3332249.
+Tested WITHOUT #113: this proves a healthy 10-minute capture completes; it says nothing about a stalled one.
+Request: POST /record/start {"mode":"video","screen":1,"source":"mixed","mic":"Family 17h"}  (screen + mic + system)
+1-min load over the take: min 17.92, max 71.45 (32 cores; foreign go2rtc ffmpeg + other sessions' builds)
+
+== harness timeline (every 5 s: state, elapsed, bytes of raw.mp4, 1-min load)
+start 14:34:40.856 load 28.36 27.30 22.66
+dir ~/Videos/AgentEyes/2026-11-15_143441_video
+14:34:45 recording 4.7 bytes=48 load=31.86
+14:34:51 recording 9.8 bytes=262192 load=30.59
+14:34:56 recording 14.8 bytes=786480 load=30.14
+14:35:01 recording 19.9 bytes=1310768 load=29.17
+14:35:06 recording 25.0 bytes=1572912 load=28.27
+14:35:11 recording 30 bytes=2097200 load=28.97
+14:35:16 recording 35.0 bytes=2359344 load=28.09
+14:35:21 recording 40.1 bytes=2883632 load=29.05
+14:35:26 recording 45.2 bytes=3407920 load=29.20
+14:35:31 recording 50.3 bytes=3932208 load=29.83
+14:35:36 recording 55.3 bytes=4194352 load=29.60
+14:35:41 recording 60.4 bytes=4456496 load=28.91
+14:35:46 recording 65.5 bytes=4980784 load=27.88
+14:35:51 recording 70.5 bytes=5505072 load=27.09
+14:35:56 recording 75.5 bytes=5767216 load=25.88
+14:36:01 recording 80.6 bytes=6553648 load=26.13
+14:36:06 recording 85.6 bytes=6815792 load=27.88
+14:36:11 recording 90.7 bytes=7602224 load=27.09
+14:36:16 recording 95.8 bytes=8388656 load=27.00
+14:36:22 recording 100.8 bytes=8912944 load=26.04
+14:36:27 recording 105.8 bytes=9437232 load=25.08
+14:36:32 recording 111.6 bytes=9961520 load=24.29
+14:36:37 recording 116.7 bytes=10223664 load=24.75
+14:36:42 recording 121.7 bytes=10485808 load=24.29
+14:36:48 recording 126.8 bytes=10747952 load=24.50
+14:36:53 recording 131.8 bytes=11272240 load=24.14
+14:36:58 recording 136.9 bytes=11796528 load=23.65
+14:37:03 recording 141.9 bytes=11796528 load=23.04
+14:37:08 recording 147.0 bytes=12320816 load=23.11
+14:37:13 recording 152.0 bytes=12582960 load=23.02
+14:37:18 recording 157.1 bytes=13107248 load=22.94
+14:37:23 recording 162.1 bytes=13369392 load=22.31
+14:37:28 recording 167.2 bytes=13631536 load=21.64
+14:37:33 recording 172.3 bytes=14155824 load=21.67
+14:37:38 recording 177.3 bytes=14417968 load=25.54
+14:37:43 recording 182.3 bytes=14942256 load=24.86
+14:37:48 recording 187.4 bytes=15466544 load=24.71
+14:37:53 recording 192.5 bytes=15728688 load=24.65
+14:37:58 recording 197.5 bytes=16252976 load=31.08
+14:38:03 recording 202.7 bytes=16515120 load=34.28
+14:38:08 recording 207.7 bytes=17039408 load=33.14
+14:38:14 recording 212.8 bytes=17563696 load=32.33
+14:38:19 recording 217.8 bytes=18087984 load=31.10
+14:38:24 recording 222.9 bytes=18612272 load=30.29
+14:38:29 recording 227.9 bytes=19398704 load=29.14
+14:38:34 recording 233.0 bytes=19922992 load=28.65
+14:38:39 recording 238.0 bytes=20447280 load=28.04
+14:38:44 recording 243.1 bytes=20971568 load=27.48
+14:38:49 recording 248.1 bytes=21495856 load=26.88
+14:38:54 recording 253.2 bytes=22020144 load=26.17
+14:38:59 recording 258.2 bytes=22282288 load=25.03
+14:39:04 recording 263.3 bytes=22806576 load=24.31
+14:39:09 recording 268.4 bytes=23330864 load=23.80
+14:39:14 recording 273.4 bytes=23593008 load=23.18
+14:39:19 recording 278.5 bytes=24117296 load=23.16
+14:39:24 recording 283.5 bytes=24379440 load=24.67
+14:39:29 recording 288.6 bytes=24903728 load=25.02
+14:39:34 recording 293.6 bytes=25165872 load=24.14
+14:39:39 recording 298.7 bytes=25428016 load=23.72
+14:39:44 recording 303.7 bytes=25952304 load=23.27
+14:39:50 recording 308.8 bytes=26214448 load=22.76
+14:39:55 recording 313.8 bytes=26738736 load=22.30
+14:40:00 recording 318.9 bytes=27000880 load=22.76
+14:40:05 recording 324.0 bytes=27525168 load=23.66
+14:40:10 recording 329.0 bytes=28049456 load=24.41
+14:40:15 recording 334.1 bytes=28311600 load=23.81
+14:40:20 recording 339.1 bytes=28835888 load=23.35
+14:40:25 recording 344.2 bytes=29360176 load=23.72
+14:40:30 recording 349.2 bytes=29622320 load=22.86
+14:40:35 recording 354.3 bytes=30146608 load=22.15
+14:40:40 recording 359.3 bytes=30146608 load=21.34
+14:40:45 recording 364.4 bytes=30670896 load=21.07
+14:40:50 recording 369.4 bytes=31195184 load=20.90
+14:40:55 recording 374.5 bytes=31457328 load=20.83
+14:41:00 recording 379.5 bytes=31981616 load=19.96
+14:41:05 recording 384.6 bytes=32505904 load=19.97
+14:41:10 recording 389.7 bytes=33030192 load=20.21
+14:41:15 recording 394.7 bytes=33292336 load=19.47
+14:41:21 recording 399.8 bytes=33554480 load=18.87
+14:41:26 recording 404.8 bytes=34078768 load=18.64
+14:41:31 recording 409.9 bytes=34340912 load=20.43
+14:41:36 recording 414.9 bytes=34865200 load=19.84
+14:41:41 recording 420.0 bytes=35127344 load=19.53
+14:41:46 recording 425.0 bytes=35651632 load=19.81
+14:41:51 recording 430.1 bytes=36175920 load=19.58
+14:41:56 recording 435.1 bytes=36438064 load=19.06
+14:42:01 recording 440.2 bytes=36962352 load=18.89
+14:42:06 recording 445.2 bytes=37748784 load=19.14
+14:42:11 recording 450.3 bytes=38535216 load=18.97
+14:42:16 recording 455.3 bytes=39321648 load=18.73
+14:42:21 recording 460.4 bytes=39845936 load=18.43
+14:42:26 recording 465.4 bytes=40370224 load=18.56
+14:42:31 recording 470.5 bytes=40632368 load=18.59
+14:42:36 recording 475.5 bytes=41156656 load=18.71
+14:42:41 recording 480.6 bytes=41418800 load=18.65
+14:42:46 recording 485.6 bytes=41680944 load=18.60
+14:42:51 recording 490.7 bytes=42205232 load=18.71
+14:42:56 recording 495.7 bytes=42729520 load=18.49
+14:43:02 recording 500.8 bytes=43253808 load=18.21
+14:43:07 recording 505.8 bytes=43778096 load=18.36
+14:43:12 recording 510.9 bytes=44302384 load=18.09
+14:43:17 recording 516.0 bytes=44826672 load=17.92
+14:43:22 recording 521.1 bytes=45088816 load=21.61
+14:43:27 recording 526.2 bytes=45350960 load=35.08
+14:43:32 recording 531.3 bytes=45875248 load=34.59
+14:43:37 recording 536.4 bytes=46137392 load=36.47
+14:43:42 recording 541.5 bytes=46399536 load=37.47
+14:43:47 recording 546.6 bytes=46923824 load=38.63
+14:43:53 recording 551.8 bytes=47448112 load=39.54
+14:43:58 recording 557.0 bytes=48234544 load=40.22
+14:44:03 recording 562.2 bytes=48758832 load=49.49
+14:44:08 recording 567.4 bytes=49020976 load=51.86
+14:44:13 recording 572.6 bytes=49807408 load=53.47
+14:44:18 recording 577.7 bytes=50331696 load=59.44
+14:44:24 recording 582.8 bytes=50855984 load=61.57
+14:44:29 recording 587.9 bytes=51380272 load=71.45
+14:44:34 recording 593.1 bytes=51904560 load=69.25
+14:44:39 recording 598.2 bytes=52428848 load=65.23
+14:44:44 recording 603.3 bytes=53215280 load=65.37
+14:44:49 recording 608.4 bytes=53739568 load=61.34
+14:44:54 recording 613.5 bytes=54001712 load=57.62
+14:44:59 recording 618.5 bytes=54526000 load=54.53
+14:45:04 recording 623.6 bytes=55050288 load=52.25
+14:45:10 recording 628.8 bytes=55574576 load=50.30
+stop-request 14:45:15.062 load 48.36 35.35 27.43
+stop-return 14:45:18.769
+postproc-seen 14:46:44 load 29.25 32.40 27.12
+
+== top-level atoms
+== atoms recording.mp4
+ftyp size=32 offset=0
+free size=8 offset=32
+mdat size=59,272,681 offset=40
+moov size=695,479 offset=59,272,721
+== atoms recording.original.mp4
+ftyp size=32 offset=0
+free size=8 offset=32
+mdat size=56,723,926 offset=40
+moov size=763,803 offset=56,723,966
+
+== ffprobe / counts / full decode / audio pts gaps
+== ~/Videos/AgentEyes/2026-11-15_143441_video/recording.mp4 (59968200 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=635.933333|nb_frames=19078
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=635.760000|nb_frames=29803
+format|duration=635.933333
+stream|index=0|codec_type=video|nb_read_frames=19078|nb_read_packets=19078
+stream|index=1|codec_type=audio|nb_read_frames=29802|nb_read_packets=29803
+full decode exit=0 in 45.761646879 s, load 47.85 38.31 30.10
+audio pts gaps >50ms: 0, missing ~0.000 s, last pts 635.754667
+== ~/Videos/AgentEyes/2026-11-15_143441_video/recording.original.mp4 (57487769 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=635.933333|nb_frames=19078
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=635.862000|nb_frames=29802
+format|duration=635.933333
+stream|index=0|codec_type=video|nb_read_frames=19078|nb_read_packets=19078
+stream|index=1|codec_type=audio|nb_read_frames=29801|nb_read_packets=29802
+full decode exit=0 in 26.113860943 s, load 42.59 40.37 31.94
+audio pts gaps >50ms: 0, missing ~0.000 s, last pts 635.855563
+
+== arithmetic
+  final audio 29803 pkts x 1024 / 48000 = 635.776 s ; video 19078 / 30 = 635.933 s ; difference 0.157 s (bound 1.5 s) ; 99.98%
+  system.original.wav 633.560 s = 2.373 s short of the video (#121); system level mean -91.0 dB / max -91.0 dB (digital silence)
+
+== capture encoder, last progress line, and warning counts (raw.mp4.ffmpeg.log)
+frame=19078 fps= 30 q=-1.0 Lsize=   56140kB time=00:10:35.85 bitrate= 723.3kbits/s dup=125 drop=124 speed=   1x    
+  Thread message queue blocking: 0 ; Queue input is backward: 0 ; Non-monotonic DTS: 0
+
+== service log
+14:45:17.824 [pid 3332249] [INFO] [FfmpegRecorder] Stop: pipeline drained in 184ms (take 635555ms, media origin 526ms) - full take captured
+14:45:18.756 [pid 3332249] [INFO] stop: return dir=~/Videos/AgentEyes/2026-11-15_143441_video dur=634.4s deferredMux=True (HUD may close now)
+14:45:18.774 [pid 3332249] [INFO] [PostRecording] stage mux: start dir=2026-11-15_143441_video
+14:46:29.445 [pid 3332249] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic+system done out=~/Videos/AgentEyes/2026-11-15_143441_video/recording.mp4
+14:46:29.796 [pid 3332249] [INFO] [PostRecording] stage mux: done dir=2026-11-15_143441_video in 71.0s
+14:46:29.813 [pid 3332249] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-15_143441_video
+14:46:30.825 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_143441_video
+14:46:40.628 [pid 3332249] [ERROR] [Package] title generation FAILED for ~/Videos/AgentEyes/2026-11-15_143441_video: transcript is empty; nothing to title. - the recording keeps its preset name
+14:46:40.655 [pid 3332249] [INFO] [PostRecording] stage package: done dir=2026-11-15_143441_video in 9.8s

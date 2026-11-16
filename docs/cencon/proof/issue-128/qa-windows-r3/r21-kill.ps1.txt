@@ -1,0 +1,45 @@
+param([string]$app, [string]$dir, [string]$tag)
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$L = "$PSScriptRoot\listing.ps1"; $name = Split-Path $dir -Leaf
+function M { Get-Content "$dir\manifest.json" -Raw | ConvertFrom-Json }
+function Mux { (M).PostProcessing | ConvertTo-Json -Compress }
+function FfFor { @(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like "*$dir*" }) }
+function Files { (Get-ChildItem $dir | ForEach-Object { $_.Name + '(' + $_.Length + ')' }) -join ', ' }
+function LogFor($procId, $since) {
+  Get-ChildItem "$env:LOCALAPPDATA\AgentEyes\logs\*.log" | Where-Object { $_.LastWriteTime -gt $since } | ForEach-Object { Get-Content $_.FullName } |
+    Where-Object { $_ -match "pid $procId\]" -and ($_ -match [regex]::Escape($name) -or $_ -match 'FindUnfinished: root=') }
+}
+"=== $tag app=$app"; "dir=$dir"
+for ($i = 1; $i -le 3; $i++) {
+  $a = Start-Process $app -ArgumentList '--tray' -PassThru
+  "launch $i app pid $($a.Id) at $((Get-Date).ToString('HH:mm:ss.fff'))"
+  $dl = (Get-Date).AddSeconds(120); while (-not (FfFor) -and (Get-Date) -lt $dl) { Start-Sleep -Milliseconds 250 }
+  Start-Sleep 4
+  & $L "launch $i, mux running"
+  "  ffmpeg targeting this recording: $(@(FfFor).Count)"
+  "  PostProcessing: $(Mux)"
+  Stop-Process -Id $a.Id -Force
+  Start-Sleep 2
+  & $L "launch $i, 2 s after Stop-Process -Force"
+  "  fragment at final path: $((Get-Item "$dir\recording.mp4" -ErrorAction SilentlyContinue).Length) bytes; PostProcessing: $(Mux)"
+}
+foreach ($i in 4, 5) {
+  $m0 = M
+  "before launch ${i}: PostProcessing: $(Mux); ThumbAttempts=$($m0.ThumbAttempts) TranscribeAttempts=$($m0.TranscribeAttempts); files: $(Files)"
+  $a = Start-Process $app -ArgumentList '--tray' -PassThru
+  $t = Get-Date
+  "launch $i app pid $($a.Id) at $($t.ToString('HH:mm:ss.fff')); waiting 75 s"
+  Start-Sleep 75
+  & $L "launch $i, after 75 s"
+  "  ffmpeg targeting this recording: $(@(FfFor).Count)"
+  $m = M
+  "  PostProcessing: $(Mux)"
+  "  PendingMux: $($m.PendingMux | ConvertTo-Json -Compress)"
+  "  ThumbAttempts=$($m.ThumbAttempts) TranscribeAttempts=$($m.TranscribeAttempts)"
+  "  files: $(Files)"
+  "--- log lines from launch $i (pid $($a.Id)) naming this recording, plus every FindUnfinished summary:"
+  LogFor $a.Id $t
+  Stop-Process -Id $a.Id -Force
+  Start-Sleep 2
+  "launch $i stopped"
+}

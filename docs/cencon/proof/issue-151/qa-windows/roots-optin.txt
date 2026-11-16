@@ -1,0 +1,19 @@
+     88 agenteyes-alwayson
+     55 agenteyes-128
+     38 agenteyes-housekeeping
+     31 agenteyes-136
+     29 agenteyes-frames
+     14 agenteyes-decay
+     13 agenteyes-history
+      5 agenteyes-frameorder
+      4 agenteyes-transcodeorder
+      4 agenteyes-restart
+      4 (-version)
+      3 (no temp root)
+      2 agenteyes-stall
+      2 agenteyes-128r2
+      1 agenteyes-stall-template
+      1 agenteyes-restart-template
+      1 agenteyes-expireorder
+      1 agenteyes-alwayson-keyframed
+      1 (list_devices)

@@ -1,0 +1,7 @@
+VSTest version 18.6.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+No test matches the given testcase filter `FullyQualifiedName=No.Such.Test` in C:\ReposFred\agenteyes-app\tests/AgentEyes.Tests/bin/Release/net8.0-windows10.0.19041.0/AgentEyes.Tests.dll
+
+exit code: 0

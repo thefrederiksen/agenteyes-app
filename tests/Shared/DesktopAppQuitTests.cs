@@ -3,26 +3,40 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using AgentEyes.DesktopApp;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Xunit;
 
 // Issue #116 (Windows QA, criterion 11): the desktop app's tray Quit crashed the app on Windows 3 of 3.
 // ONE source file, compiled into AgentEyes.Tests.DesktopApp (in AgentEyes.sln, so the Windows gate runs
 // it) and AgentEyes.Tests.Linux (CI ubuntu-latest), the same way tests/Shared/CliDispatcherTests.cs is.
 //
-// The crash itself happens inside Avalonia's Win32 message loop and cannot run in a unit test. What CAN
-// be pinned is the shape of the fix, so a refactor cannot quietly undo it:
-//   1. TrayPopupCloseGuard - the re-entrant second close of Avalonia's Windows tray popup is cancelled
-//      (that double teardown is the crash), the guard targets a type that still exists, and the app
-//      installs it before the tray icon exists;
-//   2. DeferredQuit - the tray's Quit never shuts the app down inside the menu's click handling.
-// Nothing here starts the app, opens a window or touches the network.
+// THE FIX IS TrayPopupCloseGuard: the re-entrant second close of Avalonia's Windows tray popup is
+// cancelled in Closing, so the popup is torn down once (the double teardown is the crash). Pass 3 measured
+// it on Windows: builds without the guard's cancel crashed 7 of 71 runs, guarded builds 0 of 62.
+//
+// The crash itself happens inside Avalonia's Win32 message loop and cannot run in a unit test. What these
+// tests pin:
+//   1. TrayPopupCloseGuardWindowTests (below) - THE regression test for the fix. The installed guard is
+//      driven through real Avalonia windows' Closing events on the headless platform: a re-entrant close
+//      of the tray popup is cancelled, and a re-entrant close of any other window is not. It fails if the
+//      guard's "e.Cancel = true" is removed, and if the guard attaches to the wrong windows (pass 4: the
+//      Review Gate's mutations G1 and G2).
+//   2. TrayPopupCloseGuard's decision table (CloseState), the popup's type name, and that the app installs
+//      the guard before the tray icon exists.
+//   3. DeferredQuit - the tray's Quit never shuts the app down inside the menu's click handling. This is
+//      NOT the fix and does not prevent the crash: pass 3 measured a build that keeps the deferral and
+//      drops the guard's cancel (it crashed) and one that drops the deferral and keeps the guard (it did
+//      not). The shape is pinned because it is still wanted, not because the crash depends on it.
+// Nothing here starts the app, shows an on-screen window or touches the network.
 namespace AgentEyes.Tests.Shared
 {
     public sealed class DesktopAppQuitTests
     {
-        // ---- 1. TrayPopupCloseGuard ----
+        // ---- 2. TrayPopupCloseGuard: the decision table, the type name, the install order ----
 
         [Fact]
         public void CancelThisClose_FirstClose_IsAllowedAndMarksClosing()
@@ -120,7 +134,7 @@ namespace AgentEyes.Tests.Shared
             Assert.True(tray > install, "TrayPopupCloseGuard must be installed before the TrayController is created");
         }
 
-        // ---- 2. DeferredQuit ----
+        // ---- 3. DeferredQuit: a pinned shape, NOT the crash fix (see the header) ----
 
         [Fact]
         public void Request_ReturnsWithoutRunningTheShutdown()
@@ -208,6 +222,125 @@ namespace AgentEyes.Tests.Shared
                 if (File.Exists(Path.Combine(dir.FullName, "AgentEyes.sln"))) return dir.FullName;
             }
             throw new InvalidOperationException($"AgentEyes.sln not found above {AppContext.BaseDirectory} - these tests read the desktop app's source and must run from a build inside the repository");
+        }
+    }
+
+    /// <summary>
+    /// THE regression test for the issue #116 fix (pass 4). Drives the INSTALLED TrayPopupCloseGuard through
+    /// real Avalonia windows on the headless platform: TrayPopupCloseGuard.Install registers its class
+    /// handler on Window.WindowOpenedEvent exactly as the app does, the window is shown, and the window
+    /// closes itself a second time from inside its first close - the re-entrant shape that crashes on
+    /// Windows (Close -> Dispose -> HandleClosed -> ... -> Close again). The window records each close's
+    /// FINAL Cancel, after every Closing handler (the guard's included) has run.
+    /// </summary>
+    public sealed class TrayPopupCloseGuardWindowTests : IClassFixture<GuardHeadlessSession>
+    {
+        private readonly GuardHeadlessSession _session;
+
+        public TrayPopupCloseGuardWindowTests(GuardHeadlessSession session) => _session = session;
+
+        [Fact]
+        public void TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard()
+        {
+            List<bool> verdicts = _session.CloseReentrantly(() => new Avalonia.Win32.TrayIconImpl.TrayPopupRoot());
+
+            // The instrument must have run - two closes - or the assertions below prove nothing.
+            Assert.True(verdicts.Count == 2,
+                $"expected the first close and one re-entrant close, recorded {verdicts.Count} close(s)");
+            Assert.False(verdicts[0],
+                "the guard cancelled the tray popup's FIRST close - the popup could never be dismissed");
+            Assert.True(verdicts[1],
+                "the tray popup's re-entrant second close was NOT cancelled - TrayPopupCloseGuard did not stop the double teardown that crashes the app on Windows (issue #116)");
+        }
+
+        [Fact]
+        public void OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard()
+        {
+            List<bool> verdicts = _session.CloseReentrantly(() => new ReentrantCloseWindow());
+
+            Assert.True(verdicts.Count == 2,
+                $"expected the first close and one re-entrant close, recorded {verdicts.Count} close(s)");
+            Assert.False(verdicts[0] || verdicts[1],
+                "TrayPopupCloseGuard cancelled a close of a window that is not the tray popup - it must guard Avalonia's Windows tray popup and nothing else");
+        }
+    }
+
+    /// <summary>
+    /// A window that closes itself again from inside its own first close, once, and records the final
+    /// Cancel of every close. The re-close is made from OnClosed, which Avalonia runs while the first
+    /// close is still disposing the window - where the real tray popup's Deactivated handler re-closes it.
+    /// </summary>
+    public class ReentrantCloseWindow : Window
+    {
+        private bool _reclosed;
+
+        /// <summary>The final Cancel of each close, in order.</summary>
+        public List<bool> Verdicts { get; } = new List<bool>();
+
+        protected override void OnClosing(WindowClosingEventArgs e)
+        {
+            base.OnClosing(e);   // raises Closing: every handler, the guard's included, has run after this
+            Verdicts.Add(e.Cancel);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            if (!_reclosed)
+            {
+                _reclosed = true;
+                Close();
+            }
+            base.OnClosed(e);
+        }
+    }
+
+    /// <summary>
+    /// One headless Avalonia session for the guard tests, with the guard installed once, as App does.
+    /// Avalonia can be set up once per process, and TrayPopupCloseGuard.Install refuses a second call.
+    /// </summary>
+    public sealed class GuardHeadlessSession : IDisposable
+    {
+        private readonly HeadlessUnitTestSession _session;
+
+        public GuardHeadlessSession()
+        {
+            _session = HeadlessUnitTestSession.StartNew(typeof(GuardTestApp), AvaloniaTestIsolationLevel.PerAssembly);
+            _session.Dispatch(() => TrayPopupCloseGuard.Install(), CancellationToken.None).GetAwaiter().GetResult();
+        }
+
+        /// <summary>Show the window, close it (it re-closes itself once), and return each close's final Cancel.</summary>
+        public List<bool> CloseReentrantly(Func<ReentrantCloseWindow> create) =>
+            _session.Dispatch(() =>
+            {
+                ReentrantCloseWindow window = create();
+                window.Show();
+                window.Close();
+                return window.Verdicts;
+            }, CancellationToken.None).GetAwaiter().GetResult();
+
+        public void Dispose() => _session.Dispose();
+    }
+
+    /// <summary>The headless application the guard tests run in: no theme, no drawing, nothing on screen.</summary>
+    public sealed class GuardTestApp : Application
+    {
+        public static AppBuilder BuildAvaloniaApp() =>
+            AppBuilder.Configure<GuardTestApp>().UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = true });
+    }
+}
+
+// A stand-in for Avalonia's Windows tray popup. TrayPopupCloseGuard selects windows by FULL TYPE NAME
+// (TrayPopupCloseGuard.TrayPopupTypeName), and the real Avalonia.Win32.TrayIconImpl+TrayPopupRoot is
+// internal to Avalonia.Win32 and opens only on the Win32 platform, so the test declares a window with the
+// same full name. That the real type still exists under that name is pinned separately, by
+// DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow. Like the real
+// popup, it closes itself again while its first close is still tearing it down.
+namespace Avalonia.Win32
+{
+    internal sealed class TrayIconImpl
+    {
+        internal sealed class TrayPopupRoot : AgentEyes.Tests.Shared.ReentrantCloseWindow
+        {
         }
     }
 }

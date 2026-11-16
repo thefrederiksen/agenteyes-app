@@ -1,0 +1,73 @@
+11:48:43.640 [pid 23028] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+11:48:43.641 [pid 23028] [INFO] [FfmpegChildRegistry] ReapOrphans: no records
+11:48:43.641 [pid 23028] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+11:49:03.818 [pid 23028] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+11:49:03.838 [pid 23028] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_120000_stall128 stage=mux
+11:49:03.897 [pid 23028] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+11:49:03.933 [pid 23028] [INFO] [FfmpegChildRegistry] Register: pid 21268 [process mic audio] owner pid 23028
+11:49:37.711 [pid 18792] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+11:49:37.722 [pid 18792] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 21268 [process mic audio]: already exited (or pid reused) - record removed
+11:49:37.722 [pid 18792] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
+11:49:57.885 [pid 18792] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+11:49:57.899 [pid 18792] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_120000_stall128 stage=mux
+11:49:57.945 [pid 18792] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+11:49:57.965 [pid 18792] [INFO] [FfmpegChildRegistry] Register: pid 14140 [process mic audio] owner pid 18792
+11:51:00.383 [pid 18792] [ERROR] ffmpeg [process mic audio] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed. ...frame=  456 fps=7.9 q=-1.0 size=     256KiB time=00:00:30.26 bitrate=  69.3kbits/s speed=0.523x elapsed=0:00:57.89    
+11:51:00.407 [pid 18792] [INFO] [FfmpegChildRegistry] Unregister: pid 14140
+11:51:00.426 [pid 18792] [ERROR] AgentEyes.UsageException: ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+11:51:00.426 [pid 18792] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_120000_stall128 stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+11:53:07.508 [pid 21712] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+11:53:07.509 [pid 21712] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+11:53:27.649 [pid 21712] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+11:53:27.664 [pid 21712] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_120000_stall128 stage=mux
+11:53:27.701 [pid 21712] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+11:53:27.723 [pid 21712] [INFO] [FfmpegChildRegistry] Register: pid 3768 [process mic audio] owner pid 21712
+11:54:30.172 [pid 21712] [ERROR] ffmpeg [process mic audio] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed. ...frame=  456 fps=7.9 q=-1.0 size=     256KiB time=00:00:30.26 bitrate=  69.3kbits/s speed=0.523x elapsed=0:00:57.90    
+11:54:30.198 [pid 21712] [INFO] [FfmpegChildRegistry] Unregister: pid 3768
+11:54:30.207 [pid 21712] [ERROR] AgentEyes.UsageException: ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+11:54:30.208 [pid 21712] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_120000_stall128 stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+11:54:33.041 [pid 21872] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+11:54:33.042 [pid 21872] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+11:54:53.202 [pid 21872] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+11:54:53.218 [pid 21872] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-14_120000_stall128
+11:54:53.321 [pid 21872] [ERROR] [PostRecording] stage thumbnail FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+11:54:53.322 [pid 21872] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_120000_stall128 stage=thumbnail error=ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 000001e9c0bc1c80] moov atom not found
+11:54:53.360 [pid 21872] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+11:54:53.375 [pid 21872] [INFO] [FfmpegChildRegistry] Register: pid 21064 [process mic audio] owner pid 21872
+12:01:51.662 [pid 4064] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+12:01:51.675 [pid 4064] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 21064 [process mic audio]: already exited (or pid reused) - record removed
+12:01:51.675 [pid 4064] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
+12:02:11.835 [pid 4064] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+12:02:11.848 [pid 4064] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_120000_stall128 stage=mux
+12:02:11.886 [pid 4064] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+12:02:11.906 [pid 4064] [INFO] [FfmpegChildRegistry] Register: pid 15396 [process mic audio] owner pid 4064
+12:03:14.228 [pid 4064] [ERROR] ffmpeg [process mic audio] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed. ...frame=  456 fps=7.9 q=-1.0 size=     256KiB time=00:00:30.26 bitrate=  69.3kbits/s speed=0.523x elapsed=0:00:57.91    
+12:03:14.249 [pid 4064] [INFO] [FfmpegChildRegistry] Unregister: pid 15396
+12:03:14.250 [pid 4064] [INFO] [AudioMix] RunStage: process mic audio did not complete - removed partial output C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128\recording.mp4
+12:03:14.270 [pid 4064] [ERROR] AgentEyes.UsageException: ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+12:03:14.271 [pid 4064] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_120000_stall128 stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+12:03:19.137 [pid 11648] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+12:03:19.138 [pid 11648] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:03:39.297 [pid 11648] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+12:03:39.311 [pid 11648] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_120000_stall128 stage=mux
+12:03:39.346 [pid 11648] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+12:03:39.370 [pid 11648] [INFO] [FfmpegChildRegistry] Register: pid 4596 [process mic audio] owner pid 11648
+12:04:41.732 [pid 11648] [ERROR] ffmpeg [process mic audio] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed. ...frame=  456 fps=7.9 q=-1.0 size=     256KiB time=00:00:30.26 bitrate=  69.3kbits/s speed=0.523x elapsed=0:00:57.90    
+12:04:41.754 [pid 11648] [INFO] [FfmpegChildRegistry] Unregister: pid 4596
+12:04:41.755 [pid 11648] [INFO] [AudioMix] RunStage: process mic audio did not complete - removed partial output C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128\recording.mp4
+12:04:41.765 [pid 11648] [ERROR] AgentEyes.UsageException: ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+12:04:41.766 [pid 11648] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_120000_stall128 stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+12:04:47.429 [pid 18628] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+12:04:47.431 [pid 18628] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:05:07.597 [pid 18628] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+12:05:07.612 [pid 18628] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_120000_stall128 stage=mux
+12:05:07.646 [pid 18628] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128
+12:05:07.672 [pid 18628] [INFO] [FfmpegChildRegistry] Register: pid 18288 [process mic audio] owner pid 18628
+12:06:10.092 [pid 18628] [ERROR] ffmpeg [process mic audio] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed. ...frame=  456 fps=7.9 q=-1.0 size=     256KiB time=00:00:30.26 bitrate=  69.3kbits/s speed=0.523x elapsed=0:00:57.89    
+12:06:10.115 [pid 18628] [INFO] [FfmpegChildRegistry] Unregister: pid 18288
+12:06:10.115 [pid 18628] [INFO] [AudioMix] RunStage: process mic audio did not complete - removed partial output C:\Users\soren\Videos\AgentEyes\2026-11-14_120000_stall128\recording.mp4
+12:06:10.126 [pid 18628] [ERROR] AgentEyes.UsageException: ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+12:06:10.127 [pid 18628] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_120000_stall128 stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 62s - process killed
+12:06:15.725 [pid 2728] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+12:06:15.726 [pid 2728] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:06:35.877 [pid 2728] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=0

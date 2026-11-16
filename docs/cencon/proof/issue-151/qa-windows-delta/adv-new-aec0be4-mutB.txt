@@ -1,0 +1,20 @@
+# adversarial ownership run: new-aec0be4-mutB  worktree=%QA_SCRATCH%\wt-new  optin=1
+2026-11-16T08:20:28.4655399-05:00  laptop app /status before: State=idle
+2026-11-16T08:20:28.4784961-05:00  ffmpeg processes before: 0 []
+2026-11-16T08:20:28.5170172-05:00  dotnet test started pid 20896
+2026-11-16T08:20:34.8479844-05:00  test's stalling ffmpeg seen by shim: 2026-11-16T13:20:34.6334777Z	ffmpeg	pid=23328	cwd=%QA_SCRATCH%\w
+2026-11-16T08:20:36.8795654-05:00  FOREIGN ffmpeg started: pid 8400 start 2026-11-16T08:20:36.8701205-05:00 (after the test's own ffmpeg, so inside the window)
+2026-11-16T08:21:34.8117237-05:00  dotnet test exited: code 1
+2026-11-16T08:21:34.8475241-05:00    test: [xUnit.net 00:01:03.59]         failure path: pid 23328: killed
+2026-11-16T08:21:34.8500918-05:00    test: failure path: pid 23328: killed
+2026-11-16T08:21:34.8600890-05:00    test: Total tests: 1
+2026-11-16T08:21:34.8806521-05:00  FOREIGN pid 8400: ALIVE after the failure path
+2026-11-16T08:21:34.8977501-05:00  QA cleanup: killed FOREIGN pid 8400 by its own handle (QA started it)
+2026-11-16T08:21:34.9054568-05:00  ffmpeg processes after: 0 []
+2026-11-16T08:21:34.9531088-05:00  laptop app /status after: State=idle
+2026-11-16T08:21:34.9531088-05:00  RESULT new-aec0be4-mutB foreignAlive=True testExit=1
+   RunWatched was still running after 60 s - the stall guard did not fire
+  Error Message:
+ failure path: pid 23328: killed
+[xUnit.net 00:01:03.59]         failure path: pid 23328: killed
+[xUnit.net 00:01:03.59]       RunWatched was still running after 60 s - the stall guard did not fire

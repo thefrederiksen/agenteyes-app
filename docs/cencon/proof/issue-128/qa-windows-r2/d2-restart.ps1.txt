@@ -1,0 +1,46 @@
+param([string]$app, [string]$dir, [string]$cli, [string]$tag)
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$L = "$PSScriptRoot\listing.ps1"; $name = Split-Path $dir -Leaf
+function M { Get-Content "$dir\manifest.json" -Raw | ConvertFrom-Json }
+function Mux { (M).PostProcessing | ConvertTo-Json -Compress }
+function FfFor { @(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like "*$dir*" }) }
+"=== $tag app=$app"; "dir=$dir"
+for ($i = 1; $i -le 3; $i++) {
+  $a = Start-Process $app -ArgumentList '--tray' -PassThru
+  "launch $i app pid $($a.Id) at $((Get-Date).ToString('HH:mm:ss.fff'))"
+  $dl = (Get-Date).AddSeconds(120); while (-not (FfFor) -and (Get-Date) -lt $dl) { Start-Sleep -Milliseconds 250 }
+  Start-Sleep 4
+  & $L "launch $i, mux running"
+  "  PostProcessing: $(Mux)"
+  if ($i -eq 1 -and $cli) {
+    $c = Start-Process $cli -ArgumentList @('package', "`"$dir`"") -PassThru -NoNewWindow -RedirectStandardOutput "$PSScriptRoot\$tag-cli.out" -RedirectStandardError "$PSScriptRoot\$tag-cli.err"
+    $c.WaitForExit(30000) | Out-Null
+    "  CLI package pid $($c.Id) during the app's mux: exited=$($c.HasExited)"
+    Get-Content "$PSScriptRoot\$tag-cli.out","$PSScriptRoot\$tag-cli.err" -ErrorAction SilentlyContinue | Select-Object -Last 2 | ForEach-Object { "    $_" }
+    & $L "launch 1, after the CLI package attempt"
+    "  ffmpeg targeting this recording: $(@(FfFor).Count)"
+    "  PostProcessing: $(Mux)"
+  }
+  Stop-Process -Id $a.Id -Force
+  Start-Sleep 2
+  & $L "launch $i, 2 s after Stop-Process -Force"
+  "  fragment at final path: $((Get-Item "$dir\recording.mp4" -ErrorAction SilentlyContinue).Length) bytes; PostProcessing: $(Mux)"
+}
+$m0 = M
+"before launch 4: ThumbAttempts=$($m0.ThumbAttempts) TranscribeAttempts=$($m0.TranscribeAttempts)"
+$a = Start-Process $app -ArgumentList '--tray' -PassThru
+$t4 = Get-Date
+"launch 4 app pid $($a.Id) at $($t4.ToString('HH:mm:ss.fff')); waiting 90 s"
+Start-Sleep 90
+& $L "launch 4, after 90 s"
+$m = M
+"  PostProcessing: $(Mux)"
+"  ThumbAttempts=$($m.ThumbAttempts) TranscribeAttempts=$($m.TranscribeAttempts)"
+"  recording.mp4 present: $(Test-Path "$dir\recording.mp4"); thumb.jpg present: $(Test-Path "$dir\thumb.jpg")"
+"  files: $((Get-ChildItem $dir | ForEach-Object { $_.Name + '(' + $_.Length + ')' }) -join ', ')"
+"--- log lines naming this recording from launch 4 (pid $($a.Id)):"
+Get-ChildItem "$env:LOCALAPPDATA\AgentEyes\logs\*.log" | Where-Object { $_.LastWriteTime -gt $t4 } | ForEach-Object { Get-Content $_.FullName } | Where-Object { $_ -match "pid $($a.Id)\]" -and ($_ -match [regex]::Escape($name)) }
+"--- any thumbnail / transcribe / package activity by pid $($a.Id) (any recording):"
+Get-ChildItem "$env:LOCALAPPDATA\AgentEyes\logs\*.log" | Where-Object { $_.LastWriteTime -gt $t4 } | ForEach-Object { Get-Content $_.FullName } | Where-Object { $_ -match "pid $($a.Id)\]" -and $_ -match 'thumbnail|Thumbnail|transcri|Transcri|\[Package\]|FindUnfinished' }
+Stop-Process -Id $a.Id -Force
+"launch 4 stopped"

@@ -1,0 +1,42 @@
+Supplementary, unintended: a 608 s screen-only take. main f9ef230, service pid 3332249.
+Cause: the harness's first stop request had no body; the service answered 411 Length Required and kept
+recording (a harness bug, not a product defect). It was stopped correctly at 14:20:39 (DurationSeconds 608.52).
+
+start 14:10:30.985 load 8.77 12.20 12.38
+dir ~/Videos/AgentEyes/2026-11-15_141031_video
+14:10:34 recording 3.0 bytes=48 load=8.70
+14:10:39 recording 8.1 bytes=524336 load=8.89
+14:10:44 recording 13.3 bytes=1048624 load=8.82
+14:10:49 recording 18.4 bytes=1310768 load=8.67
+stop-request 14:10:54.540 load 9.26 12.02 12.32
+stop-return 14:10:54.557
+postproc-seen 14:20:41 load 10.76 18.47 16.64
+stop (correct) 14:20:39 -> HTTP 200, DurationSeconds 608.52
+
+== top-level atoms
+ftyp size=32 offset=0
+free size=8 offset=32
+mdat size=38,103,604 offset=40
+moov size=215,458 offset=38,103,644
+
+== ~/Videos/AgentEyes/2026-11-15_141031_video/recording.mp4 (38319102 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=608.566667|nb_frames=18257
+format|duration=608.566667
+stream|index=0|codec_type=video|nb_read_frames=18257|nb_read_packets=18257
+full decode exit=0 in 29.147456250 s, load 27.97 35.57 31.15
+
+== service log
+14:20:39.972 [pid 3332249] [INFO] [FfmpegRecorder] Stop: pipeline drained in 324ms (take 606483ms, media origin 1751ms) - full take captured
+14:20:40.392 [pid 3332249] [INFO] stop: return dir=~/Videos/AgentEyes/2026-11-15_141031_video dur=608.5s deferredMux=False (HUD may close now)
+14:20:40.398 [pid 3332249] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-15_141031_video
+14:20:40.810 [pid 3332249] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-15_141031_video in 0.4s
+14:20:40.811 [pid 3332249] [INFO] [PostRecordingState] NoteDone: 2026-11-15_141031_video stage=thumbnail
+14:20:40.828 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_141031_video
+14:20:41.015 [pid 3332249] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-15_141031_video
+14:20:41.015 [pid 3332249] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_141031_video stage=package error=ffmpeg failed during extract audio (exit 234). ...00000, bitrate: 503 kb/s
+14:20:41.092 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_141031_video
+14:20:41.233 [pid 3332249] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-15_141031_video
+14:20:41.233 [pid 3332249] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_141031_video stage=package error=ffmpeg failed during extract audio (exit 234). ...00000, bitrate: 503 kb/s
+14:21:20.398 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_141031_video
+14:21:20.658 [pid 3332249] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-15_141031_video
+14:21:20.658 [pid 3332249] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_141031_video stage=package error=ffmpeg failed during extract audio (exit 234). ...00000, bitrate: 503 kb/s

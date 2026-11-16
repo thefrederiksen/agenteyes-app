@@ -1,0 +1,18 @@
+=== run 43870216038 6a65fa18af8955e45fd1f5ca7105f977513de43b pull_request success
+windows | Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 39 s - AgentEyes.Tests.dll (net8.0)
+windows | Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 46 s - AgentEyes.Tests.dll (net8.0)
+macos | Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 421 ms - AgentEyes.Tests.Mac.dll (net8.0)
+linux | Passed!  - Failed:     0, Passed:   291, Skipped:     1, Total:   292, Duration: 780 ms - AgentEyes.Tests.Linux.dll (net8.0)
+linux | Passed!  - Failed:     0, Passed:   292, Skipped:     0, Total:   292, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+=== run 43871518893 aec0be41a537fdd39aecee3172a20d055857c8e8 push success
+windows | Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 38 s - AgentEyes.Tests.dll (net8.0)
+windows | Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 43 s - AgentEyes.Tests.dll (net8.0)
+macos | Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 213 ms - AgentEyes.Tests.Mac.dll (net8.0)
+linux | Passed!  - Failed:     0, Passed:   291, Skipped:     1, Total:   292, Duration: 349 ms - AgentEyes.Tests.Linux.dll (net8.0)
+linux | Passed!  - Failed:     0, Passed:   292, Skipped:     0, Total:   292, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+=== run 43871527682 aec0be41a537fdd39aecee3172a20d055857c8e8 pull_request success
+macos | Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 326 ms - AgentEyes.Tests.Mac.dll (net8.0)
+windows | Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 40 s - AgentEyes.Tests.dll (net8.0)
+windows | Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 55 s - AgentEyes.Tests.dll (net8.0)
+linux | Passed!  - Failed:     0, Passed:   291, Skipped:     1, Total:   292, Duration: 404 ms - AgentEyes.Tests.Linux.dll (net8.0)
+linux | Passed!  - Failed:     0, Passed:   292, Skipped:     0, Total:   292, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)

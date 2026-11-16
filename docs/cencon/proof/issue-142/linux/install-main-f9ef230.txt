@@ -1,0 +1,24 @@
+# Row 1 is NOT re-run in this pass. This is the install that put main f9ef230 on devlinux for rows 4-6.
+# Route: scripts/linux/install.sh from a clean checkout of main at f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab.
+# The mktemp staging directory is shown as <stage>; the signed-in account is shown as <owner account>.
+
+14:09:10
+ 14:09:10 up 6 days,  4:41,  2 users,  load average: 10.04, 13.42, 12.76
+Building agenteyes (Release, linux-x64, self-contained) ...
+<repo>/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [<repo>/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+[OK] built <stage>/agenteyes
+Stopping the running service (a running recording is stopped and kept) ...
+[OK] installed ~/.local/lib/agenteyes, linked ~/.local/bin/agenteyes, unit ~/.config/systemd/user/agenteyes.service
+[OK] enabled at login (graphical-session.target)
+Building the AgentEyes app (Release, linux-x64, self-contained) ...
+[OK] installed the app (~/.local/lib/agenteyes-app): 'AgentEyes' in the app grid, starts in the tray at login
+[OK] service is up: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
+[OK] signed in as <owner account>
+[OK] AgentEyes app started - its window opens, and the moon in the top bar stays when you close it
+
+Ready. Open AgentEyes from the app grid or the moon in the top bar. From a terminal:
+            record: agenteyes record start --mix --mic "<part of your mic name>"
+            stop:   agenteyes record stop
+  list mics with:   agenteyes screens
+exit=0
+14:09:31

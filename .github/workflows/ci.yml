@@ -29,7 +29,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Download ffmpeg (essentials build)
-        # The suite exercises the real encoder and refuses to skip (see release.yml).
+        # The suite exercises the real encoder (see release.yml); the opted-in pass below needs it most.
         shell: pwsh
         run: |
           $zip = "$env:RUNNER_TEMP/ffmpeg-essentials.zip"
@@ -71,6 +71,15 @@ jobs:
           test $fail -eq 0 && echo "[OK] the Windows desktop app links the Windows engine (gdigrab, NAudio; no x11grab/pulse/v4l2/avfoundation)"
           exit $fail
 
+      # Issue #151: the tests that launch a real ffmpeg are opt-in, so the gate an agent runs after
+      # every change stays fast. They are NOT optional here: this second pass sets the opt-in and
+      # runs the whole suite again, so every opt-in test (the #128 mic-chain guards among them) still
+      # runs on every push. A guard behind a flag nobody sets would be a deleted guard.
+      - name: Test AgentEyes.sln with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1)
+        env:
+          AGENTEYES_FFMPEG_TESTS: "1"
+        run: dotnet test AgentEyes.sln -c Release --no-build
+
   linux:
     runs-on: ubuntu-latest
     steps:
@@ -107,6 +116,16 @@ jobs:
           fi
           test $fail -eq 0 && echo "[OK] the Linux desktop app links the Linux engine (x11grab, pulse; no avfoundation, no NAudio)"
           exit $fail
+
+      # Issue #151: the opt-in tests that launch a real ffmpeg - among them the proof that a test's
+      # failure path kills only the ffmpeg it started and leaves an unrelated one running.
+      - name: Install ffmpeg
+        run: command -v ffmpeg || { sudo apt-get update -q && sudo apt-get install -y -q ffmpeg; }
+
+      - name: Test the Linux build with the ffmpeg-backed tests (AGENTEYES_FFMPEG_TESTS=1)
+        env:
+          AGENTEYES_FFMPEG_TESTS: "1"
+        run: dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release --no-build
 
       # The Linux job also builds the macOS configuration, because the thing most likely to break it
       # is a change made on Linux that forgets the third platform exists. This is a COMPILE check

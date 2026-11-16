@@ -1,0 +1,45 @@
+Row 11 - camera + microphone, default mic settings. Windows, SORENLAPTOP, main 93681fa, app pid 22104, ffmpeg 9.0.2.
+Camera present: PnP 'USB2.0 HD UVC WebCam' Status OK; /devices cameras: ["USB2.0 HD UVC WebCam"]
+POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)","camera":"USB2.0 HD UVC WebCam"}
+start 11:27:16.100 (load 21%), /status at +10s: elapsed=10.21 camera=USB2.0 HD UVC WebCam CameraStuck=False, stop 11:27:39.434 -> DurationSeconds 20.4
+
+== camera.mp4 (decoded frame count)
+stream|codec_name=h264|width=1280|height=720|r_frame_rate=10000000/333333|duration=23.266643|nb_read_frames=323
+   a frame at 10 s was extracted and read: a real, lit room (ceiling light, wall, door) - not blank. Not committed (it is the owner's home).
+== app log (pid 22104)
+11:27:16.790 [pid 22104] [INFO] [FfmpegCameraRecorder] Create: camera="USB2.0 HD UVC WebCam" fps=30 crf=23 out=%USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video\camera.mp4 preview=no
+11:27:16.793 [pid 22104] [INFO] [FfmpegCameraRecorder] Open: camera="USB2.0 HD UVC WebCam" out=%USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video\camera.mp4
+11:27:18.473 [pid 22104] [INFO] [FfmpegCameraRecorder] Open: camera="USB2.0 HD UVC WebCam" is recording to %USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video\camera.mp4
+11:27:19.064 [pid 22104] [INFO] start video src=Mic dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video camera=USB2.0 HD UVC WebCam
+11:27:42.381 [pid 22104] [INFO] [FfmpegCameraRecorder] Stop: camera="USB2.0 HD UVC WebCam" done, 23.1s in %USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video\camera.mp4 lostMidRun=False stopKind=clean-quit stderrComplete=True complete=yes
+11:27:42.415 [pid 22104] [INFO] [PostRecording] stage mux: start dir=2026-11-15_112716_video
+11:27:48.046 [pid 22104] [ERROR] [PostRecording] stage mux FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video
+11:27:48.047 [pid 22104] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_112716_video stage=mux error=ffmpeg failed during process mic audio (exit -1073741819). ... (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, q=2-31, 152 kb/s, 19.90 fps, 30 tbr, 15360 tbn (default)
+11:27:48.053 [pid 22104] [INFO] [PostRecording] Execute: 2026-11-15_112716_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+11:27:48.380 [pid 22104] [INFO] [PostRecording] stage mux: start dir=2026-11-15_112716_video
+11:28:49.835 [pid 22104] [ERROR] [PostRecording] stage mux FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video
+11:28:49.835 [pid 22104] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_112716_video stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 21.6s of output for 60s (limit 60s) after 61s - process killed
+11:28:49.839 [pid 22104] [INFO] [PostRecording] Execute: 2026-11-15_112716_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+11:31:34.641 [pid 22104] [INFO] [PostRecording] stage mux: start dir=2026-11-15_112716_video
+11:32:36.055 [pid 22104] [ERROR] [PostRecording] stage mux FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_112716_video
+11:32:36.055 [pid 22104] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_112716_video stage=mux error=ffmpeg stalled during process mic audio: output stopped advancing at 21.6s of output for 60s (limit 60s) after 61s - process killed
+11:32:36.060 [pid 22104] [INFO] [PostRecording] Execute: 2026-11-15_112716_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+== manifest PostProcessing
+{
+ "mux": {
+  "State": "failed",
+  "Attempts": 3,
+  "LastAttemptUtc": "2026-11-15T16:31:34.637721Z",
+  "Error": "ffmpeg stalled during process mic audio: output stopped advancing at 21.6s of output for 60s (limit 60s) after 61s - process killed"
+ }
+}
+== directory now
+  0	11:32:36	.
+  0	11:27:16	..
+  4978281	11:27:41	camera.mp4
+  8417	11:27:42	camera.mp4.ffmpeg.log
+  2131	11:32:36	manifest.json
+  0	11:27:42	mux.lock
+  812741	11:27:41	raw.mp4
+  8705	11:27:41	raw.mp4.ffmpeg.log
+  0	11:27:16	shots

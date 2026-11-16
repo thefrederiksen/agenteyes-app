@@ -1,10 +1,143 @@
-# row 5 screen+mic  service pid 4100728  load: 5.81 8.43 10.02 2/3372 4143391
-POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Family 17h"} at 09:36:37.098575032
-{'State': 'recording', 'Mode': 'video', 'Source': 'mic', 'Dir': '/home/soren/Videos/AgentEyes/2026-11-15_093637_video'}
-POST /record/stop at 09:38:23.763167312  load: 4.62 7.24 9.42 3/3530 4179838
-{
-  "Dir": "/home/soren/Videos/AgentEyes/2026-11-15_093637_video",
-  "File": "/home/soren/Videos/AgentEyes/2026-11-15_093637_video/recording.mp4",
-  "DurationSeconds": 105.49,
-  "Shots": 0
-}
+Row 5 - screen + microphone. main f9ef230, service pid 3332249 (agenteyes.dll 766086dc...).
+Request (both takes): POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Family 17h"}
+Default mic settings (arnndn + speechnorm chain). AAC 48 kHz, 1024 samples per packet.
+
+################ TAKE A - 2026-11-15_142203_video ################
+Note: the harness's no-growth alarm fired at 14:22:42. It was not a stall: raw.mp4 grew from 14:22:49
+and the capture ffmpeg was running at 110-165% CPU (process state R). It was output held back by a
+CPU-starved encoder (speed 0.68x at 26 s). The take was then stopped by hand at the planned length.
+
+start 14:22:03.340 load 43.56 25.52 19.18
+dir ~/Videos/AgentEyes/2026-11-15_142203_video
+14:22:13 recording 9.7 bytes=0 load=39.69
+14:22:18 recording 14.8 bytes=0 load=38.19
+14:22:24 recording 20.1 bytes=48 load=35.85
+14:22:32 recording 26.7 bytes=48 load=34.52
+14:22:37 recording 33.4 bytes=48 load=34.08
+14:22:42 recording 38.5 bytes=48 load=32.55
+STALL: no growth for 15s - NOT stopping
+stop-request 14:23:49.521 load 20.86 23.05 18.98
+stop-return 14:23:51.215
+postproc-seen 14:24:03 load 20.02 22.74 18.95
+
+== growth sampled at 1 s after the alarm (time, raw.mp4 bytes, 1-min load, capture ffmpeg %CPU)
+14:23:04 3407920 28.76 165 ... 14:23:35 6029360 22.30 155   (256 KiB writes every 1-7 s)
+
+== ~/Videos/AgentEyes/2026-11-15_142203_video/recording.mp4 (8496890 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=104.600000|nb_frames=3138
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=98.990000|nb_frames=4642
+format|duration=104.600000
+stream|index=0|codec_type=video|nb_read_frames=3138|nb_read_packets=3138
+stream|index=1|codec_type=audio|nb_read_frames=4641|nb_read_packets=4642
+full decode exit=0 in 3.244802866 s, load 21.12 22.85 19.06
+== ~/Videos/AgentEyes/2026-11-15_142203_video/recording.original.mp4 (8111265 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=104.600000|nb_frames=3138
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=104.538000|nb_frames=4641
+format|duration=104.600000
+stream|index=0|codec_type=video|nb_read_frames=3138|nb_read_packets=3138
+stream|index=1|codec_type=audio|nb_read_frames=4640|nb_read_packets=4641
+full decode exit=0 in 3.854368103 s, load 19.87 22.52 19.00
+
+== audio packet pts gaps > 50 ms in recording.original.mp4 (the raw capture)
+  0.000 -> 1.309 (1.309 s)
+  1.309 -> 1.820 (0.510 s)
+  1.820 -> 2.139 (0.320 s)
+  2.139 -> 2.396 (0.257 s)
+  2.396 -> 2.608 (0.211 s)
+  2.608 -> 2.777 (0.169 s)
+  2.777 -> 2.909 (0.132 s)
+  2.909 -> 3.009 (0.100 s)
+  3.009 -> 3.081 (0.072 s)
+  19.222 -> 19.281 (0.059 s)
+  19.281 -> 19.336 (0.054 s)
+  19.431 -> 19.487 (0.057 s)
+  21.406 -> 21.471 (0.065 s)
+  21.776 -> 21.826 (0.050 s)
+  24.026 -> 24.550 (0.524 s)
+  24.550 -> 25.015 (0.464 s)
+  25.015 -> 25.403 (0.389 s)
+  25.403 -> 25.732 (0.329 s)
+  25.732 -> 26.006 (0.274 s)
+  26.006 -> 26.228 (0.222 s)
+  26.228 -> 26.404 (0.176 s)
+  26.404 -> 26.539 (0.135 s)
+  26.539 -> 26.638 (0.099 s)
+  26.638 -> 26.708 (0.070 s)
+  recording.mp4 (final): 0 gaps, last audio pts 98.987, last video pts 104.567
+
+== capture ffmpeg warnings (raw.mp4.ffmpeg.log), counted
+  pulse.*Thread message queue blocking          1
+  x11grab.*Thread message queue blocking        1
+  Queue input is backward in time               14
+  Non-monotonic DTS in output stream 0:1        35
+  encoder progress:
+    frame=  114 fps=3.3 q=29.0 size=       0kB time=00:00:03.70 bitrate=   0.1kbits/s dup=160 drop=0 speed=0.108x    
+    frame=  136 fps=3.9 q=29.0 size=       0kB time=00:00:06.03 bitrate=   0.1kbits/s dup=160 drop=40 speed=0.174x    
+    frame= 3138 fps= 32 q=-1.0 Lsize=    7921kB time=00:01:44.52 bitrate= 620.8kbits/s dup=597 drop=595 speed=1.05x    
+
+== service log
+14:23:49.858 [pid 3332249] [INFO] [PulseStream] Stop mic: asking ffmpeg to finish
+14:23:49.926 [pid 3332249] [INFO] [PulseStream] Stop mic: done (ffmpeg exit=0)
+14:23:50.210 [pid 3332249] [INFO] [FfmpegRecorder] Stop: pipeline drained in 282ms (take 104146ms, media origin 185ms) - full take captured
+14:23:51.207 [pid 3332249] [INFO] stop: return dir=~/Videos/AgentEyes/2026-11-15_142203_video dur=106.0s deferredMux=True (HUD may close now)
+14:23:51.309 [pid 3332249] [INFO] [PostRecording] stage mux: start dir=2026-11-15_142203_video
+14:23:51.611 [pid 3332249] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=~/Videos/AgentEyes/2026-11-15_142203_video/raw.mp4 intermediate=~/Videos/AgentEyes/2026-11-15_142203_video/audio_processed.wav muxing=~/Videos/AgentEyes/20
+14:23:58.300 [pid 3332249] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=~/Videos/AgentEyes/2026-11-15_142203_video/recording.mp4
+14:23:58.587 [pid 3332249] [INFO] [PostRecording] stage mux: done dir=2026-11-15_142203_video in 7.3s
+14:23:59.113 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_142203_video
+14:24:02.077 [pid 3332249] [INFO] [PostRecording] stage package: done dir=2026-11-15_142203_video in 3.0s
+14:24:02.183 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_142055_video
+14:24:02.362 [pid 3332249] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-15_142055_video
+
+################ TAKE B - 2026-11-15_143104_video ################
+start 14:31:04.634 load 16.30 19.92 19.29
+dir ~/Videos/AgentEyes/2026-11-15_143104_video
+14:31:08 recording 3.6 bytes=48 load=17.39
+14:31:13 recording 8.7 bytes=262192 load=21.05
+14:31:18 recording 13.8 bytes=786480 load=25.05
+14:31:23 recording 18.8 bytes=1048624 load=27.29
+14:31:28 recording 23.9 bytes=1572912 load=30.23
+14:31:33 recording 29.0 bytes=2097200 load=30.85
+14:31:39 recording 34.1 bytes=2621488 load=31.82
+14:31:44 recording 39.1 bytes=3407920 load=29.83
+14:31:49 recording 44.2 bytes=3670064 load=29.05
+14:31:54 recording 49.3 bytes=4194352 load=27.68
+14:31:59 recording 54.3 bytes=4456496 load=30.11
+14:32:04 recording 59.4 bytes=4718640 load=31.14
+14:32:09 recording 64.5 bytes=5242928 load=32.81
+14:32:14 recording 69.6 bytes=5505072 load=34.91
+14:32:19 recording 74.6 bytes=5767216 load=36.12
+14:32:24 recording 79.7 bytes=6291504 load=41.79
+14:32:29 recording 84.8 bytes=6553648 load=42.93
+14:32:34 recording 89.8 bytes=7077936 load=44.38
+14:32:39 recording 94.9 bytes=7602224 load=42.59
+14:32:44 recording 100.0 bytes=7864368 load=39.74
+14:32:49 recording 105 bytes=8650800 load=38.64
+stop-request 14:32:54.958 load 36.18 26.92 21.94
+stop-return 14:32:55.457
+postproc-seen 14:33:15 load 40.50 28.47 22.56
+
+== ~/Videos/AgentEyes/2026-11-15_143104_video/recording.mp4 (9825176 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=109.566667|nb_frames=3287
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=109.440000|nb_frames=5131
+format|duration=109.566667
+stream|index=0|codec_type=video|nb_read_frames=3287|nb_read_packets=3287
+stream|index=1|codec_type=audio|nb_read_frames=5130|nb_read_packets=5131
+full decode exit=0 in 5.936697646 s, load 34.78 28.31 22.70
+audio pts gaps >50ms: 0, missing ~0.000 s, last pts 109.418667
+== ~/Videos/AgentEyes/2026-11-15_143104_video/recording.original.mp4 (9403370 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=109.566667|nb_frames=3287
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=109.480000|nb_frames=5131
+format|duration=109.566667
+stream|index=0|codec_type=video|nb_read_frames=3287|nb_read_packets=3287
+stream|index=1|codec_type=audio|nb_read_frames=5130|nb_read_packets=5131
+full decode exit=0 in 4.530412500 s, load 31.54 27.89 22.65
+audio pts gaps >50ms: 0, missing ~0.000 s, last pts 109.459208
+  capture ffmpeg 'Thread message queue blocking' count: 0
+
+== service log
+14:32:55.093 [pid 3332249] [INFO] [FfmpegRecorder] Stop: pipeline drained in 60ms (take 109299ms, media origin 494ms) - full take captured
+14:32:55.476 [pid 3332249] [INFO] [PostRecording] stage mux: start dir=2026-11-15_143104_video
+14:33:04.991 [pid 3332249] [INFO] [PostRecording] stage mux: done dir=2026-11-15_143104_video in 9.5s
+14:33:06.707 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_143104_video
+14:33:12.268 [pid 3332249] [INFO] [PostRecording] stage package: done dir=2026-11-15_143104_video in 5.6s

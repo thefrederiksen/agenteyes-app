@@ -1,0 +1,21 @@
+=== WHY ROWS 2, 3, 7, 8, 9, 10 ARE NOT RUNNABLE ON macOS (evidence, not assertion) ===
+--- desktop app projects in the tree ---
+  src/AgentEyes.App/
+  src/AgentEyes.Core/
+  src/AgentEyes.LinuxApp/
+
+--- is there any macOS desktop-app install route? ---
+  scripts/mac/: com.agenteyes.recorder.plist
+  scripts/mac/: install.sh
+  (scripts/linux/ for comparison:)
+    agenteyes.service
+    install.sh
+
+--- the Linux installer installs an app binary; does the mac one? ---
+  desktop references in scripts/linux/install.sh: 7
+  desktop references in scripts/mac/install.sh: 0
+
+--- what the mac installer publishes (the ONLY thing it installs) ---
+  66:dotnet publish "$repo/src/AgentEyes.Core/AgentEyes.Core.csproj" \
+  67-    -c Release -f net8.0 -r "$rid" --self-contained true \
+  68-    -p:AgentEyesUnixPlatform=mac \

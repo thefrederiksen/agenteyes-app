@@ -1,0 +1,65 @@
+Which build answered rows 4, 5 and 6 (devlinux, 2026-11-15)
+
+Commit under test: main at f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab (git rev-parse HEAD, clean tree)
+  contains #114 (432105b), #128 (93681fa), #136 (1b1b266)
+  does NOT contain #113 (PR #137, head ad21557, flow:ready-gate)
+
+FOUND ON ARRIVAL (14:08)
+  agenteyes.service MainPID 28960 (the earlier seat's restore)
+  ~/.local/lib/agenteyes/agenteyes.dll sha256 77586071b7e2921fb131419b34743ae0d305b4d2469f9dabbd6a99865298284e
+  ~/.local/lib/agenteyes/agenteyes     sha256 65445a3fd2ff67343aa3bba8f7fb3f47495db5809a93d2c691483c1a828ce497
+
+AFTER scripts/linux/install.sh (14:09:31)
+  agenteyes.service MainPID 3332249, ActiveEnterTimestamp 14:09:30   <- NEW pid
+  ~/.local/lib/agenteyes/agenteyes.dll sha256 766086dcc18e286f5496cfda480a009cb6daf9cd0b8f1abc8c1deb90c9f63c3a
+  ~/.local/lib/agenteyes/agenteyes     sha256 65445a3fd2ff67343aa3bba8f7fb3f47495db5809a93d2c691483c1a828ce497
+  Every service log line quoted for rows 4-6 carries [pid 3332249].
+
+THE PRIMARY IDENTIFIER: THE COMMIT THE ASSEMBLY REPORTS ABOUT ITSELF
+  (per the lead's correction of 2026-11-15: the dll hash embeds the absolute source path and the commit
+   sha, so it is not reproducible across clones and is NOT used to identify a build in this report;
+   the hashes above are kept only to tell the two installed files apart on this machine)
+  python3 -c "import re;d=open(P,'rb').read();print(re.findall(rb'1\.11\.11\+([0-9a-f]{40})',d))"
+    old dll (found on arrival)  -> 89e15934278fdf106d30d6ae2cfd13c22e9972c2
+                                   (= "round-two handoff for #113", on origin/issue-113-capture-watchdog)
+    new dll (answering, 3332249) -> f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab
+  git rev-parse origin/main     -> f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab   EQUAL
+  Shown both ways: the same check reports a different commit for the other build.
+
+THE APPHOST IS NOT AN IDENTIFIER
+  The native launcher 'agenteyes' hashes identically (65445a3f...) in both builds - it is the generic
+  self-contained apphost stub, as on macOS. Only agenteyes.dll identifies a build; that is the file hashed.
+
+FEATURE MARKERS, shown BOTH ways (string literals are UTF-16LE in a .NET assembly; counts below are
+UTF-16LE occurrences, with the ASCII count in brackets to show why an ASCII grep is not the instrument)
+
+  marker                                         from    old dll 77586071   new dll 766086dc
+  "CAPTURE FAULT"                                #113    2 (ascii 0)        0 (ascii 0)
+  "intermediate processed audio"                 #136    0 (ascii 0)        2 (ascii 0)
+  "MuxInTwoPasses"                               #136    0 (ascii 0)        1 (ascii 1)
+  "asetnsamples=n=480:p=1"                       #128    0 (ascii 0)        2 (ascii 0)
+  "[FfmpegChildRegistry] ReapOrphans: no records" #128   0 (ascii 0)        1 (ascii 0)
+  "mic_native.wav"                               #114    0 (ascii 0)        2 (ascii 0)
+  "difference in device warm-up. See "           #114    0 (ascii 0)        1 (ascii 0)
+
+
+  IDENTIFIERS (metadata names are UTF-8, not UTF-16 - counted as UTF-8 here):
+  "FragmentedOutput"                             #113    utf8 1             utf8 0
+  "CaptureLiveness"                              #113    utf8 3             utf8 0
+  "MuxInTwoPasses"                               #136    utf8 0             utf8 1  (its utf16 1 is the
+                                                          log literal "[AudioMix] MuxInTwoPasses: ...")
+
+  Every marker is present in exactly one of the two builds, so each one can tell them apart.
+  Result: the answering build has #114, #128 and #136 and does NOT have #113.
+  The runtime agrees: row 5's log shows "[AudioMix] MuxInTwoPasses" (#136) running, and the mic
+  chain in the logged mux command begins aeval NaN guard + asetnsamples=n=480:p=1 (#128).
+
+GATE (run by this seat on f9ef230, 14:08-14:09, load 9.2 - 10.5)
+  dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -f net8.0 -p:Platform=x64
+    -> 0 Error(s), 1 Warning(s) (the existing CS8602 at AlwaysOnEngine.cs:901)
+  dotnet test tests/AgentEyes.Tests.Linux -c Release
+    -> Passed!  - Failed: 0, Passed: 282, Skipped: 0, Total: 282
+  AgentEyes.sln is not built here: it contains the WPF app, which does not build on Linux.
+
+TOOLS
+  ffmpeg / ffprobe 6.1.1-3ubuntu5 (/usr/bin), the system package the Linux service uses.

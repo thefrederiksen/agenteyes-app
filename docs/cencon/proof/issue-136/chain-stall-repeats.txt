@@ -1,0 +1,163 @@
+Issue #136 - the SECOND finding's measurements. NOT #136's defect: this is a stall in the mic chain
+itself, with NO video stream in the command, so it cannot be the muxing queue. Pre-existing on main.
+Recorded here so it is not rediscovered as a #136 regression.
+
+Machine: devthrottle-mac-mini, ffmpeg 9.0.2, 10 cores (one of them pinned throughout by the
+installed service's own stuck mux - see the handoff, criterion 1).
+
+Command shape, which is exactly what PASS 1 of the two-pass mux runs:
+  ffmpeg -nostdin -y [-filter_complex_threads 1] -i <input> -filter_complex <chain> \
+         -map [a] -c:a pcm_f32le -rf64 auto out.wav
+Chain: [0:a]<#128's aeval sanitizer>,arnndn=m=bd.rnnn,speechnorm=e=4:p=0.95,volume=1[m];
+       [m]alimiter=limit=0.95:level=false[a]
+Inputs: the audio track of each fixture (see mux-run-log.txt) - i.e. 2026-11-14_111433_video's
+mic_native.wav (60.224 s) and 2026-11-14_110301_video's (600.384 s), both pcm_s16le 48 kHz mono.
+Each run killed at the bound shown if it had not finished.
+
+THE SIGNATURE. A wedged run freezes at a byte count that is identical every time, just short of the
+full length, and never writes the WAV's final header:
+  60 s input : 11,534,336 wedged  vs 11,564,252 complete  (60.07 s of 60.23 s)
+  602 s input: 115,081,216 wedged vs 115,275,008 complete (599.4 s of 600.4 s)
+It reaches the end of the content and fails to finalize - the same family as the muxing-queue
+deadlock, and not the same bug. '-f adts' output (a raw stream with no header to rewrite) completed
+where .wav and .m4a did not.
+
+--- 60-second input, default threading, 75 s bound
+=== c3-60s mic, chain WITH #128's aeval sanitizer (what is on this branch)
+  c3-with run1: ok rc=0 in 1s (11564252 bytes)
+  c3-with run2: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-with run3: ok rc=0 in 1s (11564252 bytes)
+  c3-with run4: WEDGED (killed 75s, wrote 11534336 bytes)
+=== c3-60s mic, chain WITHOUT the sanitizer (main's chain)
+  c3-without run1: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-without run2: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-without run3: WEDGED (killed 75s, wrote 11534336 bytes)
+  c3-without run4: WEDGED (killed 75s, wrote 11534336 bytes)
+=== c3-60s mic, sanitizer + arnndn but NO speechnorm
+  c3-nolevel run1: ok rc=0 in 2s (11564252 bytes)
+  c3-nolevel run2: ok rc=0 in 1s (11564252 bytes)
+=== 76-second input (2026-11-14_111731) instead, chain WITH the sanitizer
+  c1-with run1: ok rc=0 in 1s (14494172 bytes)
+  c1-with run2: ok rc=0 in 1s (14494172 bytes)
+  c1-with run3: ok rc=0 in 1s (14494172 bytes)
+
+--- 602-second and single-threaded runs, 100 s bound
+=== c2-600s audio, pass 1's exact command, default threading
+  c2-default run1: WEDGED (killed 100s, 115081216 bytes)
+  c2-default run2: WEDGED (killed 100s, 115081216 bytes)
+  c2-default run3: WEDGED (killed 100s, 115081216 bytes)
+=== c2-600s audio, -filter_complex_threads 1
+  c2-1thread run1: ok rc=0 in 3s (115275008 bytes, mean_volume: -52.4 dB max_volume: -0.4 dB )
+  c2-1thread run2: ok rc=0 in 3s (115275008 bytes, mean_volume: -67.7 dB max_volume: -25.8 dB )
+=== c3-60s audio, -filter_complex_threads 1
+  c3-1thread run1: ok rc=0 in 1s (11564288 bytes, mean_volume: -42.6 dB max_volume: -0.4 dB )
+  c3-1thread run2: WEDGED (killed 100s, 11534336 bytes)
+  c3-1thread run3: WEDGED (killed 100s, 11534336 bytes)
+
+SUMMARY
+  60 s input, with #128's aeval sanitizer        : 2 of 4 wedged
+  60 s input, without it (main's chain)          : 4 of 4 wedged   -> pre-existing, not #128's doing
+  60 s input, with the sanitizer, no speechnorm  : 0 of 2 wedged   -> speechnorm is the stalling stage
+  76 s input (2026-11-14_111731), same chain     : 0 of 3 wedged   -> content-dependent
+  602 s input, default threading                 : 3 of 3 wedged
+  602 s input, -filter_complex_threads 1         : 0 of 2 wedged, 3 s each
+  60 s input,  -filter_complex_threads 1         : 2 of 3 wedged   <- so threading is NOT the answer
+
+A CORRECTION I AM MAKING TO MYSELF. After the 602 s single-threaded runs came back 0 of 2 against a
+default 3 of 3, I wrote that '-filter_complex_threads 1' removes the stall and raised it as the
+actionable finding. The 60-second single-threaded runs then came back 2 of 3 wedged, which is the
+same rate as that input's default (2 of 4). So that claim was wrong and it is withdrawn:
+
+  - single-threading changed NOTHING measurable on the 60-second audio;
+  - the 602-second difference is 0 of 2 against 3 of 3, which with samples that small is not enough
+    to claim a cause, and I am not going to claim one from it;
+  - the only intervention that clearly helped is REMOVING speechnorm (0 of 2), which is consistent
+    with speechnorm being the stalling stage and with nothing else here.
+
+What is left standing, and it is still worth having:
+  - the stall is real, reproducible and frequent (3 of 3 on the ten-minute audio);
+  - it is NOT the muxing queue: no video stream in the command, and it reproduces on main's chain;
+  - it is NOT #128's sanitizer: 4 of 4 wedged without it, 2 of 4 with it;
+  - it is speechnorm, at end of stream, and it is content-dependent (0 of 3 on 111731's audio);
+  - it freezes at an identical byte count on each input, a fraction of a second from the end,
+    without writing the WAV's final header, and '-f adts' output completes where .wav does not;
+  - #128's watchdog bounds it: it failed the stage in 63 s on the product path rather than spinning.
+No flag in this branch mitigates it.
+
+THE ROOT CAUSE, ESTABLISHED BY #128's QA SEAT ON WINDOWS WHILE THIS WAS BEING MEASURED ON THE MAC.
+#128 went flow:qa-failed during this pass and its QA report's defect D3 is this stall: arnndn on
+ffmpeg 9.0.2 emits a NaN frame at end of stream on finite input; the sanitizer sits before arnndn by
+necessity so it cannot remove it; speechnorm then spins at the end. Their astats: 0 NaNs in the
+input, 480 NaNs - one 10 ms frame - after sanitizer+arnndn, the stall on 9.0.2 and none on 8.1.1.
+
+That explains every number above, and it is adopted here in place of the partial account this file
+first carried:
+  - it freezes a fraction of a second from the end because the NaN frame is the terminal one;
+  - removing speechnorm stops it, because the NaN then reaches a filter that survives it;
+  - removing the sanitizer makes it WORSE, because the sanitizer removes the INPUT's non-finite
+    samples and cannot remove the one arnndn manufactures after it;
+  - it is content-dependent as well as length-dependent, which both seats measured separately.
+So "speechnorm is the stalling stage" is right and incomplete: speechnorm is where it spins,
+arnndn's end-of-stream NaN is what feeds it. Their report says "this may also bear on #136. This QA
+seat has not verified that." It does, exactly as described, and the numbers above are the Mac side
+of it.
+
+A SECOND SYMPTOM: the processed LEVEL is not reproducible either. Completed runs of the same input
+through the same code differ by 15-26 dB:
+  60 s  via the product: mean -68.5 / max -41.5, then mean -42.6 / max -0.4
+  602 s single-threaded: mean -52.4 / max -0.4,  then mean -67.7 / max -25.8
+2026-11-14_111731's audio, by contrast, reproduced exactly (mean -68.8 / max -41.0 on every run),
+which is why the handoff's criterion 4 comparison uses it.
+
+================================================================================
+THE TRIGGER IS NONDETERMINISTIC PER RUN, NOT A PROPERTY OF THE FILE
+================================================================================
+
+After the Implementation Lead confirmed D3 on this machine and sent a per-file NaN table
+(111433 -> 480, 110301 -> 0, 111731 -> 0), I re-ran the count repeatedly instead of once.
+arnndn's end-of-stream NaN frame is NOT deterministic for a given file:
+
+  ffmpeg -i <mic.wav> -af "arnndn=m=bd.rnnn,astats=metadata=1" -f null -
+  reading "Number of NaNs" from astats AFTER arnndn. 480 = one 10 ms frame at 48 kHz.
+
+  111433  60.224 s   2,890,752 samples  %480=192   480 480 0 | 480 0 0 0 480 480 480 0
+                                                   -> 6 of 11
+  110301 600.384 s  28,818,432 samples  %480=192   0 0 480 | 0 0 0 0 0 0 | 0 0 480 480 480 0
+                                                   -> 4 of 15
+  111731  75.488 s   3,623,424 samples  %480=384   0 0 0 | 0 0 0 0 0 0 0 0
+                                                   -> 0 of 11
+
+Three things follow, and the first two are corrections to things that were said earlier -
+one of them mine.
+
+1. A SINGLE RUN CANNOT CHARACTERISE A FILE. 110301 returned 0 of 6 in one batch and 3 of 6
+   in another. The Lead's table and my own first contradicting measurement (480 on 110301,
+   where she had 0) are both single samples of a nondeterministic process. Her ranking is
+   right; reading any row as "this file does / does not emit a NaN" is not.
+
+2. THE CONTAINER IS NOT THE DISCRIMINATOR. I had hypothesised that my wedges came from the
+   AAC transcode in my fixtures while her 0-NaN result came from the WAV, since an AAC
+   round trip changes the sample count reaching arnndn. Measured on the same 600.384 s
+   audio: 4 of 15 as pcm_s16le WAV, 2 of 7 as an AAC track. No meaningful difference. That
+   hypothesis is dead and is recorded here rather than left as a plausible-sounding aside.
+
+3. THE RATE VARIES BETWEEN BATCHES ON THE SAME FILE, which points at machine conditions as
+   part of the variable rather than content alone. My earlier batches ran while the
+   installed service's stuck mux pinned a core; that is a candidate and not a conclusion.
+
+WHAT THIS MEANS FOR #128 ROUND TWO, which is the only reason it is written down:
+
+  - No input property predicts the trigger, so no upstream rule - length, remainder,
+    container, content - can pre-empt it. The remedy of sanitizing AFTER arnndn is the only
+    shape of fix that survives this, which is the one already chosen.
+  - A fixture cannot be used as a negative control on the grounds that it "produces no
+    NaN". 110301 would have looked clean for six runs and then failed.
+  - A fix cannot be validated by "the mux completed", at any number of runs that is
+    practical. It has to be validated by the sanitizer's OWN COUNT of what it zeroed -
+    which the chosen remedy already produces. That is the assertion to write the test
+    against.
+
+ONE LOOSE END, NOT CLOSED. My bare-graph wedge rate on 110301's audio was 3 of 3, while its
+NaN rate measures around 1 in 4. Those do not line up, so either I was unlucky, or wedging
+does not require a NaN frame in every case. I did not get to the bottom of it and I am not
+going to assert that the two rates are the same population.

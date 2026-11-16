@@ -19,6 +19,9 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Issue #116 pass 4: the headless Avalonia platform, so the tray-popup close guard is driven through
+         real windows (DesktopAppQuitTests.TrayPopupCloseGuardWindowTests). Same version as the app's Avalonia. -->
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
   </ItemGroup>
 
   <ItemGroup>
@@ -40,6 +43,26 @@
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
     <!-- Issue #116: the desktop app's quit-path tests, shared with AgentEyes.Tests.DesktopApp (Windows gate). -->
     <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
+
+    <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
+
+    <!-- Issue #136: ONE guard, compiled into all three suites. FfmpegMuxShapeTests sweeps the
+         argument builders in THIS build - which is the whole point of linking it rather than
+         duplicating it: each suite's sweep sees its own platform's FfmpegArgs partial, so the macOS
+         and Linux builders are covered by the macOS and Linux gates, and the shared ones by all
+         three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
+         graph, because on macOS that command never finalizes. -->
+    <Compile Include="../Shared/FfmpegMuxShapeTests.cs" Link="Shared/FfmpegMuxShapeTests.cs" />
+
+    <!-- Issue #151: a test's failure path kills only the ffmpeg it started (OwnedFfmpeg), never a
+         sweep over every ffmpeg on the machine - which would include a live recording's. Linked into
+         all three suites so each platform's process handling is proven by its own gate. -->
+    <Compile Include="../Shared/OwnedFfmpeg.cs" Link="Shared/OwnedFfmpeg.cs" />
+    <Compile Include="../Shared/OwnedFfmpegTests.cs" Link="Shared/OwnedFfmpegTests.cs" />
+    <!-- The opt-in for tests that launch a real ffmpeg (AGENTEYES_FFMPEG_TESTS=1), shared with the
+         Windows suite so the repo has one convention. -->
+    <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
+    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
   </ItemGroup>
 
 </Project>

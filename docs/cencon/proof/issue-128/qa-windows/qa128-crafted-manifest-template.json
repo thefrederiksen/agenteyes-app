@@ -1,0 +1,33 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "qa128",
+  "CreatedUtc": "2026-11-14T18:00:00Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "issue 128 QA injected stall (one NaN at 30 s)",
+  "DurationSeconds": 90,
+  "VideoFile": "recording.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 0,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 0,
+  "Shots": [],
+  "Files": [ "raw.mp4" ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [],
+  "PendingMux": {
+    "Mode": "video",
+    "Source": "mic",
+    "RawVideo": "raw.mp4",
+    "FinalFile": "recording.mp4",
+    "RawDurationSeconds": 90,
+    "Options": {
+      "MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false,
+      "GateCalibrated": true, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false
+    }
+  },
+  "PostProcessing": {}
+}

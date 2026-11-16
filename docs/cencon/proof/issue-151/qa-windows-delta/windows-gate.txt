@@ -1,0 +1,26 @@
+# Issue #151 delta QA - Windows gate on aec0be4, SORENLAPTOP
+# SDK 10.0.301 building net8.0. Runtime: a net8.0 probe prints '.NET 8.0.21 C:\Program Files\dotnet\shared\Microsoft.NETCore.App\8.0.21\' (8.0.6/8.0.7/8.0.21 installed; roll-forward picks 8.0.21).
+# Binary under test: tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0 - agenteyes.dll ProductVersion 1.11.11+aec0be41a537fdd39aecee3172a20d055857c8e8, AgentEyes.Tests.dll 1.0.0+aec0be41a537fdd39aecee3172a20d055857c8e8
+# Stale trap: bin\Release\...\agenteyes.dll on this clone is 1.11.11+b9bdec1de30fff19cd0b2d73141c091b989a18e1 - NOT used; every 'Test run for' line below names the x64 path.
+# Build: dotnet build AgentEyes.sln -c Release -> 22 Warning(s), 0 Error(s)
+
+## plain-default
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 1 m 11 s - AgentEyes.Tests.dll (net8.0)
+
+## plain-optin
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 1 m 31 s - AgentEyes.Tests.dll (net8.0)
+
+## default
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 1 m 22 s - AgentEyes.Tests.dll (net8.0)
+
+## optin
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 1 m 41 s - AgentEyes.Tests.dll (net8.0)
+
+## shim arms (rungate2.sh): default -> ffmpeg 235, ffprobe 115; opt-in -> ffmpeg 322, ffprobe 128
+## real tools: winget Gyan ffmpeg 8.1.1 full_build. 'tasklist' for ffmpeg.exe and ffprobe.exe before and after each shim arm: no tasks.
+## default: lines naming agenteyes-128- 0; naming agenteyes-146 0; naming agenteyes-128r2 2
+## optin: lines naming agenteyes-128- 55; naming agenteyes-146 21; naming agenteyes-128r2 2

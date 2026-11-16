@@ -26,6 +26,7 @@ Four single-purpose agents carry work down a `flow:*` label state machine on Git
 | `flow:rejected` | spec too weak; bounced back | Product Agent | `.claude/skills/product-agent` |
 | `flow:ready-qa` | implemented + proof linked | QA Agent | `.claude/skills/qa-agent` |
 | `flow:qa-failed` | defect; bounced back | Developer Agent | `.claude/skills/developer-agent` |
+| `flow:ready-gate` | QA verified; awaiting the merge decision | Review Gate (**other vendor**) | - |
 | `flow:done` | verified with proof; closed | - | - |
 | `flow:needs-human` | 3-strike escalation | the human | - |
 
@@ -35,8 +36,8 @@ it meet the Definition of Ready, and let the Developer and QA agents carry it th
 To drive a ready issue autonomously, the **implementation-loop** orchestrator
 (`.claude/skills/implementation-loop`, `/implementation-loop <issue#>`) spawns the Developer Agent
 and the QA Agent as separate sub-agent contexts and loops Developer -> QA -> Developer on
-`flow:qa-failed` until QA passes (then QA squash-merges to `main`). It stops early on `flow:rejected`
-(spec too weak) or a 3-strike `flow:needs-human` escalation.
+`flow:qa-failed` until QA passes, which sets `flow:ready-gate` for the Review Gate (see below). It
+stops early on `flow:rejected` (spec too weak) or a 3-strike `flow:needs-human` escalation.
 
 ---
 
@@ -65,9 +66,21 @@ Gate policy (revised 2026-07-14 - the hard rule).
 
 Two tiers, and the difference is real - do not conflate them:
 
-1. **`dotnet test AgentEyes.sln -c Release` - ALWAYS, after every code change.** It is FAST and
-   SILENT: 288 tests in ~2 seconds, no app launch, no audio, no ffmpeg. There is never a reason
-   to skip it or defer it to the human. It is part of the gate alongside `dotnet build`.
+1. **`dotnet test AgentEyes.sln -c Release` - ALWAYS, after every code change.** It is silent (no
+   app launch, no audio) but it is NOT ffmpeg-free. Measured by issue #151 on main 497e9d4 merged
+   into the #151 fix (2026-11-16): 2390 tests, 15 of them skipped (the opt-in tests below), in 39 s
+   of test time on the Windows CI runner (run 43870216038) and 65 s on a laptop (SDK 10.0.301
+   building net8.0, runtime 8.0.21). On that laptop, a counting shim on ffmpeg and ffprobe saw the
+   default gate start **235 ffmpeg and 115 ffprobe** processes, all short end-to-end test runs. The
+   tests that exist only to run a real ffmpeg against the mic chain (#128, #146) are opt-in: set
+   `AGENTEYES_FFMPEG_TESTS=1` to run them too (2394 tests; 46 s on CI, 77 s on the laptop; 322
+   ffmpeg and 128 ffprobe starts). CI and the release build always run them. What the default gate
+   should start, if anything, is an open policy question tracked in issue #153 and NOT settled
+   here. The Linux and macOS gates (`dotnet test tests/AgentEyes.Tests.Linux` /
+   `tests/AgentEyes.Tests.Mac`) are 292 and 284 tests (1 opt-in skip each), in under a second on
+   CI (run 43870216038). They start no ffmpeg (Linux traced with strace in #151; macOS by source
+   review). There is never a reason to skip it or defer it to the human. It is part of the gate
+   alongside `dotnet build`.
 2. **The heavy smokes** (`api-smoke.ps1`, `gui-smoke.ps1`, `agenteyes selftest`, `run-all.ps1`)
    launch the app, record audio, and run ffmpeg/Whisper - minutes, and AUDIBLE. The agent runs
    these **when the change actually touches that area**, not reflexively on every issue. They
@@ -214,11 +227,14 @@ ASCII. No emojis, no checkmarks, no arrows, no box-drawing. Use `->`, `[OK]`, `[
 - **Two authorized exceptions (CenCon):**
   1. The **Developer Agent**, while implementing a `flow:ready-dev` issue, may commit to that
      issue's **PR branch** (never `main`) because the branch + proof is the handoff artifact to QA.
-  2. The **QA Agent**, when it PASSES an issue (sets `flow:done` and closes it), squash-merges that
-     issue's PR to `main` and deletes the branch - the QA pass IS the merge authorization (method
-     D5). The QA Agent merges only an issue it has just passed with proof; it never merges anything
-     else. **Deploying** the merged change (build-release + `agenteyes-setup install`) remains a separate,
-     explicitly-requested step.
+  2. The **Review Gate** - an independent session of a DIFFERENT AGENT VENDOR - authorizes and performs
+     the squash-merge to `main` and deletes the branch (method **D7**, decided 2026-08-12, which
+     **SUPERSEDES D5**). **QA NO LONGER MERGES**: a QA pass commits the proof report and sets
+     `flow:ready-gate`, and there it stops. D7's rationale is measured, not procedural - on
+     2026-08-11/12 QA passed six PRs the gate then rejected, including one that reintroduced the
+     original recording-stranding defect and one that let the microphone keep capturing after the app
+     reported idle. Same-vendor review shares the same blind spots. **Deploying** the merged change
+     (build-release + `agenteyes-setup install`) remains a separate, explicitly-requested step.
   Everything else still requires an explicit ask.
 
 ---

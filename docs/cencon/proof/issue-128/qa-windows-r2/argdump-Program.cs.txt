@@ -1,0 +1,16 @@
+// QA harness: load a given commit's agenteyes.dll and print the exact ffmpeg argument list a builder emits.
+// usage: argdump <agenteyes.dll> <MixTwoWav|MuxVideoMixMicSystem|FilterVideoMic> <in1> <in2|-> <out> <model> <micChannels|-> <gate 0|1>
+using System; using System.Collections.Generic; using System.Reflection; using System.Runtime.Loader;
+var asm = AssemblyLoadContext.Default.LoadFromAssemblyPath(args[0]);
+var optT = asm.GetType("AgentEyes.AudioMixOptions", true)!;
+var o = Activator.CreateInstance(optT)!;
+void Set(string n, object? v) { var p = optT.GetProperty(n); if (p == null) { Console.Error.WriteLine($"(no property {n} in this build)"); return; } p.SetValue(o, v); }
+Set("NoiseSuppression", true); Set("VoiceLeveling", true); Set("RnnoiseModelPath", args[5]);
+bool gate = args[7] == "1"; Set("NoiseGate", gate);
+if (gate) { Set("GateThresholdLinear", (double?)0.01); Set("GateCalibrated", true); }
+if (args[6] != "-") Set("MicChannels", (int?)int.Parse(args[6]));
+var fa = asm.GetType("AgentEyes.Video.FfmpegArgs", true)!;
+var m = fa.GetMethod(args[1], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!;
+object?[] call = args[1] == "FilterVideoMic" ? new object?[] { args[2], args[4], o } : new object?[] { args[2], args[3], args[4], o };
+var list = (List<string>)m.Invoke(null, call)!;
+foreach (var a in list) Console.WriteLine(a);

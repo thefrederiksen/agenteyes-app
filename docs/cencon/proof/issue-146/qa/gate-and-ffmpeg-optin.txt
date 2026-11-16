@@ -1,0 +1,47 @@
+Issue #146 QA - the test gate and the ffmpeg opt-in, both arms. SORENLAPTOP, branch issue-146-resample-before-framing @ b9bdec1.
+
+== GATE (plain, no instrument)
+dotnet build AgentEyes.sln -c Release   -> 22 Warning(s), 0 Error(s)  (13:47)
+dotnet test AgentEyes.sln -c Release    -> Passed!  - Failed: 0, Passed: 2381, Skipped: 4, Total: 2385, Duration: 1 m 27 s - AgentEyes.Tests.dll
+  the 4 skipped are exactly MicChainSampleRateTests: ProcessVideoMic_DefaultSettings44kStereoMic_Completes,
+  MicChain_44kQuietVoice_LevelingIsStillApplied, MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k, MicChain_44kNoise_DenoiseIsStillApplied
+
+== INSTRUMENT: a counting ffmpeg shim (a tiny console exe named ffmpeg.exe that appends one line per launch, then runs
+the real ffmpeg 9.0.2 with inherited stdio). Placed BOTH as QA_RECORD_FFMPEG_DIR and first on PATH, so the product's
+FfmpegLocator and any bare 'ffmpeg' launch both reach it. Not committed (harness). What it cannot see: an ffmpeg launched
+by an absolute path that bypasses the locator and PATH, and ffprobe (not shimmed).
+
+== ARM A - MicChainSampleRateTests only, AGENTEYES_FFMPEG_TESTS unset
+  4 Skipped, 0 run.  ffmpeg launches recorded: 0
+== ARM B - MicChainSampleRateTests only, AGENTEYES_FFMPEG_TESTS=1 (proves the instrument records this class's launches)
+  7 Passed (4 theory cases + 3 facts).  ffmpeg launches recorded: 25, every one under the class's agenteyes-146-* temp root
+== FULL DEFAULT GATE with the shim, variable unset
+  Passed 2381, Skipped 4, Failed 0.  ffmpeg launches recorded: 276.  Launches under the #146 class's agenteyes-146-* root: 0.
+  By temp-root tag (launch lines naming that root; one launch can name it twice):
+        64 agenteyes-128-
+         4 agenteyes-128r2-
+        56 agenteyes-136-
+       101 agenteyes-alwayson-
+        20 agenteyes-decay-
+         1 agenteyes-expireorder-
+         2 agenteyes-frame-
+         5 agenteyes-frameorder-
+        29 agenteyes-frames-
+        14 agenteyes-history-
+        54 agenteyes-housekeeping-
+         9 agenteyes-restart-
+         5 agenteyes-stall-
+         5 agenteyes-transcodeorder-
+  The 8 lines that resemble the #146 fixtures (sine/testsrc2 320x240) are all #128 tests (agenteyes-128-*, r=48000):
+   -hide_banner -progress pipe:1 -stats_period 1 -y -re -f lavfi -i sine=f=300:r=48000:d=30 -af atrim=start=28 %USERPROFILE%\AppData\Local\Temp\agenteyes-128-2b79b4efd2294a
+   -hide_banner -y -f lavfi -i sine=f=300:r=48000:d=6 -af volume=0.5 -ac 1 -c:a pcm_s16le %USERPROFILE%\AppData\Local\Temp\agenteyes-128-5981e2f4db0c4e47be46fa4ba6e970dc\mi
+   -hide_banner -v error -y -f lavfi -i sine=f=300:r=48000:d=20 -af atrim=end_sample=480123,aformat=sample_fmts=s16:channel_layouts=stereo,arnndn=m='%USERPROFILE%/AppData/
+   -hide_banner -v error -y -f lavfi -i sine=f=300:r=48000:d=20 -af atrim=end_sample=480123,aformat=sample_fmts=s16:channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='C
+   -hide_banner -v error -y -f lavfi -i sine=f=300:r=48000:d=20 -af atrim=end_sample=480123,aformat=sample_fmts=s16:channel_layouts=mono,arnndn=m='%USERPROFILE%/AppData/Lo
+   -hide_banner -v error -y -f lavfi -i sine=f=300:r=48000:d=20 -af atrim=end_sample=480123,aformat=sample_fmts=s16:channel_layouts=mono,asetnsamples=n=480:p=1,arnndn=m='C\:
+   -hide_banner -y -f lavfi -i testsrc2=size=320x240:rate=10:duration=11 -f lavfi -i sine=f=300:r=48000:d=11 -filter_complex [1:a]atrim=end_sample=480123,aformat=sample_fmts
+   -hide_banner -y -f lavfi -i testsrc2=size=320x240:rate=10:duration=6 -f lavfi -i sine=f=300:r=48000:d=6 -map 0:v -map 1:a -ac 1 -c:v libx264 -preset ultrafast -c:a pcm_s1
+
+READING: #146's own ffmpeg tests are correctly opt-in (0 launches unset, 25 set). The default gate as a whole is NOT
+ffmpeg-free: 276 launches from pre-existing tests (#128, #136, always-on, housekeeping, frames, history, decay, ...).
+That is wider than #151's stated scope (#128's tests) and is reported to the lead, not charged to #146.

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Issue 146 QA Report</title>
+<style>
+ body{font-family:Segoe UI,Arial,sans-serif;max-width:1100px;margin:24px auto;padding:0 16px;color:#1b1b1b;background:#fff;line-height:1.45}
+ h1{font-size:1.5em} h2{font-size:1.2em;margin-top:1.6em;border-bottom:1px solid #ccc}
+ table{border-collapse:collapse;width:100%;margin:10px 0;font-size:.93em}
+ th,td{border:1px solid #bbb;padding:5px 8px;vertical-align:top;text-align:left}
+ th{background:#f0f0f0}
+ code,pre{font-family:Consolas,monospace;font-size:.9em}
+ pre{background:#f6f6f6;padding:8px;overflow-x:auto;white-space:pre-wrap}
+ .pass{color:#0a6b1f;font-weight:bold} .fail{color:#a00;font-weight:bold} .note{color:#7a5200;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Issue #146 - independent QA report (Windows, SORENLAPTOP)</h1>
+
+<table>
+<tr><th>Verdict</th><td><span class="pass">PASS</span> -&gt; <code>flow:ready-gate</code>. QA does not merge (method D7). The Review Gate decides.</td></tr>
+<tr><th>Branch under test</th><td><code>issue-146-resample-before-framing</code> @ <b>b9bdec1</b> (fix at 19667c5), on main 90c9118. Main plus an UNMERGED fix.</td></tr>
+<tr><th>Build</th><td><code>dotnet build AgentEyes.sln -c Release</code>: 0 Error(s), 22 warnings. Output <code>src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\</code>:
+<code>agenteyes.exe</code> sha256 <code>a3c54f9a...097215f</code>, <code>agenteyes.dll</code> sha256 <code>7b968172...4f9d38</code> (contains the string <code>aresample=48000</code>)</td></tr>
+<tr><th>Process answering</th><td><code>agenteyes serve --port 7894</code> (headless recorder + Control API), <b>pid 8304</b>, started 14:01:36, <code>/version</code> 1.11.11. It used ffmpeg <b>9.0.2</b> (<code>%LOCALAPPDATA%\AgentEyes\app\ffmpeg.exe</code>, sha256 3256173f...), as logged by the service at start. The owner's installed tray app (pid 16160, port 7882) was left running and untouched.</td></tr>
+<tr><th>Control build</th><td>Unmodified main 90c9118 in a QA worktree, <code>agenteyes serve --port 7893</code>, pid 17696, the same ffmpeg 9.0.2. Its <code>agenteyes.dll</code> sha256 <code>d71023d9...248fb3</code> does not contain <code>aresample=48000</code>.</td></tr>
+<tr><th>Machine</th><td>Windows 11 Home 10.0.26200, i5-1135G7 (8 logical CPUs). Load (<code>LoadPercentage</code>) is printed on every take line in the evidence: 5-60% during takes. The owner's Director and other agent sessions were running.</td></tr>
+<tr><th>Gate</th><td><code>dotnet test AgentEyes.sln -c Release</code>: <b>Passed 2381, Skipped 4, Failed 0</b> (Total 2385, 1 m 27 s). The 4 skipped are exactly the opt-in <code>MicChainSampleRateTests</code>.</td></tr>
+<tr><th>CI</th><td>4 runs, all green on windows, linux and macos: 43744945186 / 43744951799 (head b6d9b32), <b>43747894067 / 43747898566 (head b9bdec1)</b>. At b9bdec1, each run gives Windows 2381 passed / 4 skipped / 0 failed, Linux 286/286 and macOS 278/278. I read these from the run logs myself.</td></tr>
+</table>
+
+<h2>Expected vs Actual, per criterion</h2>
+<table>
+<tr><th>#</th><th>Expected</th><th>Actual (QA's own run unless marked)</th><th>Result</th></tr>
+<tr><td>1</td><td>44.1 kHz mic, default settings, 10 of 10 complete</td>
+<td><b>10 of 10 completed</b> on pid 8304. Every capture was <code>aac 44100 Hz stereo</code> (the preserved <code>recording.original.mp4</code>). Each final file decodes to exit 0, and mux, thumbnail and package are all <code>done</code>. Every take logged the fixed chain <code>aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn</code>. Post-processing settled 4.2-5.1 s after stop.
+<br><b>Stated deviation:</b> 9 of 10 finished at mux <code>Attempts 1</code>. Take 8 (140726) is at <code>Attempts 2</code>. The owner's installed app (pid 16160, the main 93681fa build) ran its own 15-minute repair pass at 14:07:53. That pass picked up the take <i>while pid 8304 was still recording it</i> and failed to read a raw file another process was writing. The branch's own mux then ran once and succeeded in 1.6 s. My setup ran two hosts on one library, and that caused this. It is a pre-existing race between processes, not a mic-chain failure (finding F2). Criterion 1 as written asks for completion, and all 10 completed.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>1 control</td><td>Unmodified main 90c9118, which already has #136, still fails. Otherwise the fix is redundant.</td>
+<td><b>0 of 3 completed</b> (my run, pid 17696). There were 6 mux attempts: 5 stalled at the end of the audio and were killed by the 60 s watchdog, and 1 crashed with 0xC0000005. Every chain was the unfixed one. That matches the developer's record of 0 of 10: I traced it in the app log to pid 15316, built from the developer's main90 worktree, which logged the unfixed chain 21 times and the fixed one 0 times. Later the branch build (pid 8304) finished 2 of my 3 control takes <i>from the same raw audio</i>, in 1.6 s and 2.8 s. <b>#136 alone does not fix this, so the fix is necessary.</b></td>
+<td class="pass">CONFIRMED</td></tr>
+<tr><td>2</td><td>48 kHz case, 10 of 10</td>
+<td>The app cannot capture this mic at 48 kHz, so this is reviewed rather than re-run: the developer's 10 captures used the app's exact command plus <code>-sample_rate 48000</code>, run through <code>AudioMix.ProcessVideoMic</code>. My own check: in the opt-in executed-graph test on 9.0.2, a 48 kHz source shows arnndn fed straight from <code>asetnsamples</code> at 48000 Hz, and the run completes. The resample is a pass-through there. By code, the added stage only changes the graph when the rate is not 48000.</td>
+<td class="pass">PASS (review + fixture)</td></tr>
+<tr><td>3</td><td>Order pinned. The graph is quoted, and a test fails if the stages are swapped.</td>
+<td><b>The guard bites.</b> I mutated <code>MicChain</code> myself. With the stages swapped, <code>EveryMicChainBuilder_DenoiseOn_ResamplesAheadOfTheFraming</code> fails in 19 ms and names all 7 generated lists across <code>FilterMicToWav</code>, <code>MixMicSystemToWav</code> and <code>MixTwoWav</code>: "the resample comes AFTER the framing - it undoes it". With the resample removed (main's shape), it fails in 31 ms: "no 48 kHz resample". Unmodified, it passes 4 of 4. In the opt-in executed-graph test with the resample removed, all 4 source rates fail on 8.1.1, which never stalls (<code>into arnndn: from G0_auto_aresample_1</code>). On 9.0.2 all 7 opt-in tests fail, 5 of them by bounded stall. <code>MicChain</code> is the single place that builds the denoise segment (<code>FfmpegArgs.cs:372</code>), and all three builders reach it.</td>
+<td class="pass">PASS</td></tr>
+<tr><td>4</td><td>macOS and Linux audited</td>
+<td><b>A READING, not a measurement.</b> Neither platform can be run from this seat. I confirmed it in code. macOS: <code>AvfStream.cs:108</code> outputs <code>-ar 48000</code> (<code>Mac/AudioCapture.SampleRate = 48000</code>), and the screen ffmpeg's avfoundation input is <code>N:none</code>, so it carries no audio. Linux: <code>PulseStream.cs:53</code> outputs <code>-ar 48000</code>. The in-process <code>FfmpegArgs.Linux.cs:72 PulseInput</code> passes no rate and relies on ffmpeg's pulse demuxer default of 48000. That default comes from ffmpeg's source and was not measured, as the developer flagged. Either way, the fix sits in the shared chain. The 4 <code>MicChainOrderTests</code> are compiled into the Linux and macOS test projects (I listed them), and the opt-in graph test covers 16 / 22.05 / 44.1 / 48 kHz sources.</td>
+<td class="pass">PASS (reading)</td></tr>
+<tr><td>5</td><td>Denoise and leveling measurably applied</td>
+<td><b>On 44.1 kHz FIXTURES, on 9.0.2:</b> noise RMS -45.8 dB with denoise against -15.7 dB without, which is <b>30.1 dB removed</b>. A quiet tone measured -55.1 dB with leveling against -67.1 dB without, which is <b>+12.0 dB</b>. The fixture method is sound: each measurement is the full default chain against the same chain with only that one stage off, measured from decoded float samples, and a resample cannot account for 30 dB. <b>Denoise on a real capture is UNPROVEN on this hardware:</b> this machine's microphone captures near-silence (my takes: mean -91.0 dB, max -84.3 dB by volumedetect; the developer measured -96.7 dBFS RMS), so there is no noise to remove. I did not touch any audio setting.</td>
+<td class="pass">PASS (fixtures)</td></tr>
+<tr><td>6</td><td>Ten-minute default-settings recording: every stage <code>done</code>, <code>Attempts 1</code></td>
+<td><b>Completed</b> (my run, directory 142305, pid 8304). The take was 616.9 s of screen + mic + system on default settings, the shape that stalled 3 attempts on main 93681fa. Mux, thumbnail and package are all <code>done</code> at <code>Attempts 1</code>. The mux took 37.6 s, and everything settled 47.2 s after stop. The fixed chain was logged. I started the take just after the installed app's repair pass, so no foreign pass could touch it (F2).</td>
+<td class="pass">PASS</td></tr>
+<tr><td>7</td><td>Gates on three platforms, CI over more than one run</td>
+<td>Local Windows gate is green (above). CI is green on all 3 jobs in 4 runs, 2 of them at b9bdec1, with the counts read from the logs.</td>
+<td class="pass">PASS</td></tr>
+</table>
+
+<h2>Scrutiny point 4 - no ffmpeg in the default gate, both arms</h2>
+<p>Instrument: a counting <code>ffmpeg.exe</code> shim, placed both as <code>QA_RECORD_FFMPEG_DIR</code> and first on <code>PATH</code>. It logs one line per launch and then runs the real 9.0.2.</p>
+<table>
+<tr><th>Arm</th><th>Tests</th><th>ffmpeg launches</th></tr>
+<tr><td>A: <code>MicChainSampleRateTests</code>, variable unset</td><td>4 skipped</td><td><b>0</b></td></tr>
+<tr><td>B: same class, <code>AGENTEYES_FFMPEG_TESTS=1</code></td><td>7 passed</td><td><b>25</b>, all under the class's <code>agenteyes-146-*</code> root</td></tr>
+<tr><td>Full default gate, variable unset</td><td>2381 passed / 4 skipped</td><td><b>276</b> in total; <b>0</b> under <code>agenteyes-146-*</code></td></tr>
+</table>
+<p><span class="pass">#146's ffmpeg tests are correctly opt-in.</span> <span class="note">Finding F1:</span> the default gate as a whole is not ffmpeg-free. It started 276 ffmpeg processes from pre-existing tests: #128, #136, always-on, housekeeping, frames, history, decay and others. That is wider than #151's stated scope of #128's tests. Not charged to #146. The instrument cannot see an ffmpeg launched by an absolute path that bypasses the locator and PATH, and it does not count ffprobe.</p>
+
+<h2>Platform report #142, Windows rows 4, 5 and 6 - pass once #146 lands</h2>
+<p>All three rows were tested on b9bdec1, which is main plus the UNMERGED #146 fix. The claim is "rows 4, 5 and 6 pass once #146 lands", not that they pass on main. The host is the headless <code>agenteyes serve</code> (pid 8304), not the tray app the original report used. Both run the same <code>RecordingService</code> and post-processing.</p>
+<table>
+<tr><th>Row</th><th>Take</th><th>Measured</th><th>Result</th></tr>
+<tr><td>4 screen only</td><td>140201, 25.11 s</td><td>Exactly one stream, h264 1920x1080 30/1. 25.800 s, 755 frames (nb_frames = packets = decoded). moov at 765,529. Full decode exit 0, 0 bytes stderr. Package fails as known #126, as it does on main.</td><td class="pass">PASS</td></tr>
+<tr><td>5 screen + mic</td><td>the ten C1 takes</td><td>Every final file has audio 0.69-0.81 s shorter than video (96.9-98.1%). That gap is already in the capture: the preserved 44.1 kHz original is short by the same 0.68-0.81 s, and processing changes the audio length by only 2-9 ms. It is constant across lengths, and the original report recorded the same effect on main (0.742 s and 0.774 s).</td><td class="pass">PASS</td></tr>
+<tr><td>6 ten minutes</td><td>142305, 616.9 s, mixed</td><td>Every stage done at Attempts 1. Video 617.533 s / 17770 frames, audio 616.720 s (99.87%). <b>moov 671,534 bytes at offset 27,648,559.</b> Full decode exit 0, 0 bytes stderr, 23.7 s. The thumbnail is a real desktop frame.</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>Findings that are not #146 defects</h2>
+<ul>
+<li><b>F1</b> - the default gate launches 276 ffmpeg processes (above).</li>
+<li><b>F2</b> - <b>a race between two processes</b>: one host's repair pass picks up a recording that another host on the same library is still capturing. It admits it for resume with "no claim" and burns a mux attempt on the half-written <code>raw.mp4</code> (C1 take 8, installed app pid 16160). Here it failed safely, on an ffprobe read, at the cost of 1 of the 3 attempts. The <code>RecordingWorkset</code> claim is per-process, and the capture does not hold <code>mux.lock</code>. It only matters when two hosts share a library, for example the tray app plus <code>agenteyes serve</code>. Worth an issue.</li>
+<li><b>F3</b> (cosmetic) - <code>MicChainSampleRateTests.ExecutedGraph</code>'s stall message always says "44.1 kHz source", even for the 22.05 kHz case.</li>
+</ul>
+
+<h2>Process hygiene</h2>
+<p>I killed only pids I started: the control service 17696 and its ffmpeg child 16900 (cpu 16.4 s, started 14:00:49, the 135738 mic pass), recorded before the kill. I deleted nothing from the recordings library, including the failed controls. Both services' repair passes ran over the library. A sha256 snapshot of every <code>manifest.json</code>, taken before and after: the only manifests that changed are the 15 recordings this seat created, 3 controls and 12 branch takes. No pre-existing manifest changed and no directory was removed. The housekeeper ran report-only. The owner's installed app was never stopped. Its own repair pass is what touched take 8.</p>
+
+<h2>Evidence (committed under <code>qa/</code>)</h2>
+<ul>
+<li><code>qa/gate-and-ffmpeg-optin.txt</code> - gate counts, the shim, both arms, attribution of all 276 launches</li>
+<li><code>qa/guard-mutations.txt</code> - swap and removal mutations, the failure messages, the unmodified pass</li>
+<li><code>qa/optin-ffmpeg-tests.txt</code> - executed graphs and C5 numbers: fixed on 9.0.2, mutant on 8.1.1 and on 9.0.2</li>
+<li><code>qa/control-main-90c9118.txt</code> - the independent control, its log lines, and the same raw audio completing on the fix</li>
+<li><code>qa/c1-row5-ten-takes.txt</code> - the ten takes: manifests, capture against final lengths, decode, levels, the take 8 trace</li>
+<li><code>qa/row4.txt</code>, <code>qa/row6.txt</code> - the platform report rows 4 and 6 (#142)</li>
+</ul>
+</body>
+</html>

@@ -1,0 +1,137 @@
+=== r23-FIXED-3a1165d app=C:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe
+--- initial state
+  [2026-11-15_101000_qa128r3pubfix]
+    PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-15T15:00:00Z"}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1867), recording.mp4(12515040), recording.original.mp4(14257878)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonefix]
+    PostProcessing: {"mux":{"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-15T15:00:00Z"}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1867), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+launch 1 app pid 2412 at 10:15:57.918; waiting 60 s
+--- after launch 1
+  [2026-11-15_101000_qa128r3pubfix]
+    PostProcessing: {"mux":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:00:00Z"},"thumbnail":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:19.3821207Z"},"package":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:20.9904523Z"},"plugins":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:21.0052216Z"}}
+    PendingMux set: False; OriginalFiles: recording.original.mp4
+    files: shots(1), audio_16k.wav(640078), manifest.json(1453), mux.lock(0), recording.mp4(12515040), recording.original.mp4(14257878), thumb.jpg(10517), transcript.en.vtt(40), transcript.json(77), transcript.txt(10), walkthrough.html(1812)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonefix]
+    PostProcessing: {"mux":{"State":"failed","Attempts":2,"LastAttemptUtc":"2026-11-15T15:16:21.0367048Z","Error":"the deferred mux for 2026-11-15_101100_qa128r3gonefix cannot run: its input raw.mp4 is missing from C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101100_qa128r3gonefix. Nothing was written and recording.mp4 was left as it is."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1319), mux.lock(0), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+    ffmpeg alive now: 0
+--- log lines from pid 2412 naming either recording, plus FindUnfinished summaries:
+10:16:19.093 [pid 2412] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_101000_qa128r3pubfix needs mux
+10:16:19.096 [pid 2412] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_101100_qa128r3gonefix needs mux
+10:16:19.096 [pid 2412] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=2
+10:16:19.107 [pid 2412] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_101000_qa128r3pubfix#1 (no claim)
+10:16:19.108 [pid 2412] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix hostedWork=True
+10:16:19.109 [pid 2412] [INFO] [PostRecording] TrackWork: resume 2026-11-15_101000_qa128r3pubfix (in flight=1)
+10:16:19.113 [pid 2412] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix claimed by FullPipeline/resume#2
+10:16:19.116 [pid 2412] [INFO] [MuxLock] TryAcquire: 2026-11-15_101000_qa128r3pubfix (post-recording) - acquired by pid 2412
+10:16:19.117 [pid 2412] [INFO] [MuxCoordinator] Reconcile: 2026-11-15_101000_qa128r3pubfix
+10:16:19.120 [pid 2412] [ERROR] [MuxCoordinator] Reconcile: 2026-11-15_101000_qa128r3pubfix - recording.mp4 is a COMPLETED mux whose manifest update was lost (a raw input was already preserved as its .original backup); publishing it
+10:16:19.121 [pid 2412] [INFO] [RecordingService] CompleteInterruptedFinalize: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix
+10:16:19.190 [pid 2412] [INFO] [OriginalBackup] Present: 2026-11-15_101000_qa128r3pubfix -> 1
+10:16:19.235 [pid 2412] [INFO] [RecordingService] PublishFinalized: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix dur=20.0s originals=1
+10:16:19.236 [pid 2412] [INFO] [RecordingService] CompleteInterruptedFinalize: done dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix
+10:16:19.236 [pid 2412] [INFO] [PostRecordingState] NoteDone: 2026-11-15_101000_qa128r3pubfix stage=mux
+10:16:19.257 [pid 2412] [INFO] [PostRecording] Execute: 2026-11-15_101000_qa128r3pubfix - reconciled a completed mux; continuing with the later stages
+10:16:19.259 [pid 2412] [INFO] [MuxLock] Release: 2026-11-15_101000_qa128r3pubfix - released by pid 2412
+10:16:19.260 [pid 2412] [INFO] [PostRecording] Execute: 2026-11-15_101000_qa128r3pubfix - no camera to compose
+10:16:19.261 [pid 2412] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-15_101000_qa128r3pubfix
+10:16:19.265 [pid 2412] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-15_101000_qa128r3pubfix attempt 1/3
+10:16:19.275 [pid 2412] [INFO] ffmpeg [poster thumbnail]: "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -ss 2 -i C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix\thumb.jpg
+10:16:19.380 [pid 2412] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-15_101000_qa128r3pubfix in 0.1s
+10:16:19.380 [pid 2412] [INFO] [PostRecordingState] NoteDone: 2026-11-15_101000_qa128r3pubfix stage=thumbnail
+10:16:19.398 [pid 2412] [INFO] [PostRecording] stage package: start dir=2026-11-15_101000_qa128r3pubfix
+10:16:19.403 [pid 2412] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-15_101000_qa128r3pubfix attempt 1/3
+10:16:19.407 [pid 2412] [INFO] [MuxCoordinator] RunForPackage: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix
+10:16:19.413 [pid 2412] [INFO] [MuxCoordinator] RunForPackage: 2026-11-15_101000_qa128r3pubfix - no pending mux
+10:16:19.415 [pid 2412] [INFO] ffmpeg [extract audio]: "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix\recording.mp4 -vn -ac 1 -ar 16000 -f wav C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix\audio_16k.wav
+10:16:19.497 [pid 2412] [INFO] [Transcriber] TranscribeWavAsync: wavPath=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix\audio_16k.wav
+10:16:19.498 [pid 2412] [INFO] [DevThrottleClient] TranscribeAsync: wavPath=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix\audio_16k.wav
+10:16:20.967 [pid 2412] [ERROR] [Package] title generation FAILED for C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix: transcript is empty; nothing to title. - the recording keeps its preset name
+10:16:20.968 [pid 2412] [INFO] [Package] FinalizeManifest: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix, frames=4, named=False
+10:16:20.983 [pid 2412] [INFO] [PostRecording] stage package: done dir=2026-11-15_101000_qa128r3pubfix in 1.6s
+10:16:20.984 [pid 2412] [INFO] [PostRecordingState] NoteDone: 2026-11-15_101000_qa128r3pubfix stage=package
+10:16:20.995 [pid 2412] [INFO] [PostRecording] stage plugins: start dir=2026-11-15_101000_qa128r3pubfix
+10:16:20.995 [pid 2412] [INFO] [PostRecording] stage plugins: done dir=2026-11-15_101000_qa128r3pubfix in 0.0s
+10:16:20.996 [pid 2412] [INFO] [PostRecordingState] NoteDone: 2026-11-15_101000_qa128r3pubfix stage=plugins
+10:16:21.010 [pid 2412] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-15_101000_qa128r3pubfix released by FullPipeline/resume#2
+10:16:21.010 [pid 2412] [INFO] [PostRecording] TrackWork released: resume 2026-11-15_101000_qa128r3pubfix (in flight=0)
+10:16:21.012 [pid 2412] [INFO] [RecordingWorkset] EndStep: resume 2026-11-15_101000_qa128r3pubfix#1 (no claim) finished
+10:16:21.013 [pid 2412] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_101100_qa128r3gonefix#3 (no claim)
+10:16:21.013 [pid 2412] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix hostedWork=True
+10:16:21.013 [pid 2412] [INFO] [PostRecording] TrackWork: resume 2026-11-15_101100_qa128r3gonefix (in flight=1)
+10:16:21.013 [pid 2412] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix claimed by FullPipeline/resume#4
+10:16:21.017 [pid 2412] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonefix (post-recording) - acquired by pid 2412
+10:16:21.018 [pid 2412] [INFO] [MuxCoordinator] Reconcile: 2026-11-15_101100_qa128r3gonefix
+10:16:21.018 [pid 2412] [ERROR] [MuxCoordinator] Reconcile: 2026-11-15_101100_qa128r3gonefix - interrupted: mux attempt 1 (started 2026-11-15T15:00:00.0000000Z) never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way through
+10:16:21.019 [pid 2412] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101100_qa128r3gonefix stage=mux error=interrupted: mux attempt 1 (started 2026-11-15T15:00:00.0000000Z) never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way through
+10:16:21.025 [pid 2412] [ERROR] [MuxCoordinator] RemoveFragment: 2026-11-15_101100_qa128r3gonefix - recording.mp4 exists, the mux is still marked pending, and its input raw.mp4 is gone with no .original backup: the file cannot be proven a fragment, so it is KEPT.
+10:16:21.036 [pid 2412] [INFO] [PostRecordingState] NoteStarted: 2026-11-15_101100_qa128r3gonefix stage=mux
+10:16:21.041 [pid 2412] [INFO] [PostRecording] stage mux: start dir=2026-11-15_101100_qa128r3gonefix
+10:16:21.055 [pid 2412] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonefix (finalize) - re-entered, depth 2
+10:16:21.056 [pid 2412] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix
+10:16:21.056 [pid 2412] [ERROR] System.IO.FileNotFoundException: the deferred mux for 2026-11-15_101100_qa128r3gonefix cannot run: its input raw.mp4 is missing from C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix. Nothing was written and recording.mp4 was left as it is.
+10:16:21.056 [pid 2412] [ERROR] File name: 'C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix\raw.mp4'
+10:16:21.056 [pid 2412] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101100_qa128r3gonefix stage=mux error=the deferred mux for 2026-11-15_101100_qa128r3gonefix cannot run: its input raw.mp4 is missing from C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix. Nothing was written and recording.mp4 was left as it is.
+10:16:21.060 [pid 2412] [INFO] [PostRecording] Execute: 2026-11-15_101100_qa128r3gonefix - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:16:21.061 [pid 2412] [INFO] [MuxLock] Release: 2026-11-15_101100_qa128r3gonefix - released by pid 2412
+10:16:21.061 [pid 2412] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix released by FullPipeline/resume#4
+10:16:21.061 [pid 2412] [INFO] [PostRecording] TrackWork released: resume 2026-11-15_101100_qa128r3gonefix (in flight=0)
+10:16:21.062 [pid 2412] [INFO] [RecordingWorkset] EndStep: resume 2026-11-15_101100_qa128r3gonefix#3 (no claim) finished
+launch 2 app pid 11592 at 10:17:00.127; waiting 60 s
+--- after launch 2
+  [2026-11-15_101000_qa128r3pubfix]
+    PostProcessing: {"mux":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:00:00Z"},"thumbnail":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:19.3821207Z"},"package":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:20.9904523Z"},"plugins":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:21.0052216Z"}}
+    PendingMux set: False; OriginalFiles: recording.original.mp4
+    files: shots(1), audio_16k.wav(640078), manifest.json(1453), mux.lock(0), recording.mp4(12515040), recording.original.mp4(14257878), thumb.jpg(10517), transcript.en.vtt(40), transcript.json(77), transcript.txt(10), walkthrough.html(1812)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonefix]
+    PostProcessing: {"mux":{"State":"failed","Attempts":3,"LastAttemptUtc":"2026-11-15T15:17:20.6390965Z","Error":"the deferred mux for 2026-11-15_101100_qa128r3gonefix cannot run: its input raw.mp4 is missing from C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101100_qa128r3gonefix. Nothing was written and recording.mp4 was left as it is."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1319), mux.lock(0), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+    ffmpeg alive now: 0
+--- log lines from pid 11592 naming either recording, plus FindUnfinished summaries:
+10:17:20.619 [pid 11592] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_101100_qa128r3gonefix needs mux
+10:17:20.619 [pid 11592] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+10:17:20.627 [pid 11592] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_101100_qa128r3gonefix#1 (no claim)
+10:17:20.628 [pid 11592] [INFO] [PostRecording] Resume: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix hostedWork=True
+10:17:20.629 [pid 11592] [INFO] [PostRecording] TrackWork: resume 2026-11-15_101100_qa128r3gonefix (in flight=1)
+10:17:20.632 [pid 11592] [INFO] [RecordingWorkset] TryClaim: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix claimed by FullPipeline/resume#2
+10:17:20.634 [pid 11592] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonefix (post-recording) - acquired by pid 11592
+10:17:20.635 [pid 11592] [INFO] [MuxCoordinator] Reconcile: 2026-11-15_101100_qa128r3gonefix
+10:17:20.638 [pid 11592] [ERROR] [MuxCoordinator] RemoveFragment: 2026-11-15_101100_qa128r3gonefix - recording.mp4 exists, the mux is still marked pending, and its input raw.mp4 is gone with no .original backup: the file cannot be proven a fragment, so it is KEPT.
+10:17:20.639 [pid 11592] [INFO] [PostRecordingState] NoteStarted: 2026-11-15_101100_qa128r3gonefix stage=mux
+10:17:20.667 [pid 11592] [INFO] [PostRecording] stage mux: start dir=2026-11-15_101100_qa128r3gonefix
+10:17:20.680 [pid 11592] [INFO] [MuxLock] TryAcquire: 2026-11-15_101100_qa128r3gonefix (finalize) - re-entered, depth 2
+10:17:20.692 [pid 11592] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix
+10:17:20.692 [pid 11592] [ERROR] System.IO.FileNotFoundException: the deferred mux for 2026-11-15_101100_qa128r3gonefix cannot run: its input raw.mp4 is missing from C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix. Nothing was written and recording.mp4 was left as it is.
+10:17:20.692 [pid 11592] [ERROR] File name: 'C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix\raw.mp4'
+10:17:20.693 [pid 11592] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_101100_qa128r3gonefix stage=mux error=the deferred mux for 2026-11-15_101100_qa128r3gonefix cannot run: its input raw.mp4 is missing from C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix. Nothing was written and recording.mp4 was left as it is.
+10:17:20.699 [pid 11592] [INFO] [PostRecording] Execute: 2026-11-15_101100_qa128r3gonefix - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+10:17:20.700 [pid 11592] [INFO] [MuxLock] Release: 2026-11-15_101100_qa128r3gonefix - released by pid 11592
+10:17:20.702 [pid 11592] [INFO] [RecordingWorkset] Release: C:\Users\soren\Videos\AgentEyes\2026-11-15_101100_qa128r3gonefix released by FullPipeline/resume#2
+10:17:20.702 [pid 11592] [INFO] [PostRecording] TrackWork released: resume 2026-11-15_101100_qa128r3gonefix (in flight=0)
+10:17:20.704 [pid 11592] [INFO] [RecordingWorkset] EndStep: resume 2026-11-15_101100_qa128r3gonefix#1 (no claim) finished
+launch 3 app pid 18444 at 10:18:02.265; waiting 60 s
+--- after launch 3
+  [2026-11-15_101000_qa128r3pubfix]
+    PostProcessing: {"mux":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:00:00Z"},"thumbnail":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:19.3821207Z"},"package":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:20.9904523Z"},"plugins":{"State":"done","Attempts":1,"LastAttemptUtc":"2026-11-15T15:16:21.0052216Z"}}
+    PendingMux set: False; OriginalFiles: recording.original.mp4
+    files: shots(1), audio_16k.wav(640078), manifest.json(1453), mux.lock(0), recording.mp4(12515040), recording.original.mp4(14257878), thumb.jpg(10517), transcript.en.vtt(40), transcript.json(77), transcript.txt(10), walkthrough.html(1812)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+  [2026-11-15_101100_qa128r3gonefix]
+    PostProcessing: {"mux":{"State":"failed","Attempts":3,"LastAttemptUtc":"2026-11-15T15:17:20.6390965Z","Error":"the deferred mux for 2026-11-15_101100_qa128r3gonefix cannot run: its input raw.mp4 is missing from C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-15_101100_qa128r3gonefix. Nothing was written and recording.mp4 was left as it is."}}
+    PendingMux set: True; OriginalFiles: 
+    files: manifest.json(1319), mux.lock(0), recording.mp4(12515040)
+    recording.mp4 md5: D0C06F54C19E9BB55A011961754D1924
+    ffmpeg alive now: 0
+--- log lines from pid 18444 naming either recording, plus FindUnfinished summaries:
+10:18:22.744 [pid 18444] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=0

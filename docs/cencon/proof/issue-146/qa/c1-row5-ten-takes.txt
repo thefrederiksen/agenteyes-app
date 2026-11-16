@@ -1,0 +1,142 @@
+Issue #146 QA - CRITERION 1 and ROW 5: ten default-settings recordings on a 44.1 kHz mic, this branch.
+Build: branch issue-146-resample-before-framing @ b9bdec1 (fix 19667c5), dotnet build AgentEyes.sln -c Release,
+  src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe sha256 a3c54f9a29f58ca0de8b0624a57c5640ade003cfb0c6ee7e06e5553ce097215f,
+  agenteyes.dll sha256 7b9681726725417e95db3d684f913caf3891f1b1bc972f46e039b4e1fc4f9d38 (contains UTF-16 'aresample=48000').
+Host: 'agenteyes serve --port 7894', pid 8304, started 14:01:36, /version 1.11.11, ffmpeg 9.0.2 (logged by the service).
+Mic: Microphone (2- Realtek(R) Audio). Body: {"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+Load: Windows LoadPercentage is printed on every line (8 logical CPUs; the owner's Director and other agent sessions were running).
+
+[C1 branch #1] start 14:03:05.744 load=45% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #1] status before stop: State=recording Elapsed=25.17 load=32%
+[C1 branch #1] stop 14:03:32.510 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140306_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140306_video\\recording.mp4","DurationSeconds":26.4,"Shots":0}
+[C1 branch #1] dir=2026-11-15_140306_video settled=True after 4.7s load=8%
+[C1 branch #1]   mux: State=done Attempts=1 
+[C1 branch #1]   thumbnail: State=done Attempts=1 
+[C1 branch #1]   package: State=done Attempts=1 
+[C1 branch #1]   recording.mp4 present: True
+[C1 branch #2] start 14:03:38.421 load=42% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #2] status before stop: State=recording Elapsed=32.9 load=30%
+[C1 branch #2] stop 14:04:12.878 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140338_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140338_video\\recording.mp4","DurationSeconds":34.11,"Shots":0}
+[C1 branch #2] dir=2026-11-15_140338_video settled=True after 4.5s load=36%
+[C1 branch #2]   mux: State=done Attempts=1 
+[C1 branch #2]   thumbnail: State=done Attempts=1 
+[C1 branch #2]   package: State=done Attempts=1 
+[C1 branch #2]   recording.mp4 present: True
+[C1 branch #3] start 14:04:18.546 load=45% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #3] status before stop: State=recording Elapsed=20.91 load=32%
+[C1 branch #3] stop 14:04:41.068 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140418_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140418_video\\recording.mp4","DurationSeconds":22.12,"Shots":0}
+[C1 branch #3] dir=2026-11-15_140418_video settled=True after 4.6s load=8%
+[C1 branch #3]   mux: State=done Attempts=1 
+[C1 branch #3]   thumbnail: State=done Attempts=1 
+[C1 branch #3]   package: State=done Attempts=1 
+[C1 branch #3]   recording.mp4 present: True
+[C1 branch #4] start 14:04:46.824 load=76% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #4] status before stop: State=recording Elapsed=28.89 load=28%
+[C1 branch #4] stop 14:05:17.101 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140447_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140447_video\\recording.mp4","DurationSeconds":30.09,"Shots":0}
+[C1 branch #4] dir=2026-11-15_140447_video settled=True after 5s load=8%
+[C1 branch #4]   mux: State=done Attempts=1 
+[C1 branch #4]   thumbnail: State=done Attempts=1 
+[C1 branch #4]   package: State=done Attempts=1 
+[C1 branch #4]   recording.mp4 present: True
+[C1 branch #5] start 14:05:23.249 load=17% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #5] status before stop: State=recording Elapsed=36.88 load=25%
+[C1 branch #5] stop 14:06:01.695 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140523_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140523_video\\recording.mp4","DurationSeconds":38.09,"Shots":0}
+[C1 branch #5] dir=2026-11-15_140523_video settled=True after 5.1s load=5%
+[C1 branch #5]   mux: State=done Attempts=1 
+[C1 branch #5]   thumbnail: State=done Attempts=1 
+[C1 branch #5]   package: State=done Attempts=1 
+[C1 branch #5]   recording.mp4 present: True
+[C1 branch #6] start 14:06:16.634 load=73% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #6] status before stop: State=recording Elapsed=24.08 load=37%
+[C1 branch #6] stop 14:06:42.298 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140617_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140617_video\\recording.mp4","DurationSeconds":25.3,"Shots":0}
+[C1 branch #6] dir=2026-11-15_140617_video settled=True after 4.2s load=25%
+[C1 branch #6]   mux: State=done Attempts=1 
+[C1 branch #6]   thumbnail: State=done Attempts=1 
+[C1 branch #6]   package: State=done Attempts=1 
+[C1 branch #6]   recording.mp4 present: True
+[C1 branch #7] start 14:06:47.611 load=53% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #7] status before stop: State=recording Elapsed=30.8 load=54%
+[C1 branch #7] stop 14:07:20.016 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140648_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140648_video\\recording.mp4","DurationSeconds":32.03,"Shots":0}
+[C1 branch #7] dir=2026-11-15_140648_video settled=True after 4.6s load=10%
+[C1 branch #7]   mux: State=done Attempts=1 
+[C1 branch #7]   thumbnail: State=done Attempts=1 
+[C1 branch #7]   package: State=done Attempts=1 
+[C1 branch #7]   recording.mp4 present: True
+[C1 branch #8] start 14:07:25.715 load=22% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #8] status before stop: State=recording Elapsed=26.83 load=59%
+[C1 branch #8] stop 14:07:54.169 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140726_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140726_video\\recording.mp4","DurationSeconds":28.11,"Shots":0}
+[C1 branch #8] dir=2026-11-15_140726_video settled=True after 4.8s load=9%
+[C1 branch #8]   mux: State=done Attempts=2 
+[C1 branch #8]   thumbnail: State=done Attempts=1 
+[C1 branch #8]   package: State=done Attempts=1 
+[C1 branch #8]   recording.mp4 present: True
+[C1 branch #9] start 14:08:00.072 load=40% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #9] status before stop: State=recording Elapsed=34.83 load=37%
+[C1 branch #9] stop 14:08:36.417 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140800_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140800_video\\recording.mp4","DurationSeconds":36.02,"Shots":0}
+[C1 branch #9] dir=2026-11-15_140800_video settled=True after 5.1s load=7%
+[C1 branch #9]   mux: State=done Attempts=1 
+[C1 branch #9]   thumbnail: State=done Attempts=1 
+[C1 branch #9]   package: State=done Attempts=1 
+[C1 branch #9]   recording.mp4 present: True
+[C1 branch #10] start 14:08:42.654 load=30% body={"mode":"video","screen":1,"source":"mic","mic":"Microphone (2- Realtek(R) Audio)"}
+[C1 branch #10] status before stop: State=recording Elapsed=22.85 load=23%
+[C1 branch #10] stop 14:09:07.020 -> {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140843_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-15_140843_video\\recording.mp4","DurationSeconds":24.02,"Shots":0}
+[C1 branch #10] dir=2026-11-15_140843_video settled=True after 4.3s load=12%
+[C1 branch #10]   mux: State=done Attempts=1 
+[C1 branch #10]   thumbnail: State=done Attempts=1 
+[C1 branch #10]   package: State=done Attempts=1 
+[C1 branch #10]   recording.mp4 present: True
+
+== final manifests (re-read after all ten)
+140306 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140338 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140418 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140447 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140523 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140617 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140648 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140726 {'mux': ('done', 2), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140800 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+140843 {'mux': ('done', 1), 'thumbnail': ('done', 1), 'package': ('done', 1)}
+
+== capture (recording.original.mp4, the raw take the product preserves) vs final (recording.mp4)
+140306 | capture audio 44100 Hz 26.246 s, capture video 27.033 s (audio short 0.787 s) | final audio 48000 Hz 26.240 s, final video 27.033 s (short 0.793 s) | final-vs-capture audio -0.006 s
+140338 | capture audio 44100 Hz 33.926 s, capture video 34.733 s (audio short 0.807 s) | final audio 48000 Hz 33.920 s, final video 34.733 s (short 0.813 s) | final-vs-capture audio -0.006 s
+140418 | capture audio 44100 Hz 22.167 s, capture video 22.867 s (audio short 0.700 s) | final audio 48000 Hz 22.160 s, final video 22.867 s (short 0.707 s) | final-vs-capture audio -0.007 s
+140447 | capture audio 44100 Hz 30.007 s, capture video 30.700 s (audio short 0.693 s) | final audio 48000 Hz 30.000 s, final video 30.700 s (short 0.700 s) | final-vs-capture audio -0.007 s
+140523 | capture audio 44100 Hz 38.087 s, capture video 38.833 s (audio short 0.746 s) | final audio 48000 Hz 38.080 s, final video 38.833 s (short 0.753 s) | final-vs-capture audio -0.007 s
+140617 | capture audio 44100 Hz 25.208 s, capture video 25.967 s (audio short 0.759 s) | final audio 48000 Hz 25.200 s, final video 25.967 s (short 0.767 s) | final-vs-capture audio -0.008 s
+140648 | capture audio 44100 Hz 32.002 s, capture video 32.767 s (audio short 0.765 s) | final audio 48000 Hz 32.000 s, final video 32.767 s (short 0.767 s) | final-vs-capture audio -0.002 s
+140726 | capture audio 44100 Hz 28.328 s, capture video 29.033 s (audio short 0.705 s) | final audio 48000 Hz 28.320 s, final video 29.033 s (short 0.713 s) | final-vs-capture audio -0.008 s
+140800 | capture audio 44100 Hz 36.089 s, capture video 36.767 s (audio short 0.678 s) | final audio 48000 Hz 36.080 s, final video 36.767 s (short 0.687 s) | final-vs-capture audio -0.009 s
+140843 | capture audio 44100 Hz 24.249 s, capture video 24.933 s (audio short 0.684 s) | final audio 48000 Hz 24.240 s, final video 24.933 s (short 0.693 s) | final-vs-capture audio -0.009 s
+
+== final file: streams, counts, full decode, levels, and the chain this service logged for the take
+140306 | video 27.033333 s, 776 frames | audio aac,48000,26.240000, 1231 pkts | audio/video 97.07% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -71.2 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140338 | video 34.733333 s, 1011 frames | audio aac,48000,33.920000, 1591 pkts | audio/video 97.66% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -67.4 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140418 | video 22.866667 s, 653 frames | audio aac,48000,22.160000, 1040 pkts | audio/video 96.91% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -71.2 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140447 | video 30.700000 s, 883 frames | audio aac,48000,30.000000, 1408 pkts | audio/video 97.72% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -58.1 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140523 | video 38.833333 s, 1132 frames | audio aac,48000,38.080000, 1786 pkts | audio/video 98.06% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -71.2 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140617 | video 25.966667 s, 753 frames | audio aac,48000,25.200000, 1183 pkts | audio/video 97.05% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -71.2 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140648 | video 32.766667 s, 951 frames | audio aac,48000,32.000000, 1501 pkts | audio/video 97.66% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -71.2 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140726 | video 29.033333 s, 834 frames | audio aac,48000,28.320000, 1329 pkts | audio/video 97.54% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -66.2 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140800 | video 36.766667 s, 1051 frames | audio aac,48000,36.080000, 1693 pkts | audio/video 98.13% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -71.2 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+140843 | video 24.933333 s, 714 frames | audio aac,48000,24.240000, 1138 pkts | audio/video 97.22% | decode exit 0, stderr 0 B | mean_volume: -85.5 dB max_volume: -69.5 dB  | chain: aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn
+
+== levels: capture mean -91.0 dB, max -84.3 to -80.8 dB (volumedetect): the mic delivers near-silence.
+
+== TAKE 8 (140726): why mux shows Attempts 2. NOT this build. The owner's installed app (pid 16160, the installed
+1.11.11, its own 15-minute repair timer at 14:07:52) found the take while pid 8304 was STILL RECORDING it,
+admitted it for resume with 'no claim', and tried to mux a raw.mp4 another process was writing:
+14:07:53.149 [pid 16160] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-15_140726_video needs mux
+14:07:53.156 [pid 16160] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-15_140726_video#1 (no claim)
+14:07:53.358 [pid 16160] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of %USERPROFILE%\Videos\AgentEyes\2026-11-15_140726_video\raw.mp4 (ffprobe said: ''). The mic chain cannot be built withou
+14:07:53.398 [pid 16160] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_140726_video stage=mux error=could not read the audio channel count of %USERPROFILE%\Videos\AgentEyes\2026-11-15_140726_video\raw.mp4 (ffprobe said: '').
+14:07:54.222 [pid 8304] [INFO] [RecordingStop] Keep: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-15_140726_video mode=video
+14:07:57.057 [pid 8304] [INFO] [PostRecording] stage mux: done dir=2026-11-15_140726_video in 1.6s
+The branch's own (first and only) mux of the finished capture then ran and completed in 1.6 s.
+This is a cross-process race between two hosts on one library (the RecordingWorkset claim is per-process), raised by
+the installed build (AgentEyesApp.exe sha256 38524e3c...c4f57011 = the main 93681fa build of #142, not this branch), and created by this QA setup running a second host. Reported separately; it is not a mic-chain failure.
+
+RESULT: 10 of 10 completed (recording.mp4 present, full decode exit 0, thumbnail done, package done, mux done).
+9 of 10 at mux Attempts 1; take 8 at Attempts 2 for the reason above. Every take logged the FIXED chain.

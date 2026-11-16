@@ -141,11 +141,30 @@ namespace AgentEyes
         /// timer.</summary>
         public void Start()
         {
+            // Issue #128: before any pass can re-run a mux, kill post-processing ffmpeg children a
+            // previous AgentEyes left running (a hung mux survives its owner on macOS/Linux). Runs
+            // here, synchronously, because this is the one start hook both hosts share and the
+            // first pass must not race a still-spinning orphan for the same recording. It is a
+            // directory listing plus one process lookup per record - milliseconds.
+            try
+            {
+                FfmpegChildRegistryReap();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RepairService] Start: orphan ffmpeg reap FAILED: {ex.Message}");
+            }
             PostRecording.Completed += OnRecordingCompleted;
             AccountState.Changed += OnAccountStateChanged;
             _timer = new Timer(OnTimerTick, null, StartupDelay, RepairSchedule.Interval);
             Log.Info($"[RepairService] Start: first pass in {StartupDelay.TotalSeconds:0}s, "
                 + $"then every {RepairSchedule.Interval.TotalMinutes:0} minute(s)");
+        }
+
+        private static void FfmpegChildRegistryReap()
+        {
+            var report = AgentEyes.Video.FfmpegChildRegistry.ReapOrphans();
+            Log.Info($"[RepairService] Start: orphan ffmpeg reap examined {report.Count} record(s)");
         }
 
         /// <summary>
@@ -337,9 +356,19 @@ namespace AgentEyes
         ///
         /// Ungated on purpose - the caller holds <see cref="Gate"/>.
         /// </summary>
-        public async Task ResumeUnfinishedAsync(int captureEpoch)
+        public Task ResumeUnfinishedAsync(int captureEpoch) => ResumeUnfinishedAsync(RecordingPaths.Root, captureEpoch);
+
+        /// <summary>
+        /// <see cref="ResumeUnfinishedAsync(int)"/> over an explicit recordings root: the discovery
+        /// scan and the resume loop, exactly as the repair pass runs them. The root is a parameter
+        /// (issue #128 round three) so a test can drive the PRODUCT path - discovery included -
+        /// over a temporary library; round two's test called the sequence directly, skipped
+        /// discovery, and so could not see a recording discovery never listed.
+        /// </summary>
+        internal async Task ResumeUnfinishedAsync(string root, int captureEpoch)
         {
-            var unfinished = await Task.Run(() => PostRecordingPlan.FindUnfinished(RecordingPaths.Root));
+            Log.Info($"[RepairService] ResumeUnfinishedAsync: root={root}");
+            var unfinished = await Task.Run(() => PostRecordingPlan.FindUnfinished(root));
             await ResumeAsync(unfinished, captureEpoch);
         }
 
