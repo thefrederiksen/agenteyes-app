@@ -1,0 +1,54 @@
+13:52:45.932 === QA #156 pass 2 scenario=crashload binary=fix scratch=$SCRATCH/runs/crashload-fix-135245
+13:52:45.935 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+13:52:45.954 embedded version: 1.11.11+2594cfc733eb58103a36055ec7b7d1295fe4d8c5
+13:52:46.027   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+13:52:46.376 isolation: report-only housekeep (no service) -> this host root=$SCRATCH/runs/crashload-fix-135245/home/Videos/AgentEyes ; other host root=$SCRATCH/runs/crashload-fix-135245/home/Videos/AgentEyes ; data roots $SCRATCH/runs/crashload-fix-135245/home/.local/share/AgentEyes/logs/.. and $SCRATCH/runs/crashload-fix-135245/other/.local/share/AgentEyes/logs/..
+13:52:46.381 isolation positive control: the same probe under a second scratch env reports $SCRATCH/runs/isoctrl-1297904/h/Videos/AgentEyes (it follows the env, so it can fail)
+13:52:46.649 [s1] serve pid 1297984 port 7990; its recordings root is inside scratch: $SCRATCH/runs/crashload-fix-135245/home/Videos/AgentEyes
+13:52:48.163 S1 pid 1297984 capturing into 2026-11-16_085246_video
+13:52:51.196 G1 at START (3 s into the capture): {"Host": "devlinux", "Pid": 1297984, "ProcessStartUtc": "2026-11-16T13:52:46.3721515Z"}
+13:52:51.285   S1 /proc start: Mon Nov 16 08:52:46 2026 ; owner record pid: 1297984
+13:53:28.329 writer pid 1298091 confirmed by command line to write into 2026-11-16_085246_video (comm=ffmpeg)
+13:53:28.359   raw.mp4=6029360 recording.mp4=absent capture.owner.json=346 | PendingMux=pending | mux: none | CaptureOwner={"Host": "devlinux", "Pid": 1297984, "ProcessStartUtc": "2026-11-16T13:52:46.3721515Z"}
+13:53:28.363 SIGKILL S1 pid 1297984 mid-capture
+13:53:32.438 after S1's death: writer 1298091 alive=yes ppid=2221 raw.mp4 6029360 -> 7077936 bytes in 4 s
+13:53:32.442 OTHER HOST package before recovery (must decline, uncounted):
+13:53:32.705   exit 1: [error] refusing to package 2026-11-16_085246_video: its capture owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone, but its video ffmpeg pid 1298091 ran on host devlinux and cannot be checked from otherhost. Finalize it from devlinux, or - once you have checked nothing is writ
+13:53:32.745   raw.mp4=7077936 recording.mp4=absent capture.owner.json=346 | PendingMux=pending | mux: none | CaptureOwner={"Host": "devlinux", "Pid": 1297984, "ProcessStartUtc": "2026-11-16T13:52:46.3721515Z"}
+13:53:32.787 load: 32 busy loops started (pids mine), loadavg 2.29 2.91 3.75
+13:53:36.338 [s2] serve pid 1299726 port 7991; its recordings root is inside scratch: $SCRATCH/runs/crashload-fix-135245/home/Videos/AgentEyes
+13:53:36.471   S2 /health right after start: {
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "linux"
+}
+13:53:36.804 writer 1298091 alive after S2's start-up reap: NO (externally observed 0.94 s after S2 was launched); raw.mp4 now 7668609 bytes
+13:53:36.811 load stopped
+13:53:36.816   log: 08:52:46.598 [pid 1297984] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+13:53:36.819   log: 08:53:36.395 [pid 1299726] [INFO] [FfmpegChildRegistry] RequestGracefulExit: SIGTERM -> pid 1298091
+13:53:36.821   log: 08:53:36.661 [pid 1299726] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1298091 [capture video (2026-11-16_085246_video)]: ORPHAN capture writer (owner pid 1297984 gone) - SIGTERM, exited after 0.26s (graceful: never killed)
+13:53:36.824   log: 08:53:36.661 [pid 1299726] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
+13:53:36.980   raw.mp4 probe after the reap: video audio 48.966667 
+13:53:37.065   copied the crashed recording to 8 fixtures (outside the library) before S2's first pass: fx1 fx2 fx3 fx4 fx5 fx6 fx7 fx8 
+13:53:59.859 recovery by S2 (manifest PostProcessing.mux, not /status): cleared/done
+13:53:59.903   raw.mp4=absent recording.mp4=7861098 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T13:53:56.3038512Z by agenteyes pid 1299726 on devlinux"] Error= | CaptureOwner={"Host": "devlinux", "Pid": 1297984, "ProcessStartUtc": "2026-11-16T13:52:46.3721515Z"}
+13:54:03.384   decode recording.mp4: duration=48.966667s full-decode exit=0 stderr-lines=0 last-second video read: 30 video frames decoded from the last second; last audio pts read: 43584 streams=h264,video aac,audio 
+13:54:03.391   log: 08:53:56.298 [pid 1299726] [INFO] [PostRecording] Execute: 2026-11-16_085246_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone and its 1 writer(s) have exited
+13:54:03.394   log: 08:53:56.299 [pid 1299726] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_085246_video (post-recording) - CLEARED capture.owner.json (lock held shared): stale capture claim taken over: its owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone and its 1 writer(s) have exited. The
+13:54:03.396   log: 08:53:56.356 [pid 1299726] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_085246_video (finalize) - no owner record; nothing to clear
+13:54:03.425 G1 after the recovered crash: CaptureOwner must name S1 = pid 1297984 on devlinux: {"Host": "devlinux", "Pid": 1297984, "ProcessStartUtc": "2026-11-16T13:52:46.3721515Z"}
+13:54:03.428 OTHER HOST package after recovery:
+13:54:04.009   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in. [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in. 
+13:54:04.043   raw.mp4=absent recording.mp4=7861098 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T13:53:56.3038512Z by agenteyes pid 1299726 on devlinux"] Error= | CaptureOwner={"Host": "devlinux", "Pid": 1297984, "ProcessStartUtc": "2026-11-16T13:52:46.3721515Z"}
+13:54:04.046 OTHER HOST service S3, its own real repair pass over the same library:
+13:54:04.313 [s3] serve pid 1301302 port 7992; its recordings root is inside scratch: $SCRATCH/runs/crashload-fix-135245/home/Videos/AgentEyes
+13:54:36.323   S3 log: 08:54:24.430 [pid 1301302] [INFO] [PostRecording] Execute: 2026-11-16_085246_video - capture claim: no capture holds it
+13:54:36.327   S3 log: 08:54:24.431 [pid 1301302] [INFO] [PostRecording] Execute: 2026-11-16_085246_video - nothing to mux
+13:54:36.330   S3 log: 08:54:24.432 [pid 1301302] [INFO] [PostRecording] Execute: 2026-11-16_085246_video - no camera to compose
+13:54:36.333   S3 log: 08:54:24.432 [pid 1301302] [INFO] [PostRecording] Execute: 2026-11-16_085246_video - thumbnail already present or not applicable
+13:54:36.337   S3 log: 08:54:24.432 [pid 1301302] [INFO] [PostRecording] Execute: 2026-11-16_085246_video - not signed in; leaving the packaging stage outstanding
+13:54:36.346   S3 identifies as: from otherhost
+13:54:36.376   raw.mp4=absent recording.mp4=7861098 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T13:53:56.3038512Z by agenteyes pid 1299726 on devlinux"] Error= | CaptureOwner={"Host": "devlinux", "Pid": 1297984, "ProcessStartUtc": "2026-11-16T13:52:46.3721515Z"}
+13:54:36.454   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+13:54:36.458 === done; transcript $SCRATCH/runs/crashload-fix-135245/transcript.txt

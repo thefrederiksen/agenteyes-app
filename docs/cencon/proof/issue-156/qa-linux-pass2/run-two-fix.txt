@@ -1,0 +1,24 @@
+13:59:43.293 === QA #156 pass 2 scenario=two binary=fix scratch=$SCRATCH/runs/two-fix-135943
+13:59:43.297 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+13:59:43.315 embedded version: 1.11.11+2594cfc733eb58103a36055ec7b7d1295fe4d8c5
+13:59:43.387   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+13:59:43.736 isolation: report-only housekeep (no service) -> this host root=$SCRATCH/runs/two-fix-135943/home/Videos/AgentEyes ; other host root=$SCRATCH/runs/two-fix-135943/home/Videos/AgentEyes ; data roots $SCRATCH/runs/two-fix-135943/home/.local/share/AgentEyes/logs/.. and $SCRATCH/runs/two-fix-135943/other/.local/share/AgentEyes/logs/..
+13:59:43.740 isolation positive control: the same probe under a second scratch env reports $SCRATCH/runs/isoctrl-1318787/h/Videos/AgentEyes (it follows the env, so it can fail)
+13:59:44.006 [s1a] serve pid 1318864 port 8200; its recordings root is inside scratch: $SCRATCH/runs/two-fix-135943/home/Videos/AgentEyes
+13:59:44.273 [s1b] serve pid 1318899 port 8203; its recordings root is inside scratch: $SCRATCH/runs/two-fix-135943/home/Videos/AgentEyes
+13:59:47.345 S1a pid 1318864 -> 2026-11-16_085944_video ; S1b pid 1318899 -> 2026-11-16_085945_video
+14:00:17.419 writers confirmed by command line: A=1319015 B=1319349
+14:00:19.447 SIGKILLed both owners; A's orphan 1319015 left writing (alive=yes), B's orphan 1319349 SIGSTOPped (T)
+14:00:19.716 [s2] serve pid 1320217 port 8201; its recordings root is inside scratch: $SCRATCH/runs/two-fix-135943/home/Videos/AgentEyes
+14:00:30.339 both orphans gone 10.86 s after S2 was launched (A alive=NO, B alive=NO)
+14:00:30.346   log: 09:00:19.754 [pid 1320217] [INFO] [FfmpegChildRegistry] RequestGracefulExit: SIGTERM -> pid 1319349
+14:00:30.350   log: 09:00:19.755 [pid 1320217] [INFO] [FfmpegChildRegistry] RequestGracefulExit: SIGTERM -> pid 1319015
+14:00:30.353   log: 09:00:29.770 [pid 1320217] [INFO] [FfmpegChildRegistry] KillTree: SIGKILL -> pid 1319349 and its tree
+14:00:30.356   log: 09:00:30.113 [pid 1320217] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1319015 [capture video (2026-11-16_085944_video)]: ORPHAN capture writer (owner pid 1318864 gone) - SIGTERM, exited after 0.13s (graceful: never killed)
+14:00:30.360   log: 09:00:30.114 [pid 1320217] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1319349 [capture video (2026-11-16_085945_video)]: ORPHAN capture writer (owner pid 1318899 gone) - SIGTERM, did NOT exit within 10s - SIGKILLED; its recording may not be recoverable
+14:00:30.363   log: 09:00:30.114 [pid 1320217] [INFO] [RepairService] Start: orphan ffmpeg reap examined 2 record(s)
+14:00:42.876 A (graceful): cleared/done | raw.mp4=absent recording.mp4=6165144 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T14:00:39.7680937Z by agenteyes pid 1320217 on devlinux"] Error= | CaptureOwner={"Host": "devlinux", "Pid": 1318864, "ProcessStartUtc": "2026-11-16T13:59:43.7320737Z"}
+14:00:44.897   decode recording.mp4: duration=34.733333s full-decode exit=0 stderr-lines=0 last-second video read: 30 video frames decoded from the last second; last audio pts read: 42752 streams=h264,video aac,audio 
+14:00:44.925 B (survivor, killed): pending/failed | raw.mp4=4980784 recording.mp4=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T14:00:42.5395986Z by agenteyes pid 1320217 on devlinux"] Error=could not read the audio channel count of $SCRATCH/... | CaptureOwner={"Host": "devlinux", "Pid": 1318899, "ProcessStartUtc": "2026-11-16T13:59:44.0022046Z"}
+14:00:44.998   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+14:00:45.001 === done; transcript $SCRATCH/runs/two-fix-135943/transcript.txt
