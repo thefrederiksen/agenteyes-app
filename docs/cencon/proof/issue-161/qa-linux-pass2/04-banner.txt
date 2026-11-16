@@ -1,0 +1,22 @@
+# Job 3: redirected serve, HOME spoofed, XDG_DATA_HOME -> <scratch>/xlink (a symlink to <scratch>/xtarget). Landlock + strace.
+## stderr
+[redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/m/banner/data/AgentEyes ; recordings -> <scratch>/m/banner/videos/AgentEyes ; log -> <scratch>/m/banner/data/AgentEyes/logs (pid 1877450) ; real library kept out (each root with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid <uid>, home <home>, XDG default] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid <uid>, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs] ; the REAL state root <scratch>/m/banner/xlink/AgentEyes (which resolves to <scratch>/m/banner/xtarget/AgentEyes) [this process's environment (.NET special folders)]
+## stdout
+[ok] AgentEyes headless service listening on http://127.0.0.1:17377/
+     recordings -> <scratch>/m/banner/videos/AgentEyes
+     data       -> <scratch>/m/banner/data/AgentEyes
+     [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS - this is NOT the person's real library, which this process derived as:
+     [redirect]   the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid <uid>, home <home>, XDG default]
+     [redirect]   the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid <uid>, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs]
+     [redirect]   the REAL state root <scratch>/m/banner/xlink/AgentEyes (which resolves to <scratch>/m/banner/xtarget/AgentEyes) [this process's environment (.NET special folders)]
+     signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+## redirected log WARN line
+13:46:37.751 [pid 1877450] [WARN] [LibraryRedirect] ApplyFromEnvironment: LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/m/banner/data/AgentEyes ; recordings -> <scratch>/m/banner/videos/AgentEyes ; log -> <scratch>/m/banner/data/AgentEyes/logs (pid 1877450) ; real library kept out (each root with where it was derived from): the REAL state root <home>/.local/share/AgentEyes [passwd entry for uid <uid>, home <home>, XDG default] ; the REAL recordings root <home>/Videos/AgentEyes [passwd entry for uid <uid>, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs] ; the REAL state root <scratch>/m/banner/xlink/AgentEyes (which resolves to <scratch>/m/banner/xtarget/AgentEyes) [this process's environment (.NET special folders)]
+## GET /status (roots)
+    "DataRoot": "<scratch>/m/banner/data/AgentEyes",
+    "RecordingsRoot": "<scratch>/m/banner/videos/AgentEyes",
+    "LibraryRedirected": true,
+    "LibraryRedirect": "environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)",
+## real-root syscalls of the whole serve: 0
+## control: same env, DATA onto the env-half root's TARGET <scratch>/xtarget -> exit 5:
+[error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <scratch>/m/banner/xtarget/AgentEyes, which overlaps the REAL state root <scratch>/m/banner/xtarget/AgentEyes (derived from: this process's environment (.NET special folders)). ...

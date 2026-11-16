@@ -1,0 +1,27 @@
+# Job 5 by diff: pass 2 = c595c41..b780cd8 (includes merge da51c35 of main 2d60f77).
+b780cd8 test: run the two loopback-server test classes one at a time (#161)
+f063cb7 test(il-guard): pin #161 pass 2's write probe and passwd imports (#155 inventory)
+6ba5165 docs(cencon): #161 pass 2 - QA's D1 matrix x1-x4 refused at the pass-2 head
+ec0f49d Merge remote-tracking branch 'origin/issue-161-scratch-library-root' into issue-161-scratch-library-root
+7c8dd39 fix(core): derive the real library from the account, not HOME (#161 pass 2)
+da51c35 Merge origin/main 2d60f77 into issue-161-scratch-library-root
+2b88b5a docs(cencon): #161 Linux QA - M1 measured on a trial merge: the redirect guard survives into DesktopApp (verify after merge, not fix before)
+0d7400a docs(cencon): #161 Linux QA - redirect, port guards and real-library isolation hold under Landlock; HOME/XDG_DATA_HOME defeats the real-root overlap guard (D1); flow:qa-failed
+2d60f77 feat(app): one desktop app - AgentEyes.DesktopApp for Windows, macOS and Linux (#116) (#141)
+## stat on HeadlessCli/HeadlessHost/RecordingService/App.xaml.cs/Program.cs/CliDispatcher/AppDataPaths:
+ src/AgentEyes.Core/Headless/HeadlessHost.cs | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+## the HeadlessHost change is the serve-stdout banner only:
++            {
++                // Issue #161 pass 2: not a bare claim - the real roots it was compared against, and where
++                // each came from, so a reader can check it.
+-                                  + "this is NOT the person's real library");
++                                  + "this is NOT the person's real library, which this process derived as:");
++                foreach (var r in LibraryRedirect.RealRoots)
++                    Console.WriteLine($"     [redirect]   {r.Name} {LibraryRedirect.Shown(r)} [{r.DerivedFrom}]");
++            }
+## port-guard function bodies, c595c41 vs b780cd8:
+  ServicePortRefusal(int port, bool redirected) : IDENTICAL
+  ServicePortRefusal(int port) => : IDENTICAL
+  ServiceLibraryRefusal(string? serviceData : IDENTICAL
+## Overlaps/SamePath untouched; the only other non-Decide hunk: Normalize private -> internal.

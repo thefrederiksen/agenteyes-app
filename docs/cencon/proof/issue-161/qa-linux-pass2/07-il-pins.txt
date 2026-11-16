@@ -1,0 +1,35 @@
+# Job 6a: the REAL #155 IL guard (Windows suite) on CI run 43925309084 at 6ba5165, BEFORE f063cb7 pinned pass 2:
+  Failed AgentEyes.Tests.ManifestWriterIlTests.EveryFileWriteInTheProduct_IsAPinnedCallSite [66 ms]
+  Failed AgentEyes.Tests.ManifestWriterIlTests.EveryNativeImport_IsPinned [2 ms]
+## FOUND minus PINNED, extracted from that log (PINNED minus FOUND was empty in both):
+  agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.File::Delete x1
+  agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.FileStream::.ctor x1
+  /usr/lib/libSystem.B.dylib!geteuid
+  /usr/lib/libSystem.B.dylib!getpwuid_r
+  libc.so.6!geteuid
+  libc.so.6!getpwuid_r
+
+# Job 6b: the guard's OWN scanner (tests/AgentEyes.Tests/CompiledCode.cs, linked unchanged into harness/ilscan2) over the LINUX-built agenteyes.dll.
+# Proxy only: the real test runs on the Windows-built dll, which compiles out Platform.Linux (hence 4 Linux-only write lines unpinned at head - expected).
+## HEAD f9aba6a: the six pass-2 lines are FOUND and PINNED:
+  pinned  IMPORT libc.so.6!geteuid
+  pinned  IMPORT libc.so.6!getpwuid_r
+  pinned  IMPORT /usr/lib/libSystem.B.dylib!geteuid
+  pinned  IMPORT /usr/lib/libSystem.B.dylib!getpwuid_r
+  pinned  WRITE agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.File::Delete x1
+  pinned  WRITE agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.FileStream::.ctor x1
+## FOUND-not-PINNED at head:
+  WRITE agenteyes.dll!AgentEyes.Platform.Linux.CredentialFile::Write -> System.IO.File::Delete x1
+  WRITE agenteyes.dll!AgentEyes.Platform.Linux.CredentialFile::Write -> System.IO.File::Move x1
+  WRITE agenteyes.dll!AgentEyes.Platform.Linux.CredentialFile::Write -> System.IO.FileStream::.ctor x1
+  WRITE agenteyes.dll!AgentEyes.Platform.Linux.WavStreamWriter::.ctor -> System.IO.FileStream::.ctor x1
+## MUTANT: [DllImport("libc.so.6", EntryPoint = "getpwuid_r")] -> "libc"; probe cleanup File.Delete(probe) -> File.Move(probe, probe+".d"); File.Delete(probe+".d")
+## FOUND minus PINNED (Linux-only lines excluded) -> the guard would FAIL on:
+  IMPORT libc!getpwuid_r
+  WRITE agenteyes.dll!AgentEyes.LibraryRedirect::UsableFolderProblem -> System.IO.File::Move x1
+## PINNED no longer FOUND -> the guard would also FAIL on the stale pin:
+  IMPORT libc.so.6!getpwuid_r
+## Mutation reverted (git status clean in the scratch worktree).
+
+# Job 6c: #174 note. b780cd8 puts HeadlessControlServerFramingTests and LibraryRedirectTests in one xunit collection: serialisation, not a port fix.
+## The collision it hides, CI run 43925309084 linux:   Failed AgentEyes.Tests.Linux.HeadlessControlServerFramingTests.IsUnframedBody_MethodAndFraming_MatchesTheListenersRule(method: "post", contentLength: null, te

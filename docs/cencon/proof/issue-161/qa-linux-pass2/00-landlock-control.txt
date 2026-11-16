@@ -1,0 +1,15 @@
+# QA #161 pass 2 (Linux) section 0: the Landlock deny on BOTH real roots, proven BEFORE any product run.
+# lldeny rebuilt from qa-linux/harness/lldeny.c (byte-identical to linux-pass2/lldeny.c). Command: lldeny R1 R2 -- strace -f control.sh
+lldeny: DENY <home>/.local/share/AgentEyes
+lldeny: DENY <home>/Videos/AgentEyes
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls    <home>/Videos/AgentEyes -> exit 2 : ls: cannot open directory '<home>/Videos/AgentEyes': Permission denied
+touch <home>/Videos/AgentEyes/.qa161p2-landlock-probe -> exit 1 : touch: cannot touch '<home>/Videos/AgentEyes/.qa161p2-landlock-probe': Permission denied
+ls    <home>/.local/share/AgentEyes -> exit 2 : ls: cannot open directory '<home>/.local/share/AgentEyes': Permission denied
+touch <home>/.local/share/AgentEyes/.qa161p2-landlock-probe -> exit 1 : touch: cannot touch '<home>/.local/share/AgentEyes/.qa161p2-landlock-probe': Permission denied
+ls    <home>/.local/share/AgentEyes/logs -> exit 2 : ls: cannot open directory '<home>/.local/share/AgentEyes/logs': Permission denied
+touch <home>/.local/share/AgentEyes/logs/.qa161p2-landlock-probe -> exit 1 : touch: cannot touch '<home>/.local/share/AgentEyes/logs/.qa161p2-landlock-probe': Permission denied
+touch scratch -> exit 0
+ls: cannot open directory '<home>/Videos': Permission denied
+ls ~/Videos (parent) -> exit 2
+strace lines naming a real root: 15  EACCES among them: 6

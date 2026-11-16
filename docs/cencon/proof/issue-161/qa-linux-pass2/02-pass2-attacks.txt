@@ -1,0 +1,82 @@
+# Pass-2 attack cases (harness/p2matrix.sh), strace -f + Landlock. P0 is the same-run POSITIVE CONTROL.
+
+[P0] exit=0 real-root syscalls=9 opens/creates=6 EACCES=3 probes=0
+      3   real-open: mkdir("<home>/.local/share/AgentEyes/logs", 0777) = -1 EEXIST (File exists)
+      3   real-open: openat(AT_FDCWD, "<home>/.local/share/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+
+[ATK] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>
+
+[y1] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>
+
+[y2] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at <home>/Videos/AgentEyes, which overlaps the REAL recordings root <home>/Videos/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS
+
+[y3] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG default + this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDI
+
+[y4] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/.local/share/AgentEyes, which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside <home>
+
+[y5] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <scratch>/m/p2/y5/dlink/AgentEyes (which resolves to <home>/.local/share/AgentEyes), which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG 
+
+[y6] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <home>/Videos/AgentEyes, which overlaps the REAL recordings root <home>/Videos/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG_VIDEOS_DIR in <home>/.config/user-dirs.dirs). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scr
+
+[y7] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /proc/self/cwd/AgentEyes (which resolves to <home>/.local/share/AgentEyes), which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DA
+
+[y8] exit=5 real-root syscalls=3 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /proc/self/root<home>/.local/share/AgentEyes (which resolves to <home>/.local/share/AgentEyes), which overlaps the REAL state root <home>/.local/share/AgentEyes (derived from: passwd entry for uid <uid>, home <home>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: po
+
+[zc] exit=5 real-root syscalls=0 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at <scratch>/m/p2/reloc/xdg/AgentEyes, which overlaps the REAL state root <scratch>/m/p2/reloc/xdg/AgentEyes (derived from: this proc
+
+[za] exit=0 real-root syscalls=0 opens/creates=0 EACCES=0 probes=4
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/m/p2/reloc/xdg/AgentEyes ; recordings -> <scratch>/m/p2/za/videos/AgentEyes ; log -> <scratch>
+  person's relocated state root after za: ./logs ./logs/AgentEyes-20261116.log ./MARKER 
+
+[zvc] exit=5 real-root syscalls=0 opens/creates=0 EACCES=0 probes=0
+  stderr: [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at <scratch>/m/p2/reloc/vids/AgentEyes, which overlaps the REAL recordings root <scratch>/m/p2/reloc/vids/AgentEyes (derived f
+
+[zva] exit=0 real-root syscalls=0 opens/creates=0 EACCES=0 probes=4
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/m/p2/zva/data/AgentEyes ; recordings -> <scratch>/m/p2/reloc/vids/AgentEyes ; log -> <scratch>
+
+[L1] exit=0 real-root syscalls=0 opens/creates=0 EACCES=0 probes=4
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/m/p2/L1/data/AgentEyes ; recordings -> <scratch>/m/p2/L1/videos/AgentEyes ; log -> <scratch>
+
+[L2] exit=124 real-root syscalls=0 opens/creates=0 EACCES=0 probes=4
+  stderr: [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/m/p2/L2/data/AgentEyes ; recordings -> <scratch>/m/p2/L2/videos/AgentEyes ; log -> <scratch>
+
+# L1 detail: opens THROUGH the scratch link <scratch>/L1/data/AgentEyes/logs -> <home>/.local/share/AgentEyes/logs
+      5 mkdir("<scratch>/m/p2/L1/data/AgentEyes/logs", 0777) = -1 EEXIST (File exists)
+      5 newfstatat(AT_FDCWD, "<scratch>/m/p2/L1/data/AgentEyes/logs", {st_mode=S_IFDIR|0775, st_size=4096, ...}, 0) = 0
+      5 openat(AT_FDCWD, "<scratch>/m/p2/L1/data/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+
+# L2 detail: syscalls through <scratch>/L2/videos/AgentEyes/linked-real -> <home>/Videos/AgentEyes (stat only, no open)
+      9 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real", {...}, 0) = 0
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/audio.wav", 0x7ef7023fb350, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/manifest.json", 0x7ef7023fb020, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/manifest.json", 0x7ef7023fb2e0, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      2 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/manifest.json", 0x7ef7023fb370, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/manifest.json", 0x7ef7023fb390, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/manifest.json", 0x7ef702bfc290, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/recording.mp4", 0x7ef7023fb350, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      3 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real", {st_mode=S_IFLNK|0777, st_size=28, ...}, AT_SYMLINK_NOFOLLOW) = 0
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/thumb.jpg", 0x7ef7023fb2b0, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/thumb.jpg", 0x7ef702bfc260, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/thumb.png", 0x7ef7023fb2b0, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      1 newfstatat(AT_FDCWD, "<scratch>/m/p2/L2/videos/AgentEyes/linked-real/thumb.png", 0x7ef702bfc260, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+13:44:14.063 [pid 1874287] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=<scratch>/m/p2/L2/data/AgentEyes/run/ffmpeg
+13:44:14.064 [pid 1874287] [INFO] [FfmpegChildRegistry] ReapOrphans: no records
+13:44:14.065 [pid 1874287] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+13:44:14.072 [pid 1874287] [INFO] [RepairService] Start: first pass in 20s, then every 15 minute(s)
+13:44:34.075 [pid 1874287] [INFO] [RepairService] RunAsync: trigger=timer
+13:44:34.086 [pid 1874287] [INFO] [RepairService] ResumeUnfinishedAsync: root=<scratch>/m/p2/L2/videos/AgentEyes
+13:44:34.104 [pid 1874287] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+13:44:34.120 [pid 1874287] [INFO] [Housekeeper] Run: trigger=repair-pass, reportOnly=True, root=<scratch>/m/p2/L2/videos/AgentEyes
+13:44:34.134 [pid 1874287] [INFO] [Housekeeper] Run: trigger=repair-pass done - 0 recording(s), 0 action(s), would reclaim 0 MB
+13:44:34.137 [pid 1874287] [INFO] [RepairService] RunAsync: trigger=timer done
+13:44:38.449 [pid 1874287] [INFO] [RepairService] Dispose: repair triggers disarmed

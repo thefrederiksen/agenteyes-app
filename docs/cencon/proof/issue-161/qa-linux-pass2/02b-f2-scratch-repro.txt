@@ -1,0 +1,20 @@
+# F2, SCRATCH-ONLY reproduction (no real library involved; runs without a sandbox, though this run was under Landlock too).
+# The 'real' root is <scratch>/fake-real, made real by the ENVIRONMENT half (XDG_DATA_HOME). A link INSIDE the redirected state root reaches it.
+
+  S=$(mktemp -d); D=$(date +%Y%m%d)
+  mkdir -p $S/fake-real/AgentEyes/logs $S/data/AgentEyes $S/videos
+  echo person-log-line > $S/fake-real/AgentEyes/logs/AgentEyes-$D.log
+  ln -s $S/fake-real/AgentEyes/logs $S/data/AgentEyes/logs
+  # control: XDG_DATA_HOME=$S/fake-real AGENTEYES_REDIRECT_DATA=$S/fake-real AGENTEYES_REDIRECT_VIDEOS=$S/videos agenteyes --help  -> exit 5 (protected)
+  XDG_DATA_HOME=$S/fake-real AGENTEYES_REDIRECT_DATA=$S/data AGENTEYES_REDIRECT_VIDEOS=$S/videos agenteyes --help
+  # BUG: exit 0, banner lists <S>/fake-real/AgentEyes as "real library kept out", and $S/fake-real/AgentEyes/logs/AgentEyes-$D.log grows
+
+## measured at f9aba6a: control exit 5; repro exit 0; the protected log went from 1 line to 6:
+person-log-line
+13:58:21.213 [pid 1899389] [INFO] [AppDataPaths] RedirectForThisProcess: localAppData=<S>
+13:58:21.217 [pid 1899389] [WARN] [LibraryRedirect] ApplyFromEnvironment: LIBRARY REDIRECTED by AGENTEYES_REDI
+13:58:21.224 [pid 1899389] [INFO] [CliDispatcher] Run: args=1 command=--help state=<S>
+13:58:21.227 [pid 1899389] [INFO] [CliDispatcher] Dispatch: top-level help
+13:58:21.228 [pid 1899389] [INFO] [CliDispatcher] Run: exit=0
+## banner (tail):
+the REAL state root <S>/fake-real/AgentEyes [this process's environment (.NET special folders)]
