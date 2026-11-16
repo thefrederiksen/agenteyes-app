@@ -1,0 +1,41 @@
+# GET /status on the redirected serve (port 17161), fields named in #161, captured 12:33:50 while it ran:
+"State": "idle", "SignedIn": false,
+"DataRoot": "<scratch>/lib/data/AgentEyes",
+"RecordingsRoot": "<scratch>/lib/videos/AgentEyes",
+"LibraryRedirected": true,
+"LibraryRedirect": "environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)"
+
+# GET /status on the HOME-defeated serve (port 17163) - full response:
+{
+    "State": "idle",
+    "Mode": null,
+    "Source": null,
+    "ElapsedSeconds": 0,
+    "Level": 0,
+    "MicLevel": 0,
+    "SystemLevel": 0,
+    "Dir": null,
+    "Camera": null,
+    "SignedIn": false,
+    "AccountEmail": null,
+    "DataRoot": "<home>/.local/share/AgentEyes",
+    "RecordingsRoot": "<scratch>/homeatk/videos/AgentEyes",
+    "LibraryRedirected": true,
+    "LibraryRedirect": "environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)",
+    "PendingTranscriptions": 0,
+    "LastStopFailed": false,
+    "LastStopError": null,
+    "LastStopDir": null,
+    "CameraStuck": false,
+    "StuckCameras": [],
+    "PreviewScreenFrame": null,
+    "PreviewCameraFrame": null,
+    "PreviewAvailable": false,
+    "PreviewArmed": false,
+    "PreviewPublishing": false,
+    "PreviewScreenFramesRead": 0,
+    "PreviewCameraFramesRead": 0,
+    "PreviewFailed": false,
+    "PreviewOverlayCorner": null,
+    "PreviewOverlayShape": null
+}

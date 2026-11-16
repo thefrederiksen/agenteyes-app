@@ -1,0 +1,40 @@
+# TestIsolationTests IL guard - the guard's OWN scanner (tests/AgentEyes.Tests/CompiledCode.cs, linked unchanged into harness/ilscan) over the LINUX-built agenteyes.dll
+# HEAD c595c41:
+== FolderLookups
+agenteyes.dll!AgentEyes.AppDataPaths::get_MachineLocalAppData -> LocalApplicationData x1
+agenteyes.dll!AgentEyes.AppDataPaths::get_MachineVideos -> MyVideos x1
+agenteyes.dll!AgentEyes.CaptureService::ScreenshotsKnownFolder -> <two-argument overload> x1
+== EnvironmentVariableReads
+agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_DATA x1
+agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_VIDEOS x1
+agenteyes.dll!AgentEyes.Platform.Linux.LinuxDisplay::Require -> DISPLAY x1
+agenteyes.dll!AgentEyes.Platform.Linux.LinuxDisplay::Require -> WAYLAND_DISPLAY x1
+agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> PATH x1
+agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> QA_RECORD_FFMPEG_DIR x1
+== MachineLocalAppData readers
+agenteyes.dll!AgentEyes.AppDataPaths::get_LocalAppData -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1
+agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1
+
+# BASE 17c244d (merge-base with main), same build:
+== FolderLookups
+agenteyes.dll!AgentEyes.AppDataPaths::get_MachineLocalAppData -> LocalApplicationData x1
+agenteyes.dll!AgentEyes.AppDataPaths::get_Videos -> MyVideos x1
+agenteyes.dll!AgentEyes.CaptureService::ScreenshotsKnownFolder -> <two-argument overload> x1
+== EnvironmentVariableReads
+agenteyes.dll!AgentEyes.Platform.Linux.LinuxDisplay::Require -> DISPLAY x1
+agenteyes.dll!AgentEyes.Platform.Linux.LinuxDisplay::Require -> WAYLAND_DISPLAY x1
+agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> PATH x1
+agenteyes.dll!AgentEyes.Video.FfmpegLocator::Find -> QA_RECORD_FFMPEG_DIR x1
+== MachineLocalAppData readers
+agenteyes.dll!AgentEyes.AppDataPaths::get_LocalAppData -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1
+
+# diff base -> head (the mutation: the head pins would FAIL against the base dll on exactly these lines):
+3c3
+< agenteyes.dll!AgentEyes.AppDataPaths::get_Videos -> MyVideos x1
+---
+> agenteyes.dll!AgentEyes.AppDataPaths::get_MachineVideos -> MyVideos x1
+5a6,7
+> agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_DATA x1
+> agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AGENTEYES_REDIRECT_VIDEOS x1
+11a14
+> agenteyes.dll!AgentEyes.LibraryRedirect::ApplyFromEnvironment -> AgentEyes.AppDataPaths::get_MachineLocalAppData x1
