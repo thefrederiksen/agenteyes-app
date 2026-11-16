@@ -1,0 +1,81 @@
+12:20:55.986 [pid 96763] [INFO] [AppDataPaths] RedirectForThisProcess: localAppData=<scratch>/p161/run/data videos=<scratch>/p161/run/videos
+12:20:55.987 [pid 96763] [WARN] [LibraryRedirect] ApplyFromEnvironment: LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/p161/run/data/AgentEyes ; recordings -> <scratch>/p161/run/videos/AgentEyes ; log -> <scratch>/p161/run/data/AgentEyes/logs (pid 96763)
+12:20:55.988 [pid 96763] [INFO] [CliDispatcher] Run: args=3 command=serve state=<scratch>/p161/run/data/AgentEyes recordings=<scratch>/p161/run/videos/AgentEyes redirect=environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)
+12:20:55.990 [pid 96763] [INFO] [CliDispatcher] Dispatch: parsed serve options=[port] positionals=0
+12:20:55.991 [pid 96763] [INFO] [CliDispatcher] Dispatch: running serve
+12:20:55.992 [pid 96763] [INFO] [HeadlessHost] Run: starting, platform=macos port=17961 pid=96763 data=<scratch>/p161/run/data/AgentEyes recordings=<scratch>/p161/run/videos/AgentEyes redirect=environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)
+12:20:55.992 [pid 96763] [WARN] [HeadlessHost] Run: LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/p161/run/data/AgentEyes ; recordings -> <scratch>/p161/run/videos/AgentEyes ; log -> <scratch>/p161/run/data/AgentEyes/logs (pid 96763)
+12:20:55.992 [pid 96763] [INFO] [HeadlessHost] Run: ffmpeg=/opt/homebrew/bin/ffmpeg
+12:20:55.994 [pid 96763] [INFO] [ToolRunner] Run: system_profiler SPDisplaysDataType -json
+12:20:56.185 [pid 96763] [INFO] [ToolRunner] Run: system_profiler exit=0 stdout=1115B stderr=0B
+12:20:56.194 [pid 96763] [INFO] [MacDisplay] Screens: 1 online display(s)
+12:20:56.194 [pid 96763] [INFO] [HeadlessHost] Run: 1 display(s): Display 1 1920x1080
+12:20:56.204 [pid 96763] [INFO] [HeadlessControlServer] Start: binding http://127.0.0.1:17961/
+12:20:56.205 [pid 96763] [INFO] [HeadlessControlServer] Start: listening on http://127.0.0.1:17961/
+12:20:56.206 [pid 96763] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=<scratch>/p161/run/data/AgentEyes/run/ffmpeg
+12:20:56.206 [pid 96763] [INFO] [FfmpegChildRegistry] ReapOrphans: no records
+12:20:56.206 [pid 96763] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:20:56.207 [pid 96763] [INFO] [RepairService] Start: first pass in 20s, then every 15 minute(s)
+12:20:56.207 [pid 96763] [INFO] [HeadlessHost] Run: ready on http://127.0.0.1:17961/
+12:21:16.210 [pid 96763] [INFO] [RepairService] RunAsync: trigger=timer
+12:21:16.213 [pid 96763] [INFO] [RepairService] ResumeUnfinishedAsync: root=<scratch>/p161/run/videos/AgentEyes
+12:21:16.236 [pid 96763] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_122053_clip needs thumbnail
+12:21:16.236 [pid 96763] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_122054_clip needs thumbnail
+12:21:16.236 [pid 96763] [INFO] [PostRecordingPlan] FindUnfinished: root=<scratch>/p161/run/videos/AgentEyes, unfinished=2
+12:21:16.237 [pid 96763] [INFO] [RepairService] ResumeAsync: 2 recording(s) with unfinished post-processing (hostedWork=False)
+12:21:16.238 [pid 96763] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_122053_clip#1 (no claim)
+12:21:16.238 [pid 96763] [INFO] [PostRecording] Resume: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip hostedWork=False
+12:21:16.238 [pid 96763] [INFO] [PostRecording] TrackWork: resume 2026-11-16_122053_clip (in flight=1)
+12:21:16.240 [pid 96763] [INFO] [RecordingWorkset] TryClaim: <scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip claimed by FullPipeline/resume#2
+12:21:16.240 [pid 96763] [INFO] [PostRecording] Execute: 2026-11-16_122053_clip - nothing to mux
+12:21:16.240 [pid 96763] [INFO] [PostRecording] Execute: 2026-11-16_122053_clip - no camera to compose
+12:21:16.240 [pid 96763] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_122053_clip
+12:21:16.240 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip
+12:21:16.251 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip written
+12:21:16.251 [pid 96763] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_122053_clip attempt 1/3
+12:21:16.252 [pid 96763] [INFO] ffmpeg [poster thumbnail]: "/opt/homebrew/bin/ffmpeg" -y -ss 0.3 -i <scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip/clip.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip/thumb.jpg
+12:21:16.287 [pid 96763] [INFO] ffmpeg [poster thumbnail] ok
+12:21:16.287 [pid 96763] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_122053_clip in 0.0s
+12:21:16.287 [pid 96763] [INFO] [PostRecordingState] NoteDone: 2026-11-16_122053_clip stage=thumbnail
+12:21:16.287 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip
+12:21:16.293 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip written
+12:21:16.293 [pid 96763] [INFO] [PostRecording] Execute: 2026-11-16_122053_clip - already transcribed (or out of attempts); nothing to package
+12:21:16.293 [pid 96763] [INFO] [RecordingWorkset] Release: <scratch>/p161/run/videos/AgentEyes/2026-11-16_122053_clip released by FullPipeline/resume#2
+12:21:16.293 [pid 96763] [INFO] [PostRecording] TrackWork released: resume 2026-11-16_122053_clip (in flight=0)
+12:21:16.293 [pid 96763] [INFO] [RecordingWorkset] EndStep: resume 2026-11-16_122053_clip#1 (no claim) finished
+12:21:16.294 [pid 96763] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_122054_clip#3 (no claim)
+12:21:16.294 [pid 96763] [INFO] [PostRecording] Resume: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip hostedWork=False
+12:21:16.294 [pid 96763] [INFO] [PostRecording] TrackWork: resume 2026-11-16_122054_clip (in flight=1)
+12:21:16.294 [pid 96763] [INFO] [RecordingWorkset] TryClaim: <scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip claimed by FullPipeline/resume#4
+12:21:16.294 [pid 96763] [INFO] [PostRecording] Execute: 2026-11-16_122054_clip - nothing to mux
+12:21:16.294 [pid 96763] [INFO] [PostRecording] Execute: 2026-11-16_122054_clip - no camera to compose
+12:21:16.294 [pid 96763] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_122054_clip
+12:21:16.294 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip
+12:21:16.299 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip written
+12:21:16.299 [pid 96763] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_122054_clip attempt 1/3
+12:21:16.299 [pid 96763] [INFO] ffmpeg [poster thumbnail]: "/opt/homebrew/bin/ffmpeg" -y -ss 0.3 -i <scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip/clip.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip/thumb.jpg
+12:21:16.328 [pid 96763] [INFO] ffmpeg [poster thumbnail] ok
+12:21:16.328 [pid 96763] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_122054_clip in 0.0s
+12:21:16.328 [pid 96763] [INFO] [PostRecordingState] NoteDone: 2026-11-16_122054_clip stage=thumbnail
+12:21:16.328 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip
+12:21:16.333 [pid 96763] [INFO] [ManifestStore] Update: dir=<scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip written
+12:21:16.333 [pid 96763] [INFO] [PostRecording] Execute: 2026-11-16_122054_clip - already transcribed (or out of attempts); nothing to package
+12:21:16.333 [pid 96763] [INFO] [RecordingWorkset] Release: <scratch>/p161/run/videos/AgentEyes/2026-11-16_122054_clip released by FullPipeline/resume#4
+12:21:16.333 [pid 96763] [INFO] [PostRecording] TrackWork released: resume 2026-11-16_122054_clip (in flight=0)
+12:21:16.333 [pid 96763] [INFO] [RecordingWorkset] EndStep: resume 2026-11-16_122054_clip#3 (no claim) finished
+12:21:16.333 [pid 96763] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+12:21:16.334 [pid 96763] [INFO] [Thumbnails] FindMissing: root=<scratch>/p161/run/videos/AgentEyes, missing=0
+12:21:16.335 [pid 96763] [INFO] [Housekeeper] Run: trigger=repair-pass, reportOnly=True, root=<scratch>/p161/run/videos/AgentEyes
+12:21:16.344 [pid 96763] [INFO] [Housekeeper] Run: trigger=repair-pass done - 2 recording(s), 0 action(s), would reclaim 0 MB
+12:21:16.344 [pid 96763] [INFO] [RepairService] RunAsync: trigger=timer done
+12:21:26.020 [pid 96763] [INFO] [HeadlessControlServer] GET /status
+12:21:26.023 [pid 96763] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/p161/run/videos/AgentEyes, pending=0
+12:21:26.030 [pid 96763] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1087 bytes)
+12:21:26.105 [pid 96763] [INFO] [HeadlessControlServer] GET /status
+12:21:26.105 [pid 96763] [INFO] [TranscriptionBacklog] FindPending: root=<scratch>/p161/run/videos/AgentEyes, pending=0
+12:21:26.105 [pid 96763] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1087 bytes)
+12:21:26.112 [pid 96763] [INFO] [HeadlessHost] Run: SIGTERM received - shutting down
+12:21:26.112 [pid 96763] [INFO] [HeadlessHost] Run: stopped
+12:21:26.112 [pid 96763] [INFO] [RepairService] Dispose: repair triggers disarmed
+12:21:26.112 [pid 96763] [INFO] [HeadlessControlServer] Dispose
+12:21:26.114 [pid 96763] [INFO] [CliDispatcher] Run: exit=0

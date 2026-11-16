@@ -17,7 +17,9 @@ namespace AgentEyes
     /// The redirect is set ONCE per process, and only before any redirected path has been handed out -
     /// a redirect that arrives after some static field already captured the real path would leave that
     /// field pointing at the user's real state while everything else looked isolated, so it throws
-    /// instead. The product never calls it; nothing in a normal run changes. The IL guard in
+    /// instead. The product calls it in exactly one place: <see cref="LibraryRedirect.ApplyFromEnvironment"/>
+    /// (issue #161), when a person sets AGENTEYES_REDIRECT_DATA and AGENTEYES_REDIRECT_VIDEOS to point a
+    /// real process at a scratch library; with neither set, nothing in a normal run changes. The IL guard in
     /// <c>TestIsolationTests</c> pins that no other method in the product asks Windows for these folders.
     /// </summary>
     internal static class AppDataPaths
@@ -36,6 +38,13 @@ namespace AgentEyes
         public static string MachineLocalAppData =>
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
+        /// <summary>The machine's real Videos folder (macOS: Movies), NEVER redirected. Only for
+        /// <see cref="LibraryRedirect"/> to name the real recordings root a redirect must stay out of
+        /// (issue #161). Reading it does not count as handing a path out. It is "" on a machine with no
+        /// Videos folder (issue #169).</summary>
+        public static string MachineVideos =>
+            Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+
         /// <summary>%LOCALAPPDATA%, or the redirected stand-in for it in a test host.</summary>
         public static string LocalAppData
         {
@@ -52,7 +61,7 @@ namespace AgentEyes
             get
             {
                 _handedOut = true;
-                return _videosOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+                return _videosOverride ?? MachineVideos;
             }
         }
 
@@ -62,7 +71,8 @@ namespace AgentEyes
         /// <summary>%USERPROFILE%\Videos\AgentEyes - where recordings live.</summary>
         public static string RecordingsRoot => Path.Combine(Videos, ProductFolder);
 
-        /// <summary>True once <see cref="RedirectForThisProcess"/> has moved the roots.</summary>
+        /// <summary>True once <see cref="RedirectForThisProcess"/> has moved the roots (a test host, or
+        /// <see cref="LibraryRedirect"/> in a real process - <see cref="LibraryRedirect.Source"/> says which).</summary>
         public static bool IsRedirected => _localAppDataOverride != null;
 
         /// <summary>

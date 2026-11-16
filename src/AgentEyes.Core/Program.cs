@@ -23,7 +23,20 @@ namespace AgentEyes
         [STAThread]
         private static int Main(string[] args)
         {
-            // FIRST, before anything can log: Log creates the AgentEyes data folder, and the one-time
+            // FIRST of all, before anything resolves a path or logs (issue #161): a person who set
+            // AGENTEYES_REDIRECT_DATA / AGENTEYES_REDIRECT_VIDEOS gets BOTH roots - state, log and
+            // recordings - moved, or the start refused. A refusal is said on stderr only: the one log it
+            // could reach is the real one the redirect exists to keep this process out of.
+            var redirect = LibraryRedirect.ApplyFromEnvironment(out string redirectMessage);
+            if (redirect == LibraryRedirect.Outcome.Refused)
+            {
+                Console.Error.WriteLine("[error] " + redirectMessage);
+                return LibraryRedirect.RefusedExitCode;
+            }
+            if (redirect == LibraryRedirect.Outcome.Redirected)
+                Console.Error.WriteLine("[redirect] " + redirectMessage);
+
+            // Then, before anything else can log: Log creates the AgentEyes data folder, and the one-time
             // qa-record -> AgentEyes move skips itself for good once that folder exists.
             StorageMigration.Run();
 

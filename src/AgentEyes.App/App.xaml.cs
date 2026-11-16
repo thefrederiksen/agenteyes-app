@@ -29,6 +29,9 @@ namespace AgentEyes.App
         private KeyboardHook? _captureFullHook;
         /// <summary>The planned-stop channel the setup engine asks this process to quit through (issue #86).</summary>
         private IDisposable? _quitListener;
+        /// <summary>Issue #161: the start was refused over the library-redirect variables. OnExit then
+        /// writes nothing - every log it could reach is the real one the refusal kept this process out of.</summary>
+        private bool _redirectRefused;
 
         /// <summary>Raised on the UI thread after a capture (shortcut or API) is saved, so the
         /// Capture gallery refreshes live (issue #64). Payload is the saved PNG path.</summary>
@@ -55,6 +58,19 @@ namespace AgentEyes.App
                 AgentEyes.Log.Info($"startup skipped: the AgentEyes application object was built inside "
                     + $"'{hostName}', which is not the application ('{appName}'). Nothing was started.");
                 base.OnStartup(e);
+                return;
+            }
+
+            // Issue #161: BEFORE anything below logs or resolves a path. AGENTEYES_REDIRECT_DATA and
+            // AGENTEYES_REDIRECT_VIDEOS move both roots (state, log, recordings) to a scratch library,
+            // or the start is refused. The refusal is shown, not logged: the only log it could reach is
+            // the real one the redirect exists to keep this process out of.
+            var redirect = LibraryRedirect.ApplyFromEnvironment(out string redirectMessage);
+            if (redirect == LibraryRedirect.Outcome.Refused)
+            {
+                _redirectRefused = true;
+                MessageBox.Show("AgentEyes did not start.\n\n" + redirectMessage, "AgentEyes");
+                Shutdown(LibraryRedirect.RefusedExitCode);
                 return;
             }
 
@@ -94,7 +110,15 @@ namespace AgentEyes.App
             try
             {
                 StorageMigration.Run();   // qa-record -> AgentEyes folders, one time
+                AgentEyes.Log.Info($"[App] OnStartup: state={AppDataPaths.Root} recordings={RecordingPaths.Root} "
+                    + $"redirect={LibraryRedirect.Source ?? "none"}");
+                if (redirect == LibraryRedirect.Outcome.Redirected)
+                    AgentEyes.Log.Warn($"[App] OnStartup: {redirectMessage}");
                 _cfg = Config.Load();
+                // Issue #161: a redirected app never takes the real app's Control API address. Thrown
+                // into the catch below, which logs it (into the REDIRECTED log) and tells the person.
+                if (_cfg.ApiEnabled && LibraryRedirect.ServicePortRefusal(_cfg.Port) is { } portRefusal)
+                    throw new InvalidOperationException(portRefusal);
                 _service = new RecordingService();
                 // Issue #33: a live preview feed is a second output on the recording's own ffmpeg, so
                 // it has to be asked for BEFORE the recording starts. This carries the person's
@@ -330,6 +354,13 @@ namespace AgentEyes.App
 
         protected override void OnExit(ExitEventArgs e)
         {
+            if (_redirectRefused)
+            {
+                // Issue #161: nothing was started, and the only log reachable is the real one.
+                base.OnExit(e);
+                return;
+            }
+
             // Issue #152: say so when the process is going away with work still in flight, so the
             // next log makes sense. It is not a data loss any more - the recovery pass finishes an
             // interrupted recording on the next launch - and exit is deliberately NOT blocked on a

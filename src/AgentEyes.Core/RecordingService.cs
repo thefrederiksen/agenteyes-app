@@ -31,6 +31,18 @@ namespace AgentEyes
         public bool SignedIn { get; set; }
         public string? AccountEmail { get; set; }
 
+        // Issue #161: which library this process is acting on, always - so no consumer of /status can
+        // be fooled about whether it is looking at the person's real recordings or a scratch library.
+        // DataRoot holds config, logs and the credential; RecordingsRoot holds the recordings.
+        public string DataRoot { get; set; } = "";
+        public string RecordingsRoot { get; set; } = "";
+
+        // True when this process's roots were moved off the machine's real folders; LibraryRedirect
+        // then names how ("environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)", or
+        // "in-process (test host)"). False / null is the person's real library.
+        public bool LibraryRedirected { get; set; }
+        public string? LibraryRedirect { get; set; }
+
         // Recordings still awaiting automatic transcription (issue #132). 0 means the library is
         // fully transcribed; a non-zero value that never falls is a backfill that cannot proceed.
         public int PendingTranscriptions { get; set; }
@@ -347,6 +359,10 @@ namespace AgentEyes
                 SignedIn = DevThrottle.AccountState.IsSignedIn,
                 AccountEmail = DevThrottle.AccountState.Email,
                 PendingTranscriptions = TranscriptionBacklog.FindPending(RecordingPaths.Root).Count,
+                DataRoot = AppDataPaths.Root,
+                RecordingsRoot = RecordingPaths.Root,
+                LibraryRedirected = AppDataPaths.IsRedirected,
+                LibraryRedirect = AgentEyes.LibraryRedirect.Source,
                 LastStopFailed = failure != null,
                 LastStopError = failure?.Summary(),
                 LastStopDir = failure?.Dir,

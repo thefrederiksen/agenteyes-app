@@ -374,6 +374,29 @@ namespace AgentEyes.Tests.Shared
             Assert.True(migration < dispatcher, "Main calls the dispatcher before the migration: " + string.Join(", ", calls));
         }
 
+        /// <summary>
+        /// Issue #161: the library redirect (AGENTEYES_REDIRECT_DATA / _VIDEOS) must be applied BEFORE
+        /// anything resolves a path - before the storage migration and before the dispatcher logs. A
+        /// redirect applied later would be refused by AppDataPaths (a path was already handed out), or
+        /// worse, leave the migration and the first log lines on the real library. Read from Main's IL.
+        /// </summary>
+        [Fact]
+        public void ProgramMain_AppliesTheLibraryRedirectBeforeTheMigrationAndTheDispatcher()
+        {
+            var main = typeof(CliArgs).Assembly.GetType("AgentEyes.Program")!
+                .GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+            var calls = CliArgsIl.CallsInOrder(main);
+
+            int redirect = calls.IndexOf("LibraryRedirect.ApplyFromEnvironment");
+            int migration = calls.IndexOf("StorageMigration.Run");
+            int dispatcher = calls.IndexOf("CliDispatcher.Run");
+            Assert.True(redirect >= 0, "Main does not apply the library redirect: " + string.Join(", ", calls));
+            Assert.Equal(0, redirect);
+            Assert.True(redirect < migration && redirect < dispatcher,
+                "Main resolves a path before applying the library redirect: " + string.Join(", ", calls));
+        }
+
         /// <summary>A minimal IL reader: the literal keys a method (and the CliArgs-taking methods it calls) passes to CliArgs.</summary>
         private static class CliArgsIl
         {

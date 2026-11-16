@@ -1,0 +1,143 @@
+T0=2026-11-16 12:08:33
+== 0. SANDBOX CONTROL: the profile must block ls and touch on BOTH real roots
+ls    '/Users/soren/Movies/AgentEyes' -> exit 1 : ls: /Users/soren/Movies/AgentEyes: Operation not permitted
+touch '/Users/soren/Movies/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : touch: /Users/soren/Movies/AgentEyes/.agenteyes161-sandbox-probe: Operation not permitted
+  probe file absent afterwards: yes
+ls    '/Users/soren/Library/Application Support/AgentEyes' -> exit 1 : ls: /Users/soren/Library/Application Support/AgentEyes: Operation not permitted
+touch '/Users/soren/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe' -> exit 1 : touch: /Users/soren/Library/Application Support/AgentEyes/.agenteyes161-sandbox-probe: Operation not permitted
+  probe file absent afterwards: yes
+touch scratch -> exit 0
+== 1. RUNTIME HOME TRAP (standalone probe, touches nothing)
+-- HOME unchanged:
+runtime=10.0.15 HOME=/Users/soren
+UserProfile=/Users/soren
+MyVideos=/Users/soren/Movies
+LocalApplicationData=/Users/soren/Library/Application Support
+ApplicationData=/Users/soren/Library/Application Support
+-- HOME=<scratch>/p161/run/home:
+runtime=10.0.15 HOME=<scratch>/p161/run/home
+UserProfile=<scratch>/p161/run/home
+MyVideos=/Users/soren/Movies
+LocalApplicationData=/Users/soren/Library/Application Support
+ApplicationData=/Users/soren/Library/Application Support
+== 2. REAL LIBRARY BASELINE (directory-entry count only, read-only, before any agenteyes run)
+recording folders in /Users/soren/Movies/AgentEyes: 79
+owner's service /status (7882):
+  "State": "idle",
+  "SignedIn": false,
+  "PendingTranscriptions": 66,
+== 3. SCRATCH LIBRARY: two imports of a clip this script made with ffmpeg lavfi
+ffmpeg lavfi -> exit 0
+import 1 -> exit 1
+  stdout:
+    [ok] importing 'clip.mp4' -> <scratch>/p161/run/videos/AgentEyes/2026-11-16_120833_clip
+      copied video (00m03s)
+      transcribing (DevThrottle, whisper-large-v3) ...
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+  stderr:
+    [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/p161/run/data/AgentEyes ; recordings -> <scratch>/p161/run/videos/AgentEyes ; log -> <scratch>/p161/run/data/AgentEyes/logs (pid 89308)
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+import 2 -> exit 1
+  stdout:
+    [ok] importing 'clip.mp4' -> <scratch>/p161/run/videos/AgentEyes/2026-11-16_120835_clip
+      copied video (00m03s)
+      transcribing (DevThrottle, whisper-large-v3) ...
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+  stderr:
+    [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/p161/run/data/AgentEyes ; recordings -> <scratch>/p161/run/videos/AgentEyes ; log -> <scratch>/p161/run/data/AgentEyes/logs (pid 89315)
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+scratch library:
+  <scratch>/p161/run/videos
+  <scratch>/p161/run/videos/AgentEyes
+  <scratch>/p161/run/videos/AgentEyes/2026-11-16_120833_clip
+  <scratch>/p161/run/videos/AgentEyes/2026-11-16_120835_clip
+-- package (redirected) on <scratch>/p161/run/videos/AgentEyes/2026-11-16_120833_clip:
+package -> exit 1
+      1 frame(s) served on demand (none written to disk)
+      transcribing (DevThrottle, whisper-large-v3) ...
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/p161/run/data/AgentEyes ; recordings -> <scratch>/p161/run/videos/AgentEyes ; log -> <scratch>/p161/run/data/AgentEyes/logs (pid 89328)
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+== 4. REFUSALS
+-- partial (DATA only):
+exit 5
+[error] library redirect refused: partial library redirect: AGENTEYES_REDIRECT_DATA is set but AGENTEYES_REDIRECT_VIDEOS is not. Both roots move together or not at all - a scratch state root with the REAL recordings root would mix the two libraries. Fix: set AGENTEYES_REDIRECT_VIDEOS as well, or unset AGENTEYES_REDIRECT_DATA.
+   <scratch>/p161/run/p exists afterwards: no
+-- partial (VIDEOS only):
+exit 5
+[error] library redirect refused: partial library redirect: AGENTEYES_REDIRECT_VIDEOS is set but AGENTEYES_REDIRECT_DATA is not. Both roots move together or not at all - a scratch recordings root with the REAL state root would mix the two libraries. Fix: set AGENTEYES_REDIRECT_DATA as well, or unset AGENTEYES_REDIRECT_VIDEOS.
+-- VIDEOS = the real Movies folder (scratch state + REAL recordings):
+[error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at /Users/soren/Movies/AgentEyes, which overlaps the REAL recordings root /Users/soren/Movies/AgentEyes. A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside /Users/soren/Movies/AgentEyes.
+exit 5
+-- redirected serve on the default port (scratch config has no Port):
+[error] a redirected AgentEyes (AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS) must not listen on the default port 7882 - that is the address of the person's real AgentEyes. Fix: pass --port N (agenteyes serve), or put {"Port": N} in the scratch config.json, which the redirected CLI client reads too.
+exit 1
+== 5. REDIRECTED SERVE (port 17961) - repair pass + housekeeper
+serve pid=89341
+-- GET /status:
+curl exit 0
+  "State": "idle",
+  "SignedIn": false,
+  "DataRoot": "<scratch>/p161/run/data/AgentEyes",
+  "RecordingsRoot": "<scratch>/p161/run/videos/AgentEyes",
+  "LibraryRedirected": true,
+  "LibraryRedirect": "environment (AGENTEYES_REDIRECT_DATA, AGENTEYES_REDIRECT_VIDEOS)",
+  "PendingTranscriptions": 0,
+-- redirected 'agenteyes record status' (client on the same scratch library):
+exit 0
+state=idle elapsed=0.0s level=0.000
+signedIn=False pendingTranscriptions=0
+[redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/p161/run/data/AgentEyes ; recordings -> <scratch>/p161/run/videos/AgentEyes ; log -> <scratch>/p161/run/data/AgentEyes/logs (pid 89373)
+serve exit=143
+-- serve stdout:
+[ok] AgentEyes headless service listening on http://127.0.0.1:17961/
+     recordings -> <scratch>/p161/run/videos/AgentEyes
+     data       -> <scratch>/p161/run/data/AgentEyes
+     [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS - this is NOT the person's real library
+     signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+-- serve stderr:
+[redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/p161/run/data/AgentEyes ; recordings -> <scratch>/p161/run/videos/AgentEyes ; log -> <scratch>/p161/run/data/AgentEyes/logs (pid 89343)
+-- scratch log: <scratch>/p161/run/data/AgentEyes/logs/AgentEyes-20261116.log (127 lines); lines from serve pid 89341 that name roots or the libraries examined:
+== 6. POSITIVE CONTROL + PRODUCT HOME TRAP: same binary, NO redirect, HOME=<scratch>/p161/run/home, real roots denied
+control serve pid=89384
+-- GET /status:
+curl exit 0
+  "State": "idle",
+  "SignedIn": false,
+  "DataRoot": "/Users/soren/Library/Application Support/AgentEyes",
+  "RecordingsRoot": "/Users/soren/Movies/AgentEyes",
+  "LibraryRedirected": false,
+  "LibraryRedirect": null,
+  "PendingTranscriptions": 0,
+control serve exit=0
+-- control stdout:
+[ok] AgentEyes headless service listening on http://127.0.0.1:17962/
+     recordings -> /Users/soren/Movies/AgentEyes
+     data       -> /Users/soren/Library/Application Support/AgentEyes
+     signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+-- control stderr:
+-- did the control's log land anywhere? files named AgentEyes-*.log under <scratch>/p161/run/home and <scratch>/p161/run (excluding the redirected run's):
+  <scratch>/p161/run/dp/data/AgentEyes/logs/AgentEyes-20261116.log
+== 7. KERNEL SANDBOX DENIALS since T0
+total denial lines: 17
+-- by process(pid):
+   1 2026-11-16 12:09:35.813 Df log[89448:84e6d2] [com.apple.log:] log run noninteractively, parent: 89283 (zsh), args: '/usr/bin/log' 'show' '--start' '2026-11-16 12:08:33' '--style' 'compact' '--predicate' 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "deny("'
+   1 WeatherWidget(562)
+   8 dotnet(89384)
+   2 ls(89288)
+   2 ls(89292)
+   1 parsecd(50928)
+   1 touch(89290)
+   1 touch(89294)
+-- lines for the redirected serve pid 89341: 0
+-- lines for the control serve pid 89384: 8; distinct denied paths:
+  /Users/soren/Library/Application Support/AgentEyes/logs
+  /Users/soren/Movies/AgentEyes
+== 8. REAL RECORDINGS LIBRARY AFTER: entries modified since T0 (metadata only)
+(end of list) recording folders now: 79
+owner's service /status (7882) after:
+  "State": "idle",
+  "PendingTranscriptions": 66,
+50642 /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes serve
+my ffmpeg/agenteyes leftovers:
+89343 /Users/soren/.dotnet/dotnet /Users/soren/ReposFred/agenteyes-dev161/src/AgentEyes.Core/bin/Release/net8.0/agenteyes.dll serve --port 17961

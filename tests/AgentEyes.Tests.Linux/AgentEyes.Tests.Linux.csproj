@@ -35,6 +35,9 @@
          compiled from ONE source file so every platform's build of the CLI passes the same ones. -->
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
     <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
+    <!-- Issue #161: the library-redirect rules, /status roots, and a real child process refusing a
+         partial redirect - linked into all three suites so each platform's engine is held to them. -->
+    <Compile Include="..\Shared\LibraryRedirectTests.cs" Link="Shared\LibraryRedirectTests.cs" />
 
     <!-- Issue #136: ONE guard, compiled into all three suites. FfmpegMuxShapeTests sweeps the
          argument builders in THIS build - which is the whole point of linking it rather than

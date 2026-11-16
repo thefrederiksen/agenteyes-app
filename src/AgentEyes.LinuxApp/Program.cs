@@ -23,6 +23,31 @@ namespace AgentEyes.LinuxApp
         [STAThread]
         public static int Main(string[] args)
         {
+            // Issue #161: before anything logs or resolves a path. AGENTEYES_REDIRECT_DATA and
+            // AGENTEYES_REDIRECT_VIDEOS move this app's settings and log with the service's library,
+            // or the start is refused on stderr (not logged: the only reachable log is the real one).
+            var redirect = LibraryRedirect.ApplyFromEnvironment(out string redirectMessage);
+            if (redirect == LibraryRedirect.Outcome.Refused)
+            {
+                Console.Error.WriteLine("[error] " + redirectMessage);
+                return LibraryRedirect.RefusedExitCode;
+            }
+            if (redirect == LibraryRedirect.Outcome.Redirected)
+            {
+                // The Linux app is a CLIENT of the service and always drives it on the fixed address
+                // ControlClient.BaseUrl - the person's REAL service. Redirected, it would keep scratch
+                // settings and a scratch log while showing and driving the real library: a half-redirect,
+                // which is worse than none. Refused, loudly; the redirected way to drive a scratch
+                // service is the redirected CLI (agenteyes record start|stop|status).
+                string refusal = $"library redirect refused: the Linux app always drives the service at "
+                    + $"{ControlClient.BaseUrl}, the person's REAL AgentEyes, so it cannot run redirected. Fix: unset "
+                    + $"{LibraryRedirect.DataVariable} and {LibraryRedirect.VideosVariable}, or drive a redirected "
+                    + "'agenteyes serve --port N' with the redirected 'agenteyes record ...' commands.";
+                Log.Error("[Program] Main: " + refusal);
+                Console.Error.WriteLine("[error] " + refusal);
+                return LibraryRedirect.RefusedExitCode;
+            }
+
             StartInTray = args.Contains("--tray");
             StartCommand = CommandFrom(args);
             Log.Info($"[Program] Main: AgentEyes Linux app starting (tray={StartInTray}, pid={Environment.ProcessId})");

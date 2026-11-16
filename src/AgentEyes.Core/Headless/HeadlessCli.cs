@@ -113,7 +113,31 @@ namespace AgentEyes.Headless
             return 0;
         }
 
+        /// <summary>
+        /// Issue #161: every call first asks the service which library it is acting on, and refuses -
+        /// sending nothing - when it is not this command's library. Without this a redirected
+        /// <c>agenteyes record start</c> whose scratch config names no port would start a REAL recording
+        /// in the person's real library through their own service on the default port; and an
+        /// unredirected one could drive a scratch service by mistake.
+        /// </summary>
         private static JsonElement Call(HttpMethod method, string path, string? body)
+        {
+            var status = Send(HttpMethod.Get, "status", null);
+            string? refusal = LibraryRedirect.ServiceLibraryRefusal(
+                TryProp(status, "DataRoot", out var d) && d.ValueKind == JsonValueKind.String ? d.GetString() : null,
+                TryProp(status, "RecordingsRoot", out var r) && r.ValueKind == JsonValueKind.String ? r.GetString() : null,
+                IsTrue(status, "LibraryRedirected"),
+                AppDataPaths.Root, RecordingPaths.Root, LibraryRedirect.AppliedFromEnvironment, LocalAppConfig.Base);
+            if (refusal != null)
+            {
+                Log.Error($"[HeadlessCli] Call: refused {method} {path}: {refusal}");
+                throw new UsageException(refusal);
+            }
+            Log.Info($"[HeadlessCli] Call: the service is on this command's library ({RecordingPaths.Root})");
+            return method == HttpMethod.Get && path == "status" ? status : Send(method, path, body);
+        }
+
+        private static JsonElement Send(HttpMethod method, string path, string? body)
         {
             string url = LocalAppConfig.Base + path;
             Log.Info($"[HeadlessCli] Call: {method} {url}");
