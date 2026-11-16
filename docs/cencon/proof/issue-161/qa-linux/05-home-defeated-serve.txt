@@ -1,0 +1,11 @@
+# HOME-defeated serve: HOME=<scratch>/homeatk/home AGENTEYES_REDIRECT_DATA=<home>/.local/share AGENTEYES_REDIRECT_VIDEOS=<scratch>/homeatk/videos agenteyes serve --port 17163, under Landlock
+# stdout:
+[ok] AgentEyes headless service listening on http://127.0.0.1:17163/
+     recordings -> <scratch>/homeatk/videos/AgentEyes
+     data       -> <home>/.local/share/AgentEyes
+     [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS - this is NOT the person's real library
+     signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+# EACCES on real roots (Landlock refused each):
+      2 openat(AT_FDCWD, "<home>/.local/share/AgentEyes/devthrottle.cred", O_RDONLY|O_CLOEXEC) = -1 EACCES (Permission denied)
+     26 openat(AT_FDCWD, "<home>/.local/share/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+      1 openat(AT_FDCWD, "<home>/.local/share/AgentEyes/run/ffmpeg", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = -1 EACCES (Permission denied)

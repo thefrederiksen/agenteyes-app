@@ -1,0 +1,13 @@
+# Unwritable scratch roots (chmod 555 on <scratch>/unw/data and /videos): redirected serve --port 17164 under Landlock
+# stdout:
+[ok] AgentEyes headless service listening on http://127.0.0.1:17164/
+     recordings -> <scratch>/unw/videos/AgentEyes
+     data       -> <scratch>/unw/data/AgentEyes
+     [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS - this is NOT the person's real library
+     signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+# GET /status answered 200 after 5 s; SIGTERM -> exit 0
+# files that exist under <scratch>/unw afterwards (no log anywhere):
+.
+./data
+./videos
+# EACCES in the trace (all on the scratch folders): 25; on real roots: 0

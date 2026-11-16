@@ -1,0 +1,10 @@
+# redirected serve stdout (pid 1733556, port 17161)
+[ok] AgentEyes headless service listening on http://127.0.0.1:17161/
+     recordings -> <scratch>/lib/videos/AgentEyes
+     data       -> <scratch>/lib/data/AgentEyes
+     [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS - this is NOT the person's real library
+     signed in to DevThrottle: NO - run 'agenteyes signin' (recordings will not be transcribed)
+
+# redirected serve stderr
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+[redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>/lib/data/AgentEyes ; recordings -> <scratch>/lib/videos/AgentEyes ; log -> <scratch>/lib/data/AgentEyes/logs (pid 1733556)

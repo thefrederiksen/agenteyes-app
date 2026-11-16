@@ -1,0 +1,11 @@
+# Linux HOME measurement, run 1: UNredirected 'HOME=<scratch>/hm/home agenteyes --help' (scratch HOME EMPTY - no .local/share, no Videos), under Landlock, cwd = the repo checkout.
+# .NET returned "" for both folders (they do not exist under the new HOME), so the roots became RELATIVE ('AgentEyes') and the log was written to <repo>/AgentEyes/logs - issue #169's shape. Its whole log:
+12:41:17.028 [pid 1757455] [INFO] [CliDispatcher] Run: args=1 command=--help state=AgentEyes recordings=AgentEyes redirect=none
+12:41:17.037 [pid 1757455] [INFO] [CliDispatcher] Dispatch: top-level help
+12:41:17.041 [pid 1757455] [INFO] [CliDispatcher] Run: exit=0
+# (QA removed <repo>/AgentEyes afterwards - it held only this file, written by this run.)
+
+# run 2: same, scratch HOME WITH .local/share and Videos created, cwd = <scratch>/hm2:
+12:41:42.834 [pid 1758596] [INFO] [CliDispatcher] Run: args=1 command=--help state=<scratch>/hm2/home/.local/share/AgentEyes recordings=<scratch>/hm2/home/Videos/AgentEyes redirect=none
+# real-root syscalls: 0
+# => on Linux a changed HOME DOES move both roots (and, with no XDG folders under it, makes them relative). That is why the redirect guard's REAL root moves with it (05-home-defeated-serve.txt).

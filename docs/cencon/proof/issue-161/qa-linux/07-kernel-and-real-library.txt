@@ -1,0 +1,30 @@
+# Kernel evidence for the redirected serve (pid 1733556, 12:33:46 - 12:38:30, through repair pass, housekeeper, a 5 s recording and its post-processing)
+serve strace: 26402 file/desc syscalls, 2155 openat
+syscalls naming a real AgentEyes root (sandbox argv excluded): 0
+real-root PARENTS named (by design: the overlap check resolves Videos and ~/.local/share, never AgentEyes under them).
+Attribution by strace line vs the agenteyes execve (line 1308): the two openat(O_DIRECTORY) are the SANDBOX's own walk
+(lines 248, 1096, before exec); after exec agenteyes only access/newfstatat/readlink'd the two parents (lines 4857-4947), metadata only:
+      1 access("<home>/.local/share", R_OK) = 0
+      1 access("<home>/Videos", R_OK) = 0
+      1 newfstatat(AT_FDCWD, "<home>/.local/share", {st_mode=S_IFDIR|0775, st_size=4096, ...}, 0) = 0
+      1 newfstatat(AT_FDCWD, "<home>/.local/share", {st_mode=S_IFDIR|0775, st_size=4096, ...}, AT_SYMLINK_NOFOLLOW) = 0
+      1 newfstatat(AT_FDCWD, "<home>/Videos", {st_mode=S_IFDIR|0755, st_size=4096, ...}, 0) = 0
+      1 newfstatat(AT_FDCWD, "<home>/Videos", {st_mode=S_IFDIR|0755, st_size=4096, ...}, AT_SYMLINK_NOFOLLOW) = 0
+      1 openat(AT_FDCWD, "<home>/.local/share", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 8
+      1 openat(AT_FDCWD, "<home>/Videos", O_RDONLY|O_NONBLOCK|O_CLOEXEC|O_DIRECTORY) = 7
+      1 readlink("<home>/.local/share", 0x7ffd66007b20, 256) = -1 EINVAL (Invalid argument)
+      1 readlink("<home>/Videos", 0x7ffd66007b20, 256) = -1 EINVAL (Invalid argument)
+
+# POSITIVE CONTROL, same instrument: UNredirected 'agenteyes record status' under the same sandbox
+syscalls naming a real AgentEyes root: 25; EACCES: 8
+      8 mkdir("<home>/.local/share/AgentEyes/logs", 0777) = -1 EEXIST (File exists)
+      1 newfstatat(AT_FDCWD, "<home>/.local/share/AgentEyes/config.json", 0x7ffcbfe67060, AT_SYMLINK_NOFOLLOW) = -1 ENOENT (No such file or directory)
+      8 newfstatat(AT_FDCWD, "<home>/.local/share/AgentEyes/logs", {st_mode=S_IFDIR|0775, st_size=4096, ...}, 0) = 0
+      8 openat(AT_FDCWD, "<home>/.local/share/AgentEyes/logs/AgentEyes-20261116.log", O_WRONLY|O_CREAT|O_CLOEXEC, 0666) = -1 EACCES (Permission denied)
+
+# The real library afterwards (read-only, outside the sandbox, by QA)
+recording folders in <home>/Videos/AgentEyes: 82 (82 before any QA run)
+find <home>/Videos/AgentEyes -newer <t0 12:33:45>: [0 entries]
+evidence recording 2026-11-14_102532_video present: yes
+owner service 7882 /status State: idle
+lines naming the QA scratch folder in the owner's live log: 0

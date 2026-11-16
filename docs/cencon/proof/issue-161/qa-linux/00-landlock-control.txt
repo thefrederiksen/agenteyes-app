@@ -1,0 +1,17 @@
+# Section 0 - the Landlock denial instrument, run FIRST (QA #161 Linux, 2026-11-16T12:38:52-05:00)
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+ls    <home>/Videos/AgentEyes -> exit 2 : ls: cannot open directory '<home>/Videos/AgentEyes': Permission denied
+touch <home>/Videos/AgentEyes/.qa161-landlock-probe -> exit 1 : touch: cannot touch '<home>/Videos/AgentEyes/.qa161-landlock-probe': Permission denied
+ls    <home>/.local/share/AgentEyes -> exit 2 : ls: cannot open directory '<home>/.local/share/AgentEyes': Permission denied
+touch <home>/.local/share/AgentEyes/.qa161-landlock-probe -> exit 1 : touch: cannot touch '<home>/.local/share/AgentEyes/.qa161-landlock-probe': Permission denied
+ls    <home>/.local/share/AgentEyes/logs -> exit 2 : ls: cannot open directory '<home>/.local/share/AgentEyes/logs': Permission denied
+touch <home>/.local/share/AgentEyes/logs/.qa161-landlock-probe -> exit 1 : touch: cannot touch '<home>/.local/share/AgentEyes/logs/.qa161-landlock-probe': Permission denied
+cat   <home>/.local/share/AgentEyes/linux-app.json -> exit 1 : cat: <home>/.local/share/AgentEyes/linux-app.json: Permission denied
+touch scratch -> exit 0
+ls: cannot open directory '<home>/Videos': Permission denied
+ls ~/Videos (parent, a sibling-only grant) -> exit 2
+ls ~/ReposFred (sibling) -> exit 0
+# probe files afterwards (must not exist):
+ls: cannot access '<home>/Videos/AgentEyes/.qa161-landlock-probe': No such file or directory
+ls: cannot access '<home>/.local/share/AgentEyes/.qa161-landlock-probe': No such file or directory
+ls: cannot access '<home>/.local/share/AgentEyes/logs/.qa161-landlock-probe': No such file or directory
