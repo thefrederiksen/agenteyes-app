@@ -1,0 +1,35 @@
+12:28:36.512 strace 1101365, serve 1101372, root ok
+12:28:47.213 writer 1101611 SigIgn=0000000000001000 SigBlk=0000000000000000 fds: 0->pipe:[854633] 1->pipe:[854634] 2->pipe:[854635]
+12:28:47.216 serve SIGKILLed
+12:28:47.224   writer alive=yes raw=1048624
+12:28:47.735   writer alive=yes raw=1048624
+12:28:48.246   writer alive=yes raw=1572912
+12:28:48.755   writer alive=yes raw=1572912
+12:28:49.266   writer alive=yes raw=1572912
+12:28:49.776   writer alive=yes raw=1572912
+12:28:50.286   writer alive=yes raw=1572912
+12:28:50.798   writer alive=yes raw=1572912
+12:28:51.309   writer alive=yes raw=1835056
+12:28:51.818   writer alive=yes raw=1835056
+12:28:52.327   writer alive=yes raw=1835056
+12:28:52.840   writer alive=yes raw=1835056
+12:28:53.350   writer alive=yes raw=2097200
+12:28:53.860   writer alive=yes raw=2097200
+12:28:54.371   writer alive=yes raw=2097200
+12:28:54.882   writer alive=yes raw=2097200
+12:28:55.393   writer alive=yes raw=2097200
+12:28:55.903   writer alive=yes raw=2359344
+12:28:56.414   writer alive=yes raw=2621488
+12:28:56.925   writer alive=yes raw=2883632
+12:28:58.433 last strace lines for writer 1101611:
+12:28:58.450 writes to fd 2 (stderr) by writer: 113  EPIPE results: 23
+
+strace excerpt, writer 1101611, last non-media events:
+1101611 --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_USER, si_pid=1101611, si_uid=1000} ---
+1101611 write(2, "[aac @ 0x58211cc0bc80] ", 23) = -1 EPIPE (Broken pipe)
+1101611 --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_USER, si_pid=1101611, si_uid=1000} ---
+1101611 write(2, "Qavg: 436.435\n", 14) = -1 EPIPE (Broken pipe)
+1101611 --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_USER, si_pid=1101611, si_uid=1000} ---
+1101611 write(2, "Exiting normally, received signa"..., 38) = -1 EPIPE (Broken pipe)
+1101611 --- SIGPIPE {si_signo=SIGPIPE, si_code=SI_USER, si_pid=1101611, si_uid=1000} ---
+1101611 exit_group(255)                 = ?

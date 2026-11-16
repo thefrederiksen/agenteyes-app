@@ -1,0 +1,25 @@
+16:51:49.601 === QA #156 pass 4 scenario=live binary=fix scratch=$SCRATCH/runs/live-fix-165149
+16:51:49.604 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+16:51:49.619 embedded version: 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:51:49.694   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:51:49.933 isolation: report-only housekeep (no service) -> root=$SCRATCH/runs/live-fix-165149/home/Videos/AgentEyes ; positive control under a second env -> $SCRATCH/runs/isoctrl-1639849/h/Videos/AgentEyes
+16:51:50.201 [s1] serve pid 1639909 port 7970; recordings root inside scratch: $SCRATCH/runs/live-fix-165149/home/Videos/AgentEyes
+16:51:51.719 S1 pid 1639909 capturing into 2026-11-16_115150_video
+16:52:03.809 writer pid 1640018 confirmed by command line to write into 2026-11-16_115150_video (comm=ffmpeg, uid 1000)
+16:52:03.841 LIVE ARM: S1 pid 1639909 alive=yes, writer 1640018 alive=yes; raw.mp4=3670064 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:52:04.087   second process, plain: package --no-frames -> exit 1: [error] refusing to package 2026-11-16_115150_video: it is being captured by the capture session of pid 1639909 on host devlinux (started 2026-11-16T16:51:50.4354573Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+16:52:04.118   raw.mp4=3932208 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:52:04.373   second process, LANDLOCK-confined: package --no-frames -> exit 1: [error] refusing to package 2026-11-16_115150_video: it is being captured by the capture session of pid 1639909 on host devlinux (started 2026-11-16T16:51:50.4354573Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+16:52:04.410   raw.mp4=3932208 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:52:04.421   directory listing before/after the two finalize attempts: identical; raw.mp4 3670064 -> 3932208 bytes (still growing: yes); writer 1640018 alive=yes
+16:52:13.114 POST /record/stop -> {
+  "Dir": "$SCRATCH/runs/live-fix-165149/home/Videos/AgentEyes/2026-1
+  "File": "$SCRATCH/runs/live-fix-165149/home/Videos/AgentEyes/2026-
+  "DurationSeconds": 22.02,
+  "Shots": 0
+}
+16:52:15.213 followed manifest PostProcessing.mux: cleared/done
+16:52:15.246   raw.mp4=absent recording.mp4=7192551 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T16:52:13.1226336Z by agenteyes pid 1639909 on devlinux"] Error=
+16:52:17.087   decode recording.mp4: duration=21.966667s full-decode exit=0 stderr-lines=0 last-second: 30 video frames decoded from the last second; last audio pts read: 42176 streams=h264,video aac,audio 
+16:52:17.163   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:52:17.166 === done; transcript $SCRATCH/runs/live-fix-165149/transcript.txt

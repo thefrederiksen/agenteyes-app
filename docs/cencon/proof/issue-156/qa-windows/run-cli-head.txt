@@ -1,0 +1,22 @@
+15:11:27 binary: C:\ReposFred\agenteyes-app\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe  embedded: 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+15:11:27 this process: user SORENLAPTOP\soren, admin token False
+15:11:28 elevated stand-in: pid 14552 ctfmon, started 2026-11-11T16:23:40.4440278Z
+15:11:28 --- A_writer-pid4-system: lock free, owner pid 99996 (gone), writer pid 4 start 2026-11-15T12:00:01Z
+15:11:31   package exit 0
+      [warn] title generation failed: transcript is empty; nothing to title.
+15:11:31   PendingMux=cleared  mux.State=done  mux.Attempts=1  DurationSeconds=4.02
+15:11:32   recording.mp4: 1520404   capture.owner.json: absent
+15:11:32   ffprobe: video audio 4.020000
+15:11:32   full decode exit 0
+15:11:32 --- B_writer-elevated-live: lock free, owner pid 99996 (gone), writer pid 14552 start 2026-11-11T16:23:40.4440278Z
+15:11:33   package exit 1
+    [error] refusing to package 2026-11-15_120000_B_writer-elevated-live: its capture owner (capture session of pid 99996 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 14552 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes s
+15:11:33   PendingMux=pending  mux.State=  mux.Attempts=  DurationSeconds=
+15:11:33   recording.mp4: absent   capture.owner.json: PRESENT
+15:11:34 --- C_writer-gone-control: lock free, owner pid 99996 (gone), writer pid 99996 start 2026-11-15T12:00:01Z
+15:11:37   package exit 0
+      [warn] title generation failed: transcript is empty; nothing to title.
+15:11:37   PendingMux=cleared  mux.State=done  mux.Attempts=1  DurationSeconds=4.02
+15:11:37   recording.mp4: 1520404   capture.owner.json: absent
+15:11:37   ffprobe: video audio 4.020000
+15:11:37   full decode exit 0

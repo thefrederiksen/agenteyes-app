@@ -1,0 +1,352 @@
+AgentEyes issue #116 - Windows QA evidence (machine SOREN_NORTH, commit 78a973eeeb642f326175d3a67c7a49d72ebd4d9b)
+All times local, 2026-11-16. Log = %LOCALAPPDATA%\AgentEyes\logs\AgentEyes-20261116.log (shared with the installed app pid 26652, so every excerpt is filtered by pid; Avalonia stack frames elided except in section 9).
+
+== 1. dotnet build AgentEyes.sln -c Release  (SDK 10.0.403) - full transcript
+  Determining projects to restore...
+  Restored D:\ReposFred\agenteyes-qa116\tools\AgentEyes.Setup\AgentEyes.Setup.csproj (in 463 ms).
+  Restored D:\ReposFred\agenteyes-qa116\tools\AgentEyes.Setup.Cli\AgentEyes.Setup.Cli.csproj (in 463 ms).
+  Restored D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj (in 542 ms).
+  Restored D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AgentEyes.Core.csproj (in 530 ms).
+  Restored D:\ReposFred\agenteyes-qa116\tools\AgentEyes.Setup.Engine\AgentEyes.Setup.Engine.csproj (in 463 ms).
+  Restored D:\ReposFred\agenteyes-qa116\src\AgentEyes.App\AgentEyes.App.csproj (in 528 ms).
+  Restored D:\ReposFred\agenteyes-qa116\src\AgentEyes.DesktopApp\AgentEyes.DesktopApp.csproj (in 11.27 sec).
+  AgentEyes.Setup.Engine -> D:\ReposFred\agenteyes-qa116\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.Setup.Cli -> D:\ReposFred\agenteyes-qa116\tools\AgentEyes.Setup.Cli\bin\Release\net8.0-windows\agenteyes-setup.dll
+D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AlwaysOn\AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AgentEyes.Core.csproj::TargetFramework=net8.0]
+D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AlwaysOn\AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AgentEyes.Core.csproj::TargetFramework=net8.0-windows10.0.19041.0]
+  AgentEyes.Setup -> D:\ReposFred\agenteyes-qa116\tools\AgentEyes.Setup\bin\Release\net8.0-windows\AgentEyes.Setup.dll
+  AgentEyes.Core -> D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\bin\x64\Release\net8.0\agenteyes.dll
+  AgentEyes.Core -> D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.App -> D:\ReposFred\agenteyes-qa116\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayEndToEndTests.cs(176,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayEndToEndTests.cs(266,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(115,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(190,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(211,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(343,13): warning xUnit2013: Do not use Assert.Equal() to check for collection size. Use Assert.Single instead. (https://xunit.net/xunit.analyzers/rules/xUnit2013) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\FrameConversionTests.cs(84,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeeperEndToEndTests.cs(138,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(62,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeeperEndToEndTests.cs(165,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(111,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(154,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(176,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\FrameConversionTests.cs(100,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\FrameConversionTests.cs(419,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\SetupCliHelpTests.cs(408,13): warning xUnit2029: Do not use Assert.Empty to check if a value does not exist in a collection. Use Assert.DoesNotContain instead. (https://xunit.net/xunit.analyzers/rules/xUnit2029) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(482,30): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(493,29): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+  AgentEyes.Tests -> D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+  AgentEyes.DesktopApp -> D:\ReposFred\agenteyes-qa116\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.dll
+
+Build succeeded.
+
+D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AlwaysOn\AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AgentEyes.Core.csproj::TargetFramework=net8.0]
+D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AlwaysOn\AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AgentEyes.Core.csproj::TargetFramework=net8.0-windows10.0.19041.0]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayEndToEndTests.cs(176,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayEndToEndTests.cs(266,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(115,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(190,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(211,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\DecayLadderTests.cs(343,13): warning xUnit2013: Do not use Assert.Equal() to check for collection size. Use Assert.Single instead. (https://xunit.net/xunit.analyzers/rules/xUnit2013) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\FrameConversionTests.cs(84,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeeperEndToEndTests.cs(138,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(62,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeeperEndToEndTests.cs(165,26): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(111,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(154,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\HousekeepingPlanTests.cs(176,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\FrameConversionTests.cs(100,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(309,42): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\PostRecordingQueueTests.cs(314,46): warning xUnit1031: Test methods should not use blocking task operations, as they can cause deadlocks. Use an async test method and await instead. (https://xunit.net/xunit.analyzers/rules/xUnit1031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\FrameConversionTests.cs(419,24): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\SetupCliHelpTests.cs(408,13): warning xUnit2029: Do not use Assert.Empty to check if a value does not exist in a collection. Use Assert.DoesNotContain instead. (https://xunit.net/xunit.analyzers/rules/xUnit2029) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(482,30): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs(493,29): warning xUnit2031: Do not use a Where clause to filter before calling Assert.Single. Use the overload of Assert.Single that accepts a filtering function. (https://xunit.net/xunit.analyzers/rules/xUnit2031) [D:\ReposFred\agenteyes-qa116\tests\AgentEyes.Tests\AgentEyes.Tests.csproj]
+    22 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:04:36.55
+
+== 2. dotnet build src/AgentEyes.DesktopApp -c Release (criterion 4's own command) - full transcript
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AlwaysOn\AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AgentEyes.Core.csproj::TargetFramework=net8.0-windows10.0.19041.0]
+  AgentEyes.Core -> D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.DesktopApp -> D:\ReposFred\agenteyes-qa116\src\AgentEyes.DesktopApp\bin\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.dll
+
+Build succeeded.
+
+D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AlwaysOn\AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [D:\ReposFred\agenteyes-qa116\src\AgentEyes.Core\AgentEyes.Core.csproj::TargetFramework=net8.0-windows10.0.19041.0]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:54.27
+
+== 3. Linkage (criterion 7): string literals counted as UTF-16LE, identifiers as UTF-8; Unix engine built on this machine as the instrument's positive control
+src/AgentEyes.DesktopApp/bin/x64/Release/net8.0-windows10.0.19041.0/agenteyes.dll  size=1020416
+   gdigrab       utf16le=2  utf8=0
+   x11grab       utf16le=0  utf8=0
+   pulse         utf16le=0  utf8=0
+   v4l2          utf16le=0  utf8=0
+   avfoundation  utf16le=0  utf8=0
+   NAudio(utf8 metadata ref)=6
+   embedded version: ['01.11.11+78a973eeeb642f326175d3a67c7a49d72ebd4d9b', '1.11.11+78a973eeeb642f326175d3a67c7a49d72ebd4d9b']
+src/AgentEyes.DesktopApp/bin/x64/Release/net8.0-windows10.0.19041.0/AgentEyesDesktop.dll  size=242688
+   gdigrab       utf16le=0  utf8=0
+   x11grab       utf16le=0  utf8=0
+   pulse         utf16le=0  utf8=0
+   v4l2          utf16le=0  utf8=0
+   avfoundation  utf16le=0  utf8=0
+   NAudio(utf8 metadata ref)=0
+   embedded version: ['1.0.0+78a973eeeb642f326175d3a67c7a49d72ebd4d9b']
+src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes.dll  size=980480
+   gdigrab       utf16le=2  utf8=0
+   x11grab       utf16le=1  utf8=0
+   pulse         utf16le=8  utf8=2
+   v4l2          utf16le=1  utf8=0
+   avfoundation  utf16le=0  utf8=0
+   NAudio(utf8 metadata ref)=0
+   embedded version: ['01.11.11+78a973eeeb642f326175d3a67c7a49d72ebd4d9b', '1.11.11+78a973eeeb642f326175d3a67c7a49d72ebd4d9b']
+
+== 4. First launch, pid 64852 (cmd start, no args), launched 06:31:36.57
+06:31:47.527 [pid 64852] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=64852)
+06:31:47.534 [pid 64852] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='show'
+06:31:47.548 [pid 64852] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+06:31:57.482 [pid 64852] [INFO] [App] OnFrameworkInitializationCompleted
+06:31:57.740 [pid 64852] [INFO] [TrayController] ctor
+06:31:57.839 [pid 64852] [INFO] [AppSettings] Load: no %LOCALAPPDATA%\AgentEyes\linux-app.json yet - defaults
+06:31:57.840 [pid 64852] [INFO] [AppState] StartPolling
+06:31:57.896 [pid 64852] [INFO] [App] Run: show
+06:31:57.897 [pid 64852] [INFO] [App] ShowWindow
+06:32:16.318 [pid 64852] [INFO] [MainWindow] ctor
+06:32:17.546 [pid 64852] [INFO] [MainWindow] Opened
+06:32:17.552 [pid 64852] [INFO] [ControlClient] GetDevicesAsync
+06:32:17.560 [pid 64852] [INFO] [MainWindow] StartWatchingLibrary: %USERPROFILE%\Videos\AgentEyes
+06:32:17.629 [pid 64852] [INFO] [AppState] PollAsync: service answering, state=idle
+06:32:17.631 [pid 64852] [INFO] [TrayController] Render:  -> idle
+06:32:20.624 [pid 64852] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 3060 ms
+06:32:20.637 [pid 64852] [INFO] [ControlClient] GetDevicesAsync: 3 monitor(s), 3 mic(s)
+06:32:20.710 [pid 64852] [INFO] [AppSettings] Save: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+06:32:20.922 [pid 64852] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 286 ms
+06:33:16.247 [pid 64852] [INFO] [SingleInstance] Accept: 'view:library'
+
+== 5. Second launches (criterion 11): 38292 = start --view library; 10600 = run directly --view record (exit code 0); 54888 = test A (window at z-order #19); 80228 = test B (window minimized)
+-- pid 38292
+06:33:16.236 [pid 38292] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=38292)
+06:33:16.240 [pid 38292] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='view:library'
+06:33:16.245 [pid 38292] [INFO] [SingleInstance] TryAcquire: pipe agenteyes-app-soren is owned by another instance (UnauthorizedAccessException: Access to the path is denied.)
+06:33:16.246 [pid 38292] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+-- pid 10600
+06:33:39.723 [pid 10600] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=10600)
+06:33:39.732 [pid 10600] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='view:record'
+06:33:39.740 [pid 10600] [INFO] [SingleInstance] TryAcquire: pipe agenteyes-app-soren is owned by another instance (UnauthorizedAccessException: Access to the path is denied.)
+06:33:39.743 [pid 10600] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'
+-- pid 54888
+06:34:31.819 [pid 54888] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=54888)
+06:34:31.823 [pid 54888] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='show'
+06:34:31.827 [pid 54888] [INFO] [SingleInstance] TryAcquire: pipe agenteyes-app-soren is owned by another instance (UnauthorizedAccessException: Access to the path is denied.)
+06:34:31.828 [pid 54888] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+-- pid 80228
+06:34:35.269 [pid 80228] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=80228)
+06:34:35.275 [pid 80228] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='show'
+06:34:35.281 [pid 80228] [INFO] [SingleInstance] TryAcquire: pipe agenteyes-app-soren is owned by another instance (UnauthorizedAccessException: Access to the path is denied.)
+06:34:35.283 [pid 80228] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+-- first instance pid 64852, same window:
+06:33:16.247 [pid 64852] [INFO] [SingleInstance] Accept: 'view:library'
+06:33:16.247 [pid 64852] [INFO] [App] Run: view:library
+06:33:16.247 [pid 64852] [INFO] [App] ShowWindow
+06:33:16.258 [pid 64852] [INFO] [MainWindow] RunCommand: view library
+06:33:16.261 [pid 64852] [INFO] [MainWindow] Rail_Changed: Library
+06:33:17.021 [pid 64852] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 757 ms
+06:33:39.743 [pid 64852] [INFO] [SingleInstance] Accept: 'view:record'
+06:33:39.744 [pid 64852] [INFO] [App] Run: view:record
+06:33:39.745 [pid 64852] [INFO] [App] ShowWindow
+06:33:39.761 [pid 64852] [INFO] [MainWindow] RunCommand: view record
+06:33:39.763 [pid 64852] [INFO] [MainWindow] Rail_Changed: Record
+06:34:31.828 [pid 64852] [INFO] [SingleInstance] Accept: 'show'
+06:34:31.828 [pid 64852] [INFO] [App] Run: show
+06:34:31.829 [pid 64852] [INFO] [App] ShowWindow
+06:34:35.283 [pid 64852] [INFO] [SingleInstance] Accept: 'show'
+06:34:35.283 [pid 64852] [INFO] [App] Run: show
+06:34:35.284 [pid 64852] [INFO] [App] ShowWindow
+
+== 6. Simultaneous launch (cmd: start A --tray & start B --tray, one command line) 06:47:38.391
+06:47:38.504 [pid 20716] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=20716)
+06:47:38.509 [pid 20716] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+06:47:38.515 [pid 20716] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+06:47:38.529 [pid 20716] [INFO] [SingleInstance] Accept: 'tray'
+06:47:38.773 [pid 20716] [INFO] [App] OnFrameworkInitializationCompleted
+06:47:38.834 [pid 20716] [INFO] [TrayController] ctor
+06:47:38.896 [pid 20716] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+06:47:38.896 [pid 20716] [INFO] [AppState] StartPolling
+06:47:38.961 [pid 20716] [INFO] [AppState] PollAsync: service answering, state=idle
+06:47:38.962 [pid 20716] [INFO] [TrayController] Render:  -> idle
+06:47:38.509 [pid 16536] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=16536)
+06:47:38.516 [pid 16536] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+06:47:38.523 [pid 16536] [INFO] [SingleInstance] TryAcquire: pipe agenteyes-app-soren is owned by another instance (UnauthorizedAccessException: Access to the path is denied.)
+06:47:38.526 [pid 16536] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'tray'
+surviving AgentEyesDesktop processes after 10 s: 1 [20716]
+
+== 7. Tray: close-to-tray, left click raises, menu Show (pid 64852)
+06:36:45.352 [pid 64852] [INFO] [App] window closed to the tray
+06:36:48.742 [pid 64852] [INFO] [App] ShowWindow
+06:36:48.765 [pid 64852] [INFO] [MainWindow] Opened
+06:36:48.767 [pid 64852] [INFO] [ControlClient] GetDevicesAsync
+06:36:48.767 [pid 64852] [INFO] [MainWindow] StartWatchingLibrary: %USERPROFILE%\Videos\AgentEyes
+06:36:48.939 [pid 64852] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 171 ms
+06:37:42.980 [pid 64852] [INFO] [App] ShowWindow
+06:38:36.237 [pid 64852] [INFO] [App] window closed to the tray
+
+== 8. Tray Quit (amended criterion 11) - three runs
+-- quit-run1.txt
+[06:46:22.371] BEFORE: pipes listed=1260; agenteyes-app-soren present=True
+[06:46:22.836] message window=0x29E0ABE
+[06:46:23.415] menu 0x2070E46 open; posted left click to 'Quit AgentEyes' at client 162,158
+[06:46:38.436] process did NOT exit within 15 s
+[06:46:38.437] process 31720 exited=False
+[06:46:38.465] AFTER: pipes listed=1262; agenteyes-app-soren present=True
+--- log lines for pid 31720:
+06:46:23.417 [pid 31720] [INFO] [App] Quit (the recorder service keeps running)
+06:46:23.777 [pid 31720] [ERROR] [Program] unhandled exception - the app is going down
+06:46:23.777 [pid 31720] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+-- quit-fresh-run.txt
+[06:47:04.396] started --tray pid=53000 action=quit
+[06:47:06.578] message window=0x1CA0E72
+[06:47:06.580] pipe present while running: True
+[06:47:07.035] menu popup=0x800AB2 (count of visible popups=1 expected)
+[06:47:07.465] posted a left click to the Quit item at client 161,158
+[06:47:12.475] process exited=False
+[06:47:12.477] menu popup still visible=False
+[06:47:12.489] pipes listed=1279; agenteyes-app-soren present=True
+--- log lines for pid 53000 (stack frames elided):
+06:47:04.565 [pid 53000] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=53000)
+06:47:04.569 [pid 53000] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+06:47:04.574 [pid 53000] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+06:47:05.045 [pid 53000] [INFO] [App] OnFrameworkInitializationCompleted
+06:47:05.098 [pid 53000] [INFO] [TrayController] ctor
+06:47:05.152 [pid 53000] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+06:47:05.152 [pid 53000] [INFO] [AppState] StartPolling
+06:47:05.256 [pid 53000] [INFO] [AppState] PollAsync: service answering, state=idle
+06:47:05.257 [pid 53000] [INFO] [TrayController] Render:  -> idle
+06:47:07.467 [pid 53000] [INFO] [App] Quit (the recorder service keeps running)
+06:47:07.504 [pid 53000] [ERROR] [Program] unhandled exception - the app is going down
+06:47:07.504 [pid 53000] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+[06:47:12.500] still running - left up for the next step
+-- quit-run3.txt
+[06:48:01.996] BEFORE: pipes listed=1286; agenteyes-app-soren present=True
+[06:48:02.619] message window=0xFA192C
+[06:48:04.768] menu 0x2A20ABE open; posted left click to 'Quit AgentEyes' at client 162,158
+[06:48:05.104] process 20716 exited=True
+[06:48:05.146] AFTER: pipes listed=1290; agenteyes-app-soren present=False
+--- log lines for pid 20716:
+06:48:04.772 [pid 20716] [INFO] [App] Quit (the recorder service keeps running)
+06:48:04.869 [pid 20716] [ERROR] [Program] unhandled exception - the app is going down
+06:48:04.869 [pid 20716] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+
+== 9. The crash, one full stack (pid 53000, fresh --tray instance, menu opened once, Quit clicked)
+06:47:07.504 [pid 53000] [ERROR] [Program] unhandled exception - the app is going down
+06:47:07.504 [pid 53000] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.DetachCore(IMenu menu)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.Detach(MenuBase menu)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.MenuBase.OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.MenuFlyoutPresenter.OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Visual.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Layout.Layoutable.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Input.InputElement.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Control.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Visual.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Layout.Layoutable.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Input.InputElement.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Control.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Visual.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Layout.Layoutable.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Input.InputElement.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Control.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Visual.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Layout.Layoutable.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Input.InputElement.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Control.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Visual.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Layout.Layoutable.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Input.InputElement.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Control.OnDetachedFromVisualTreeCore(VisualTreeAttachmentEventArgs e)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.TopLevel.HandleClosed()
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.WindowBase.HandleClosed()
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Controls.Window.HandleClosed()
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Win32.WindowImpl.AppWndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Win32.WindowImpl.WndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+06:47:07.504 [pid 53000] [ERROR]    at Avalonia.Win32.WindowImpl.WndProcMessageHandler(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+
+== 10. Tray-menu popup close experiments
+-- tray-close-run.txt
+[06:41:03.981] started --tray pid=24704 action=close
+[06:41:06.087] message window=0x2000E46
+[06:41:06.089] pipe present while running: True
+[06:41:06.571] menu popup=0x1470A52 (count of visible popups=1 expected)
+[06:41:06.572] posted WM_CLOSE to the menu popup (what Alt+F4 and UIA WindowPattern.Close send)
+[06:41:11.594] process exited=False
+[06:41:11.606] menu popup still visible=False
+[06:41:11.682] pipes listed=1436; agenteyes-app-soren present=True
+--- log lines for pid 24704 (stack frames elided):
+06:41:04.089 [pid 24704] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=24704)
+06:41:04.095 [pid 24704] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+06:41:04.103 [pid 24704] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+06:41:04.618 [pid 24704] [INFO] [App] OnFrameworkInitializationCompleted
+06:41:04.680 [pid 24704] [INFO] [TrayController] ctor
+06:41:04.762 [pid 24704] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+06:41:04.763 [pid 24704] [INFO] [AppState] StartPolling
+06:41:04.871 [pid 24704] [INFO] [AppState] PollAsync: service answering, state=idle
+06:41:04.872 [pid 24704] [INFO] [TrayController] Render:  -> idle
+[06:41:11.808] still running - left up for the next step
+-- tray-twice-close-run.txt
+[06:41:48.067] right-click 1: visible menu popups=0x6F0AB2
+[06:41:49.379] right-click 2: visible menu popups=0x2C00D5E
+[06:41:49.404] WM_CLOSE -> 0x2C00D5E
+[06:41:53.460] process 24704 alive=True; visible popups now=0
+-- tray-replay-run.txt
+[06:42:47.657] left click -> main window shown
+[06:42:48.704] main window closed to tray (UIA)
+[06:42:48.951] menu 1 open hwnd=0xC90DA8, items walked
+[06:42:52.816] menu 2 open hwnd=0x1490E06, items walked
+[06:42:56.036] closing visible menu hwnd=0x1490E06 with UIA WindowPattern.Close
+[06:43:00.049] process 24704 alive=True
+06:42:43.650 [pid 24704] [INFO] [App] ShowWindow
+06:42:44.355 [pid 24704] [INFO] [MainWindow] ctor
+06:42:44.494 [pid 24704] [INFO] [MainWindow] Opened
+06:42:44.496 [pid 24704] [INFO] [ControlClient] GetDevicesAsync
+06:42:44.511 [pid 24704] [INFO] [MainWindow] StartWatchingLibrary: %USERPROFILE%\Videos\AgentEyes
+06:42:44.896 [pid 24704] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 395 ms
+06:42:45.109 [pid 24704] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 204 ms
+06:42:45.455 [pid 24704] [INFO] [ControlClient] GetDevicesAsync: 3 monitor(s), 3 mic(s)
+06:42:45.574 [pid 24704] [INFO] [AppSettings] Save: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+06:42:47.698 [pid 24704] [INFO] [App] window closed to the tray
+06:42:56.111 [pid 24704] [ERROR] [Program] unhandled exception - the app is going down
+06:42:56.111 [pid 24704] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+-- tray-bisect-open1-uia.txt
+[06:44:48.481] started --tray pid=31720 opens=1 close=uia
+[06:44:59.442] left click -> main window shown
+InvalidOperation: <qa-scripts>\bisect.ps1:17
+Line |
+  17 |  ...  = MainWin; $w.GetCurrentPattern([System.Windows.Automation.WindowPat ...
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | You cannot call a method on a null-valued expression.
+
+[06:45:00.999] main window closed to tray (UIA)
+[06:45:03.656] menu 1 open hwnd=0x2430E20, items walked
+[06:45:09.898] closing visible menu hwnd=0x2430E20 with UIA WindowPattern.Close
+[06:45:13.922] process 31720 alive=True
+06:44:55.428 [pid 31720] [INFO] [App] ShowWindow
+06:44:59.683 [pid 31720] [INFO] [MainWindow] ctor
+06:45:00.811 [pid 31720] [INFO] [MainWindow] Opened
+06:45:00.823 [pid 31720] [INFO] [ControlClient] GetDevicesAsync
+06:45:00.855 [pid 31720] [INFO] [MainWindow] StartWatchingLibrary: %USERPROFILE%\Videos\AgentEyes
+06:45:02.733 [pid 31720] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 1904 ms
+06:45:03.081 [pid 31720] [INFO] [MainWindow] RequestScan: 147 recording(s), 0 pending, 331 ms
+06:45:03.135 [pid 31720] [INFO] [ControlClient] GetDevicesAsync: 3 monitor(s), 3 mic(s)
+06:45:03.216 [pid 31720] [INFO] [AppSettings] Save: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+
+== 11. dotnet test AgentEyes.sln -c Release (06:48:19 - 06:53:07, exit 0)
+13:Passed!  - Failed:     0, Passed:  2297, Skipped:     0, Total:  2297, Duration: 1 m 16 s - AgentEyes.Tests.dll (net8.0)

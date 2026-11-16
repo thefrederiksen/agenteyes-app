@@ -1,0 +1,37 @@
+Row 4 - screen only. main f9ef230, service pid 3332249 (agenteyes.dll 766086dc...).
+Request: POST /record/start {"mode":"video","screen":1,"source":"none"}; stop: POST /record/stop {}
+
+== harness timeline (1-min load from /proc/loadavg)
+start 14:20:55.013 load 10.01 17.93 16.49
+dir ~/Videos/AgentEyes/2026-11-15_142055_video
+14:20:57 recording 2.5 bytes=48 load=10.49
+14:21:02 recording 7.6 bytes=262192 load=10.21
+14:21:07 recording 12.6 bytes=524336 load=9.79
+14:21:12 recording 17.7 bytes=786480 load=12.29
+stop-request 14:21:17.860 load 22.20 19.85 17.15
+stop-return 14:21:18.973
+postproc-seen 14:21:24 load 24.27 20.32 17.31
+
+== ffprobe / count / full decode
+== ~/Videos/AgentEyes/2026-11-15_142055_video/recording.mp4 (1247920 bytes)
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=23.266667|nb_frames=698
+format|duration=23.266667
+stream|index=0|codec_type=video|nb_read_frames=698|nb_read_packets=698
+full decode exit=0 in 1.016662291 s, load 26.06 20.95 17.57
+
+== service log, this recording
+14:21:18.418 [pid 3332249] [INFO] [FfmpegRecorder] Stop: pipeline drained in 527ms (take 20968ms, media origin 1805ms) - full take captured
+14:21:18.964 [pid 3332249] [INFO] stop: return dir=~/Videos/AgentEyes/2026-11-15_142055_video dur=22.8s deferredMux=False (HUD may close now)
+14:21:18.965 [pid 3332249] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-15_142055_video
+14:21:20.013 [pid 3332249] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-15_142055_video in 1.0s
+14:21:20.026 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_142055_video
+14:21:20.316 [pid 3332249] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-15_142055_video
+14:21:20.316 [pid 3332249] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_142055_video stage=package error=ffmpeg failed during extract audio (exit 234). ...00000, bitrate: 429 kb/s
+14:21:20.667 [pid 3332249] [INFO] [PostRecording] stage package: start dir=2026-11-15_142055_video
+14:21:20.927 [pid 3332249] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-15_142055_video
+14:21:20.928 [pid 3332249] [INFO] [PostRecordingState] NoteFailed: 2026-11-15_142055_video stage=package error=ffmpeg failed during extract audio (exit 234). ...00000, bitrate: 429 kb/s
+
+== encoder progress (recording.mp4.ffmpeg.log, last lines)
+frame=  631 fps= 28 q=29.0 size=    1024kB time=00:00:20.96 bitrate= 400.1kbits/s speed=0.928x    
+frame=  647 fps= 28 q=29.0 size=    1024kB time=00:00:21.46 bitrate= 390.8kbits/s speed=0.929x    
+frame=  698 fps= 30 q=-1.0 Lsize=    1219kB time=00:00:23.16 bitrate= 430.9kbits/s speed=0.99x    

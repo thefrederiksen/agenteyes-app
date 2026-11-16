@@ -1,0 +1,49 @@
+12:43:31.994 === systemd run fix: transient user unit ae156qa-fix, KillMode=mixed Restart=on-failure RestartSec=10 TimeoutStopSec=120 (as the installed unit)
+Running as unit: ae156qa-fix.service; invocation ID: 140c27d8a6064d6da526e672ff84a26d
+12:43:32.405 unit recordings root inside scratch: $SCRATCH/runs/systemd-fix/home/Videos/AgentEyes
+12:43:32.420 MainPID 1160831
+12:43:46.009 B=2026-11-16_074332_video writer 1160960; raw.mp4=2097200 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:43:46.013 MainPID 1160831 SIGKILLed
+12:43:46.048   +2s unit=activating/auto-restart/ MainPID=0 writer 1160960 alive=yes raw=2097200
+12:43:48.079   +4s unit=activating/auto-restart/ MainPID=0 writer 1160960 alive=NO raw=2097200
+12:43:50.113   +6s unit=activating/auto-restart/ MainPID=0 writer 1160960 alive=NO raw=2097200
+12:43:52.145   +8s unit=activating/auto-restart/ MainPID=0 writer 1160960 alive=NO raw=2097200
+12:43:54.179   +10s unit=activating/auto-restart/ MainPID=0 writer 1160960 alive=NO raw=2097200
+12:43:56.215   +12s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:43:58.247   +14s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:00.298   +16s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:02.330   +18s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:04.363   +20s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:06.396   +22s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:08.429   +24s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:10.461   +26s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:12.495   +28s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:14.527   +30s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:16.563   +32s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:18.600   +34s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:20.633   +36s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:22.665   +38s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:24.698   +40s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:26.729   +42s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:28.763   +44s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:30.796   +46s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:32.826   +48s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:34.860   +50s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:36.894   +52s unit=active/running/ MainPID=1161711 writer 1160960 alive=NO raw=2097200
+12:44:38.900 waiting for the restarted service's first repair pass...
+12:44:53.917 restarted MainPID 1161711
+    log: 07:43:32.220 [pid 1160831] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+    log: 07:43:56.470 [pid 1161711] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1160960 [capture video (2026-11-16_074332_video)]: already exited (or pid reused) - record removed
+    log: 07:43:56.470 [pid 1161711] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
+    log: 07:44:16.573 [pid 1161711] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_074332_video needs mux
+    log: 07:44:16.573 [pid 1161711] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/systemd-fix/home/Videos/AgentEyes, unfinished=1
+    log: 07:44:16.593 [pid 1161711] [INFO] [PostRecording] Execute: 2026-11-16_074332_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1160831 on host devlinux (started 2026-11-16T12:43:32.6252556Z)) is gone and its 1 writer(s) h
+    log: 07:44:16.605 [pid 1161711] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_074332_video stage=mux by=agenteyes pid 1161711 on devlinux
+    log: 07:44:16.666 [pid 1161711] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_074332_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1160831 on host devlinux (started 2026-11-16T12:43:32.6252556Z)) is gone and its 1 writer(s) hav
+    log: 07:44:16.765 [pid 1161711] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of $SCRATCH/runs/systemd-fix/home/Videos/AgentEyes/2026-11-
+    log: 07:44:16.777 [pid 1161711] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_074332_video stage=mux error=could not read the audio channel count of $SCRATCH/runs/syste
+12:44:53.972 B: raw.mp4=2097200 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:44:16.5992079Z by agenteyes pid 1161711 on devlinux'] Error=could not read the audio channel count of $SCRATCH/runs/systemd-fix/ | DurationSeconds=0
+  raw probe: [mov,mp4,m4a,3gp,3g2,mj2 @ 0x58038bb41000] moov atom not found
+12:44:54.073   decode: $SCRATCH/runs/systemd-fix/home/Videos/AgentEyes/2026-11-16_074332_video/recording.mp4 absent
+12:44:54.123 unit stopped: inactive
+12:44:54.127   foreign go2rtc ffmpeg 72110 alive: yes

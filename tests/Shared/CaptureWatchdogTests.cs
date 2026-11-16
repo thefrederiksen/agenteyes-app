@@ -15,7 +15,7 @@ using Xunit;
 namespace AgentEyes.Tests.Shared
 {
     using CaptureFault = global::AgentEyes.Video.CaptureFault;
-    using CaptureLiveness = global::AgentEyes.Video.CaptureLiveness;
+    using CaptureOutputLiveness = global::AgentEyes.Video.CaptureOutputLiveness;
     using CaptureWatchdog = global::AgentEyes.Video.CaptureWatchdog;
     using FfmpegArgs = global::AgentEyes.Video.FfmpegArgs;
     using ICaptureClock = global::AgentEyes.Video.ICaptureClock;
@@ -53,7 +53,7 @@ namespace AgentEyes.Tests.Shared
         }
 
         /// <summary>Advance one check interval, apply <paramref name="change"/>, and check.</summary>
-        private static CaptureLiveness Step(CaptureWatchdog dog, FakeCaptureClock clock, Action? change = null)
+        private static CaptureOutputLiveness Step(CaptureWatchdog dog, FakeCaptureClock clock, Action? change = null)
         {
             clock.Advance(Interval);
             change?.Invoke();
@@ -142,7 +142,7 @@ namespace AgentEyes.Tests.Shared
             for (int i = 0; i < 10; i++) Step(dog, clock, () => capture.Grow(40_000));
             double stalledAt = clock.Monotonic.TotalSeconds;
 
-            CaptureLiveness live;
+            CaptureOutputLiveness live;
             do { live = Step(dog, clock); } while (live.Fault == null && clock.Monotonic.TotalSeconds < stalledAt + 120);
 
             Assert.NotNull(live.Fault);
@@ -183,7 +183,7 @@ namespace AgentEyes.Tests.Shared
             clock.Advance(Interval - offset);
             dog.Check();
 
-            CaptureLiveness live;
+            CaptureOutputLiveness live;
             do { live = Step(dog, clock); } while (live.Fault == null && clock.Monotonic.TotalSeconds < stalledAt + 120);
 
             Assert.Equal(CaptureFault.KindStalled, live.Fault?.Kind);
@@ -209,7 +209,7 @@ namespace AgentEyes.Tests.Shared
         {
             var (dog, clock, capture) = NewWatchdog();
             Step(dog, clock, () => capture.Grow(1_000));
-            CaptureLiveness live;
+            CaptureOutputLiveness live;
             // Bounded: with the watchdog broken this must FAIL, not hang the suite.
             do { live = Step(dog, clock); } while (live.Fault == null && clock.Monotonic.TotalSeconds < 120);
             Assert.NotNull(live.Fault);
@@ -249,7 +249,7 @@ namespace AgentEyes.Tests.Shared
         public void NeverStarted_NoOutputPastTheStartupWindow_Fires()
         {
             var (dog, clock, _) = NewWatchdog();
-            CaptureLiveness live;
+            CaptureOutputLiveness live;
             do { live = Step(dog, clock); } while (live.Fault == null && clock.Monotonic.TotalSeconds < 120);
             Assert.Equal(CaptureFault.KindNeverStarted, live.Fault?.Kind);
             Assert.InRange(clock.Monotonic.TotalSeconds,
@@ -263,7 +263,7 @@ namespace AgentEyes.Tests.Shared
             // ffmpeg creates the file before it writes to it. Zero bytes is not a start.
             var (dog, clock, capture) = NewWatchdog();
             capture.Size = 0;
-            CaptureLiveness live;
+            CaptureOutputLiveness live;
             do { live = Step(dog, clock); } while (live.Fault == null && clock.Monotonic.TotalSeconds < 120);
             Assert.Equal(CaptureFault.KindNeverStarted, live.Fault?.Kind);
         }
@@ -310,7 +310,7 @@ namespace AgentEyes.Tests.Shared
             clock.Advance(600);
             dog.Check();
             double resumedAt = clock.Monotonic.TotalSeconds;
-            CaptureLiveness live;
+            CaptureOutputLiveness live;
             do { live = Step(dog, clock); } while (live.Fault == null && clock.Monotonic.TotalSeconds < resumedAt + 120);
             Assert.Equal(CaptureFault.KindStalled, live.Fault?.Kind);
             Assert.InRange(clock.Monotonic.TotalSeconds - resumedAt, CaptureWatchdog.DefaultStallTimeout.TotalSeconds, 60);

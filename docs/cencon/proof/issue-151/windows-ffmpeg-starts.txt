@@ -1,0 +1,73 @@
+# Issue #151 - criteria 1 and 2, Windows arm: ffmpeg starts counted on the CI runner
+# Run: https://github.com/thefrederiksen/agenteyes-app/actions/runs/43747984351  (throwaway branch scratch-151-measure = code 6dd5ac6 + this measuring step; deleted after)
+# Instrument: Windows process-creation auditing (Security event 4688, kernel-logged, with command
+# lines). Positive control first: 3 ffmpeg launched, the instrument must see exactly 3, or the step throws.
+# An earlier WMI-subscription instrument (run 43747114285) saw 19 vs 20 - it dropped events, so it was discarded;
+# the first 4688 attempt saw 0 of 3 on its control and was fixed before any count was used.
+
+control: all 4688 events in the window: 10
+  sample: S-1-5-21-3289802278-1561746829-1498425070-500 runneradmin runnervmm7ud1 854131 8856 \Device\HarddiskVolume5\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe %%1936 8228 "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentia
+  sample: S-1-5-21-3289802278-1561746829-1498425070-500 runneradmin runnervmm7ud1 854131 2852 \Device\HarddiskVolume5\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe %%1936 8228 "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentia
+  sample: S-1-5-21-3289802278-1561746829-1498425070-500 runneradmin runnervmm7ud1 854131 8104 \Device\HarddiskVolume5\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe %%1936 8228 "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentia
+control: 3 ffmpeg start(s) seen for 3 launched
+Passed!  - Failed:     0, Passed:  2371, Skipped:    11, Total:  2382, Duration: 33 s - AgentEyes.Tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:  2383, Skipped:     0, Total:  2383, Duration: 1 m 3 s - AgentEyes.Tests.dll (net8.0)
+RESULT default gate : exit 0, wall 36.4 s, ffmpeg starts 238
+RESULT opt-in       : exit 0, wall 65.8 s, ffmpeg starts 279
+  90 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f lavfi -i color=c=gray:s=160x90:r=10:d=2 -f lavfi -i sine=f=300:d=2 -c:v libx
+  22 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\runneradmin\AppData\Local\Temp\age
+  12 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i anoisesrc=d=3:c=pink:r=48000:a=0.5 -ac 2 -c:a pcm_f32le C:
+  10 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f concat -safe 0 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-alwayson
+  10 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i testsrc2=size=1920x1080:duration=1:rate=1,noise=alls=11:al
+  10 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i testsrc2=size=1920x1080:duration=1:rate=1,noise=alls=12:al
+   8 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i testsrc2=size=640x480:duration=1:rate=1 -frames:v 1 C:\Use
+   6 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i testsrc2=size=640x360:duration=2:rate=10 -pix_fmt yuv420p 
+   6 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f lavfi -i testsrc=size=320x240:rate=15:duration=5 -f lavfi -i sine=frequency=
+   6 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i testsrc2=size=1920x1080:duration=1:rate=1,noise=alls=13:al
+   4 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f concat -safe 0 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-restart-
+   3 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -loglevel error -f lavfi -i sine=d=0.1 -f null -
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-ce8f
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -v error -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-ce8fe91350d9453aab4d
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f lavfi -i sine=frequency=440:duration=1 -filter:a volume=0.2 -ar 48000 -ac 2 
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f lavfi -i sine=frequency=440:duration=5 -filter:a volume=0.2 -ar 48000 -ac 2 
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-6603
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-5c71
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -v error -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-transcodeorder-80a414a2b8bb4eaba4
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -v error -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-2b5a9503a5e041ffa4ac
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -v error -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-5c717fa638e848d9a14c
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -v error -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-6603b1a1518a497781bb
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -v error -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-6bd74fa496ed4bc7a7ce
+   2 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-2b5a
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f lavfi -i testsrc=size=320x240:rate=15:duration=2 -f lavfi -i sine=frequency=
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-alwayson-50aac086137e4db5a
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -ss 2 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-alwayson-50aac086137
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -ss 3600 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-b61c3037107
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f lavfi -i color=c=gray:s=160x90:r=10:d=6 -f lavfi -i sine=f=300:d=6 -c:v libx
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f concat -safe 0 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-stall-c5
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f concat -safe 0 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-stall-b1
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -ss 1 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-8426149fd9b64e
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-ac95
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -t 1 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i anoisesrc=d=3:c=white:r=48000:a=0.2 -ac 2 -c:a pcm_f32le C
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -f lavfi -i testsrc2=size=320x180:duration=2:rate=10 -pix_fmt yuv420p 
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-272976a8803
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-2c9eceeacd1
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-8426149fd9b
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-881e8910a71
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-8a07c4d9be5
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-decay-b61c3037107
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-4787
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-48e5
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-6bd7
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-6ef4
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-a552
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-housekeeping-c7d0
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -v error -y -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-transcodeorder-80
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -y -f concat -safe 0 -i C:\Users\runneradmin\AppData\Local\Temp\agenteyes-history-
+   1 x "D:\a\_temp\ffmpeg\ffmpeg-9.0.2-essentials_build\bin\ffmpeg.exe" -hide_banner -list_devices true -f dshow -i dummy
+
+# Reading: default gate 238 counted; 3 of those are the positive control (the query window is padded
+# by 1-2 s and caught it - the 3 x 'sine=d=0.1' line above). So the default gate starts 235 ffmpeg.
+# The opted-in pass starts 279: the 10 moved MicChainStallTests (many run ffmpeg several times) and
+# OwnedFfmpegTests' 3 account for the difference. The 235 come from OTHER files - AlwaysOn*, Decay,
+# Housekeeper, FrameConversion, MuxTwoPass, CameraFailurePath ... - outside this issue's scope.

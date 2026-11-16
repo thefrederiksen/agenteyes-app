@@ -360,6 +360,32 @@ namespace AgentEyes
                 if (!File.Exists(Path.Combine(dir, "manifest.json")))
                     throw new UsageException($"no manifest.json in {dir} - the recording cannot be post-processed.");
 
+                // Issue #156: a recording ANOTHER process is still capturing is not this pass's to
+                // touch - not its mux, not its raw files, not its attempt budget. The in-process claim
+                // cannot see a capture in another process; the capture's on-disk claim can. Checked
+                // before any stage and before any attempt is counted, so a decline costs the owning
+                // recording nothing, and the decline names the holder. A claim whose owner died is
+                // NOT live (CaptureLock.Inspect says why) and the recording is repaired as before.
+                var capture = CaptureLock.Inspect(dir);
+                if (capture.Live)
+                {
+                    // Issue #156 pass 4: an undetermined claim is declined exactly like a live one, at
+                    // warning level so it is not mistaken for an ordinary in-progress capture.
+                    if (capture.Undetermined)
+                        Log.Warn($"[PostRecording] Execute: {Path.GetFileName(dir)} DECLINED (undetermined) by pid {Environment.ProcessId} - "
+                            + $"{capture.Reason}. No stage ran and no attempt was counted");
+                    else
+                        Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} DECLINED by pid {Environment.ProcessId} - "
+                            + $"{capture.Reason}. No stage ran and no attempt was counted; leaving it for a pass after the capture ends");
+                    outcome.Skipped = true;
+                    return outcome;
+                }
+                Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - capture claim: {capture.Reason}");
+                // Issue #156 pass 2 (D2): a crashed capture's claim, proven stale here, must not
+                // outlive this takeover - another host cannot prove it stale and would refuse the
+                // recording for ever. After the decline above, so nothing it declines changes.
+                CaptureLock.ClearStaleClaim(dir, "post-recording");
+
                 if (Manifest.Load(dir).PendingMux != null)
                 {
                     // Issue #128 round two (D1/D2): the mux runs under the on-disk lock, so a mux

@@ -1,0 +1,38 @@
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll (.NETCoreApp,Version=v8.0)
+Test run for C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.DesktopApp.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 322 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+[xUnit.net 00:00:02.03]     AgentEyes.Tests.MicChainSampleRateTests.ProcessVideoMic_DefaultSettings44kStereoMic_Completes [SKIP]
+  Skipped AgentEyes.Tests.MicChainSampleRateTests.ProcessVideoMic_DefaultSettings44kStereoMic_Completes [1 ms]
+[xUnit.net 00:00:02.04]     AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kQuietVoice_LevelingIsStillApplied [SKIP]
+[xUnit.net 00:00:02.04]     AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k [SKIP]
+[xUnit.net 00:00:02.04]     AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kNoise_DenoiseIsStillApplied [SKIP]
+  Skipped AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kQuietVoice_LevelingIsStillApplied [1 ms]
+  Skipped AgentEyes.Tests.MicChainSampleRateTests.MicChain_AnySourceRate_ArnndnIsFedStraightFromTheFramingAt48k [1 ms]
+  Skipped AgentEyes.Tests.MicChainSampleRateTests.MicChain_44kNoise_DenoiseIsStillApplied [1 ms]
+[xUnit.net 00:00:25.81]     AgentEyes.Tests.MicChainStallTests.RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError [SKIP]
+[xUnit.net 00:00:25.81]     AgentEyes.Tests.MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog [SKIP]
+  Skipped AgentEyes.Tests.MicChainStallTests.RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError [1 ms]
+  Skipped AgentEyes.Tests.MicChainStallTests.RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog [1 ms]
+[xUnit.net 00:00:25.82]     AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan [SKIP]
+  Skipped AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan [1 ms]
+[xUnit.net 00:00:26.25]     AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample [SKIP]
+[xUnit.net 00:00:26.25]     AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg [SKIP]
+[xUnit.net 00:00:26.25]     AgentEyes.Tests.MicChainStallTests.ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes [SKIP]
+[xUnit.net 00:00:26.26]     AgentEyes.Tests.MicChainStallTests.RunWatched_HealthyRun_Completes [SKIP]
+  Skipped AgentEyes.Tests.MicChainStallTests.ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample [1 ms]
+  Skipped AgentEyes.Tests.MicChainStallTests.MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg [1 ms]
+  Skipped AgentEyes.Tests.MicChainStallTests.ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes [1 ms]
+  Skipped AgentEyes.Tests.MicChainStallTests.RunWatched_HealthyRun_Completes [1 ms]
+[xUnit.net 00:00:26.27]     AgentEyes.Tests.MicChainStallTests.MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg [SKIP]
+[xUnit.net 00:00:26.34]     AgentEyes.Tests.MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound [SKIP]
+  Skipped AgentEyes.Tests.MicChainStallTests.MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg [1 ms]
+  Skipped AgentEyes.Tests.MicChainStallTests.RunWatched_FilterThatStallsOnNan_FailsWithinTheBound [1 ms]
+[xUnit.net 00:00:26.34]     AgentEyes.Tests.MicChainStallTests.RunStage_FailedPass_RemovesThePartialOutput [SKIP]
+  Skipped AgentEyes.Tests.MicChainStallTests.RunStage_FailedPass_RemovesThePartialOutput [1 ms]
+[xUnit.net 00:00:31.01]     AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [SKIP]
+  Skipped AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [1 ms]
+
+Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 1 m 6 s - AgentEyes.Tests.dll (net8.0)

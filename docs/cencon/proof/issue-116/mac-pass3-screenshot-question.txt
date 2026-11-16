@@ -1,0 +1,150 @@
+QA #116 pass 3 - CAN A WINDOW SCREENSHOT BE TAKEN ON THIS MAC WHILE THE SCREEN IS LOCKED?  Answer: YES, by window id, from a one-shot launchd job running the installed agenteyes binary with a .NET startup hook.
+Every attempt below is a one-shot launchd job driven by oneshot.py: bootstrap into gui/501, poll launchctl print until 'not running' + 'last exit code', HARD timeout 20-60 s, then ALWAYS bootout; 'post-bootout print exit=113' = the label is gone. Each screencapture inside the hook has its own 20 s kill timeout. Nothing hung.
+
+===== A. Who holds the grant? CGPreflightScreenCaptureAccess() (never prompts, never writes a TCC entry)
+--- from this seat's shell (agent process tree):
+preflight=false   exit=0
+--- as a one-shot launchd job running the probe binary (its own responsible process):
+09:04:31 job com.agenteyes.qa116.preflight argv ['<scratch>/preflight'] env {}
+$ launchctl bootstrap gui/501 <scratch>/b/com.agenteyes.qa116.preflight.plist
+  exit=0  
+09:04:31 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa116.preflight
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+  out: preflight=false pid=29240 ppid=1
+
+===== C. The installed agenteyes (sha256 348b93b8...7022, UNCHANGED before and after) run as a one-shot launchd job with DOTNET_STARTUP_HOOKS=QaCaptureHook.dll
+09:04:40 job com.agenteyes.qa116.wincap argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/b/C', 'QA_CAPTURES': 'win|-x -o -l 711;rect|-x -R 320,162,1280,748', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/b/C/com.agenteyes.qa116.wincap.plist
+  exit=0  
+09:04:41 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa116.wincap
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+--- hook report
+09:04:40.722 [hook] pid=29303 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:04:40.739 [hook] CGPreflightScreenCaptureAccess() = True
+09:04:40.739 [hook] win: screencapture -x -o -l 711 <scratch>/b/C/win.png
+09:04:40.828 [hook] win: exit=0 ms=88 file_bytes=74194 stderr=''
+09:04:40.828 [hook] rect: screencapture -x -R 320,162,1280,748 <scratch>/b/C/rect.png
+09:04:40.878 [hook] rect: exit=1 ms=49 file_bytes=-1 stderr='could not create image from rect'
+09:04:40.878 [hook] Environment.Exit(0) - the recorder's Main is never reached
+
+===== D. Same, while the recorder was recording (criterion 9), plus a full-screen capture to classify what the screen composite holds while locked
+09:05:02
+"CGSSessionScreenIsLocked"=Yes
+09:05:02 POST /record/start screen-only
+{'State': 'recording', 'Source': 'none', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090503_video'}
+09:05:09 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+09:05:09 GET /status recording 6.72
+09:05:09 job com.agenteyes.qa116.wincap2 argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/b/D', 'QA_CAPTURES': 'win-recording|-x -o -l 711;fullscreen|-x', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/b/D/com.agenteyes.qa116.wincap2.plist
+  exit=0  
+09:05:10 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa116.wincap2
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+09:05:10 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+09:05:10 GET /status recording 7.34
+09:05:10 POST /record/stop
+{  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090503_video",  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090503_video/recording.mp4",  "DurationSeconds": 7.36,  "Shots": 0}
+--- hook report
+09:05:09.968 [hook] pid=29461 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:05:09.986 [hook] CGPreflightScreenCaptureAccess() = True
+09:05:09.986 [hook] win-recording: screencapture -x -o -l 711 <scratch>/b/D/win-recording.png
+09:05:10.046 [hook] win-recording: exit=0 ms=59 file_bytes=61886 stderr=''
+09:05:10.046 [hook] fullscreen: screencapture -x <scratch>/b/D/fullscreen.png
+09:05:10.154 [hook] fullscreen: exit=0 ms=108 file_bytes=3338387 stderr=''
+09:05:10.154 [hook] Environment.Exit(0) - the recorder's Main is never reached
+<scratch>/b/D/fullscreen.png   pixelWidth: 1920   pixelHeight: 1080 
+<scratch>/b/D/win-recording.png   pixelWidth: 1280   pixelHeight: 748 
+<scratch>/b/C/win.png   pixelWidth: 1280   pixelHeight: 748 
+
+===== E/F/G/H. The menu bar, captured window by window (criterion 10)
+window list at 09:06:50: every layer-25 status item is owned by Control Center (pid 431) on macOS 26, NOT by the app - this is why pass 1's per-pid probe found none:
+pid=431 owner="Control Center" window=712 layer=25 onscreen=false alpha=1.0 bounds=38x30 at 1432,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=156 layer=25 onscreen=true alpha=1.0 bounds=36x30 at 1506,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=143 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1542,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=137 layer=25 onscreen=true alpha=1.0 bounds=34x30 at 1580,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=471 layer=25 onscreen=true alpha=1.0 bounds=36x30 at 1470,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=49 layer=25 onscreen=true alpha=1.0 bounds=31x30 at 1690,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=39 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1614,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=33 layer=25 onscreen=true alpha=1.0 bounds=42x30 at 1721,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=32 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1652,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=31 layer=25 onscreen=true alpha=1.0 bounds=157x30 at 1763,0 name=(name withheld: no Screen Recording grant)
+pid=171 owner="Window Server" window=26 layer=24 onscreen=true alpha=1.0 bounds=1920x30 at 0,0 name=Menubar
+--- E (09:05:37)
+09:05:37.313 [hook] pid=29743 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:05:37.330 [hook] CGPreflightScreenCaptureAccess() = True
+09:05:37.384 [hook] item712: exit=0 ms=54 file_bytes=1428 stderr=''
+09:05:37.435 [hook] item471: exit=0 ms=50 file_bytes=1583 stderr=''
+09:05:37.489 [hook] item156: exit=0 ms=53 file_bytes=1714 stderr=''
+09:05:37.540 [hook] menubar26: exit=0 ms=50 file_bytes=7758 stderr=''
+09:05:37.540 [hook] Environment.Exit(0) - the recorder's Main is never reached
+--- F idle / G recording
+09:06:50
+"CGSSessionScreenIsLocked"=Yes
+=== F: idle
+status idle
+  exit=0  
+09:06:51 after 1.0s: state = not running last exit code = 0 
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+09:06:50.784 [hook] pid=30353 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:06:50.800 [hook] CGPreflightScreenCaptureAccess() = True
+09:06:50.804 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+09:06:50.805 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+09:06:50.860 [hook] menubar: exit=0 ms=54 file_bytes=7758 stderr=''
+09:06:50.929 [hook] i712: exit=0 ms=68 file_bytes=1428 stderr=''
+09:06:50.979 [hook] i156: exit=0 ms=50 file_bytes=1714 stderr=''
+09:06:51.029 [hook] i143: exit=0 ms=49 file_bytes=1874 stderr=''
+09:06:51.073 [hook] i137: exit=0 ms=43 file_bytes=1520 stderr=''
+09:06:51.123 [hook] i471: exit=0 ms=50 file_bytes=1583 stderr=''
+09:06:51.170 [hook] i49: exit=0 ms=46 file_bytes=1306 stderr=''
+09:06:51.223 [hook] i39: exit=0 ms=53 file_bytes=1665 stderr=''
+09:06:51.272 [hook] i33: exit=0 ms=49 file_bytes=1078 stderr=''
+09:06:51.323 [hook] i32: exit=0 ms=50 file_bytes=1070 stderr=''
+09:06:51.383 [hook] i31: exit=0 ms=59 file_bytes=2504 stderr=''
+09:06:51.383 [hook] Environment.Exit(0) - the recorder's Main is never reached
+=== G: recording (screen only)
+start -> recording /Users/soren/Movies/AgentEyes/2026-11-16_090652_video
+health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"} status recording 4.78
+  exit=0  
+09:06:58 after 1.0s: state = not running last exit code = 0 
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+09:06:57.095 [hook] pid=30419 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:06:57.114 [hook] CGPreflightScreenCaptureAccess() = True
+09:06:57.118 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+09:06:57.119 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+09:06:57.196 [hook] menubar: exit=0 ms=75 file_bytes=7758 stderr=''
+09:06:57.249 [hook] i712: exit=0 ms=53 file_bytes=1688 stderr=''
+09:06:57.298 [hook] i156: exit=0 ms=48 file_bytes=1714 stderr=''
+09:06:57.343 [hook] i143: exit=0 ms=44 file_bytes=1874 stderr=''
+09:06:57.390 [hook] i137: exit=0 ms=47 file_bytes=1520 stderr=''
+09:06:57.443 [hook] i471: exit=0 ms=52 file_bytes=1583 stderr=''
+09:06:57.499 [hook] i49: exit=0 ms=56 file_bytes=1306 stderr=''
+09:06:57.549 [hook] i39: exit=0 ms=49 file_bytes=1665 stderr=''
+09:06:57.599 [hook] i33: exit=0 ms=49 file_bytes=1078 stderr=''
+09:06:57.650 [hook] i32: exit=0 ms=50 file_bytes=1070 stderr=''
+09:06:57.699 [hook] i31: exit=0 ms=49 file_bytes=2504 stderr=''
+09:06:57.699 [hook] Environment.Exit(0) - the recorder's Main is never reached
+{  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090652_video",  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090652_video/recording.mp4",  "DurationSeconds": 5.96,  "Shots": 0}
+--- H after the app exited (09:08:12)
+09:08:12.609 [hook] i712: screencapture -x -o -l 712 <scratch>/b/H/i712.png
+09:08:12.669 [hook] i712: exit=0 ms=58 file_bytes=703 stderr=''
+
+sha1 of window 712 in each state (only 712 changes; the nine other items are byte-identical F vs G):
+3d08460349df6e0e2ddc9e283ef29cd6781d4a95  b/F/i712.png
+562448ea56b2a804e9eec9dda05389d85a4dd197  b/G/i712.png
+3cbdf3792316cdb0fbb1033ef9317c79cb00b997  b/H/i712.png
+  item 156 F=c5fb545b5ae1 G=c5fb545b5ae1 same
+  item 143 F=b1461e8ed458 G=b1461e8ed458 same
+  item 137 F=b6b8d4248c06 G=b6b8d4248c06 same
+  item 471 F=e1a822d5b321 G=e1a822d5b321 same
+  item 49 F=be36088d93b0 G=be36088d93b0 same
+  item 39 F=c74f661d9e58 G=c74f661d9e58 same
+  item 33 F=c96dcb479c1c G=c96dcb479c1c same
+  item 32 F=b63c4e22c322 G=b63c4e22c322 same
+  item 31 F=010a0099dbf5 G=010a0099dbf5 same

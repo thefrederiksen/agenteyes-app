@@ -162,6 +162,7 @@ namespace AgentEyes
             }
 
             var unfinished = new List<string>();
+            int undetermined = 0;
             foreach (string dir in Directory.GetDirectories(root).OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal))
             {
                 if (RecordingWorkset.IsClaimed(dir))
@@ -174,6 +175,24 @@ namespace AgentEyes
                 // to itself and reported, never allowed to abort the pass for every later recording.
                 try
                 {
+                    // Issue #156: a recording another process is still capturing is not unfinished,
+                    // it is in progress. Skipped here so the repair pass never even admits it; the
+                    // finalizing paths decline it again on their own (PostRecording.Execute).
+                    var capture = CaptureLock.Inspect(dir);
+                    if (capture.Undetermined)
+                    {
+                        // Issue #156 pass 4: not a quiet skip. This recording may be a crash that is
+                        // never recovered while only restricted probers run, so it is named every pass.
+                        undetermined++;
+                        Log.Warn($"[PostRecordingPlan] FindUnfinished: NOT REPAIRED {Path.GetFileName(dir)} - {capture.Reason}");
+                        continue;
+                    }
+                    if (capture.Live)
+                    {
+                        Log.Info($"[PostRecordingPlan] FindUnfinished: skipping {Path.GetFileName(dir)} - {capture.Reason}");
+                        continue;
+                    }
+
                     var outstanding = Outstanding(dir);
                     if (outstanding.Count == 0) continue;
                     Log.Info($"[PostRecordingPlan] FindUnfinished: {Path.GetFileName(dir)} needs {string.Join(", ", outstanding)}");
@@ -185,7 +204,8 @@ namespace AgentEyes
                 }
             }
 
-            Log.Info($"[PostRecordingPlan] FindUnfinished: root={root}, unfinished={unfinished.Count}");
+            Log.Info($"[PostRecordingPlan] FindUnfinished: root={root}, unfinished={unfinished.Count}" +
+                     (undetermined > 0 ? $", UNDETERMINED (capture state unprovable from here, left untouched)={undetermined}" : ""));
             return unfinished;
         }
     }

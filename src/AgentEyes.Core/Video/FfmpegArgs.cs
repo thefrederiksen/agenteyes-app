@@ -396,7 +396,9 @@ namespace AgentEyes.Video
                     throw new UsageException(
                         "noise suppression is on but the RNNoise model path is not set - " +
                         "call RnnoiseModel.Ensure() before building mix args");
-                denoise = $"{ArnndnFraming},arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
+                // Issue #146: the order is RESAMPLE, then FRAME, then DENOISE - and it is load-bearing.
+                // See ArnndnRate: a resample anywhere after the framing undoes it.
+                denoise = $"{ArnndnRate},{ArnndnFraming},arnndn=m='{FilterPath(o.RnnoiseModelPath!)}',";
             }
             // The threshold is MEASURED from the capture, never assumed. Building the chain with
             // the gate on but nothing measured is a programming error and says so, exactly like the
@@ -447,6 +449,29 @@ namespace AgentEyes.Video
         /// still stalls and the watchdog still fails the stage loudly instead of shipping silence.
         /// </summary>
         internal const string ArnndnFraming = "asetnsamples=n=480:p=1";
+
+        /// <summary>
+        /// Issue #146: bring the mic to arnndn's one supported rate, 48 kHz, BEFORE the framing stage.
+        ///
+        /// arnndn accepts only 48000 Hz. Given any other rate, ffmpeg inserts a resampler of its own
+        /// during format negotiation - and it inserts it at arnndn's INPUT, which is AFTER
+        /// <see cref="ArnndnFraming"/>. That resampler re-chunks the audio, so the whole padded
+        /// 480-sample frames the framing stage produced are undone before arnndn sees them, the
+        /// final frame is partial again, and on ffmpeg 9.0.2 the chain stalls or crashes exactly as
+        /// it did before issue #128. Measured on a Windows dshow microphone capturing at 44.1 kHz:
+        /// 10 of 10 default-settings post-processing runs stalled; the same audio at 48 kHz, or with
+        /// this stage ahead of the framing, completed 10 of 10. ffmpeg's own graph dump shows it:
+        /// without this stage the link into arnndn comes from "auto_aresample_0"; with it, the link
+        /// into arnndn comes straight from asetnsamples at 48000 Hz.
+        ///
+        /// WHY HERE AND NOT AT THE CAPTURE. Forcing dshow to capture at 48 kHz would also avoid it,
+        /// but it changes what is RECORDED, and dshow does not resample: a microphone that does not
+        /// offer the requested rate fails to open at all (measured: "Could not set audio only
+        /// options", no recording). This stage changes only what arnndn sees, works on every
+        /// microphone, and - because the chain is shared - covers every platform's mic source,
+        /// whatever rate it arrives at. When the source is already 48 kHz it is a pass-through.
+        /// </summary>
+        internal const string ArnndnRate = "aresample=48000";
 
         /// <summary>
         /// Issue #128 round two (D7): pin the sanitizer's OUTPUT to the mic's own channel layout.

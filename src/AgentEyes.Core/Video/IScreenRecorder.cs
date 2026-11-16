@@ -20,6 +20,15 @@ namespace AgentEyes.Video
         /// <summary>The command line that started the capture, for the manifest.</summary>
         string CommandLine { get; }
 
+        /// <summary>
+        /// The capture process's id. Issue #156 records it in the capture's cross-process claim
+        /// (<c>capture.owner.json</c>), so the claim stays live while this writer runs even if the
+        /// owning AgentEyes process dies. It is on the seam rather than read off the concrete
+        /// <see cref="FfmpegRecorder"/> because the service holds the capture through this interface
+        /// (#113): one property, owned by the interface, implemented once by the production recorder.
+        /// </summary>
+        int ProcessId { get; }
+
         /// <summary>When the capture process was started.</summary>
         DateTime StartedUtc { get; }
 

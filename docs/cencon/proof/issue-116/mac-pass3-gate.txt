@@ -1,0 +1,89 @@
+macOS gate, devthrottle-mac-mini, 2026-11-16 09:08:41 EST, head 881e93b8e86dff870a65230fe8cd4f790a52a93b (code identical to e5ce76c)
+dotnet 10.0.403, no .NET 8 SDK on this machine: DOTNET_ROLL_FORWARD=LatestMajor exported in the shell only - every count below is on roll-forward to the .NET 10 runtime
+1) dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=mac
+Build succeeded.
+    1 Warning(s)
+    0 Error(s)
+   exit=0
+2) dotnet test tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj -c Release
+Passed!  - Failed:     0, Passed:   226, Skipped:     0, Total:   226, Duration: 43 ms - AgentEyes.Tests.Mac.dll (net8.0)
+3) dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release -p:AgentEyesUnixPlatform=linux
+Build succeeded.
+    1 Warning(s)
+    0 Error(s)
+4) dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release   (names of the DesktopApp tests listed below)
+Total tests: 292
+     Passed: 291
+    Skipped: 1
+5) (extra, not in the documented macOS gate) dotnet test tests/AgentEyes.Tests.DesktopApp/AgentEyes.Tests.DesktopApp.csproj -c Release
+Passed!  - Failed:     0, Passed:    13, Skipped:     0, Total:    13, Duration: 28 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+--- the trap: the app output after the gate
+  after gate: {'x11grab': 0, 'pulse': 0, 'avfoundation': 2}
+Build succeeded.
+    0 Error(s)
+  after rebuilding the mac app: {'x11grab': 0, 'pulse': 0, 'avfoundation': 2}
+[OK] the macOS desktop app links the macOS engine and carries libvlc
+exit=0
+
+--- every DesktopApp test that ran in step 4 (tests/AgentEyes.Tests.Linux on this Mac), all Passed:
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.InstallScript_NamesTheBuiltExecutableAndWmClass
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.InstallScript_StopsTheRunningAppByPath_NotByTruncatedProcessName
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.OpenerFor_EachPlatform_ReturnsThatPlatformsOpener(platform: "linux", expected: "xdg-open")
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.OpenerFor_EachPlatform_ReturnsThatPlatformsOpener(platform: "mac", expected: "open")
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.OpenerFor_EachPlatform_ReturnsThatPlatformsOpener(platform: "windows", expected: "explorer.exe")
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.OpenerFor_UnknownPlatform_Throws
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnAnyHost_NamesTheOperatingSystemThisProcessRunsOn
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.SocketPath_OnThisHost_FitsTheUnixSocketPathLimit
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull
+  Passed AgentEyes.Tests.Linux.DesktopAppPlatformTests.WmClass_IsTheAssemblyName
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.AppSettings_SaveThenLoad_RoundTrips
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.CommandFrom_LaunchArguments_ReturnsTheCommand(args: ["--details", "2026-10-15_120000_video"], expected: "details:2026-10-15_120000_video")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.CommandFrom_LaunchArguments_ReturnsTheCommand(args: ["--settings", "ACCOUNT"], expected: "settings:account")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.CommandFrom_LaunchArguments_ReturnsTheCommand(args: ["--snap", "/tmp/x"], expected: "snap:/tmp/x")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.CommandFrom_LaunchArguments_ReturnsTheCommand(args: ["--tray"], expected: "tray")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.CommandFrom_LaunchArguments_ReturnsTheCommand(args: ["--view", "Library"], expected: "view:library")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.CommandFrom_LaunchArguments_ReturnsTheCommand(args: [], expected: "show")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.DesktopEntry_Launcher_HasNoTrayFlag
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.DesktopEntry_Tray_StartsInTheTrayAndIsAutostartEnabled
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.Elapsed_Seconds_FormatsLikeTheRecordTimer(seconds: 3725, expected: "1:02:05")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.Elapsed_Seconds_FormatsLikeTheRecordTimer(seconds: 65, expected: "01:05")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.Fmt_Milliseconds_FormatsLikeThePlayer(ms: 3725000, expected: "1:02:05")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.Fmt_Milliseconds_FormatsLikeThePlayer(ms: 4000, expected: "0:04")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.FormatCost_AsTheWindowsCard_Formats(usd: 0, estimate: False, tokens: 0, expected: "")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.FormatCost_AsTheWindowsCard_Formats(usd: 0, estimate: False, tokens: 11887, expected: "11887 tokens")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.FormatCost_AsTheWindowsCard_Formats(usd: 0.01, estimate: True, tokens: 0, expected: "~$0.0100 est")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.FormatCost_AsTheWindowsCard_Formats(usd: 0.0123, estimate: False, tokens: 0, expected: "$0.0123")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.FormatDuration_ModesAndLengths_Formats(mode: "shot", seconds: 30, expected: "-")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.FormatDuration_ModesAndLengths_Formats(mode: "video", seconds: 0, expected: "-")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.FormatDuration_ModesAndLengths_Formats(mode: "video", seconds: 3905.9000000000001, expected: "65:05")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.From_Audio_IsTitledByTheMicAndBadgedAud
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.From_VideoWithDisplayNameAndTitle_UsesDisplayNameAndVidBadge
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.From_VideoWithoutTitle_IsNamedAfterTheMonitorAndHasNoMediaWhenTheFileIsMissing
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.MaskKey_DevThrottleKey_ShowsPrefixAndTail(key: "", expected: "")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.MaskKey_DevThrottleKey_ShowsPrefixAndTail(key: "dt_live_abcdefgh7I14", expected: "dt_live_...7I14")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.MicName_LinuxAndWindowsShapes_ReturnsTheMicrophone(raw: "(system)", expected: "")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.MicName_LinuxAndWindowsShapes_ReturnsTheMicrophone(raw: "Microphone (Yealink UH36)", expected: "Yealink UH36")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.MicName_LinuxAndWindowsShapes_ReturnsTheMicrophone(raw: "Yealink UH36 Analog Stereo + (system)", expected: "Yealink UH36 Analog Stereo")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.MicName_LinuxAndWindowsShapes_ReturnsTheMicrophone(raw: null, expected: "")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.Scan_MixedDates_NewestFirstAndUndatedLast
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.Scan_UnreadableManifest_IsListedNotDropped
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.SourceFor_MicAndSystemChoices_MapsToTheControlApiSource(mic: "", system: True, expected: "system")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.SourceFor_MicAndSystemChoices_MapsToTheControlApiSource(mic: "Yealink", system: False, expected: "mic")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.SourceFor_MicAndSystemChoices_MapsToTheControlApiSource(mic: "Yealink", system: True, expected: "mixed")
+  Passed AgentEyes.Tests.Linux.DesktopAppTests.SourceFor_MicAndSystemChoices_MapsToTheControlApiSource(mic: null, system: False, expected: "none")
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.App_InstallsTheGuard_BeforeTheTrayIconExists
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_CloseAlreadyCancelledByOthers_DoesNotMarkClosing
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_FirstClose_IsAllowedAndMarksClosing
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.IsTrayPopup_AnyOtherWindow_IsFalse
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_FirstCloseCancelledElsewhere_LetsTheNextCloseThrough
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_PopupClosed_KeepsCancellingLaterCloses
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_PostedWorkRuns_ShutsDownOnce
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_ReturnsWithoutRunningTheShutdown
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_Twice_PostsOneShutdown
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayController_QuitItem_TakesADeferredQuitNotAnAction
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow
+--- the one skip:
+  Skipped AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [1 ms]

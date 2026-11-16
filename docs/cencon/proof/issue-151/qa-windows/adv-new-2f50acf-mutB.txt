@@ -1,0 +1,15 @@
+# adversarial ownership run: new-2f50acf-mutB  worktree=%QA_SCRATCH%\wt-new  optin=1
+2026-11-16T07:21:20.9543373-05:00  laptop app /status before: State=idle
+2026-11-16T07:21:20.9738819-05:00  ffmpeg processes before: 0 []
+2026-11-16T07:21:21.0004878-05:00  dotnet test started pid 22316
+2026-11-16T07:21:26.9834272-05:00  test's stalling ffmpeg seen by shim: 2026-11-16T12:21:26.9290227Z	ffmpeg	pid=3288	cwd=%QA_SCRATCH%\wt-ne
+2026-11-16T07:21:29.0095677-05:00  FOREIGN ffmpeg started: pid 15868 start 2026-11-16T07:21:29.0001709-05:00 (after the test's own ffmpeg, so inside the window)
+2026-11-16T07:22:27.1242104-05:00  dotnet test exited: code 1
+2026-11-16T07:22:27.1522408-05:00    test: [xUnit.net 00:01:03.25]         failure path: pid 3288: killed
+2026-11-16T07:22:27.1665831-05:00    test: failure path: pid 3288: killed
+2026-11-16T07:22:27.1665831-05:00    test: Total tests: 1
+2026-11-16T07:22:27.1925311-05:00  FOREIGN pid 15868: ALIVE after the failure path
+2026-11-16T07:22:27.2059257-05:00  QA cleanup: killed FOREIGN pid 15868 by its own handle (QA started it)
+2026-11-16T07:22:27.2169397-05:00  ffmpeg processes after: 0 []
+2026-11-16T07:22:27.2698239-05:00  laptop app /status after: State=idle
+2026-11-16T07:22:27.2732763-05:00  RESULT new-2f50acf-mutB foreignAlive=True testExit=1

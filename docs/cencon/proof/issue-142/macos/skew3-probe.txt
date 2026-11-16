@@ -1,0 +1,19 @@
+=== 1800 s TAKE - main f9ef230, dll 1b9092d0, pid 50642, load 2.7-3.7 on 10 cores ===
+index=0
+codec_name=h264
+codec_type=video
+avg_frame_rate=30/1
+duration=1802.500000
+index=1
+codec_name=aac
+codec_type=audio
+sample_rate=48000
+channels=1
+avg_frame_rate=0/0
+duration=1801.652667
+--- decoded video frames ---
+54075
+--- full decode ---
+  decode exit=0
+--- moov ---
+  moov PRESENT at offset 990825190 size 1719210

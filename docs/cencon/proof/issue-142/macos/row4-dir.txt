@@ -1,0 +1,47 @@
+=== ROW 4 dir listing ===
+total 24656
+drwxr-xr-x@  7 soren  staff       224 Nov 15 13:46 .
+drwxr-xr-x@ 74 soren  staff      2368 Nov 15 13:45 ..
+-rw-r--r--@  1 soren  staff      1339 Nov 15 13:46 manifest.json
+-rw-r--r--@  1 soren  staff  12309217 Nov 15 13:46 recording.mp4
+-rw-r--r--@  1 soren  staff      8235 Nov 15 13:46 recording.mp4.ffmpeg.log
+drwxr-xr-x@  2 soren  staff        64 Nov 15 13:45 shots
+-rw-r--r--@  1 soren  staff     16798 Nov 15 13:46 thumb.jpg
+
+=== manifest ===
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-11-15T18:45:45.5967100Z",
+  "MonitorIndex": 1,
+  "MonitorName": "Display 1",
+  "DurationSeconds": 21.11,
+  "VideoFile": "recording.mp4",
+  "FfmpegCommand": "\u0022/opt/homebrew/bin/ffmpeg\u0022 -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 30 /Users/soren/Movies/AgentEyes/2026-11-15_134545_video/recording.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [],
+  "Files": [
+    "recording.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [],
+  "PostProcessing": {
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-15T18:46:07.701161Z"
+    },
+    "package": {
+      "State": "failed",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-15T18:46:07.76508Z",
+      "Error": "ffmpeg failed during extract audio (exit 234). ...2\n  Duration: 00:00:21.30, start: 0.000000, bitrate: 4623 kb/s\n  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, 4621 kb/s, 30 fps, 30 tbr, 15360 tbn (default)\n    Metadata:\n      handler_name    : Vide"
+    }
+  }
+}

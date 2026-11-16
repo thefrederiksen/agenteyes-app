@@ -83,6 +83,15 @@ namespace AgentEyes.Tests.Shared
         public string OutputPath { get; }
         public string CommandLine => "fake-capture " + OutputPath;
         public DateTime StartedUtc { get; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// Issue #156 records the capture writer's pid and start time in the claim and in the ffmpeg
+        /// child registry. The fake has no process of its own, so it reports the test host's: a
+        /// process that is provably running for the whole test (NoteWriter reads its start time), and
+        /// one no reap can ever kill on its behalf - a reap needs the owner gone, and the owner is this
+        /// same process. A made-up pid would either fail NoteWriter or name a stranger's process.
+        /// </summary>
+        public int ProcessId { get; } = Environment.ProcessId;
         public int? ExitCode { get; set; }
         public double MediaSeconds { get; set; } = 20.0;
 
@@ -206,6 +215,18 @@ namespace AgentEyes.Tests.Shared
         }
     }
 
+    /// <summary>
+    /// One collection for every test that starts a capture through <see cref="WatchdogHarness"/>, so
+    /// they run one at a time. Since #156 the service records each capture writer's pid in the ffmpeg
+    /// child registry, whose record file is named by pid; every <see cref="FakeScreenRecorder"/>
+    /// reports the test host's own pid, so two harness tests in parallel opened the same record file
+    /// and failed on a sharing violation (measured on Windows on the #156 + #113 merge). A real writer's
+    /// pid is unique, so this is a property of the fake, not of the product.
+    /// </summary>
+    [CollectionDefinition(Name)]
+    public sealed class WatchdogHarnessCollection { public const string Name = "watchdog harness (one fake pid)"; }
+
+    [Collection(WatchdogHarnessCollection.Name)]
     public sealed class CaptureWatchdogWiringTests
     {
         [Fact]

@@ -1,0 +1,41 @@
+16:40:34.570 === QA #156 pass 4 scenario=crash binary=p3 scratch=$SCRATCH/runs/crash-p3-164034
+16:40:34.573 binary: $SCRATCH/wt-1927c62/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+16:40:34.586 embedded version: 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+16:40:34.667   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:40:34.898 isolation: report-only housekeep (no service) -> root=$SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes ; positive control under a second env -> $SCRATCH/runs/isoctrl-1614314/h/Videos/AgentEyes
+16:40:35.164 [s1] serve pid 1614372 port 7930; recordings root inside scratch: $SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes
+16:40:36.644 S1 pid 1614372 capturing into 2026-11-16_114035_video
+16:40:48.742 writer pid 1614482 confirmed by command line to write into 2026-11-16_114035_video (comm=ffmpeg, uid 1000)
+16:41:13.777   raw.mp4=11534384 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:41:13.780 SIGKILL S1 pid 1614372 mid-capture
+16:41:17.856 after S1's death: writer 1614482 alive=yes ppid=2221 raw.mp4 11534384 -> 12582960 bytes in 4 s
+16:41:18.332 U1 confined package --no-frames -> exit 1: [error] could not read the audio channel count of $SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes/2026-11-16_114035_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+16:41:18.337   llprobe: Landlock ABI 4 confined pid 1615560 thread 1615560: reads of 988 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+16:41:18.375   raw.mp4=12582960 recording.mp4=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T16:41:18.1434015Z by agenteyes pid 1615560 on devlinux"] Error=could not read the audio channel count of $TMPROOT/-home-soren-ReposFred-agenteyes-app/35548e9a-ae30-465f-b8de-a02fd3c14f10/scratchp ; writer 1614482 alive=yes
+16:41:18.647 [u2] serve pid 1615628 port 7931 (LANDLOCK-CONFINED: llprobe: Landlock ABI 4 confined pid 1615628 thread 1615628: reads of 989 other /proc/<pid> entries refused, 64 /proc en); recordings root inside scratch: $SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes
+16:41:53.654 U2 (confined service pid 1615628) log, its own lines only:
+16:41:53.662   U2: 11:41:18.585 [pid 1615628] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=$SCRATCH/runs/crash-p3-164034/home/.local/share/AgentEyes/run/ffmpeg
+16:41:53.665   U2: 11:41:18.687 [pid 1615628] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1614482 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes not
+16:41:53.668   U2: 11:41:18.688 [pid 1615628] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1614482 [capture video (2026-11-16_114035_video)]: already exited (or pid reused) - record removed
+16:41:53.671   U2: 11:41:38.668 [pid 1615628] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_114035_video needs mux
+16:41:53.674   U2: 11:41:38.668 [pid 1615628] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes, unfinished=1
+16:41:53.677   U2: 11:41:38.687 [pid 1615628] [INFO] [PostRecording] Execute: 2026-11-16_114035_video - capture claim: no capture holds it
+16:41:53.681   U2: 11:41:38.858 [pid 1615628] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of $SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes/2026-11-16_114035_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+16:41:53.686   U2: 11:41:38.870 [pid 1615628] [ERROR] [PostRecording] stage mux FAILED: dir=$SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes/2026-11-16_114035_video
+16:41:53.690   U2: 11:41:38.888 [pid 1615628] [INFO] [PostRecording] Execute: 2026-11-16_114035_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+16:41:55.738   after U2: writer 1614482 alive=yes, raw.mp4 25428016 -> 26214448 in 2 s; raw.mp4=26214448 recording.mp4=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=2 AttemptedBy=["attempt 1 at 2026-11-16T16:41:18.1434015Z by agenteyes pid 1615560 on devlinux", "attempt 2 at 2026-11-16T16:41:38.6951174Z by agenteyes pid 1615628 on devlinux"] Error=could not read the audio channel count of $TMPROOT/-home-soren-ReposFred-agenteyes-app/35548e9a-ae30-465f-b8de-a02fd3c14f10/scratchp
+16:41:55.792   U2 /health: {
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "linux"
+}
+16:41:56.052   U2 ended by me (SIGTERM): alive=NO
+16:41:56.322 [s2] serve pid 1616463 port 7932; recordings root inside scratch: $SCRATCH/runs/crash-p3-164034/home/Videos/AgentEyes
+16:42:16.561 writer 1614482 alive after S2's start-up reap: yes (20.48 s after S2 was launched); raw.mp4 now 33292336 bytes
+16:42:17.636 recovery by S2 (manifest PostProcessing.mux, not /status): pending/failed
+16:42:17.668   raw.mp4=34078768 recording.mp4=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=["attempt 1 at 2026-11-16T16:41:18.1434015Z by agenteyes pid 1615560 on devlinux", "attempt 2 at 2026-11-16T16:41:38.6951174Z by agenteyes pid 1615628 on devlinux", "attempt 3 at 2026-11-16T16:42:16.4840877Z by agenteyes pid 1616463 on devlinux"] Error=could not read the audio channel count of $TMPROOT/-home-soren-ReposFred-agenteyes-app/35548e9a-ae30-465f-b8de-a02fd3c14f10/scratchp
+16:42:17.676   S2: 11:42:16.478 [pid 1616463] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_114035_video (post-recording) - no owner record; nothing to clear
+16:42:17.679   S2: 11:42:16.556 [pid 1616463] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_114035_video (finalize) - no owner record; nothing to clear
+16:42:17.757   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:42:17.762 === done; transcript $SCRATCH/runs/crash-p3-164034/transcript.txt

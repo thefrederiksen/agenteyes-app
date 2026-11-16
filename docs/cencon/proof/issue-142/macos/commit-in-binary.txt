@@ -1,0 +1,9 @@
+=== READING THE COMMIT OUT OF A BINARY (path-independent, exact) ===
+INSTALLED (the build that answered)      ['f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab']
+ad21557 published from the main clone    ['ad21557bb177d52323a8484b3f6e9d73f16daf52']
+ad21557 published from a worktree        ['ad21557bb177d52323a8484b3f6e9d73f16daf52']
+f9ef230 published from a worktree        ['f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab']
+
+git says:
+  f9ef230 = f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab
+  ad21557 = ad21557bb177d52323a8484b3f6e9d73f16daf52

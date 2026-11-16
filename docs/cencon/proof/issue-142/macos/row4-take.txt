@@ -1,0 +1,50 @@
+18:45:45Z LOAD before: 2.45 2.65 2.88
+18:45:45Z service pid: 39753
+18:45:45Z START ROW4 screen-only 20s body={"mode":"video","screen":1,"source":"none","fps":30}
+{
+  "State": "recording",
+  "Mode": "video",
+  "Source": "none",
+  "ElapsedSeconds": 0.71,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_134545_video",
+  "Camera": null,
+  "SignedIn": false,
+  "AccountEmail": null,
+  "PendingTranscriptions": 59,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+  "StuckCameras": [],
+  "PreviewScreenFrame": null,
+  "PreviewCameraFrame": null,
+  "PreviewAvailable": false,
+  "PreviewArmed": false,
+  "PreviewPublishing": false,
+  "PreviewScreenFramesRead": 0,
+  "PreviewCameraFramesRead": 0,
+  "PreviewFailed": false,
+  "PreviewOverlayCorner": null,
+  "PreviewOverlayShape": null
+}
+18:45:46Z   t+0s recording 0.74 mic=0.0000 lvl=0.0000
+18:45:51Z   t+5s recording 5.82 mic=0.0000 lvl=0.0000
+18:45:56Z   t+10s recording 10.89 mic=0.0000 lvl=0.0000
+18:46:01Z   t+15s recording 15.97 mic=0.0000 lvl=0.0000
+18:46:06Z   t+20s recording 21.04 mic=0.0000 lvl=0.0000
+18:46:06Z LOAD at stop: 2.48 2.64 2.87
+18:46:06Z STOP
+{
+  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_134545_video",
+  "File": "/Users/soren/Movies/AgentEyes/2026-11-15_134545_video/recording.mp4",
+  "DurationSeconds": 21.11,
+  "Shots": 0
+}
+18:46:07Z   +0s idle LastStopFailed=False LastStopError=None dir=None
+18:46:07Z post-stop settle: 0s
+18:46:07Z LOAD after: 2.48 2.64 2.87
+18:46:07Z newest recording dir:
+2026-11-15_134545_video

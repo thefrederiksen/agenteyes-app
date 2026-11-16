@@ -152,6 +152,28 @@ namespace AgentEyes
                 return false;
             }
 
+            // Issue #156: and a recording ANOTHER process is still capturing. A mic-only video is
+            // written straight to recording.mp4, so without this the thumbnail repair would run
+            // ffmpeg on a growing file and load-mutate-save the manifest the capture also writes.
+            if (respectClaim)
+            {
+                CaptureLiveness capture;
+                try { capture = CaptureLock.Inspect(dir); }
+                catch (UsageException ex)
+                {
+                    Log.Info($"[Thumbnails] NeedsThumb: skipping {Path.GetFileName(dir)} - {ex.Message}");
+                    return false;
+                }
+                if (capture.Live)
+                {
+                    if (capture.Undetermined)
+                        Log.Warn($"[Thumbnails] NeedsThumb: NOT GENERATED for {Path.GetFileName(dir)} - {capture.Reason}");
+                    else
+                        Log.Info($"[Thumbnails] NeedsThumb: skipping {Path.GetFileName(dir)} - {capture.Reason}");
+                    return false;
+                }
+            }
+
             Manifest m;
             try { m = Manifest.Load(dir); }
             catch (Exception ex)

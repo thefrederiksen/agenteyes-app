@@ -10,10 +10,17 @@ namespace AgentEyes.Video
     /// OBSERVATION of the output file, which is the only evidence that frames are being written:
     /// the elapsed clock and the audio level both kept moving through an 18-hour recording whose
     /// file had stopped growing two minutes in.
+    ///
+    /// Named CaptureOutputLiveness, not CaptureLiveness: issue #156 owns <see cref="AgentEyes.CaptureLiveness"/>
+    /// - whether a capture's CLAIM on its directory is live, asked by a second process - and this is
+    /// the other question, whether the capture is PRODUCING OUTPUT, asked by its owner. Inside
+    /// namespace AgentEyes the shorter name resolves to #156's type ahead of this one, so a shared
+    /// name would mean the wrong type at every unqualified use. The /status field stays
+    /// "CaptureLiveness": that is a wire name QA has quoted, not a type.
     /// </summary>
-    internal sealed class CaptureLiveness
+    internal sealed class CaptureOutputLiveness
     {
-        public CaptureLiveness(string state, long bytes, DateTime? lastGrowthUtc, double? secondsSinceGrowth,
+        public CaptureOutputLiveness(string state, long bytes, DateTime? lastGrowthUtc, double? secondsSinceGrowth,
             double secondsWatched, CaptureFault? fault)
         {
             State = state;
@@ -184,20 +191,20 @@ namespace AgentEyes.Video
             if (StallTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(stallTimeout));
             if (StartupTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(startupTimeout));
             _lastCheck = _clock.Monotonic;
-            Last = new CaptureLiveness("starting", 0, null, null, 0, null);
+            Last = new CaptureOutputLiveness("starting", 0, null, null, 0, null);
         }
 
         public TimeSpan StallTimeout { get; }
         public TimeSpan StartupTimeout { get; }
 
         /// <summary>The result of the latest <see cref="Check"/> (a "starting" reading before the first).</summary>
-        public CaptureLiveness Last { get; private set; }
+        public CaptureOutputLiveness Last { get; private set; }
 
         /// <summary>
         /// Look at the capture once and decide. Once a fault is decided it is final: later checks
         /// return the same fault, so a file that grows again after the decision cannot un-decide it.
         /// </summary>
-        public CaptureLiveness Check()
+        public CaptureOutputLiveness Check()
         {
             if (_fault != null) return Last;
 
@@ -258,7 +265,7 @@ namespace AgentEyes.Video
                 : _lastGrowthWatched == null ? "starting"
                 : grew ? "growing"
                 : "not-growing";
-            Last = new CaptureLiveness(state, _bytes, _lastGrowthUtc, sinceGrowth, Math.Round(watchedS, 1), _fault);
+            Last = new CaptureOutputLiveness(state, _bytes, _lastGrowthUtc, sinceGrowth, Math.Round(watchedS, 1), _fault);
             return Last;
         }
 

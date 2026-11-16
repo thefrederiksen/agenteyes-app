@@ -336,6 +336,25 @@ namespace AgentEyes
         public PendingMuxInfo? PendingMux { get; set; }
 
         /// <summary>
+        /// Issue #156 (G1): the process that captured this recording - host, pid and process start
+        /// time - written into the START manifest when the capture claims its directory. It is the
+        /// durable half of the capture claim: <c>capture.owner.json</c> is deliberately short-lived
+        /// (removed at release, and cleared once a crashed capture's recording is taken over), so this
+        /// is what a post mortem compares <see cref="PostStageRecord.AttemptedBy"/> against to tell
+        /// the owner's own attempts from another host's. Null on a recording made before it existed,
+        /// and on one that was not captured by a recording session (an import, a screenshot).
+        /// </summary>
+        public CaptureOwnerInfo? CaptureOwner { get; set; }
+
+        /// <summary>Who captured a recording (issue #156, G1). See <see cref="CaptureOwner"/>.</summary>
+        public sealed class CaptureOwnerInfo
+        {
+            public string Host { get; set; } = "";
+            public int Pid { get; set; }
+            public DateTime ProcessStartUtc { get; set; }
+        }
+
+        /// <summary>
         /// Issue #59: the relative names of the files an expiry started deleting, written in the same
         /// manifest update that stops naming them - the INTENT, on the record, rather than something
         /// the next pass has to infer from a keeper that no longer exists. A process dying between
@@ -378,6 +397,13 @@ namespace AgentEyes
 
             /// <summary>UTC time of the last attempt; null when the stage has never run.</summary>
             public DateTime? LastAttemptUtc { get; set; }
+
+            /// <summary>
+            /// Issue #156: who consumed each attempt - "attempt N at &lt;utc&gt; by &lt;process&gt; pid
+            /// &lt;pid&gt; on &lt;host&gt;" - in order. Null on a recording written before this field
+            /// existed (its earlier attempts are counted in <see cref="Attempts"/> but unattributed).
+            /// </summary>
+            public List<string>? AttemptedBy { get; set; }
 
             /// <summary>The failure message when <see cref="State"/> is
             /// <see cref="PostStageState.Failed"/>; null otherwise. Truncated - it is a diagnosis in

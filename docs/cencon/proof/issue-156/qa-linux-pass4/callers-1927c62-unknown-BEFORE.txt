@@ -1,0 +1,46 @@
+16:35:14.824 === callers binary=1927c62 mode=unknown scratch=$SCRATCH/runs/callers-1927c62-unknown-163514
+16:35:14.838 product embedded: 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+16:35:14.914 foreign go2rtc ffmpeg by command line: pid 72110 (never signalled)
+16:35:15.028 isolation: report-only housekeep under this env -> root $SCRATCH/runs/callers-1927c62-unknown-163514/home/Videos/AgentEyes (inside scratch)
+16:35:15.299 thumbnail fixture 2026-11-16_170200_video: no PendingMux, finished recording.mp4, claimed below by the crashed owner with the same live writer
+16:35:15.303 healthy sibling 2026-11-16_165900_video: finished raw.mp4, no claim (the control that the sweep still serves others)
+16:35:20.322 W state S, raw.mp4 growing: 158204 -> 363810 bytes in 2 s
+16:35:20.388 writer W=1602351 (mine, uid 1000) writing 2026-11-16_170000_video/raw.mp4; release writer RW=1602352 writing 2026-11-16_170100_video/raw.mp4
+16:35:20.629 crashed owner exited with 137 (2 claim line): OWNER also claimed thumbnail fixture 2026-11-16_170200_video with writer 1602351; owner record PRESENT
+OWNER pid 1602599 claimed 2026-11-16_170000_video with writer 1602351; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+16:35:20.685 harness pid 1602618, product 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+16:35:20.853 RELEASE fixture: this process claims 2026-11-16_170100_video with writer pid 1602352 (alive), recorded unconfined
+llprobe: Landlock ABI 4 confined pid 1602618 thread 1602635: reads of 1021 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+16:35:20.863   confinement check from this thread: read /proc/1602352/stat -> UnauthorizedAccessException: Access to the path '/proc/1602352/stat' is denied.
+16:35:20.881 --- probes, mode=unknown, thread 4; crashed-owner dir 2026-11-16_170000_video writer pid 1602351 (alive)
+16:35:20.885   IdentifyProcess(writer) = IsSameProcess -> False
+16:35:20.902   [Inspect]        Live=False Undetermined=<no such property in this build> Reason=stale capture claim taken over: its owner (qa crashed owner of pid 1602599 on host devlinux (started 2026-11-16T16:35:20.4932340Z)) is gone and its 1 writer(s) have exited
+16:35:20.903   [ThrowIfLive]    did NOT throw (admitted)
+16:35:20.904   [ClearStaleClaim] returned True; capture.owner.json ABSENT
+16:35:20.950   [FindUnfinished] admitted this recording: True (list: 2026-11-16_165900_video,2026-11-16_170000_video,2026-11-16_170200_video)
+16:35:20.952   [FindMissing]    would thumbnail the claimed thumbnail fixture: True; its capture.owner.json PRESENT (list: 2026-11-16_170200_video)
+16:35:20.958   [ReapOrphans]    pid 1602351 [capture video (2026-11-16_170200_video)]: already exited (or pid reused) - record removed
+16:35:20.958   [ReapOrphans]    pid 1602352 [capture video (2026-11-16_170100_video)]: owner pid 1602618 is alive - left alone
+16:35:20.958   after reap: writer 1602351 alive; registry record REMOVED; capture.owner.json ABSENT
+16:35:20.959   [Release]        disposed the release claim; writer 1602352 alive; capture.owner.json ABSENT
+16:35:23.007 after: W 1602351 ALIVE; 2026-11-16_170000_video/raw.mp4 395900 -> 620163 bytes; recording.mp4 absent; manifest mux: pending None
+16:35:23.010 product log lines (this run's data root):
+11:35:20.885 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602351 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.901 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602351 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.903 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602351 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.903 [pid 1602618] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_170000_video (qa) - stale capture claim taken over: its owner (qa crashed owner of pid 1602599 on host devlinux (started 2026-11-16T16:35:20.4932340Z)) is gone and its 1 writer(s) have exited
+11:35:20.903 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602351 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.904 [pid 1602618] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170000_video (qa) - CLEARED capture.owner.json (lock held shared): stale capture claim taken over: its owner (qa crashed owner of pid 1602599 on host devlinux (started 2026-11-16T16:35:20.4932340Z)) is gone and its 1 writer(s) have exited. The capture's owner stays on record in the manifest (CaptureOwner)
+11:35:20.948 [pid 1602618] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_165900_video needs mux
+11:35:20.948 [pid 1602618] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_170000_video needs mux
+11:35:20.948 [pid 1602618] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_170100_video - 2026-11-16_170100_video is being captured by this process (pid 1602618)
+11:35:20.948 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602351 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.950 [pid 1602618] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_170200_video needs thumbnail, package
+11:35:20.950 [pid 1602618] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/callers-1927c62-unknown-163514/home/Videos/AgentEyes, unfinished=3
+11:35:20.952 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602351 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.954 [pid 1602618] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=$SCRATCH/runs/callers-1927c62-unknown-163514/home/.local/share/AgentEyes/run/ffmpeg
+11:35:20.957 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602351 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.957 [pid 1602618] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1602351 [capture video (2026-11-16_170200_video)]: already exited (or pid reused) - record removed
+11:35:20.957 [pid 1602618] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1602352 [capture video (2026-11-16_170100_video)]: owner pid 1602618 is alive - left alone
+11:35:20.958 [pid 1602618] [INFO] [FfmpegChildRegistry] IsSameProcess: pid 1602352 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.); it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, which has exited and writes nothing - answered NOT the recorded process
+11:35:20.959 [pid 1602618] [INFO] [CaptureLock] Release: 2026-11-16_170100_video released by pid 1602618

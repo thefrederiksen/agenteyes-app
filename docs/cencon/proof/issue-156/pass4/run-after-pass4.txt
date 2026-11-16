@@ -1,0 +1,36 @@
+flavour: AvfStream=1 PulseStream=0 (checked)
+16:26:40 binary: /Users/soren/ReposFred/agenteyes-dev156/src/AgentEyes.Core/bin/Release/net8.0/agenteyes
+16:26:43 ARM live-plain: LIVE writer = my ffmpeg pid 72218 (uid 501), raw.mp4 262192 bytes and growing
+16:26:43   writer still running after package: YES
+16:26:43   package exit 1
+    [error] refusing to package 2026-11-15_12000pl_live-plain: its capture owner (capture session of pid 99999 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 72218 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes ser
+    PendingMux=pending  mux.State=None  mux.Attempts=None  AttemptedBy=None
+16:26:43   capture.owner.json: PRESENT  recording.mp4: absent
+16:26:43   my ffmpeg 72218 ended by me
+16:26:46 ARM live-sandbox: LIVE writer = my ffmpeg pid 72284 (uid 501), raw.mp4 262192 bytes and growing
+16:26:46   writer still running after package: YES
+16:26:46   package exit 1
+    [error] refusing to package 2026-11-15_12000sa_live-sandbox: UNDETERMINED: its capture owner (capture session of pid 99999 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone, but whether its video ffmpeg pid 72284 is still writing into it CANNOT BE ESTABLISHED from this pro
+    PendingMux=pending  mux.State=None  mux.Attempts=None  AttemptedBy=None
+16:26:46   capture.owner.json: PRESENT  recording.mp4: absent
+16:26:46   my ffmpeg 72284 ended by me
+16:26:49 ARM live-sigdeny: LIVE writer = my ffmpeg pid 72330 (uid 501), raw.mp4 262192 bytes and growing
+16:26:49   writer still running after package: YES
+16:26:49   package exit 1
+    [error] refusing to package 2026-11-15_12000si_live-sigdeny: UNDETERMINED: its capture owner (capture session of pid 99999 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone, but whether its video ffmpeg pid 72330 is still writing into it CANNOT BE ESTABLISHED from this pro
+    PendingMux=pending  mux.State=None  mux.Attempts=None  AttemptedBy=None
+16:26:49   capture.owner.json: PRESENT  recording.mp4: absent
+16:26:49   my ffmpeg 72330 ended by me
+16:26:53 ARM stale-plain: writer my ffmpeg pid 72375 has EXITED (gone), raw.mp4 430016 bytes
+16:26:53   package exit 1
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    PendingMux=cleared  mux.State=done  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T16:26:53.5621700Z by agenteyes pid 72405 on devthrottle-mac-mini']
+16:26:53   capture.owner.json: ABSENT  recording.mp4: 471649 bytes
+16:26:57 ARM stale-sandbox: writer my ffmpeg pid 72426 has EXITED (gone), raw.mp4 430016 bytes
+16:26:57   package exit 1
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    PendingMux=cleared  mux.State=done  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T16:26:57.5374050Z by agenteyes pid 72486 on devthrottle-mac-mini']
+16:26:57   capture.owner.json: ABSENT  recording.mp4: 471649 bytes
+16:26:57 done

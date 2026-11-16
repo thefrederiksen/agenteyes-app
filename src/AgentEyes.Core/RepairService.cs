@@ -142,18 +142,15 @@ namespace AgentEyes
         public void Start()
         {
             // Issue #128: before any pass can re-run a mux, kill post-processing ffmpeg children a
-            // previous AgentEyes left running (a hung mux survives its owner on macOS/Linux). Runs
-            // here, synchronously, because this is the one start hook both hosts share and the
-            // first pass must not race a still-spinning orphan for the same recording. It is a
-            // directory listing plus one process lookup per record - milliseconds.
-            try
-            {
-                FfmpegChildRegistryReap();
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"[RepairService] Start: orphan ffmpeg reap FAILED: {ex.Message}");
-            }
+            // previous AgentEyes left running (a hung mux survives its owner on macOS/Linux). Started
+            // here because this is the one start hook both hosts share, and every pass awaits it
+            // (RunAsync) so the first pass never races a still-running orphan for the same recording.
+            //
+            // Issue #156 pass 2 (D1): it runs in the BACKGROUND, not on the caller's thread, because
+            // an orphaned capture writer is now ended gracefully - SIGTERM, then up to
+            // FfmpegChildRegistry.CaptureWriterGrace for it to finish its file - and the tray app
+            // calls Start on its UI thread.
+            _reap = Task.Run(FfmpegChildRegistryReap);
             PostRecording.Completed += OnRecordingCompleted;
             AccountState.Changed += OnAccountStateChanged;
             _timer = new Timer(OnTimerTick, null, StartupDelay, RepairSchedule.Interval);
@@ -161,10 +158,22 @@ namespace AgentEyes
                 + $"then every {RepairSchedule.Interval.TotalMinutes:0} minute(s)");
         }
 
+        /// <summary>The start-up orphan reap (see <see cref="Start"/>). Completed until Start runs it,
+        /// so a pass driven without Start (a test, a one-off) does not wait on anything.</summary>
+        private Task _reap = Task.CompletedTask;
+
+        /// <summary>The background reap's entry point: never throws, so awaiting it cannot fail a pass.</summary>
         private static void FfmpegChildRegistryReap()
         {
-            var report = AgentEyes.Video.FfmpegChildRegistry.ReapOrphans();
-            Log.Info($"[RepairService] Start: orphan ffmpeg reap examined {report.Count} record(s)");
+            try
+            {
+                var report = AgentEyes.Video.FfmpegChildRegistry.ReapOrphans();
+                Log.Info($"[RepairService] Start: orphan ffmpeg reap examined {report.Count} record(s)");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[RepairService] Start: orphan ffmpeg reap FAILED: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -225,6 +234,17 @@ namespace AgentEyes
                 try
                 {
                     Log.Info($"[RepairService] RunAsync: trigger={trigger}");
+
+                    // Issue #156 pass 2 (D1): the start-up reap must have ended every orphaned
+                    // writer - gracefully, so its file can be finished - before a pass decides what
+                    // is unfinished. Awaited HERE, after the cheap recording-in-progress check and
+                    // the gate, so those still answer at once and a second trigger meanwhile is
+                    // skipped by the gate rather than queued behind the reap.
+                    if (!_reap.IsCompleted)
+                    {
+                        Log.Info($"[RepairService] RunAsync: trigger={trigger} - waiting for the start-up orphan reap to finish");
+                        await _reap;
+                    }
 
                     if (CaptureYielded(epoch, $"RunAsync trigger={trigger}")) return;
 
@@ -625,6 +645,15 @@ namespace AgentEyes
         /// </summary>
         private async Task<Housekeeping.HousekeepingReport> HousekeepAsync(string trigger, int captureEpoch)
         {
+            // Issue #156 pass 2 (D1): the start-up reap used to finish before Start returned, so
+            // nothing could run before it. It is now in the background; housekeeping is reachable
+            // without RunAsync (the Control API's run-now), so it waits for the reap here too.
+            if (!_reap.IsCompleted)
+            {
+                Log.Info($"[RepairService] HousekeepAsync: trigger={trigger} - waiting for the start-up orphan reap to finish");
+                await _reap;
+            }
+
             var settings = HousekeepingSettings();
             if (!settings.Enabled)
             {

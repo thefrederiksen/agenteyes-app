@@ -1,0 +1,110 @@
+diff --git a/src/AgentEyes.Core/CaptureLock.cs b/src/AgentEyes.Core/CaptureLock.cs
+index 421a658..6130d4b 100644
+--- a/src/AgentEyes.Core/CaptureLock.cs
++++ b/src/AgentEyes.Core/CaptureLock.cs
+@@ -7,9 +7,9 @@ using System.Text.Json;
+ namespace AgentEyes
+ {
+     /// <summary>What <see cref="CaptureLock.Inspect"/> found on a recording directory (issue #156).</summary>
+-    internal sealed class CaptureLiveness
++    internal sealed class CaptureClaimLiveness
+     {
+-        public CaptureLiveness(bool live, string reason)
++        public CaptureClaimLiveness(bool live, string reason)
+         {
+             Live = live;
+             Reason = reason;
+@@ -253,21 +253,21 @@ namespace AgentEyes
+         /// claim - it probes the lock (open and close at once) and reads the description. A directory
+         /// that no capture of this version ever claimed is not live.
+         /// </summary>
+-        public static CaptureLiveness Inspect(string dir)
++        public static CaptureClaimLiveness Inspect(string dir)
+         {
+             string key = RecordingWorkset.Key(dir);
+ 
+             lock (Gate)
+             {
+                 if (HeldKeys.Contains(key))
+-                    return new CaptureLiveness(true,
++                    return new CaptureClaimLiveness(true,
+                         $"{Path.GetFileName(key)} is being captured by this process (pid {Environment.ProcessId})");
+             }
+ 
+             if (File.Exists(Path.Combine(key, FileName)))
+             {
+                 using var probe = OpenShared(key);
+-                if (probe == null) return new CaptureLiveness(true, HeldElsewhereReason(key));
++                if (probe == null) return new CaptureClaimLiveness(true, HeldElsewhereReason(key));
+             }
+ 
+             return FreeLockLiveness(key);
+@@ -351,16 +351,16 @@ namespace AgentEyes
+         /// The lock is free (or was never created). Live only while a recorded writer is still
+         /// running, or cannot be checked from this host.
+         /// </summary>
+-        private static CaptureLiveness FreeLockLiveness(string key)
++        private static CaptureClaimLiveness FreeLockLiveness(string key)
+         {
+             string ownerPath = Path.Combine(key, OwnerFileName);
+             if (!File.Exists(ownerPath))
+-                return new CaptureLiveness(false, "no capture holds it");
++                return new CaptureClaimLiveness(false, "no capture holds it");
+ 
+             OwnerRecord? read = ReadOwner(ownerPath, out bool vanished);
+             // Removed between the existence check and the read: its holder released it cleanly (the
+             // record is deleted before the lock closes), which is "not live", not an error.
+-            if (vanished) return new CaptureLiveness(false, "no capture holds it (its claim was released while being read)");
++            if (vanished) return new CaptureClaimLiveness(false, "no capture holds it (its claim was released while being read)");
+             OwnerRecord owner = read
+                 ?? throw new UsageException(
+                     $"{ownerPath} is unreadable, so whether a capture is still writing into {Path.GetFileName(key)} cannot be " +
+@@ -371,18 +371,18 @@ namespace AgentEyes
+             foreach (var w in owner.Writers)
+             {
+                 if (!sameHost)
+-                    return new CaptureLiveness(true,
++                    return new CaptureClaimLiveness(true,
+                         $"its capture owner ({owner}) is gone, but its {w.Label} ffmpeg pid {w.Pid} ran on host {owner.Host} and " +
+                         $"cannot be checked from {here}. Finalize it from {owner.Host}, or - once you have checked nothing is " +
+                         $"writing into {key} - delete {OwnerFileName}");
+ 
+                 if (IsSameProcess(w.Pid, w.StartUtc))
+-                    return new CaptureLiveness(true,
++                    return new CaptureClaimLiveness(true,
+                         $"its capture owner ({owner}) is gone but its {w.Label} ffmpeg pid {w.Pid} is STILL RUNNING and writing " +
+                         $"into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone");
+             }
+ 
+-            return new CaptureLiveness(false,
++            return new CaptureClaimLiveness(false,
+                 $"stale capture claim taken over: its owner ({owner}) is gone and its {owner.Writers.Count} writer(s) have exited");
+         }
+ 
+diff --git a/src/AgentEyes.Core/Thumbnails.cs b/src/AgentEyes.Core/Thumbnails.cs
+index 2e4a90e..ad53471 100644
+--- a/src/AgentEyes.Core/Thumbnails.cs
++++ b/src/AgentEyes.Core/Thumbnails.cs
+@@ -157,7 +157,7 @@ namespace AgentEyes
+             // ffmpeg on a growing file and load-mutate-save the manifest the capture also writes.
+             if (respectClaim)
+             {
+-                CaptureLiveness capture;
++                CaptureClaimLiveness capture;
+                 try { capture = CaptureLock.Inspect(dir); }
+                 catch (UsageException ex)
+                 {
+diff --git a/src/AgentEyes.Core/Video/IScreenRecorder.cs b/src/AgentEyes.Core/Video/IScreenRecorder.cs
+index 6577b6a..1e7e624 100644
+--- a/src/AgentEyes.Core/Video/IScreenRecorder.cs
++++ b/src/AgentEyes.Core/Video/IScreenRecorder.cs
+@@ -17,6 +17,9 @@ namespace AgentEyes.Video
+         /// <summary>The file the capture writes, and the one the watchdog watches.</summary>
+         string OutputPath { get; }
+ 
++        /// <summary>QA scratch merge only: the capture ffmpeg pid, for #156's NoteCaptureWriter.</summary>
++        int ProcessId { get; }
++
+         /// <summary>The command line that started the capture, for the manifest.</summary>
+         string CommandLine { get; }
+ 

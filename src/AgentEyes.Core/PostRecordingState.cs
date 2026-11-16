@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace AgentEyes
@@ -118,14 +119,30 @@ namespace AgentEyes
         /// stamp is testable.</summary>
         public static void NoteStarted(string dir, string stage, DateTime nowUtc)
         {
-            Log.Info($"[PostRecordingState] NoteStarted: {Path.GetFileName(dir)} stage={stage}");
+            string by = AttemptConsumer();
+            Log.Info($"[PostRecordingState] NoteStarted: {Path.GetFileName(dir)} stage={stage} by={by}");
             Update(dir, stage, record =>
             {
                 record.State = PostStageState.Running;
                 record.Attempts++;
                 record.LastAttemptUtc = nowUtc;
                 record.Error = null;
+                // Issue #156 criterion 5: WHO consumed it, one entry per attempt, so a post mortem can
+                // tell "this recording failed three times" from "three other processes spent its budget".
+                record.AttemptedBy ??= new List<string>();
+                record.AttemptedBy.Add($"attempt {record.Attempts} at {nowUtc:o} by {by}");
             });
+        }
+
+        /// <summary>
+        /// Issue #156: the identity stamped on an attempt - which program, which process, which
+        /// machine. Process name rather than a caller-supplied label, so no path can forget to say
+        /// who it is: "agenteyes" is the CLI or the headless service, "AgentEyesApp" the tray app.
+        /// </summary>
+        internal static string AttemptConsumer()
+        {
+            using var me = System.Diagnostics.Process.GetCurrentProcess();
+            return $"{me.ProcessName} pid {me.Id} on {Environment.MachineName}";
         }
 
         /// <summary>Records that <paramref name="stage"/> finished successfully.</summary>

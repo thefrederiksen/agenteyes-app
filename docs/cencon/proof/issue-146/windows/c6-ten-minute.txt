@@ -1,0 +1,43 @@
+Issue #146, criterion 6 - a ten-minute default-settings recording completes on Windows.
+Windows, SORENLAPTOP. App = this branch's build (bin\x64\Release) --tray, ffmpeg 9.0.2 (%LOCALAPPDATA%\AgentEyes\app).
+POST /record/start {"mode":"video","screen":1,"source":"mixed","mic":"Microphone (2- Realtek(R) Audio)"}  - MIXED, as row 6 of
+#142 was (the row that stalled 3 attempts on main 93681fa); 615 s, then POST /record/stop.
+
+== C6 (ten-minute mixed, default settings) : 1 default-settings recordings, source=mixed, mic="Microphone (2- Realtek(R) Audio)", 2026-11-15T12:49:10
+run  1: 2026-11-15_124910_video recorded 615s (616.53) | post-processing settled 56.6s after stop | mux=done/Attempts 1 thumbnail=done/Attempts 1 package=done/Attempts 1 plugins=done/Attempts 1 | raw audio: Stream #1:0: Audio: pcm_s16le, 44100 Hz, stereo, s16, 1411 kb/s | final audio: codec_name=aac|sample_rate=48000|channels=2|duration=615.600000 | COMPLETED
+== C6 (ten-minute mixed, default settings) RESULT: 1 of 1 completed with every PostProcessing stage done, Attempts 1
+
+(The harness's chain grep looked for 'raw.mp4 -filter_complex'; the mixed pass has sys_native.wav between them. The chain, from the app log:)
+12:59:27.779 [pid 18656] [INFO] [PostRecording] stage mux: start dir=2026-11-15_124910_video
+12:59:41.658 [pid 18656] [INFO] ffmpeg [mux video+mic+system (audio)]: "%USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i %USERPROFILE%\Videos\AgentEyes\2026-11-15_124910_video\raw.mp4 -i %USERPROFILE%\Videos\AgentEyes\2026-11-15_124910_video\sys_native.wav -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='C\:/Users/<user>/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[1:a]volume=0.7[s];[m][s]amix=inputs=2:duration=longest:normalize=0,alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto %USERPROFILE%\Videos\AgentEyes\2026-11-15_124910_video\audio_processed.wav
+13:00:14.966 [pid 18656] [INFO] [PostRecording] stage mux: done dir=2026-11-15_124910_video in 47.2s
+13:00:14.989 [pid 18656] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-15_124910_video
+13:00:15.487 [pid 18656] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-15_124910_video in 0.5s
+13:00:15.501 [pid 18656] [INFO] [PostRecording] stage package: start dir=2026-11-15_124910_video
+13:00:22.918 [pid 18656] [INFO] [PostRecording] stage package: done dir=2026-11-15_124910_video in 7.4s
+13:00:22.934 [pid 18656] [INFO] [PostRecording] stage plugins: start dir=2026-11-15_124910_video
+13:00:22.935 [pid 18656] [INFO] [PostRecording] stage plugins: done dir=2026-11-15_124910_video in 0.0s
+
+== manifest.json PostProcessing
+{
+ "mux": {
+  "State": "done",
+  "Attempts": 1,
+  "LastAttemptUtc": "2026-11-15T17:59:27.7721388Z"
+ },
+ "thumbnail": {
+  "State": "done",
+  "Attempts": 1,
+  "LastAttemptUtc": "2026-11-15T18:00:15.4883184Z"
+ },
+ "package": {
+  "State": "done",
+  "Attempts": 1,
+  "LastAttemptUtc": "2026-11-15T18:00:22.929386Z"
+ },
+ "plugins": {
+  "State": "done",
+  "Attempts": 1,
+  "LastAttemptUtc": "2026-11-15T18:00:22.9420325Z"
+ }
+}

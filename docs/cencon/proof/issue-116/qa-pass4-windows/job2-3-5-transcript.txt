@@ -1,0 +1,149 @@
+# Issue #116 Windows QA pass 4 - jobs 2, 3 and 5 transcript (SorenLaptop, 2026-11-16 12:07)
+# origin/main=17c244df603fd30115b145523e9a6d76d48c6fa5  head=1d06d75a97aa34d9d6a845022fd704863e5ca7f2  merge-base(0f54fba,main)=af0ddb16932eb8c1cd68b4d698000d926ec2ebcc
+
+## JOB 2a - f940b2b..1d06d75 (handoff commit), full stat
+ docs/cencon/proof/issue-116/handoff.md             | 149 +++++++++++++++++++++
+ .../proof/issue-116/pass4-full-suite-windows.txt   |  38 ++++++
+ .../issue-116/pass4-mutation-G1-cancel-deleted.txt |  51 +++++++
+ .../pass4-mutation-G2-filter-inverted.txt          |  64 +++++++++
+ .../proof/issue-116/pass4-mutation-unmutated.txt   |  32 +++++
+ 5 files changed, 334 insertions(+)
+## non-docs paths in f940b2b..1d06d75 (expect none):
+[end]
+
+## JOB 2b - every path changed 0f54fba..f940b2b whose f940b2b blob DIFFERS from main 17c244d's blob
+M .claude/skills/developer-agent/skill.md 
+M .claude/skills/implementation-loop/skill.md 
+M .github/workflows/ci.yml 
+M .github/workflows/release.yml 
+M tests/AgentEyes.Tests.DesktopApp/AgentEyes.Tests.DesktopApp.csproj 
+M tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj 
+M tests/Shared/DesktopAppQuitTests.cs 
+[end]
+## positive control: count of paths changed 0f54fba..f940b2b in total: 273; under src/ and scripts/: 26 (all equal to main's blob, per 2b)
+## src/AgentEyes.DesktopApp and scripts/linux changed 0f54fba..f940b2b (expect none):
+[end]
+## Of the 2b list, is the branch's delta exactly main's delta (af0ddb1..17c244d)? (sorted +/- line multiset)
+  .claude/skills/developer-agent/skill.md: SAME
+  .claude/skills/implementation-loop/skill.md: SAME
+  .github/workflows/release.yml: SAME
+  .github/workflows/ci.yml: SAME
+  tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj: DIFFERENT
+## ci.yml: is main->f940b2b exactly base->0f54fba (the branch's own side kept)? SAME
+## Linux csproj, 0f54fba..f940b2b (main's links + the Avalonia.Headless package):
+diff --git a/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj b/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj
+index a985203..3f7882d 100644
+--- a/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj
++++ b/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj
+@@ -19,6 +19,9 @@
+     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+     <PackageReference Include="xunit" Version="2.9.3" />
+     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
++    <!-- Issue #116 pass 4: the headless Avalonia platform, so the tray-popup close guard is driven through
++         real windows (DesktopAppQuitTests.TrayPopupCloseGuardWindowTests). Same version as the app's Avalonia. -->
++    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
+   </ItemGroup>
+ 
+   <ItemGroup>
+@@ -40,6 +43,26 @@
+     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
+     <!-- Issue #116: the desktop app's quit-path tests, shared with AgentEyes.Tests.DesktopApp (Windows gate). -->
+     <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
++
++    <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
++
++    <!-- Issue #136: ONE guard, compiled into all three suites. FfmpegMuxShapeTests sweeps the
++         argument builders in THIS build - which is the whole point of linking it rather than
++         duplicating it: each suite's sweep sees its own platform's FfmpegArgs partial, so the macOS
++         and Linux builders are covered by the macOS and Linux gates, and the shared ones by all
++         three. The invariant it holds: no ffmpeg command pairs a copied video stream with a filter
++         graph, because on macOS that command never finalizes. -->
++    <Compile Include="../Shared/FfmpegMuxShapeTests.cs" Link="Shared/FfmpegMuxShapeTests.cs" />
++
++    <!-- Issue #151: a test's failure path kills only the ffmpeg it started (OwnedFfmpeg), never a
++         sweep over every ffmpeg on the machine - which would include a live recording's. Linked into
++         all three suites so each platform's process handling is proven by its own gate. -->
++    <Compile Include="../Shared/OwnedFfmpeg.cs" Link="Shared/OwnedFfmpeg.cs" />
++    <Compile Include="../Shared/OwnedFfmpegTests.cs" Link="Shared/OwnedFfmpegTests.cs" />
++    <!-- The opt-in for tests that launch a real ffmpeg (AGENTEYES_FFMPEG_TESTS=1), shared with the
++         Windows suite so the repo has one convention. -->
++    <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
++    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
+   </ItemGroup>
+ 
+ </Project>
+
+## JOB 3 - files deleted under docs/cencon/proof/issue-142/ by the merge
+D	docs/cencon/proof/issue-142/linux/row1-install-transcript.txt
+D	docs/cencon/proof/issue-142/linux/row10.txt
+D	docs/cencon/proof/issue-142/linux/row2-3-main-window.png
+D	docs/cencon/proof/issue-142/linux/row3-library-76.png
+D	docs/cencon/proof/issue-142/linux/row6-probe.txt
+D	docs/cencon/proof/issue-142/linux/row7-player-screen.png
+D	docs/cencon/proof/issue-142/linux/row7-player-selfrender-video-area-black.png
+D	docs/cencon/proof/issue-142/linux/row7-player-xwd.png
+D	docs/cencon/proof/issue-142/linux/row8-details-open.png
+D	docs/cencon/proof/issue-142/linux/row8-details-saved.png
+D	docs/cencon/proof/issue-142/linux/row8-dictionary-open.png
+D	docs/cencon/proof/issue-142/linux/row8-dictionary-saved.png
+D	docs/cencon/proof/issue-142/linux/row8-settings-open.png
+D	docs/cencon/proof/issue-142/linux/row8-settings-saved-unchecked.png
+D	docs/cencon/proof/issue-142/linux/row9-tray-idle.png
+D	docs/cencon/proof/issue-142/linux/row9-tray-recording.png
+## spot-check by blob hash (branch 0f54fba linux/<f> vs main linux/earlier-c80cb9d/<f>)
+  row10.txt  2d0621d3fb984065f6b0dddc46774feb6a2b73b0  2d0621d3fb984065f6b0dddc46774feb6a2b73b0  IDENTICAL
+  row8-settings-saved-unchecked.png  56b73d5f2df2fe55a60cd2f59de400e6065feb31  56b73d5f2df2fe55a60cd2f59de400e6065feb31  IDENTICAL
+  row1-install-transcript.txt  98b78de6db32219eeb2ea410537da31ec9191048  4d407a749e9de8092ffc3b42b6a4d090fd159001  DIFFERENT
+## row1-install-transcript.txt: lines branch=37 main=37; diff (private values masked by QA):
+8c8
+< [OK] built <HARNESS-TMP-PATH-MASKED-BY-QA>
+---
+> [OK] built <stage>/agenteyes
+15c15
+< [OK] signed in as <OWNER-ADDRESS-MASKED-BY-QA>
+---
+> [OK] signed in as <owner account>
+## git diff --stat origin/main 1d06d75 -- docs/cencon/proof/issue-142/ (expect empty):
+[end]
+## positive control, same command 0f54fba vs main (expect non-empty):
+ 79 files changed, 3904 insertions(+), 279 deletions(-)
+## docs/cencon/proof/issue-142/qa-report-linux.md blobs: ae80c4d=0f7d90cbdb4e5d665348bfda5bb898e7c5974b14 main=0f7d90cbdb4e5d665348bfda5bb898e7c5974b14 head=0f7d90cbdb4e5d665348bfda5bb898e7c5974b14 old-branch-0f54fba=efad9259390a12bdd46a73e4b5c7545064c33e26
+## row 5 in the surviving report:
+38:| 5 | Records screen + microphone, audio within 1.5 s of video | **main f9ef230** | **FAIL** - 1 of 2 takes. Take B: **0.106 s** short on
+164:## Row 5 - Records screen + microphone, audio within 1.5 s of video: FAIL (main f9ef230)
+## the owner's address, files carrying it (address itself not printed): head 1d06d75:
+docs/cencon/proof/issue-116/linux-install-transcript.txt:1
+docs/cencon/proof/issue-122/cli-log-extract.txt:1
+docs/cencon/proof/issue-123/qa-report-linux.md:1
+docs/cencon/review/archived-pr-188-issue-187-review-round3.md:1
+tests/AgentEyes.Tests/AccountStateTests.cs:6
+ main:
+docs/cencon/proof/issue-122/cli-log-extract.txt:1
+docs/cencon/proof/issue-123/qa-report-linux.md:1
+docs/cencon/review/archived-pr-188-issue-187-review-round3.md:1
+tests/AgentEyes.Tests/AccountStateTests.cs:6
+
+## JOB 5 - tests: deferral/crash wording outside DesktopAppQuitTests.cs, filtered to quit/tray/menu/popup/116:
+1d06d75:tests/AgentEyes.Tests/CameraFailurePathTests.cs:1097:            // had ANSWERED a quit it never received - so a process that crashed was recorded as
+1d06d75:tests/AgentEyes.Tests/CameraFailurePathTests.cs:1109:            proc.QuitFailsWith = () => proc.End(-5);      // it crashes as the pipe goes
+[end]
+## positive control - the same grep without the filter finds lines (count): 103
+## DesktopAppQuitTests.cs section headers:
+17:// THE FIX IS TrayPopupCloseGuard: the re-entrant second close of Avalonia's Windows tray popup is
+23://   1. TrayPopupCloseGuardWindowTests (below) - THE regression test for the fix. The installed guard is
+31://      NOT the fix and does not prevent the crash: pass 3 measured a build that keeps the deferral and
+39:        // ---- 2. TrayPopupCloseGuard: the decision table, the type name, the install order ----
+137:        // ---- 3. DeferredQuit: a pinned shape, NOT the crash fix (see the header) ----
+212:        // ---- helpers ----
+229:    /// THE regression test for the issue #116 fix (pass 4). Drives the INSTALLED TrayPopupCloseGuard through
+## product source, src/AgentEyes.DesktopApp, comments naming the deferral or the double teardown:
+1d06d75:src/AgentEyes.DesktopApp/App.axaml.cs:27:                // Quit is DEFERRED until the tray menu has closed - see DeferredQuit (issue #116).
+1d06d75:src/AgentEyes.DesktopApp/App.axaml.cs:100:        /// <summary>The shutdown itself. Only ever run by DeferredQuit, never inside a menu's click handling.</summary>
+1d06d75:src/AgentEyes.DesktopApp/DeferredQuit.cs:7:    /// The tray menu's Quit, run AFTER the menu has finished with the click (issue #116).
+1d06d75:src/AgentEyes.DesktopApp/DeferredQuit.cs:9:    /// WHY IT IS DEFERRED. On Windows the tray menu is not a native menu: Avalonia draws it in its own
+1d06d75:src/AgentEyes.DesktopApp/DeferredQuit.cs:12:    /// down synchronously inside the item's Click closed that popup from inside its own click handling,
+1d06d75:src/AgentEyes.DesktopApp/DeferredQuit.cs:15:    /// returns), the popup was torn down twice, and the second teardown threw
+1d06d75:src/AgentEyes.DesktopApp/DeferredQuit.cs:20:    /// and there is no popup window, so deferring changes only when the shutdown runs, not what it does.
+1d06d75:src/AgentEyes.DesktopApp/TrayController.cs:48:            // handling, and closing the app under it crashed (issue #116, see DeferredQuit).
+1d06d75:src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs:19:    /// only after DestroyWindow returns), so the popup is torn down a second time and its menu presenter
+1d06d75:src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs:27:    /// is torn down exactly once. Only that one Avalonia type is affected - every other window closes as

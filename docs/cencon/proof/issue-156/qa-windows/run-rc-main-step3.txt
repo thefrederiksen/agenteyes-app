@@ -1,0 +1,20 @@
+MAIN 17c244d control arm, step 3 - run by hand after real-crash.ps1 (run-rc-main.txt) finished.
+
+Why by hand: on main there is no capture.owner.json, so real-crash.ps1 could not enumerate the orphaned
+writer, skipped its CTRL_C step, and its line "raw.mp4 after the writer ended" is MISLABELLED - the
+writer (pid 20580) was still running at that moment (the script's own "ffmpeg running after: [20580]"
+line shows it, and the delete of raw.mp4 failed with "being used by another process").
+
+Identity check before signalling it, then CTRL_C (QA's tool), then a third 'package' from main's CLI:
+
+pid 20580 parent 1700 created 11/16/2026 10:17:21
+command line names this run's scratch dir: True
+ctrlc exit 0; 20580 exited: True
+raw.mp4 now: 5882699 bytes; probe: video audio 334.533333
+package #3 exit 0
+PendingMux=cleared mux.State=done mux.Attempts=3 recording.mp4=7183575
+probe: video audio 334.533333
+ffmpeg running: []
+
+(pid 1700 = the owner the harness started at 10:17:21 local and that real-crash.ps1 TerminateProcess-ed.
+The recording ran 334 s because the orphan kept capturing until QA ended it. Media deleted afterwards.)

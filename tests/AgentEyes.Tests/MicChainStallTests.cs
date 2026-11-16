@@ -20,6 +20,9 @@ namespace AgentEyes.Tests
     ///  - a post-processing run whose output time stops advancing now FAILS within a bound instead
     ///    of spinning (watchdog unit tests + a real-ffmpeg run of the known-stalling filter).
     /// The real-ffmpeg tests need ffmpeg (the Windows CI job downloads it; FfmpegLocator finds it).
+    /// Issue #151: every test here that launches ffmpeg is opt-in (AGENTEYES_FFMPEG_TESTS=1) so the
+    /// default gate stays fast; CI runs them in a second, opted-in step, so the guards still run on
+    /// every push. The shape and watchdog tests need no ffmpeg and stay in the default gate.
     /// </summary>
     public sealed class MicChainStallTests : IDisposable
     {
@@ -215,33 +218,6 @@ namespace AgentEyes.Tests
             return path;
         }
 
-        /// <summary>
-        /// Kill every ffmpeg this machine started after <paramref name="since"/>. Used only on a
-        /// test's FAILURE path, when the guard under test did not fire and its ffmpeg would otherwise
-        /// spin forever and keep `dotnet test` from returning (QA measured exactly that leak under
-        /// mutation B). It can also end a parallel test's ffmpeg - acceptable only because the run is
-        /// already failing.
-        /// </summary>
-        private void KillFfmpegStartedSince(DateTime since)
-        {
-            foreach (var p in Process.GetProcessesByName("ffmpeg"))
-            {
-                using (p)
-                {
-                    try
-                    {
-                        if (p.StartTime < since) continue;
-                        p.Kill(entireProcessTree: true);
-                        _out.WriteLine($"killed leaked ffmpeg pid {p.Id}");
-                    }
-                    catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
-                    {
-                        _out.WriteLine($"could not kill ffmpeg pid {p.Id}: {ex.Message}");
-                    }
-                }
-            }
-        }
-
         private string Tone(string name, double seconds)
         {
             string path = Path.Combine(_root, name);
@@ -249,7 +225,7 @@ namespace AgentEyes.Tests
             return path;
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void RunWatched_FilterThatStallsOnNan_FailsWithinTheBound()
         {
             // The pre-fix chain's stalling stage on its own, against the trigger, with a short limit.
@@ -259,7 +235,9 @@ namespace AgentEyes.Tests
             // tests start ffmpeg too) a 4 s limit fired before ffmpeg's output time first advanced.
             var limit = TimeSpan.FromSeconds(10);
             var sw = Stopwatch.StartNew();
-            DateTime started = DateTime.Now.AddSeconds(-1);
+            // Issue #151: record the ffmpeg this test starts, so the failure path below can kill
+            // exactly that one - never every ffmpeg on the machine (a live recording's among them).
+            using var owned = new OwnedFfmpeg();
 
             // Run on a worker and wait a bounded time, so that a guard which does NOT fire fails this
             // test by name instead of hanging the whole suite.
@@ -269,7 +247,12 @@ namespace AgentEyes.Tests
             }, "test stall", limit));
             bool finished = ((System.IAsyncResult)run).AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(60));
             sw.Stop();
-            if (!finished) KillFfmpegStartedSince(started);
+            if (!finished)
+            {
+                // The guard did not fire, so its ffmpeg would spin forever and keep `dotnet test`
+                // from returning (QA measured exactly that leak under mutation B on #128).
+                foreach (string line in owned.KillOwned()) _out.WriteLine("failure path: " + line);
+            }
             Assert.True(finished, "RunWatched was still running after 60 s - the stall guard did not fire");
             var ex = Assert.IsType<UsageException>(run.Exception?.InnerException);
             string msg = ex.Message;   // quoted whole in every failure below - xunit truncates otherwise
@@ -286,7 +269,7 @@ namespace AgentEyes.Tests
             Assert.True(sw.Elapsed < TimeSpan.FromSeconds(60), $"took {sw.Elapsed.TotalSeconds:F1}s");
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void RunWatched_HealthyRun_Completes()
         {
             string input = Tone("ok.wav", 20);
@@ -295,7 +278,7 @@ namespace AgentEyes.Tests
             Assert.True(new FileInfo(output).Length > 1_000_000);
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void MixWavs_DefaultSettingsMicWithNanSample_CompletesAndKeepsTheMicAfterTheNan()
         {
             // The whole product path (model materialised, chain built, watched run) on the trigger.
@@ -348,7 +331,7 @@ namespace AgentEyes.Tests
 
         // ---- criterion 11: a failed pass leaves no fragment, and the mux ceiling is not bypassed ----
 
-        [Fact]
+        [FfmpegOptInFact]
         public void RunStage_FailedPass_RemovesThePartialOutput()
         {
             // A fragment at the final path (what a killed mux leaves) and a pass that fails.
@@ -364,7 +347,7 @@ namespace AgentEyes.Tests
             Assert.False(File.Exists(outPath), "the failed pass left its partial output at the final path");
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void RunStage_FailedPassWhosePartialOutputCannotBeRemoved_KeepsTheStageError()
         {
             // Round two, D5: the cleanup File.Delete threw (another process had the file open) and
@@ -386,7 +369,7 @@ namespace AgentEyes.Tests
             }
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void RunStage_OutputStopsAdvancing_IsFailedByTheWatchdog()
         {
             // Round two, D4: QA's mutation F (RunStage calling the UNWATCHED Ffmpeg.Run) left the
@@ -465,7 +448,7 @@ namespace AgentEyes.Tests
             return first;
         }
 
-        [Theory]
+        [FfmpegOptInTheory]
         [InlineData("mono")]
         [InlineData("stereo")]
         public void ArnndnFraming_PartialFinalFrame_ArnndnEmitsNoNonFiniteSample(string layout)
@@ -524,7 +507,7 @@ namespace AgentEyes.Tests
                     "the D3 tests no longer exercise the defect on CI");
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void ProcessVideoMic_DefaultSettingsFiniteS16MonoNotAWholeFrame_Completes()
         {
             // QA's product-path reproduction of D3, shrunk: a finite, NaN-free s16 mono mic (the
@@ -631,7 +614,7 @@ namespace AgentEyes.Tests
             return path;
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void MixWavs_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg()
         {
             // The configuration the product ships and round one's stereo/stereo fixtures never ran.
@@ -649,7 +632,7 @@ namespace AgentEyes.Tests
             }
         }
 
-        [Fact]
+        [FfmpegOptInFact]
         public void MuxVideoMixed_DefaultSettingsMonoMicStereoSystem_DoesNotCrashFfmpeg()
         {
             // The same pair through the VIDEO mixed path: the mic is the mono track inside raw.mp4.

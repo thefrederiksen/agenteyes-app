@@ -32,5 +32,31 @@ namespace AgentEyes.Tests.Linux
             Directory.CreateDirectory(dir);
             return dir;
         }
+
+        /// <summary>
+        /// A fresh directory for a Unix domain socket, named short enough that the socket path inside
+        /// it fits sun_path on EVERY platform this suite runs on. sun_path holds 104 bytes on macOS
+        /// (108 on Linux), and the macOS per-user TMPDIR is already 49 characters before anything is
+        /// added - so RunRoot, whose name carries a timestamp and a pid, cannot hold a socket there:
+        /// its path came to 121 bytes and .NET threw ArgumentOutOfRangeException (issue #116).
+        /// Deliberately NOT under RunRoot for that reason; the caller deletes it.
+        /// </summary>
+        internal static string NewSocketDir()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "ae" + Guid.NewGuid().ToString("N")[..8]);
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        /// <summary>
+        /// A named-pipe name short enough to be usable on every platform this suite runs on. .NET maps
+        /// a named pipe on Unix onto a socket at Path.GetTempPath() + "CoreFxPipe_" + name, so the name
+        /// spends the same sun_path budget: the old 47-character name came to 107 bytes on macOS.
+        /// </summary>
+        internal static string NewPipeName() => "ae" + Guid.NewGuid().ToString("N")[..12];
+
+        /// <summary>The largest Unix socket path any platform here accepts: sun_path is 104 bytes on
+        /// macOS and 108 on Linux, so 104 is the limit that must hold everywhere.</summary>
+        internal const int MaxUnixSocketPathBytes = 104;
     }
 }
