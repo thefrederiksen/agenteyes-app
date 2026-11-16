@@ -1070,3 +1070,195 @@ and 383 / 1. Windows 2466 / 16 and 2485 / 1.
 I believe this is finished. Open and owned elsewhere: pid namespaces (the follow-up), Windows prober
 tokens (#171), Linux EPERM under seccomp or an LSM (named, unmeasured), the macOS sudo writer (QA, needs
 a password).
+
+## Pass 5 - the Linux EPERM row (Linux QA D-L1, comment 6923089499; lead's ruling 6923154064)
+
+**The defect.** On Linux, `kill(pid, 0)` returning EPERM answered NotMine ("ANOTHER USER") with no
+further evidence (`FfmpegChildRegistry.cs:463` at `9abbb01`, pinned as correct by
+`ProcessIdentityTests.cs:313`). Linux QA produced it with a prober that Landlock refuses other
+processes' `/proc/<pid>` reads and that seccomp makes `kill(2)` answer EPERM for. The real `package`
+then cleared a live same-user writer's claim and spent Attempt 1 while the writer was writing. It is the
+same bad inference as the macOS row fixed in pass 4 round 2: "not ours" concluded from an error that only
+means "we were not allowed to look".
+
+**The fix (dev commit `9747a81`) is the Linux analogue of the macOS uid check, as ruled.** On Linux,
+EPERM now reads the owner of `/proc/<pid>` with ONE `statx(2)` call:
+
+| `statx("/proc/<pid>")` | answer | why |
+|---|---|---|
+| owner uid is NOT this process's real or effective uid | **NotMine** | proved another user; our writer ran as us |
+| owner uid IS ours | **Unknown** | the uids permit the signal, so something else (a sandbox) refused it; the start time is already unreadable, so there is nothing further to compare |
+| ENOENT | **NotMine** | the process exited between the two reads |
+| refused, any other errno, or no `STATX_UID` in the reply | **Unknown** | whose process it is was not read |
+| (no probe passed, or own uids unknown - test-only paths) | **Unknown** | |
+
+**One read, one answer, as the macOS branch does.** macOS reads the uids from the same `sysctl` that
+reads the state. On Linux, one `statx` answers existence (ENOENT) and owner together, so the answer is
+never assembled from two reads. I chose the ownership of `/proc/<pid>` over the `Uid:` line of
+`/proc/<pid>/status`. Both were named in the ruling. QA measured that the confined prober is refused
+`status` but still gets `stat` (I re-measured it in the run below: `status-REFUSED;stat /proc/<W> uid
+1000`). This row is only reached when the start time (`/proc/<pid>/stat`) is refused, and in that state
+`status` is refused too, so a `status` read would almost always answer Unknown and would add a second read
+for nothing. Our own uids come from `getuid()` / `geteuid()`, the two uids `kill(2)` compares. `struct
+statx` has one layout on every architecture (`stx_uid` at offset 20), so there are no per-arch offsets.
+
+**Nothing else moved** (`git diff 9abbb01 9747a81 -- src`): two files. Here is every removed product line:
+
+```
+-                OperatingSystem.IsMacOS() ? OwnUidsOnMac() : null);                        (the wrapper: now also passes the Linux uids and probe)
+-        /// * EPERM on Linux: NotMine, as ruled - but the same premise, NOT measured ...  (3 doc lines, replaced by the new row's doc)
+-            ... Func<uint, bool>? isOurUid = null)                                         (signature: one optional parameter appended)
+-                        $"pid {pid} belongs to ANOTHER USER (kill(pid, 0) errno {errno}); ..." (the defective row, now the NotMine branch with evidence)
+```
+
+`ProcessIdentity.cs` gains a NEW `LinuxProcOwner` type appended after `MacProcessState`. The
+`ProcessIdentity` tri-state and `ProcessAnswer` are byte-identical. Every macOS row, the Windows rows,
+ESRCH, "any other errno", and "kill succeeds on Linux -> Unknown" are unchanged. So are all callers of the
+tri-state (`CaptureLock`, the reaper, `PostRecording`, `Thumbnails`, `PostRecordingPlan`), the shared hold,
+the SIGTERM bound and its headroom, G1's manifest field and the host guard: zero diff lines in any of them.
+Tests: `ProcessIdentityTests.cs` (the test pinning the defect is replaced) and `ManifestWriterIlTests.cs`
+(three native imports pinned: `libc!statx`, a metadata read and never a write; `libc!getuid`;
+`libc!geteuid`).
+
+### (1) + (2) The Linux reproduction, before and after, with the positive controls in the same run
+
+The harness is **QA's**, reused, not reinvented: `qa-linux-pass4/harness/llprobe.c` (Landlock, plus
+`--kill-eperm` seccomp) and `Program.cs` (`owner` / `inspect`), built unchanged. `pass5/eperm5.sh` is
+QA's `eperm.sh`. It keeps the four arms P / L / E / E2 unchanged and adds the positive controls to the SAME
+run. Two builds of the CLI and harness ran back to back: **before** = `32e403e` (the branch head before
+this pass; product code identical to `9abbb01`) and **after** = `9747a81`. Each was checked by the commit
+stamp embedded in the dll, and the harness prints the stamp at runtime. Transcripts:
+`pass5/run-before-32e403e.txt` and `pass5/run-after-9747a81.txt`.
+
+A is a crashed owner's real claim (`TryAcquire` + `NoteWriter`, then SIGKILL). Its writer is a LIVE
+uid-1000 ffmpeg, probed by uid 1000, and `/proc/<W>` is owned by uid 1000.
+
+| Arm | BEFORE `32e403e` | AFTER `9747a81` |
+|---|---|---|
+| A-P plain (control) | Mine, STILL RUNNING | **Mine, STILL RUNNING** |
+| A-L Landlock only (control) | Unknown, UNDETERMINED | **Unknown, UNDETERMINED** |
+| **A-E Landlock + kill EPERM** | **NotMine: "pid 1669112 belongs to ANOTHER USER (kill(pid, 0) errno 1)"**, Inspect Live=False | **Unknown: "pid 1670933 is THIS USER's (/proc/1670933 owned by uid 1000) but kill(pid, 0) was refused (EPERM)..."**, Inspect UNDETERMINED |
+| **A-E2 real `package --no-frames`, same confinement** | `ClearStaleClaim ... CLEARED`, **mux failed Attempts=1, capture.owner.json ABSENT**, writer ALIVE | **exit 1 "refusing to package ... UNDETERMINED", `ThrowIfLive DECLINED (undetermined)`, PendingMux pending, mux=None (no attempt), capture.owner.json PRESENT**, writer ALIVE, raw.mp4 262,192 -> 524,336 bytes |
+| writer stopped for real (SIGTERM to OUR ffmpeg): the claim is now genuinely stale | | |
+| A-S1 Landlock + kill EPERM inspect | (no record left to inspect: E2 deleted it) | **NotMine: "/proc/1670933 does not exist"**, Live=False. The ENOENT row, measured for real |
+| **A-S2 ordinary `package` (POSITIVE CONTROL)** | done, Attempts=**2** | **claim CLEARED, mux done, Attempts=1**, recording.mp4 decodes (exit 0, h264 + aac) |
+
+B is a crashed owner's claim whose writer pid is now held by **ANOTHER USER**. The record names pid 1
+(root's systemd, uid 0) and keeps our writer's start time, as a reused pid would.
+
+| Arm | BEFORE | AFTER |
+|---|---|---|
+| B-P plain (control) | NotMine (start time differs) | **NotMine** (start time differs) |
+| **B-E Landlock + kill EPERM** | NotMine "errno 1" (right answer, no evidence) | **NotMine: "pid 1 belongs to ANOTHER USER (/proc/1 owned by uid 0; kill(pid, 0) EPERM)"** |
+| **B-E2 real `package`, same confinement (POSITIVE CONTROL, the claim decision)** | claim CLEARED, attempt 1 | **claim CLEARED, attempt 1** - the crash is admitted |
+| B-O ordinary `package` (recovery) | done, Attempts=2, decodes | **done, Attempts=2, decodes (exit 0, h264 + aac)** |
+
+Read B-E2 carefully: its MUX fails on both builds with "Unable to retrieve the specified information about
+the process". The same confinement also refuses the package's OWN ffmpeg child's `/proc` (llprobe allows
+only its own pid), so a confined process cannot run a mux at all. That is a property of the harness, the
+same before and after. The row under test is the claim decision: CLEARED, so the crash is admitted and not
+stranded. B-O then recovers the recording. This is QA's own "Landlock-confined capturing host" not-covered
+item (`NoteWriter` and the mux path read a child's start time). It is pre-existing, named here, and not
+touched.
+
+Each `package` exits 1 after a done mux on both builds. That is the transcription step: the scratch HOME
+is not signed in to DevThrottle ("transcription FAILED: Not signed in"). It happens after the mux and is
+unrelated.
+
+### (3) Tests pinning the Linux mapping, and a mutation per branch
+
+New tests in `tests/Shared/ProcessIdentityTests.cs` (compiled into the Linux, macOS and Windows projects):
+
+- `ClassifyUnreadable_KillEpermOnLinuxOwnedByAnotherUid_NotMine`
+- `ClassifyUnreadable_KillEpermOnLinuxOwnedByThisUser_Unknown` - **the D-L1 pin**, replacing
+  `ClassifyUnreadable_KillEpermOnLinux_NotMineAnotherUser`, which pinned the defect
+- `ClassifyUnreadable_KillEpermOnLinuxProcGone_NotMine`
+- `ClassifyUnreadable_KillEpermOnLinuxOwnerUnreadable_Unknown` (refused, never read, no probe, own uids unknown)
+- `ClassifyUnreadable_LinuxRowsWithoutEperm_DoNotReadTheOwner` (ESRCH and kill-succeeds never ask)
+- `ReadLinuxProcOwner_ThisProcessRootAndMissingPid_OwnerAndGone` - the REAL statx, every Linux run
+- `ClassifyUnreadable_RealOwnerReadOwnLiveProcessWithEperm_Unknown` - the real owner read and real own
+  uids for this live process, with an EPERM injected: Unknown
+- unchanged and still passing: `ClassifyUnreadable_RealProbePidOne_NotMineAnotherUser`, which on Linux
+  now goes through the REAL kill + REAL statx and answers "owned by uid 0" (the real-probe positive control)
+
+**Mutations** (`pass5/mutations-linux.txt`, script `pass5/mutate-linux.py`; each applied to the product
+alone and run against the Linux project; source restored and verified byte-identical afterwards). **10 of
+10 fail at least one test.**
+
+| # | Mutation | Fails | Message (first) |
+|---|---|---|---|
+| L1 | other uid -> Unknown | `...OwnedByAnotherUid_NotMine`, `...RealProbePidOne_NotMineAnotherUser` | `Unknown: pid 4321 belongs to ANOTHER USER (/proc/4321 owned by uid 0; ...)` |
+| L2 | **our uid -> NotMine (D-L1 back)** | `...OwnedByThisUser_Unknown`, `...RealOwnerReadOwnLiveProcessWithEperm_Unknown` | `NotMine: pid 4321 is THIS USER's (/proc/4321 owned by uid 1000) but kill(pid, 0) was refused (EPERM) ...` |
+| L3 | /proc gone -> Unknown | `...ProcGone_NotMine` | `Unknown: pid 4321 exited while being read (/proc/4321 does not exist)` |
+| L4 | owner unreadable -> NotMine | `...OwnerUnreadable_Unknown` | `refused: NotMine: ... whose process it is could not be read (Unreadable)` |
+| L5 | no probe / no own uids -> NotMine | `...OwnerUnreadable_Unknown` | `no probe: NotMine: ... there is no read of whose process it is on this platform` |
+| L6 | the whole pass-4 row back | 5 tests | `Assert.Contains() Failure: ... Not found: "exited"` |
+| L7 | statx uid offset 16 (stx_nlink) | `ReadLinuxProcOwner_...`, `...RealOwnerRead...` | `Expected: 1000, Actual: 9` |
+| L8 | ENOENT read as Unreadable | `ReadLinuxProcOwner_...` | `Expected: Gone, Actual: Unreadable` |
+| L9 | STATX_UID mask check inverted | 3 tests | `Expected: Owned, Actual: Unreadable` |
+| L10 | production wrapper passes no Linux probe | `...RealProbePidOne_NotMineAnotherUser` | `Unknown: pid 1: ... there is no read of whose process it is on this platform` |
+
+Not caught, and named rather than hidden: `stx_uid` read at offset 24 (`stx_gid`) would pass on a machine
+where this user's gid equals its uid and root's gid is 0, which is true here. The offset is from
+`linux/stat.h`, and L7 shows the real read is pinned to real values.
+
+### (4) Gates, run by me on devlinux (kernel 6.8, SDK 8.0.134)
+
+- Linux default: **388 passed / 2 skipped / 0 failed** (was 382 / 2 at `9abbb01`: +7 new, -1 replaced).
+- Linux opt-in (`AGENTEYES_FFMPEG_TESTS=1`): **389 / 1 / 0**.
+- macOS test project run on Linux: 379 passed, 1 failed (`MacPathsTests.MachineLocalAppData_OnMac_...`,
+  which expects `~/Library`). It fails identically on the `32e403e` worktree (373 / 1 failed), so it is not
+  this change. CI runs that project on macOS.
+- Windows project and the native-import pin: CI (they cannot run here).
+- Merge onto `main` `17c244d`: clean (`git merge-tree`).
+- Self-review: I ran `/code-review low` on `9747a81`. It returned no findings after a single tool call, and
+  I do not count it as a review. My own review of the diff found no defect. It produced the glibc premise
+  below, which I would otherwise have assumed away.
+
+### The cases I was tempted to assume away, written down
+
+- **A non-dumpable writer.** The kernel owns a non-dumpable process's `/proc/<pid>` by root, so it reads
+  as another user. Our writer is an ffmpeg exec'd by this user. It is dumpable unless its binary is
+  setuid, setgid, has file capabilities, or is not readable by us. **Measured:** the live writer's
+  `/proc/<W>` is owned by uid 1000 (run transcript, both builds). A non-dumpable writer probed by a prober
+  that is ALSO refused `kill(2)` would read NotMine. Two unusual conditions together, named in the code.
+- **The owner is the target's EFFECTIVE uid; `kill(2)` checks its real and saved uids.** They differ only
+  for a setuid target, and our ffmpeg is not one. That is the same premise as above.
+- **User namespaces.** A prober in another user namespace sees an unmapped uid as the overflow uid
+  (65534). Its own uid is always mapped in its own namespace, so an unmapped owner is a different kernel
+  uid, and NotMine remains a fact. Read, not measured.
+- **glibc before 2.28 has no `statx` wrapper** (also musl before 1.2.5). There the P/Invoke throws
+  `EntryPointNotFoundException`. That happens ONLY on this row (a prober refused both the start time and
+  `kill(2)`), and the predicate then throws instead of answering. That strands a recovery, as pass 3's
+  exception did, but it never clears a live claim. devlinux and the CI runner are glibc 2.39. The product
+  states no Linux floor. **Lead: if SLES 12 or old Alpine matter, that is a decision. I did not add a
+  catch, which the standards forbid as a fallback.**
+- **A same-user process that is not ours, under this confinement:** Unknown even when its start time
+  would have differed. That is a delayed recovery, accepted by the pass 4 ruling.
+- **Landlock ABI 6 signal scoping** is what really returns EPERM. Here it is simulated with seccomp, as
+  QA did; this kernel is ABI 4. AppArmor and SELinux signal denials return EACCES, which maps to Unknown
+  on the unchanged "any other errno" row.
+
+### Out of scope, unchanged, and still named
+
+- **#172** (pid namespace, now confirmed from a real Docker container): needs a new owner-record field;
+  not touched.
+- **#171** (Windows restricted-token prober; KillTree across elevation): not touched.
+- **#170** (one recording's exception aborting a sweep): not touched.
+- **D3 stays #113's**, and both conflicts still stand: the two `CaptureLiveness` types (ours carries
+  `Undetermined`), and `IScreenRecorder` lacking `ProcessId`. No #113 code was pulled in.
+
+### Hazards and #161 footprint
+
+Every run used a scratch HOME. Before anything ran, its recordings root was checked to be inside scratch
+(`isolation: root $SCRATCH/runs/...`, the same check QA used). Each run also recorded the real library
+before and after. Signature `05c96de5...` was unchanged in every run, **0 entries were modified**, and the
+evidence recording `2026-11-14_102532_video` is present. The foreign go2rtc ffmpeg (pid 72110, identified
+by command line) was never signalled. The only processes signalled were the ffmpeg and sleep this script
+started. pid 1 was only read (as uid 1000 it cannot be signalled, and it was not). The installed recorder
+was not reinstalled or touched. Audio settings were not touched. No service was started. The only CLI runs were `housekeep` (that run IS the root check, under the scratch HOME, as in QA's `eperm.sh`) and the `package` arms above, all under the scratch HOME.
+
+**CenCon impact:** none. No component-map or privacy-posture change; the change is inside the
+ownership predicate.
+
+I believe this is finished.
