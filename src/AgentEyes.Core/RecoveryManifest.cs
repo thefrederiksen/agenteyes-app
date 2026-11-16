@@ -92,7 +92,10 @@ namespace AgentEyes
             return Directory.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly)
                 .Select(Path.GetFileName)
                 .Where(name => !string.IsNullOrEmpty(name)
-                            && !name!.StartsWith(ManifestStore.FileName, StringComparison.OrdinalIgnoreCase))
+                            && !name!.StartsWith(ManifestStore.FileName, StringComparison.OrdinalIgnoreCase)
+                            // Issue #156: the capture's claim files are bookkeeping, not capture media.
+                            && !string.Equals(name, CaptureLock.FileName, StringComparison.OrdinalIgnoreCase)
+                            && !name.StartsWith(CaptureLock.OwnerFileName, StringComparison.OrdinalIgnoreCase))
                 .Select(name => name!)
                 .OrderBy(name => name, StringComparer.Ordinal)
                 .ToList();

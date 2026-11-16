@@ -360,6 +360,22 @@ namespace AgentEyes
                 if (!File.Exists(Path.Combine(dir, "manifest.json")))
                     throw new UsageException($"no manifest.json in {dir} - the recording cannot be post-processed.");
 
+                // Issue #156: a recording ANOTHER process is still capturing is not this pass's to
+                // touch - not its mux, not its raw files, not its attempt budget. The in-process claim
+                // cannot see a capture in another process; the capture's on-disk claim can. Checked
+                // before any stage and before any attempt is counted, so a decline costs the owning
+                // recording nothing, and the decline names the holder. A claim whose owner died is
+                // NOT live (CaptureLock.Inspect says why) and the recording is repaired as before.
+                var capture = CaptureLock.Inspect(dir);
+                if (capture.Live)
+                {
+                    Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} DECLINED by pid {Environment.ProcessId} - "
+                        + $"{capture.Reason}. No stage ran and no attempt was counted; leaving it for a pass after the capture ends");
+                    outcome.Skipped = true;
+                    return outcome;
+                }
+                Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - capture claim: {capture.Reason}");
+
                 if (Manifest.Load(dir).PendingMux != null)
                 {
                     // Issue #128 round two (D1/D2): the mux runs under the on-disk lock, so a mux

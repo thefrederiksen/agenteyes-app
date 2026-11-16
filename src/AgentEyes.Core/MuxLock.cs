@@ -113,7 +113,7 @@ namespace AgentEyes
         /// ERROR_LOCK_VIOLATION (33). Unix: .NET reports a held flock as a plain IOException whose
         /// HResult is EWOULDBLOCK (11 on Linux, 35 on macOS).
         /// </summary>
-        private static bool IsHeldElsewhere(IOException ex)
+        internal static bool IsHeldElsewhere(IOException ex)
         {
             if (ex is FileNotFoundException or DirectoryNotFoundException or PathTooLongException) return false;
             int code = ex.HResult & 0xFFFF;

@@ -1,0 +1,53 @@
+binary: AgentEyes - screen + audio recorder (CLI: agenteyes)
+ffmpeg: ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers
+container: plain   host: devthrottle-mac-mini   started: 2026-11-16T11:59:23Z
+
+######## live-package
+11:59:24 [live-package/plain] writer ffmpeg pid 95472 started 2026-11-16T11:59:23Z
+11:59:25 [live-package/plain] owner pid 95637: owner pid 95637 holds capture.lock
+11:59:36 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+11:59:36 [live-package/plain]   exit 1: [error] could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+11:59:36 [live-package/plain]   raw.mp4=4718640 recording.mp4=absent recording.original.mp4=absent
+11:59:36 [live-package/plain]   PendingMux=pending mux={"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T11:59:36.697619Z", "Error": "could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."} DurationSeconds=0
+11:59:39 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+11:59:39 [live-package/plain]   exit 1: [error] could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+11:59:39 [live-package/plain]   raw.mp4=5505072 recording.mp4=absent recording.original.mp4=absent
+11:59:39 [live-package/plain]   PendingMux=pending mux={"State": "failed", "Attempts": 2, "LastAttemptUtc": "2026-11-16T11:59:39.100962Z", "Error": "could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."} DurationSeconds=0
+11:59:41 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+11:59:41 [live-package/plain]   exit 1: [error] could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+11:59:41 [live-package/plain]   raw.mp4=6291504 recording.mp4=absent recording.original.mp4=absent
+11:59:41 [live-package/plain]   PendingMux=pending mux={"State": "failed", "Attempts": 3, "LastAttemptUtc": "2026-11-16T11:59:41.250458Z", "Error": "could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."} DurationSeconds=0
+11:59:43 [live-package/plain] writer still alive: yes; raw.mp4 now 7340080
+11:59:43 [live-package/plain] writer stopped cleanly; raw.mp4 7872491 bytes
+11:59:43 [live-package/plain] owner released the claim (record removed, lock closed)
+11:59:43 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+11:59:43 [live-package/plain]   exit 1: [error] the audio mux for 2026-11-16_120000_video failed 3 time(s) and is not retried automatically (limit 3); there is no final media to package. Last error: could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffpro
+11:59:43 [live-package/plain]   raw.mp4=7872491 recording.mp4=absent recording.original.mp4=absent
+11:59:43 [live-package/plain]   PendingMux=pending mux={"State": "failed", "Attempts": 3, "LastAttemptUtc": "2026-11-16T11:59:41.250458Z", "Error": "could not read the audio channel count of <scratch>/ev-main-plain/live-package/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."} DurationSeconds=0
+11:59:43 [live-package/plain] done; logs in <scratch>/ev-main-plain/live-package
+
+######## orphan-writer
+11:59:24 [orphan-writer/plain] writer ffmpeg pid 95486 started 2026-11-16T11:59:23Z
+11:59:25 [orphan-writer/plain] owner pid 95645: owner pid 95645 holds capture.lock
+11:59:36 [orphan-writer/plain] owner pid 95645 SIGKILLed; writer pid 95486 still running: yes
+11:59:36 [orphan-writer/plain] SECOND PROCESS: agenteyes package --no-frames
+11:59:36 [orphan-writer/plain]   exit 1: [error] could not read the audio channel count of <scratch>/ev-main-plain/orphan-writer/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+11:59:36 [orphan-writer/plain]   raw.mp4=4718640 recording.mp4=absent recording.original.mp4=absent
+11:59:36 [orphan-writer/plain]   PendingMux=pending mux={"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T11:59:36.707339Z", "Error": "could not read the audio channel count of <scratch>/ev-main-plain/orphan-writer/home/Movies/AgentEyes/2026-11-16_120000_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."} DurationSeconds=0
+11:59:37 [orphan-writer/plain] writer stopped cleanly; raw.mp4 5335155 bytes
+11:59:37 [orphan-writer/plain] SECOND PROCESS: agenteyes package --no-frames
+11:59:38 [orphan-writer/plain]   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+11:59:38 [orphan-writer/plain]   raw.mp4=absent recording.mp4=5360988 recording.original.mp4=5335155
+11:59:38 [orphan-writer/plain]   PendingMux=cleared mux={"State": "done", "Attempts": 2, "LastAttemptUtc": "2026-11-16T11:59:37.434727Z"} DurationSeconds=14.2
+11:59:38 [orphan-writer/plain] done; logs in <scratch>/ev-main-plain/orphan-writer
+
+######## dead-owner
+11:59:24 [dead-owner/plain] writer ffmpeg pid 95488 started 2026-11-16T11:59:23Z
+11:59:25 [dead-owner/plain] owner pid 95639: owner pid 95639 holds capture.lock
+11:59:36 [dead-owner/plain] writer stopped cleanly; raw.mp4 5125737 bytes
+11:59:36 [dead-owner/plain] owner pid 95639 SIGKILLed after its writer ended; capture.owner.json left behind: 283 bytes
+11:59:36 [dead-owner/plain] SECOND PROCESS: agenteyes package --no-frames
+11:59:37 [dead-owner/plain]   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+11:59:37 [dead-owner/plain]   raw.mp4=absent recording.mp4=5150664 recording.original.mp4=5125737
+11:59:37 [dead-owner/plain]   PendingMux=cleared mux={"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T11:59:36.948113Z"} DurationSeconds=13.67
+11:59:37 [dead-owner/plain] done; logs in <scratch>/ev-main-plain/dead-owner

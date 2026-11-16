@@ -42,13 +42,23 @@ namespace AgentEyes.Video
         private static string PathFor(int pid) => Path.Combine(Folder, pid + ".json");
 
         /// <summary>Record a running child. Call right after it starts.</summary>
-        public static void Register(Process child, string label)
+        public static void Register(Process child, string label) =>
+            Register(child.Id, child.StartTime.ToUniversalTime(), label);
+
+        /// <summary>
+        /// Record a running child by pid and start time. Issue #156: a CAPTURE ffmpeg is recorded too
+        /// (by <see cref="CaptureLock.NoteWriter"/>) - measured on macOS, one whose owner is killed
+        /// keeps writing into the recording, reparented to pid 1, and it is both an indicator-less
+        /// recorder and what keeps that recording's capture claim live. Reaping it at the next
+        /// service start is what lets the recording be recovered.
+        /// </summary>
+        public static void Register(int pid, DateTime startUtc, string label)
         {
             using var me = Process.GetCurrentProcess();
             var e = new Entry
             {
-                Pid = child.Id,
-                StartUtc = child.StartTime.ToUniversalTime(),
+                Pid = pid,
+                StartUtc = startUtc,
                 OwnerPid = me.Id,
                 OwnerStartUtc = me.StartTime.ToUniversalTime(),
                 Label = label,
@@ -116,7 +126,7 @@ namespace AgentEyes.Video
         }
 
         /// <summary>True when a process with <paramref name="pid"/> exists and started at <paramref name="startUtc"/>.</summary>
-        private static bool IsSameProcess(int pid, DateTime startUtc)
+        internal static bool IsSameProcess(int pid, DateTime startUtc)
         {
             Process p;
             try { p = Process.GetProcessById(pid); }

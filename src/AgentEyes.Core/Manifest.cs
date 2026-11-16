@@ -350,6 +350,13 @@ namespace AgentEyes
             /// <summary>UTC time of the last attempt; null when the stage has never run.</summary>
             public DateTime? LastAttemptUtc { get; set; }
 
+            /// <summary>
+            /// Issue #156: who consumed each attempt - "attempt N at &lt;utc&gt; by &lt;process&gt; pid
+            /// &lt;pid&gt; on &lt;host&gt;" - in order. Null on a recording written before this field
+            /// existed (its earlier attempts are counted in <see cref="Attempts"/> but unattributed).
+            /// </summary>
+            public List<string>? AttemptedBy { get; set; }
+
             /// <summary>The failure message when <see cref="State"/> is
             /// <see cref="PostStageState.Failed"/>; null otherwise. Truncated - it is a diagnosis in
             /// the manifest, not a log replacement.</summary>

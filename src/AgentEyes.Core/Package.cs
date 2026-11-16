@@ -115,6 +115,10 @@ namespace AgentEyes
             // Attempts unchanged. The coordinator takes the on-disk mux lock (refused if another
             // process holds it), settles a dead earlier attempt, refuses an exhausted mux, and
             // counts the attempt before running it.
+            // Issue #156: the whole command, not only its mux, stays off a recording another
+            // process is still capturing - a mic-only video has no pending mux and would otherwise
+            // be transcribed, and its frames extracted, from a file that is still being written.
+            CaptureLock.ThrowIfLive(dir, "package");
             MuxCoordinator.RunForPackage(dir);
 
             var manifest = Manifest.Load(dir);

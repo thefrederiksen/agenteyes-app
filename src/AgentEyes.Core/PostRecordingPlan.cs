@@ -174,6 +174,16 @@ namespace AgentEyes
                 // to itself and reported, never allowed to abort the pass for every later recording.
                 try
                 {
+                    // Issue #156: a recording another process is still capturing is not unfinished,
+                    // it is in progress. Skipped here so the repair pass never even admits it; the
+                    // finalizing paths decline it again on their own (PostRecording.Execute).
+                    var capture = CaptureLock.Inspect(dir);
+                    if (capture.Live)
+                    {
+                        Log.Info($"[PostRecordingPlan] FindUnfinished: skipping {Path.GetFileName(dir)} - {capture.Reason}");
+                        continue;
+                    }
+
                     var outstanding = Outstanding(dir);
                     if (outstanding.Count == 0) continue;
                     Log.Info($"[PostRecordingPlan] FindUnfinished: {Path.GetFileName(dir)} needs {string.Join(", ", outstanding)}");
