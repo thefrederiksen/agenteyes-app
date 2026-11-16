@@ -1209,7 +1209,9 @@ where this user's gid equals its uid and root's gid is 0, which is true here. Th
 - macOS test project run on Linux: 379 passed, 1 failed (`MacPathsTests.MachineLocalAppData_OnMac_...`,
   which expects `~/Library`). It fails identically on the `32e403e` worktree (373 / 1 failed), so it is not
   this change. CI runs that project on macOS.
-- Windows project and the native-import pin: CI (they cannot run here).
+- **CI on `0b0d427`** (run 43915847975, all three jobs green): Windows **2472 / 16** (default) and **2491 / 1**
+  (opt-in), which includes the native-import pin; Linux **388 / 2** and **389 / 1**, matching mine; macOS
+  **381 / 1**, with the new shared tests running on macOS.
 - Merge onto `main` `17c244d`: clean (`git merge-tree`).
 - Self-review: I ran `/code-review low` on `9747a81`. It returned no findings after a single tool call, and
   I do not count it as a review. My own review of the diff found no defect. It produced the glibc premise
