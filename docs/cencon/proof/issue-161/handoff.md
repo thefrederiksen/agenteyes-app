@@ -1133,26 +1133,50 @@ A redirected start of the real `agenteyes.dll`, 10 runs each, in a `--network no
   note's wording is not one of the two items.
 - **Windows: not measured.** Still owed, and routed separately as the Lead said.
 
-## 3. The test serialisation came OUT
+## 3. The test serialisation: HALF came out, and the other half shows something else
 
-Both of pass 4's workarounds are removed:
-- `LoopbackServerCollection` is back to pass 3's exact declaration: no `[CollectionDefinition]`, so no
-  `DisableParallelization`.
-- The dedicated-thread `StandIn` is gone. The stand-ins (one `StatusStandIn` class now) serve from `Task.Run`
-  again, on the shared pool, as in pass 3.
+Pass 4 added two things. One came out. The other could not, and the reason is not the probe.
 
-The cause was a bound tighter than a loaded runner can keep. The bound that has to survive a stall is now 5 s,
-and a stand-in that starts late only leaves the connection waiting in the kernel's accept queue. Evidence:
+**`DisableParallelization`: OUT.** `LoopbackServerCollection` is back to pass 3's exact declaration, with no
+`[CollectionDefinition]`.
+- Its job was to keep a loaded runner from making the probe's 500 ms bound miss.
+- The bound that has to survive a stall is now 5 s, so that cause is gone.
 - Host gates under lldeny, parallel again: Linux 553 / 1 / 3, opt-in 554 / 1 / 2. The 1 is #156's `sg` test,
   which cannot run under Landlock and passes alone outside it. DesktopApp 25 / 25 (`linux-pass5-gates.txt`).
-- Pass 4's stress repeated, whole opt-in suite in the container: `--cpus=1` x2 and `--cpus=0.25` x2. Every
-  probe test passed every time, including the default-port test, which can run there
-  (`linux-pass5-stress-container.txt`). The same four container-only failures appear as in pass 4's baseline
-  (`../linux-pass4/linux-pass4b-stress-before.txt`): spoofed HOME, XDG path, ffmpeg kill, claim. None is a
-  probe test.
-- **What this does not prove.** Pass 4 never reproduced the CI failure on devlinux either, so a local pass
-  cannot show the cause is gone. CI on this commit is the test, on the same runners that failed. Section 7
-  records it.
+- Pass 4's container stress, repeated with the whole opt-in suite at `--cpus=1` x2 and `--cpus=0.25` x2: every
+  probe test passed every time (`linux-pass5-stress-container.txt`). The four failures there are the same
+  container-only ones as pass 4's baseline (`../linux-pass4/linux-pass4b-stress-before.txt`): spoofed HOME, XDG
+  path, ffmpeg kill, claim. None is a probe test.
+- CI on the final commit is in section 7.
+
+**The stand-ins' own threads: could NOT come out.** I removed them in 3ca8775/f44fc60, with the stand-ins back on
+`Task.Run`. Then the Windows opt-in job of pull_request run 43952934588 failed
+`AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard`:
+- It took **5 s**: the probe ran into its full response bound.
+- What was reported was the stand-in's exception, "Not listening", thrown by `AcceptTcpClient` on what was its
+  FIRST accept. It ran after `Dispose` had already stopped the listener.
+- Reading: the pool-hosted stand-in did not get a thread for more than 5 s. The probe was not too tight. **The
+  Windows opt-in test host starves its own worker pool for seconds.** That is something else going on, and it is
+  outside this issue. The build also warns `xUnit1031` (blocking task operations in test methods, e.g.
+  `PostRecordingQueueTests`), which is one candidate. I did not chase it.
+- The push run of the same commit (43952922286) was green on all three OSes, so it is intermittent, as pass 4's
+  was.
+
+**Fix, tests only.**
+- `StatusStandIn` and the never-answering acceptor serve from pass 4's `StandIn` thread again. The `StandIn`
+  helper is byte-identical to pass 4's.
+- They also catch the `InvalidOperationException` that Windows throws when a listener is stopped before an accept
+  begins. A late stand-in can no longer replace the test's real failure with its own.
+
+## 3a. The full-queue test does not run on macOS
+
+`AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout` failed on macOS in CI 43952024044 with
+its own instrument message, "the listener's accept queue never filled, so no connect hung: this test measured
+nothing". 64 connects to a `Listen(0)` socket all completed in 20 ms there. Linux and Windows passed it.
+- It is now `[ConnectCanHangFact]`: reported SKIPPED on macOS with that reason, never silently passed.
+- macOS refuses a closed loopback port at once, so its probe never waits on the connect bound in the shape that
+  matters.
+- `ConnectTimeout_IsAFewHundredMilliseconds` pins the value everywhere, and M1 fails the full-queue test on Linux.
 
 ## 4. The probe's port is injectable; no test asks the owner's service
 
@@ -1209,8 +1233,8 @@ New timeout tests:
 - `ResponseTimeout_IsSeconds`: 5 to 10 s.
 - `AskRunningService_AServiceSlowerThanTheConnectTimeout_IsStillHeard`: the stand-in answers after
   ConnectTimeout + 1 s.
-- `AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout`: a full accept queue, on every
-  platform. It FAILS, rather than passes, if a platform refuses instead of hanging.
+- `AskRunningService_AConnectThatNeverCompletes_GivesUpAtTheConnectTimeout`: a full accept queue, on Linux and
+  Windows (section 3a). It FAILS, rather than passes, if the queue never fills or a connect is refused at once.
 - `..._AcceptsButNeverAnswers_GivesUpAtTheResponseTimeout`: now also asserts it was NOT cut short at the connect
   bound.
 
@@ -1225,6 +1249,7 @@ New timeout tests:
 ## 6. Untouched, by diff (`linux-pass5-untouched.txt`)
 
 - Changed: `LibraryRedirect.cs`, `RealLibrary.cs`, three test files.
+- (This file was produced before the last two test-only commits, which touch only `LibraryRedirectTests.cs`.)
 - Every hunk in the two source files is in the probe: the new constant, the probe block of
   `ApplyFromEnvironment`, the two new pure helpers, the timeouts and `AskRunningService`.
 - No diff: `AppDataPaths`, `LocalAppConfig`, `Program` (CLI), `HeadlessHost`, `App`, `DesktopApp/Program`,
@@ -1236,7 +1261,12 @@ New timeout tests:
 
 ## 7. CI
 
-Pending at the time of this commit; recorded in the follow-up commit and the issue comment.
+| Commit | Run | Result |
+|---|---|---|
+| 64bee6f | push 43952013771, pull_request 43952024044 | linux and windows green; **macos red**: the full-queue test, which fails closed (section 3a) |
+| f44fc60 (macOS skip) | push 43952922286 | **green on all three** |
+| f44fc60 | pull_request 43952934588 | linux and macos green; **windows opt-in red**: a pool-hosted stand-in starved for over 5 s (section 3) |
+| final | see the issue comment | |
 
 ## The owner's library and service
 

@@ -1,6 +1,6 @@
-# pass 5 gates, 2026-11-16T15:36:14-05:00. Under lldeny on both real roots (control: linux-pass5-landlock-control.txt). Each run under strace -f -e trace=connect.
-# Instrument control: one redirected child pointed at closed port P shows exactly 1 'port=htons(P)' connect, in the dual-mode form
-#   sin6_port=htons(P) ... ::ffff:127.0.0.1 (a 'sin_port=' grep misses it - checked and corrected). 7882 counted the same way.
+# pass 5 gates (final tree), 2026-11-16T15:52:09-05:00. Under lldeny on both real roots (control: linux-pass5-landlock-control.txt). Each run under strace -f -e trace=connect.
+# Instrument control (linux-pass5-trace-control.txt): one redirected child pointed at closed port P shows exactly 1 'port=htons(P)'
+#   connect, in the dual-mode form sin6_port=htons(P) ... ::ffff:127.0.0.1 (a 'sin_port=' grep misses it). 7882 counted the same way.
 ## dotnet build tests/AgentEyes.Tests.Linux -c Release
     0 Error(s)
 ## dotnet build tests/AgentEyes.Tests.Mac -c Release
@@ -12,16 +12,16 @@
   Skipped AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [1 ms]
   Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [3 s]
   Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
-Failed!  - Failed:     1, Passed:   553, Skipped:     3, Total:   557, Duration: 28 s
+Failed!  - Failed:     1, Passed:   553, Skipped:     3, Total:   557, Duration: 29 s
    connects to 127.0.0.1 (v4 or v4-mapped): 49 ; to port 7882: 0
 ## dotnet test tests/AgentEyes.Tests.Linux (optin)
   Skipped AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [1 ms]
   Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [2 s]
   Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
-Failed!  - Failed:     1, Passed:   554, Skipped:     2, Total:   557, Duration: 33 s
+Failed!  - Failed:     1, Passed:   554, Skipped:     2, Total:   557, Duration: 35 s
    connects to 127.0.0.1 (v4 or v4-mapped): 49 ; to port 7882: 0
 ## dotnet test tests/AgentEyes.Tests.DesktopApp (desktop)
-Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 942 ms
+Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 1 s
    connects to 127.0.0.1 (v4 or v4-mapped): 3 ; to port 7882: 0
 ## #156's sg test, alone, OUTSIDE Landlock (it cannot run under it; reads only /proc)
 Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: < 1 ms

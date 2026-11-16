@@ -1243,11 +1243,16 @@ namespace AgentEyes.Tests.Shared
         /// <summary>
         /// A stand-in for the person's service on a loopback port of its own (0 = any free one): it answers every
         /// connection with <c>body</c> after <c>delay</c> and records the request line of each. Disposing stops it.
+        ///
+        /// It serves from its OWN thread, never the thread pool (issue #161 pass 4, kept in pass 5 for a different
+        /// reason). Pass 5 put it back on the pool, and on the Windows opt-in job of CI 43952934588 it did not get a pool
+        /// thread for more than the probe's 5 s response bound: its first accept ran only after the test had stopped the
+        /// listener ("Not listening"). The probe was not too tight - the test host starved its own pool for seconds.
         /// </summary>
         private sealed class StatusStandIn : IDisposable
         {
             private readonly TcpListener _listener;
-            private readonly System.Threading.Tasks.Task _serving;
+            private readonly StandIn _serving;
             private readonly System.Collections.Concurrent.ConcurrentQueue<string> _requests = new();
 
             public StatusStandIn(string body, int port = 0, TimeSpan delay = default)
@@ -1255,7 +1260,7 @@ namespace AgentEyes.Tests.Shared
                 _listener = new TcpListener(IPAddress.Loopback, port);
                 _listener.Start();
                 Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
-                _serving = System.Threading.Tasks.Task.Run(() =>
+                _serving = StartOwnThread(() =>
                 {
                     while (true)
                     {
@@ -1263,6 +1268,7 @@ namespace AgentEyes.Tests.Shared
                         try { client = _listener.AcceptTcpClient(); }
                         catch (SocketException) { return; }          // the listener was stopped: the test is over
                         catch (ObjectDisposedException) { return; }
+                        catch (InvalidOperationException) { return; } // stopped before this accept began (Windows)
                         using (client)
                         {
                             try
@@ -1293,7 +1299,37 @@ namespace AgentEyes.Tests.Shared
             public void Dispose()
             {
                 _listener.Stop();
-                _serving.Wait(5000);
+                _serving.Join(5000);
+            }
+        }
+
+        /// <summary>
+        /// A stand-in on its OWN thread, never the thread pool (pass 4; see <see cref="StatusStandIn"/> for why pass 5
+        /// keeps it).
+        /// </summary>
+        private static StandIn StartOwnThread(Action serve) => new StandIn(serve);
+
+        /// <summary>A stand-in's thread. Join rethrows what it threw (as Task.Wait did), instead of an unhandled
+        /// exception on a bare thread taking the whole test host down.</summary>
+        private sealed class StandIn
+        {
+            private readonly System.Threading.Thread _thread;
+            private Exception? _error;
+
+            public StandIn(Action serve)
+            {
+                _thread = new System.Threading.Thread(() =>
+                {
+                    try { serve(); }
+                    catch (Exception ex) { _error = ex; }
+                }) { IsBackground = true, Name = "stand-in service" };
+                _thread.Start();
+            }
+
+            public void Join(int milliseconds)
+            {
+                _thread.Join(milliseconds);
+                if (_error != null) throw new AggregateException(_error);
             }
         }
 
@@ -1361,7 +1397,12 @@ namespace AgentEyes.Tests.Shared
             listener.Start();
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             var held = new System.Collections.Concurrent.ConcurrentBag<TcpClient>();
-            var accept = System.Threading.Tasks.Task.Run(() => { try { held.Add(listener.AcceptTcpClient()); } catch (SocketException) { } });
+            var accept = StartOwnThread(() =>
+            {
+                try { held.Add(listener.AcceptTcpClient()); }
+                catch (SocketException) { }
+                catch (InvalidOperationException) { }   // stopped before this accept began (Windows)
+            });
             try
             {
                 var sw = Stopwatch.StartNew();
@@ -1378,7 +1419,7 @@ namespace AgentEyes.Tests.Shared
             finally
             {
                 listener.Stop();
-                accept.Wait(5000);
+                accept.Join(5000);
                 foreach (var c in held) c.Dispose();
             }
         }
