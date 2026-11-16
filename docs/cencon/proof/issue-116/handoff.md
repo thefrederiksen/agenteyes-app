@@ -516,6 +516,11 @@ a tray Quit on the Mac (section 6.3 of pass 2), so that gap is unchanged.
   #151 is on `main` that suite starts real ffmpeg processes and its cleanup kills ffmpeg by start time.
   This change touches neither `AgentEyes.Core` nor the WPF app, so the targeted project is the relevant
   one. The CI windows job runs the full suite on push.
+- **CI on the pass 3 commit `e5ce76c`, run 43872825652: linux, macos and windows all `success`.**
+  windows `Test AgentEyes.sln`: `AgentEyes.Tests.DesktopApp.dll` `Failed: 0, Passed: 13` and
+  `AgentEyes.Tests.dll` `Failed: 0, Passed: 2297`. linux `Test the Linux build`: `AgentEyes.Tests.Linux.dll`
+  `Failed: 0, Passed: 292`, which now includes the 13 shared tests - so the Avalonia.Win32 type check
+  passes on Linux too. Unit level only; section 5 still stands.
 - The owner's recorder: `GET /status` read `idle` immediately before every app launch in this pass
   (about 70), and each batch was set to stop itself if it was not. No ffmpeg was started or killed. Every
   process I stopped was an `AgentEyesDesktop` test instance I had started, left over after a crash or a
