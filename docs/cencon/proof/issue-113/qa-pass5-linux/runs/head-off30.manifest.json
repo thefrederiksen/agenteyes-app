@@ -1,0 +1,54 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-11-16T20:17:45.6460444Z",
+  "MonitorIndex": 1,
+  "MonitorName": "HDMI-0",
+  "Microphone": "Family 17h (Models 00h-0fh) HD Audio Controller Analog Stereo",
+  "DurationSeconds": 20.9,
+  "VideoFile": "recording.mp4",
+  "CapturedSeconds": 20.8,
+  "FfmpegCommand": "\u0022/usr/bin/ffmpeg\u0022 -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0\u002B0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags \u002Bfrag_keyframe\u002Bempty_moov\u002Bdefault_base_moof\u002Bdelay_moov -frag_duration 2000000 -flush_packets 1 <scratch>/ev/head-off30/Videos/AgentEyes/2026-11-16_151745_video/raw.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [],
+  "Files": [
+    "recording.mp4",
+    "recording.original.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [
+    "recording.original.mp4"
+  ],
+  "CaptureOwner": {
+    "Host": "devlinux",
+    "Pid": 2067154,
+    "ProcessStartUtc": "2026-11-16T20:17:44.9924164Z"
+  },
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T20:18:07.2030332Z",
+      "AttemptedBy": [
+        "attempt 1 at 2026-11-16T20:18:07.2030332Z by AgentEyes.Tests pid 2067154 on devlinux"
+      ]
+    },
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T20:18:09.3810562Z"
+    },
+    "package": {
+      "State": "failed",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T20:18:09.6543444Z",
+      "Error": "Not signed in to DevThrottle. Open Settings \u003E DevThrottle Account and sign in."
+    }
+  }
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Issue #113 pass 5 Linux QA evidence host. NOT product code. A Linux retarget of
+       docs/cencon/proof/issue-113/pass5/evidence/harness. Named AgentEyes.Tests only so the product's
+       InternalsVisibleTo lets it construct RecordingService and HeadlessControlServer. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyName>AgentEyes.Tests</AssemblyName>
+    <RootNamespace>EvidenceHost</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(CoreProj)" AdditionalProperties="AgentEyesUnixPlatform=linux" />
+  </ItemGroup>
+</Project>

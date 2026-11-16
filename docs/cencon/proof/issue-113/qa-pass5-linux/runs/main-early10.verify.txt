@@ -1,0 +1,3 @@
+=== 2026-11-16_152852_video/raw.mp4  size=1310768
+    ffprobe FAILED: [mov,mp4,m4a,3gp,3g2,mj2 @ 0x653376e23240] moov atom not found
+<scratch>/ev/main-early10/Videos/AgentEyes/2026-11-16_152852_video/raw.mp4: Invalid data found when processing input

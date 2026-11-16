@@ -1,0 +1,27 @@
+20:28:24.912Z +   0.00s evidence host pid=2105476
+20:28:25.353Z +   0.44s host.out: [harness] pid=2105476 core=1.11.11+277a9bcf71c7f82547353177299178efc1020327 | [harness] data=<scratch>/ev/main-early1.0/LocalAppData/AgentEyes | [harness] recordings=<scratch>/ev/main-early1.0/Videos/AgentEyes | [harness] listening http://127.0.0.1:7991/ | 
+20:28:25.837Z +   0.93s capture writer pid=2105599 parent=2105476 (host 2105476) age=0.060s
+20:28:25.837Z +   0.93s writer cmdline: /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k <scratch>/ev/main-early1.0/Videos/AgentEyes/2026-11-16_152825_video/raw.mp4
+20:28:26.778Z +   1.87s INJECT: SIGKILL(pid 2105599) by THIS SCRIPT at writer age 1.000s; raw.mp4 bytes just before=48
+20:28:26.897Z +   1.99s POST /record/start -> 200 {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.33,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "<scratch>/ev/main-early1.0/Videos/AgentEyes/2026-11-16_
+20:28:29.900Z +   4.99s /status [after early kill] {"State": "recording", "ElapsedSeconds": 4.34, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastStopError": null}
+20:28:30.180Z +   5.27s POST /record/stop -> 200 {
+  "Dir": "<scratch>/ev/main-early1.0/Videos/AgentEyes/2026-11-16_152825_video",
+  "File": "<scratch>/ev/main-early1.0/Videos/AgentEyes/2026-11-16_152825_video/recording.mp4",
+  "DurationSeconds": 4.34,
+  "Shots
+20:28:31.181Z +   6.27s manifest mux: {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:28:30.1904338Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:28:30.1904338Z by AgentEyes.Tests pid 2105476 on devlinux"], "Error": "could not read the audio channel count of <scratch>/ev/main-early1.0/Videos/AgentEyes/2026-11-16_152825_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."}
+20:28:31.184Z +   6.27s /status [final] {"State": "idle", "ElapsedSeconds": 4.34, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastStopError": null}
+20:28:31.184Z +   6.27s files: {"capture.lock": 0, "manifest.json": 2122, "mux.lock": 0, "raw.mp4": 48, "raw.mp4.ffmpeg.log": 2425}
+20:28:31.184Z +   6.27s manifest fields: {"DurationSeconds": 4.34, "PendingMux": {"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "FinalFile": "recording.mp4", "RawDurationSeconds": 4.34, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}}, "CaptureOwner": {"Host": "devlinux", "Pid": 2105476, "ProcessStartUtc": "2026-11-16T20:28:24.9023475Z"}, "PostProcessing": {"mux": {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:28:30.1904338Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:28:30.1904338Z by AgentEyes.Tests pid 2105476 on devlinux"], "Error": "could not read the audio channel count of <scratch>/ev/main-early1.0/Videos/AgentEyes/2026-11-16_152825_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."}}}
+20:28:31.184Z +   6.27s app log: 15:28:30.344 [pid 2105476] [ERROR] [PostRecording] stage mux FAILED: dir=<scratch>/ev/main-early1.0/Videos/AgentEyes/2026-11-16_152825_video
+20:28:31.184Z +   6.27s app log: 15:28:30.381 [pid 2105476] [INFO] [PostRecording] Execute: 2026-11-16_152825_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+20:28:51.605Z +  26.69s evidence host exited 0
