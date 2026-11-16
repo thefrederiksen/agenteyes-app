@@ -1,7 +1,12 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="AgentEyes.DesktopApp.App"
+             Name="AgentEyes"
              RequestedThemeVariant="Dark">
+  <!-- Name is what macOS shows as the application's name: the bold first menu in the menu bar and the
+       Launch Services display name. Without it Avalonia reports "Avalonia Application", even from inside
+       AgentEyes.app whose Info.plist says AgentEyes (measured with lsappinfo, issue #118). It must equal
+       CFBundleName in macOS/Info.plist; MacBundleTests pins both. -->
   <!-- Issue #107: the Windows app's dark palette (AgentEyes.App/App.xaml, Rd* brushes). -->
   <Application.Resources>
     <SolidColorBrush x:Key="RdWindow" Color="#1C1E22"/>

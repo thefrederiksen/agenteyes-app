@@ -48,6 +48,17 @@ CLI verbs: `agenteyes screens`, `agenteyes shot`, `agenteyes audio`, `agenteyes 
 The setup wizard users download, plus the `agenteyes-setup` CLI (install / update / uninstall). Installs
 per-user (no admin) to `%LOCALAPPDATA%\AgentEyes\app`.
 
+### macOS install (scripts/mac)
+
+Per-user, no admin. `scripts/mac/install.sh` installs the recorder service (self-contained `agenteyes`
+in `~/Library/Application Support/AgentEyes/bin`, launchd user agent `com.agenteyes.recorder`) and
+then the desktop app via `scripts/mac/install-app.sh`: `~/Applications/AgentEyes.app`, a
+self-contained bundle of `AgentEyes.DesktopApp` built by `scripts/mac/build-app.sh` (issue #118).
+Bundle identifier `com.agenteyes.app` - PERMANENT, because macOS keys privacy grants to it.
+Privacy posture: the service is the only process that captures and the only one that needs Screen
+Recording; the app holds no grant and needs none. The bundle is signed ad-hoc and NOT notarised
+until the Developer ID step of #118 lands.
+
 ### Tests (AgentEyes.Tests)
 
 xUnit unit tests, run as part of the green gate.

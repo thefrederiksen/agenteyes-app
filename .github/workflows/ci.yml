@@ -206,3 +206,23 @@ jobs:
             || { echo "[FAIL] the macOS app's engine does NOT contain 'avfoundation'"; fail=1; }
           test $fail -eq 0 && echo "[OK] the macOS desktop app links the macOS engine and carries libvlc"
           exit $fail
+
+      # Issue #118: AgentEyes.app - the self-contained, ad-hoc signed bundle builds from a clean checkout
+      # with the documented script, carries the permanent bundle identifier, and its signature verifies.
+      # It is not launched here: a hosted runner has no logged-in user to show a window to.
+      - name: Build AgentEyes.app (macOS bundle)
+        shell: bash
+        run: |
+          out="$RUNNER_TEMP/bundle"
+          mkdir -p "$out"
+          scripts/mac/build-app.sh "$out"
+          app="$out/AgentEyes.app"
+          test "$(plutil -extract CFBundleIdentifier raw "$app/Contents/Info.plist")" = "com.agenteyes.app" \
+            || { echo "[FAIL] CFBundleIdentifier is not com.agenteyes.app"; exit 1; }
+          test -x "$app/Contents/MacOS/AgentEyesDesktop" || { echo "[FAIL] the bundle has no AgentEyesDesktop"; exit 1; }
+          test -f "$app/Contents/MacOS/libhostfxr.dylib" || { echo "[FAIL] the bundle is not self-contained: no libhostfxr.dylib"; exit 1; }
+          ls "$app"/Contents/MacOS/libvlc/osx-*/lib/libvlc.dylib >/dev/null 2>&1 || { echo "[FAIL] the bundle carries no libvlc"; exit 1; }
+          codesign --verify --deep --strict "$app" || { echo "[FAIL] the bundle's signature does not verify"; exit 1; }
+          codesign -dv "$app" 2>&1 | grep -E '^(Identifier|Signature|TeamIdentifier)='
+          du -sh "$app"
+          echo "[OK] AgentEyes.app built, self-contained, ad-hoc signed and verified (NOT notarised)"

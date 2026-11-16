@@ -1,0 +1,293 @@
+Issue #118 - Developer measurements on devthrottle-mac-mini, 2026-11-16 (EST). Not QA proof.
+Host: macOS 26.5.2 (25F84), arm64. SDK 10.0.403; NO .NET 8 SDK and NO .NET 8 runtime on this machine (runtimes: 10.0.x only).
+Runtime pack used by the self-contained publish: Microsoft.NETCore.App.Runtime.osx-arm64 8.0.33, ALREADY in the NuGet cache before this work (listing taken before the first publish: 8.0.28, 8.0.33) - nothing was downloaded.
+Screen state throughout: LOCKED (ioreg CGSSessionScreenIsLocked = true; lsappinfo front = loginwindow).
+Window photographs: a one-shot launchd job running the INSTALLED agenteyes with the committed startup hook (docs/cencon/proof/issue-116/mac-pass3-capture-tools), screencapture -l <window id>. Every job bootstrapped, polled with a hard timeout, booted out (post-bootout print exit=113).
+
+=================== A. Criterion 1: self-contained, empty environment ===================
+A1. Raw publish (dotnet publish src/AgentEyes.DesktopApp -c Release -r osx-arm64 --self-contained true -p:Platform=arm64 -o <scratch>/pub1)
+$ env -i HOME=~ USER=<user> PATH=/usr/bin:/bin:/usr/sbin:/sbin COREHOST_TRACE=1 COREHOST_TRACEFILE=<scratch>/c1-trace.txt <scratch>/pub1/AgentEyesDesktop
+12:25:01.360 [pid 99573] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=99573)
+12:25:02.634 [pid 99573] [INFO] [MainWindow] Opened
+Host trace (excerpt):
+Resolved fxr [<scratch>/pub1/libhostfxr.dylib]...
+--- Invoked hostfxr_main_startupinfo [version: 8.0.33 @Commit: da7a9beabf4cccc624399d583f52f080a4c858c2]
+--- Executing in a native executable mode...
+Executing as a self-contained app as per config file [<scratch>/pub1/AgentEyesDesktop.runtimeconfig.json]
+Mode: apphost
+Trace lines: 1695; lines naming a GLOBAL .NET location (~/.dotnet, /usr/local/share/dotnet, /etc/dotnet): 0; lines naming the app folder: 663
+POSITIVE CONTROL (so the 0 above can fail): the FRAMEWORK-DEPENDENT build of the same app, same empty environment, same trace:
+$ env -i ... COREHOST_TRACE=1 src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop     -> exit=131
+You must install .NET to run this application.
+
+App: ~/ReposFred/agenteyes-dev156/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop
+Architecture: arm64
+App host version: 8.0.33
+  trace lines naming a global .NET location: 6, e.g.:
+Looking for architecture-specific install_location file in '/etc/dotnet/install_location_arm64'.
+The install_location file ['/etc/dotnet/install_location_arm64'] does not exist - skipping.
+A2. The INSTALLED bundle's executable, same empty environment (12:39):
+$ env -i HOME=$HOME USER=$USER PATH=/usr/bin:/bin:/usr/sbin:/sbin ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+12:39:19.524 [pid 16354] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=16354)
+12:39:19.988 [pid 16354] [INFO] [MainWindow] Opened
+12:39:20.060 [pid 16354] [INFO] [AppState] PollAsync: service answering, state=idle
+DOTNET_ variables in the running process environment: 0
+  window photographed by id (window 763) at 12:39:20.744: exit=0 file_bytes=74194. It is BYTE-IDENTICAL (cmp) to dev-window-bundle.png, taken at 12:32:41 from pid 7243 - same window, same state, same pixels; committed once.
+
+=================== B. Criterion 2: the bundle ===================
+$ plutil -p ~/Applications/AgentEyes.app/Contents/Info.plist
+{
+  "CFBundleDisplayName" => "AgentEyes"
+  "CFBundleExecutable" => "AgentEyesDesktop"
+  "CFBundleIconFile" => "AgentEyes.icns"
+  "CFBundleIdentifier" => "com.agenteyes.app"
+  "CFBundleInfoDictionaryVersion" => "6.0"
+  "CFBundleName" => "AgentEyes"
+  "CFBundlePackageType" => "APPL"
+  "CFBundleShortVersionString" => "1.11.11"
+  "CFBundleVersion" => "1.11.11"
+  "LSApplicationCategoryType" => "public.app-category.productivity"
+  "LSMinimumSystemVersion" => "11.0"
+  "NSCameraUsageDescription" => "AgentEyes records your camera only while a recording you started with the camera on is running, and keeps the recording on this Mac."
+  "NSHighResolutionCapable" => true
+  "NSMicrophoneUsageDescription" => "AgentEyes records your microphone only while a recording you started is running, and keeps the recording on this Mac."
+  "NSPrincipalClass" => "NSApplication"
+}
+$ codesign -dv --verbose=4 ~/Applications/AgentEyes.app   (hash lines omitted)
+Identifier=com.agenteyes.app
+Format=app bundle with Mach-O thin (arm64)
+CodeDirectory v=20400 size=426 flags=0x2(adhoc) hashes=7+3 location=embedded
+VersionPlatform=1
+VersionMin=720896
+VersionSDK=984320
+Page size=16384
+CDHash=b2b257b5a9594d7f20784f2489bb1d899b83b200
+Signature=adhoc
+Info.plist entries=15
+TeamIdentifier=not set
+Sealed Resources version=2 rules=13 files=657
+Internal requirements count=0 size=12
+$ codesign --verify --deep --strict ~/Applications/AgentEyes.app -> exit 0
+$ spctl -a -vv -t exec ~/Applications/AgentEyes.app
+~/Applications/AgentEyes.app: rejected
+  (expected for an ad-hoc bundle: Gatekeeper ASSESSMENT rejects it. It runs here because a locally built bundle carries no quarantine attribute, so Gatekeeper never assesses it. That is exactly why the notarisation criteria matter.)
+Launch Services identity of the running bundle (opened with 'open'):
+"LSDisplayName"="AgentEyes"   (before the App.axaml fix it was "Avalonia Application" - see C)
+    bundleID="com.agenteyes.app"  bundle path="~/Applications/AgentEyes.app"  executable path="~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop"
+    type="Foreground" Version="1.11.11" fileType="APPL" Arch=ARM64
+Window Server owner of the window: owner="AgentEyes" (mac-window-probe, layer 0, 1280x748)
+
+=================== C. Criterion 4: the app's NAME was wrong - found and fixed ===================
+First install, before the fix:  lsappinfo info -only name com.agenteyes.app  ->  "LSDisplayName"="Avalonia Application"
+Cause: Avalonia's Application.Name defaults to 'Avalonia Application' and it is what Avalonia gives macOS as the app's name, overriding CFBundleName. Fix: Name="AgentEyes" on <Application> in App.axaml.
+After the fix (second install):  "LSDisplayName"="AgentEyes"
+NOT OBSERVED, and why: the menu bar and the dock. The screen is locked and the frontmost app is loginwindow, so AgentEyes is never the active app. A capture of the menu bar window (Window Server window 26) shows ANOTHER app's menus (dev-menubar-while-locked.png - white text on a transparent strip). The Dock's window (id 7) is offscreen while locked and captures as a blank white 1920x1080 frame (not committed).
+What the icon WILL be, as macOS resolves it (NSWorkspace icon(forFile:), tools/bundleicon.swift):
+  bundle=~/Applications/AgentEyes.app id=com.agenteyes.app name=AgentEyes iconFile=AgentEyes.icns -> dev-resolved-icon-bundle.png (the AgentEyes moon)
+  control: the bare apphost <scratch>/pub1/AgentEyesDesktop -> dev-resolved-icon-bare-apphost.png (macOS's generic 'exec' icon)
+
+=================== D. Criterion 5: the app installer (install-app.sh ONLY - see the handoff for why not install.sh) ===================
+== BEFORE 12:29:11
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+	state = running
+	program = ~/Library/Application Support/AgentEyes/bin/agenteyes
+	pid = 50642
+		state = active
+		state = active
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+ls: ~/Applications/AgentEyes.app: No such file or directory
+$ scripts/mac/install-app.sh
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp>/AgentEyes.app: replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <tmp>/AgentEyes.app (198M)
+[OK] installed ~/Applications/AgentEyes.app
+[OK] registered with Launch Services
+[OK] AgentEyes opened - its window, its icon in the dock, and its icon in the menu bar
+
+AgentEyes.app is in ~/Applications/AgentEyes.app - open it from Finder, Launchpad or Spotlight.
+It needs no permission of its own: recording is done by the AgentEyes service,
+which is the one that appears as "agenteyes" under System Settings > Privacy
+and Security > Screen and System Audio Recording.
+exit=0
+== AFTER 12:29:24
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+	state = running
+	program = ~/Library/Application Support/AgentEyes/bin/agenteyes
+	pid = 50642
+		state = active
+		state = active
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+~/Applications/AgentEyes.app
+4808 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+--- second run, over the running first install (exercises stop-by-path) ---
+== BEFORE 12:32:11
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+	state = running
+	pid = 50642
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+4808 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+$ scripts/mac/install-app.sh
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp>/AgentEyes.app: replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <tmp>/AgentEyes.app (198M)
+[OK] stopped the running app (pid 4808)
+[OK] installed ~/Applications/AgentEyes.app
+[OK] registered with Launch Services
+[OK] AgentEyes opened - its window, its icon in the dock, and its icon in the menu bar
+
+AgentEyes.app is in ~/Applications/AgentEyes.app - open it from Finder, Launchpad or Spotlight.
+It needs no permission of its own: recording is done by the AgentEyes service,
+which is the one that appears as "agenteyes" under System Settings > Privacy
+and Security > Screen and System Audio Recording.
+exit=0
+== AFTER 12:32:24
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+	state = running
+	pid = 50642
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+7243 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+"LSDisplayName"="AgentEyes"
+(The 16 hex digits after each pgrep line are the first 16 of sha256 of the INSTALLED service binary, before and after: unchanged. pid 50642 = the owner's service, untouched.)
+
+=================== E. Criterion 6: the permission story ===================
+E1. The bundle's own process holds NO Screen Recording grant. One-shot launchd job running ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop with the hook, no captures:
+12:33:40.810 [hook] pid=7973 exe=~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+12:33:40.827 [hook] CGPreflightScreenCaptureAccess() = False
+12:33:40.830 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+12:33:40.831 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+12:33:40.831 [hook] Environment.Exit(0) - the recorder's Main is never reached
+E2. Positive control, same hook inside the INSTALLED service binary (12:32:41):
+12:32:41.072 [hook] pid=7425 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+12:32:41.089 [hook] CGPreflightScreenCaptureAccess() = True
+E3. With no grant, the app showed a live recording made by the service (F). It holds none and needs none.
+E4. What the app calls in-process from the engine (src/AgentEyes.DesktopApp): RecordingPaths, AppDataPaths, RecordingLibrary, DictionaryStore, DevThrottleAccount/DevThrottleClient, ControlClient (HTTP to 127.0.0.1:7882). None captures. '--snap DIR' renders the app's OWN windows (RenderTargetBitmap) - not a screen capture.
+   LIMIT, stated: E4 is a list and so an absence claim; E1 to E3 are the measurement. What could NOT be read: the TCC database ('authorization denied') and the unified log (log show returned nothing for a window that contains a known capture - an instrument that sees nothing, so its silence is not evidence).
+E5. Startup hooks still load in the bundle (E1 ran inside it). StartupHookSupport was not changed.
+
+=================== F. Criteria 7 and 9: live recorder state in the bundled app; a recording after install ===================
+12:34:03 GET /status idle
+12:34:03 POST /record/start screen-only
+{'State': 'recording', 'Source': 'none', 'Dir': '~/Movies/AgentEyes/2026-11-16_123404_video'}
+12:34:09 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+12:34:09 GET /status recording 5.68
+  exit=0  
+12:34:10 after 0.5s: state = not running last exit code = 0 
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+12:34:10.016 [hook] window-recording: exit=0 ms=65 file_bytes=61814 stderr=''
+12:34:10 GET /status recording 6.3
+12:34:12 POST /record/stop
+{'Dir': '~/Movies/AgentEyes/2026-11-16_123404_video', 'DurationSeconds': 8.35}
+12:34:13 GET /status idle False None
+$ ffprobe -v error -count_frames -select_streams v:0 -show_entries format=duration:stream=codec_name,width,height,nb_read_frames,avg_frame_rate ~/Movies/AgentEyes/2026-11-16_123404_video/recording.mp4
+codec_name=h264
+width=1920
+height=1080
+avg_frame_rate=30/1
+nb_read_frames=261
+duration=8.700000
+dev-window-recording.png: STOP, 'REC 00:04', Screen/Microphone greyed. /status said 5.68 s one second before the capture and 6.3 s just after; the window's clock read about 2 s behind the service at that moment. Not investigated (not this issue's code); stated so nobody reads 00:04 as a misreport hidden here.
+This recording is NEW EVIDENCE in the owner's library: ~/Movies/AgentEyes/2026-11-16_123404_video. Do not delete it.
+
+=================== G. Criterion 8: size and content ===================
+$ du -sh ~/Applications/AgentEyes.app -> 198M
+$ python3 -I tools/sizes.py ~/Applications/AgentEyes.app   (file bytes, grouped by the package deps.json says each file came from)
+Bundle: 206.7 MB in files (657 under Contents/MacOS); du: see below
+     80.5 MB   38.9%   397 files  libvlc (in-app player: VideoLAN.LibVLC.Mac)
+     77.4 MB   37.5%   180 files  .NET 8 runtime (runtime pack 8.0.33)
+     27.4 MB   13.2%    29 files  UI toolkit: Avalonia, Skia, HarfBuzz, LibVLCSharp
+     17.5 MB    8.5%    35 files  Whisper natives for 8 platforms (runtimes/, copied by Whisper.net.Runtime; only macos-arm64 is usable here)
+      2.3 MB    1.1%     5 files  other NuGet dependencies
+      0.6 MB    0.3%     4 files  not listed in deps.json
+      0.5 MB    0.2%     3 files  AgentEyes own assemblies (AgentEyesDesktop.dll, agenteyes.dll)
+      0.2 MB    0.1%     3 files  apphost + its config
+      0.1 MB    0.1%     1 files  Whisper natives (Whisper.net.Runtime, all platforms)
+      0.2 MB    0.1%        Info.plist, PkgInfo, icon, signature
+    unlisted:   0.45 MB ggml-metal.metal
+    unlisted:   0.12 MB agenteyes
+    unlisted:   0.03 MB agenteyes.deps.json
+    unlisted:   0.00 MB agenteyes.runtimeconfig.json
+  ('not listed in deps.json': ggml-metal.metal (Whisper's Metal shader) and the ENGINE's own apphost agenteyes + its .deps/.runtimeconfig - the engine is a referenced Exe project, so its launcher rides along. It is never started by the app.)
+
+=================== H. Criterion 10: no dependency outside the bundle ===================
+Every non-system library a Mach-O in the bundle LOADS (LC_LOAD_DYLIB / LC_LOAD_WEAK_DYLIB / LC_REEXPORT_DYLIB over 329 files):
+ 299 @rpath/libvlccore.dylib
+   9 @rpath/libggml-base-whisper.0.dylib
+   4 @rpath/libggml-cpu-whisper.0.dylib
+   4 @rpath/libggml-blas-whisper.0.dylib
+   2 @rpath/libggml-whisper.0.dylib
+   2 @rpath/libggml-metal-whisper.0.dylib
+   1 @rpath/libmscordaccore.dylib
+  -> only @rpath names, all inside the bundle. Control: the same awk over /opt/homebrew/bin/ffmpeg finds 18 /opt/homebrew loads.
+
+=================== I. The bundle's privacy identity (for the bundle-identifier decision) ===================
+$ codesign -d -r- ~/Applications/AgentEyes.app -> designated => cdhash H"b2b257b5a9594d7f20784f2489bb1d899b83b200"
+$ codesign -d -r- <installed service agenteyes> -> designated => cdhash H"0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb"
+An ad-hoc identity IS the code hash. Rebuilt from the same source: CDHash=b2b257b5... (identical; dll and CodeResources seal cmp-identical).
+Rebuilt with only <Version> 1.11.11 -> 1.11.12: CDHash=e18531401ac124de583f8dbf8f247684588cab38 (different).
+The SERVICE, by contrast (re-measured today, as #114 section 3 did): a fresh self-contained publish of the engine from this branch vs the INSTALLED agenteyes (it reports 1.11.11+f9ef2306539007cbd0ef8cc3d2a746e8dd88dfab): apphost cmp IDENTICAL, designated => cdhash H"0b2bc9d96c152a6858bafc7ae9a6b84a1b717ffb" on both; only agenteyes.dll differs. So an update keeps the service's identity unless the apphost itself changes (another .NET SDK / apphost pack, an assembly rename).
+So every RELEASE of an ad-hoc bundle is a new application to the privacy settings. The bundle's code hash covers Info.plist and the seal of all 657 files, unlike the service's bare apphost, whose hash does not change with the C# (#114).
+
+=================== J. The hardened runtime cannot be rehearsed ad-hoc ===================
+Scratch copies of the bundle re-signed ad-hoc WITH --options runtime (flags=0x10002(adhoc,runtime)), without and with com.apple.security.cs.allow-jit. Both exit 130 at once:
+Failed to load <scratch>/hr-jit/AgentEyes.app/Contents/MacOS/libhostfxr.dylib, error: dlopen(<scratch>/hr-jit/AgentEyes.app/Contents/MacOS/libhostfxr.dylib, 0x0001): tried: '<scratch>/hr-jit/AgentEyes.app/Contents/MacOS/libhostfxr.dylib' (code signature in <6C11403C-BE00-3BC2-9562-925598ACC614> '<scratch>/hr-jit/AgentEyes.app/Contents/MacOS/libhostfxr.dylib' not valid for use in process: mapping process and mapped file (non-platform) have different Team IDs), '/System/Volumes/Preboot/Cryptexes/OS<scratch>/hr-jit/Ag ...
+  -> library validation refuses the bundle's OWN libhostfxr.dylib: an ad-hoc signature has no Team ID. So whether the app needs allow-jit, and what the hardened runtime does to startup hooks, can only be measured on the first Developer ID build. NOT worked around with disable-library-validation.
+
+=================== K. Signatures and extended attributes ===================
+The non-Mach-O files in Contents/MacOS (.dll, .json) carry their signatures in extended attributes.
+  after cp -R:                     codesign --verify --deep --strict -> OK
+  after ditto -c -k then unzip:    'code object is not signed at all  In subcomponent: .../System.Xml.XPath.XDocument.dll'
+  -> the notarised download must be a format that keeps xattrs (ditto zip extracted by Archive Utility, a .dmg, or a .pkg) - or the layout must change. A note for the follow-up, measured, not decided here.
+
+=================== L. After the self-review (PR #179): installer fixes and the Application.Name question ===================
+L1. install-app.sh third run: the app running, then --no-start (stop by LITERAL path, the --no-start warning):
+== BEFORE 12:56:43
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+24880 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+$ scripts/mac/install-app.sh --no-start
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp>/AgentEyes.app: replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <tmp>/AgentEyes.app (198M)
+[OK] stopped the running app (pid 24880)
+[OK] installed ~/Applications/AgentEyes.app
+[OK] registered with Launch Services
+WARNING: AgentEyes was running and has been stopped for the update (--no-start). Its menu bar
+         icon is gone until you open it again: open "~/Applications/AgentEyes.app"
+
+AgentEyes.app is in ~/Applications/AgentEyes.app - open it from Finder, Launchpad or Spotlight.
+It needs no permission of its own: recording is done by the AgentEyes service,
+which is the one that appears as "agenteyes" under System Settings > Privacy
+and Security > Screen and System Audio Recording.
+exit=0
+== AFTER 12:56:58
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+AgentEyesDesktop processes: 0
+installed bundle verifies
+L2. The matcher, both arms, with a copy of the bundle running from ANOTHER path (<scratch>/b2/...):
+  matcher for the INSTALLED path -> '' (expected empty)
+  matcher for the OTHER copy's path -> '26407' (expected 26407)
+L3. Does Name="AgentEyes" change the Linux window class (StartupWMClass=AgentEyesDesktop) or anything on Windows? IL inventory of every direct call to Avalonia.Application::get_Name in the Avalonia 11.3.22 assemblies the app ships (tools/ilscan):
+$ dotnet ilscan.dll Avalonia.Application::get_Name Avalonia.X11.dll Avalonia.Native.dll Avalonia.Win32.dll Avalonia.FreeDesktop.dll Avalonia.Controls.dll Avalonia.Base.dll
+Avalonia.Native.dll: Avalonia.Native.AvaloniaNativeMenuExporter::PopulateStandardOSXMenuItems calls Avalonia.Application::get_Name
+Avalonia.Native.dll: Avalonia.Native.AvaloniaNativePlatform::SetupApplicationName calls Avalonia.Application::get_Name   (x2)
+Avalonia.FreeDesktop.dll: Avalonia.FreeDesktop.DBusIme.DBusTextInputMethodBase::GetAppName calls Avalonia.Application::get_Name
+Avalonia.Controls.dll: .<>c::<.cctor>b__81_0 calls Avalonia.Application::get_Name
+POSITIVE CONTROL, same tool: X11PlatformOptions::get_WmClass -> X11Window::.ctor, X11Window::SetWmClass, X11Window::CreateIC (x2), all in Avalonia.X11.dll.
+  -> X11 never reads Application.Name; WM_CLASS comes from X11PlatformOptions.WmClass, which Program.cs sets to AgentEyesDesktop. Win32 never reads it. macOS reads it for the process name and the standard app menu ('About ...', 'Quit ...'). Linux reads it as the input-method client name (cosmetic).
+  LIMIT: a direct-call inventory. A read through the property system (GetValue(NameProperty)) or reflection is invisible to it; the Avalonia.Controls hit is an anonymous static handler I did not decompile further.
