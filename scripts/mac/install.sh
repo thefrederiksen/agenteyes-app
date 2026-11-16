@@ -3,13 +3,16 @@
 # counterpart of scripts/linux/install.sh.
 #
 #   scripts/mac/install.sh            build, install to ~/Library/Application Support/AgentEyes/bin,
-#                                     load the agent and start it
-#   scripts/mac/install.sh --no-start build and install, load at login, do not start now
+#                                     load the agent and start it; then install and open the app
+#   scripts/mac/install.sh --no-start build and install, load at login, do not start now (nor the app)
+#   scripts/mac/install-app.sh        the app ONLY - leaves the service exactly as it is
 #
 # What it puts where:
 #   ~/Library/Application Support/AgentEyes/bin/      the self-contained build of agenteyes
 #   ~/.local/bin/agenteyes                            a link to it (the CLI: record start/stop, screens)
 #   ~/Library/LaunchAgents/com.agenteyes.recorder.plist
+#   ~/Applications/AgentEyes.app                      the desktop app (issue #118), self-contained,
+#                                                     installed by scripts/mac/install-app.sh
 # Recordings land in ~/Movies/AgentEyes/<timestamp>_video_video/
 #
 # WHAT THIS SCRIPT CANNOT DO. It cannot grant the Screen Recording permission - macOS only accepts
@@ -105,6 +108,15 @@ else
     ok "agent installed but not started (--no-start)"
 fi
 
+# ---- the desktop app (issue #118) -------------------------------------------
+# After the service, so a failed app build never leaves the service half-installed. The app has its
+# own script so it can be updated without touching the service; see install-app.sh.
+if [[ $start -eq 1 ]]; then
+    "$repo/scripts/mac/install-app.sh" || fail "the service is installed, but the app was not - run scripts/mac/install-app.sh to retry it alone"
+else
+    "$repo/scripts/mac/install-app.sh" --no-start || fail "the service is installed, but the app was not - run scripts/mac/install-app.sh --no-start to retry it alone"
+fi
+
 cat <<EOF
 
 -------------------------------------------------------------------------
@@ -115,8 +127,10 @@ application. Open:
 
   System Settings > Privacy and Security > Screen and System Audio Recording
 
-and switch on "agenteyes". If it is not in the list yet, run this once to
-make macOS ask:
+and switch on "agenteyes" - the recorder service. Not "AgentEyes": the app
+(~/Applications/AgentEyes.app) is a separate application to macOS and needs
+no permission, because every recording is made by the service. If "agenteyes"
+is not in the list yet, run this once to make macOS ask:
 
   agenteyes shot --screen 1 --out ~/Desktop
 

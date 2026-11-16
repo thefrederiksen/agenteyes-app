@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AgentEyes.app - the macOS bundle of the desktop app (issue #118). A TEMPLATE: scripts/mac/build-app.sh
+  replaces __VERSION__ with the project's <Version> and copies the result to
+  AgentEyes.app/Contents/Info.plist. Pinned by AgentEyes.Tests.DesktopApp (MacBundleTests).
+
+  CFBundleIdentifier IS PERMANENT. Do not change it. macOS keys the Screen Recording, Microphone and
+  Camera permissions to the application's identity, which is this identifier together with the code
+  signature. Changing it makes AgentEyes a different application to macOS: every user would have to
+  grant every permission again, and the old entry would linger in System Settings. It is
+  com.agenteyes.app: under the same com.agenteyes prefix as the recorder service's launchd label
+  (com.agenteyes.recorder), and named for the product rather than for the project
+  (AgentEyes.DesktopApp / AgentEyesDesktop), so renaming the project never resets a grant.
+
+  CFBundleExecutable must equal the project's AssemblyName (AgentEyesDesktop) - the apphost the
+  publish produces. CFBundleName is what the menu bar and the dock show.
+
+  LSMinimumSystemVersion 11.0 is what every Mach-O in the publish declares (otool -l: LC_BUILD_VERSION
+  minos 11.0 on the apphost, libcoreclr, libAvaloniaNative and libvlc, measured for #118).
+
+  The usage descriptions: the RECORDER SERVICE (agenteyes, com.agenteyes.recorder) is what opens the
+  microphone and camera, not this app. They are here because macOS terminates, rather than prompts, an
+  application that touches either device without one, and the app links the engine.
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.agenteyes.app</string>
+    <key>CFBundleName</key>
+    <string>AgentEyes</string>
+    <key>CFBundleDisplayName</key>
+    <string>AgentEyes</string>
+    <key>CFBundleExecutable</key>
+    <string>AgentEyesDesktop</string>
+    <key>CFBundleIconFile</key>
+    <string>AgentEyes.icns</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundleVersion</key>
+    <string>__VERSION__</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>AgentEyes records your microphone only while a recording you started is running, and keeps the recording on this Mac.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>AgentEyes records your camera only while a recording you started with the camera on is running, and keeps the recording on this Mac.</string>
+</dict>
+</plist>
