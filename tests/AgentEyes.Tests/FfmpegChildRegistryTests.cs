@@ -41,6 +41,10 @@ namespace AgentEyes.Tests
             File.WriteAllText(Path.Combine(_folder, pid + ".json"), JsonSerializer.Serialize(e));
         }
 
+        /// <summary>These records are post-processing children: a graceful request for one is a defect.</summary>
+        private static bool NoGracefulRequest(int pid) =>
+            throw new InvalidOperationException($"pid {pid} is a post-processing child and must be killed at once, not asked to finish");
+
         [Fact]
         public void ReapOrphans_OwnerGoneChildAlive_KillsTheChildAndRemovesTheRecord()
         {
@@ -48,7 +52,7 @@ namespace AgentEyes.Tests
             var killed = new List<int>();
             var report = FfmpegChildRegistry.ReapOrphans(_folder,
                 (pid, start) => pid == 500 && start == ChildStart,   // owner 100 gone, child 500 alive
-                killed.Add);
+                NoGracefulRequest, killed.Add, TimeSpan.Zero);
 
             Assert.Equal(new[] { 500 }, killed);
             Assert.Contains(report, l => l.Contains("pid 500") && l.Contains("ORPHAN") && l.Contains("killed"));
@@ -60,7 +64,7 @@ namespace AgentEyes.Tests
         {
             Record(pid: 500, ownerPid: 100);
             var killed = new List<int>();
-            var report = FfmpegChildRegistry.ReapOrphans(_folder, (pid, start) => true, killed.Add);
+            var report = FfmpegChildRegistry.ReapOrphans(_folder, (pid, start) => true, NoGracefulRequest, killed.Add, TimeSpan.Zero);
 
             Assert.Empty(killed);
             Assert.Contains(report, l => l.Contains("owner pid 100 is alive"));
@@ -74,7 +78,7 @@ namespace AgentEyes.Tests
             // same process" for both the owner and the child.
             Record(pid: 500, ownerPid: 100);
             var killed = new List<int>();
-            var report = FfmpegChildRegistry.ReapOrphans(_folder, (pid, start) => false, killed.Add);
+            var report = FfmpegChildRegistry.ReapOrphans(_folder, (pid, start) => false, NoGracefulRequest, killed.Add, TimeSpan.Zero);
 
             Assert.Empty(killed);
             Assert.Contains(report, l => l.Contains("pid 500") && l.Contains("record removed"));
@@ -84,7 +88,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void ReapOrphans_NoFolder_ReturnsEmptyReport()
         {
-            var report = FfmpegChildRegistry.ReapOrphans(Path.Combine(_folder, "missing"), (p, s) => true, _ => throw new Exception("must not kill"));
+            var report = FfmpegChildRegistry.ReapOrphans(Path.Combine(_folder, "missing"), (p, s) => true, NoGracefulRequest, _ => throw new Exception("must not kill"), TimeSpan.Zero);
             Assert.Empty(report);
         }
 

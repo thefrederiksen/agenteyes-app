@@ -257,12 +257,13 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.CaptureLock::ReadOrCreateHostId -> System.IO.File::Move x1",          // ...renamed into place as host-id (first creator wins)
             "agenteyes.dll!AgentEyes.CaptureLock::ReadOrCreateHostId -> System.IO.File::Delete x1",        // ...or the loser's temp, when another process created it first
             "agenteyes.dll!AgentEyes.CaptureLock::Dispose -> System.IO.File::Delete x1",                   // capture.owner.json of a claim released cleanly (issue #156)
+            "agenteyes.dll!AgentEyes.CaptureLock::ClearStaleClaim -> System.IO.File::Delete x1",           // capture.owner.json of a crashed capture, removed under a shared hold of capture.lock once proven stale (issue #156 pass 2, D2)
             "agenteyes.dll!AgentEyes.Audio.AudioMix::RemovePartialOutput -> System.IO.File::Delete x1",    // the partial output of a failed/stalled mix pass (issue #128; moved out of RunStage so a cleanup failure cannot mask the stall, round two D5)
             "agenteyes.dll!AgentEyes.Audio.AudioMix::RemoveMuxScratch -> System.IO.File::Delete x1",       // the two mux temps, and the final path when the mux did not complete (issue #136; one guarded delete in a loop so a cleanup failure cannot mask the stage error - issue #128 round two, D5)
             "agenteyes.dll!AgentEyes.Audio.AudioMix::MuxInTwoPasses -> System.IO.File::Move x1",           // THE PUBLISH: the finished mux is renamed onto the final path, so a process death cannot leave a fragment there (issue #136)
             "agenteyes.dll!AgentEyes.Audio.AudioMix::RemoveStaleTemp -> System.IO.File::Delete x1",        // a mux temp an earlier attempt died holding (issue #136)
-            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::ReapOrphans -> System.IO.File::Delete x2",  // run\ffmpeg\<pid>.json records of reaped/exited children (issue #128)
-            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Register -> System.IO.File::WriteAllText x1",// run\ffmpeg\<pid>.json: a running post-processing child (issue #128), or a capture writer (issue #156)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::ReapOrphans -> System.IO.File::Delete x7",  // run\ffmpeg\<pid>.json records of reaped/exited children (issue #128): unreadable, exited, killed, and the four capture-writer outcomes (issue #156 pass 2, D1)
+            "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::WriteRecord -> System.IO.File::WriteAllText x1",// run\ffmpeg\<pid>.json: a running post-processing child (issue #128), or a capture writer (issue #156)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Unregister -> System.IO.File::Delete x1",   // run\ffmpeg\<pid>.json of a child that exited (issue #128)
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Start -> System.IO.File::WriteAllText x1",        // the ffmpeg stderr log of a failed start
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Stop -> System.IO.File::WriteAllText x1",         // the ffmpeg stderr log
@@ -325,6 +326,7 @@ namespace AgentEyes.Tests
             "kernel32.dll!CreateJobObject",          // the kill-on-close job object (no file access)
             "kernel32.dll!GetModuleHandle",         // module handle for the keyboard hook
             "kernel32.dll!SetInformationJobObject", // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE (no file access)
+            "libc!kill",                            // SIGTERM to an orphaned capture ffmpeg, macOS/Linux only (no file access; issue #156 pass 2, D1)
             "shell32.dll!SHGetKnownFolderPath",     // the user's Videos folder
             "user32.dll!CallNextHookEx",            // the low-level keyboard hook chain
             "user32.dll!DestroyIcon",               // frees the composed always-on tray icon's handle (no file access)

@@ -140,6 +140,17 @@ namespace AgentEyes
         public string Directory => _key;
 
         /// <summary>
+        /// Issue #156 (G1): the holder as the manifest records it - host, pid, process start time -
+        /// taken from the same record <see cref="OwnerFileName"/> publishes, so the two never differ.
+        /// </summary>
+        public Manifest.CaptureOwnerInfo OwnerForManifest()
+        {
+            var info = new Manifest.CaptureOwnerInfo { Host = _owner.Host, Pid = _owner.Pid, ProcessStartUtc = _owner.ProcessStartUtc };
+            Log.Info($"[CaptureLock] OwnerForManifest: {Path.GetFileName(_key)} - pid {info.Pid} on {info.Host} (process started {info.ProcessStartUtc:o})");
+            return info;
+        }
+
+        /// <summary>
         /// The capture side: take the claim for <paramref name="dir"/> and publish who holds it.
         /// Returns null - with <paramref name="refusal"/> naming the holder - when the claim is live
         /// elsewhere (another process holds the lock, or a dead owner's writer is still running).
@@ -244,7 +255,7 @@ namespace AgentEyes
                 _owner.Writers.Add(new WriterRecord { Label = label, Pid = pid, StartUtc = startUtc });
                 WriteOwner(_key, _owner);
             }
-            Video.FfmpegChildRegistry.Register(pid, startUtc, $"capture {label} ({Path.GetFileName(_key)})");
+            Video.FfmpegChildRegistry.RegisterCaptureWriter(pid, startUtc, $"capture {label} ({Path.GetFileName(_key)})");
             Log.Info($"[CaptureLock] NoteWriter: {Path.GetFileName(_key)} {label} pid {pid} recorded (started {startUtc:o})");
         }
 
@@ -345,6 +356,82 @@ namespace AgentEyes
                 if (!running.Contains(w)) Video.FfmpegChildRegistry.Unregister(w.Pid);
             Log.Info($"[CaptureLock] Release: {Path.GetFileName(_key)} released by pid {_owner.Pid}"
                 + (running.Count > 0 ? $" ({running.Count} writer(s) still running - claim stays live)" : ""));
+        }
+
+        /// <summary>
+        /// Issue #156 pass 2 (D2): remove the owner record of a claim that is PROVABLY stale - its
+        /// holder released or died, and every writer it recorded on this host has exited - so a
+        /// recording a crashed capture left behind is not refused for ever by every other host.
+        ///
+        /// Why it is needed: a clean release deletes the record (<see cref="Dispose"/>), but a crash
+        /// leaves it, and a stale record is only provable stale ON THE HOST THAT WROTE IT (another
+        /// host cannot probe the writer pids, so <see cref="FreeLockLiveness"/> reports it live
+        /// there, correctly). Before this, the takeover finished the recording and kept the record,
+        /// so a COMPLETED recording was refused by every other host, its repair and thumbnail
+        /// passes included - a permanent strand of the #128 class.
+        ///
+        /// Called by the paths that take a crashed recording over - <c>PostRecording.Execute</c>
+        /// (the repair and post-recording passes), <c>RecordingService.FinalizePending</c> and
+        /// <c>agenteyes package</c> - AFTER their own live-claim decline has passed, so it changes
+        /// nothing about what is declined or counted.
+        ///
+        /// Decided under a SHARED hold of the lock, and re-decided there: the finalize side's own
+        /// probe (<see cref="OpenShared"/>) is held open while the liveness is computed again and the
+        /// record removed, so no capture can take the lock - an exclusive claim - in between. It is
+        /// deliberately NOT the exclusive lock: other finalizers probe with the same shared open, so
+        /// they never see this as a holder. An exclusive hold would, for its few milliseconds, read
+        /// to another process's <c>FinalizePending</c> - which checks AFTER its attempt is counted -
+        /// as a live capture by the dead owner, failing that attempt and spending the budget this
+        /// issue protects (self-review of pass 2). Anything else - the lock held by a capture, this
+        /// process capturing it, a writer still running, a writer on another host - keeps the record
+        /// and says why. Returns true when a record was removed.
+        /// </summary>
+        public static bool ClearStaleClaim(string dir, string purpose)
+        {
+            string key = RecordingWorkset.Key(dir);
+            string name = Path.GetFileName(key);
+            string ownerPath = Path.Combine(key, OwnerFileName);
+            if (!File.Exists(ownerPath))
+            {
+                Log.Info($"[CaptureLock] ClearStaleClaim: {name} ({purpose}) - no owner record; nothing to clear");
+                return false;
+            }
+
+            lock (Gate)
+            {
+                if (HeldKeys.Contains(key))
+                {
+                    Log.Info($"[CaptureLock] ClearStaleClaim: {name} ({purpose}) - KEPT: this process (pid {Environment.ProcessId}) is capturing it");
+                    return false;
+                }
+
+                // A record with no lock file beside it was never held by a capture of this version
+                // (TryAcquire creates the lock before it writes the record): nothing to hold open.
+                bool hasLock = File.Exists(Path.Combine(key, FileName));
+                using FileStream? probe = hasLock ? OpenShared(key) : null;
+                if (hasLock && probe == null)
+                {
+                    Log.Info($"[CaptureLock] ClearStaleClaim: {name} ({purpose}) - KEPT: {HeldElsewhereReason(key)}");
+                    return false;
+                }
+
+                var live = FreeLockLiveness(key);
+                if (live.Live)
+                {
+                    Log.Info($"[CaptureLock] ClearStaleClaim: {name} ({purpose}) - KEPT: {live.Reason}");
+                    return false;
+                }
+
+                if (!File.Exists(ownerPath))
+                {
+                    Log.Info($"[CaptureLock] ClearStaleClaim: {name} ({purpose}) - the owner record was removed by another process first");
+                    return false;
+                }
+                File.Delete(ownerPath);
+                Log.Info($"[CaptureLock] ClearStaleClaim: {name} ({purpose}) - CLEARED {OwnerFileName} (lock held shared): {live.Reason}. " +
+                         "The capture's owner stays on record in manifest.json (CaptureOwner)");
+                return true;
+            }
         }
 
         /// <summary>

@@ -119,6 +119,10 @@ namespace AgentEyes
             // process is still capturing - a mic-only video has no pending mux and would otherwise
             // be transcribed, and its frames extracted, from a file that is still being written.
             CaptureLock.ThrowIfLive(dir, "package");
+            // Issue #156 pass 2 (D2): a recording already finalized after a crash may still carry
+            // its dead capture's owner record; proven stale here, it is cleared so it stops
+            // refusing every other host.
+            CaptureLock.ClearStaleClaim(dir, "package");
             MuxCoordinator.RunForPackage(dir);
 
             var manifest = Manifest.Load(dir);

@@ -1088,6 +1088,9 @@ namespace AgentEyes
             // fragmented container a live raw.mp4 is READABLE, so without this the mux succeeds on
             // the prefix and OriginalBackup.Preserve renames the file the capture is writing.
             CaptureLock.ThrowIfLive(dir, "finalize");
+            // Issue #156 pass 2 (D2): this finalize is the takeover of any stale claim left by a
+            // crashed capture; clear it so other hosts can work on the recording afterwards.
+            CaptureLock.ClearStaleClaim(dir, "finalize");
 
             string finalPath = Path.Combine(dir, p.FinalFile);
             string? raw = p.RawVideo != null ? Path.Combine(dir, p.RawVideo) : null;
@@ -1331,6 +1334,10 @@ namespace AgentEyes
             }
             RecordingWorkset.Attach(_captureClaim, diskLock);
             _captureLock = diskLock;
+
+            // Issue #156 (G1): the durable record of who captured this, in the START manifest below -
+            // capture.owner.json does not outlive the claim, the manifest does.
+            _manifest!.CaptureOwner = diskLock.OwnerForManifest();
 
             CaptureSignal.CaptureStarted();
 

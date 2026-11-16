@@ -58,6 +58,9 @@ namespace AgentEyes
                 VideoFile = source.VideoFile,
                 AudioFile = source.AudioFile,
                 PendingMux = source.PendingMux,
+                // Issue #156 (G1): who captured it is identity, not decoration - the only durable
+                // record of it once capture.owner.json is gone.
+                CaptureOwner = source.CaptureOwner,
             };
 
             foreach (string name in FilesOnDisk(dir)) recovery.Files.Add(name);

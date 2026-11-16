@@ -40,6 +40,7 @@ namespace AgentEyes.Tests
         private readonly string _dir;
         private readonly Func<int, DateTime, bool> _realIsSame = CaptureLock.IsSameProcess;
         private readonly Func<string> _realHost = CaptureLock.HostName;
+        private readonly Func<string> _realHostId = CaptureLock.ThisHostId;
         private readonly List<string> _muxCalls = new();
 
         public CaptureOwnershipTests()
@@ -55,6 +56,7 @@ namespace AgentEyes.Tests
         {
             CaptureLock.IsSameProcess = _realIsSame;
             CaptureLock.HostName = _realHost;
+            CaptureLock.ThisHostId = _realHostId;
             // Tests that record THIS process as a writer leave its reap record behind (a running
             // writer's record is kept on release, by design); it is never this suite's to keep.
             Video.FfmpegChildRegistry.Unregister(Environment.ProcessId);
@@ -570,6 +572,170 @@ namespace AgentEyes.Tests
             File.Delete(OwnerPath);
             other.Dispose();
             Assert.Contains(_dir, PostRecordingPlan.FindUnfinished(root));
+        }
+
+        // ---- pass 2, D2: a recovered crash must not keep its claim for ever ---------
+
+        /// <summary>Become ANOTHER MACHINE on the same library: a different name and host id.</summary>
+        private static void BecomeAnotherHost()
+        {
+            CaptureLock.HostName = () => "OTHERBOX";
+            CaptureLock.ThisHostId = () => "00000000000000000000000000000b0b";
+        }
+
+        /// <summary>
+        /// THE CONTROL ARM QA asked for: a capture on this machine crashed (owner dead, writer
+        /// exited), this machine's repair pass recovers it - and then ANOTHER HOST accepts the
+        /// finished recording. Before the fix the recovery kept capture.owner.json and the other host
+        /// refused it for ever ("cannot be checked from OTHERBOX"); the precondition shows that view.
+        /// </summary>
+        [Fact]
+        public void Resume_CrashedCaptureRecovered_AnotherHostThenAcceptsTheRecording()
+        {
+            WriteStartManifest();
+            CaptureLock.IsSameProcess = (_, _) => false;   // owner and writer both dead
+            HoldLikeAnotherProcess(holdLock: false, ownerPid: 91092, host: Environment.MachineName, writers: new[] { Writer(91038) });
+            File.WriteAllText(LockPath, "");
+
+            string realHost = Environment.MachineName;
+            BecomeAnotherHost();
+            var before = CaptureLock.Inspect(_dir);
+            Assert.True(before.Live, "precondition: another host must refuse a claim it cannot probe - the fix would be untested");
+            Assert.Contains("cannot be checked from OTHERBOX", before.Reason);
+            CaptureLock.HostName = _realHost;
+            CaptureLock.ThisHostId = _realHostId;
+            Assert.Equal(realHost, CaptureLock.HostName());
+
+            var recovered = PostRecording.Resume(_dir, hostedWorkAllowed: false);
+
+            Assert.False(recovered.Skipped, "this host did not recover its own crashed capture");
+            Assert.Single(_muxCalls);
+            Assert.False(File.Exists(OwnerPath), "the recovery kept capture.owner.json - every other host refuses the recording for ever");
+
+            BecomeAnotherHost();
+            var after = CaptureLock.Inspect(_dir);
+            Assert.False(after.Live, $"another host still refuses the recovered recording: {after.Reason}");
+            var otherPass = PostRecording.Resume(_dir, hostedWorkAllowed: false);
+            Assert.False(otherPass.Skipped, "another host's pass declined a finished recording");
+            Assert.Equal(1, MuxRecord()!.Attempts);   // the other host's pass found nothing left to mux
+        }
+
+        [Fact]
+        public void ClearStaleClaim_LockHeldByAnotherProcess_KeepsTheRecord()
+        {
+            using var other = HoldLikeAnotherProcess(holdLock: true, ownerPid: 8304, host: Environment.MachineName);
+
+            Assert.False(CaptureLock.ClearStaleClaim(_dir, "test"));
+
+            Assert.True(File.Exists(OwnerPath), "a live capture's owner record was removed");
+        }
+
+        [Fact]
+        public void ClearStaleClaim_OwnerDeadButWriterStillRunning_KeepsTheRecord()
+        {
+            CaptureLock.IsSameProcess = (pid, _) => pid == 91047;
+            HoldLikeAnotherProcess(holdLock: false, ownerPid: 91100, host: Environment.MachineName, writers: new[] { Writer(91047) });
+
+            Assert.False(CaptureLock.ClearStaleClaim(_dir, "test"));
+
+            Assert.True(File.Exists(OwnerPath), "the claim of a writer still writing was removed");
+            Assert.True(CaptureLock.Inspect(_dir).Live);
+        }
+
+        [Fact]
+        public void ClearStaleClaim_WriterRecordedByAnotherHost_KeepsTheRecord()
+        {
+            // This host cannot probe another machine's pid, so it cannot PROVE the claim stale.
+            CaptureLock.IsSameProcess = (_, _) => false;
+            HoldLikeAnotherProcess(holdLock: false, ownerPid: 91100, host: "OTHERBOX", writers: new[] { Writer(91047) });
+
+            Assert.False(CaptureLock.ClearStaleClaim(_dir, "test"));
+
+            Assert.True(File.Exists(OwnerPath));
+        }
+
+        [Fact]
+        public void ClearStaleClaim_ThisProcessIsCapturing_KeepsTheRecord()
+        {
+            using var held = CaptureLock.TryAcquire(_dir, "capture session", out _)!;
+
+            Assert.False(CaptureLock.ClearStaleClaim(_dir, "test"));
+
+            Assert.True(File.Exists(OwnerPath));
+            Assert.True(CaptureLock.Inspect(_dir).Live);
+        }
+
+        [Fact]
+        public void ClearStaleClaim_ProvablyStale_RemovesTheRecordAndReleasesTheLock()
+        {
+            CaptureLock.IsSameProcess = (_, _) => false;
+            HoldLikeAnotherProcess(holdLock: false, ownerPid: 91092, host: Environment.MachineName, writers: new[] { Writer(91038) });
+
+            Assert.True(CaptureLock.ClearStaleClaim(_dir, "test"));
+
+            Assert.False(File.Exists(OwnerPath));
+            Assert.False(IsLockedOnDisk(), "ClearStaleClaim left capture.lock held");
+            Assert.Equal("no capture holds it", CaptureLock.Inspect(_dir).Reason);
+        }
+
+        /// <summary>Self-review regression (pass 2): the clear holds the lock SHARED, the same way every
+        /// finalizer probes it, so a probe and a clear at the same instant never see each other as a
+        /// holder. An exclusive clear would be refused here - and, the other way round, would read to a
+        /// concurrent FinalizePending (which checks after its attempt is counted) as a live capture.</summary>
+        [Fact]
+        public void ClearStaleClaim_AnotherFinalizerProbingAtTheSameInstant_StillClearsAndNeitherSeesAHolder()
+        {
+            CaptureLock.IsSameProcess = (_, _) => false;
+            HoldLikeAnotherProcess(holdLock: false, ownerPid: 91092, host: Environment.MachineName, writers: new[] { Writer(91038) });
+            File.WriteAllText(LockPath, "");   // the unheld lock a crashed capture leaves
+            using var otherProbe = new FileStream(LockPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+            Assert.True(CaptureLock.ClearStaleClaim(_dir, "test"), "a concurrent finalizer's probe was read as a holder");
+
+            Assert.False(File.Exists(OwnerPath));
+            Assert.False(CaptureLock.Inspect(_dir).Live);
+        }
+
+        [Fact]
+        public void ClearStaleClaim_NoOwnerRecord_IsANoOp()
+        {
+            Assert.False(CaptureLock.ClearStaleClaim(_dir, "test"));
+            Assert.False(File.Exists(LockPath), "a no-op created capture.lock");
+        }
+
+        // ---- pass 2, G1: the manifest names who captured it ------------------------
+
+        [Fact]
+        public void OwnerForManifest_MatchesThePublishedOwnerRecord()
+        {
+            using var held = CaptureLock.TryAcquire(_dir, "capture session", out _)!;
+            var published = JsonSerializer.Deserialize<CaptureLock.OwnerRecord>(File.ReadAllText(OwnerPath))!;
+
+            var info = held.OwnerForManifest();
+
+            Assert.Equal(Environment.ProcessId, info.Pid);
+            Assert.Equal(published.Host, info.Host);
+            Assert.Equal(published.Pid, info.Pid);
+            Assert.Equal(published.ProcessStartUtc, info.ProcessStartUtc);
+            using var me = Process.GetCurrentProcess();
+            Assert.True((me.StartTime.ToUniversalTime() - info.ProcessStartUtc).Duration() < TimeSpan.FromSeconds(1));
+        }
+
+        [Fact]
+        public void CaptureOwner_SurvivesTheManifestRoundTripAndTheRecoveryRecord()
+        {
+            var owner = new Manifest.CaptureOwnerInfo
+            {
+                Host = "devlinux", Pid = 4242, ProcessStartUtc = new DateTime(2026, 11, 16, 12, 0, 0, DateTimeKind.Utc),
+            };
+            ManifestStore.Replace(_dir, new Manifest { Mode = "video", Label = "video", CaptureOwner = owner });
+
+            var loaded = Manifest.Load(_dir).CaptureOwner!;
+            var reduced = RecoveryManifest.From(Manifest.Load(_dir), 1.0, _dir).CaptureOwner!;
+
+            Assert.Equal(("devlinux", 4242, owner.ProcessStartUtc), (loaded.Host, loaded.Pid, loaded.ProcessStartUtc.ToUniversalTime()));
+            Assert.Equal(("devlinux", 4242), (reduced.Host, reduced.Pid));
+            Assert.Contains("\"CaptureOwner\"", File.ReadAllText(Path.Combine(_dir, "manifest.json")));
         }
 
         // ---- criterion 5 ---------------------------------------------------------

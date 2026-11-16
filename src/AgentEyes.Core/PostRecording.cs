@@ -375,6 +375,10 @@ namespace AgentEyes
                     return outcome;
                 }
                 Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} - capture claim: {capture.Reason}");
+                // Issue #156 pass 2 (D2): a crashed capture's claim, proven stale here, must not
+                // outlive this takeover - another host cannot prove it stale and would refuse the
+                // recording for ever. After the decline above, so nothing it declines changes.
+                CaptureLock.ClearStaleClaim(dir, "post-recording");
 
                 if (Manifest.Load(dir).PendingMux != null)
                 {
