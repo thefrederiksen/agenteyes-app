@@ -1266,7 +1266,19 @@ New timeout tests:
 | 64bee6f | push 43952013771, pull_request 43952024044 | linux and windows green; **macos red**: the full-queue test, which fails closed (section 3a) |
 | f44fc60 (macOS skip) | push 43952922286 | **green on all three** |
 | f44fc60 | pull_request 43952934588 | linux and macos green; **windows opt-in red**: a pool-hosted stand-in starved for over 5 s (section 3) |
-| final | see the issue comment | |
+| **5eaf3fd** (stand-ins on their own threads again) | push 43954815168 | **green on all three** |
+| **5eaf3fd** | pull_request 43954827978, attempt 1 and attempt 2 (rerun) | **green on all three, both attempts** |
+
+5eaf3fd, per job:
+- push: linux 555 / 0 / 2 (opt-in 556 / 0 / 1); macos 510 / 0 / 3 (the full-queue test SKIPPED by name);
+  windows 2588 / 0 / 31 (opt-in 2607 / 0 / 16); DesktopApp 25 / 25 twice.
+- pull_request (merged with the base): linux 602 / 0 / 2 (opt-in 603 / 0 / 1); macos 557 / 0 / 3; windows
+  2636 / 0 / 31 (opt-in 2655 / 0 / 16); DesktopApp 25 / 25 twice.
+- Windows ran the full-queue test, the slow-service test and the env-read pin with the new
+  `AGENTEYES_SERVICE_PROBE_PORT` line.
+
+Three green runs do not prove an intermittent starvation is gone; pass 4's red run was one in several. The
+collection now runs in parallel again, and the stand-ins no longer depend on the pool.
 
 ## The owner's library and service
 
@@ -1280,4 +1292,4 @@ New timeout tests:
   installed `AgentEyesLinux --tray`, the camera wall (`go2rtc` and its ffmpeg), the `agenteyes-161fix` seat's
   test host and its two ffmpeg (x11grab, pulse), and a root `dotnet publish` of another product.
 
-I believe this pass is finished, pending CI.
+I believe this pass is finished.
