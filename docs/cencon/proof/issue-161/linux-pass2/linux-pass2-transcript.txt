@@ -109,3 +109,15 @@ stderr:
   lldeny: landlock ABI 4 enforced, 2 deny path(s)
   [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /home/<owner>/.local/share/AgentEyes, which overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside /home/<owner>/.local/share/AgentEyes.
   exit=5
+
+## 9. QA's D1 regression matrix (qa-linux/harness/matrix.sh x1-x4), same values, against the pass-2 binary
+##    QA at c595c41: x1 refused; x2 (empty-scratch HOME -> .NET answers '' -> real root SKIPPED), x3 (XDG_DATA_HOME=scratch) and x4 ACCEPTED.
+[x1] exit=5 real-root-opens=0
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /home/<owner>/.local/share/AgentEyes, which overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default + this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside /home/<owner>/.local/share/AgentEyes.
+[x2] exit=5 real-root-opens=0
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /home/<owner>/.local/share/AgentEyes, which overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside /home/<owner>/.local/share/AgentEyes.
+[x3] exit=5 real-root-opens=0
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at /home/<owner>/.local/share/AgentEyes, which overlaps the REAL state root /home/<owner>/.local/share/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG default). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside /home/<owner>/.local/share/AgentEyes.
+[x4] exit=5 real-root-opens=0
+  [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at /home/<owner>/Videos/AgentEyes, which overlaps the REAL recordings root /home/<owner>/Videos/AgentEyes (derived from: passwd entry for uid 1000, home /home/<owner>, XDG_VIDEOS_DIR in /home/<owner>/.config/user-dirs.dirs). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside /home/<owner>/Videos/AgentEyes.
+  x2 and x3 name ONLY the passwd derivation: the environment half named a scratch folder (x3) or nothing (x2), and the account half refused it.

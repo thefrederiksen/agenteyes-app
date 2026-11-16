@@ -316,6 +316,15 @@ authority on what the environment may redirect.
 | 3. spoofed HOME, VIDEOS=`~/Videos` | (accepted by the same defect) | exit 5, "XDG_VIDEOS_DIR in /home/<owner>/.config/user-dirs.dirs" | 0 |
 | 4. spoofed HOME, both on existing scratch folders, `serve` 35 s | - | accepted; orphan reap, repair pass, housekeeper all on scratch; `/status` `LibraryRedirected: true` (transcript section 6) | 0, and 0 syscalls of any kind on a real root |
 
+**QA's own regression matrix** (`qa-linux/harness/matrix.sh` x1-x4, transcript section 9): at c595c41
+x2 (empty-scratch HOME: .NET answers "" for a folder that does not exist, and the #169 skip dropped the
+real root from the check - QA's mechanism (a)), x3 (`XDG_DATA_HOME=<scratch>`, mechanism (b)) and x4 were
+ACCEPTED. At this head all four are exit 5 with 0 opens; x2 and x3 are refused by the account half
+alone. QA asked to "refuse, rather than skip, when a real root cannot be determined": on Linux and macOS
+the account half is never skipped (no passwd entry -> refused). The environment half still skips a ""
+answer (issue #169's shape), which is now harmless there because the account half is always present. On
+Windows the known folders are the only source and the #169 skip is unchanged - stated, not fixed here.
+
 The 3 non-open syscalls in runs 1-3 are pass 1's symlink resolution of the REQUESTED path (stat,
 readlink) - metadata, on a start that is then refused (pass 1 list item 2 below, unchanged).
 
