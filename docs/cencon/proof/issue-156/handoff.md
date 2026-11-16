@@ -439,3 +439,262 @@ Windows graceful reap (open gap above, issue #166); the macOS finalize time; two
 tray app as the capturing host; the CLI `agenteyes video` path (it takes no `CaptureLock`, unchanged); a
 systemd unit with `KillMode=mixed`, where systemd itself SIGKILLs the orphan in 2-4 s, before any reaper
 runs (issue #165, by the lead's ruling not this issue's).
+
+---
+
+## Pass 3 - after the Review Gate's rejection (gate comment 6918963862, lead's ruling 6919009792)
+
+Seated on `devthrottle-mac-mini` (macOS 26, Apple silicon) on purpose: the defect is invisible on Linux.
+Every result below was run on this Mac on .NET SDK 10.0.403 with the net8.0 build ROLLED FORWARD to
+runtime 10.0.x (`DOTNET_ROLL_FORWARD=Major`), because there is no .NET 8 here.
+
+### The defect, reproduced first
+
+`FfmpegChildRegistry.IsSameProcess` threw `System.ComponentModel.Win32Exception` instead of answering
+when a recorded pid is now held by ANOTHER USER's process. I started from the gate's scratch
+reproduction (`GateProbeScratchTests.cs` from its scratchpad, committed unchanged below a provenance
+header at `pass3/harness/GateProbeScratchTests.cs`) and ran it at the PR head before changing anything:
+every row of the gate's table reproduced (`Inspect`, `ClearStaleClaim`, `ThrowIfLive`, `FindMissing` and
+`ReapOrphansIn` threw; `FindUnfinished` dropped the crashed recording), and both controls passed.
+
+Then I measured where it throws, on this Mac, before writing code:
+
+| pid | `kill(pid, 0)` | `HasExited` | `StartTime` |
+|---|---|---|---|
+| 1 (root) | -1, errno 1 (EPERM) | False | **throws** `Win32Exception` (NativeErrorCode 2 in one run, 1 in another) |
+| this test process | 0 | False | readable |
+| 999999 | -1, errno 3 (ESRCH) | - | `GetProcessById` throws `ArgumentException` (already mapped) |
+| a ZOMBIE of this user (`sh -c 'sleep 0.01 & exec sleep 5'`) | 0 | **False** | **throws** `Win32Exception` (NativeErrorCode 3) |
+
+Two findings shaped the fix. The exception's `NativeErrorCode` does not identify the cause on macOS
+(2 or 1 for another user's process, 3 for a zombie), so it is not used for the answer. And there is a
+second route into the same throw that nobody had named: this user's own zombie.
+
+### The fix: the predicate is total (`src/AgentEyes.Core/Video/FfmpegChildRegistry.cs`)
+
+One `catch (Win32Exception)` in `IsSameProcess` itself, answering FALSE, with the reasoning in the
+method's summary. No call site changed. Every outcome and why:
+
+| Outcome | Answer | Why |
+|---|---|---|
+| No such process (`ArgumentException`) | FALSE | unchanged |
+| Exited (`HasExited`, or `InvalidOperationException` between two reads) | FALSE | unchanged |
+| Start time read, different | FALSE | unchanged: the pid was reused |
+| Start time read, equal within 1 s | TRUE | unchanged |
+| **Start time unreadable (`Win32Exception`)** | **FALSE** | every recorded start time was read by an AgentEyes process of THIS account, from a process this account started. While that process runs it stays readable to this account, so a pid whose start time this account cannot read is not it |
+
+The two measured ways into the new row, both named in the decision's log line by
+`DescribeUnreadable(pid)`, which asks `kill(pid, 0)`. On macOS/Linux that call fails only with ESRCH or
+EPERM, because EINVAL is for a bad signal number and 0 is valid:
+
+- **Another user's process** (EPERM). The lead's ruling, as a fact. Our writer ran as us, so a process
+  we may not even signal cannot be it.
+- **This user's zombie** (kill succeeds, start time refused). It has exited and writes nothing. The log
+  line says "the only cause measured (macOS) is a zombie". It does not claim more, because a successful
+  `kill(pid, 0)` proves only that the process exists and is ours.
+
+The decision is logged at the point it is made, with the pid. A real line, from the fixed CLI on this Mac:
+
+```
+[FfmpegChildRegistry] IsSameProcess: pid 1 - start time cannot be read (1: Unable to retrieve the specified
+information about the process or thread. It may have exited or may be privileged.); it belongs to ANOTHER USER
+(kill(pid, 0) errno 1); the recorded process ran as this user, so this is not it - answered NOT the recorded process
+```
+
+`DescribeUnreadable` never calls `kill` for a pid of 0 or below: kill reads those as a process GROUP
+(0 is the caller's own group, -1 is every process). A record holding such a pid is reported as corrupt.
+
+**The ambiguous case, named and resolved.** The premise "the writer ran as this account" fails in one
+case: a SECOND user account on this machine probing a record written by the first account, whose
+writer is still running. That reads as FALSE, so it would be treated as stale. I resolved it FALSE
+because the product cannot put one account's record in front of another account's probe. Every capture
+claim is made by `RecordingService` (`RecordingService.cs:1320`) in a directory from `RecordingPaths.NewDir`
+(`:420`, `:548`), under the account's own recordings root. The CLI's `--out` captures take no claim at
+all. That root is in the account's own home (`~/Movies/AgentEyes`, and `~/Movies` is `drwx------` here,
+measured), and the reap registry is under per-user application data. This is the case the gate raised in its last
+paragraph. A shared library across accounts would reopen it, and nothing in the product offers one.
+
+**Windows: NOT measured.** I have no Windows machine from this seat. The analogue is `OpenProcess`
+(`PROCESS_QUERY_LIMITED_INFORMATION`) refusing another user's process with ERROR_ACCESS_DENIED (5). The
+same `catch` answers FALSE there. The premise is weakest on Windows: if a NON-elevated probe is also
+refused for an ELEVATED process of the SAME user, a writer started by an elevated AgentEyes would read
+as not running to a non-elevated one, and a live capture could be called stale. **QA must measure
+this.** As a non-admin user: `IsSameProcess` (or the shared test below) against another user's process
+and against an elevated process of the same user. On Windows the shared tests use pid 4 (System) as
+the foreign process. Windows CI passing them shows the predicate answers without throwing for pid 4.
+It does NOT measure the other-user or elevation cases, because a CI runner is an administrator.
+
+**Linux: unchanged in answer.** Linux reads any process's start time from `/proc`, so another user's
+pid answers FALSE by the start-time comparison, as before. One platform difference, named in the
+code: Linux reads a ZOMBIE's start time, so there a zombie with a matching start time answers TRUE until
+its parent reaps it. An orphaned writer's parent is init or a subreaper, which reaps it at once. Not
+changed here.
+
+### (1) The gate's reproduction, failing before and passing after (this Mac)
+
+- **Suite level, real probe:** `pass3/run-gate-probe-and-sweep.txt`. BEFORE is the predicate with the new
+  `catch` removed, which is exactly the code at `d7b7cc7`: the gate's rows all throw `Win32Exception`. AFTER:
+  `Inspect(pid 1) -> not live, "stale capture claim taken over"`, `ClearStaleClaim -> True`,
+  `ThrowIfLive -> passed`, `FindUnfinished -> healthy,rootpid` (the crashed recording is admitted),
+  `FindMissing -> OK`, `ReapOrphansIn(owner pid 1) -> record removed`.
+- **Real binary, real files** (both binaries checked to be the macOS build of the engine; see the trap below):
+  `pass3/foreign-pid.sh <agenteyes> <scratch>` builds the crashed recording (a
+  complete 4 s lavfi `raw.mp4`, pending mux, FREE `capture.lock`, owner pid 99999 gone, writer pid 1) and
+  runs `agenteyes package` on it.
+  - PRE-FIX binary (built from `d7b7cc7` in a scratch worktree), `pass3/run-foreign-pid-prefix.txt`:
+    exit 3, `[error] Unable to retrieve the specified information about the process or thread`. Mux
+    still pending, no attempt, `capture.owner.json` PRESENT.
+  - FIX, `pass3/run-foreign-pid-fix.txt`: mux `done`, Attempts 1, `recording.mp4` 4.0 s with `video` and
+    `audio`, full decode exit 0, and `capture.owner.json` absent. **Recovered, not skipped.** Its exit code
+    is 1 because the hosted transcription that runs after the mux needs a sign-in this seat does not
+    have. The same holds in every `package` run below.
+
+### (2) The mapping pinned in the shared suite, with one mutation per mapping
+
+New `tests/Shared/ProcessIdentityTests.cs`, compiled into all three suites (`AgentEyes.Tests`,
+`.Mac`, `.Linux`). It uses the REAL probe: no seam on `IsSameProcess` anywhere in the class. It has 14
+tests: one per outcome (another user's pid, its precondition, no such process, own process with a
+different start time, own process with the recorded start time as the positive control, own zombie on
+macOS, pid 0/-1 never signalled as a group), plus the blast radius (`Inspect` stale for a foreign
+writer and LIVE for a running one, `FindUnfinished` admits it, `FindMissing` completes, `Resume`
+recovers it, `ReapOrphansIn` removes the record).
+
+Each mutation was applied to the source, the class run on this Mac, then reverted (`cmp` against a copy).
+The final run, on the final tests, is `pass3/mutations.txt`:
+
+| Mutation | Tests that FAILED |
+|---|---|
+| M1: the new `catch` removed (the pre-fix code) | 7 - the foreign-pid predicate test, the zombie, `Inspect`, `FindUnfinished`, `FindMissing`, `Resume`, `ReapOrphansIn`, all with `Win32Exception` |
+| M2: unreadable start time answered TRUE | 6 - foreign pid, zombie, `Inspect`, `FindUnfinished`, `Resume`, `ReapOrphansIn` |
+| M3: no such process answered TRUE | 3 - `NoSuchProcess`, `FindUnfinished`, `ReapOrphansIn` |
+| M4: start-time mismatch answered TRUE | 7 - `OwnProcessDifferentStartTime`, foreign pid, zombie, and four blast-radius tests |
+| M5: a matching start time answered FALSE (the predicate becomes a wall) | 2 - `OwnProcessRecordedStartTime`, `Inspect_WriterStillRunning_IsLive` |
+| M6: the pid <= 0 guard removed from the classifier | 2 - both `DescribeUnreadable_PidZeroOrNegative` cases |
+
+Not mutation-tested: the `InvalidOperationException` mapping. It is a race (the process exits between
+two reads) that cannot be produced on demand, and it is unchanged from `main`.
+
+### (3) The thumbnail and housekeeping sweep, unblocked (this Mac)
+
+`pass3/harness/SweepProofScratch.cs` runs ONE real `RepairService.RunAsync` with the real probe over a
+library holding the foreign-pid crash plus two healthy recordings, one of them queued for the drain. The
+per-recording steps are stubbed so they only record that they were called. It first asserts that
+`RecordingPaths.Root` is inside the suite's redirected temp root (#161). It also turns off the queue's
+release-triggered dispatch, so the only drain that can show is the pass's own. Without that, my first
+run counted a drain that came from the enqueue itself and would have "passed" BEFORE too. Results, in
+`pass3/run-gate-probe-and-sweep.txt`:
+
+| Stage | BEFORE (code at `d7b7cc7`) | AFTER |
+|---|---|---|
+| unfinished admitted | the two healthy ones; the crash skipped | all three, the crash included |
+| thumbnail backfill | **none** | both healthy recordings |
+| housekeeping | **0 runs** | 1 run |
+| queue drain | **not run** | ran the queued recording |
+| log | `RunAsync FAILED: trigger=pass3-proof` | `RunAsync: trigger=pass3-proof done` |
+
+The SCOPE line holds. `Thumbnails.NeedsThumb` still catches only `UsageException`, so ANY other exception
+from one recording still stops the pass. That is #170 and it is not touched here. This pass closes the
+route by which the predicate threw.
+
+### (4) The predicate on all three platforms
+
+| Platform | Measured? | Result |
+|---|---|---|
+| macOS (this Mac) | yes | pre-fix throws for another user's pid; fixed answers FALSE and logs EPERM; a zombie answers FALSE |
+| Linux | NOT re-measured in pass 3 | `/proc` makes every start time readable. That was measured by both Linux QA passes and by the gate's statement of why they missed this. The `.Linux` suite run on this Mac is NOT a Linux run. QA on `devlinux`: run `tests/AgentEyes.Tests.Linux` there, where `ProcessIdentityTests` should pass with pid 1 answered by the start-time comparison |
+| Windows | **NO** | see above. QA must measure another user's process and an elevated same-user process as a non-admin |
+
+### (5) Criterion 4's control arm, re-run on this Mac
+
+`both-arms.sh` (pass 1's harness: a lavfi ffmpeg writer plus a python `flock` owner, three arms
+concurrently, plain MP4) against the FIXED binary: `pass3/run-c4-control-fix.txt`.
+
+- **live-package:** declined three times, naming the holder, with no attempt recorded. Then finalized at Attempts 1.
+- **orphan-writer:** owner SIGKILLed with the writer still running. Declined with `its video ffmpeg pid
+  ... is STILL RUNNING`. Once the writer ended: recovered at Attempts 1. This arm matters for the new
+  mapping: a LIVE writer of this user still reads as live, so the fix did not turn the predicate into
+  "everything is stale".
+- **dead-owner:** recovered at Attempts 1.
+
+Not re-run in pass 3: pass 2's REAL-capture control arm (x11grab + pulse, SIGKILLed serve, start-up reap).
+It is Linux-only: this Mac's shell has no Screen Recording grant. Nothing in that path changed except
+that the predicate it calls can no longer throw.
+
+### Gates (pass 3, run by me on this Mac, roll-forward to .NET 10)
+
+| Command | Result |
+|---|---|
+| `dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=mac` | Build succeeded, 0 errors (1 existing warning) |
+| `dotnet build src/AgentEyes.Core -c Release -p:AgentEyesUnixPlatform=linux` | Build succeeded, 0 errors (1 existing warning) |
+| `dotnet test tests/AgentEyes.Tests.Mac -c Release` | **340 passed, 0 failed, 0 skipped** (326 before; 14 new) |
+| `dotnet test tests/AgentEyes.Tests.Linux -c Release` | **347 passed, 1 skipped, 0 failed** - ON THIS MAC, **not a Linux run** |
+| `AgentEyes.sln` | not built: it cannot build on a Mac. Windows build and test are CI's and QA's |
+| merge onto `main` `17c244d` | clean (`git merge-tree` at the pre-commit head = `2f628db`, the gate's merged tree) |
+
+### Unchanged, by scope
+
+The lock, the owner file, the four decline sites, the attempt counting, the shared hold, the SIGTERM
+bound, the awaited reap and G1's manifest field are untouched: the code diff is
+`FfmpegChildRegistry.IsSameProcess` plus the new `DescribeUnreadable`. No sweep was hardened (#170).
+**D3 stays #113's**, and both conflicts named above still stand: the two `CaptureLiveness` types, and
+`IScreenRecorder` lacking `ProcessId`. No #113 code was pulled in.
+
+### Hazards, as handled
+
+No screen capture was started. No ffmpeg I did not start was signalled: `pgrep ffmpeg` was empty
+before and after the harness. No recording was deleted. The launchd agent `com.agenteyes.recorder` was
+not touched. No service was started. **#161 footprint, reported:** the `agenteyes package` runs above
+used an isolated HOME, which on macOS does NOT redirect the data root. So their log lines were appended
+to the owner's real `~/Library/Application Support/AgentEyes/logs/AgentEyes-20261116.log` (verified
+read-only: the `IsSameProcess: pid 1` lines are there). No recording outside the scratch directory was
+read or written. The suite runs use the test projects' in-process redirection.
+
+### Self-review (`/code-review` on the pass-3 diff): what changed, and what was dismissed
+
+Changed because of it:
+- The zombie test ran on Linux too, where `/proc` gives a zombie's start time, so it would have FAILED
+  on a real Linux run. It passed here only because this is a Mac. It is now macOS-only, and the
+  Linux zombie behaviour is named in the code.
+- `FindMissing_...` asserted only "no exception". It now asserts that the exact backlog is returned:
+  finished recordings sorted on both sides of the crash, so neither an early nor a late stop passes.
+- The pid-1 precondition assumed pid 1 is foreign to any non-root runner. It now returns where pid 1
+  runs as the test's own user (a container).
+- Log and doc wording: the zombie line no longer asserts more than kill(2) proves; the Windows line
+  points at the native error and names the unmeasured elevated case; the ambiguity paragraph cites
+  where claims are created.
+
+Dismissed, with reasons:
+- *"A catch in a helper is fallback programming (CLAUDE.md 3 and 4)."* The lead's ruling is explicit:
+  fix the predicate, never the call sites. Each answer is a defined mapping with its justification,
+  pinned by a test and a mutation, and logged at the decision. It is not a swallowed unknown. The
+  helper already mapped `ArgumentException` and `InvalidOperationException` the same way.
+- *"`--out DIR` makes the second-account case reachable."* Refuted: `--out` captures take no
+  `CaptureLock`, so they have no owner record and never reach the writer probe.
+- *"Info lines and an extra kill(2) per unreadable probe flood the log."* The ruling asks for the
+  decision to be logged with its pid. A foreign-pid claim is cleared on the first pass that recovers it
+  (`ClearStaleClaim`), and its reap record is removed, so the probe and its line stop.
+- *"On Windows, unreadable means stale can fail open for an elevated writer."* **Kept, NOT dismissed.**
+  It is the Windows risk named above. It is unmeasured, so QA has to measure it.
+
+### A trap for QA: one output folder for both Unix builds
+
+`dotnet build src/AgentEyes.Core -p:AgentEyesUnixPlatform=linux` and `=mac` write to the SAME
+`src/AgentEyes.Core/bin/Release/net8.0/`, and so do the two test projects. Whichever ran last owns
+`agenteyes`. My first real-binary runs used the engine left there by the `.Linux` suite. The predicate
+is the same code in both flavours, but I re-ran every real-binary arm on an explicit
+`-p:AgentEyesUnixPlatform=mac` build. Check the flavour before using a binary:
+`strings agenteyes.dll | grep -c '^AvfStream$'` gives 1 on a macOS build and 0 on Linux, and
+`^PulseStream$` gives the reverse. Each evidence file starts with that check.
+
+### What QA should verify (pass 3 delta)
+
+1. On macOS: `pass3/foreign-pid.sh` against the branch binary shows mux done, Attempts 1, a decodable
+   file and no `capture.owner.json`. Against a `d7b7cc7` binary it shows exit 3 with the Win32Exception message.
+2. The six mutations, or any of them, against `ProcessIdentityTests`.
+3. **Windows (unmeasured by me):** as a non-admin, the answer for another user's process and for an
+   ELEVATED process of the same user. The second is the one that could call a live capture stale.
+4. Linux on `devlinux`: the `.Linux` suite, with `ProcessIdentityTests` included.
+5. The criterion 4 arms (`both-arms.sh ... plain`). The orphan-writer arm is the live-writer control for
+   the new mapping.
+
+I believe this is finished.

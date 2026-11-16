@@ -1,0 +1,68 @@
+######## BEFORE: the predicate with its Win32Exception mapping removed (= the code at d7b7cc7)
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidIsGone_StaleAndAdmitted [29 ms]
+  Standard Output Messages:
+ Inspect(pid gone) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ FindUnfinished -> OK: 1
+ FindMissing -> OK: 0
+  Passed AgentEyes.Tests.GateProbeScratchTests.WriterPidReusedByAnotherUsersProcess_Observed [9 ms]
+  Standard Output Messages:
+ Inspect(pid 1) -> THREW Win32Exception: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+ ClearStaleClaim(pid 1) -> THREW Win32Exception: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+ ThrowIfLive(pid 1) -> THREW Win32Exception: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+ FindUnfinished(root with healthy + pid1) -> OK: 2026-11-14_090000_healthy
+ Thumbnails.FindMissing(root with healthy + pid1) -> THREW Win32Exception: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+ Thumbnails.NeedsThumb(healthy alone) -> OK: False
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidReusedByMyOwnProcess_StaleAndAdmitted [4 ms]
+  Standard Output Messages:
+ Inspect(pid reused, same user) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+  Passed AgentEyes.Tests.GateProbeScratchTests.Reap_OwnerPidReusedByAnotherUsersProcess_Observed [1 ms]
+  Standard Output Messages:
+ ReapOrphansIn(owner pid 1) -> THREW Win32Exception: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+ record still on disk: True
+  Failed AgentEyes.Tests.SweepProofScratch.RepairPass_ForeignPidCrash_EveryStageRunsForEveryOtherRecording [24 ms]
+  Error Message:
+   Assert.Contains() Failure: Item not found in collection
+  Standard Output Messages:
+ root=$TMPDIR/agenteyes-mac-tests/run-20261116-093513-42727/Videos/AgentEyes
+ resume (unfinished admitted): 2026-11-14_090000_a,2026-11-16_090000_b
+ thumbnail backfill: 
+ housekeeping runs: 0
+ queue drain ran: 
+ log: 09:35:13.120 [pid 42727] [INFO] [RepairService] RunAsync: trigger=pass3-proof
+ log: 09:35:13.125 [pid 42727] [ERROR] [RepairService] RunAsync FAILED: trigger=pass3-proof
+     Passed: 4
+     Failed: 1
+ Total time: 0.3258 Seconds
+
+######## AFTER: the final pass-3 predicate
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidIsGone_StaleAndAdmitted [30 ms]
+  Standard Output Messages:
+ Inspect(pid gone) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ FindUnfinished -> OK: 1
+ FindMissing -> OK: 0
+  Passed AgentEyes.Tests.GateProbeScratchTests.WriterPidReusedByAnotherUsersProcess_Observed [11 ms]
+  Standard Output Messages:
+ Inspect(pid 1) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ ClearStaleClaim(pid 1) -> OK: True
+ ThrowIfLive(pid 1) -> OK: passed
+ FindUnfinished(root with healthy + pid1) -> OK: 2026-11-14_090000_healthy,2026-11-15_120000_rootpid
+ Thumbnails.FindMissing(root with healthy + pid1) -> OK: 0
+ Thumbnails.NeedsThumb(healthy alone) -> OK: False
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidReusedByMyOwnProcess_StaleAndAdmitted [4 ms]
+  Standard Output Messages:
+ Inspect(pid reused, same user) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+  Passed AgentEyes.Tests.GateProbeScratchTests.Reap_OwnerPidReusedByAnotherUsersProcess_Observed [1 ms]
+  Standard Output Messages:
+ ReapOrphansIn(owner pid 1) -> OK: pid 999998 [capture video (x)]: already exited (or pid reused) - record removed
+ record still on disk: False
+  Passed AgentEyes.Tests.SweepProofScratch.RepairPass_ForeignPidCrash_EveryStageRunsForEveryOtherRecording [26 ms]
+  Standard Output Messages:
+ root=$TMPDIR/agenteyes-mac-tests/run-20261116-093514-42741/Videos/AgentEyes
+ resume (unfinished admitted): 2026-11-14_090000_a,2026-11-15_120000_foreign,2026-11-16_090000_b
+ thumbnail backfill: 2026-11-14_090000_a,2026-11-16_090000_b
+ housekeeping runs: 1
+ queue drain ran: 2026-11-16_090000_b
+ log: 09:35:14.190 [pid 42741] [INFO] [RepairService] RunAsync: trigger=pass3-proof
+ log: 09:35:14.198 [pid 42741] [INFO] [RepairService] RunAsync: trigger=pass3-proof done
+     Passed: 5
+ Total time: 0.3170 Seconds
