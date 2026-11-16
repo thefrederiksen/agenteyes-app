@@ -1,0 +1,59 @@
+$ curl /health
+{
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "linux"
+}
+$ curl /version
+{
+  "app": "AgentEyes",
+  "version": "1.12.0"
+}
+$ embedded InformationalVersion, ~/.local/lib/agenteyes/agenteyes.dll
+1.12.0+02a4622774f50382e35b3599c90c65bc2abb4608
+$ embedded InformationalVersion, ~/.local/lib/agenteyes-app/AgentEyesDesktop.dll
+1.12.0+02a4622774f50382e35b3599c90c65bc2abb4608
+$ ls -l binaries
+lrwxrwxrwx 1 user user      42 2026-11-16T18:20:03 ~/.local/bin/agenteyes -> ~/.local/lib/agenteyes/agenteyes
+-rwxr-xr-x 1 user user   72504 2026-11-16T18:20:00 ~/.local/lib/agenteyes/agenteyes
+-rw-rw-r-- 1 user user 1106432 2026-11-16T18:20:00 ~/.local/lib/agenteyes/agenteyes.dll
+-rwxr-xr-x 1 user user   72504 2026-11-16T18:20:11 ~/.local/lib/agenteyes-app/AgentEyesDesktop
+$ systemctl --user show agenteyes -p MainPID -p ActiveState -p KillMode -p KillSignal -p TimeoutStopUSec -p ExecMainStartTimestamp -p FragmentPath
+TimeoutStopUSec=2min
+MainPID=2690287
+ExecMainStartTimestamp=Mon 2026-11-16 18:20:15 EST
+KillMode=mixed
+KillSignal=15
+ActiveState=active
+FragmentPath=~/.config/systemd/user/agenteyes.service
+$ grep KillMode installed unit
+18:# SIGTERM goes to AgentEyes ONLY (KillMode=mixed): it stops and KEEPS a running recording, which
+20:# by TimeoutStopSec, which is above the host's 60s post-processing grace.
+21:KillMode=mixed
+22:KillSignal=SIGTERM
+23:TimeoutStopSec=120
+$ sha256 installed unit vs tag vs pre-install
+db53caaff20e316a5c73e5e10bd7ce850dc9c3837f8977f0ad14561dca7fbb9c  ~/.config/systemd/user/agenteyes.service
+db53caaff20e316a5c73e5e10bd7ce850dc9c3837f8977f0ad14561dca7fbb9c  pre-unit.service
+db53caaff20e316a5c73e5e10bd7ce850dc9c3837f8977f0ad14561dca7fbb9c  -
+$ curl /status
+{
+  "State": "idle",
+  "Mode": null,
+  "Source": null,
+  "ElapsedSeconds": 0,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": null,
+  "Camera": null,
+  "SignedIn": true,
+  "AccountEmail": "<owner account>",
+  "PendingTranscriptions": 0,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+  "StuckCameras": [],
+  "PreviewScreenFra

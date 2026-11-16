@@ -1,0 +1,60 @@
+ffmpeg before start:
+2553250 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_
+18:21:29.154 POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Family 17h"}
+{
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.47,
+  "Level": 0.001,
+  "MicLevel": 0.001,
+  "SystemLevel": 0,
+  "Dir": "~/Videos/AgentEyes/2026-11-16_182129_video",
+  "Camera": null,
+  "SignedIn": true,
+  "AccountEmail": "<owner account>",
+  "PendingTranscriptions": 0,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+  "StuckCameras": [],
+  "PreviewScreenFrame": null,
+  "PreviewCameraFrame": null,
+  "PreviewAvailable": false,
+  "PreviewArmed": false,
+  "PreviewPublishing": false,
+  "PreviewScreenFramesRead": 0,
+  "PreviewCameraFramesRead": 0,
+  "PreviewFailed": false,
+  "PreviewOverlayCorner": null,
+  "PreviewOverlayShape": null,
+  "CaptureLiveness": "starting",
+  "CaptureFile": "raw.mp4",
+  "CaptureBytes": 0,
+  "CaptureLastGrowthUtc": null,
+  "CaptureSecondsSinceGrowth": null,
+  "LastCaptureFault": null,
+  "LastCaptureFaultUtc": null,
+  "LastCaptureFaultDir": null
+}
+18:21:30.845 t+1s status: recording ~/Videos/AgentEyes/2026-11-16_182129_video starting 0
+18:21:40.167 t+10s status: recording ~/Videos/AgentEyes/2026-11-16_182129_video growing 432454
+18:21:50.565 t+20s status: recording ~/Videos/AgentEyes/2026-11-16_182129_video growing 1111023
+18:22:00.974 t+30s status: recording ~/Videos/AgentEyes/2026-11-16_182129_video growing 1986424
+ffmpeg during take:
+2553250 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:855
+2695697 /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_si
+2695910 /usr/bin/ffmpeg -hide_banner -nostats -loglevel warning -f pulse -fragment_size 1920 -i alsa_input.pci-0000_08_00.3.analog-stereo -ac 1 -ar 48000 -f s16
+18:22:02.118 POST /record/stop  (dir=~/Videos/AgentEyes/2026-11-16_182129_video)
+{
+  "Dir": "~/Videos/AgentEyes/2026-11-16_182129_video",
+  "File": "~/Videos/AgentEyes/2026-11-16_182129_video/recording.mp4",
+  "DurationSeconds": 32.81,
+  "Shots": 0
+}
+18:22:02.750 stop+1s status=[idle False] manifest.mux=[running] files=[capture.lock manifest.json mux.lock raw.mp4 raw.mp4.ffmpeg.log shots ]
+18:22:03.825 stop+2s status=[idle False] manifest.mux=[running] files=[audio_processed.wav capture.lock manifest.json mux.lock raw.mp4 raw.mp4.ffmpeg.log shots ]
+18:22:04.898 stop+3s status=[idle False] manifest.mux=[running] files=[audio_processed.wav capture.lock manifest.json mux.lock raw.mp4 raw.mp4.ffmpeg.log recording.mp4.muxing.tmp shots ]
+18:22:05.974 stop+4s status=[idle False] manifest.mux=[done] files=[capture.lock manifest.json mux.lock raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots thumb.jpg ]
+DIR=~/Videos/AgentEyes/2026-11-16_182129_video
