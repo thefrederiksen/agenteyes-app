@@ -407,6 +407,83 @@ namespace AgentEyes.Tests
             Assert.Contains("THIS USER", a.Why);
         }
 
+        // ---- Linux owner read without statx (issue #156 pass 5b): the predicate ANSWERS ----------
+
+        private const int Enosys = 38, Einval = 22;
+        private static (int Errno, uint? Uid) NoSuchSymbol(int pid) => throw new EntryPointNotFoundException("Unable to find an entry point named 'statx' in shared library 'libc'.");
+        private static (int Errno, uint? Uid) NoSuchLibrary(int pid) => throw new DllNotFoundException("Unable to load shared library 'libSystem.Native'.");
+        private static Func<int, (int Errno, uint? Uid)> Fails(int errno) => _ => (errno, null);
+        private static Func<int, (int Errno, uint? Uid)> Answers(uint uid) => _ => (0, uid);
+
+        /// <summary>THE PASS 5B PIN - TOTALITY. On the Linux EPERM row, with the owner read failing the way
+        /// it does where statx does not exist (glibc before 2.28 or musl before 1.2.5: the import throws
+        /// EntryPointNotFoundException; a kernel before 4.11: ENOSYS) and stat(2) unavailable too, or with
+        /// statx refusing (EINVAL), the predicate answers Unknown and does not throw. A throw here is what
+        /// the Review Gate rejected pass 2 for: it takes every sweep of the library down (issue #170).</summary>
+        [Fact]
+        public void ClassifyUnreadable_KillEpermOnLinuxWithoutStatxOrStat_UnknownAndNeverThrows()
+        {
+            var arms = new (string Name, Func<int, (int Errno, uint? Uid)> Statx, Func<int, (int Errno, uint? Uid)> Stat)[]
+            {
+                ("libc without statx, stat missing", NoSuchSymbol, NoSuchSymbol),
+                ("libc without statx, stat library missing", NoSuchSymbol, NoSuchLibrary),
+                ("kernel without statx (ENOSYS), stat ENOSYS", Fails(Enosys), Fails(Enosys)),
+                ("kernel without statx (ENOSYS), stat missing", Fails(Enosys), NoSuchSymbol),
+                ("statx EINVAL", Fails(Einval), NoSuchSymbol),
+            };
+            foreach (var arm in arms)
+            {
+                ProcessAnswer a = default;
+                var thrown = Record.Exception(() => a = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead,
+                    IsLinuxMe, pid => FfmpegChildRegistry.ReadLinuxProcOwner(pid, arm.Statx, arm.Stat)));
+                Assert.True(thrown is null, $"{arm.Name}: the ownership predicate THREW instead of answering: {thrown}");
+                Assert.True(a.IsUnknown, $"{arm.Name}: {a.Identity}: {a.Why}");
+            }
+        }
+
+        /// <summary>Where statx is absent, stat(2) answers the same question, so the row still decides
+        /// rather than degrading every probe to Unknown: another uid is NotMine, ours is Unknown, ENOENT is
+        /// gone. stat is NOT asked when statx exists, even when statx refuses. And the real stat read,
+        /// against real processes on every Linux run: this process is ours, pid 1 is root's, a missing pid
+        /// is Gone - a wrong FileStatus offset fails here.</summary>
+        [Fact]
+        public void ReadLinuxProcOwner_StatxAbsent_StatAnswersTheSameOwner()
+        {
+            Func<int, (int Errno, uint? Uid)> mustNotStat = _ => throw new Exception("stat must not be asked while statx exists");
+            var noSymbol = FfmpegChildRegistry.ReadLinuxProcOwner(4321, NoSuchSymbol, Answers(Root));
+            var enosys = FfmpegChildRegistry.ReadLinuxProcOwner(4321, Fails(Enosys), Answers(LinuxMe));
+            var gone = FfmpegChildRegistry.ReadLinuxProcOwner(4321, NoSuchSymbol, Fails(2));
+            var refused = FfmpegChildRegistry.ReadLinuxProcOwner(4321, Fails(1), mustNotStat);
+            Assert.Equal((LinuxProcOwnerKind.Owned, (uint?)Root), (noSymbol.Kind, noSymbol.Uid));
+            Assert.Contains("(stat)", noSymbol.Detail);
+            Assert.Equal((LinuxProcOwnerKind.Owned, (uint?)LinuxMe), (enosys.Kind, enosys.Uid));
+            Assert.Equal(LinuxProcOwnerKind.Gone, gone.Kind);
+            Assert.Equal(LinuxProcOwnerKind.Unreadable, refused.Kind);
+
+            var other = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead,
+                IsLinuxMe, pid => FfmpegChildRegistry.ReadLinuxProcOwner(pid, NoSuchSymbol, Answers(Root)));
+            var ours = FfmpegChildRegistry.ClassifyUnreadable(4321, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead,
+                IsLinuxMe, pid => FfmpegChildRegistry.ReadLinuxProcOwner(pid, NoSuchSymbol, Answers(LinuxMe)));
+            Assert.True(other.IsNotMine, $"{other.Identity}: {other.Why}");
+            Assert.True(ours.IsUnknown, $"{ours.Identity}: {ours.Why}");
+
+            if (!OperatingSystem.IsLinux()) return;
+            uint me = uint.Parse(Run("/usr/bin/id", "-u"));
+            Assert.Equal((0, (uint?)me), FfmpegChildRegistry.StatOwnerOfPath($"/proc/{Environment.ProcessId}"));
+            Assert.Equal(2, FfmpegChildRegistry.StatOwnerOfPath($"/proc/{int.MaxValue - 7}").Errno);
+            if (PsUser(1) == "root") Assert.Equal((0, (uint?)0u), FfmpegChildRegistry.StatOwnerOfPath("/proc/1"));
+            // This user's uid and gid are often equal, so the reads above cannot tell Uid's offset from
+            // Gid's. A system file whose owner and group differ can (on Debian and Ubuntu, /etc/shadow is
+            // root:shadow - stat needs no read permission). Compared with what stat(1) says for it.
+            foreach (var path in new[] { "/etc/shadow", "/etc/gshadow", "/var/mail", "/var/log/syslog" })
+            {
+                if (!File.Exists(path) && !Directory.Exists(path)) continue;
+                var ids = Run("/usr/bin/stat", $"-c %u:%g {path}").Split(':');
+                if (ids[0] == ids[1]) continue;
+                Assert.Equal((0, (uint?)uint.Parse(ids[0])), FfmpegChildRegistry.StatOwnerOfPath(path));
+            }
+        }
+
         private const uint Me = 501, Root = 0;
         private static Func<int, MacProcessState> Owned(uint ruid, uint svuid) =>
             _ => new MacProcessState(MacProcessStateKind.Alive, 2, "alive", ruid, svuid, ruid);

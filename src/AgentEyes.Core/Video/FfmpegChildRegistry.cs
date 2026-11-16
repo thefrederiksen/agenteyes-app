@@ -595,22 +595,95 @@ namespace AgentEyes.Video
         /// Landlock prober that is refused /proc/&lt;pid&gt;/status, this still answers - 1000 for a live
         /// writer of uid 1000, 0 for pid 1. Pinned by tests that read this process, pid 1 and a missing
         /// pid for real on every Linux run.
+        ///
+        /// Issue #156 pass 5b - THIS NEVER THROWS, because the predicate above it must answer on every
+        /// libc. statx is ABSENT on supported configurations: glibc before 2.28 has no statx symbol (the
+        /// call throws EntryPointNotFoundException; .NET 8 runs on glibc 2.23 and up), musl before 1.2.5
+        /// likewise, and a kernel before 4.11 answers ENOSYS (glibc 2.28 and later emulate statx there, so
+        /// that one reaches this code only through a libc that does not). In exactly those two cases - statx is not
+        /// there, as opposed to statx refusing - the SAME question is asked of stat(2), whose st_uid is the
+        /// same owner from the same single read. stat is reached through the runtime's own
+        /// SystemNative_Stat (libSystem.Native, which .NET's file APIs call), NOT libc's "stat": glibc
+        /// exports a "stat" symbol only from 2.33 (before that it was an inline wrapper around __xstat,
+        /// whose version argument and struct layout differ per architecture), so a libc import would throw
+        /// on precisely the glibc range that lacks statx. SystemNative_Stat fills one fixed struct
+        /// (FileStatus: Flags, Mode, Uid, Gid - Uid the u32 at offset 8) on every libc and architecture,
+        /// pinned by a test that reads this process, pid 1, a missing pid and a file whose owner and group
+        /// differ for real on every Linux run. MEASURED (pass 5b) in an Ubuntu 18.04 container, glibc 2.27:
+        /// pass 5 threw EntryPointNotFoundException out of the predicate; this answers through stat. If
+        /// neither is available the answer is Unreadable, which the predicate maps to Unknown - the
+        /// "could not look" every caller already treats as do-not-touch. Any statx errno other than ENOSYS
+        /// (EINVAL, EPERM from an old container seccomp profile, ...) is statx refusing, not absent:
+        /// Unreadable, as in pass 5, with no second read.
         /// </summary>
-        internal static LinuxProcOwner ReadLinuxProcOwner(int pid)
+        internal static LinuxProcOwner ReadLinuxProcOwner(int pid) => ReadLinuxProcOwner(pid, StatxOwner, StatOwner);
+
+        /// <summary>The decision of <see cref="ReadLinuxProcOwner(int)"/> with the two native reads
+        /// injected - the seam that lets a test be a libc without statx (the read throws
+        /// EntryPointNotFoundException) or a kernel without it (errno ENOSYS). Each read returns errno 0
+        /// and the owner (null when the reply carries none), or the errno it failed with.</summary>
+        internal static LinuxProcOwner ReadLinuxProcOwner(int pid, Func<int, (int Errno, uint? Uid)> statx, Func<int, (int Errno, uint? Uid)> stat)
+        {
+            var viaStatx = ReadIfPresent(statx, pid);
+            if (viaStatx is { } sx && sx.Errno != Enosys) return OwnerFrom(sx, "statx", pid);
+
+            string why = viaStatx is null ? "this libc has no statx" : "this kernel has no statx (ENOSYS)";
+            Log.Info($"[FfmpegChildRegistry] ReadLinuxProcOwner: pid {pid} - {why}; asking stat(2) for the same owner");
+            var viaStat = ReadIfPresent(stat, pid);
+            if (viaStat is not { } st)
+                return new LinuxProcOwner(LinuxProcOwnerKind.Unreadable, $"{why}, and stat(2) is not available either");
+            return OwnerFrom(st, "stat", pid);
+        }
+
+        /// <summary>One native read, or null when the function is not there at all (missing from this
+        /// libc, or its library not loadable). Those two are the ONLY exceptions caught: they mean
+        /// "this read does not exist here", which is exactly the case the predicate must answer.</summary>
+        private static (int Errno, uint? Uid)? ReadIfPresent(Func<int, (int Errno, uint? Uid)> read, int pid)
+        {
+            try { return read(pid); }
+            catch (EntryPointNotFoundException ex)
+            {
+                Log.Info($"[FfmpegChildRegistry] ReadLinuxProcOwner: pid {pid} - entry point not found: {ex.Message}");
+                return null;
+            }
+            catch (DllNotFoundException ex)
+            {
+                Log.Info($"[FfmpegChildRegistry] ReadLinuxProcOwner: pid {pid} - library not found: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static LinuxProcOwner OwnerFrom((int Errno, uint? Uid) read, string call, int pid)
+        {
+            if (read.Errno == Enoent) return new LinuxProcOwner(LinuxProcOwnerKind.Gone, "no such process");
+            if (read.Errno != 0)
+                return new LinuxProcOwner(LinuxProcOwnerKind.Unreadable, $"{call} /proc/{pid} refused, errno {read.Errno}");
+            if (read.Uid is not uint uid)
+                return new LinuxProcOwner(LinuxProcOwnerKind.Unreadable, $"{call} /proc/{pid} returned no owner");
+            return new LinuxProcOwner(LinuxProcOwnerKind.Owned, $"owned by uid {uid} ({call})", uid);
+        }
+
+        /// <summary>statx(2) of /proc/&lt;pid&gt; for STATX_UID.</summary>
+        private static (int Errno, uint? Uid) StatxOwner(int pid)
         {
             var buf = new byte[StatxSize];
             if (Statx(AtFdCwd, $"/proc/{pid}", 0, StatxUid, buf) != 0)
-            {
-                int errno = System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
-                return errno == Enoent
-                    ? new LinuxProcOwner(LinuxProcOwnerKind.Gone, "no such process")
-                    : new LinuxProcOwner(LinuxProcOwnerKind.Unreadable, $"statx /proc/{pid} refused, errno {errno}");
-            }
+                return (System.Runtime.InteropServices.Marshal.GetLastPInvokeError(), null);
             uint mask = BitConverter.ToUInt32(buf, 0);
-            if ((mask & StatxUid) == 0)
-                return new LinuxProcOwner(LinuxProcOwnerKind.Unreadable, $"statx /proc/{pid} returned no owner (mask 0x{mask:x})");
-            uint uid = BitConverter.ToUInt32(buf, StxUidOffset);
-            return new LinuxProcOwner(LinuxProcOwnerKind.Owned, $"owned by uid {uid}", uid);
+            return (0, (mask & StatxUid) == 0 ? null : BitConverter.ToUInt32(buf, StxUidOffset));
+        }
+
+        /// <summary>stat(2) of /proc/&lt;pid&gt; through the runtime's SystemNative_Stat: FileStatus.Uid.</summary>
+        private static (int Errno, uint? Uid) StatOwner(int pid) => StatOwnerOfPath($"/proc/{pid}");
+
+        /// <summary>stat(2) of any path through SystemNative_Stat - its own entry point so a test can read
+        /// a file whose owner and group differ, which tells the Uid offset from the Gid's.</summary>
+        internal static (int Errno, uint? Uid) StatOwnerOfPath(string path)
+        {
+            var buf = new byte[FileStatusBufferSize];
+            if (SystemNativeStat(path, buf) != 0)
+                return (System.Runtime.InteropServices.Marshal.GetLastPInvokeError(), null);
+            return (0, BitConverter.ToUInt32(buf, FileStatusUidOffset));
         }
 
         private const int ErrorAccessDenied = 5;   // Windows ERROR_ACCESS_DENIED
@@ -624,6 +697,13 @@ namespace AgentEyes.Video
 
         private const int Enoent = 2, AtFdCwd = -100, StatxSize = 256, StxUidOffset = 20;
         private const uint StatxUid = 0x8;   // STATX_UID
+        private const int Enosys = 38;       // "function not implemented" (Linux asm-generic and x86: every architecture .NET 8 runs on)
+        // FileStatus (System.Native pal_io.h): int32 Flags, int32 Mode, uint32 Uid, ... The buffer is
+        // larger than the struct on purpose, so a later runtime that appends fields cannot overrun it.
+        private const int FileStatusBufferSize = 512, FileStatusUidOffset = 8;
+
+        [System.Runtime.InteropServices.DllImport("libSystem.Native", EntryPoint = "SystemNative_Stat", SetLastError = true)]
+        private static extern int SystemNativeStat(string path, byte[] output);
 
         [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "statx", SetLastError = true)]
         private static extern int Statx(int dirfd, string path, int flags, uint mask, byte[] statxbuf);

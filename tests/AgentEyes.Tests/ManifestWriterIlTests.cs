@@ -331,6 +331,7 @@ namespace AgentEyes.Tests
             "libc!getuid",                          // this process's real uid, Linux only (no file access; issue #156 pass 5)
             "libc!statx",                           // the owner of /proc/<pid>, Linux only: a metadata READ, never a write (issue #156 pass 5)
             "libc!sysctl",                          // KERN_PROC_PID read-only (newp NULL): proves a zombie on macOS (no file access; issue #156 pass 4)
+            "libSystem.Native!SystemNative_Stat",   // the owner of /proc/<pid> when this libc or kernel has no statx, Linux only: a metadata READ, never a write (issue #156 pass 5b)
             "shell32.dll!SHGetKnownFolderPath",     // the user's Videos folder
             "user32.dll!CallNextHookEx",            // the low-level keyboard hook chain
             "user32.dll!DestroyIcon",               // frees the composed always-on tray icon's handle (no file access)
