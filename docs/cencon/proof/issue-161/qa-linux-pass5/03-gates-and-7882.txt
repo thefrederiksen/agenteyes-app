@@ -1,0 +1,28 @@
+## default (AgentEyes.Tests.Linux) 2026-11-16T21:16:59Z
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+canary child exit 0
+  Skipped AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [1 ms]
+  Skipped AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [1 ms]
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [3 s]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed!  - Failed:     1, Passed:   553, Skipped:     3, Total:   557, Duration: 31 s - AgentEyes.Tests.Linux.dll (net8.0)
+   trace: 485 lines; connects to 127.0.0.1 any port (v4 or v4-mapped): 50
+   CANARY (positive control, port 41901): connects with htons(41901): 1  [v4: 0 ; v4-mapped: 1]
+   7882: connects with htons(7882): 0  [v4: 0 ; v4-mapped: 0] ; binds to 7882: 2
+## optin (AgentEyes.Tests.Linux) 2026-11-16T21:17:35Z
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+canary child exit 0
+  Skipped AgentEyes.Tests.Shared.LibraryRedirectTests.RealProcess_ServiceOnTheDefaultPortNamesARelocatedLibrary_RedirectOntoItRefused [1 ms]
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [3 s]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Failed!  - Failed:     1, Passed:   554, Skipped:     2, Total:   557, Duration: 36 s - AgentEyes.Tests.Linux.dll (net8.0)
+   trace: 924 lines; connects to 127.0.0.1 any port (v4 or v4-mapped): 50
+   CANARY (positive control, port 41902): connects with htons(41902): 1  [v4: 0 ; v4-mapped: 1]
+   7882: connects with htons(7882): 0  [v4: 0 ; v4-mapped: 0] ; binds to 7882: 2
+## desktop (AgentEyes.Tests.DesktopApp) 2026-11-16T21:18:16Z
+lldeny: landlock ABI 4 enforced, 2 deny path(s)
+canary child exit 0
+Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.DesktopApp.dll (net8.0)
+   trace: 39 lines; connects to 127.0.0.1 any port (v4 or v4-mapped): 4
+   CANARY (positive control, port 41903): connects with htons(41903): 1  [v4: 0 ; v4-mapped: 1]
+   7882: connects with htons(7882): 0  [v4: 0 ; v4-mapped: 0] ; binds to 7882: 0

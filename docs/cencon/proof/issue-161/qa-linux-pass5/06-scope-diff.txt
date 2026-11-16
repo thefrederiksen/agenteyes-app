@@ -1,0 +1,30 @@
+## files changed c86081c (pass 3 code) .. 22ec8cb (this head), outside docs/cencon/proof/issue-161:
+   docs/cencon/ISOLATING_A_REAL_PROCESS.md         |  15 +-
+   src/AgentEyes.Core/LibraryRedirect.cs           |  58 ++-
+   src/AgentEyes.Core/RealLibrary.cs               |  47 ++-
+   src/AgentEyes.Core/Video/FfmpegChildRegistry.cs |   8 +-
+   tests/AgentEyes.Tests/ManifestWriterIlTests.cs  |   3 +-
+   tests/AgentEyes.Tests/TestIsolationTests.cs     |   3 +
+   tests/Shared/DesktopAppRedirectTests.cs         |  14 +
+   tests/Shared/LibraryRedirectTests.cs            | 473 ++++++++++++++++++++----
+   8 files changed, 517 insertions(+), 104 deletions(-)
+## commits c86081c..22ec8cb:
+  22ec8cb docs(cencon): #161 pass 5 handoff - CI on 5eaf3fd green on all three, push and pull_request twice
+  5eaf3fd test(redirect): #161 pass 5 - stand-ins back on their own threads; the collection stays parallel
+  f44fc60 test(redirect): #161 pass 5 - the full-queue connect test is skipped on macOS, by name
+  64bee6f docs(cencon): #161 pass 5 handoff - two bounds, five shapes measured, serialisation out, probe port injectable
+  3ca8775 fix(redirect): #161 pass 5 - split the probe timeout; make its port injectable
+  6ee962d docs(cencon): #161 pass 4 handoff - CI on 88d9a95, all green; the red run on aa2d3e5 and what it says about 500 ms
+  88d9a95 test(redirect): #161 pass 4 - probe tests run alone and stand-ins on their own threads
+  aa2d3e5 fix(redirect): #161 pass 4 - cap the service probe at 500 ms, one geteuid, scrub the account name
+  71dc345 docs(cencon): #161 pass 3 handoff - CI on c86081c, all three jobs green
+## merges in that range (main brought in?): 0
+## the 7 files that must have NO diff since pass 3 (lead's list):
+  src/AgentEyes.Core/AppDataPaths.cs: 0 diff lines
+  src/AgentEyes.Core/LocalAppConfig.cs: 0 diff lines
+  src/AgentEyes.Core/Program.cs: 0 diff lines
+  src/AgentEyes.Core/Headless/HeadlessHost.cs: 0 diff lines
+  src/AgentEyes.App/App.xaml.cs: 0 diff lines
+  src/AgentEyes.DesktopApp/Program.cs: 0 diff lines
+  src/AgentEyes.Core/RecordingService.cs: 0 diff lines
+## since the LAST QA-VERIFIED head f9aba6a:  198 files changed, 16820 insertions(+), 103 deletions(-)

@@ -1,0 +1,41 @@
+## src/AgentEyes.Core/LibraryRedirect.cs  c86081c (pass 3 code) -> 5eaf3fd (pass 5 code)
+  CHANGED  ApplyFromEnvironment
+  ADDED    ServiceProbePortVariable
+  ADDED    ServiceProbePort
+  ADDED    ServiceProbeNote
+  IDENTICAL (44): AppliedFromEnvironment, Banner, ComparisonLimit, Data, DataVariable, Decide, Decide#1, Decision, Described, EnvironmentSource, FirstEscapingLink, IReadOnlyList, IReadOnlyList#1, LinkEscape, Normalize, N
+otRequested, Outcome, Overlaps, RealRootsStatement, Redirect, RedirectTo, Refusal, Refuse, Refused, RefusedExitCode, ResolveLinks, ResolveLinks#1, SamePath, ScratchMarker, ServiceLibraryRefusal, ServiceNote, ServicePortR
+efusal, ServicePortRefusal#1, Shown, Source, TestHostSource, UnmarkedLibraryProblem, UsableFolderProblem, VariablePrefix, Videos, VideosVariable, WriteScratchMarker, _appliedFromEnvironment, _serviceNote
+## src/AgentEyes.Core/RealLibrary.cs  c86081c (pass 3 code) -> 5eaf3fd (pass 5 code)
+  CHANGED  IReadOnlyList#3
+  CHANGED  IReadOnlyList#4
+  ADDED    ConnectTimeout
+  ADDED    ResponseTimeout
+  ADDED    StatusUri
+  ADDED    IReadOnlyList#5
+  REMOVED  ServiceTimeout
+  IDENTICAL (20): AccountHome, EffectiveUid, GetEffectiveUid, GetPwUidR, IReadOnlyList, IReadOnlyList#1, IReadOnlyList#2, LinuxDirOffset, LinuxGeteuid, LinuxGetpwuidR, MacDirOffset, MacGeteuid, MacGetpwuidR, PasswdSize, 
+ProcessEnvironmentSource, ReadIfPresent, RecordingsName, Root, StateName, VideosFromUserDirs
+## src/AgentEyes.Core/Video/FfmpegChildRegistry.cs  c86081c (pass 3 code) -> 5eaf3fd (pass 5 code)
+  CHANGED  Func
+  REMOVED  GetEuid
+  IDENTICAL (51): CaptureWriter, CaptureWriterGrace, ClassifyUnreadable, ClassifyUnreadable#1, CtlKern, Enoent, Enosys, Eperm, ErrorAccessDenied, Esrch, FileStatusBufferSize, Folder, Func#1, GetUid, GracePollInterval, Id
+entifyProcess, KillTree, KinfoProcSize, Label, List, List#1, List#2, List#3, OwnerFrom, OwnerPid, OwnerStartUtc, PathFor, Pid, PosixKill, ProbeSignal, ReadIfPresent, ReadLinuxProcOwner, ReadLinuxProcOwner#1, ReadMacProce
+ssState, Register, Register#1, RegisterCaptureWriter, RequestGracefulExit, RuidOffset, SigTerm, StartTimeTolerance, StartUtc, StatOwner, StatOwnerOfPath, Statx, StatxOwner, StatxUid, Sysctl, SystemNativeStat, Unregister,
+ WriteRecord
+  IDENTICAL FromServiceStatus(string json, int port)  (src/AgentEyes.Core/RealLibrary.cs) [16777d2833dde110/16777d2833dde110]
+  IDENTICAL IReadOnlyList<Root> DeriveForThisProcess()  (src/AgentEyes.Core/RealLibrary.cs) [7b3b2252008c4a08/7b3b2252008c4a08]
+  IDENTICAL IReadOnlyList<Root> Derive(  (src/AgentEyes.Core/RealLibrary.cs) [6240a5bad486fa36/6240a5bad486fa36]
+  IDENTICAL IReadOnlyList<Root> Distinct(  (src/AgentEyes.Core/RealLibrary.cs) [962aae67c7cacc1a/962aae67c7cacc1a]
+  IDENTICAL Func<uint, bool>? OwnUidsOnMac()  (src/AgentEyes.Core/Video/FfmpegChildRegistry.cs) [866cc8153e09f1c6/866cc8153e09f1c6]
+  OwnUidsOnLinux, the one changed #156 member:
+    3c3
+    <             uint ruid = GetUid(), euid = GetEuid();
+    ---
+    >             uint ruid = GetUid(), euid = RealLibrary.EffectiveUid();
+  RealLibrary.EffectiveUid at 5eaf3fd:
+            internal static uint EffectiveUid() => Native.GetEffectiveUid();
+    327-            [DllImport("libc.so.6", EntryPoint = "geteuid")]
+    328:            private static extern uint LinuxGeteuid();
+    333-            [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "geteuid")]
+    334:            private static extern uint MacGeteuid();

@@ -1,0 +1,12 @@
+## build AgentEyes.Tests.Linux
+Build succeeded.
+    14 Warning(s)
+    0 Error(s)
+## build AgentEyes.Tests.Mac
+Build succeeded.
+    8 Warning(s)
+    0 Error(s)
+## build AgentEyes.Tests.DesktopApp
+Build succeeded.
+    1 Warning(s)
+    0 Error(s)

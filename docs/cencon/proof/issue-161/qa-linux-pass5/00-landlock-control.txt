@@ -1,0 +1,8 @@
+# QA pass-5 Landlock denial control, 2026-11-16T21:09:40Z, run BEFORE anything else
+# deny: <real state root>=<home>/.local/share/AgentEyes  <real recordings root>=<home>/Videos/AgentEyes
+[$ ls <home>/.local/share/AgentEyes] exit=2 : ls: cannot open directory '<home>/.local/share/AgentEyes': Permission denied
+[$ ls <home>/Videos/AgentEyes] exit=2 : ls: cannot open directory '<home>/Videos/AgentEyes': Permission denied
+[$ touch <home>/.local/share/AgentEyes/.qa5-probe] exit=1 : touch: cannot touch '<home>/.local/share/AgentEyes/.qa5-probe': Permission denied
+[$ touch <home>/Videos/AgentEyes/.qa5-probe] exit=1 : touch: cannot touch '<home>/Videos/AgentEyes/.qa5-probe': Permission denied
+[$ cat <home>/.local/share/AgentEyes/logs/nonexistent-qa5] exit=1 : cat: <home>/.local/share/AgentEyes/logs/nonexistent-qa5: No such file or directory
+[$ touch <scratch>/ok] exit=0

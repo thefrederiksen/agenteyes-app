@@ -1,0 +1,7 @@
+# QA: the DefaultPortFreeFact twin where 7882 is FREE, 2026-11-16T21:20:06Z, docker --network none, binary 22ec8cb, run with vstest.console
+THIRD-PARTY CLIENT: POST /record/start to 127.0.0.1:7882 -> HTTP 200, body: {"DataRoot":"/tmp/agenteyes-161-tests/run-82-d576c70e275a45b88b0282794b849da9/r1-service/reloc/AgentEyes","RecordingsRoo
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: < 1 ms - AgentEyes.Tests.Linux.dll (net8.0)
+binds to 7882 in the test run:
+  bind(168, {sa_family=AF_INET, sin_port=htons(7882), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+  bind(168, {sa_family=AF_INET, sin_port=htons(7882), sin_addr=inet_addr("127.0.0.1")}, 16) = 0
+  bind(184, {sa_family=AF_INET, sin_port=htons(7882), sin_addr=inet_addr("127.0.0.1")}, 16) = 0

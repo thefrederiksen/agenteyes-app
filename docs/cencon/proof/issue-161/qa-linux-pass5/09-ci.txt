@@ -1,0 +1,24 @@
+## run 43956469720 (push 22ec8cb9d5e05e28ffe6d31a0ae6b5d0f49bef5f success)
+  job linux: success
+  job windows: success
+  job macos: success
+  linux | Passed!  - Failed:     0, Passed:   555, Skipped:     2, Total:   557, Duration: 9 s - AgentEyes.Tests.Linux.dll (net8.0)
+  linux | Passed!  - Failed:     0, Passed:   556, Skipped:     1, Total:   557, Duration: 10 s - AgentEyes.Tests.Linux.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:  2588, Skipped:    31, Total:  2619, Duration: 52 s - AgentEyes.Tests.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 2 s - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:  2607, Skipped:    16, Total:  2623, Duration: 54 s - AgentEyes.Tests.dll (net8.0)
+  macos | Passed!  - Failed:     0, Passed:   510, Skipped:     3, Total:   513, Duration: 11 s - AgentEyes.Tests.Mac.dll (net8.0)
+  ConnectThatNeverCompletes lines: 2  ; skipped-by-name on macOS: 1
+## run 43956485760 (pull_request 22ec8cb9d5e05e28ffe6d31a0ae6b5d0f49bef5f success)
+  job linux: success
+  job windows: success
+  job macos: success
+  linux | Passed!  - Failed:     0, Passed:   602, Skipped:     2, Total:   604, Duration: 10 s - AgentEyes.Tests.Linux.dll (net8.0)
+  linux | Passed!  - Failed:     0, Passed:   603, Skipped:     1, Total:   604, Duration: 10 s - AgentEyes.Tests.Linux.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 2 s - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:  2636, Skipped:    31, Total:  2667, Duration: 54 s - AgentEyes.Tests.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.DesktopApp.dll (net8.0)
+  windows | Passed!  - Failed:     0, Passed:  2655, Skipped:    16, Total:  2671, Duration: 1 m 4 s - AgentEyes.Tests.dll (net8.0)
+  macos | Passed!  - Failed:     0, Passed:   557, Skipped:     3, Total:   560, Duration: 9 s - AgentEyes.Tests.Mac.dll (net8.0)
+  ConnectThatNeverCompletes lines: 2  ; skipped-by-name on macOS: 1
