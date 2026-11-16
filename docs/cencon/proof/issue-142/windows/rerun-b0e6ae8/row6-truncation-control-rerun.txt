@@ -1,0 +1,126 @@
+# Issue #142 row 6 - truncation control, independent re-run by a second Windows QA seat, 2026-11-16 ~16:57 local.
+# Purpose: show which of the row-6 checks have teeth under a FRAGMENTED container. Recording: the row 6 take
+# (2026-11-16_161739_video, 613.057 s expected by the driver's clock). COPIES ONLY, cut with SetLength in a scratch
+# folder; the originals' SHA-256 is printed before and after and is unchanged. ffmpeg/ffprobe: the installed 9.0.2
+# (read, not modified). Check D is the committed endcheck.ps1 (row6-endcheck.txt) run unmodified.
+#   recording.original.mp4 = the capture as written (fragmented: moov + 360 moof + mfra)
+#   recording.mp4          = the final mux (classic: one moov at the END of the file, no fragments)
+# Checks: A = moov atom present and complete (top-level atom walk); B = full decode exit 0;
+#         C = the OLD form, a frame read 2 s before the end of the DATA; D = duration within 2 s of the EXPECTED
+#         length AND >= 40 decoded frames in the last 2 s of the EXPECTED length.
+#
+# RESULT on the fragmented capture copies: A PASS, B PASS on both copies (99% and 90%) - they certify nothing.
+#   C passes the 90% copy (a frame 2 s before the end of whatever bytes exist) and fails the 99% one only by
+#   accident (the cut lands mid-fragment). D FAILS both (608.5 s and 551.6 s against 613.057; 0 frames in the window).
+# RESULT on the final-mux copies: every check fails (the moov is at the end, so any cut removes it). The
+#   fail-open shape is specific to the fragmented capture.
+
+# #142 row 6 truncation control, independent re-run 2026-11-16T16:57:41. Copies only; originals untouched.
+## ORIGINAL recording.original.mp4 size=25666852 sha256=267B9BBC811225C8AA1EA705151CC4AC0C84A60B236B29A05BC5ADEA4503F49B
+  [check A] moov atom present: YES (complete)   moof fragments=360   last top-level atom=mfra complete=True
+  [check B] full decode exit=0
+  [check C] frame read 2 s before the end of the DATA (t=612.1): exit=0 png_bytes=982119
+  [check D] row-6 end-check against the EXPECTED length (613.057 s):
+    file=recording.original.mp4 size=25666852 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+      duration=614.100000  |duration-expected|=1.043  -> OK
+      full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+      decoded frames with pts in [611.057, 613.107]: 60 (need >= 40)  last decoded pts=613.366667  -> OK
+      VERDICT: PASS
+## COPY of recording.original.mp4 truncated to 99% -> size=25410183
+  [check A] moov atom present: YES (complete)   moof fragments=357   last top-level atom=mdat complete=False
+  [check B] full decode exit=0
+  [check C] frame read 2 s before the end of the DATA (t=606.5): exit=69 png_bytes=0
+  [check D] row-6 end-check against the EXPECTED length (613.057 s):
+    file=copy-99-recording.original.mp4 size=25410183 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+      duration=608.500000  |duration-expected|=4.557  -> FAIL
+      full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+      decoded frames with pts in [611.057, 613.107]: 0 (need >= 40)  last decoded pts=none  -> FAIL
+      VERDICT: FAIL
+## COPY of recording.original.mp4 truncated to 90% -> size=23100166
+  [check A] moov atom present: YES (complete)   moof fragments=323   last top-level atom=mdat complete=False
+  [check B] full decode exit=0
+  [check C] frame read 2 s before the end of the DATA (t=549.6): exit=0 png_bytes=982162
+  [check D] row-6 end-check against the EXPECTED length (613.057 s):
+    file=copy-90-recording.original.mp4 size=23100166 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+      duration=551.600000  |duration-expected|=61.457  -> FAIL
+      full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+      decoded frames with pts in [611.057, 613.107]: 0 (need >= 40)  last decoded pts=550.9  -> FAIL
+      VERDICT: FAIL
+## ORIGINAL recording.original.mp4 sha256 after the run=267B9BBC811225C8AA1EA705151CC4AC0C84A60B236B29A05BC5ADEA4503F49B  unchanged=True
+## ORIGINAL recording.mp4 size=28332797 sha256=26B9111D35D99822E4B6ECF0AEECC44BD82E1FEB918A849C49205E6AF7D997BB
+  [check A] moov atom present: YES (complete)   moof fragments=0   last top-level atom=moov complete=True
+  [check B] full decode exit=0
+  [check C] frame read 2 s before the end of the DATA (t=611.4): exit=0 png_bytes=982119
+  [check D] row-6 end-check against the EXPECTED length (613.057 s):
+    file=recording.mp4 size=28332797 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+      duration=613.400000  |duration-expected|=0.343  -> OK
+      full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+      decoded frames with pts in [611.057, 613.107]: 60 (need >= 40)  last decoded pts=613.366667  -> OK
+      VERDICT: PASS
+## COPY of recording.mp4 truncated to 99% -> size=28049469
+  [check A] moov atom present: NO   moof fragments=0   last top-level atom=moov complete=False
+  [check B] full decode exit=-1094995529
+  [check C] frame read 2 s before end of DATA: no duration ()
+  [check D] row-6 end-check against the EXPECTED length (613.057 s):
+    file=copy-99-recording.mp4 size=28049469 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+      duration=[mov,mp4,m4a,3gp,3g2,mj2 @ 00000228fef91880] error reading header  |duration-expected|=n/a  -> FAIL
+      full decode exit=-1094995529 (reported, not judged: a truncated file can decode to 0)
+      decoded frames with pts in [611.057, 613.107]: 0 (need >= 40)  last decoded pts=none  -> FAIL
+      VERDICT: FAIL
+## COPY of recording.mp4 truncated to 90% -> size=25499517
+  [check A] moov atom present: NO   moof fragments=0   last top-level atom=mdat complete=False
+  [check B] full decode exit=-1094995529
+  [check C] frame read 2 s before end of DATA: no duration ()
+  [check D] row-6 end-check against the EXPECTED length (613.057 s):
+    file=copy-90-recording.mp4 size=25499517 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+      duration=[mov,mp4,m4a,3gp,3g2,mj2 @ 00000238c2aeb600] moov atom not found  |duration-expected|=n/a  -> FAIL
+      full decode exit=-1094995529 (reported, not judged: a truncated file can decode to 0)
+      decoded frames with pts in [611.057, 613.107]: 0 (need >= 40)  last decoded pts=none  -> FAIL
+      VERDICT: FAIL
+## ORIGINAL recording.mp4 sha256 after the run=26B9111D35D99822E4B6ECF0AEECC44BD82E1FEB918A849C49205E6AF7D997BB  unchanged=True
+
+## The driver (control.ps1)
+$S = Split-Path -Parent $MyInvocation.MyCommand.Path
+$src = "$env:USERPROFILE\Videos\AgentEyes\2026-11-16_161739_video"
+$ffp = "$env:LOCALAPPDATA\AgentEyes\app\ffprobe.exe"; $ff = "$env:LOCALAPPDATA\AgentEyes\app\ffmpeg.exe"
+function Atoms($f) {
+  $fs = [IO.File]::OpenRead($f); $br = New-Object IO.BinaryReader($fs); $out = @()
+  try { while ($fs.Position + 8 -le $fs.Length) {
+      $b = $br.ReadBytes(4); [Array]::Reverse($b); $sz = [BitConverter]::ToUInt32($b,0)
+      $t = [Text.Encoding]::ASCII.GetString($br.ReadBytes(4)); $hdr = 8
+      if ($sz -eq 1) { $b = $br.ReadBytes(8); [Array]::Reverse($b); $sz = [BitConverter]::ToUInt64($b,0); $hdr = 16 }
+      if ($sz -eq 0) { $sz = $fs.Length - $fs.Position + $hdr }
+      $start = $fs.Position - $hdr; $out += [pscustomobject]@{T=$t;Start=$start;Size=$sz;Complete=($start+$sz -le $fs.Length)}
+      $fs.Position = $start + $sz } } finally { $fs.Close() }
+  $out }
+function Report($f) {
+  $a = Atoms $f
+  $moov = @($a | Where-Object T -eq 'moov'); $moof = @($a | Where-Object T -eq 'moof').Count
+  $last = $a[-1]
+  "  [check A] moov atom present: $(if ($moov.Count -and $moov[0].Complete) {'YES (complete)'} else {'NO'})   moof fragments=$moof   last top-level atom=$($last.T) complete=$($last.Complete)"
+  & $ff -hide_banner -v error -i $f -f null - 2>$null; "  [check B] full decode exit=$LASTEXITCODE"
+  $dd = & $ffp -v error -show_entries 'format=duration' -of csv=p=0 $f 2>$null | Select-Object -First 1; $x=0.0
+  if ([double]::TryParse("$dd".Trim(), [ref]$x)) {
+    $tmp = Join-Path $S 'frame.png'; if (Test-Path $tmp) { Remove-Item $tmp }
+    & $ff -hide_banner -v error -y -ss ($x-2) -i $f -frames:v 1 $tmp 2>$null; $e=$LASTEXITCODE
+    $pb = if (Test-Path $tmp) { (Get-Item $tmp).Length } else { 0 }
+    "  [check C] frame read 2 s before the end of the DATA (t=$([math]::Round($x-2,3))): exit=$e png_bytes=$pb"
+  } else { "  [check C] frame read 2 s before end of DATA: no duration ($dd)" }
+  "  [check D] row-6 end-check against the EXPECTED length (613.057 s):"
+  & (Join-Path $S 'endcheck.ps1') -File $f -Expected 613.057 | ForEach-Object { "    $_" }
+}
+"# #142 row 6 truncation control, independent re-run $(Get-Date -Format s). Copies only; originals untouched."
+foreach ($n in 'recording.original.mp4','recording.mp4') {
+  $o = Join-Path $src $n; $h0 = (Get-FileHash $o -Algorithm SHA256).Hash
+  "## ORIGINAL $n size=$((Get-Item $o).Length) sha256=$h0"
+  Report $o
+  foreach ($pct in 99, 90) {
+    $c = Join-Path $S "copy-$pct-$n"; Copy-Item $o $c -Force
+    $len = [int64][math]::Floor((Get-Item $c).Length * $pct / 100)
+    $fs = [IO.File]::Open($c,'Open','ReadWrite'); $fs.SetLength($len); $fs.Close()
+    "## COPY of $n truncated to $pct% -> size=$len"
+    Report $c
+  }
+  $h1 = (Get-FileHash $o -Algorithm SHA256).Hash
+  "## ORIGINAL $n sha256 after the run=$h1  unchanged=$($h0 -eq $h1)"
+}
