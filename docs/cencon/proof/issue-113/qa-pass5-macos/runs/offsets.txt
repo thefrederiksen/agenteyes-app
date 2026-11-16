@@ -1,0 +1,72 @@
+########## head-a (core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9)
+## 2026-11-16_151734_video
+-- recording.original.mp4 19550671 bytes
+stream|index=0|codec_type=video|r_frame_rate=30/1|start_time=0.000000|duration=41.133333|nb_frames=N/A
+   edts/elst boxes: elst 1
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.066667 0.033333,-0.033333 0.066667,0.000000 
+-- recording.mp4 19578031 bytes
+stream|index=0|codec_type=video|r_frame_rate=30/1|start_time=0.000000|duration=41.133333|nb_frames=1234
+stream|index=1|codec_type=audio|r_frame_rate=0/0|start_time=0.000000|duration=31.760396|nb_frames=1490
+   edts/elst boxes: elst 2
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.066667 0.033333,-0.033333 0.066667,0.000000 
+## 2026-11-16_151839_video
+-- recording.original.mp4 11369343 bytes
+stream|index=0|codec_type=video|r_frame_rate=5/1|start_time=0.000000|duration=30.800000|nb_frames=N/A
+   edts/elst boxes: elst 1
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.400000 0.800000,-0.200000 0.400000,0.000000 
+-- recording.mp4 11379675 bytes
+stream|index=0|codec_type=video|r_frame_rate=5/1|start_time=0.000000|duration=30.800000|nb_frames=154
+stream|index=1|codec_type=audio|r_frame_rate=0/0|start_time=0.000000|duration=23.987458|nb_frames=1126
+   edts/elst boxes: elst 2
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.400000 0.800000,-0.200000 0.400000,0.000000 
+########## main-a (core=1.11.11+277a9bcf71c7f82547353177299178efc1020327)
+## 2026-11-16_151948_video
+-- recording.original.mp4 16764674 bytes
+stream|index=0|codec_type=video|r_frame_rate=30/1|start_time=0.000000|duration=30.466667|nb_frames=914
+   edts/elst boxes: elst 1
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.066667 0.033333,-0.033333 0.133333,0.000000 
+-- recording.mp4 16786906 bytes
+stream|index=0|codec_type=video|r_frame_rate=30/1|start_time=0.000000|duration=30.466667|nb_frames=914
+stream|index=1|codec_type=audio|r_frame_rate=0/0|start_time=0.000000|duration=23.399958|nb_frames=1098
+   edts/elst boxes: elst 2
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.066667 0.033333,-0.033333 0.133333,0.000000 
+## 2026-11-16_152022_video
+-- recording.original.mp4 12740734 bytes
+stream|index=0|codec_type=video|r_frame_rate=5/1|start_time=0.000000|duration=30.200000|nb_frames=151
+   edts/elst boxes: elst 1
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.400000 0.800000,-0.200000 0.400000,0.000000 
+-- recording.mp4 12752166 bytes
+stream|index=0|codec_type=video|r_frame_rate=5/1|start_time=0.000000|duration=30.200000|nb_frames=151
+stream|index=1|codec_type=audio|r_frame_rate=0/0|start_time=0.000000|duration=23.445021|nb_frames=1100
+   edts/elst boxes: elst 2
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.400000 0.800000,-0.200000 0.400000,0.000000 
+########## nodelay-a (core=1.11.11+00c9df9-QA-delay_moov-removed)
+## 2026-11-16_152130_video
+-- recording.original.mp4 19163542 bytes
+stream|index=0|codec_type=video|r_frame_rate=30/1|start_time=0.066667|duration=30.500000|nb_frames=N/A
+   edts/elst boxes: elst 0
+   first 3 video pkts (pts_time,dts_time): 0.066667,0.000000 0.100000,0.033333 0.133333,0.066667 
+-- recording.mp4 19180468 bytes
+stream|index=0|codec_type=video|r_frame_rate=30/1|start_time=0.000000|duration=30.500000|nb_frames=915
+stream|index=1|codec_type=audio|r_frame_rate=0/0|start_time=0.000000|duration=23.356271|nb_frames=1096
+   edts/elst boxes: elst 2
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.066667 0.033333,-0.033333 0.066667,0.000000 
+## 2026-11-16_152204_video
+-- recording.original.mp4 13866987 bytes
+stream|index=0|codec_type=video|r_frame_rate=5/1|start_time=0.400000|duration=30.800000|nb_frames=N/A
+   edts/elst boxes: elst 0
+   first 3 video pkts (pts_time,dts_time): 0.400000,0.000000 1.200000,0.200000 0.800000,0.400000 
+-- recording.mp4 13877355 bytes
+stream|index=0|codec_type=video|r_frame_rate=5/1|start_time=0.000000|duration=30.800000|nb_frames=154
+stream|index=1|codec_type=audio|r_frame_rate=0/0|start_time=0.000000|duration=23.916375|nb_frames=1123
+   edts/elst boxes: elst 2
+   first 3 video pkts (pts_time,dts_time): 0.000000,-0.400000 0.800000,-0.200000 0.400000,0.000000 
+## 2026-11-16_152304_video
+-- recording.original.mp4 761 bytes
+stream|index=0|codec_type=video|r_frame_rate=15360/1|start_time=N/A|duration=0.000000|nb_frames=N/A
+   edts/elst boxes: elst 0
+   first 3 video pkts (pts_time,dts_time): 
+-- recording.mp4 1765 bytes
+stream|index=0|codec_type=audio|r_frame_rate=0/0|start_time=0.000000|duration=2.423021|nb_frames=115
+   edts/elst boxes: elst 1
+   first 3 video pkts (pts_time,dts_time): 

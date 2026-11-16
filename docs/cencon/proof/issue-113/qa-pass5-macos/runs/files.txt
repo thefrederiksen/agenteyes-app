@@ -1,0 +1,193 @@
+########## head-b 2026-11-16_152350_video (core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9)
+   0 capture.lock
+   2468 manifest.json
+   194604 mic_native.wav
+   0 mux.lock
+   0 raw.mp4
+   2203 raw.mp4.ffmpeg.log
+   64 shots
+  manifest: {"DurationSeconds": 0, "CaptureFault": "exited", "CaptureFaultDetail": "the capture process exited (code 137) while recording; raw.mp4 holds 0 bytes", "CaptureFaultDetectedUtc": "2026-11-16T20:23:53.489653Z", "PendingMux": {"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "MicWav": "mic_native.wav", "FinalFile": "recording.mp4", "RawDurationSeconds": 3.12, "MicOffsetSeconds": 0.365396, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}}}
+  mux: {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:23:53.939442Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:23:53.9394420Z by agenteyes pid 71634 on devthrottle-mac-mini"], "Error": "ffmpeg failed during mux video+mic (exit 183). ffmpeg stats and -progress period set to 1.\n[in#0 @ 0x8c0c28000] Format mov,mp4,m4a,3gp,3g2,mj2 detected only with low score of 1, misdetection possible!\n[in#0 @ 0x8c0c28000] moov atom not found\n[in#0 @ 0x8c0c24140] Error opening input: Invalid data fou"}
+  raw.mp4: 0 bytes
+########## head-b 2026-11-16_152357_video (core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9)
+   0 capture.lock
+   2468 manifest.json
+   347180 mic_native.wav
+   0 mux.lock
+   0 raw.mp4
+   2680 raw.mp4.ffmpeg.log
+   64 shots
+  manifest: {"DurationSeconds": 0, "CaptureFault": "exited", "CaptureFaultDetail": "the capture process exited (code 137) while recording; raw.mp4 holds 0 bytes", "CaptureFaultDetectedUtc": "2026-11-16T20:24:02.050705Z", "PendingMux": {"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "MicWav": "mic_native.wav", "FinalFile": "recording.mp4", "RawDurationSeconds": 5.03, "MicOffsetSeconds": 0.371375, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}}}
+  mux: {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:24:02.509389Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:24:02.5093890Z by agenteyes pid 71634 on devthrottle-mac-mini"], "Error": "ffmpeg failed during mux video+mic (exit 183). ffmpeg stats and -progress period set to 1.\n[in#0 @ 0xa7ec44000] Format mov,mp4,m4a,3gp,3g2,mj2 detected only with low score of 1, misdetection possible!\n[in#0 @ 0xa7ec44000] moov atom not found\n[in#0 @ 0xa7f014140] Error opening input: Invalid data fou"}
+  raw.mp4: 0 bytes
+########## head-b 2026-11-16_152405_video (core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9)
+   178460 audio_16k.wav
+   0 capture.lock
+   2092 manifest.json
+   499756 mic_native.wav
+   0 mux.lock
+   3154 raw.mp4.ffmpeg.log
+   1015114 recording.mp4
+   1011267 recording.original.mp4
+   64 shots
+   16812 thumb.jpg
+  manifest: {"DurationSeconds": 5.57, "CaptureFault": "exited", "CaptureFaultDetail": "the capture process exited (code 137) while recording; raw.mp4 holds 1011267 bytes", "CaptureFaultDetectedUtc": "2026-11-16T20:24:12.940769Z", "PendingMux": null}
+  mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:24:13.423165Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:24:13.4231650Z by agenteyes pid 71634 on devthrottle-mac-mini"]}
+  file 2026-11-16_152405_video/recording.original.mp4 1011267 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=2.000000|nb_read_frames=60
+  format|duration=2.000000
+  full decode exit=0 error_lines=0
+  video duration=2.000000; frame read at t=1.0 (last second): exit=0 png_bytes=1538703 err_lines=0; highest video pts=1.966667
+  file 2026-11-16_152405_video/recording.mp4 1015114 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=2.000000|nb_read_frames=60
+  stream|index=1|codec_type=audio|start_time=0.000000|duration=5.574438|nb_read_frames=262
+  format|duration=5.574438
+  full decode exit=0 error_lines=0
+  video duration=2.000000; frame read at t=1.0 (last second): exit=0 png_bytes=1538703 err_lines=0; highest video pts=1.966667
+########## head-b 2026-11-16_152451_video (core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9)
+   1741856 audio_16k.wav
+   0 capture.lock
+   2138 manifest.json
+   5190700 mic_native.wav
+   0 mux.lock
+   6962 raw.mp4.ffmpeg.log
+   10494971 recording.mp4
+   10465772 recording.original.mp4
+   64 shots
+   16897 thumb.jpg
+  manifest: {"DurationSeconds": 54.43, "CaptureFault": "stalled", "CaptureFaultDetail": "raw.mp4 stopped growing at 10465772 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T20:25:12.703Z", "CaptureFaultDetectedUtc": "2026-11-16T20:25:58.747487Z", "PendingMux": null}
+  mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:25:59.136516Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:25:59.1365160Z by agenteyes pid 71634 on devthrottle-mac-mini"]}
+  file 2026-11-16_152451_video/recording.original.mp4 10465772 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=18.666667|nb_read_frames=560
+  format|duration=18.666667
+  full decode exit=0 error_lines=0
+  video duration=18.666667; frame read at t=17.666667 (last second): exit=0 png_bytes=1620902 err_lines=0; highest video pts=18.633333
+  file 2026-11-16_152451_video/recording.mp4 10494971 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=18.666667|nb_read_frames=560
+  stream|index=1|codec_type=audio|start_time=0.000000|duration=54.430542|nb_read_frames=2552
+  format|duration=54.430542
+  full decode exit=0 error_lines=0
+  video duration=18.666667; frame read at t=17.666667 (last second): exit=0 png_bytes=1620902 err_lines=0; highest video pts=18.633333
+########## head-b 2026-11-16_152644_video (core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9)
+   562884 audio_16k.wav
+   0 capture.lock
+   2101 manifest.json
+   1651756 mic_native.wav
+   0 mux.lock
+   7067 raw.mp4.ffmpeg.log
+   11792297 recording.mp4
+   11778284 recording.original.mp4
+   64 shots
+   16441 thumb.jpg
+  manifest: {"DurationSeconds": 18.67, "CaptureFault": "exited", "CaptureFaultDetail": "the capture process exited (code 137) while recording; raw.mp4 holds 11778284 bytes", "CaptureFaultDetectedUtc": "2026-11-16T20:27:07.580756Z", "PendingMux": null}
+  mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:27:07.817696Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:27:07.8176960Z by agenteyes pid 71634 on devthrottle-mac-mini"]}
+  file 2026-11-16_152644_video/recording.original.mp4 11778284 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=18.666667|nb_read_frames=560
+  format|duration=18.666667
+  full decode exit=0 error_lines=0
+  video duration=18.666667; frame read at t=17.666667 (last second): exit=0 png_bytes=1588616 err_lines=0; highest video pts=18.633333
+  file 2026-11-16_152644_video/recording.mp4 11792297 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=18.666667|nb_read_frames=560
+  stream|index=1|codec_type=audio|start_time=0.000000|duration=17.587667|nb_read_frames=825
+  format|duration=18.666667
+  full decode exit=0 error_lines=0
+  video duration=18.666667; frame read at t=17.666667 (last second): exit=0 png_bytes=1588616 err_lines=0; highest video pts=18.633333
+########## nodelay-a 2026-11-16_152130_video (core=1.11.11+00c9df9-QA-delay_moov-removed)
+   747478 audio_16k.wav
+   0 capture.lock
+   1852 manifest.json
+   2204716 mic_native.wav
+   0 mux.lock
+   10491 raw.mp4.ffmpeg.log
+   19180468 recording.mp4
+   19163542 recording.original.mp4
+   64 shots
+   16551 thumb.jpg
+  manifest: {"DurationSeconds": 30.5, "CaptureFault": null, "CaptureFaultDetail": null, "CaptureFaultDetectedUtc": null, "PendingMux": null}
+  mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:22:01.982682Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:22:01.9826820Z by agenteyes pid 71053 on devthrottle-mac-mini"]}
+  file 2026-11-16_152130_video/recording.original.mp4 19163542 bytes
+  stream|index=0|codec_type=video|start_time=0.066667|duration=30.500000|nb_read_frames=915
+  format|duration=30.500000
+  full decode exit=0 error_lines=0
+  video duration=30.500000; frame read at t=29.5 (last second): exit=0 png_bytes=1595008 err_lines=0; highest video pts=30.533333
+  file 2026-11-16_152130_video/recording.mp4 19180468 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=30.500000|nb_read_frames=915
+  stream|index=1|codec_type=audio|start_time=0.000000|duration=23.356271|nb_read_frames=1095
+  format|duration=30.500000
+  full decode exit=0 error_lines=0
+  video duration=30.500000; frame read at t=29.5 (last second): exit=0 png_bytes=1595008 err_lines=0; highest video pts=30.466667
+########## nodelay-a 2026-11-16_152204_video (core=1.11.11+00c9df9-QA-delay_moov-removed)
+   765402 audio_16k.wav
+   0 capture.lock
+   1849 manifest.json
+   2278444 mic_native.wav
+   0 mux.lock
+   10269 raw.mp4.ffmpeg.log
+   13877355 recording.mp4
+   13866987 recording.original.mp4
+   64 shots
+   16492 thumb.jpg
+  manifest: {"DurationSeconds": 30.8, "CaptureFault": null, "CaptureFaultDetail": null, "CaptureFaultDetectedUtc": null, "PendingMux": null}
+  mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:22:36.234194Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:22:36.2341940Z by agenteyes pid 71053 on devthrottle-mac-mini"]}
+  file 2026-11-16_152204_video/recording.original.mp4 13866987 bytes
+  stream|index=0|codec_type=video|start_time=0.400000|duration=30.800000|nb_read_frames=154
+  format|duration=30.800000
+  full decode exit=0 error_lines=0
+  video duration=30.800000; frame read at t=29.8 (last second): exit=0 png_bytes=1719996 err_lines=0; highest video pts=31.000000
+  file 2026-11-16_152204_video/recording.mp4 13877355 bytes
+  stream|index=0|codec_type=video|start_time=0.000000|duration=30.800000|nb_read_frames=154
+  stream|index=1|codec_type=audio|start_time=0.000000|duration=23.916375|nb_read_frames=1122
+  format|duration=30.800000
+  full decode exit=0 error_lines=0
+  video duration=30.800000; frame read at t=29.8 (last second): exit=0 png_bytes=1719996 err_lines=0; highest video pts=30.600000
+########## nodelay-a 2026-11-16_152304_video (core=1.11.11+00c9df9-QA-delay_moov-removed)
+   77614 audio_16k.wav
+   0 capture.lock
+   2405 manifest.json
+   195628 mic_native.wav
+   0 mux.lock
+   2206 raw.mp4.ffmpeg.log
+   1765 recording.mp4
+   761 recording.original.mp4
+   64 shots
+  manifest: {"DurationSeconds": 2.42, "CaptureFault": "exited", "CaptureFaultDetail": "the capture process exited (code 137) while recording; raw.mp4 holds 761 bytes", "CaptureFaultDetectedUtc": "2026-11-16T20:23:07.633424Z", "PendingMux": null}
+  mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:23:08.06232Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:23:08.0623200Z by agenteyes pid 71053 on devthrottle-mac-mini"]}
+  file 2026-11-16_152304_video/recording.original.mp4 761 bytes
+  stream|index=0|codec_type=video|start_time=N/A|duration=0.000000|nb_read_frames=N/A
+  format|duration=N/A
+  full decode exit=183 error_lines=7
+  video duration=0.000000; frame read at t=0.0 (last second): exit=183 png_bytes=NONE err_lines=7; highest video pts=
+  file 2026-11-16_152304_video/recording.mp4 1765 bytes
+  stream|index=0|codec_type=audio|start_time=0.000000|duration=2.423021|nb_read_frames=114
+  format|duration=2.423021
+  full decode exit=0 error_lines=0
+  Traceback (most recent call last):
+    File "<string>", line 1, in <module>
+      print(max(0.0, float('') - 1.0))
+                     ~~~~~^^^^
+  ValueError: could not convert string to float: ''
+  video duration=; frame read at t= (last second): exit=234 png_bytes=NONE err_lines=3; highest video pts=
+########## main-b 2026-11-16_152800_video (core=1.11.11+277a9bcf71c7f82547353177299178efc1020327)
+   0 capture.lock
+   2099 manifest.json
+   29722668 mic_native.wav
+   0 mux.lock
+   6553648 raw.mp4
+   7079 raw.mp4.ffmpeg.log
+   64 shots
+  manifest: {"DurationSeconds": 396.15, "CaptureFault": null, "CaptureFaultDetail": null, "CaptureFaultDetectedUtc": null, "PendingMux": {"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "MicWav": "mic_native.wav", "FinalFile": "recording.mp4", "RawDurationSeconds": 396.15, "MicOffsetSeconds": 0.384396, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}}}
+  mux: {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:34:37.258025Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:34:37.2580250Z by agenteyes pid 74253 on devthrottle-mac-mini"], "Error": "ffmpeg failed during mux video+mic (exit 183). ffmpeg stats and -progress period set to 1.\n[in#0 @ 0x9d0c28000] moov atom not found\n[in#0 @ 0x9d0c24140] Error opening input: Invalid data found when processing input\nError opening input file <scratch>"}
+  file 2026-11-16_152800_video/raw.mp4 6553648 bytes
+  [mov,mp4,m4a,3gp,3g2,mj2 @ 0x7ad034000] moov atom not found
+  runs/main-b/root/Videos/AgentEyes/2026-11-16_152800_video/raw.mp4: Invalid data found when processing input
+  full decode exit=183 error_lines=4
+  [mov,mp4,m4a,3gp,3g2,mj2 @ 0x97703c000] moov atom not found
+  runs/main-b/root/Videos/AgentEyes/2026-11-16_152800_video/raw.mp4: Invalid data found when processing input
+  Traceback (most recent call last):
+    File "<string>", line 1, in <module>
+      print(max(0.0, float('') - 1.0))
+                     ~~~~~^^^^
+  ValueError: could not convert string to float: ''
+  [mov,mp4,m4a,3gp,3g2,mj2 @ 0xbf9034000] moov atom not found
+  runs/main-b/root/Videos/AgentEyes/2026-11-16_152800_video/raw.mp4: Invalid data found when processing input
+  video duration=; frame read at t= (last second): exit=234 png_bytes=NONE err_lines=3; highest video pts=
