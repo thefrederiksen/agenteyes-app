@@ -1,0 +1,53 @@
+binary: AgentEyes - screen + audio recorder (CLI: agenteyes)
+ffmpeg: ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers
+container: plain   host: devthrottle-mac-mini   started: 2026-11-16T12:04:25Z
+
+######## live-package
+12:04:26 [live-package/plain] writer ffmpeg pid 98979 started 2026-11-16T12:04:25Z
+12:04:27 [live-package/plain] owner pid 99065: owner pid 99065 holds capture.lock
+12:04:38 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+12:04:38 [live-package/plain]   exit 1: [error] refusing to package 2026-11-16_120000_video: it is being captured by the capture session of pid 99065 on host devthrottle-mac-mini (started 2026-11-16T12:04:26.0000000Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:04:38 [live-package/plain]   raw.mp4=4718640 recording.mp4=absent recording.original.mp4=absent
+12:04:38 [live-package/plain]   PendingMux=pending mux=(no attempt recorded) DurationSeconds=None
+12:04:40 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+12:04:40 [live-package/plain]   exit 1: [error] refusing to package 2026-11-16_120000_video: it is being captured by the capture session of pid 99065 on host devthrottle-mac-mini (started 2026-11-16T12:04:26.0000000Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:04:40 [live-package/plain]   raw.mp4=5505072 recording.mp4=absent recording.original.mp4=absent
+12:04:40 [live-package/plain]   PendingMux=pending mux=(no attempt recorded) DurationSeconds=None
+12:04:42 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+12:04:42 [live-package/plain]   exit 1: [error] refusing to package 2026-11-16_120000_video: it is being captured by the capture session of pid 99065 on host devthrottle-mac-mini (started 2026-11-16T12:04:26.0000000Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:04:42 [live-package/plain]   raw.mp4=6291504 recording.mp4=absent recording.original.mp4=absent
+12:04:42 [live-package/plain]   PendingMux=pending mux=(no attempt recorded) DurationSeconds=None
+12:04:44 [live-package/plain] writer still alive: yes; raw.mp4 now 7077936
+12:04:45 [live-package/plain] writer stopped cleanly; raw.mp4 7701416 bytes
+12:04:45 [live-package/plain] owner released the claim (record removed, lock closed)
+12:04:45 [live-package/plain] SECOND PROCESS: agenteyes package --no-frames
+12:04:45 [live-package/plain]   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:04:45 [live-package/plain]   raw.mp4=absent recording.mp4=7738448 recording.original.mp4=7701416
+12:04:45 [live-package/plain]   PendingMux=cleared mux={"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T12:04:45.384447Z", "AttemptedBy": ["attempt 1 at 2026-11-16T12:04:45.3844470Z by agenteyes pid 99346 on devthrottle-mac-mini"]} DurationSeconds=20.3
+12:04:45 [live-package/plain] done; logs in <scratch>/ev2-fix-plain/live-package
+
+######## orphan-writer
+12:04:26 [orphan-writer/plain] writer ffmpeg pid 98978 started 2026-11-16T12:04:25Z
+12:04:27 [orphan-writer/plain] owner pid 99063: owner pid 99063 holds capture.lock
+12:04:38 [orphan-writer/plain] owner pid 99063 SIGKILLed; writer pid 98978 still running: yes
+12:04:38 [orphan-writer/plain] SECOND PROCESS: agenteyes package --no-frames
+12:04:38 [orphan-writer/plain]   exit 1: [error] refusing to package 2026-11-16_120000_video: its capture owner (capture session of pid 99063 on host devthrottle-mac-mini (started 2026-11-16T12:04:26.0000000Z)) is gone but its video ffmpeg pid 98978 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone. Nothing was muxed, renamed or counted as an attempt; the 
+12:04:38 [orphan-writer/plain]   raw.mp4=4718640 recording.mp4=absent recording.original.mp4=absent
+12:04:38 [orphan-writer/plain]   PendingMux=pending mux=(no attempt recorded) DurationSeconds=None
+12:04:38 [orphan-writer/plain] writer stopped cleanly; raw.mp4 5125737 bytes
+12:04:38 [orphan-writer/plain] SECOND PROCESS: agenteyes package --no-frames
+12:04:39 [orphan-writer/plain]   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:04:39 [orphan-writer/plain]   raw.mp4=absent recording.mp4=5150664 recording.original.mp4=5125737
+12:04:39 [orphan-writer/plain]   PendingMux=cleared mux={"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T12:04:38.753965Z", "AttemptedBy": ["attempt 1 at 2026-11-16T12:04:38.7539650Z by agenteyes pid 99164 on devthrottle-mac-mini"]} DurationSeconds=13.67
+12:04:39 [orphan-writer/plain] done; logs in <scratch>/ev2-fix-plain/orphan-writer
+
+######## dead-owner
+12:04:26 [dead-owner/plain] writer ffmpeg pid 98986 started 2026-11-16T12:04:25Z
+12:04:27 [dead-owner/plain] owner pid 99061: owner pid 99061 holds capture.lock
+12:04:38 [dead-owner/plain] writer stopped cleanly; raw.mp4 5136253 bytes
+12:04:38 [dead-owner/plain] owner pid 99061 SIGKILLed after its writer ended; capture.owner.json left behind: 283 bytes
+12:04:38 [dead-owner/plain] SECOND PROCESS: agenteyes package --no-frames
+12:04:39 [dead-owner/plain]   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:04:39 [dead-owner/plain]   raw.mp4=absent recording.mp4=5161127 recording.original.mp4=5136253
+12:04:39 [dead-owner/plain]   PendingMux=cleared mux={"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T12:04:38.78219Z", "AttemptedBy": ["attempt 1 at 2026-11-16T12:04:38.7821900Z by agenteyes pid 99183 on devthrottle-mac-mini"]} DurationSeconds=13.7
+12:04:39 [dead-owner/plain] done; logs in <scratch>/ev2-fix-plain/dead-owner

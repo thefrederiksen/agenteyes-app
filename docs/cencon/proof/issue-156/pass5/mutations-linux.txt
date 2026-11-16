@@ -1,0 +1,50 @@
+=== L1 other uid -> Unknown: CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxOwnedByAnotherUid_NotMine
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_RealProbePidOne_NotMineAnotherUser
+   Failed!  - Failed:     2, Passed:    43, Skipped:     1, Total:    46, Duration: 595 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: Unknown: pid 4321 belongs to ANOTHER USER (/proc/4321 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it
+=== L2 our uid -> NotMine (the D-L1 defect back): CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxOwnedByThisUser_Unknown
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_RealOwnerReadOwnLiveProcessWithEperm_Unknown
+   Failed!  - Failed:     2, Passed:    43, Skipped:     1, Total:    46, Duration: 601 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: NotMine: pid 4321 is THIS USER's (/proc/4321 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here
+=== L3 /proc gone -> Unknown: CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxProcGone_NotMine
+   Failed!  - Failed:     1, Passed:    44, Skipped:     1, Total:    46, Duration: 584 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: Unknown: pid 4321 exited while being read (/proc/4321 does not exist)
+=== L4 owner unreadable -> NotMine: CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxOwnerUnreadable_Unknown
+   Failed!  - Failed:     1, Passed:    44, Skipped:     1, Total:    46, Duration: 592 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: refused: NotMine: pid 4321: kill(pid, 0) was refused (EPERM) and whose process it is could not be read (Unreadable)
+=== L5 no probe / no own uids -> NotMine: CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxOwnerUnreadable_Unknown
+   Failed!  - Failed:     1, Passed:    44, Skipped:     1, Total:    46, Duration: 584 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: no probe: NotMine: pid 4321: kill(pid, 0) was refused (EPERM) and there is no read of whose process it is on this platform
+=== L6 the whole pass-4 row back (EPERM -> NotMine): CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxOwnedByAnotherUid_NotMine
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxOwnedByThisUser_Unknown
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxOwnerUnreadable_Unknown
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_KillEpermOnLinuxProcGone_NotMine
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_RealOwnerReadOwnLiveProcessWithEperm_Unknown
+   Failed!  - Failed:     5, Passed:    40, Skipped:     1, Total:    46, Duration: 608 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: Assert.Contains() Failure: Sub-string not found | String:    "pid 4321 belongs to ANOTHER USER (kill(pi"... | Not found: "exited"
+=== L7 statx uid offset wrong (16, stx_nlink): CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_RealOwnerReadOwnLiveProcessWithEperm_Unknown
+   failed: AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_ThisProcessRootAndMissingPid_OwnerAndGone
+   Failed!  - Failed:     2, Passed:    43, Skipped:     1, Total:    46, Duration: 528 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: Assert.Equal() Failure: Values differ | Expected: 1000 | Actual:   9
+=== L8 ENOENT read as Unreadable: CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_ThisProcessRootAndMissingPid_OwnerAndGone
+   Failed!  - Failed:     1, Passed:    44, Skipped:     1, Total:    46, Duration: 558 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: Assert.Equal() Failure: Values differ | Expected: Gone | Actual:   Unreadable
+=== L9 STATX_UID mask check inverted: CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_RealOwnerReadOwnLiveProcessWithEperm_Unknown
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_RealProbePidOne_NotMineAnotherUser
+   failed: AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_ThisProcessRootAndMissingPid_OwnerAndGone
+   Failed!  - Failed:     3, Passed:    42, Skipped:     1, Total:    46, Duration: 543 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: Assert.Equal() Failure: Values differ | Expected: Owned | Actual:   Unreadable
+=== L10 Linux wrapper passes no owner probe: CAUGHT rc=1
+   failed: AgentEyes.Tests.ProcessIdentityTests.ClassifyUnreadable_RealProbePidOne_NotMineAnotherUser
+   Failed!  - Failed:     1, Passed:    44, Skipped:     1, Total:    46, Duration: 568 ms - AgentEyes.Tests.Linux.dll (net8.0)
+   message: Unknown: pid 1: kill(pid, 0) was refused (EPERM) and there is no read of whose process it is on this platform
+restored: True

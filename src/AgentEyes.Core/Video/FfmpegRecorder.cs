@@ -74,6 +74,9 @@ namespace AgentEyes.Video
         /// </summary>
         public DateTime StartedUtc { get; private set; }
 
+        /// <summary>The ffmpeg process id, recorded in the capture's cross-process claim (issue #156).</summary>
+        public int ProcessId => _proc.Id;
+
         private FfmpegRecorder(Process proc, string outputPath, string commandLine, string logPath)
         {
             _proc = proc;

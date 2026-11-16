@@ -1,0 +1,83 @@
+Issue #118 / PR #179 - Linux QA: does Application.Name="AgentEyes" (App.axaml) change the X11 WM_CLASS?
+Measured 2026-11-16 on devlinux: Ubuntu 24.04.5, GNOME on X11 (DISPLAY=:0), .NET SDK 8.0.134, xprop 1.2.6.
+
+BUILDS (documented command, scripts/linux/install.sh:107, output to a scratch dir - nothing installed):
+  dotnet publish src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj -c Release -r linux-x64 --self-contained true -p:Platform=x64 -o <scratch>/<label>
+  pr   = issue-118-macos-app-bundle at 4d667a8 (code identical to 9f668b5: 4d667a8 is docs-only, git diff 9f668b5 4d667a8 -- src is empty)
+  main = origin/main at d0d0a27 (no Name attribute in App.axaml)
+  ctl  = pr with ONE line changed: Program.cs:23 WmClass = "AgentEyesQAControl" (positive control, scratch worktree, never committed)
+
+THE MEASURED PR BUILD CARRIES THE CHANGE (IL scan, docs/cencon/proof/issue-118/tools/ilscan retargeted to net8.0):
+  pr  : AgentEyes.DesktopApp.App::!XamlIlPopulate calls Avalonia.Application::set_Name
+  main: [EMPTY] no call matched Avalonia.Application::set_Name
+  scan control (main): AgentEyes.DesktopApp.Program::BuildAvaloniaApp calls Avalonia.X11PlatformOptions::set_WmClass
+
+METHOD: each build launched in the foreground of X (no --tray) with XDG_RUNTIME_DIR, XDG_CONFIG_HOME and
+XDG_DATA_HOME pointed at private scratch dirs (own single-instance socket - the owner's running tray app was
+not quit; own settings and log). Window found with 'xdotool search --pid <pid>' filtered to Map State
+IsViewable; _NET_WM_PID read back to prove the window belongs to that process. Then kill, verify no process left.
+
+RAW OUTPUT
+[pr] pid=1833186 bin=<scratch>/pr/AgentEyesDesktop sha256=d38fc071f1eb1294
+[pr] window id=48234515 (found by xdotool search --pid 1833186, filtered to IsViewable)
+[pr] xprop -id 48234515 WM_CLASS  -> WM_CLASS(STRING) = "AgentEyesDesktop", "AgentEyesDesktop"
+[pr] xprop -id 48234515 _NET_WM_NAME -> _NET_WM_NAME(UTF8_STRING) = "AgentEyes"
+[pr] xprop -id 48234515 WM_NAME -> WM_NAME(STRING) = "AgentEyes"
+[pr] xprop -id 48234515 _NET_WM_PID -> _NET_WM_PID(CARDINAL) = 1833186
+[pr] all windows of pid:
+   48234515 WM_CLASS(STRING) = "AgentEyesDesktop", "AgentEyesDesktop"
+[pr] stopped pid 1833186 (exit 143)
+[pr] no process left from <scratch>/pr
+
+[main] pid=1833506 bin=<scratch>/main/AgentEyesDesktop sha256=9215fd1e58921d45
+[main] window id=48234515 (found by xdotool search --pid 1833506, filtered to IsViewable)
+[main] xprop -id 48234515 WM_CLASS  -> WM_CLASS(STRING) = "AgentEyesDesktop", "AgentEyesDesktop"
+[main] xprop -id 48234515 _NET_WM_NAME -> _NET_WM_NAME(UTF8_STRING) = "AgentEyes"
+[main] xprop -id 48234515 WM_NAME -> WM_NAME(STRING) = "AgentEyes"
+[main] xprop -id 48234515 _NET_WM_PID -> _NET_WM_PID(CARDINAL) = 1833506
+[main] all windows of pid:
+   48234515 WM_CLASS(STRING) = "AgentEyesDesktop", "AgentEyesDesktop"
+[main] stopped pid 1833506 (exit 143)
+[main] no process left from <scratch>/main
+
+[ctl] pid=1835181 bin=<scratch>/ctl/AgentEyesDesktop sha256=736e5dec1f00d884
+[ctl] window id=48234515 (found by xdotool search --pid 1835181, filtered to IsViewable)
+[ctl] xprop -id 48234515 WM_CLASS  -> WM_CLASS(STRING) = "AgentEyesDesktop", "AgentEyesQAControl"
+[ctl] xprop -id 48234515 _NET_WM_NAME -> _NET_WM_NAME(UTF8_STRING) = "AgentEyes"
+[ctl] xprop -id 48234515 WM_NAME -> WM_NAME(STRING) = "AgentEyes"
+[ctl] xprop -id 48234515 _NET_WM_PID -> _NET_WM_PID(CARDINAL) = 1835181
+[ctl] all windows of pid:
+   48234515 WM_CLASS(STRING) = "AgentEyesDesktop", "AgentEyesQAControl"
+[ctl] stopped pid 1835181 (exit 143)
+[ctl] no process left from <scratch>/ctl
+
+POSITIVE CONTROL 2 - a foreign window read by the same xprop (read only):
+  active window: WM_CLASS(STRING) = "google-chrome (<profile path>)", "Google-chrome"
+
+RESULT
+  main WM_CLASS = "AgentEyesDesktop", "AgentEyesDesktop"
+  pr   WM_CLASS = "AgentEyesDesktop", "AgentEyesDesktop"     -> IDENTICAL to main
+  ctl  WM_CLASS = "AgentEyesDesktop", "AgentEyesQAControl"   -> the class field moves with X11PlatformOptions.WmClass, so
+                                                                the instrument can see a difference
+  Window title (_NET_WM_NAME and WM_NAME) = "AgentEyes" on all three - unchanged.
+  Only one top-level window per process on all three.
+
+DESKTOP ENTRY CONSEQUENCE
+  The shipped entry (scripts/linux/install.sh:127) says StartupWMClass=AgentEyesDesktop. WM_CLASS is unchanged
+  by PR #179, so the desktop entry association (icon matching, dock grouping) is unaffected.
+  Note: the entry INSTALLED on devlinux is older (pre-#116, StartupWMClass=AgentEyesLinux, AgentEyesLinux binary)
+  and was not touched, per the brief.
+
+FOOTPRINT
+  My three app runs wrote only to scratch (their own logs show: settings load, library scan, one status poll -
+  read only). Zero lines from my PIDs in the owner's log. The owner's service (pid 6560) answered their
+  GET /status polls between 13:18 and 13:20, so a few 'GET /status' lines in its log are from my runs,
+  indistinguishable from the owner tray's own polling. Owner tray app (AgentEyesLinux --tray) ran throughout,
+  same pid and start time, still holding /run/user/<uid>/agenteyes-app.sock. Nothing installed or reinstalled.
+
+NOT COVERED
+  * No screenshots: ImageMagick 'import' is not installed on devlinux; the evidence is xprop text.
+  * Wayland sessions (Avalonia runs through XWayland there, same X11 backend) were not tested.
+  * Side observation, NOT a #179 defect (main has it too, by code): a long XDG_RUNTIME_DIR (socket path > 108
+    chars) crashes the app at start with an unhandled ArgumentOutOfRangeException from
+    SingleInstance.TryAcquireSocket (SingleInstance.cs:91). Real XDG_RUNTIME_DIR values are short.

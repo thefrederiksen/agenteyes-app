@@ -61,6 +61,9 @@
     <!-- Issue #161: the library-redirect rules, /status roots, and a real child process refusing a
          partial redirect - linked into all three suites so each platform's engine is held to them. -->
     <Compile Include="..\Shared\LibraryRedirectTests.cs" Link="Shared\LibraryRedirectTests.cs" />
+    <Compile Include="..\Shared\CaptureOwnershipTests.cs" Link="Shared\CaptureOwnershipTests.cs" />
+    <Compile Include="..\Shared\CaptureWriterReapTests.cs" Link="Shared\CaptureWriterReapTests.cs" />
+    <Compile Include="..\Shared\ProcessIdentityTests.cs" Link="Shared\ProcessIdentityTests.cs" />
 
     <!-- Issue #136: ONE guard, compiled into all three suites. FfmpegMuxShapeTests sweeps the
          argument builders in THIS build - which is the whole point of linking it rather than

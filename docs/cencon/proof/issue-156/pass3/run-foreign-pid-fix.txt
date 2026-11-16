@@ -1,0 +1,13 @@
+engine flavour: AvfStream=1 PulseStream=0 (1/0 = macOS build)
+14:34:39 binary: src/AgentEyes.Core/bin/Release/net8.0/agenteyes (built from: d7b7cc7 + the final pass-3 predicate (working tree), -p:AgentEyesUnixPlatform=mac)
+14:34:39 pid 1: 1 root Thu Nov 12 15:07:18 2026   this user: soren
+14:34:40 raw.mp4 written: 1511558 bytes
+14:34:40 crashed recording: lock free, owner pid 99999 (gone), writer pid 1 (another user's)
+14:34:40 SECOND PROCESS: agenteyes package --no-frames
+14:34:40   exit 1
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    PendingMux=cleared  mux.State=done  mux.Attempts=1  DurationSeconds=4
+14:34:40   recording.mp4: 1520749   capture.owner.json: absent
+14:34:40   decode: video audio 4.000000 
+14:34:40   full decode exit 0

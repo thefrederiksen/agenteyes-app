@@ -1,0 +1,31 @@
+15:16:09.313 tree: C:\ReposFred\agenteyes-app  embedded: 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+15:16:09.342 ffmpeg running before: []
+    owner: owner pid 2160; version 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+    owner: recordings root <scratch>\rc-head\Videos\AgentEyes; data root <scratch>\rc-head\LocalAppData\AgentEyes
+    owner: capturing into <scratch>\rc-head\Videos\AgentEyes\2026-11-16_101609_video
+15:16:23.458 start manifest: PendingMux={"Mode":"video","Source":"mic","RawVideo":"raw.mp4","FinalFile":"recording.mp4","RawDurationSeconds":0,"Options":{"MicGain":1,"SystemGain":0.7,"NoiseSuppression":true,"NoiseGate":true,"GateCalibrated":false,"VoiceLeveling":true,"MicProcessing":true,"GateApplies":false}} capture file=raw.mp4
+15:16:23.482 owner record: pid 2160, writers [15052]; raw.mp4 48 bytes
+15:16:23.490   writer 15052 ffmpeg parent-started-by-harness: True
+15:16:23.492 HARD KILL of the owner pid 2160 (TerminateProcess)
+15:16:26.539 after the kill: owner exited=True; orphan writers alive [15052]; raw.mp4 48 -> 48 bytes in 3 s
+15:16:27.564 SECOND PROCESS package (while-the-orphan-writes): exit 1
+    [error] refusing to package 2026-11-16_101609_video: its capture owner (capture session of pid 2160 on host SORENLAPTOP (started 2026-11-16T15:16:09.8987398Z)) is gone but its video ffmpeg pid 15052 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose ow
+15:16:27.585   PendingMux=pending mux.State= mux.Attempts= AttemptedBy= recording.mp4=absent capture.owner.json=PRESENT
+15:16:27.586 QA ends orphan 15052 gracefully: CTRL_C on its console
+15:16:28.814   ctrlc exit 0; writer exited: True
+15:16:28.870 raw.mp4 after the writer ended: 304401 bytes; probe: video audio 17.933333
+15:16:32.888 SECOND PROCESS package (after-the-writer-ended): exit 0
+      [warn] title generation failed: transcript is empty; nothing to title.
+15:16:32.900   PendingMux=cleared mux.State=done mux.Attempts=1 AttemptedBy="attempt 1 at 2026-11-16T15:16:29.1026530Z by agenteyes pid 20736 on SORENLAPTOP" recording.mp4=370192 capture.owner.json=absent
+15:16:32.943 recording.mp4 probe: video audio 17.933333
+15:16:33.029 full decode exit 0
+15:16:33.029 capture-related log lines (redirected data root):
+    10:16:09.876 [pid 2160] [INFO] [CaptureLock] TryAcquire: 2026-11-16_101609_video for capture session
+    10:16:09.881 [pid 2160] [INFO] [CaptureLock] ReadOrCreateHostId: created <scratch>\rc-head\LocalAppData\AgentEyes\host-id
+    10:16:09.975 [pid 2160] [INFO] [CaptureLock] TryAcquire: 2026-11-16_101609_video claimed by capture session of pid 2160 on host SORENLAPTOP (started 2026-11-16T15:16:09.8987398Z)
+    10:16:09.977 [pid 2160] [INFO] [RecordingWorkset] Attach: <scratch>\rc-head\Videos\AgentEyes\2026-11-16_101609_video#1 now carries CaptureLock
+    10:16:09.978 [pid 2160] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_101609_video - pid 2160 on SORENLAPTOP (process started 2026-11-16T15:16:09.4172356Z)
+    10:16:10.435 [pid 2160] [INFO] [CaptureLock] NoteWriter: 2026-11-16_101609_video video pid 15052
+    10:16:10.447 [pid 2160] [INFO] [CaptureLock] NoteWriter: 2026-11-16_101609_video video pid 15052 recorded (started 2026-11-16T15:16:10.0228760Z)
+15:16:33.054 ffmpeg running after: []
+15:16:33.061 captured media deleted from <scratch>\rc-head\Videos\AgentEyes\2026-11-16_101609_video (manifest and logs kept)

@@ -235,10 +235,23 @@ namespace AgentEyes
             if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir)) return false;
             foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
             {
-                if (!IsTheManifestOrItsWriteTemp(Path.GetFileName(file))) return true;
+                string name = Path.GetFileName(file);
+                if (!IsTheManifestOrItsWriteTemp(name) && !IsTheCaptureClaim(name)) return true;
             }
             return false;
         }
+
+        /// <summary>
+        /// Issue #156: the capture's cross-process claim - <c>capture.lock</c> (zero-length, left in
+        /// place like mux.lock), its <c>capture.owner.json</c> and that file's write temp. Bookkeeping,
+        /// not capture bytes: every start creates the lock before any writer runs, so counting it would
+        /// make a start that captured nothing keep its directory.
+        /// </summary>
+        private static bool IsTheCaptureClaim(string name) =>
+            string.Equals(name, CaptureLock.FileName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, CaptureLock.OwnerFileName, StringComparison.OrdinalIgnoreCase)
+            || (name.StartsWith(CaptureLock.OwnerFileName + ".", StringComparison.OrdinalIgnoreCase)
+                && name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase));
 
         /// <summary>manifest.json itself, or a manifest.json.&lt;id&gt;.tmp left by a failed write.</summary>
         private static bool IsTheManifestOrItsWriteTemp(string name) =>

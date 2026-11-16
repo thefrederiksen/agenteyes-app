@@ -1,0 +1,82 @@
+######## agenteyes-app 1927c62
+  AgentEyes.Core -> C:\ReposFred\agenteyes-app\src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.Setup.Engine -> C:\ReposFred\agenteyes-app\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.Setup.Cli -> C:\ReposFred\agenteyes-app\tools\AgentEyes.Setup.Cli\bin\Release\net8.0-windows\agenteyes-setup.dll
+  AgentEyes.Setup -> C:\ReposFred\agenteyes-app\tools\AgentEyes.Setup\bin\Release\net8.0-windows\AgentEyes.Setup.dll
+  AgentEyes.App -> C:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+  AgentEyes.Tests -> C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\bin\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidIsGone_StaleAndAdmitted [499 ms]
+ Inspect(pid gone) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ FindUnfinished -> OK: 1
+ FindMissing -> OK: 0
+  Passed AgentEyes.Tests.GateProbeScratchTests.Reap_OwnerPidReusedByAnotherUsersProcess_Observed [31 ms]
+ ReapOrphansIn(owner pid 1) -> OK: pid 999998 [capture video (x)]: already exited (or pid reused) - record removed
+ record still on disk: False
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidReusedByMyOwnProcess_StaleAndAdmitted [29 ms]
+ Inspect(pid reused, same user) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+  Passed AgentEyes.Tests.GateProbeScratchTests.WriterPidReusedByAnotherUsersProcess_Observed [54 ms]
+ Inspect(pid 1) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ ClearStaleClaim(pid 1) -> OK: True
+ ThrowIfLive(pid 1) -> OK: passed
+ FindUnfinished(root with healthy + pid1) -> OK: 2026-11-14_090000_healthy,2026-11-15_120000_rootpid
+ Thumbnails.FindMissing(root with healthy + pid1) -> OK: 0
+ Thumbnails.NeedsThumb(healthy alone) -> OK: False
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.Control_WriterPidReusedByMyOwnProcess_StaleAndAdmitted [12 ms]
+ Inspect(pid reused, same user) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.Reap_OwnerPidReusedByAnotherUsersProcess_Observed [23 ms]
+ ReapOrphansIn(owner pid 1) -> OK: pid 999998 [capture video (x)]: already exited (or pid reused) - record removed
+ record still on disk: False
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.Control_WriterPidIsGone_StaleAndAdmitted [22 ms]
+ Inspect(pid gone) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ FindUnfinished -> OK: 1
+ FindMissing -> OK: 0
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.WriterPidReusedByAnotherUsersProcess_Observed [48 ms]
+ Inspect(pid 4) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ ClearStaleClaim(pid 4) -> OK: True
+ ThrowIfLive(pid 4) -> OK: passed
+ FindUnfinished(root with healthy + pid4) -> OK: 2026-11-14_090000_healthy,2026-11-15_120000_rootpid
+ Thumbnails.FindMissing(root with healthy + pid4) -> OK: 0
+ Thumbnails.NeedsThumb(healthy alone) -> OK: False
+Total tests: 8
+     Passed: 8
+######## ae-156-prefix 2594cfc
+  AgentEyes.Core -> C:\ReposFred\ae-156-prefix\src\AgentEyes.Core\bin\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+  AgentEyes.Setup.Engine -> C:\ReposFred\ae-156-prefix\tools\AgentEyes.Setup.Engine\bin\Release\net8.0-windows\AgentEyes.Setup.Engine.dll
+  AgentEyes.Setup.Cli -> C:\ReposFred\ae-156-prefix\tools\AgentEyes.Setup.Cli\bin\Release\net8.0-windows\agenteyes-setup.dll
+  AgentEyes.Setup -> C:\ReposFred\ae-156-prefix\tools\AgentEyes.Setup\bin\Release\net8.0-windows\AgentEyes.Setup.dll
+  AgentEyes.App -> C:\ReposFred\ae-156-prefix\src\AgentEyes.App\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+  AgentEyes.Tests -> C:\ReposFred\ae-156-prefix\tests\AgentEyes.Tests\bin\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.dll
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidIsGone_StaleAndAdmitted [383 ms]
+ Inspect(pid gone) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ FindUnfinished -> OK: 1
+ FindMissing -> OK: 0
+  Passed AgentEyes.Tests.GateProbeScratchTests.Reap_OwnerPidReusedByAnotherUsersProcess_Observed [22 ms]
+ ReapOrphansIn(owner pid 1) -> OK: pid 999998 [capture video (x)]: already exited (or pid reused) - record removed
+ record still on disk: False
+  Passed AgentEyes.Tests.GateProbeScratchTests.Control_WriterPidReusedByMyOwnProcess_StaleAndAdmitted [31 ms]
+ Inspect(pid reused, same user) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+  Passed AgentEyes.Tests.GateProbeScratchTests.WriterPidReusedByAnotherUsersProcess_Observed [30 ms]
+ Inspect(pid 1) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ ClearStaleClaim(pid 1) -> OK: True
+ ThrowIfLive(pid 1) -> OK: passed
+ FindUnfinished(root with healthy + pid1) -> OK: 2026-11-14_090000_healthy,2026-11-15_120000_rootpid
+ Thumbnails.FindMissing(root with healthy + pid1) -> OK: 0
+ Thumbnails.NeedsThumb(healthy alone) -> OK: False
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.Control_WriterPidReusedByMyOwnProcess_StaleAndAdmitted [12 ms]
+ Inspect(pid reused, same user) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.Reap_OwnerPidReusedByAnotherUsersProcess_Observed [16 ms]
+ ReapOrphansIn(owner pid 1) -> THREW Win32Exception: Access is denied.
+ record still on disk: True
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.Control_WriterPidIsGone_StaleAndAdmitted [15 ms]
+ Inspect(pid gone) -> OK: False stale capture claim taken over: its owner (capture session of pid 424242 on host SORENLAPTOP (started 2026-11-15T12:00:00.0000000Z)) is gone and its 1 writer(s) have exited
+ FindUnfinished -> OK: 1
+ FindMissing -> OK: 0
+  Passed AgentEyes.Tests.GateProbeScratchWinPid4Tests.WriterPidReusedByAnotherUsersProcess_Observed [49 ms]
+ Inspect(pid 4) -> THREW Win32Exception: Access is denied.
+ ClearStaleClaim(pid 4) -> THREW Win32Exception: Access is denied.
+ ThrowIfLive(pid 4) -> THREW Win32Exception: Access is denied.
+ FindUnfinished(root with healthy + pid4) -> OK: 2026-11-14_090000_healthy
+ Thumbnails.FindMissing(root with healthy + pid4) -> THREW Win32Exception: Access is denied.
+ Thumbnails.NeedsThumb(healthy alone) -> OK: False
+Total tests: 8
+     Passed: 8

@@ -1,0 +1,10 @@
+runtime .NET 8.0.21; C:\Program Files\dotnet\shared\Microsoft.NETCore.App\8.0.21\System.Diagnostics.Process.dll
+  Process.get_StartTime(): call Nullable`1.get_HasValue  call Process.get_StartTimeCore  call Nullable`1.get_Value
+  Process.GetProcessTimes(): 0x1000  call Process.GetProcessHandle  call SR.get_ProcessHasExited  call Int32.ToString  call SR.Format  call Kernel32.GetProcessTimes
+  Process.get_HasExited(): 0x15a28  call Process.EnsureState  call Process.UpdateHasExited  call Process.RaiseOnExited
+  Process.GetProcessHandle(): 0x1f0fff  call Process.GetProcessHandle
+  Process.GetProcessHandle(Int32,Boolean): call SR.get_ProcessHasExitedNoId  call SR.get_ProcessHasExited  call Int32.ToString  call SR.Format  call Process.EnsureState  call ProcessManager.OpenProcess  0x400  call Kernel32.GetExitCodeProcess  0x103  call SR.get_ProcessHasExited  call Int32.ToString  call SR.Format
+  Process.get_ExitTime(): call Process.EnsureState  call Process.get_ExitTimeCore
+  Process.UpdateHasExited(): 0x101000  call Process.GetProcessHandle  call ProcessManager.HasExited
+  Process.get_StartTimeCore(): call Process.GetProcessTimes
+  (0x1000 = PROCESS_QUERY_LIMITED_INFORMATION, 0x400 = PROCESS_QUERY_INFORMATION, 0x100000 = SYNCHRONIZE, 0x101000 = both limited|sync)

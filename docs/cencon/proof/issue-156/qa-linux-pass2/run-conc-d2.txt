@@ -1,0 +1,116 @@
+13:56:27.113 === D2 concurrency arms; binary 1.11.11+2594cfc733eb58103a36055ec7b7d1295fe4d8c5; scratch $SCRATCH/runs/conc-135627
+13:56:27.233 isolation: this-host root $SCRATCH/runs/conc-135627/home/Videos/AgentEyes (inside scratch)
+13:56:27.360 isolation: other-host root $SCRATCH/runs/conc-135627/home/Videos/AgentEyes (inside scratch)
+13:56:27.614 working copies: 16, from crash-fix-134653 and crashload-fix-135245; each starts as: f1 | owner.json=present | PendingMux=pending | mux: none | AttemptedBy=null
+13:56:27.618 --- arm 1: shared flock held on f1/capture.lock (what ClearStaleClaim holds) for the whole of a counted package
+13:56:28.149   /proc/locks while held: 129 lines; ours: 28: FLOCK  ADVISORY  READ 1305850 fc:00:1334329 0 EOF
+13:56:31.542   package under the shared hold: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:56:31.570   f1 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:28.4116672Z by agenteyes pid 1305867 on devlinux"]
+13:56:34.062   decode exit=0 errs=0 dur=45.666667 last-second frames=30 streams=video,audio,
+13:56:34.064 --- arm 1 positive control: EXCLUSIVE flock on f2/capture.lock (what a live capture holds, and what ClearStaleClaim's first version held)
+13:56:34.806   package under the exclusive hold: rc=1 [error] refusing to package f2: it is being captured by the capture session of pid 1280743 on host devlinux (started 2026-11-16T13:46:54.2593929Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized wh
+13:56:34.845   f2 | owner.json=present | PendingMux=pending | mux: none | AttemptedBy=null
+13:56:35.081   package after the exclusive hold is released: rc=1 [error] refusing to package f2: it is being captured by the capture session of pid 1280743 on host devlinux (started 2026-11-16T13:46:54.2593929Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized wh
+13:56:35.117   f2 | owner.json=present | PendingMux=pending | mux: none | AttemptedBy=null
+13:56:35.121   no recording.mp4
+13:56:35.124 --- arm 2: strace of a package on f3 (flock / unlink calls on capture.lock and capture.owner.json)
+13:56:44.896   package: rc=1 ; f3 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:35.9717441Z by agenteyes pid 1306595 on devlinux"]
+13:56:44.941   strace sequence: open capture.lock pid 1306595 -> fd 33 ; flock(fd 33, LOCK_SH|LOCK_NB) = 0 ; flock(fd 33, LOCK_UN) = 0 ; close capture.lock fd 33 ; open capture.lock pid 1306595 -> fd 57 ; flock(fd 57, LOCK_SH|LOCK_NB) = 0 ; unlink capture.owner.json = 0 ; flock(fd 57, LOCK_UN) = 0 ; close capture.lock fd 57 ; open capture.lock pid 1306595 -> fd 60 ; flock(fd 60, LOCK_SH|LOCK_NB) = 0 ; flock(fd 60, LOCK_UN) = 0 ; close capture.lock fd 60 ; open capture.lock pid 1306595 -> fd 63 ; flock(fd 63, LOCK_SH|LOCK_NB) = 0 ; flock(fd 63, LOCK_UN) = 0 ; close capture.lock fd 63
+13:56:44.944   LOCK_EX on capture.lock: 0, LOCK_SH: 4
+13:56:44.963   strace positive control (flock -x on the same file): flock(3, LOCK_EX)
+13:56:44.967 --- arm 3: f4..f16, each hit at the same instant by 3 same-host packages and 1 other-host package
+13:56:52.986   f4 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.4995753Z by agenteyes pid 1307079 on devlinux"]
+13:56:52.988     decode exit=0 errs=0 dur=45.666667 last-second frames=30 streams=video,audio,
+13:56:52.995     a: rc=1 [error] the audio mux for f4 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:56:53.002     b: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:56:53.012     c: rc=1 [error] the audio mux for f4 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:56:53.021     o: rc=1 [error] refusing to package f4: its capture owner (capture session of pid 1280743 on host devlinux (started 2026-11-16T13:46:54.2593929Z)) is gone, but its video ffmpeg pid 1280852 ran on host devlinux and cannot be checked from o
+13:56:55.120   f5 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.4886846Z by agenteyes pid 1307084 on devlinux"]
+13:56:55.122     decode exit=0 errs=0 dur=45.666667 last-second frames=30 streams=video,audio,
+13:56:55.129     a: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:56:55.136     b: rc=1 [error] the audio mux for f5 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:56:55.143     c: rc=1 [error] the audio mux for f5 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:56:55.150     o: rc=1 [error] refusing to package f5: its capture owner (capture session of pid 1280743 on host devlinux (started 2026-11-16T13:46:54.2593929Z)) is gone, but its video ffmpeg pid 1280852 ran on host devlinux and cannot be checked from o
+13:56:57.801   f6 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.3993763Z by agenteyes pid 1307096 on devlinux"]
+13:56:57.803     decode exit=0 errs=0 dur=45.666667 last-second frames=30 streams=video,audio,
+13:56:57.811     a: rc=1 [error] the audio mux for f6 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:56:57.819     b: rc=1 [error] the audio mux for f6 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:56:57.828     c: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:56:57.837     o: rc=1 [error] the audio mux for f6 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:00.093   f7 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.5270688Z by agenteyes pid 1307100 on devlinux"]
+13:57:00.095     decode exit=0 errs=0 dur=45.666667 last-second frames=30 streams=video,audio,
+13:57:00.102     a: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:00.109     b: rc=1 [error] the audio mux for f7 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:00.116     c: rc=1 [error] the audio mux for f7 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:00.124     o: rc=1 [error] refusing to package f7: its capture owner (capture session of pid 1280743 on host devlinux (started 2026-11-16T13:46:54.2593929Z)) is gone, but its video ffmpeg pid 1280852 ran on host devlinux and cannot be checked from o
+13:57:02.938   f8 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.5933833Z by agenteyes pid 1307113 on devlinux"]
+13:57:02.940     decode exit=0 errs=0 dur=45.666667 last-second frames=30 streams=video,audio,
+13:57:02.947     a: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:02.954     b: rc=1 [error] the audio mux for f8 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:02.963     c: rc=1 [error] the audio mux for f8 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:02.971     o: rc=1 [error] refusing to package f8: its capture owner (capture session of pid 1280743 on host devlinux (started 2026-11-16T13:46:54.2593929Z)) is gone, but its video ffmpeg pid 1280852 ran on host devlinux and cannot be checked from o
+13:57:05.776   f9 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.5736412Z by agenteyes pid 1307125 on devlinux"]
+13:57:05.778     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:05.785     a: rc=1 [error] the audio mux for f9 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:05.792     b: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:05.799     c: rc=1 [error] the audio mux for f9 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:05.806     o: rc=1 [error] the audio mux for f9 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:08.537   f10 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.4262436Z by agenteyes pid 1307128 on devlinux"]
+13:57:08.539     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:08.547     a: rc=1 [error] the audio mux for f10 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:08.558     b: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:08.565     c: rc=1 [error] the audio mux for f10 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:08.576     o: rc=1 [error] refusing to package f10: its capture owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone, but its video ffmpeg pid 1298091 ran on host devlinux and cannot be checked from 
+13:57:11.785   f11 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.4318655Z by agenteyes pid 1307137 on devlinux"]
+13:57:11.787     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:11.795     a: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:11.803     b: rc=1 [error] the audio mux for f11 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:11.811     c: rc=1 [error] the audio mux for f11 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:11.818     o: rc=1 [error] the audio mux for f11 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:14.047   f12 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.6094722Z by agenteyes pid 1307161 on devlinux"]
+13:57:14.049     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:14.056     a: rc=1 [error] the audio mux for f12 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:14.064     b: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:14.073     c: rc=1 [error] the audio mux for f12 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:14.081     o: rc=1 [error] refusing to package f12: its capture owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone, but its video ffmpeg pid 1298091 ran on host devlinux and cannot be checked from 
+13:57:16.306   f13 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.7317533Z by agenteyes pid 1307198 on devlinux"]
+13:57:16.308     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:16.316     a: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:16.322     b: rc=1 [error] the audio mux for f13 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:16.330     c: rc=1 [error] the audio mux for f13 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:16.337     o: rc=1 [error] refusing to package f13: its capture owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone, but its video ffmpeg pid 1298091 ran on host devlinux and cannot be checked from 
+13:57:19.319   f14 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.7004169Z by agenteyes pid 1307219 on devlinux"]
+13:57:19.321     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:19.329     a: rc=1 [error] the audio mux for f14 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:19.339     b: rc=1 [error] the audio mux for f14 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:19.348     c: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:19.358     o: rc=1 [error] refusing to package f14: its capture owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone, but its video ffmpeg pid 1298091 ran on host devlinux and cannot be checked from 
+13:57:21.963   f15 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.7166220Z by agenteyes pid 1307296 on devlinux"]
+13:57:21.966     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:21.973     a: rc=1 [error] the audio mux for f15 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:21.980     b: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:21.990     c: rc=1 [error] the audio mux for f15 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:21.997     o: rc=1 [error] refusing to package f15: its capture owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone, but its video ffmpeg pid 1298091 ran on host devlinux and cannot be checked from 
+13:57:24.198   f16 | owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 nAttemptedBy=1 Error= | AttemptedBy=["attempt 1 at 2026-11-16T13:56:45.6202086Z by agenteyes pid 1307284 on devlinux"]
+13:57:24.200     decode exit=0 errs=0 dur=48.966667 last-second frames=30 streams=video,audio,
+13:57:24.207     a: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:57:24.214     b: rc=1 [error] the audio mux for f16 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:24.221     c: rc=1 [error] the audio mux for f16 is already running in another AgentEyes process (or another task of this one) - refusing to start a second writer on the same output. Wait for it to finish, or for it to fail, then try again.
+13:57:24.228     o: rc=1 [error] refusing to package f16: its capture owner (capture session of pid 1297984 on host devlinux (started 2026-11-16T13:52:46.8795540Z)) is gone, but its video ffmpeg pid 1298091 ran on host devlinux and cannot be checked from 
+13:57:24.238   arm 3 invariant (done, Attempts=1, one AttemptedBy, owner record gone, full decode): 13 of 13 hold
+13:57:24.248   same-host ClearStaleClaim CLEARED lines: 15 ; 'removed by another process first': 0
+13:57:24.258   OTHER-host ClearStaleClaim lines: total 3 ; of them CLEARED: 0
+13:57:24.270   other-host outcomes: declined 10, passed the claim 3
+13:57:24.279   any process anywhere that counted a FAILED mux: 29
+13:57:24.287 === done; transcript $SCRATCH/runs/conc-135627/transcript.txt
+13:58:01.199 --- arm 1 positive control, RE-RUN (harness fix: flock -o, so only the flock process holds the lock; the first run's lock leaked into its sleep child)
+13:58:01.235   f2 before: owner.json=present PendingMux=pending mux=none
+13:58:01.761   /proc/locks: 19: FLOCK  ADVISORY  WRITE 1315914 fc:00:1334335 0 EOF
+13:58:01.992   package under EXCLUSIVE hold: rc=1 [error] refusing to package f2: it is being captured by the capture session of pid 1280743 on host devlinux (started 2026-11-16T13:46:54.2593929Z). Nothing was muxed, renamed or counted as an attempt;
+13:58:02.030   f2: owner.json=present PendingMux=pending mux=none
+13:58:02.357   hold released: holder 1315914 alive=no; flock entries on f2 now: 0
+13:58:05.914   package after release: rc=1 [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+13:58:05.951   f2: owner.json=absent PendingMux=cleared mux=State=done Attempts=1 nAttemptedBy=1
+13:58:07.326   decode f2: exit=0 errs=0 dur=45.666667
+13:58:07.341   NoteFailed lines in this run's logs: 0 ; positive control, the pre-fix crash run's log: 1
+13:58:07.359   same-host ThrowIfLive DECLINED lines in this run: 3 ; other-host: 10

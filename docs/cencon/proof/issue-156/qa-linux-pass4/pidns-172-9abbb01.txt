@@ -1,0 +1,37 @@
+16:52:43.890 === #172 measurement, product 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5, scratch $SCRATCH/runs/pidns-165243
+16:52:43.897 host: pid namespace pid:[4026531836], user namespace user:[4026531837], hostname devlinux
+16:52:43.970 foreign go2rtc ffmpeg by command line: pid 72110 (never signalled)
+16:52:44.094 isolation (host): root $SCRATCH/runs/pidns-165243/home/Videos/AgentEyes
+16:52:44.615 isolation (container): root $SCRATCH/runs/pidns-165243/home/Videos/AgentEyes
+16:52:47.853 crashed owner (real TryAcquire + NoteWriter, then SIGKILL itself) exit 137: OWNER pid 1643590 claimed 2026-11-16_171000_video with writer 1643422; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+16:52:47.860 owner record: {  "Host": "devlinux",  "HostId": "7c9ac76f5ae744cbb9cee3664875762c",  "Pid": 1643590,  "ProcessStartUtc": "2026-11-16T16:52:47.6120207Z",  "What": "qa crashed owner",  "StartedUtc": "2026-11-16T16:52:47.7250465Z",  "Writers": [    {      "Label": "video",      "Pid": 1643422,      "StartUtc": "2026-11-16T16:52:44.6120207Z"    }  ]}
+16:52:47.865 host-id file: 7c9ac76f5ae744cbb9cee3664875762c (shared with every arm through the bind-mounted state root)
+16:52:47.919 live writer W=1643422, uid 1000, raw.mp4 189838 bytes
+16:52:47.922 --- ARM H (control): host namespace, plain prober
+16:52:47.971 harness pid 1643635, product 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:52:48.028 INSPECT from pid 1643635, pid namespace pid:[4026531836], host devlinux, host-id 7c9ac76f5ae744cbb9cee3664875762c
+16:52:48.043   recorded writer pid 1643422: IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 1643422 is running and started at the recorded time 2026-11-16T16:52:44.6120207Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+16:52:48.140   [Inspect] Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 1643590 on host devlinux (started 2026-11-16T16:52:47.7250465Z)) is gone but its video ffmpeg pid 1643422 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+16:52:48.149 --- ARM C2 (control): container with --pid=host
+16:52:48.602 harness pid 1643712, product 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:52:48.649 INSPECT from pid 1643712, pid namespace pid:[4026531836], host 2e32e11e90ae, host-id 7c9ac76f5ae744cbb9cee3664875762c
+16:52:48.656   recorded writer pid 1643422: IdentifyProcess -> ProcessAnswer { Identity = Mine, Why = pid 1643422 is running and started at the recorded time 2026-11-16T16:52:44.6120207Z, IsMine = True, IsNotMine = False, IsUnknown = False }
+16:52:48.775   [Inspect] Live=True Undetermined=False Reason=its capture owner (qa crashed owner of pid 1643590 on host devlinux (started 2026-11-16T16:52:47.7250465Z)) is gone but its video ffmpeg pid 1643422 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone
+16:52:49.138 --- ARM C1 (THE QUESTION): container, its own pid namespace, same uid, same state root
+16:52:49.539 inside: pid ns pid:[4026533019], user ns user:[4026531837], hostname d421fd29b661, uid 1000, kill -0 1643422 -> bash: line 1: kill: (1643422) - No such process
+16:52:49.618 harness pid 1, product 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:52:49.665 INSPECT from pid 1, pid namespace pid:[4026533019], host d421fd29b661, host-id 7c9ac76f5ae744cbb9cee3664875762c
+16:52:49.672   recorded writer pid 1643422: IdentifyProcess -> ProcessAnswer { Identity = NotMine, Why = no process 1643422 exists, IsMine = False, IsNotMine = True, IsUnknown = False }
+16:52:49.797   [Inspect] Live=False Undetermined=False Reason=stale capture claim taken over: its owner (qa crashed owner of pid 1643590 on host devlinux (started 2026-11-16T16:52:47.7250465Z)) is gone and its 1 writer(s) have exited
+16:52:50.205   state after the read-only arms: PendingMux=pending mux=None capture.owner.json=PRESENT raw.mp4=422378 recording.mp4=absent
+16:52:50.211 --- ARM C3: the real CLI from the container's own pid namespace: agenteyes package <dir> --no-frames
+16:52:51.359   exit 1: [error] ffprobe not found on PATH. Install it with 'sudo apt install -y ffmpeg', or set QA_RECORD_FFMPEG_DIR to the folder containing ffprobe.
+16:52:53.400   after: PendingMux=pending mux={'State': 'failed', 'Attempts': 1, 'LastAttemptUtc': '2026-11-16T16:52:50.8636801Z', 'AttemptedBy': ['attempt 1 at 2026-11-16T16:52:50.8636801Z by agenteyes pid 1 on 787b54ad030e'], 'Error': "ffprobe not found on PATH. Install it with 'sudo apt install -y ffmpeg', or set QA_RECORD_FFMPEG_DIR to the folder containing ffprobe."} capture.owner.json=ABSENT raw.mp4=734180 recording.mp4=absent; writer W ALIVE, raw.mp4 426623 -> 731555 bytes
+16:52:53.403   product log, the container's lines:
+16:52:50.819 [pid 1] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171000_video (package) - stale capture claim taken over: its owner (qa crashed owner of pid 1643590 on host devlinux (started 2026-11-16T16:52:47.7250465Z)) is gone and its 1 writer(s) have exited
+16:52:50.821 [pid 1] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171000_video (package) - CLEARED capture.owner.json (lock held shared): stale capture claim taken over: its owner (qa crashed owner of pid 1643590 on host devlinux (started 2026-11-16T16:52:47.7250465Z)) is gone and its 1 writer(s) have exited. The capture's o
+16:52:50.861 [pid 1] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171000_video (package) - no capture holds it
+16:52:50.870 [pid 1] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_171000_video stage=mux by=agenteyes pid 1 on 787b54ad030e
+16:52:50.946 [pid 1] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171000_video (finalize) - no capture holds it
+16:52:50.946 [pid 1] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171000_video (finalize) - no owner record; nothing to clear
+16:52:53.410 === done

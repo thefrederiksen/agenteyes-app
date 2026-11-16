@@ -39,6 +39,8 @@
     <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
     <!-- Issue #161 pass 2: a redirected desktop app refuses to start (it always drives the REAL service on 7882). -->
     <Compile Include="..\Shared\DesktopAppRedirectTests.cs" Link="Shared\DesktopAppRedirectTests.cs" />
+    <!-- Issue #118: the macOS bundle's committed inputs (Info.plist, AgentEyes.icns) and the app name. -->
+    <Compile Include="..\Shared\MacBundleTests.cs" Link="Shared\MacBundleTests.cs" />
   </ItemGroup>
 
 </Project>

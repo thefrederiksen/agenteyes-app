@@ -1,0 +1,97 @@
+12:36:48.033 === v2 run: bin=mainfrag embedded=1.11.11+ad21557bb177d52323a8484b3f6e9d73f16daf52 CaptureLock=0 frag=1 watchdog=1 host=devlinux ffmpeg=6.1.1-3ubuntu5 load=5.80
+12:36:48.036   foreign go2rtc ffmpeg 72110 alive: yes
+12:36:48.300 [s0] mainfrag serve pid 1132340 port 17720; recordings root inside scratch: $SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes
+12:36:52.021 [s0c] mainfrag serve pid 1132784 port 17723; recordings root inside scratch: $SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes
+12:37:05.939 B = 2026-11-16_073648_video owner S0 pid 1132340, writer pid 1132455;  C = 2026-11-16_073652_video owner S0c pid 1132784, writer pid 1132895
+12:37:05.943   capture.lock absent
+12:37:07.005 S0 and S0c SIGKILLed mid-capture (alive: NO NO); writers alive: B yes C yes, B writer ppid now 2221
+12:37:10.018   B raw.mp4 growth with its owner dead: 2679585 -> 3428889 in 3s
+12:37:10.022   capture.lock absent
+12:37:10.027 SECOND PROCESS (mainfrag): agenteyes package 2026-11-16_073648_video --no-frames  [Borphan1]
+12:37:12.347   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:37:12.385   raw.mp4=absent recording.mp4=3511877 recording.original.mp4=3685284 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=18.73
+12:37:15.397   B writer alive: yes; B raw.mp4 growth: absent -> absent in 3s
+12:37:15.403 SECOND PROCESS (mainfrag): agenteyes package 2026-11-16_073648_video --no-frames  [Borphan2]
+12:37:15.936   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:37:15.972   raw.mp4=absent recording.mp4=3511877 recording.original.mp4=4205124 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=18.73
+12:37:18.985   B writer alive: yes; B raw.mp4 growth: absent -> absent in 3s
+12:37:19.255 [s1] mainfrag serve pid 1134104 port 17721; recordings root inside scratch: $SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes
+12:37:20.267 after S1 start: B writer alive yes, C writer alive yes
+    07:37:19.203 [pid 1134104] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:37:23.282   B raw.mp4 after reap: absent -> absent in 3s
+12:37:37.044 A = 2026-11-16_073723_video owner S1 pid 1134104, writer pid 1134331
+12:37:37.048   capture.lock absent
+12:37:37.085   A: raw.mp4=2189038 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: none | DurationSeconds=0
+12:37:37.090 SECOND PROCESS (mainfrag): agenteyes package 2026-11-16_073723_video --no-frames  [A1]
+12:37:39.138   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:37:39.171   raw.mp4=absent recording.mp4=2480925 recording.original.mp4=2467968 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=12.4
+12:37:42.216   A writer alive: yes; A raw.mp4 growth: absent -> absent in 3s; S1 State=recording Elapsed=18.67 CaptureLiveness=not-growing LastStopFailed=False LastStopError=
+12:37:42.222 SECOND PROCESS (mainfrag): agenteyes package 2026-11-16_073723_video --no-frames  [A2]
+12:37:42.787   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:37:42.823   raw.mp4=absent recording.mp4=2480925 recording.original.mp4=3048371 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=12.4
+12:37:45.867   A writer alive: yes; A raw.mp4 growth: absent -> absent in 3s; S1 State=recording Elapsed=22.32 CaptureLiveness=not-growing LastStopFailed=False LastStopError=
+12:37:45.873 SECOND PROCESS (mainfrag): agenteyes package 2026-11-16_073723_video --no-frames  [A3]
+12:37:46.398   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:37:46.438   raw.mp4=absent recording.mp4=2480925 recording.original.mp4=3797048 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=12.4
+12:37:49.481   A writer alive: yes; A raw.mp4 growth: absent -> absent in 3s; S1 State=recording Elapsed=25.93 CaptureLiveness=not-growing LastStopFailed=False LastStopError=
+12:37:49.487 SECOND PROCESS (mainfrag): agenteyes package 2026-11-16_073652_video --no-frames  [Cdead]
+12:37:54.078   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:37:54.113   raw.mp4=absent recording.mp4=10043737 recording.original.mp4=10139715 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=56.07
+12:38:04.473   decode recording.mp4: duration=56.066016s video_frames=1680 full-decode exit=0 errors=0 streams=video,audio,
+12:38:04.740 [s2] mainfrag serve pid 1136657 port 17722; recordings root inside scratch: $SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes
+    07:38:04.709 [pid 1136657] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:38:05.753   A writer alive after S2's reap: yes
+12:38:05.757 waiting for S2's first repair pass (+20 s)...
+12:38:26.897 S2 repair-pass lines (pid 1136657):
+    07:38:24.715 [pid 1136657] [INFO] [RepairService] RunAsync: trigger=timer
+    07:38:24.723 [pid 1136657] [INFO] [RepairService] ResumeUnfinishedAsync: root=$SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes
+    07:38:24.938 [pid 1136657] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073648_video needs thumbnail, package
+    07:38:24.938 [pid 1136657] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073652_video needs thumbnail, package
+    07:38:24.939 [pid 1136657] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073723_video needs thumbnail, package
+    07:38:24.939 [pid 1136657] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes, unfinished=3
+    07:38:24.942 [pid 1136657] [INFO] [RepairService] ResumeAsync: 3 recording(s) with unfinished post-processing (hostedWork=False)
+    07:38:24.945 [pid 1136657] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073648_video#1 (no claim)
+    07:38:25.389 [pid 1136657] [INFO] [PostRecordingState] NoteDone: 2026-11-16_073648_video stage=thumbnail
+    07:38:25.413 [pid 1136657] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073652_video#3 (no claim)
+    07:38:25.887 [pid 1136657] [INFO] [PostRecordingState] NoteDone: 2026-11-16_073652_video stage=thumbnail
+    07:38:25.895 [pid 1136657] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073723_video#5 (no claim)
+    07:38:26.357 [pid 1136657] [INFO] [PostRecordingState] NoteDone: 2026-11-16_073723_video stage=thumbnail
+    07:38:26.367 [pid 1136657] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+    07:38:26.411 [pid 1136657] [INFO] [RepairService] RunAsync: trigger=timer done
+12:38:26.937   A: raw.mp4=absent recording.mp4=2480925 recording.original.mp4=10314081 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=12.4
+12:38:26.977   B: raw.mp4=absent recording.mp4=3511877 recording.original.mp4=17075275 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=18.73
+12:38:30.296   decode recording.mp4: duration=18.732683s video_frames=560 full-decode exit=0 errors=0 streams=video,audio,
+12:38:30.327   S1 State=idle Elapsed=61.28 CaptureLiveness=None LastStopFailed=True LastStopError=capture watchdog: capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z
+12:38:30.332 SECOND PROCESS (mainfrag): agenteyes package 2026-11-16_073723_video --no-frames  [A4]
+12:38:30.867   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:38:30.905   raw.mp4=absent recording.mp4=2480925 recording.original.mp4=10314081 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=12.4
+12:38:40.957   +10s A writer alive NO; raw.mp4=absent recording.mp4=2480925 original=10314081; S1 State=idle Elapsed=61.28 CaptureLiveness=None LastStopFailed=True LastStopError=capture watchdog: capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z
+12:38:51.003   +20s A writer alive NO; raw.mp4=absent recording.mp4=2480925 original=10314081; S1 State=idle Elapsed=61.28 CaptureLiveness=None LastStopFailed=True LastStopError=capture watchdog: capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z
+12:39:01.049   +30s A writer alive NO; raw.mp4=absent recording.mp4=2480925 original=10314081; S1 State=idle Elapsed=61.28 CaptureLiveness=None LastStopFailed=True LastStopError=capture watchdog: capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z
+12:39:11.098   +40s A writer alive NO; raw.mp4=absent recording.mp4=2480925 original=10314081; S1 State=idle Elapsed=61.28 CaptureLiveness=None LastStopFailed=True LastStopError=capture watchdog: capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z
+12:39:21.143   +50s A writer alive NO; raw.mp4=absent recording.mp4=2480925 original=10314081; S1 State=idle Elapsed=61.28 CaptureLiveness=None LastStopFailed=True LastStopError=capture watchdog: capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z
+12:39:31.192   +60s A writer alive NO; raw.mp4=absent recording.mp4=2480925 original=10314081; S1 State=idle Elapsed=61.28 CaptureLiveness=None LastStopFailed=True LastStopError=capture watchdog: capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z
+12:39:31.196 S1 watchdog / stall lines:
+    07:37:24.779 [pid 1134104] [INFO] [RecordingService] StartWatchdog: watching $SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes/2026-11-16_073723_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+    07:38:24.793 [pid 1134104] [INFO] [RecordingService] PublishVerdict: /status now reports LastStopFailed=true, LastCaptureFault="capture stalled: raw.mp4 stopped growing at 2467968 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T12:37:38.784Z" for $SCRATCH
+    07:38:24.794 [pid 1134104] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=61.3s (detected 2026-11-16T12:38:24.792Z) dir=$SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes/2026-11-16_073723_video - captu
+    07:38:24.802 [pid 1134104] [WARN] [FfmpegRecorder] Abandon: $SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes/2026-11-16_073723_video/raw.mp4 - capture stalled: raw.mp4 stopped growing at 2467968 bytes and 
+    07:38:25.236 [pid 1134104] [INFO] [FfmpegRecorder] Abandon: $SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes/2026-11-16_073723_video/raw.mp4 ended in 433ms (killed, exit 137, last reported position 60.48s)
+    07:38:25.439 [pid 1134104] [INFO] stop: abandoned capture - raw.mp4 probes at 0.00s (ffmpeg last reported 60.48s)
+    07:38:25.453 [pid 1134104] [ERROR] [RecordingStopSequence] Run FAILED: dir=$SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes/2026-11-16_073723_video failures=1 manifest=on disk - capture watchdog: capture s
+    07:38:25.456 [pid 1134104] [ERROR] stop: FAILED dir=$SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes/2026-11-16_073723_video dur=61.3s manifest=on disk - capture watchdog: capture stalled: raw.mp4 stopped 
+    07:38:25.456 [pid 1134104] [WARN] [RecordingService] EndFaultedCapture: recording ended as a failed stop dir=$SCRATCH/runs/v2-mainfrag/home/Videos/AgentEyes/2026-11-16_073723_video - stopping the recordin
+12:39:32.210 S2 stopped by SIGTERM (alive: NO)
+12:39:32.256 owner S1 POST /record/stop -> None None not recording
+12:39:32.290 mux settled: cleared done
+12:39:32.322   A: raw.mp4=absent recording.mp4=2480925 recording.original.mp4=10314081 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=12.4
+12:39:34.683   decode recording.mp4: duration=12.399349s video_frames=370 full-decode exit=0 errors=0 streams=video,audio,
+12:39:34.686   capture.lock absent
+12:39:34.689 S1 finalize lines:
+12:39:35.700 S1 stopped by SIGTERM (alive: NO)
+12:39:35.711 LEFTOVER: my ffmpeg pid 1132455 still alive (/usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_siz) - SIGTERM
+12:39:38.725 LEFTOVER: my ffmpeg pid 1132895 still alive (/usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_siz) - SIGTERM
+12:39:41.765   final B: raw.mp4=absent recording.mp4=3511877 recording.original.mp4=29432507 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=18.73
+12:39:41.800   final C: raw.mp4=absent recording.mp4=10043737 recording.original.mp4=29241877 capture.lock=absent capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=None Error= | DurationSeconds=56.07
+12:39:41.803   foreign go2rtc ffmpeg 72110 alive: yes
+12:39:41.807 === v2 run mainfrag done

@@ -129,6 +129,10 @@ namespace AgentEyes
             }
 
             using var held = MuxLock.Acquire(dir, "package");
+            // Issue #156: before Reconcile, before the exhausted check, before the attempt is
+            // counted - a recording another process is still capturing is declined with the holder
+            // named, and its budget is untouched.
+            CaptureLock.ThrowIfLive(dir, "package");
             Reconcile(dir);
             Package.RefuseExhaustedMux(dir);
             if (!PostRecordingPlan.NeedsMux(dir))

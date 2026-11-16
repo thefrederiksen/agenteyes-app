@@ -1,0 +1,40 @@
+== M1 the new Win32Exception catch removed (= the code at d7b7cc7)
+  Failed IsSameProcess_PidHeldByAnotherUsersProcess_ReturnsFalseWithoutThrowing
+  Failed Resume_WriterPidHeldByAnotherUser_RecoversTheRecording
+  Failed IsSameProcess_ThisUsersZombie_ReturnsFalse
+  Failed ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord
+  Failed FindMissing_RootHoldsAForeignPidRecording_CompletesForEveryRecording
+  Failed FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording
+  Failed Inspect_WriterPidHeldByAnotherUser_IsAStaleClaim
+Failed!  - Failed:     7, Passed:     7, Skipped:     0, Total:    14, Duration: 177 ms
+== M2 unreadable start time answered TRUE
+  Failed IsSameProcess_PidHeldByAnotherUsersProcess_ReturnsFalseWithoutThrowing
+  Failed Resume_WriterPidHeldByAnotherUser_RecoversTheRecording
+  Failed IsSameProcess_ThisUsersZombie_ReturnsFalse
+  Failed ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord
+  Failed FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording
+  Failed Inspect_WriterPidHeldByAnotherUser_IsAStaleClaim
+Failed!  - Failed:     6, Passed:     8, Skipped:     0, Total:    14, Duration: 184 ms
+== M3 no such process answered TRUE
+  Failed ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord
+  Failed FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording
+  Failed IsSameProcess_NoSuchProcess_ReturnsFalse
+Failed!  - Failed:     3, Passed:    11, Skipped:     0, Total:    14, Duration: 1 s
+== M4 start-time mismatch answered TRUE
+  Failed IsSameProcess_PidHeldByAnotherUsersProcess_ReturnsFalseWithoutThrowing
+  Failed Resume_WriterPidHeldByAnotherUser_RecoversTheRecording
+  Failed IsSameProcess_OwnProcessDifferentStartTime_ReturnsFalse
+  Failed IsSameProcess_ThisUsersZombie_ReturnsFalse
+  Failed ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord
+  Failed FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording
+  Failed Inspect_WriterPidHeldByAnotherUser_IsAStaleClaim
+Failed!  - Failed:     7, Passed:     7, Skipped:     0, Total:    14, Duration: 192 ms
+== M5 matching start time answered FALSE
+  Failed IsSameProcess_OwnProcessRecordedStartTime_ReturnsTrue
+  Failed Inspect_WriterStillRunning_IsLive
+Failed!  - Failed:     2, Passed:    12, Skipped:     0, Total:    14, Duration: 230 ms
+== M6 pid<=0 guard removed from the classifier
+  Failed DescribeUnreadable_PidZeroOrNegative_IsCorruptNotAGroupSignal(pid: -1)
+  Failed DescribeUnreadable_PidZeroOrNegative_IsCorruptNotAGroupSignal(pid: 0)
+Failed!  - Failed:     2, Passed:    12, Skipped:     0, Total:    14, Duration: 216 ms
+== source RESTORED (cmp identical)

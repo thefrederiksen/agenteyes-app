@@ -1,0 +1,24 @@
+=== M0 unmutated
+Passed!  - Failed:     0, Passed:     8, Skipped:     0, Total:     8, Duration: 37 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+=== M1 Info.plist CFBundleIdentifier -> com.agenteyes.desktop
+AgentEyes.Tests.Shared.MacBundleTests.InfoPlist_BundleIdentifier_IsThePermanentOne [FAIL]
+   Assert.Equal() Failure: Strings differ
+Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 41 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+=== M2 App.axaml without Name="AgentEyes"
+AgentEyes.Tests.Shared.MacBundleTests.AppName_LoadedFromXaml_EqualsTheBundleName [FAIL]
+   Assert.Equal() Failure: Strings differ
+Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 42 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+=== M3 AgentEyes.icns with an upscaled 512 slot
+Passed!  - Failed:     0, Passed:     8, Skipped:     0, Total:     8, Duration: 41 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+=== M4 app Version 1.11.12, engine 1.11.11
+AgentEyes.Tests.Shared.MacBundleTests.InfoPlist_Version_IsFilledInByTheBuild_AndTheAppVersionIsTheEngines [FAIL]
+   Assert.Equal() Failure: Values differ
+Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 38 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+=== M5 restored
+Passed!  - Failed:     0, Passed:     8, Skipped:     0, Total:     8, Duration: 37 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+=== M3 (re-run; the first M3 above did not mutate - a shell glob error stopped it) AgentEyes.icns with an upscaled 512 slot (51215 bytes)
+AgentEyes.Tests.Shared.MacBundleTests.Icns_HasEverySizeUpTo256_AndNoUpscaledSlot [FAIL]
+   AgentEyes.icns has an upscaled 'ic09' entry - a 512 or 1024 pixel slot from a 256 pixel source
+Failed!  - Failed:     1, Passed:     7, Skipped:     0, Total:     8, Duration: 40 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+=== M6 restored again
+Passed!  - Failed:     0, Passed:     8, Skipped:     0, Total:     8, Duration: 37 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)

@@ -1,0 +1,10 @@
+a70fd90 default: Passed!  - Failed:     0, Passed:   375, Skipped:     2, Total:   377, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+   skipped: AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning
+   skipped: AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim
+a70fd90 optin: Passed!  - Failed:     0, Passed:   376, Skipped:     1, Total:   377, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+   skipped: AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim
+9abbb01 default: Passed!  - Failed:     0, Passed:   382, Skipped:     2, Total:   384, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+   skipped: AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning
+   skipped: AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim
+9abbb01 optin: Passed!  - Failed:     0, Passed:   383, Skipped:     1, Total:   384, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+   skipped: AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim

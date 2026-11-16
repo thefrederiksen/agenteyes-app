@@ -1,0 +1,38 @@
+16:52:35.050 === callers binary=9abbb01 mode=notmine scratch=$SCRATCH/runs/callers-9abbb01-notmine-165235
+16:52:35.064 product embedded: 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:52:35.137 foreign go2rtc ffmpeg by command line: pid 72110 (never signalled)
+16:52:35.260 isolation: report-only housekeep under this env -> root $SCRATCH/runs/callers-9abbb01-notmine-165235/home/Videos/AgentEyes (inside scratch)
+16:52:35.505 thumbnail fixture 2026-11-16_170200_video: no PendingMux, finished recording.mp4, claimed below by the crashed owner with the same live writer
+16:52:35.510 healthy sibling 2026-11-16_165900_video: finished raw.mp4, no claim (the control that the sweep still serves others)
+16:52:40.528 W state S, raw.mp4 growing: 158204 -> 363810 bytes in 2 s
+16:52:40.587 writer W=1642806 (mine, uid 1000) writing 2026-11-16_170000_video/raw.mp4; release writer RW=1642807 writing 2026-11-16_170100_video/raw.mp4
+16:52:40.812 crashed owner exited with 137 (2 claim line): OWNER also claimed thumbnail fixture 2026-11-16_170200_video with writer 1642806; owner record PRESENT
+OWNER pid 1643066 claimed 2026-11-16_170000_video with writer 1642806; owner record PRESENT; SIGKILLing myself now (a crash, no release)
+16:52:40.974 notmine: W 1642806 ended by me -> gone
+16:52:41.022 harness pid 1643098, product 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:52:41.184 RELEASE fixture: this process claims 2026-11-16_170100_video with writer pid 1642807 (alive), recorded unconfined
+16:52:41.687   notmine: killed release writer 1642807 -> gone
+16:52:41.719 --- probes, mode=notmine, thread 4; crashed-owner dir 2026-11-16_170000_video writer pid 1642806 (gone)
+16:52:41.722   IdentifyProcess(writer) = IdentifyProcess -> ProcessAnswer { Identity = NotMine, Why = no process 1642806 exists, IsMine = False, IsNotMine = True, IsUnknown = False }
+16:52:41.742   [Inspect]        Live=False Undetermined=False Reason=stale capture claim taken over: its owner (qa crashed owner of pid 1643066 on host devlinux (started 2026-11-16T16:52:40.6831109Z)) is gone and its 1 writer(s) have exited
+16:52:41.743   [ThrowIfLive]    did NOT throw (admitted)
+16:52:41.744   [ClearStaleClaim] returned True; capture.owner.json ABSENT
+16:52:41.792   [FindUnfinished] admitted this recording: True (list: 2026-11-16_165900_video,2026-11-16_170000_video,2026-11-16_170200_video)
+16:52:41.794   [FindMissing]    would thumbnail the claimed thumbnail fixture: True; its capture.owner.json PRESENT (list: 2026-11-16_170200_video)
+16:52:41.800   [ReapOrphans]    pid 1642806 [capture video (2026-11-16_170200_video)]: already exited (or pid reused) - record removed
+16:52:41.800   [ReapOrphans]    pid 1642807 [capture video (2026-11-16_170100_video)]: owner pid 1643098 is alive - left alone
+16:52:41.800   after reap: writer 1642806 gone; registry record REMOVED; capture.owner.json ABSENT
+16:52:41.802   [Release]        disposed the release claim; writer 1642807 gone; capture.owner.json ABSENT
+16:52:43.859 after: W 1642806 gone; 2026-11-16_170000_video/raw.mp4 572221 -> 572221 bytes; recording.mp4 absent; manifest mux: pending None
+16:52:43.863 product log lines (this run's data root):
+11:52:41.743 [pid 1643098] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_170000_video (qa) - stale capture claim taken over: its owner (qa crashed owner of pid 1643066 on host devlinux (started 2026-11-16T16:52:40.6831109Z)) is gone and its 1 writer(s) have exited
+11:52:41.744 [pid 1643098] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170000_video (qa) - CLEARED capture.owner.json (lock held shared): stale capture claim taken over: its owner (qa crashed owner of pid 1643066 on host devlinux (started 2026-11-16T16:52:40.6831109Z)) is gone and its 1 writer(s) have exited. The capture's owner stays on record in the manifest (CaptureOwner)
+11:52:41.790 [pid 1643098] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_165900_video needs mux
+11:52:41.790 [pid 1643098] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_170000_video needs mux
+11:52:41.790 [pid 1643098] [INFO] [PostRecordingPlan] FindUnfinished: skipping 2026-11-16_170100_video - 2026-11-16_170100_video is being captured by this process (pid 1643098)
+11:52:41.792 [pid 1643098] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_170200_video needs thumbnail, package
+11:52:41.792 [pid 1643098] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/callers-9abbb01-notmine-165235/home/Videos/AgentEyes, unfinished=3
+11:52:41.797 [pid 1643098] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=$SCRATCH/runs/callers-9abbb01-notmine-165235/home/.local/share/AgentEyes/run/ffmpeg
+11:52:41.800 [pid 1643098] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1642806 [capture video (2026-11-16_170200_video)]: already exited (or pid reused) - record removed
+11:52:41.800 [pid 1643098] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1642807 [capture video (2026-11-16_170100_video)]: owner pid 1643098 is alive - left alone
+11:52:41.802 [pid 1643098] [INFO] [CaptureLock] Release: 2026-11-16_170100_video released by pid 1643098

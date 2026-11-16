@@ -1,0 +1,43 @@
+16:49:22.524 === QA #156 pass 4 scenario=crash binary=fix scratch=$SCRATCH/runs/crash-fix-164922
+16:49:22.528 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+16:49:22.545 embedded version: 1.11.11+9abbb01ae8f5d57c340a1f335f5374efe7adbce5
+16:49:22.631   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:49:22.887 isolation: report-only housekeep (no service) -> root=$SCRATCH/runs/crash-fix-164922/home/Videos/AgentEyes ; positive control under a second env -> $SCRATCH/runs/isoctrl-1634356/h/Videos/AgentEyes
+16:49:23.168 [s1] serve pid 1634449 port 7960; recordings root inside scratch: $SCRATCH/runs/crash-fix-164922/home/Videos/AgentEyes
+16:49:24.903 S1 pid 1634449 capturing into 2026-11-16_114923_video
+16:49:37.016 writer pid 1634613 confirmed by command line to write into 2026-11-16_114923_video (comm=ffmpeg, uid 1000)
+16:50:02.057   raw.mp4=14680112 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:50:02.060 SIGKILL S1 pid 1634449 mid-capture
+16:50:06.140 after S1's death: writer 1634613 alive=yes ppid=2221 raw.mp4 14680112 -> 15990832 bytes in 4 s
+16:50:06.392 U1 confined package --no-frames -> exit 1: [error] refusing to package 2026-11-16_114923_video: UNDETERMINED: its capture owner (capture session of pid 1634449 on host devlinux (started 2026-11-16T16:49:23.5030209Z)) is gone, but whether its video ffmpeg pid 1634613 is still writing into it CANNOT BE ESTABLISHED from this process (pid 1636867): pid 1634613 exists and is this user's, but its start time is refused (13: Unable to retrieve the specified informati
+16:50:06.400   llprobe: Landlock ABI 4 confined pid 1636867 thread 1636867: reads of 1031 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+16:50:06.439   raw.mp4=15990832 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none ; writer 1634613 alive=yes
+16:50:06.709 [u2] serve pid 1636898 port 7961 (LANDLOCK-CONFINED: llprobe: Landlock ABI 4 confined pid 1636898 thread 1636898: reads of 1034 other /proc/<pid> entries refused, 64 /proc e); recordings root inside scratch: $SCRATCH/runs/crash-fix-164922/home/Videos/AgentEyes
+16:50:41.715 U2 (confined service pid 1636898) log, its own lines only:
+16:50:41.723   U2: 11:50:06.658 [pid 1636898] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=$SCRATCH/runs/crash-fix-164922/home/.local/share/AgentEyes/run/ffmpeg
+16:50:41.728   U2: 11:50:06.764 [pid 1636898] [INFO] [FfmpegChildRegistry] IdentifyProcess: pid 1634613 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.) - answered Unknown: pid 1634613 exists and is this user's, but its start time is refused (13: Unable to retrieve the specifie
+16:50:41.732   U2: 11:50:06.764 [pid 1636898] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1634613 [capture video (2026-11-16_114923_video)]: owner pid 1634449 gone, but UNKNOWN whether pid 1634613 is still this ffmpeg (pid 1634613 exists and is this user's, but its start time is refused (13: Unable to retrieve the specified information about the process or thread.  It may ha
+16:50:41.735   U2: 11:50:26.694 [pid 1636898] [INFO] [FfmpegChildRegistry] IdentifyProcess: pid 1634613 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.) - answered Unknown: pid 1634613 exists and is this user's, but its start time is refused (13: Unable to retrieve the specifie
+16:50:41.739   U2: 11:50:26.696 [pid 1636898] [WARN] [PostRecordingPlan] FindUnfinished: NOT REPAIRED 2026-11-16_114923_video - UNDETERMINED: its capture owner (capture session of pid 1634449 on host devlinux (started 2026-11-16T16:49:23.5030209Z)) is gone, but whether its video ffmpeg pid 1634613 is still writing into it CANNOT BE ESTABLISHED from this process (pid 1636898):
+16:50:41.742   U2: 11:50:26.696 [pid 1636898] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/crash-fix-164922/home/Videos/AgentEyes, unfinished=0, UNDETERMINED (capture state unprovable from here, left untouched)=1
+16:50:41.746   U2: 11:50:26.701 [pid 1636898] [INFO] [FfmpegChildRegistry] IdentifyProcess: pid 1634613 - start time cannot be read (13: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.) - answered Unknown: pid 1634613 exists and is this user's, but its start time is refused (13: Unable to retrieve the specifie
+16:50:41.750   U2: 11:50:26.701 [pid 1636898] [WARN] [Thumbnails] NeedsThumb: NOT GENERATED for 2026-11-16_114923_video - UNDETERMINED: its capture owner (capture session of pid 1634449 on host devlinux (started 2026-11-16T16:49:23.5030209Z)) is gone, but whether its video ffmpeg pid 1634613 is still writing into it CANNOT BE ESTABLISHED from this process (pid 1636898): pid 16
+16:50:43.801   after U2: writer 1634613 alive=yes, raw.mp4 28049456 -> 28573744 in 2 s; raw.mp4=28573744 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:50:43.868   U2 /health: {
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "linux"
+}
+16:50:44.127   U2 ended by me (SIGTERM): alive=NO
+16:50:44.399 [s2] serve pid 1637687 port 7962; recordings root inside scratch: $SCRATCH/runs/crash-fix-164922/home/Videos/AgentEyes
+16:50:44.690 writer 1634613 alive after S2's start-up reap: NO (0.53 s after S2 was launched); raw.mp4 now 29415452 bytes
+16:50:44.698   S2: 11:50:44.480 [pid 1637687] [INFO] [FfmpegChildRegistry] RequestGracefulExit: SIGTERM -> pid 1634613
+16:50:44.701   S2: 11:50:44.613 [pid 1637687] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1634613 [capture video (2026-11-16_114923_video)]: ORPHAN capture writer (owner pid 1634449 gone) - SIGTERM, exited after 0.13s (graceful: never killed)
+16:51:09.579 recovery by S2 (manifest PostProcessing.mux, not /status): cleared/done
+16:51:09.625   raw.mp4=absent recording.mp4=29730294 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T16:51:04.4658075Z by agenteyes pid 1637687 on devlinux"] Error=
+16:51:12.835   decode recording.mp4: duration=80.333333s full-decode exit=0 stderr-lines=0 last-second: 30 video frames decoded from the last second; last audio pts read: 43264 streams=h264,video aac,audio 
+16:51:12.842   S2: 11:51:04.461 [pid 1637687] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_114923_video (post-recording) - CLEARED capture.owner.json (lock held shared): stale capture claim taken over: its owner (capture session of pid 1634449 on host devlinux (started 2026-11-16T16:49:23.5030209Z)) is gone and its 1 writer(s) have exited. The
+16:51:12.845   S2: 11:51:04.530 [pid 1637687] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_114923_video (finalize) - no owner record; nothing to clear
+16:51:12.919   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:51:12.923 === done; transcript $SCRATCH/runs/crash-fix-164922/transcript.txt

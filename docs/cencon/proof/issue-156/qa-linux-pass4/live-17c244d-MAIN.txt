@@ -1,0 +1,26 @@
+16:43:25.351 === QA #156 pass 4 scenario=live binary=main scratch=$SCRATCH/runs/live-main-164325
+16:43:25.354 binary: $SCRATCH/wt-17c244d/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+16:43:25.369 embedded version: 1.11.11+17c244df603fd30115b145523e9a6d76d48c6fa5
+16:43:25.450   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:43:25.682 isolation: report-only housekeep (no service) -> root=$SCRATCH/runs/live-main-164325/home/Videos/AgentEyes ; positive control under a second env -> $SCRATCH/runs/isoctrl-1619937/h/Videos/AgentEyes
+16:43:25.948 [s1] serve pid 1619998 port 7950; recordings root inside scratch: $SCRATCH/runs/live-main-164325/home/Videos/AgentEyes
+16:43:27.437 S1 pid 1619998 capturing into 2026-11-16_114326_video
+16:43:39.523 no capture.owner.json (this build has no claim); writer found as S1's child by command line: 1620105
+16:43:39.578 writer pid 1620105 confirmed by command line to write into 2026-11-16_114326_video (comm=ffmpeg, uid 1000)
+16:43:39.612 LIVE ARM: S1 pid 1619998 alive=yes, writer 1620105 alive=yes; raw.mp4=4194352 recording.mp4=absent capture.owner.json=absent | PendingMux=pending | mux: none
+16:43:40.069   second process, plain: package --no-frames -> exit 1: [error] could not read the audio channel count of $SCRATCH/runs/live-main-164325/home/Videos/AgentEyes/2026-11-16_114326_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+16:43:40.099   raw.mp4=4456496 recording.mp4=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=null Error=could not read the audio channel count of $TMPROOT/-home-soren-ReposFred-agenteyes-app/35548e9a-ae30-465f-b8de-a02fd3c14f10/scratchp
+16:43:40.556   second process, LANDLOCK-confined: package --no-frames -> exit 1: [error] could not read the audio channel count of $SCRATCH/runs/live-main-164325/home/Videos/AgentEyes/2026-11-16_114326_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+16:43:40.594   raw.mp4=4456496 recording.mp4=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=2 AttemptedBy=null Error=could not read the audio channel count of $TMPROOT/-home-soren-ReposFred-agenteyes-app/35548e9a-ae30-465f-b8de-a02fd3c14f10/scratchp
+16:43:40.609   directory listing before/after the two finalize attempts: CHANGED: 1a2 > mux.lock ; raw.mp4 4194352 -> 4456496 bytes (still growing: yes); writer 1620105 alive=yes
+16:43:49.335 POST /record/stop -> {
+  "Dir": "$SCRATCH/runs/live-main-164325/home/Videos/AgentEyes/2026-
+  "File": "$SCRATCH/runs/live-main-164325/home/Videos/AgentEyes/2026
+  "DurationSeconds": 22.46,
+  "Shots": 0
+}
+16:43:51.441 followed manifest PostProcessing.mux: cleared/done
+16:43:51.481   raw.mp4=absent recording.mp4=8058287 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=3 AttemptedBy=null Error=
+16:43:53.247   decode recording.mp4: duration=22.433333s full-decode exit=0 stderr-lines=0 last-second: 30 video frames decoded from the last second; last audio pts read: 43328 streams=h264,video aac,audio 
+16:43:53.319   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:43:53.321 === done; transcript $SCRATCH/runs/live-main-164325/transcript.txt

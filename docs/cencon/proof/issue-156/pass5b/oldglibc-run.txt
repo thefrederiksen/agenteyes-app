@@ -1,0 +1,37 @@
+#156 pass 5b - oldglibc-run.sh. BEFORE = 3e818e6 (pass 5, built in a worktree); AFTER = 3e818e6 + the pass 5b working tree (FfmpegChildRegistry.cs sha256 eb9f257a9bb3feea), the source committed. Runtime: Microsoft .NET 8.0.34 linux-x64.
+===== container ubuntu:18.04, build BEFORE
+product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3
+libc: Ubuntu 18.04.6 LTS; gnu_get_libc_version 2.27; runtime .NET 8.0.34; uid 1000 euid 1000
+  ReadLinuxProcOwner(this process): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+  predicate, EPERM row (this process): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+  ReadLinuxProcOwner(a root process (pid 7)): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+  predicate, EPERM row (a root process (pid 7)): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+  ReadLinuxProcOwner(a missing pid): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+  predicate, EPERM row (a missing pid): THREW System.EntryPointNotFoundException: Unable to find an entry point named 'statx' in shared library 'libc'.
+===== container ubuntu:18.04, build AFTER
+product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3
+libc: Ubuntu 18.04.6 LTS; gnu_get_libc_version 2.27; runtime .NET 8.0.34; uid 1000 euid 1000
+  ReadLinuxProcOwner(this process): LinuxProcOwner { Kind = Owned, Detail = owned by uid 1000 (stat), Uid = 1000 }
+  predicate, EPERM row (this process): ProcessAnswer { Identity = Unknown, Why = pid 8 is THIS USER's (/proc/8 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here
+  ReadLinuxProcOwner(a root process (pid 7)): LinuxProcOwner { Kind = Owned, Detail = owned by uid 0 (stat), Uid = 0 }
+  predicate, EPERM row (a root process (pid 7)): ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it
+  ReadLinuxProcOwner(a missing pid): LinuxProcOwner { Kind = Gone, Detail = no such process, Uid =  }
+  predicate, EPERM row (a missing pid): ProcessAnswer { Identity = NotMine, Why = pid 2147483640 exited while being read (/proc/2147483640 does not exist)
+===== container ubuntu:24.04, build BEFORE
+product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3
+libc: Ubuntu 24.04.5 LTS; gnu_get_libc_version 2.39; runtime .NET 8.0.34; uid 1000 euid 1000
+  ReadLinuxProcOwner(this process): LinuxProcOwner { Kind = Owned, Detail = owned by uid 1000, Uid = 1000 }
+  predicate, EPERM row (this process): ProcessAnswer { Identity = Unknown, Why = pid 8 is THIS USER's (/proc/8 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here
+  ReadLinuxProcOwner(a root process (pid 7)): LinuxProcOwner { Kind = Owned, Detail = owned by uid 0, Uid = 0 }
+  predicate, EPERM row (a root process (pid 7)): ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it
+  ReadLinuxProcOwner(a missing pid): LinuxProcOwner { Kind = Gone, Detail = no such process, Uid =  }
+  predicate, EPERM row (a missing pid): ProcessAnswer { Identity = NotMine, Why = pid 2147483640 exited while being read (/proc/2147483640 does not exist)
+===== container ubuntu:24.04, build AFTER
+product 1.11.11+3e818e6f4ed517eccb09bb5c1f9bebae6b5fe5a3
+libc: Ubuntu 24.04.5 LTS; gnu_get_libc_version 2.39; runtime .NET 8.0.34; uid 1000 euid 1000
+  ReadLinuxProcOwner(this process): LinuxProcOwner { Kind = Owned, Detail = owned by uid 1000 (statx), Uid = 1000 }
+  predicate, EPERM row (this process): ProcessAnswer { Identity = Unknown, Why = pid 8 is THIS USER's (/proc/8 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here
+  ReadLinuxProcOwner(a root process (pid 7)): LinuxProcOwner { Kind = Owned, Detail = owned by uid 0 (statx), Uid = 0 }
+  predicate, EPERM row (a root process (pid 7)): ProcessAnswer { Identity = NotMine, Why = pid 7 belongs to ANOTHER USER (/proc/7 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it
+  ReadLinuxProcOwner(a missing pid): LinuxProcOwner { Kind = Gone, Detail = no such process, Uid =  }
+  predicate, EPERM row (a missing pid): ProcessAnswer { Identity = NotMine, Why = pid 2147483640 exited while being read (/proc/2147483640 does not exist)

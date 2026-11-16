@@ -1,0 +1,29 @@
+15:14:40.481 tree: C:\ReposFred\agenteyes-app  embedded: 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+15:14:40.509 ffmpeg running before: []
+    owner: owner pid 9732; version 1.11.11+1927c621f06eb58e423680dc9362528e639bd7b4
+    owner: recordings root <scratch>\rc-head\Videos\AgentEyes; data root <scratch>\rc-head\LocalAppData\AgentEyes
+    owner: capturing into <scratch>\rc-head\Videos\AgentEyes\2026-11-16_101440_video
+15:14:53.542 owner record: pid 9732, writers [9312]; raw.mp4 absent bytes
+15:14:53.553   writer 9312 ffmpeg parent-started-by-harness: True
+15:14:53.556 HARD KILL of the owner pid 9732 (TerminateProcess)
+15:14:56.610 after the kill: owner exited=True; orphan writers alive [9312]; raw.mp4 absent -> absent bytes in 3 s
+15:14:57.640 SECOND PROCESS package (while-the-orphan-writes): exit 1
+    [error] refusing to package 2026-11-16_101440_video: its capture owner (capture session of pid 9732 on host SORENLAPTOP (started 2026-11-16T15:14:40.7761679Z)) is gone but its video ffmpeg pid 9312 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose own
+15:14:57.687   PendingMux=cleared mux.State= mux.Attempts= AttemptedBy= recording.mp4=48 capture.owner.json=PRESENT
+15:14:57.696 QA ends orphan 9312 gracefully: CTRL_C on its console
+15:14:58.929   ctrlc exit 0; writer exited: True
+powershell : ffprobe.exe : 
+<scratch>
+At line:1 char:393
++ ... cratchpad"; powershell -NoProfile -ExecutionPolicy Bypass -File C:\Re ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ffprobe.exe : C...4802\scratchpad:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+\rc-head\Videos\AgentEyes\2026-11-16_101440_video\raw.mp4: No such file or directory
+At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:73 char:78
++ ... Sz $raw), ((& ffprobe -v error -show_entries format=duration:stream=c ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\soren\...le or directory:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

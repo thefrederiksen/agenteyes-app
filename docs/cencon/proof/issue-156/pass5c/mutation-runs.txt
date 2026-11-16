@@ -1,0 +1,51 @@
+# issue #156 pass 5c - the statx uid pin, measured on a Linux dev box (kernel 6.8, glibc 2.39, runtime 8.0)
+# binary under test: tests/AgentEyes.Tests.Linux/bin/Release/net8.0/agenteyes.dll, built fresh from the PR head, embeds 1.11.11+b6349f6b50414226e445aa338a1ce1e44bd85055
+# (product source is identical to f6d16bf; b6349f6 is QA's docs-only commit). The stale bin/x64/Release copy is NOT referenced.
+# prober: uid 1000, gid 1000, supplementary groups include adm (4) and docker (986)
+
+== 1. head, full Linux suite, default gate
+  Passed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [565 ms]
+Total tests: 393
+     Passed: 391
+    Skipped: 2
+
+== 2. head, full Linux suite, AGENTEYES_FFMPEG_TESTS=1
+  Passed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [487 ms]
+Total tests: 393
+     Passed: 392
+    Skipped: 1
+
+== 3. QA's mutant: StxUidOffset = 20 -> 24 (stx_gid), full Linux suite
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [464 ms]
+  Error Message:
+   statx owner read of /proc/1793410 (1000:4, 'sg adm -c "exec sleep 120"', pid 1793410) gave Owned 'owned by uid 4 (statx)', expected owned by uid 1000 (statx) - it read the GID: the stx_uid offset is wrong
+     at AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid() in tests/Shared/ProcessIdentityTests.cs:line 504
+Total tests: 393
+     Passed: 390
+     Failed: 1
+    Skipped: 2
+
+== 4. the stat twin: FileStatusUidOffset = 8 -> 12 (FileStatus.Gid), full Linux suite
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [485 ms]
+  Error Message:
+   stat owner read of /proc/1794548 (1000:4) gave (0, 4), expected (0, 1000) - it read the GID: the FileStatus Uid offset is wrong
+     at AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid() in tests/Shared/ProcessIdentityTests.cs:line 509
+Total tests: 393
+     Passed: 390
+     Failed: 1
+    Skipped: 2
+
+== 5. the other subject branch (this process's egid differs - run under 'sg docker', id -u 1000 / id -g 986), head
+  Passed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [26 ms]
+Total tests: 1
+     Passed: 1
+
+== 6. the same branch, StxUidOffset 20 -> 24
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid [24 ms]
+  Error Message:
+   statx owner read of /proc/1797757 (1000:986, this test process, whose egid differs) gave Owned 'owned by uid 986 (statx)', expected owned by uid 1000 (statx) - it read the GID: the stx_uid offset is wrong
+     at AgentEyes.Tests.ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid() in tests/Shared/ProcessIdentityTests.cs:line 504
+Total tests: 1
+     Failed: 1
+
+Each mutant was applied with sed, built, run and reverted with 'git checkout -- src/AgentEyes.Core/Video/FfmpegChildRegistry.cs'; 1 and 2 were run after the revert and a rebuild.

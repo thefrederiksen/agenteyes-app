@@ -1,0 +1,45 @@
+== M1 (QA, Windows): the catch (Win32Exception) block deleted
+ 1 file changed, 7 deletions(-)
+-                catch (Win32Exception ex)
+-                {
+-                    // Not the recorded process - see the summary for why that is a fact, not a guess.
+-                    Log.Info($"[FfmpegChildRegistry] IsSameProcess: pid {pid} - start time cannot be read " +
+-                             $"({ex.NativeErrorCode}: {ex.Message}); {DescribeUnreadable(pid)} - answered NOT the recorded process");
+-                    return false;
+-                }
+  Failed AgentEyes.Tests.ProcessIdentityTests.FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording [293 ms]
+   Assert.Contains() Failure: Item not found in collection
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord [14 ms]
+   System.ComponentModel.Win32Exception : Access is denied.
+  Failed AgentEyes.Tests.ProcessIdentityTests.IsSameProcess_PidHeldByAnotherUsersProcess_ReturnsFalseWithoutThrowing [1 ms]
+   System.ComponentModel.Win32Exception : Access is denied.
+  Failed AgentEyes.Tests.ProcessIdentityTests.Resume_WriterPidHeldByAnotherUser_RecoversTheRecording [32 ms]
+   Assert.Single() Failure: The collection was empty
+  Failed AgentEyes.Tests.ProcessIdentityTests.FindMissing_RootHoldsAForeignPidRecording_CompletesForEveryRecording [29 ms]
+   System.ComponentModel.Win32Exception : Access is denied.
+  Failed AgentEyes.Tests.ProcessIdentityTests.Inspect_WriterPidHeldByAnotherUser_IsAStaleClaim [13 ms]
+   System.ComponentModel.Win32Exception : Access is denied.
+Failed!  - Failed:     6, Passed:     8, Skipped:     0, Total:    14, Duration: 430 ms - AgentEyes.Tests.dll (net8.0)
+   restored: git diff empty
+== M2 (QA, Windows): unreadable start time answered TRUE
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+-                    return false;
++                    return true;
+  Failed AgentEyes.Tests.ProcessIdentityTests.FindUnfinished_WriterPidHeldByAnotherUser_AdmitsTheCrashedRecording [305 ms]
+   Assert.Contains() Failure: Item not found in collection
+  Failed AgentEyes.Tests.ProcessIdentityTests.ReapOrphansIn_OwnerPidHeldByAnotherUser_RemovesTheRecord [20 ms]
+   Assert.Contains() Failure: Filter not matched in collection
+  Failed AgentEyes.Tests.ProcessIdentityTests.IsSameProcess_PidHeldByAnotherUsersProcess_ReturnsFalseWithoutThrowing [2 ms]
+   Assert.False() Failure
+Expected: False
+Actual:   True
+  Failed AgentEyes.Tests.ProcessIdentityTests.Resume_WriterPidHeldByAnotherUser_RecoversTheRecording [31 ms]
+  Failed AgentEyes.Tests.ProcessIdentityTests.Inspect_WriterPidHeldByAnotherUser_IsAStaleClaim [17 ms]
+Failed!  - Failed:     5, Passed:     9, Skipped:     0, Total:    14, Duration: 471 ms - AgentEyes.Tests.dll (net8.0)
+   restored: git diff empty
+== M3 (QA, Windows): an exited process answered TRUE
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+-                    if (p.HasExited) return false;
++                    if (p.HasExited) return true;
+Passed!  - Failed:     0, Passed:    14, Skipped:     0, Total:    14, Duration: 683 ms - AgentEyes.Tests.dll (net8.0)
+   restored: git diff empty

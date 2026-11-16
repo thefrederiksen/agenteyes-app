@@ -1,0 +1,44 @@
+16:38:50.277 === QA #156 pass 4 scenario=crash binary=pre scratch=$SCRATCH/runs/crash-pre-163850
+16:38:50.280 binary: $SCRATCH/wt-d245037/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+16:38:50.293 embedded version: 1.11.11+d24503771c63b5da92dcb4e9dad42dca397121cf
+16:38:50.365   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:38:50.605 isolation: report-only housekeep (no service) -> root=$SCRATCH/runs/crash-pre-163850/home/Videos/AgentEyes ; positive control under a second env -> $SCRATCH/runs/isoctrl-1611469/h/Videos/AgentEyes
+16:38:50.871 [s1] serve pid 1611529 port 7920; recordings root inside scratch: $SCRATCH/runs/crash-pre-163850/home/Videos/AgentEyes
+16:38:52.365 S1 pid 1611529 capturing into 2026-11-16_113851_video
+16:39:04.460 writer pid 1611639 confirmed by command line to write into 2026-11-16_113851_video (comm=ffmpeg, uid 1000)
+16:39:29.507   raw.mp4=10747952 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:39:29.510 SIGKILL S1 pid 1611529 mid-capture
+16:39:33.592 after S1's death: writer 1611639 alive=yes ppid=2221 raw.mp4 10747952 -> 11534384 bytes in 4 s
+16:39:33.853 U1 confined package --no-frames -> exit 3: [error] Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+16:39:33.859   llprobe: Landlock ABI 4 confined pid 1612835 thread 1612835: reads of 985 other /proc/<pid> entries refused, 64 /proc entries (own pid + non-pid) allowed
+16:39:33.892   raw.mp4=11534384 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none ; writer 1611639 alive=yes
+16:39:34.421 [u2] serve pid 1612868 port 7921 (LANDLOCK-CONFINED: llprobe: Landlock ABI 4 confined pid 1612868 thread 1612868: reads of 988 other /proc/<pid> entries refused, 64 /proc en); recordings root inside scratch: $SCRATCH/runs/crash-pre-163850/home/Videos/AgentEyes
+16:40:09.428 U2 (confined service pid 1612868) log, its own lines only:
+16:40:09.436   U2: 11:39:34.091 [pid 1612868] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=$SCRATCH/runs/crash-pre-163850/home/.local/share/AgentEyes/run/ffmpeg
+16:40:09.440   U2: 11:39:34.191 [pid 1612868] [ERROR] [RepairService] Start: orphan ffmpeg reap FAILED: Unable to retrieve the specified information about the process or thread.  It may have exited or may be privileged.
+16:40:09.445   U2: 11:39:54.256 [pid 1612868] [ERROR] [PostRecordingPlan] FindUnfinished: skipping $SCRATCH/runs/crash-pre-163850/home/Videos/AgentEyes/2026-11-16_113851_video - it could not be read
+16:40:09.449   U2: 11:39:54.256 [pid 1612868] [ERROR]    at AgentEyes.Video.FfmpegChildRegistry.IsSameProcess(Int32 pid, DateTime startUtc) in $SCRATCH/wt-d245037/src/AgentEyes.Core/Video/FfmpegChildRegistry.cs:line 139
+16:40:09.452   U2: 11:39:54.256 [pid 1612868] [ERROR]    at AgentEyes.PostRecordingPlan.FindUnfinished(String root) in $SCRATCH/wt-d245037/src/AgentEyes.Core/PostRecordingPlan.cs:line 180
+16:40:09.455   U2: 11:39:54.256 [pid 1612868] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/crash-pre-163850/home/Videos/AgentEyes, unfinished=0
+16:40:09.458   U2: 11:39:54.267 [pid 1612868] [ERROR] [RepairService] RunAsync FAILED: trigger=timer
+16:40:09.462   U2: 11:39:54.267 [pid 1612868] [ERROR]    at AgentEyes.Video.FfmpegChildRegistry.IsSameProcess(Int32 pid, DateTime startUtc) in $SCRATCH/wt-d245037/src/AgentEyes.Core/Video/FfmpegChildRegistry.cs:line 139
+16:40:09.466   U2: 11:39:54.267 [pid 1612868] [ERROR]    at AgentEyes.Thumbnails.NeedsThumb(String dir, Boolean respectClaim) in $SCRATCH/wt-d245037/src/AgentEyes.Core/Thumbnails.cs:line 161
+16:40:09.470   U2: 11:39:54.267 [pid 1612868] [ERROR]    at AgentEyes.Thumbnails.NeedsThumb(String dir) in $SCRATCH/wt-d245037/src/AgentEyes.Core/Thumbnails.cs:line 128
+16:40:09.473   U2: 11:39:54.267 [pid 1612868] [ERROR]    at System.Threading.Tasks.Task.ExecuteWithThreadLocal(Task& currentTaskSlot, Thread threadPoolThread)
+16:40:11.523   after U2: writer 1611639 alive=yes, raw.mp4 21233712 -> 21758000 in 2 s; raw.mp4=21758000 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: none
+16:40:11.601   U2 /health: {
+  "ok": true,
+  "app": "AgentEyes",
+  "host": "headless",
+  "platform": "linux"
+}
+16:40:11.862   U2 ended by me (SIGTERM): alive=NO
+16:40:12.645 [s2] serve pid 1613701 port 7922; recordings root inside scratch: $SCRATCH/runs/crash-pre-163850/home/Videos/AgentEyes
+16:40:12.677 writer 1611639 alive after S2's start-up reap: NO (0.79 s after S2 was launched); raw.mp4 now 22020144 bytes
+16:40:12.685   S2: 11:40:12.513 [pid 1613701] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 1611639 [capture video (2026-11-16_113851_video)]: ORPHAN (owner pid 1611529 gone) - killed
+16:40:33.411 recovery by S2 (manifest PostProcessing.mux, not /status): pending/failed
+16:40:33.450   raw.mp4=22020144 recording.mp4=absent capture.owner.json=347 | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=["attempt 1 at 2026-11-16T16:40:32.6473830Z by agenteyes pid 1613701 on devlinux"] Error=could not read the audio channel count of $TMPROOT/-home-soren-ReposFred-agenteyes-app/35548e9a-ae30-465f-b8de-a02fd3c14f10/scratchp
+16:40:33.459   S2: 11:40:32.638 [pid 1613701] [INFO] [PostRecording] Execute: 2026-11-16_113851_video - capture claim: stale capture claim taken over: its owner (capture session of pid 1611529 on host devlinux (started 2026-11-16T16:38:51.0875587Z)) is gone and its 1 writer(s) have exited
+16:40:33.463   S2: 11:40:32.707 [pid 1613701] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_113851_video (finalize) - stale capture claim taken over: its owner (capture session of pid 1611529 on host devlinux (started 2026-11-16T16:38:51.0875587Z)) is gone and its 1 writer(s) have exited
+16:40:33.546   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
+16:40:33.550 === done; transcript $SCRATCH/runs/crash-pre-163850/transcript.txt

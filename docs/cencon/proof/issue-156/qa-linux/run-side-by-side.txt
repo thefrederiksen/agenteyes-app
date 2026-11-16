@@ -1,0 +1,13 @@
+12:46:03.369 [s] fix serve pid 1164875 port 17750; recordings root inside scratch: $SCRATCH/runs/c6/home/Videos/AgentEyes
+12:46:14.914 live capture 2026-11-16_074603_video by pid 1164875; finished F=2026-11-16_073058_video owner.json=absent
+12:46:15.225 REST rename F while capturing: {  "id": "2026-11-16_073058_video",  "dir": "$SCRATCH/runs/c6/home/Videos/AgentEyes/2026-11-16_073058_video"
+12:46:15.271   F manifest Label/Title now: video | None
+12:46:15.279 SECOND PROCESS (fix): agenteyes package 2026-11-16_073058_video --no-frames  [Fpkg]
+12:46:16.024   exit 1:   transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+12:46:16.063   raw.mp4=absent recording.mp4=19332322 recording.original.mp4=18903938 capture.lock=0 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:32:47.0994593Z by agenteyes pid 1114760 on devlinux'] Error= | DurationSeconds=107.6
+12:46:16.134 live capture still: recording 12.5; raw.mp4=1835056 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:46:16.140 SECOND PROCESS (fix): agenteyes package 2026-11-16_074603_video --no-frames  [Dlive]
+12:46:16.370   exit 1: [error] refusing to package 2026-11-16_074603_video: it is being captured by the capture session of pid 1164875 on host devlinux (started 2026-11-16T12:46:03.5802549Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+12:46:16.408   raw.mp4=1835056 recording.mp4=absent recording.original.mp4=absent capture.lock=0 capture.owner.json=347 | PendingMux=pending | mux: none | DurationSeconds=0
+12:46:19.331 mux settled: cleared done
+12:46:19.368 raw.mp4=absent recording.mp4=2455293 recording.original.mp4=2406224 capture.lock=0 capture.owner.json=absent | PendingMux=cleared | mux: State=done Attempts=1 AttemptedBy=['attempt 1 at 2026-11-16T12:46:17.2369894Z by agenteyes pid 1164875 on devlinux'] Error= | DurationSeconds=12.93
