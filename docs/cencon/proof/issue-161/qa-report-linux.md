@@ -225,12 +225,25 @@ says it must never be.
   2. The real guard, compiled and run on Windows: CI run 43917991932, windows job, at this head:
      `Build succeeded. 0 Error(s)`, `AgentEyes.Tests.dll: Failed 0, Passed 2415, Skipped 18,
      Total 2433`. TestIsolationTests is not skippable, so its pins passed there.
-- **M1 (merge-time; not a defect at this head):** main moved to 2d60f77 (#141, one desktop app)
-  after this branch was cut. The PR merges textually clean, but
-  `origin/main:src/AgentEyes.DesktopApp/Program.cs:32` `Main` has no `ApplyFromEnvironment` call,
-  references AgentEyes.Core, and hard-codes 7882 (`Services/ControlClient.cs:41`). After a merge, a
-  redirected DesktopApp would silently ignore the redirect: the half-redirect closed here for
-  `AgentEyes.LinuxApp`. The branch needs a rebase and the same refusal in the new entry point.
+- **M1 (merge-time) - MEASURED, and my first reading was WRONG.** Main moved to 2d60f77 (#141)
+  after this branch was cut. Reading the two sides, I predicted the DesktopApp would ship without the
+  redirect guard. At the Lead's request I measured the tree that would LAND instead: a trial
+  `git merge origin/main` into c595c41 in a scratch worktree (local commit 6ce10e7, never pushed).
+  - Git's rename detection carried the branch's `LinuxApp/Program.cs` change into
+    `src/AgentEyes.DesktopApp/Program.cs`. The `ApplyFromEnvironment` call is the first statement of
+    `Main` (merged line 37). Its redirected-case refusal names `ControlClient.BaseUrl`, which is the
+    DesktopApp's hard-coded 7882.
+  - The merged tree builds: Core 0 errors (the 1 pre-existing warning), DesktopApp 0 errors.
+    Linux suite: **Total 361, Passed 360, Skipped 1, Failed 0**. `AgentEyes.Tests.DesktopApp`:
+    15/15. LibraryRedirectTests: 43/43.
+  - The merged binary (`AgentEyesDesktop`, embedded `1.11.11+6ce10e7...`) was run under Landlock,
+    with no display and a scratch `XDG_RUNTIME_DIR`. Redirected: **exit 5**. Partial: **exit 5**.
+    Both had 0 real-root syscalls, and their only `connect()` calls were the runtime's lttng
+    probes (no 7882, no single-instance handoff). The redirected case wrote only its scratch log.
+  - So M1 is **"verify after merge", not "fix before merge"** (measured here for Linux only).
+    One cosmetic leftover: the refusal still says "the Linux app" in what is now the Windows/macOS/Linux
+    desktop app.
+  - D1 is unaffected: the merge changes neither `LibraryRedirect.cs` nor `AppDataPaths.cs`.
 
 ## 7. Gates - PASS on Linux; CI incomplete
 
