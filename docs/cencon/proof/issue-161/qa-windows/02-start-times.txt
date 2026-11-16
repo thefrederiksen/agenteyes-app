@@ -1,0 +1,60 @@
+# Issue #161 - Windows redirected start time, measured 2026-11-16 ~17:06 local, PR #175 head 398581f.
+# SDK 10.0.301 building net8.0, runtime 8.0.21; Windows 11 Home 10.0.26200, 4 cores / 8 threads.
+# Shape: same as linux-pass5/measure.sh. A redirected start of the real agenteyes.exe with no arguments (help, exit 1),
+# wall clock from the parent, fresh scratch per run, 10 runs each, after 10 uncounted warm-up runs.
+# 7882 on this machine is held by the owner's running service (http.sys request queue of the installed
+# AgentEyesApp.exe). This seat may not touch it, so the probe was pointed at the seat's own ports with
+# AGENTEYES_SERVICE_PROBE_PORT. "Nothing listening" = a free port. "Something listening" = an HttpListener (http.sys,
+# the same stack as the real service) stand-in answering /status with DataRoot/RecordingsRoot. The banner shows it
+# was heard and its roots were added.
+#
+# RESULT                      mean    median  min   max
+#   nothing listening         718 ms  714 ms  706   746
+#   service answering         224 ms  222 ms  217   253
+#   CONTROL: refused before   107 ms  106 ms  103   120   (AGENTEYES_SERVICE_PROBE_PORT=0: refused at the port check,
+#            the probe                                     before any connect - process start + derivation)
+# Linux (pass 5, devlinux): 193 ms nothing listening, 215 ms service answering.
+# Reading: the gap between nothing-listening and answered is 494 ms, which is the 500 ms ConnectTimeout. Windows does not
+# refuse a closed loopback port at once. It retries the SYN, and the connect is cut off at the bound
+# (TaskCanceledException in every run). The bound held: without it, this is the ~2 s delay first seen on Windows. With a
+# service answering, Windows matches Linux (224 vs 215 ms).
+
+# 2026-11-16T17:06:27.6788452-05:00  machine: Windows 11 Home 10.0.26200, 4 cores / 8 threads; SDK 10.0.301 building net8.0, runtime 8.0.21
+# 7882: LISTENING (owner service - not asked)   port 17961 before: free
+# warm-up run (not counted):
+no-service run 1: exit 1, 746 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 2: exit 1, 720 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 3: exit 1, 720 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 4: exit 1, 714 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 5: exit 1, 713 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 6: exit 1, 714 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 7: exit 1, 706 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 8: exit 1, 711 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 9: exit 1, 718 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service run 10: exit 1, 713 ms | the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) 
+no-service MEAN: 718 ms  MEDIAN: 714 ms  MIN: 706  MAX: 746  over 10 runs
+# stand-in (HttpListener / http.sys, like the real service) pid 14780 on 17962: LISTENING
+service run 1: exit 1, 218 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 2: exit 1, 223 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 3: exit 1, 223 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 4: exit 1, 223 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 5: exit 1, 219 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 6: exit 1, 217 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 7: exit 1, 220 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 8: exit 1, 217 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 9: exit 1, 226 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service run 10: exit 1, 253 ms | the AgentEyes service answering on 127.0.0.1:17962 (/status DataRoot)] 
+service MEAN: 224 ms  MEDIAN: 222 ms  MIN: 217  MAX: 253  over 10 runs
+# stand-in stopped; 17962: free
+# CONTROL: the same redirected start with AGENTEYES_SERVICE_PROBE_PORT=0 - refused before the probe, so it is start-up + derivation without the connect
+baseline run 1: exit 5, 110 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 2: exit 5, 106 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 3: exit 5, 103 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 4: exit 5, 106 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 5: exit 5, 103 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 6: exit 5, 103 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 7: exit 5, 110 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 8: exit 5, 120 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 9: exit 5, 106 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline run 10: exit 5, 105 ms | [error] library redirect refused: AGENTEYES_SERVICE_PROBE_PORT is '0', which is not a port (1-65535). Fix: uns
+baseline MEAN: 107 ms  MEDIAN: 106 ms  MIN: 103  MAX: 120  over 10 runs (refused at the probe-port check, BEFORE any connect)

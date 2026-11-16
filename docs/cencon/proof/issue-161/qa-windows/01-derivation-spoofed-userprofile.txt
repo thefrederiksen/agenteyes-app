@@ -1,0 +1,129 @@
+# Issue #161 - Windows derivation question: can a spoofed environment defeat the guard? Measured, 2026-11-16 ~17:03 local.
+# Binary: agenteyes.exe built from PR #175 head 398581f (SDK 10.0.301 building net8.0, runtime 8.0.21), Windows 11
+# Home 10.0.26200. The owner's service on 7882 was NOT asked: every run points AGENTEYES_SERVICE_PROBE_PORT at a free
+# port of this seat's own, so the result is the DERIVATION half alone.
+#
+# ANSWER: YES, the PATH half of the guard is defeated on Windows by ONE variable, USERPROFILE. Windows is NOT
+# correct by construction. .NET does resolve the folders through the shell's known-folder API (spoofing
+# LOCALAPPDATA alone changes nothing), but the known-folder values are REG_EXPAND_SZ "%USERPROFILE%\AppData\Local"
+# and "%USERPROFILE%\Videos" (User Shell Folders, quoted at the end), and they are expanded against THIS PROCESS's
+# USERPROFILE. GetFolderPath(UserProfile) itself still returns the real profile, because it comes from the token.
+# So under USERPROFILE=<scratch>\fakehome:
+#   - RealLibrary.DeriveForThisProcess() names <scratch>\fakehome\AppData\Local and <scratch>\fakehome\Videos as
+#     "the REAL" roots (PART A), so the guard's path rule ACCEPTS a redirect onto the owner's real local app
+#     data and the owner's real Videos (PART A attacks 1 and 2: "guard's real roots: ACCEPTED").
+#   - CONTROL: the counterfactual "a guard that reads %LOCALAPPDATA% / %USERPROFILE%\Videos" derives exactly the
+#     same scratch paths and gives the same verdicts. Under this spoof the guard behaves exactly like a guard
+#     that reads the environment.
+# POSITIVE CONTROL (end of file): with NO spoof, the same harness and the same real binary REFUSE both attacks by the
+# PATH rule ("overlaps the REAL state root" / "overlaps the REAL recordings root"), before any disk check. So the
+# instrument can refuse, and the ACCEPTED verdicts above are caused by the spoof alone.
+# What saved the real binary (PART B): the CONTENT rule (pass 3 F1). The real AgentEyes folders exist, are non-empty
+# and carry no scratch marker, so both attacks were refused with exit 5, B1 on 'alwayson' and B2 on a recording
+# folder name. B3 (both at scratch, same spoof) is ACCEPTED, so the refusals were not caused by the spoof itself.
+# Consequence 1: on Windows, rule 2 (content) is the ONLY layer under a spoofed USERPROFILE. A real AgentEyes
+#   folder that is empty or absent would be accepted, and the redirected process would then mark it and use it.
+# Consequence 2: the refusal is reached by LISTING the owner's real state root and real recordings root, which is
+#   a read of the real library. Reported at once to the lead. Verified read-only afterwards: the snapshots of both
+#   real roots (names and creation times, depth 2) show 0 new entries, there is no .agenteyes-* file in either real
+#   root or its parent, and the same query does find the marker in the scratch root (positive control).
+# The comment in RealLibrary.cs ("Windows is unchanged: there the real folders come from the shell's known-folder
+# lookup, not from a variable this process's environment sets") is FALSE as measured here.
+
+######## FULL RUN (job2.ps1)
+# snapshot before: real state root entries=97, real recordings root entries=1509 (names+creation times, depth 2)
+# real folders, read in THIS (unspoofed) shell: LocalApplicationData=%USERPROFILE%\AppData\Local  MyVideos=%USERPROFILE%\Videos
+# port 17961 listening before: False
+
+######## PART A - the derivation, in a SPOOFED process (USERPROFILE/LOCALAPPDATA/APPDATA/HOMEDRIVE/HOMEPATH -> scratch)
+== the environment this process was given
+  env USERPROFILE  = <scratch>\j2\fakehome
+  env LOCALAPPDATA = <scratch>\j2\fakehome\AppData\Local
+  env APPDATA      = <scratch>\j2\fakehome\AppData\Roaming
+  env HOMEDRIVE    = C:
+  env HOMEPATH     = \<scratch-without-drive>\j2\fakehome
+== what .NET's special folders return in this process (the guard's source on Windows)
+  GetFolderPath(UserProfile         ) = %USERPROFILE%
+  GetFolderPath(LocalApplicationData) = <scratch>\j2\fakehome\AppData\Local
+  GetFolderPath(ApplicationData     ) = <scratch>\j2\fakehome\AppData\Roaming
+  GetFolderPath(MyVideos            ) = <scratch>\j2\fakehome\Videos
+== COUNTERFACTUAL: the real library a guard reading the ENVIRONMENT would derive
+  local app data = %LOCALAPPDATA%          = <scratch>\j2\fakehome\AppData\Local
+  Videos         = %USERPROFILE%/Videos    = <scratch>\j2\fakehome\Videos
+== RealLibrary.DeriveForThisProcess() - the branch's own code, in this process
+  Root { Name = the REAL state root, Parent = <scratch>\j2\fakehome\AppData\Local, DerivedFrom = this process's environment (.NET special folders), Path = <scratch>\j2\fakehome\AppData\Local\AgentEyes, ResolvedPath =  }
+  Root { Name = the REAL recordings root, Parent = <scratch>\j2\fakehome\Videos, DerivedFrom = this process's environment (.NET special folders), Path = <scratch>\j2\fakehome\Videos\AgentEyes, ResolvedPath =  }
+== ATTACK 1: AGENTEYES_REDIRECT_DATA = the REAL local app data  (data=%USERPROFILE%\AppData\Local videos=<scratch>\j2\v)
+  guard's real roots      : ACCEPTED
+  COUNTERFACTUAL env roots: ACCEPTED
+== ATTACK 2: AGENTEYES_REDIRECT_VIDEOS = the REAL Videos  (data=<scratch>\j2\d videos=%USERPROFILE%\Videos)
+  guard's real roots      : ACCEPTED
+  COUNTERFACTUAL env roots: ACCEPTED
+== CONTROL : both at scratch (must be accepted)  (data=<scratch>\j2\d videos=<scratch>\j2\v)
+  guard's real roots      : ACCEPTED
+  COUNTERFACTUAL env roots: ACCEPTED
+
+######## PART B - the REAL agenteyes.exe from the PR head, spoofed, probe pointed at free port 17961 (owner's service on 7882 NOT asked)
+--- B1 ATTACK: DATA = real local app data, VIDEOS = scratch
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at %USERPROFILE%\AppData\Local\AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains 'alwayson' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_DATA at a folder whose AgentEyes folder is EMPTY or absent (a redirected start marks it), or - if this IS a scratch library you populated yourself - create the marker: touch '%USERPROFILE%\AppData\Local\AgentEyes\.agenteyes-scratch-library'.
+  exit=5
+--- B2 ATTACK: DATA = scratch, VIDEOS = real Videos
+  [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at %USERPROFILE%\Videos\AgentEyes, which already holds an AgentEyes library that was not created as a scratch library (it contains '2026-09-08_183851_video' and no .agenteyes-scratch-library). A redirect never adopts an existing library: it may be the person's REAL one, relocated somewhere the path rules cannot see. Fix: point AGENTEYES_REDIRECT_VIDEOS at a folder whose AgentEyes folder is EMPTY or absent (a redirected start marks it), or - if this IS a scratch library you populated yourself - create the marker: touch '%USERPROFILE%\Videos\AgentEyes\.agenteyes-scratch-library'.
+  exit=5
+--- B3 CONTROL: both scratch (must be ACCEPTED, so the refusals above are not caused by the spoof itself)
+  [redirect] LIBRARY REDIRECTED by AGENTEYES_REDIRECT_DATA/AGENTEYES_REDIRECT_VIDEOS: state -> <scratch>\j2\d\AgentEyes ; recordings -> <scratch>\j2\v\AgentEyes ; log -> <scratch>\j2\d\AgentEyes\logs (pid 11540) ; compared against these real roots and overlaps none (each with where it was derived from): the REAL state root <scratch>\j2\fakehome\AppData\Local\AgentEyes [this process's environment (.NET special folders)] ; the REAL recordings root <scratch>\j2\fakehome\Videos\AgentEyes [this process's environment (.NET special folders)] ; the service probe was pointed at 127.0.0.1:17961 by AGENTEYES_SERVICE_PROBE_PORT, so the default port 7882 was NOT asked: the service on 127.0.0.1:17961 was asked for its library and named none (TaskCanceledException: The operation was canceled.) ; NOT CHECKED by path: a library kept anywhere else (for example moved by an XDG_DATA_HOME set only in a shell profile, with no service running) is not in this list - it is refused only by its content (an existing, non-empty AgentEyes folder without .agenteyes-scratch-library) - see docs/cencon/ISOLATING_A_REAL_PROCESS.md
+  exit=1
+
+# scratch after: \d, \fakehome, \v, \d\AgentEyes, \d\AgentEyes\logs, \d\AgentEyes\.agenteyes-scratch-library, \d\AgentEyes\logs\AgentEyes-20261116.log, \fakehome\AppData, \fakehome\Videos, \fakehome\AppData\Local, \fakehome\AppData\Roaming, \v\AgentEyes, \v\AgentEyes\.agenteyes-scratch-library
+# snapshot after: real state root entries=97 new=[]
+#                 real recordings root entries=1509 new=[]
+# marker present in real roots: state=False recordings=False
+
+######## ISOLATION: one variable at a time (PART A probe, filtered), then the registry values
+######## spoof ONLY: USERPROFILE
+  env USERPROFILE  = <scratch>\j2\fakehome
+  env LOCALAPPDATA = %USERPROFILE%\AppData\Local
+  GetFolderPath(UserProfile         ) = %USERPROFILE%
+  GetFolderPath(LocalApplicationData) = <scratch>\j2\fakehome\AppData\Local
+  GetFolderPath(ApplicationData     ) = <scratch>\j2\fakehome\AppData\Roaming
+  GetFolderPath(MyVideos            ) = <scratch>\j2\fakehome\Videos
+######## spoof ONLY: LOCALAPPDATA
+  env USERPROFILE  = %USERPROFILE%
+  env LOCALAPPDATA = <scratch>\j2\fakehome\AppData\Local
+  GetFolderPath(UserProfile         ) = %USERPROFILE%
+  GetFolderPath(LocalApplicationData) = %USERPROFILE%\AppData\Local
+  GetFolderPath(ApplicationData     ) = %USERPROFILE%\AppData\Roaming
+  GetFolderPath(MyVideos            ) = %USERPROFILE%\Videos
+######## spoof ONLY: HOMEDRIVE,HOMEPATH
+  env USERPROFILE  = %USERPROFILE%
+  env LOCALAPPDATA = %USERPROFILE%\AppData\Local
+  GetFolderPath(UserProfile         ) = %USERPROFILE%
+  GetFolderPath(LocalApplicationData) = %USERPROFILE%\AppData\Local
+  GetFolderPath(ApplicationData     ) = %USERPROFILE%\AppData\Roaming
+  GetFolderPath(MyVideos            ) = %USERPROFILE%\Videos
+    Local AppData    REG_EXPAND_SZ    %USERPROFILE%\AppData\Local
+    My Video    REG_EXPAND_SZ    %USERPROFILE%\Videos
+
+######## READ-ONLY VERIFICATION AFTER THE RUN
+  .agenteyes-* in LOCALAPPDATA, Videos, LOCALAPPDATA\AgentEyes, Videos\AgentEyes: none
+  positive control, the same query on <scratch>\j2\d\AgentEyes: .agenteyes-scratch-library
+
+######## POSITIVE CONTROL - the SAME attacks with NO spoof (the instrument can refuse; the path rule is what refuses)
+== the environment this process was given
+== what .NET's special folders return in this process (the guard's source on Windows)
+  GetFolderPath(LocalApplicationData) = %USERPROFILE%\AppData\Local
+  GetFolderPath(MyVideos            ) = %USERPROFILE%\Videos
+== COUNTERFACTUAL: the real library a guard reading the ENVIRONMENT would derive
+== RealLibrary.DeriveForThisProcess() - the branch's own code, in this process
+== ATTACK 1: AGENTEYES_REDIRECT_DATA = the REAL local app data  (data=%USERPROFILE%\AppData\Local videos=<scratch>\j2\v)
+  guard's real roots      : REFUSED - AGENTEYES_REDIRECT_DATA puts the redirected state root at %USERPROFILE%\AppData\Local\AgentEyes, which overlaps the REAL state root %USERPROFILE%\AppData\Local\AgentEyes (derived from: this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside %USERPROFILE%\AppData\Local\AgentEyes.
+== ATTACK 2: AGENTEYES_REDIRECT_VIDEOS = the REAL Videos  (data=<scratch>\j2\d videos=%USERPROFILE%\Videos)
+  guard's real roots      : REFUSED - AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at %USERPROFILE%\Videos\AgentEyes, which overlaps the REAL recordings root %USERPROFILE%\Videos\AgentEyes (derived from: this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside %USERPROFILE%\Videos\AgentEyes.
+== CONTROL : both at scratch (must be accepted)  (data=<scratch>\j2\d videos=<scratch>\j2\v)
+  guard's real roots      : ACCEPTED
+--- real agenteyes.exe, B1u ATTACK unspoofed: DATA = real local app data
+  [error] library redirect refused: AGENTEYES_REDIRECT_DATA puts the redirected state root at %USERPROFILE%\AppData\Local\AgentEyes, which overlaps the REAL state root %USERPROFILE%\AppData\Local\AgentEyes (derived from: this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_DATA at a scratch directory outside %USERPROFILE%\AppData\Local\AgentEyes.
+  exit=5
+--- real agenteyes.exe, B2u ATTACK unspoofed: VIDEOS = real Videos
+  [error] library redirect refused: AGENTEYES_REDIRECT_VIDEOS puts the redirected recordings root at %USERPROFILE%\Videos\AgentEyes, which overlaps the REAL recordings root %USERPROFILE%\Videos\AgentEyes (derived from: this process's environment (.NET special folders)). A redirect exists to keep a process OUT of the real library. Fix: point AGENTEYES_REDIRECT_VIDEOS at a scratch directory outside %USERPROFILE%\Videos\AgentEyes.
+  exit=5
