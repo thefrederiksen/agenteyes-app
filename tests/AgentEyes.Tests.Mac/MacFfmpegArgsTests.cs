@@ -29,7 +29,7 @@ namespace AgentEyes.Tests.Mac
                 // which x264 sized the file's level from (issue #114).
                 "-r", "30",
                 // Issue #113: fragmented, flushed MP4 - playable after an unclean end.
-                "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-frag_duration", "2000000",
+                "-movflags", "+frag_keyframe+empty_moov+default_base_moof+delay_moov", "-frag_duration", "2000000",
                 "-flush_packets", "1",
                 "/r/raw.mp4",
             }, args);

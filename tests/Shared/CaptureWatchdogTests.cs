@@ -470,7 +470,7 @@ namespace AgentEyes.Tests.Shared
             var frag = FfmpegArgs.FragmentedOutput();
             Assert.Equal(new[]
             {
-                "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+                "-movflags", "+frag_keyframe+empty_moov+default_base_moof+delay_moov",
                 "-frag_duration", "2000000",
                 "-flush_packets", "1",
             }, frag);

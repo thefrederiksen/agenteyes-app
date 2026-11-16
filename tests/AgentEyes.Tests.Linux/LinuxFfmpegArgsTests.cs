@@ -22,7 +22,7 @@ namespace AgentEyes.Tests.Linux
                 "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-crf", "23",
                 "-c:a", "aac", "-b:a", "128k",
                 // Issue #113: fragmented, flushed MP4 - playable after an unclean end.
-                "-movflags", "+frag_keyframe+empty_moov+default_base_moof", "-frag_duration", "2000000",
+                "-movflags", "+frag_keyframe+empty_moov+default_base_moof+delay_moov", "-frag_duration", "2000000",
                 "-flush_packets", "1",
                 "/r/raw.mp4",
             }, args);

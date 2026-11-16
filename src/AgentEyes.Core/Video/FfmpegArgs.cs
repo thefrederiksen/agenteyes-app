@@ -99,8 +99,9 @@ namespace AgentEyes.Video
         /// a clean exit, which is why the 18-hour recording of 2026-11-12 was unreadable
         /// ("moov atom not found").
         ///
-        /// - empty_moov + default_base_moof: the index is written up front and every fragment is
-        ///   self-describing, so any prefix of the file that ends on a fragment is a valid MP4.
+        /// - empty_moov + default_base_moof: the index holds no samples and is written ahead of all
+        ///   of them, and every fragment is self-describing, so any prefix of the file that ends on a
+        ///   fragment is a valid MP4.
         /// - frag_keyframe + frag_duration 2 s: a new fragment at each keyframe or every two seconds,
         ///   whichever comes first, so an unclean end loses at most about two seconds.
         /// - flush_packets 1: the fragment reaches the DISK when it is cut. Without it ffmpeg keeps up
@@ -109,13 +110,23 @@ namespace AgentEyes.Video
         ///   still for 12 seconds on a healthy capture would also be no use as the liveness signal
         ///   <see cref="CaptureWatchdog"/> judges by. With the flush the file grows every two seconds
         ///   of media whatever is on screen.
+        /// - delay_moov: the index is written when the FIRST fragment is cut, not before any sample,
+        ///   so it can carry the edit list that puts the first video frame at time zero (issue #113,
+        ///   pass 5). libx264's B-frames make the first video timestamp negative by two frames
+        ///   measured in TIME; plain MP4 cancels that with an edit list, and an index written before
+        ///   any sample cannot have one. Without this flag the video was presented late against the
+        ///   audio: 0.067 s at 30 fps on a synthetic source (the Review Gate), and 0.73-1.00 s on a
+        ///   real Windows capture, where gdigrab's second frame arrives about 0.7 s after its first
+        ///   (measured 2026-11-16). With it: 0.000 against 0.000, the same as plain MP4, and a capture
+        ///   killed without a trailer still decodes to exit 0. Cost: the file stays empty until the
+        ///   first fragment (about two seconds), well inside the watchdog's start-up window.
         ///
         /// Placed immediately before the output path, so the options apply to the MP4 output and not
         /// to the optional preview output that follows it.
         /// </summary>
         internal static List<string> FragmentedOutput() => new()
         {
-            "-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+            "-movflags", "+frag_keyframe+empty_moov+default_base_moof+delay_moov",
             "-frag_duration", "2000000",
             "-flush_packets", "1",
         };
