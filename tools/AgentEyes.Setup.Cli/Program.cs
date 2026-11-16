@@ -106,7 +106,7 @@ public static class Program
             var logPath = Path.Combine(layout.LogsDir, "setup-cli.log");
             EngineLog.Sink = line =>
             {
-                try { File.AppendAllText(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}"); }
+                try { CrossProcessFileAppender.AppendLine(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}"); }
                 catch { /* logging must never throw */ }
             };
         }

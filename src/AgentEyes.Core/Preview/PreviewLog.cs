@@ -8,8 +8,8 @@ namespace AgentEyes.Preview
     /// The preview's log lane: SAYING something costs an enqueue, and the file append happens on a
     /// thread nothing is waiting on (issue #33; Review Gate round 2 on PR #39).
     ///
-    /// WHY IT EXISTS. <see cref="Log"/> is a synchronous <c>File.AppendAllText</c> - preceded by a
-    /// <c>Directory.CreateDirectory</c> - under a PROCESS-WIDE lock. That is fine on a thread that is
+    /// WHY IT EXISTS. <see cref="Log"/> is a synchronous file append - preceded by a
+    /// <c>Directory.CreateDirectory</c> - under process and cross-process coordination. That is fine on a thread that is
     /// allowed to wait, and it is a defect on the three threads this feature runs on that are not:
     ///
     ///  - THE DRAIN. It is the only reader of the pipe the recording's ffmpeg is filling. A pipe

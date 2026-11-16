@@ -151,7 +151,6 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Delete x1", // an always-on clip over the cap - only the renamed file that still matches the ledger
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::EvictIfUnchanged -> System.IO.File::Move x2",   // the clip renamed aside for the check, and back when it does not match
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::RestoreEvictHolds -> System.IO.File::Move x1", // a clip left mid-eviction by a crash, back under its name
-            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::AppendAllText x1",  // the clip ledger, work\clips.txt
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Delete x1",         // a half-written clip after a failed join
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::Move x1",           // an unreadable kept piece, set aside in work\unreadable
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::JoinClip -> System.IO.File::WriteAllText x1",   // the concat list for the join
@@ -164,7 +163,6 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnEngine::WriteLedger -> System.IO.File::WriteAllLines x1", // ...written to a temp first
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHandover::Save -> System.IO.File::Move x1",             // the planned-stop handover, alwayson\handover.json, renamed into place (issue #86)
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHandover::Save -> System.IO.File::WriteAllText x1",     // ...written to handover.json.tmp first
-            "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHistory::Append -> System.IO.File::AppendAllText x1",  // one event line onto alwayson\history.jsonl (issue #77)
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHistory::Rewrite -> System.IO.File::Move x1",          // the 7-day-trimmed history, renamed into place
             "agenteyes.dll!AgentEyes.AlwaysOn.AlwaysOnHistory::Rewrite -> System.IO.File::WriteAllLines x1", // ...written to history.jsonl.tmp first
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Create x1",               // bd.rnnn extracted to a temp
@@ -203,7 +201,9 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Housekeeping.Housekeeper::TruncateToTail -> System.IO.FileStream::.ctor x2",
             "agenteyes.dll!AgentEyes.Video.VideoFrame::ExtractJpeg -> System.IO.File::Delete x1",                      // the on-demand frame's temp file (issue #59), deleted in a finally
             "agenteyes.dll!AgentEyes.Housekeeping.PreservedAudioTranscode::TryDeletePartial -> System.IO.File::Delete x1",
-            "agenteyes.dll!AgentEyes.Log::Write -> System.IO.File::AppendAllText x1",                        // the app log
+            "agenteyes.dll!AgentEyes.Log::AppendUnlocked -> System.IO.FileStream::.ctor x1",             // shared append target, after the lock is held
+            "agenteyes.dll!AgentEyes.Log::AppendWithByteRangeLock -> System.IO.FileStream::.ctor x1",   // shared append target and byte-range lock
+            "agenteyes.dll!AgentEyes.Log::AppendWithPortableLock -> System.IO.FileStream::.ctor x1",   // macOS lock lease and shared append target
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Delete x1",               // THE manifest path: temp cleanup after a failed rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.File::Move x1",                 // THE manifest path: the atomic rename
             "agenteyes.dll!AgentEyes.ManifestStore::WriteAtomic -> System.IO.FileStream::.ctor x1",          // THE manifest path: the flushed temp

@@ -391,7 +391,7 @@ namespace AgentEyes.Tests
         ///
         /// Every defect this feature has had is one sentence: PREVIEW WORK BLOCKS SOMETHING THAT MUST
         /// NOT BLOCK. <c>AgentEyes.Log</c> is a <c>Directory.CreateDirectory</c> plus a
-        /// <c>File.AppendAllText</c> under a PROCESS-WIDE lock, so a log line on this dispatcher is
+        /// a synchronous file append under process and cross-process coordination, so a log line on this dispatcher is
         /// both a filesystem call and a lock another thread may be holding inside one - and this
         /// dispatcher serves the STOP button. So the preview's own App-side code says everything
         /// through <c>PreviewLog</c>, which hands the line to its own thread and returns.

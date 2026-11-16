@@ -416,7 +416,7 @@ namespace AgentEyes.Tests
         ///
         /// THE SHARED LOGGER IS INCLUDED HERE, deliberately, and that is a stronger bar than the
         /// drain's test above. <c>AgentEyes.Log</c> is a <c>Directory.CreateDirectory</c> plus a
-        /// <c>File.AppendAllText</c> under a PROCESS-WIDE lock: on these threads a log line is both a
+        /// a synchronous file append under process and cross-process coordination: on these threads a log line is both a
         /// filesystem call and a lock another thread may be holding inside one, which is how a stalled
         /// logger could block a stop before it ever reached the joins.
         ///
