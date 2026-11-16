@@ -530,3 +530,152 @@ a tray Quit on the Mac (section 6.3 of pass 2), so that gap is unchanged.
   had in front for up to about a second per open - roughly 100 times over about 45 minutes. It is the
   menu's own behaviour, the same as a real right-click, but it is a focus steal and QA's re-run will
   repeat it.
+
+---
+
+# Developer pass 4 - the merge with main, and a test that pins the guard (answering the Review Gate)
+
+Machine `SORENLAPTOP`. Every count below is from SDK 10.0.301 building net8.0 on runtime 8.0.21. Branch
+`issue-116-desktop-app`, previously at `0f54fba`, with main `17c244d` merged in. This pass answers the
+Review Gate's rejection (issue comment 6922665900) and the Lead's ruling (6922692531). It changes no
+product source. Every file under `src/` and `scripts/` that differs from `0f54fba` (26 files) is
+identical to `main`'s version, so the merge brought those changes in and this pass wrote none of them. The guard, the
+deferral and the four QA reports on this branch are untouched.
+
+## 1. Defect 1 - the merge, each conflict and why
+
+I merged rather than rebased. The branch is pushed and carries four QA seats' commits, and a merge keeps
+every SHA they cite. Merge commit `f940b2b` (it also carries the test in section 2).
+
+| File | Resolution | Why |
+|---|---|---|
+| `docs/cencon/proof/issue-142/qa-report-linux.md`, `linux/row4.txt`, `row5.txt`, `row6.txt` (add/add) | **`main`'s version, exactly** | `main`'s `ae80c4d` (#158) re-ran rows 4-6 and records **row 5 FAIL**: the audio drift that became #157. This branch carried the older `0c62e33` pass. Keeping ours would have turned a recorded failure back into a stale pass. They are #142's files, not #116's. |
+| The rest of `docs/cencon/proof/issue-142/` (no textual conflict) | **also `main`'s tree, exactly** | `0c62e33` also added 16 files at `linux/row*.{txt,png}`. `main` holds the same files moved to `linux/earlier-c80cb9d/`: 15 byte-identical, plus `row1-install-transcript.txt`, which is REDACTED on `main` (a temp path and the owner's sign-in address replaced). Git would have kept ours at the old paths without a conflict. That would have left stale duplicates and put the unredacted transcript back onto `main`, so I removed them. `git diff origin/main f940b2b -- docs/cencon/proof/issue-142/` is empty. The one thing dropped: the "row 10 re-confirmed at 0e1b889" addendum that this branch's `78a973e` added to the #142 report. Its evidence is #116's, and it stays in `qa-report-linux-criterion11.md` and `linux-criterion11-evidence.txt`. |
+| `.github/workflows/ci.yml`, windows job | **both** | Order: build, `Test AgentEyes.sln`, then #116's "The Windows desktop app must link the Windows engine", then #151's second pass with `AGENTEYES_FFMPEG_TESTS=1`. They do not interact: the linkage check reads the build output, and the opt-in pass runs with `--no-build`. |
+| `.github/workflows/ci.yml`, linux job | **both** | Order: Core build, `Test the Linux build`, #116's desktop-app build and Linux-engine linkage check, #151's ffmpeg install and opt-in pass (`--no-build` on `AgentEyes.Tests.Linux`), then the macOS compile check. The desktop-app build between the two test passes writes to the app's and the engine's output folders, not the test project's. So the `--no-build` pass runs the test assembly the first pass built. |
+| `tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj` | **both** | This branch's `DesktopAppQuitTests.cs` link AND `main`'s links: `MuxLockTests`, `FfmpegMuxShapeTests` (#136), `OwnedFfmpeg`, `OwnedFfmpegTests`, `FfmpegOptInAttributes` (#151) and `MicChainOrderTests` (#146). |
+
+After the merge `gh pr view 141` reports `mergeable: MERGEABLE`. It was `CONFLICTING`.
+
+Criterion 6, re-checked as the gate asked: the merge does not change `scripts/linux/`, which holds
+`install.sh` and the service file. `main` has not touched it since the merge base `af0ddb1`, so the
+carried-forward substitution still holds for this tree.
+
+## 2. Defect 2 - a test that fails when the fix is removed
+
+The gate deleted the guard's `e.Cancel = true` (G1) and inverted its type filter (G2), and all 13 tests
+stayed green. They pinned the decision table (`CloseState`) and the deferral, but nothing connected that
+decision to a window's `Closing` event. So the tests covered the half of the change that is not the fix.
+The cause is the one the Lead named: the tests were written for the deferral hypothesis before pass 3
+refuted it.
+
+**New: `TrayPopupCloseGuardWindowTests`**, two tests in `tests/Shared/DesktopAppQuitTests.cs`, so both
+the Windows gate and the Linux CI suite run them:
+
+- `TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard` is **the regression test for the fix.**
+- `OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard` checks that the guard leaves every other window alone.
+
+How they reach the real guard rather than a copy of it:
+
+- They run on Avalonia's headless platform (`Avalonia.Headless` 11.3.22, the app's Avalonia version,
+  added to both test projects). A fixture starts one headless session and calls the production
+  `TrayPopupCloseGuard.Install()` once, the same call `App` makes. The guard's own class handler on
+  `Window.WindowOpenedEvent` then attaches its own `Closing` handler, so lines 56 and 63 run as written.
+- Each test shows a window and closes it. The window then closes itself AGAIN from inside the first
+  close, from `OnClosed`. Avalonia runs `OnClosed` while the first close is still disposing the window,
+  which is where the real popup's `Deactivated` handler re-closes it. The window records every close's
+  FINAL `Cancel`, after all `Closing` handlers have run, the guard's included. Expected for the tray
+  popup: `[false, true]`, meaning the first close goes through and the re-entrant one is cancelled.
+  Expected for any other window: `[false, false]`.
+- Each test first asserts that exactly two closes were recorded. A run where the re-entrant close never
+  happened cannot pass as "nothing cancelled".
+- **The stand-in.** The guard picks windows by full type name. The real
+  `Avalonia.Win32.TrayIconImpl+TrayPopupRoot` is internal to `Avalonia.Win32` and opens only on the
+  Win32 platform. So the test declares, in its own assembly, a window with exactly that full name. A
+  separate test, `TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow`, still pins that the
+  real type exists under that name. Together the two say: the name is still right, and the guard cancels
+  a re-entrant close of a window with that name.
+
+**The mutations.** I made each one on the uncommitted tree and restored it with `git checkout --`;
+`git status` showed the file clean after each. Full logs: `pass4-mutation-G1-cancel-deleted.txt`,
+`pass4-mutation-G2-filter-inverted.txt`, `pass4-mutation-unmutated.txt`.
+
+| Tree | `dotnet test tests/AgentEyes.Tests.DesktopApp -c Release` | Failing test(s) and message |
+|---|---|---|
+| unmutated | Passed 15, Failed 0 | - |
+| **G1**: `TrayPopupCloseGuard.cs:63` `e.Cancel = true;` deleted | Passed 14, **Failed 1** | `TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard`: "the tray popup's re-entrant second close was NOT cancelled - TrayPopupCloseGuard did not stop the double teardown that crashes the app on Windows (issue #116)" |
+| **G2**: line 56 inverted to `if (IsTrayPopup(window.GetType())) return;` | Passed 13, **Failed 2** | `TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard`: the same message as under G1. `OtherWindow_ClosedReentrantly_IsNotTouchedByTheGuard`: "TrayPopupCloseGuard cancelled a close of a window that is not the tray popup - it must guard Avalonia's Windows tray popup and nothing else" |
+
+`TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard` fails under both mutations. I ran the
+mutations on Windows only. Linux CI compiles and runs the same file unmutated (section 3).
+
+**What this test does NOT cover.** It proves the guard cancels the re-entrant close of a window with the
+popup's name. It does not prove the crash is gone. That needs Avalonia's Win32 message loop and a real
+popup, and it stays with `scripts/windows/tray-quit-repro.ps1` and pass 3's runtime rates. It also cannot
+catch an Avalonia upgrade that keeps the popup's name but changes how it closes. Pass 3's section 4 said
+the 13 tests covered "the guard's logic". That was true only of the decision table. From this pass on,
+the gate also pins the guard's effect on a window's `Closing` event.
+
+**The tests no longer present the deferral as the fix.** The test file's header now says the guard is
+the fix and gives pass 3's measured rates. It says `DeferredQuit` is "NOT the fix and does not prevent
+the crash" and is pinned only as a shape. The DeferredQuit section heading now reads "a pinned shape,
+NOT the crash fix". The deferral tests themselves are kept, as the Lead ruled. I checked the test names,
+and none presents the deferral as a fix or a crash guard.
+
+**Comments in the app's source that still call the deferral the cure (left for #168).** I searched
+every file this branch changes for the deferral. Three product-source comments still describe it as the
+cure:
+- `src/AgentEyes.DesktopApp/DeferredQuit.cs:9-22` ("WHY IT IS DEFERRED"). #168 item 1 names this one.
+- `src/AgentEyes.DesktopApp/App.axaml.cs:27`: "Quit is DEFERRED until the tray menu has closed - see DeferredQuit".
+- `src/AgentEyes.DesktopApp/TrayController.cs:47-48`: "closing the app under it crashed (issue #116, see DeferredQuit)".
+
+#168's scope includes "a sweep for the same shape in the files #116 added". The Lead kept #168 out of
+this branch and product source off-limits for this pass, so I did not edit these comments. I added the
+two that #168 does not yet name to #168, so its sweep cannot miss them. This handoff's pass 3 section
+already says "Not the fix" (its section 2).
+
+## 3. Gates
+
+- `dotnet build AgentEyes.sln -c Release`: `Build succeeded.`, `22 Warning(s)`, `0 Error(s)`. Every
+  warning is in `AgentEyes.Core` (CS8602) or `AgentEyes.Tests` (xUnit analyzers). None is in a file this
+  pass changed.
+- **The full Windows suite, run locally on the merged tree**: `dotnet test AgentEyes.sln -c Release
+  --no-build`, without the opt-in (`pass4-full-suite-windows.txt`):
+  - `AgentEyes.Tests.dll`: **Failed 0, Passed 2375, Skipped 15, Total 2390.** That is `main`'s count. The
+    15 skips are #151's opt-in ffmpeg tests.
+  - `AgentEyes.Tests.DesktopApp.dll`: **Failed 0, Passed 15, Total 15.**
+  - Both ran from `bin\x64\Release\net8.0-windows10.0.19041.0` (the paths are in the log). 82 s wall
+    clock on this laptop.
+- Safety: just before the run, `GET /status` read `"State": "idle"` and `tasklist` showed no
+  `ffmpeg.exe`. #151 is in this tree, so the suite's failure path kills only ffmpeg it started. I
+  started and killed no ffmpeg outside the suite. No recording, preset or audio setting was touched. No
+  app was launched and nothing was shown on screen; the headless platform draws nothing.
+- **CI on the merged head: green on `f940b2b`, all three jobs, on both runs.** Run 43911878522 is the
+  `pull_request` run, which checks out PR #141 merged into `main` `17c244d`. `main` had not moved, so
+  that is the tree that would land. Run 43911867444 is the `push` run on the branch head itself. Counts
+  from 43911878522:
+  - windows `Test AgentEyes.sln`: `AgentEyes.Tests.dll` Failed 0, Passed 2375, Skipped 15, Total 2390;
+    `AgentEyes.Tests.DesktopApp.dll` Failed 0, Passed 15. The opt-in pass (`AGENTEYES_FFMPEG_TESTS=1`):
+    `AgentEyes.Tests.dll` Failed 0, Passed 2394, Total 2394; DesktopApp Passed 15. Then `[OK] the Windows
+    desktop app links the Windows engine`. These are `main`'s 2390 and 2394 counts, so CI ran the merged
+    suite. The gate's earlier run 43908582745 ran 2297.
+  - linux `AgentEyes.Tests.Linux.dll`: Failed 0, Passed 317, Skipped 1, Total 318; the opt-in pass Failed
+    0, Passed 318. `[OK] the Linux desktop app links the Linux engine`. The two new headless tests are in
+    this assembly through the shared link, so they ran on Linux too.
+  - macos `AgentEyes.Tests.Mac.dll`: Failed 0, Passed 283, Skipped 1, Total 284 (`main`'s 284), and both
+    macOS linkage checks `[OK]`. The Mac suite does not link the shared quit tests; that is unchanged.
+  - The handoff commit after `f940b2b` changes only files under `docs/`. CI runs on it too.
+
+## 4. For QA
+
+Product behaviour did not change in this pass. Pass 3's runtime evidence was taken on `e5ce76c`, and
+`src/AgentEyes.DesktopApp/` is identical between `e5ce76c` and `f940b2b`. The merge did bring `main`'s
+changes into `AgentEyes.Core` (#128, #136, #146, #151). What to verify:
+
+1. The merge resolutions in section 1. In particular, `git diff origin/main <head> --
+   docs/cencon/proof/issue-142/` must be empty.
+2. Make G1 and G2 yourself and watch `TrayPopup_ClosedReentrantly_SecondCloseIsCancelledByTheGuard` fail.
+3. CI is green on the head you judge, and the Linux job's `AgentEyes.Tests.Linux` count includes the
+   two new tests.
+
+I believe this pass is finished.
