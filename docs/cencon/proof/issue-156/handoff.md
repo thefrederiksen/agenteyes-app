@@ -894,6 +894,17 @@ asserts that the word "unmeasured" is gone.
 | `tests/AgentEyes.Tests` (Windows) | CI run on `3090641`: 1 failure, `ManifestWriterIlTests.EveryNativeImport_IsPinned` - the new `libc!sysctl` import was not in the pinned list (a review moment for file-writing natives; `sysctl` with a NULL `newp` is a read-only kernel query). Pinned, with that reason. Every other Windows test passed (2458). Locally: **compile only**, with `-p:EnableWindowsTargeting=true`: 0 errors. It caught three call sites in `FfmpegChildRegistryTests.cs` that the Unix suites cannot see. NOT run; CI runs it. |
 | `AgentEyes.sln` | cannot build on a Mac (expected) |
 
+### CI on the branch (run 43905403115, head `0e57590`, all three jobs green)
+
+| Job | Default gate | With the opt-in variables |
+|---|---|---|
+| macOS (hosted runner) | - | **368 passed, 1 skipped** with `AGENTEYES_REAL_CLI_TESTS=1`: the sandboxed real-CLI test RAN on the runner and passed |
+| Linux (a real Linux runner) | 375 passed, 2 skipped | 376 passed, 1 skipped (`AGENTEYES_FFMPEG_TESTS=1`) |
+| Windows | 2459 passed, 16 skipped | 2478 passed, 1 skipped (`AGENTEYES_FFMPEG_TESTS=1`) |
+
+The Linux row is the only Linux evidence for this pass, and it is CI's, not mine. It runs the classifier
+rows and the caller tests. It does NOT reach the pid-namespace case.
+
 ### Scope kept
 
 Untouched, and not regressed (their tests are in the runs above): the lock, the owner file and its
