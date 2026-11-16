@@ -1,0 +1,96 @@
+12:33:54.327 === v2 run: bin=main embedded=1.11.11+497e9d4215bbd443ad8879e36d5ba66a48bb6181 CaptureLock=0 frag=0 watchdog=0 host=devlinux ffmpeg=6.1.1-3ubuntu5 load=5.58
+12:33:54.329   foreign go2rtc ffmpeg 72110 alive: yes
+12:33:54.595 [s0] main serve pid 1122554 port 17710; recordings root inside scratch: $SCRATCH/runs/v2-main/home/Videos/AgentEyes
+12:33:58.312 [s0c] main serve pid 1122994 port 17713; recordings root inside scratch: $SCRATCH/runs/v2-main/home/Videos/AgentEyes
+12:34:12.185 B = 2026-11-16_073354_video owner S0 pid 1122554, writer pid 1122660;  C = 2026-11-16_073358_video owner S0c pid 1122994, writer pid 1123131
+12:34:12.188   capture.lock absent
+12:34:13.251 S0 and S0c SIGKILLed mid-capture (alive: NO NO); writers alive: B yes C yes, B writer ppid now 2221
+12:34:16.265   B raw.mp4 growth with its owner dead: 2359344 -> 3407920 in 3s
+12:34:16.269   capture.lock absent
+12:34:16.274 SECOND PROCESS (main): agenteyes package 2026-11-16_073354_video --no-frames  [Borphan1]
+12:34:16.777   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073354_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+12:34:16.809   raw.mp4=3407920 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:34:19.825   B writer alive: yes; B raw.mp4 growth: 3407920 -> 3670064 in 3s
+12:34:19.830 SECOND PROCESS (main): agenteyes package 2026-11-16_073354_video --no-frames  [Borphan2]
+12:34:20.323   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073354_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+12:34:20.366   raw.mp4=3932208 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=2 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:34:23.383   B writer alive: yes; B raw.mp4 growth: 3932208 -> 4718640 in 3s
+12:34:23.653 [s1] main serve pid 1124194 port 17711; recordings root inside scratch: $SCRATCH/runs/v2-main/home/Videos/AgentEyes
+12:34:24.663 after S1 start: B writer alive yes, C writer alive yes
+    07:34:23.604 [pid 1124194] [INFO] [FfmpegChildRegistry] ReapOrphans: no records
+    07:34:23.604 [pid 1124194] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:34:27.681   B raw.mp4 after reap: 4980784 -> 5242928 in 3s
+12:34:41.449 A = 2026-11-16_073427_video owner S1 pid 1124194, writer pid 1124473
+12:34:41.453   capture.lock absent
+12:34:41.492   A: raw.mp4=2359344 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: none | DurationSeconds=0
+12:34:41.499 SECOND PROCESS (main): agenteyes package 2026-11-16_073427_video --no-frames  [A1]
+12:34:42.006   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073427_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+12:34:42.038   raw.mp4=2359344 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:34:45.093   A writer alive: yes; A raw.mp4 growth: 2359344 -> 2621488 in 3s; S1 State=recording Elapsed=17.14 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:34:45.099 SECOND PROCESS (main): agenteyes package 2026-11-16_073427_video --no-frames  [A2]
+12:34:45.635   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073427_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+12:34:45.676   raw.mp4=2621488 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=2 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:34:48.726   A writer alive: yes; A raw.mp4 growth: 2621488 -> 3670064 in 3s; S1 State=recording Elapsed=20.77 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:34:48.734 SECOND PROCESS (main): agenteyes package 2026-11-16_073427_video --no-frames  [A3]
+12:34:49.256   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073427_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+12:34:49.292   raw.mp4=3670064 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:34:52.343   A writer alive: yes; A raw.mp4 growth: 3670064 -> 4194352 in 3s; S1 State=recording Elapsed=24.39 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:34:52.350 SECOND PROCESS (main): agenteyes package 2026-11-16_073358_video --no-frames  [Cdead]
+12:34:52.886   exit 1: [error] could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073358_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+12:34:52.921   raw.mp4=9699376 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=1 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:34:52.925   decode: $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073358_video/recording.mp4 absent
+12:34:53.193 [s2] main serve pid 1125614 port 17712; recordings root inside scratch: $SCRATCH/runs/v2-main/home/Videos/AgentEyes
+    07:34:53.163 [pid 1125614] [INFO] [FfmpegChildRegistry] ReapOrphans: no records
+    07:34:53.164 [pid 1125614] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
+12:34:54.205   A writer alive after S2's reap: yes
+12:34:54.209 waiting for S2's first repair pass (+20 s)...
+12:35:14.341 S2 repair-pass lines (pid 1125614):
+    07:35:13.167 [pid 1125614] [INFO] [RepairService] RunAsync: trigger=timer
+    07:35:13.172 [pid 1125614] [INFO] [RepairService] ResumeUnfinishedAsync: root=$SCRATCH/runs/v2-main/home/Videos/AgentEyes
+    07:35:13.357 [pid 1125614] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073354_video needs mux
+    07:35:13.358 [pid 1125614] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_073358_video needs mux
+    07:35:13.359 [pid 1125614] [INFO] [PostRecordingPlan] FindUnfinished: root=$SCRATCH/runs/v2-main/home/Videos/AgentEyes, unfinished=2
+    07:35:13.361 [pid 1125614] [INFO] [RepairService] ResumeAsync: 2 recording(s) with unfinished post-processing (hostedWork=False)
+    07:35:13.366 [pid 1125614] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073354_video#1 (no claim)
+    07:35:13.383 [pid 1125614] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073354_video stage=mux
+    07:35:13.561 [pid 1125614] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073354_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:35:13.580 [pid 1125614] [ERROR] [PostRecording] stage mux FAILED: dir=$SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073354_video
+    07:35:13.580 [pid 1125614] [ERROR] AgentEyes.UsageException: could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073354_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:35:13.581 [pid 1125614] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_073354_video stage=mux error=could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073354_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:35:13.597 [pid 1125614] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_073358_video#3 (no claim)
+    07:35:13.598 [pid 1125614] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073358_video stage=mux
+    07:35:13.713 [pid 1125614] [ERROR] [MediaProbe] AudioChannels FAILED: could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073358_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:35:13.714 [pid 1125614] [ERROR] [PostRecording] stage mux FAILED: dir=$SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073358_video
+    07:35:13.714 [pid 1125614] [ERROR] AgentEyes.UsageException: could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073358_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:35:13.714 [pid 1125614] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_073358_video stage=mux error=could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073358_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    07:35:13.724 [pid 1125614] [INFO] [RepairService] RunAsync: not signed in; skipping the title pass
+    07:35:13.782 [pid 1125614] [INFO] [RepairService] RunAsync: trigger=timer done
+12:35:14.388   A: raw.mp4=8388656 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:35:14.426   B: raw.mp4=13893680 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:35:14.430   decode: $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073354_video/recording.mp4 absent
+12:35:14.472   S1 State=recording Elapsed=46.51 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:35:14.478 SECOND PROCESS (main): agenteyes package 2026-11-16_073427_video --no-frames  [A4]
+12:35:14.809   exit 1: [error] the audio mux for 2026-11-16_073427_video failed 3 time(s) and is not retried automatically (limit 3); there is no final media to package. Last error: could not read the audio channel count of $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073427_video/raw.mp4 (ffprobe said: ''). The mic chain cannot be built w
+12:35:14.848   raw.mp4=8388656 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:35:24.906   +10s A writer alive yes; raw.mp4=9961520 recording.mp4=absent original=absent; S1 State=recording Elapsed=56.94 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:35:34.952   +20s A writer alive yes; raw.mp4=11796528 recording.mp4=absent original=absent; S1 State=recording Elapsed=67.01 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:35:45.004   +30s A writer alive yes; raw.mp4=13631536 recording.mp4=absent original=absent; S1 State=recording Elapsed=77.05 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:35:55.052   +40s A writer alive yes; raw.mp4=15728688 recording.mp4=absent original=absent; S1 State=recording Elapsed=87.1 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:36:05.107   +50s A writer alive yes; raw.mp4=17563696 recording.mp4=absent original=absent; S1 State=recording Elapsed=97.15 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:36:15.155   +60s A writer alive yes; raw.mp4=19136560 recording.mp4=absent original=absent; S1 State=recording Elapsed=107.2 CaptureLiveness=None LastStopFailed=False LastStopError=
+12:36:15.162 S1 watchdog / stall lines:
+12:36:16.176 S2 stopped by SIGTERM (alive: NO)
+12:36:16.713 owner S1 POST /record/stop -> None None None
+12:36:16.751 mux settled: pending failed
+12:36:16.785   A: raw.mp4=19751242 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=108.27
+12:36:16.789   decode: $SCRATCH/runs/v2-main/home/Videos/AgentEyes/2026-11-16_073427_video/recording.mp4 absent
+12:36:16.793   capture.lock absent
+12:36:16.796 S1 finalize lines:
+    07:36:16.743 [pid 1124194] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_073358_video stage=mux
+12:36:17.811 S1 stopped by SIGTERM (alive: NO)
+12:36:17.823 LEFTOVER: my ffmpeg pid 1122660 still alive (/usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_siz) - SIGTERM
+12:36:20.836 LEFTOVER: my ffmpeg pid 1123131 still alive (/usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_siz) - SIGTERM
+12:36:23.874   final B: raw.mp4=26030385 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=failed Attempts=3 AttemptedBy=None Error=could not read the audio channel count of $SCRATCH/runs/v2-main/home | DurationSeconds=0
+12:36:23.912   final C: raw.mp4=26318247 recording.mp4=absent recording.original.mp4=absent capture.lock=absent capture.owner.json=absent | PendingMux=pending | mux: State=running Attempts=3 AttemptedBy=None Error= | DurationSeconds=0
+12:36:23.916   foreign go2rtc ffmpeg 72110 alive: yes
+12:36:23.920 === v2 run main done
