@@ -1,0 +1,12 @@
+MUTANT: StxUidOffset 20 -> 24; harness loads agenteyes.dll sha256 prefix 044dace52b7ad770 (head build: 49802fd24ccf3c1e) - same-machine identity only
+subject pid 1757087: euid/egid  1000   986
+17:41:12.465 harness pid 1757181, product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e
+product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e; prober uid 1000 euid 1000
+  [raw statx] /etc/shadow: rc 0, stx_mask 0x17ff, u32@20 (stx_uid) = 0, u32@24 (stx_gid) = 42; stat(1) says uid:gid 0:42
+  [raw statx] /proc/1757087: rc 0, stx_mask 0x17ff, u32@20 (stx_uid) = 1000, u32@24 (stx_gid) = 986; stat(1) says uid:gid 1000:986
+  [product ReadLinuxProcOwner(1757087)] LinuxProcOwner { Kind = Owned, Detail = owned by uid 986 (statx), Uid = 986 }
+  [product StatOwnerOfPath(/proc/1757087)] (0, 1000)
+  [product StatOwnerOfPath(/etc/shadow)] (0, 0)
+  [product predicate, EPERM row, real owner read] ProcessAnswer { Identity = NotMine, Why = pid 1757087 belongs to ANOTHER USER (/proc/1757087 owned by uid 986; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }
+  [product ReadLinuxProcOwner(1611)] LinuxProcOwner { Kind = Owned, Detail = owned by uid 110 (statx), Uid = 110 }; stat(1) says 0:110
+  [product predicate, EPERM row, pid 1611] ProcessAnswer { Identity = NotMine, Why = pid 1611 belongs to ANOTHER USER (/proc/1611 owned by uid 110; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }

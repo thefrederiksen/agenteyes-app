@@ -1,0 +1,10 @@
+17:40:00.454 harness pid 1751420, product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e
+product 1.11.11+f6d16bfc02405b9facb5a03136f831ca814d8e2e; prober uid 1000 euid 1000
+  [raw statx] /etc/shadow: rc 0, stx_mask 0x17ff, u32@20 (stx_uid) = 0, u32@24 (stx_gid) = 42; stat(1) says uid:gid 0:42
+  [raw statx] /proc/1751390: rc 0, stx_mask 0x17ff, u32@20 (stx_uid) = 1000, u32@24 (stx_gid) = 986; stat(1) says uid:gid 1000:986
+  [product ReadLinuxProcOwner(1751390)] LinuxProcOwner { Kind = Owned, Detail = owned by uid 1000 (statx), Uid = 1000 }
+  [product StatOwnerOfPath(/proc/1751390)] (0, 1000)
+  [product StatOwnerOfPath(/etc/shadow)] (0, 0)
+  [product predicate, EPERM row, real owner read] ProcessAnswer { Identity = Unknown, Why = pid 1751390 is THIS USER's (/proc/1751390 owned by uid 1000) but kill(pid, 0) was refused (EPERM) and its start time too (t) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here, IsMine = False, IsNotMine = False, IsUnknown = True }
+  [product ReadLinuxProcOwner(1611)] LinuxProcOwner { Kind = Owned, Detail = owned by uid 0 (statx), Uid = 0 }; stat(1) says 0:110
+  [product predicate, EPERM row, pid 1611] ProcessAnswer { Identity = NotMine, Why = pid 1611 belongs to ANOTHER USER (/proc/1611 owned by uid 0; kill(pid, 0) EPERM); the recorded process ran as this user, so this is not it, IsMine = False, IsNotMine = True, IsUnknown = False }

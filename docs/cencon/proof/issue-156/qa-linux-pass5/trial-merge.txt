@@ -1,0 +1,9 @@
+== trial merge cbf1fb9 = f6d16bf + origin/main 2d60f77 (scratch worktree, never pushed)
+-- Linux default
+Passed!  - Failed:     0, Passed:   416, Skipped:     2, Total:   418, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+-- Linux AGENTEYES_FFMPEG_TESTS=1
+Passed!  - Failed:     0, Passed:   417, Skipped:     1, Total:   418, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+-- DesktopApp tests
+Passed!  - Failed:     0, Passed:    15, Skipped:     0, Total:    15, Duration: 305 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+== control: origin/main 2d60f77 alone, Linux default
+Passed!  - Failed:     0, Passed:   317, Skipped:     1, Total:   318, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)

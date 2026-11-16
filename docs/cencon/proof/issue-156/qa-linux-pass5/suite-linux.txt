@@ -1,0 +1,12 @@
+== head f6d16bf, Linux suite, default
+[xUnit.net 00:00:03.90]     AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [SKIP]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+
+Passed!  - Failed:     0, Passed:   390, Skipped:     2, Total:   392, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
+== head f6d16bf, Linux suite, AGENTEYES_FFMPEG_TESTS=1
+[xUnit.net 00:00:04.18]     AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [SKIP]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+
+Passed!  - Failed:     0, Passed:   391, Skipped:     1, Total:   392, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)
+== MUTANT (StxUidOffset 20 -> 24, worktree of f6d16bf), Linux suite, default
+Passed!  - Failed:     0, Passed:   390, Skipped:     2, Total:   392, Duration: 3 s - AgentEyes.Tests.Linux.dll (net8.0)
