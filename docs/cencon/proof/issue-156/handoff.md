@@ -1391,4 +1391,9 @@ pid-namespace prober). **D3 stays #113's:** the two `CaptureLiveness` types and 
 `2026-11-14_102532_video` is present. The foreign go2rtc ffmpeg (pid 72110, identified by command line) was
 never signalled. This work started no ffmpeg of its own; any were the opt-in suite's test processes.
 
+**CI on `25906b0` (run 43919192757): all three jobs green**, and every count is pass 5's plus the two new
+tests: linux 390/2 and 391/1; macos 383/1 (pass 5: 381/1); windows 2474/16 and 2493/1 (pass 5: 2472/16
+and 2491/1). The Windows job includes `ManifestWriterIlTests.EveryNativeImport_IsPinned` with the new
+`libSystem.Native!SystemNative_Stat` line. That is the part I could not run on Linux.
+
 I believe this is finished.
