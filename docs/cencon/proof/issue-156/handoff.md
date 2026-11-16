@@ -1397,3 +1397,82 @@ and 2491/1). The Windows job includes `ManifestWriterIlTests.EveryNativeImport_I
 `libSystem.Native!SystemNative_Stat` line. That is the part I could not run on Linux.
 
 I believe this is finished.
+
+---
+
+## Pass 5c - pin the statx uid offset (Linux QA pass 5 comment 6924399686, lead's ruling 6924438867)
+
+One test and no product change. `git diff b6349f6 -- src` is empty. The only files changed are
+`tests/Shared/ProcessIdentityTests.cs`, this section and `pass5c/mutation-runs.txt`.
+
+### The test
+
+`ProcessIdentityTests.ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid`
+(`tests/Shared/ProcessIdentityTests.cs`). Its subject is QA's: a live process of this user whose
+`/proc/<pid>` is owned by `uid:gid` with gid != uid.
+
+- **Which process is the subject.** This test process itself, if its egid already differs from its euid.
+  Otherwise `sg <a supplementary group whose gid != uid> -c "exec sleep 120"`. The test kills only the
+  tree it started.
+- **The precondition is asserted.** `stat(1)` must show `/proc/<subject>` as `<euid>:<gid != euid>`. A
+  subject that cannot tell the two fields apart fails the test; it cannot pass silently.
+- **What it asserts, all through real reads:**
+  1. The product's statx read (`ReadLinuxProcOwner`) answers `owned by uid <euid> (statx)`.
+  2. The stat fallback (`StatOwnerOfPath("/proc/<subject>")`) answers `(0, <euid>)`.
+  3. The predicate's Linux EPERM row, with the real owner read, answers **Unknown** for our own live
+     process, never NotMine.
+- **When it is skipped.** Only where no such subject can be built: uid == gid, no supplementary group
+  differs, or no `/usr/bin/sg`. The skip is visible and gives the reason (`LinuxUidGidSubjectFact`).
+  Off Linux it returns early, like the other Linux-only tests in the class.
+
+### The mutation (QA's, then its stat twin)
+
+Proof: `pass5c/mutation-runs.txt`. The binary under test was built fresh into
+`tests/AgentEyes.Tests.Linux/bin/Release/net8.0/` and embeds `1.11.11+b6349f6b50414226e445aa338a1ce1e44bd85055`.
+That is the PR head; its product source is identical to `f6d16bf`. The stale `bin/x64/Release` copy is not
+referenced.
+
+| Run | Linux suite | The new test |
+|---|---|---|
+| head, default | **391 passed, 2 skipped** (was 390/2) | passed |
+| head, `AGENTEYES_FFMPEG_TESTS=1` | **392 passed, 1 skipped** (was 391/1) | passed |
+| `StxUidOffset 20 -> 24` (QA's mutant) | 390 passed, **1 failed**, 2 skipped | **FAILED** |
+| `FileStatusUidOffset 8 -> 12` (stat twin) | 390 passed, **1 failed**, 2 skipped | **FAILED** |
+| self-subject branch (run under `sg docker`), head | - | passed |
+| self-subject branch, `StxUidOffset 20 -> 24` | - | **FAILED** |
+
+The failure message of QA's mutant:
+
+    statx owner read of /proc/1793410 (1000:4, 'sg adm -c "exec sleep 120"', pid 1793410) gave Owned
+    'owned by uid 4 (statx)', expected owned by uid 1000 (statx) - it read the GID: the stx_uid offset is wrong
+
+Each mutant was reverted with `git checkout`, and the head was rebuilt and re-run green (rows 1 and 2).
+
+### The /etc/shadow loop: removed
+
+That loop was in the **stat** test, not the statx one. Every one of its branches was `continue` unless a
+listed system file happened to have a different owner and group. So on a machine without such a file it
+passed while asserting nothing.
+
+I removed it rather than repairing it, because the new subject is deterministic and the loop was not. The
+same `/proc/<subject>` now pins the stat offset, and does it better: the stat twin mutant fails the new
+test (row 4). A comment now stands where the loop was, saying why it went and pointing at the new pin.
+
+### Not covered
+
+- **Windows and macOS.** The test's `Fact` compiles into both. The Mac test project builds here, but
+  neither suite was run here; CI on this head runs them.
+- **CI's subject branch.** I did not see which branch the hosted runner takes. Both branches are
+  measured above.
+- **Product doc comments.** Two comments in `FfmpegChildRegistry.cs` still describe the stat pin as "a
+  file whose owner and group differ". The pin now reads the subject's `/proc` entry instead. Per the
+  no-product-change rule, I left them.
+
+**#161 footprint: none.**
+- No product binary was run; only the test suite.
+- Since my first test run (12:54:39 local), the owner's log has been written only by the installed
+  service, pid 6560. None of my test subjects' pids appear in it.
+- `2026-11-14_102532_video` is present.
+- The foreign go2rtc ffmpeg (pid 72110) was never signalled.
+
+I believe this is finished.

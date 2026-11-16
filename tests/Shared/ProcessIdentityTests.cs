@@ -472,15 +472,84 @@ namespace AgentEyes.Tests
             Assert.Equal((0, (uint?)me), FfmpegChildRegistry.StatOwnerOfPath($"/proc/{Environment.ProcessId}"));
             Assert.Equal(2, FfmpegChildRegistry.StatOwnerOfPath($"/proc/{int.MaxValue - 7}").Errno);
             if (PsUser(1) == "root") Assert.Equal((0, (uint?)0u), FfmpegChildRegistry.StatOwnerOfPath("/proc/1"));
-            // This user's uid and gid are often equal, so the reads above cannot tell Uid's offset from
-            // Gid's. A system file whose owner and group differ can (on Debian and Ubuntu, /etc/shadow is
-            // root:shadow - stat needs no read permission). Compared with what stat(1) says for it.
-            foreach (var path in new[] { "/etc/shadow", "/etc/gshadow", "/var/mail", "/var/log/syslog" })
+            // These reads cannot tell Uid's offset from Gid's where this user's uid and gid are equal. The
+            // pin that can - against a live subject whose uid and gid DIFFER - is the next test, for both
+            // the statx read and this stat read. (Pass 5c removed a loop over system files here: every
+            // branch of it was 'continue' unless a file happened to differ, so it could pass asserting nothing.)
+        }
+
+        /// <summary>
+        /// THE PASS 5C PIN - the owner read returns the UID, not the GID. struct statx puts stx_uid at
+        /// offset 20 and stx_gid at 24; a read at the wrong one returns the GROUP of /proc/&lt;pid&gt;. Where
+        /// uid == gid the two are indistinguishable, which is how QA's mutant StxUidOffset 20 -> 24 passed
+        /// the whole Linux suite (390/2) while answering NotMine for OUR OWN live process - admitting a
+        /// live capture. So the subject here is a live process of this user whose /proc entry is owned by
+        /// uid:gid with gid != uid (QA's subject: this process itself if its egid already differs, else
+        /// 'sg &lt;a supplementary group&gt; -c "exec sleep"'), and the precondition that they differ is
+        /// ASSERTED, so this test cannot pass on a subject that carries no information. Read through the
+        /// real statx path, the real stat fallback, and the real predicate's Linux EPERM row.
+        /// </summary>
+        [LinuxUidGidSubjectFact]
+        public void ReadLinuxProcOwner_LiveSubjectWhoseUidAndGidDiffer_ReadsUidNotGid()
+        {
+            if (!OperatingSystem.IsLinux()) return;
+            uint ruid = uint.Parse(Run("/usr/bin/id", "-ru")), euid = uint.Parse(Run("/usr/bin/id", "-u"));
+            using var subject = UidGidSubject.Start(euid);
+            var ids = Run("/usr/bin/stat", $"-c %u:%g /proc/{subject.Pid}").Split(':');
+            uint procUid = uint.Parse(ids[0]), procGid = uint.Parse(ids[1]);
+            Assert.True(procUid == euid && procGid != procUid,
+                $"precondition: the subject ({subject.How}) must be this user's with a different group, and /proc/{subject.Pid} is {procUid}:{procGid}");
+
+            var owner = FfmpegChildRegistry.ReadLinuxProcOwner(subject.Pid);
+            Assert.True(owner.Kind == LinuxProcOwnerKind.Owned && owner.Uid == euid && owner.Detail.Contains("(statx)"),
+                $"statx owner read of /proc/{subject.Pid} ({procUid}:{procGid}, {subject.How}) gave {owner.Kind} '{owner.Detail}', " +
+                $"expected owned by uid {euid} (statx)" + (owner.Uid == procGid ? " - it read the GID: the stx_uid offset is wrong" : ""));
+
+            var viaStat = FfmpegChildRegistry.StatOwnerOfPath($"/proc/{subject.Pid}");
+            Assert.True(viaStat == (0, (uint?)euid),
+                $"stat owner read of /proc/{subject.Pid} ({procUid}:{procGid}) gave {viaStat}, expected (0, {euid})" +
+                (viaStat.Uid == procGid ? " - it read the GID: the FileStatus Uid offset is wrong" : ""));
+
+            var a = FfmpegChildRegistry.ClassifyUnreadable(subject.Pid, 13, "t", false, isMac: false, Signal(-1, 1), NoStateRead,
+                uid => uid == ruid || uid == euid, FfmpegChildRegistry.ReadLinuxProcOwner);
+            Assert.True(a.IsUnknown, $"our own live process under kill EPERM must be Unknown, never NotMine: {a.Identity}: {a.Why}");
+        }
+
+        /// <summary>A live process of this user whose /proc entry is owned by uid:gid with gid != uid.
+        /// Kills only the process tree it started.</summary>
+        private sealed class UidGidSubject : IDisposable
+        {
+            private readonly Process? _started;
+            public int Pid { get; }
+            public string How { get; }
+
+            private UidGidSubject(int pid, string how, Process? started) { Pid = pid; How = how; _started = started; }
+
+            public static UidGidSubject Start(uint euid)
             {
-                if (!File.Exists(path) && !Directory.Exists(path)) continue;
-                var ids = Run("/usr/bin/stat", $"-c %u:%g {path}").Split(':');
-                if (ids[0] == ids[1]) continue;
-                Assert.Equal((0, (uint?)uint.Parse(ids[0])), FfmpegChildRegistry.StatOwnerOfPath(path));
+                if (uint.Parse(Run("/usr/bin/id", "-g")) != euid)
+                    return new UidGidSubject(Environment.ProcessId, "this test process, whose egid differs", null);
+                string group = LinuxUidGidSubject.SupplementaryGroupNotEqualTo(euid)
+                    ?? throw new InvalidOperationException("no supplementary group differs from the uid - the attribute should have skipped");
+                var psi = new ProcessStartInfo("/usr/bin/sg") { RedirectStandardOutput = true, RedirectStandardInput = true, UseShellExecute = false };
+                foreach (string arg in new[] { group, "-c", "echo $$; exec sleep 120" }) psi.ArgumentList.Add(arg);
+                var p = Process.Start(psi)!;
+                string? line = p.StandardOutput.ReadLine();
+                if (!int.TryParse(line, out int pid))
+                {
+                    p.Kill(entireProcessTree: true);
+                    p.Dispose();
+                    throw new InvalidOperationException($"sg {group} did not start the subject: first line '{line}'");
+                }
+                return new UidGidSubject(pid, $"'sg {group} -c \"exec sleep 120\"', pid {pid}", p);
+            }
+
+            public void Dispose()
+            {
+                if (_started is null) return;
+                if (!_started.HasExited) _started.Kill(entireProcessTree: true);
+                _started.WaitForExit(5000);
+                _started.Dispose();
             }
         }
 
@@ -910,6 +979,55 @@ namespace AgentEyes.Tests
                 : Environment.GetEnvironmentVariable(Variable) == "1"
                     ? null
                     : $"runs the real agenteyes CLI, which writes this user's real AgentEyes log on macOS (#161) - opt in with {Variable}=1";
+    }
+
+    /// <summary>
+    /// Issue #156 pass 5c: whether a live subject whose /proc owner uid and gid DIFFER can be built
+    /// here - this process's egid already differs from its euid, or this user has a supplementary group
+    /// whose gid differs and /usr/bin/sg exists. If not, the uid-vs-gid pin is SKIPPED, visibly, with
+    /// the reason, rather than passing on a subject that cannot tell the two offsets apart. Off Linux
+    /// it runs and returns, like the other Linux-only tests in this class.
+    /// </summary>
+    internal static class LinuxUidGidSubject
+    {
+        private static readonly Lazy<string?> Reason = new(() =>
+        {
+            if (!OperatingSystem.IsLinux()) return null;
+            uint euid = uint.Parse(Id("-u"));
+            if (uint.Parse(Id("-g")) != euid) return null;
+            if (!File.Exists("/usr/bin/sg")) return "this user's uid and gid are equal and /usr/bin/sg is missing, so no subject can tell stx_uid from stx_gid";
+            return SupplementaryGroupNotEqualTo(euid) is null
+                ? $"this user's uid and gid are equal ({euid}) and no supplementary group differs, so no subject can tell stx_uid from stx_gid"
+                : null;
+        });
+
+        public static string? SkipReason => Reason.Value;
+
+        /// <summary>The name of one of this user's groups whose gid is not <paramref name="uid"/>, or null.</summary>
+        public static string? SupplementaryGroupNotEqualTo(uint uid)
+        {
+            var gids = Id("-G").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var names = Id("-Gn").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (gids.Length != names.Length) return null;
+            for (int i = 0; i < gids.Length; i++)
+                if (uint.Parse(gids[i]) != uid) return names[i];
+            return null;
+        }
+
+        private static string Id(string arg)
+        {
+            var psi = new ProcessStartInfo("/usr/bin/id", arg) { RedirectStandardOutput = true, UseShellExecute = false };
+            using var p = Process.Start(psi)!;
+            string s = p.StandardOutput.ReadToEnd().Trim();
+            p.WaitForExit();
+            return s;
+        }
+    }
+
+    /// <summary>A <see cref="FactAttribute"/> skipped, with the reason, where no uid != gid subject can be built.</summary>
+    public sealed class LinuxUidGidSubjectFactAttribute : FactAttribute
+    {
+        public LinuxUidGidSubjectFactAttribute() { Skip = LinuxUidGidSubject.SkipReason; }
     }
 
     /// <summary>A <see cref="FactAttribute"/> that runs only when <see cref="RealCliOptIn.Variable"/> is 1.</summary>
