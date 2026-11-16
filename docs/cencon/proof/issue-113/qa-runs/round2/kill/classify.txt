@@ -1,0 +1,8 @@
+polls total=1756 errors=0 first=2026-11-14T18:43:42.325Z last=2026-11-14T18:44:27.319Z
+state classes (State, CaptureLiveness, LastStopFailed, fault-named): count, first seen
+  ('idle', None, True, True): 854  first 2026-11-14T18:43:42.325Z
+  ('recording', 'starting', False, False): 87  first 2026-11-14T18:43:43.394Z
+  ('recording', 'growing', False, False): 801  first 2026-11-14T18:43:46.674Z
+  ('finalizing', 'faulted', True, True): 14  first 2026-11-14T18:44:06.666Z
+polls after the recording ended: 823; of them finalizing=14 idle=809
+MISLEADING polls after the recording started: 0

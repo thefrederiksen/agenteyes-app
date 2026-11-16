@@ -1,0 +1,12 @@
+=== /home/soren/Videos/AgentEyes/2026-11-14_134343_video
+files: audio_16k.wav manifest.json raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots thumb.jpg transcript.en.vtt transcript.json transcript.txt walkthrough.html 
+  manifest.DurationSeconds = 18.73
+  manifest.CapturedSeconds = 18.73
+  manifest.CaptureFault = "exited"
+  manifest.CaptureFaultDetail = "the capture process exited (code 137) while recording; raw.mp4 holds 476035 bytes"
+  manifest.CaptureFaultDetectedUtc = "2026-11-14T18:44:06.6595837Z"
+  manifest.CaptureFaultElapsedSeconds = 22
+  manifest.PendingMux = null
+  manifest.PostProcessing = {'mux': 'done', 'thumbnail': 'done', 'package': 'done'}
+  ffprobe recording.mp4: codec_type=video|nb_read_frames=560 codec_type=audio|nb_read_frames=873 duration=18.732683 
+  ffprobe recording.original.mp4: codec_type=video|nb_read_frames=560 codec_type=audio|nb_read_frames=872 duration=18.733334 

@@ -204,6 +204,8 @@ namespace AgentEyes.Video
                 "-r", fps.ToString(CultureInfo.InvariantCulture),
             });
 
+            a.AddRange(FragmentedOutput());   // issue #113: a playable file after an unclean end
+
             a.Add(outPath);
             if (previewStream) a.AddRange(PreviewOutput());
             return a;

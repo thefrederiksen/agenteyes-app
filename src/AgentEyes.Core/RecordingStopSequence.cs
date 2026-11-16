@@ -153,11 +153,14 @@ namespace AgentEyes
         /// <param name="saveManifest">Populate and save the recording's manifest.</param>
         /// <param name="saveRecoveryManifest">Write the reduced recovery record. Called ONLY when
         /// <paramref name="saveManifest"/> failed and raw artifacts exist in the directory.</param>
+        /// <param name="knownFailures">Failures decided before the stop began (issue #113: the capture
+        /// watchdog ended this recording). They lead the report.</param>
         public static RecordingStopReport Run(
             string dir,
             IReadOnlyList<RecordingStopStep> steps,
             Action saveManifest,
-            Action saveRecoveryManifest)
+            Action saveRecoveryManifest,
+            IReadOnlyList<RecordingStopFailure>? knownFailures = null)
         {
             if (string.IsNullOrWhiteSpace(dir)) throw new ArgumentException("a recording directory is required", nameof(dir));
             if (steps == null) throw new ArgumentNullException(nameof(steps));
@@ -165,7 +168,10 @@ namespace AgentEyes
             if (saveRecoveryManifest == null) throw new ArgumentNullException(nameof(saveRecoveryManifest));
 
             Log.Info($"[RecordingStopSequence] Run: dir={dir} steps={steps.Count}");
-            var failures = new List<RecordingStopFailure>();
+            // Failures the caller already knows about before any writer is stopped - the capture
+            // watchdog's verdict (issue #113) - lead the report, so a recording the watchdog ended is
+            // a FAILED stop on /status even when every writer then stops cleanly.
+            var failures = new List<RecordingStopFailure>(knownFailures ?? Array.Empty<RecordingStopFailure>());
 
             StopWriters(dir, steps, failures);
 

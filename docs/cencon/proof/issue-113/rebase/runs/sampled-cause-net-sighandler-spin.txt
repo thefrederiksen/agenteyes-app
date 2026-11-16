@@ -1,0 +1,26 @@
+Issue #113 rebase: why a FROZEN capture blocked the stop before the watchdog's kill.
+sample(1) of the recorder service during the stall, devthrottle-mac-mini, 2026-11-15.
+One thread is at ~100% CPU for the whole stall: .NET's child reaper, spinning on a STOPPED child.
+
+    2111 Thread_6112116: .NET SigHandler
+    + 2111 thread_start  (in libsystem_pthread.dylib) + 8  [0x182afcc1c]
+    +   2111 _pthread_start  (in libsystem_pthread.dylib) + 136  [0x182b01c58]
+    +     2111 SignalHandlerLoop  (in libSystem.Native.dylib) + 356  [0x100d132dc]
+    +       2111 ???  (in <unknown binary>)  [0x1095d5454]
+    +         1061 ???  (in <unknown binary>)  [0x10b10a310]
+    +         ! 1036 ???  (in <unknown binary>)  [0x10aae2e9c]
+    +         ! : 1028 SystemNative_WaitIdAnyExitedNoHangNoWait  (in libSystem.Native.dylib) + 56  [0x100d122a4]
+    +         ! : | 1028 waitid  (in libsystem_kernel.dylib) + 8,4  [0x182acd360,0x182acd35c]
+    +         ! : 6 SystemNative_WaitIdAnyExitedNoHangNoWait  (in libSystem.Native.dylib) + 56,84,...  [0x100d122a4,0x100d122c0,...]
+    +         ! : 2 waitid  (in libsystem_kernel.dylib) + 40  [0x182acd380]
+    +         ! 10 ???  (in <unknown binary>)  [0x10aae2e40]
+    +         ! : 5 JIT_InitPInvokeFrame(InlinedCallFrame*, void*)  (in libcoreclr.dylib) + 52  [0x105fc6110]
+    +         ! : | 3 InlinedCallFrame::Init()  (in libcoreclr.dylib) + 44  [0x105ec01f4]
+    +         ! : | + 3 Frame::PopIfChained()  (in libcoreclr.dylib) + 16  [0x105ebec88]
+    +         ! : | 2 Frame::PopIfChained()  (in libcoreclr.dylib) + 212  [0x105ebed4c]
+    +         ! : 3 JIT_InitPInvokeFrame(InlinedCallFrame*, void*)  (in libcoreclr.dylib) + 32,8  [0x105fc60fc,0x105fc60e4]
+    +         ! : 2 InlinedCallFrame::Init()  (in libcoreclr.dylib) + 76  [0x105ec0214]
+    +         ! 5 ???  (in <unknown binary>)  [0x10aae2edc]
+    +         ! : 5 SystemNative_GetErrNo  (in libSystem.Native.dylib) + 12  [0x100d09fec]
+    +         ! :   4 __error  (in libsystem_kernel.dylib) + 4  [0x182abe61c]
+    +         ! :   1 DYLD-STUB$$__error  (in libSystem.Native.dylib) + 4  [0x100d14b74]

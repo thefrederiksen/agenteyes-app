@@ -1,0 +1,57 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-11-16T20:28:52.4547182Z",
+  "MonitorIndex": 1,
+  "MonitorName": "HDMI-0",
+  "Microphone": "Family 17h (Models 00h-0fh) HD Audio Controller Analog Stereo",
+  "DurationSeconds": 13.23,
+  "VideoFile": "recording.mp4",
+  "FfmpegCommand": "\u0022/usr/bin/ffmpeg\u0022 -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0\u002B0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k <scratch>/ev/main-early10/Videos/AgentEyes/2026-11-16_152852_video/raw.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 0,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 0,
+  "Shots": [],
+  "Files": [
+    "recording.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [],
+  "PendingMux": {
+    "Mode": "video",
+    "Source": "mic",
+    "RawVideo": "raw.mp4",
+    "FinalFile": "recording.mp4",
+    "RawDurationSeconds": 13.23,
+    "Options": {
+      "MicGain": 1,
+      "SystemGain": 0.7,
+      "NoiseSuppression": true,
+      "NoiseGate": false,
+      "GateCalibrated": false,
+      "VoiceLeveling": true,
+      "MicProcessing": true,
+      "GateApplies": false
+    }
+  },
+  "CaptureOwner": {
+    "Host": "devlinux",
+    "Pid": 2109188,
+    "ProcessStartUtc": "2026-11-16T20:28:51.8030223Z"
+  },
+  "PostProcessing": {
+    "mux": {
+      "State": "failed",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T20:29:05.8541331Z",
+      "AttemptedBy": [
+        "attempt 1 at 2026-11-16T20:29:05.8541331Z by AgentEyes.Tests pid 2109188 on devlinux"
+      ],
+      "Error": "could not read the audio channel count of <scratch>/ev/main-early10/Videos/AgentEyes/2026-11-16_152852_video/raw.mp4 (ffprobe said: \u0027\u0027). The mic chain cannot be built without it."
+    }
+  }
+}

@@ -1,0 +1,28 @@
+20:19:39.054Z +   0.00s evidence host pid=2076062
+20:19:39.470Z +   0.42s host.out: [harness] pid=2076062 core=1.11.11+277a9bcf71c7f82547353177299178efc1020327 | [harness] data=<scratch>/ev/main-off30/LocalAppData/AgentEyes | [harness] recordings=<scratch>/ev/main-off30/Videos/AgentEyes | [harness] listening http://127.0.0.1:7991/ | 
+20:19:40.800Z +   1.75s POST /record/start -> 200 {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.12,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "<scratch>/ev/main-off30/Videos/AgentEyes/2026-11-16_151
+20:19:40.801Z +   1.75s /status {"State": "recording", "ElapsedSeconds": 1.13, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastStopError": null}
+20:19:40.850Z +   1.80s dir <scratch>/ev/main-off30/Videos/AgentEyes/2026-11-16_151939_video
+20:19:40.850Z +   1.80s capture writer pid=2076177 parent=2076062 (host 2076062)
+20:19:40.850Z +   1.80s writer cmdline: /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k <scratch>/ev/main-off30/Videos/AgentEyes/2026-11-16_151939_video/raw.mp4
+20:19:50.853Z +  11.80s /status [healthy 1] {"State": "recording", "ElapsedSeconds": 11.18, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastStopError": null}
+20:20:00.856Z +  21.80s /status [healthy 2] {"State": "recording", "ElapsedSeconds": 21.18, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastStopError": null}
+20:20:01.331Z +  22.28s POST /record/stop -> 200 {
+  "Dir": "<scratch>/ev/main-off30/Videos/AgentEyes/2026-11-16_151939_video",
+  "File": "<scratch>/ev/main-off30/Videos/AgentEyes/2026-11-16_151939_video/recording.mp4",
+  "DurationSeconds": 21.19,
+  "Shots": 0
+
+20:20:03.333Z +  24.28s manifest mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:20:01.3455798Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:20:01.3455798Z by AgentEyes.Tests pid 2076062 on devlinux"]}
+20:20:03.349Z +  24.30s /status [final] {"State": "idle", "ElapsedSeconds": 21.19, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": false, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastStopError": null}
+20:20:03.349Z +  24.30s files: {"capture.lock": 0, "manifest.json": 1474, "mux.lock": 0, "raw.mp4.ffmpeg.log": 8359, "recording.mp4": 4579050, "recording.original.mp4": 4496829}
+20:20:03.349Z +  24.30s manifest fields: {"DurationSeconds": 21, "CaptureOwner": {"Host": "devlinux", "Pid": 2076062, "ProcessStartUtc": "2026-11-16T20:19:39.052192Z"}, "PostProcessing": {"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:20:01.3455798Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:20:01.3455798Z by AgentEyes.Tests pid 2076062 on devlinux"]}}}
+20:20:23.765Z +  44.71s evidence host exited 0

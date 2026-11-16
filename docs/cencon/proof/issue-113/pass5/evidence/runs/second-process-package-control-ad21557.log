@@ -1,0 +1,43 @@
+13:46:34.810 [pid 8060] [INFO] [CliDispatcher] Run: args=3 command=package
+13:46:34.828 [pid 8060] [INFO] [CliDispatcher] Dispatch: parsed package options=[no-frames] positionals=1
+13:46:34.842 [pid 8060] [INFO] [CliDispatcher] Dispatch: running package
+13:46:34.850 [pid 8060] [INFO] [MuxCoordinator] RunForPackage: <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video
+13:46:35.030 [pid 8060] [INFO] [MuxLock] TryAcquire: 2026-11-16_134621_video (package) - acquired by pid 8060
+13:46:35.031 [pid 8060] [INFO] [MuxCoordinator] Reconcile: 2026-11-16_134621_video
+13:46:35.038 [pid 8060] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_134621_video stage=mux
+13:46:35.039 [pid 8060] [INFO] [ManifestStore] Update: dir=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video
+13:46:35.090 [pid 8060] [INFO] [ManifestStore] Update: dir=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video written
+13:46:35.110 [pid 8060] [INFO] [MuxLock] TryAcquire: 2026-11-16_134621_video (finalize) - re-entered, depth 2
+13:46:35.112 [pid 8060] [INFO] finalize: begin mux video src=mic dir=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video
+13:46:35.124 [pid 8060] [INFO] [MediaProbe] AudioChannels: <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\raw.mp4
+13:46:35.308 [pid 8060] [INFO] [MediaProbe] AudioChannels: <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\raw.mp4 -> 2
+13:46:35.311 [pid 8060] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\raw.mp4 intermediate=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\audio_processed.wav muxing=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\recording.mp4.muxing.tmp out=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\recording.mp4
+13:46:35.316 [pid 8060] [INFO] ffmpeg [process mic audio (audio)]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='<home>/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\audio_processed.wav
+13:46:35.345 [pid 8060] [INFO] [KillOnCloseJob] Assign: pid 7076 ends when AgentEyes ends
+13:46:35.359 [pid 8060] [INFO] [FfmpegChildRegistry] Register: pid 7076 [process mic audio (audio)] owner pid 8060
+13:46:36.110 [pid 8060] [INFO] [FfmpegChildRegistry] Unregister: pid 7076
+13:46:36.111 [pid 8060] [INFO] ffmpeg [process mic audio (audio)] ok
+13:46:36.113 [pid 8060] [INFO] ffmpeg [process mic audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\raw.mp4 -i <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\recording.mp4.muxing.tmp
+13:46:36.132 [pid 8060] [INFO] [KillOnCloseJob] Assign: pid 14420 ends when AgentEyes ends
+13:46:36.133 [pid 8060] [INFO] [FfmpegChildRegistry] Register: pid 14420 [process mic audio] owner pid 8060
+13:46:37.431 [pid 8060] [INFO] [FfmpegChildRegistry] Unregister: pid 14420
+13:46:37.432 [pid 8060] [INFO] ffmpeg [process mic audio] ok
+13:46:37.435 [pid 8060] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\recording.mp4
+13:46:37.440 [pid 8060] [INFO] [AudioMix] MuxInTwoPasses: process mic audio removed the intermediate processed audio <evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video\audio_processed.wav
+13:46:37.649 [pid 8060] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_134621_video stage=mux error=The process cannot access the file because it is being used by another process.
+13:46:37.649 [pid 8060] [INFO] [ManifestStore] Update: dir=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video
+13:46:37.655 [pid 8060] [INFO] [ManifestStore] Update: dir=<evidence>\control-ad21557-gate-scenario\Videos\AgentEyes\2026-11-16_134621_video written
+13:46:37.656 [pid 8060] [INFO] [MuxLock] Release: 2026-11-16_134621_video - released by pid 8060
+13:46:37.812 [pid 8060] [ERROR] [CliDispatcher] Run FAILED
+13:46:37.812 [pid 8060] [ERROR] System.IO.IOException: The process cannot access the file because it is being used by another process.
+13:46:37.812 [pid 8060] [ERROR]    at System.IO.FileSystem.MoveFile(String sourceFullPath, String destFullPath, Boolean overwrite)
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.OriginalBackup.Preserve(String dir, String mode, AudioSourceKind src) in <scratch>\wt-ad21557\src\AgentEyes.Core\OriginalBackup.cs:line 72
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.RecordingService.PublishFinalized(String dir, PendingMuxInfo p, AudioSourceKind src, Double elapsed) in <scratch>\wt-ad21557\src\AgentEyes.Core\RecordingService.cs:line 1329
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.RecordingService.FinalizePending(String dir) in <scratch>\wt-ad21557\src\AgentEyes.Core\RecordingService.cs:line 1274
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.MuxCoordinator.RunForPackage(String dir) in <scratch>\wt-ad21557\src\AgentEyes.Core\MuxCoordinator.cs:line 143
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in <scratch>\wt-ad21557\src\AgentEyes.Core\Package.cs:line 118
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.Package.Run(String path, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in <scratch>\wt-ad21557\src\AgentEyes.Core\Package.cs:line 46
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.Commands.Package(CliArgs opts) in <scratch>\wt-ad21557\src\AgentEyes.Core\Commands.cs:line 657
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.CliDispatcher.Dispatch(IReadOnlyList`1 args, TextWriter stdout, TextWriter stderr, IReadOnlyList`1 commands) in <scratch>\wt-ad21557\src\AgentEyes.Core\CliDispatcher.cs:line 164
+13:46:37.812 [pid 8060] [ERROR]    at AgentEyes.CliDispatcher.Run(IReadOnlyList`1 args, TextWriter stdout, TextWriter stderr, IReadOnlyList`1 commands) in <scratch>\wt-ad21557\src\AgentEyes.Core\CliDispatcher.cs:line 38
+13:46:37.813 [pid 8060] [INFO] [CliDispatcher] Run: exit=3

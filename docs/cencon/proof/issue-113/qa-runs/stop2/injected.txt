@@ -1,0 +1,1 @@
+[2026-11-14T17:41:26.717Z] injected SIGSTOP into 2666753

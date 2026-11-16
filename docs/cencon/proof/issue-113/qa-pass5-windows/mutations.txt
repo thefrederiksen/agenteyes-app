@@ -1,0 +1,22 @@
+[QA-M1 silent read catch (no CheckFailed, no publish, no re-arm)] ['Failed!  - Failed:     2, Passed:    38, Skipped:     0, Total:    40, Duration: 1 s - AgentEyes.Tests.dll (net8.0)']
+    FAILED TEST: AgentEyes.Tests.Shared.WatchdogFailOpenTests.Tick_SizeReadKeepsThrowing_EndsTheRecordingInsideTheStallWindow_NamingTheError
+    FAILED TEST: AgentEyes.Tests.Shared.WatchdogFailOpenTests.Tick_SizeReadThrowsOnce_ReArmsAndStatusSaysCheckFailed_ThenRecovers
+[QA-M2 outer catch only logs (no re-arm)] ['Failed!  - Failed:     1, Passed:    39, Skipped:     0, Total:    40, Duration: 1 s - AgentEyes.Tests.dll (net8.0)']
+    FAILED TEST: AgentEyes.Tests.Shared.WatchdogFailOpenTests.Tick_ThrowsOutsideTheRead_StatusSaysWatchdogFailed_AndItKeepsWatching
+[QA-M3 failed check ignores the exit code] ['Failed!  - Failed:     1, Passed:    39, Skipped:     0, Total:    40, Duration: 1 s - AgentEyes.Tests.dll (net8.0)']
+    FAILED TEST: AgentEyes.Tests.Shared.CaptureWatchdogTests.CheckFailed_ProcessHasExited_FiresExitedAtOnce_NotAStallLater
+[QA-N1 NEUTRAL: CheckFailed log wording only] ['Passed!  - Failed:     0, Passed:    40, Skipped:     0, Total:    40, Duration: 939 ms - AgentEyes.Tests.dll (net8.0)']
+git status src after restore: 'M src/AgentEyes.Core/RecordingService.cs\n M src/AgentEyes.Core/Video/CaptureWatchdog.cs'
+[BASELINE after restore] ['Passed!  - Failed:     0, Passed:    40, Skipped:     0, Total:    40, Duration: 1 s - AgentEyes.Tests.dll (net8.0)']
+[BASELINE with ffmpeg tests on] []
+[QA-M4 delay_moov removed] []
+restored identical bytes: True
+[BASELINE after restore] []
+[BASELINE with ffmpeg tests on] []
+[QA-M4 delay_moov removed] []
+restored identical bytes: True
+[BASELINE after restore] []
+[BASELINE with ffmpeg tests on] ['Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 589 ms - AgentEyes.Tests.dll (net8.0)']
+[QA-M4 delay_moov removed] ['Failed!  - Failed:     2, Passed:     0, Skipped:     0, Total:     2, Duration: 516 ms - AgentEyes.Tests.dll (net8.0)']
+restored identical bytes: True
+[BASELINE after restore] ['Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 928 ms - AgentEyes.Tests.dll (net8.0)']

@@ -1,0 +1,14 @@
+=== 2026-11-16_151849_video/recording.original.mp4  size=5825014
+    video start_time=0.000000 duration=21.200000 counted_frames=106
+    audio start_time=0.000000 duration=20.934958 counted_frames=979
+    format=mov,mp4,m4a,3gp,3g2,mj2 duration=21.200000
+    full decode: exit=0 error_lines=0
+    last-second frame: exit=0 png_bytes=4093344
+    video packet pts: first=0.000 last=21.000 count=106
+=== 2026-11-16_151849_video/recording.mp4  size=5904984
+    video start_time=0.000000 duration=21.200000 counted_frames=106
+    audio start_time=0.000000 duration=20.890000 counted_frames=980
+    format=mov,mp4,m4a,3gp,3g2,mj2 duration=21.200000
+    full decode: exit=0 error_lines=0
+    last-second frame: exit=0 png_bytes=4093344
+    video packet pts: first=0.000 last=21.000 count=106

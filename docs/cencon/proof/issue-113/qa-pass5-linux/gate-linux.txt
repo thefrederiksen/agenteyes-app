@@ -1,0 +1,7 @@
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+Time Elapsed 00:00:01.36
+  Skipped AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [1 ms]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+Passed!  - Failed:     0, Passed:   472, Skipped:     2, Total:   474, Duration: 4 s - AgentEyes.Tests.Linux.dll (net8.0)

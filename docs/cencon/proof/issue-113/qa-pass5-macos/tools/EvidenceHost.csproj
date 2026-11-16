@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- QA #113 macOS evidence host. NOT product code. Named AgentEyes.Tests only for InternalsVisibleTo. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable>
+    <AssemblyName>AgentEyes.Tests</AssemblyName><RootNamespace>EvidenceHost</RootNamespace><ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="$(CoreProj)" /></ItemGroup>
+</Project>

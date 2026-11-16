@@ -1,0 +1,41 @@
+# MAIN CONTROL (no watchdog) dll 0446dd56 service_pid=32386
+# UTC start 2026-11-15T18:20:45Z load 3.13 3.01 3.31
+# dir /Users/soren/Movies/AgentEyes/2026-11-15_132045_video
+# screen ffmpeg pid 32520
+# raw.mp4 before inject: 11272240 bytes
+# INJECTED SIGSTOP on 32520 at +20.0s UTC 18:21:07Z
+T inj+   0.0s State=recording  Elapsed=21.17    Level=0       raw=11272240   child=T svc_cpu=0.0 Liveness=None Fault=None
+T inj+   5.0s State=recording  Elapsed=26.19    Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+  10.1s State=recording  Elapsed=31.21    Level=0       raw=11272240   child=T svc_cpu=99.0 Liveness=None Fault=None
+T inj+  15.1s State=recording  Elapsed=36.24    Level=0       raw=11272240   child=T svc_cpu=99.3 Liveness=None Fault=None
+T inj+  20.1s State=recording  Elapsed=41.27    Level=0       raw=11272240   child=T svc_cpu=99.0 Liveness=None Fault=None
+T inj+  25.1s State=recording  Elapsed=46.28    Level=0       raw=11272240   child=T svc_cpu=99.0 Liveness=None Fault=None
+T inj+  30.1s State=recording  Elapsed=51.31    Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+  35.2s State=recording  Elapsed=56.33    Level=0       raw=11272240   child=T svc_cpu=99.1 Liveness=None Fault=None
+T inj+  40.2s State=recording  Elapsed=61.35    Level=0       raw=11272240   child=T svc_cpu=99.4 Liveness=None Fault=None
+T inj+  45.2s State=recording  Elapsed=66.38    Level=0       raw=11272240   child=T svc_cpu=99.0 Liveness=None Fault=None
+T inj+  50.2s State=recording  Elapsed=71.4     Level=0       raw=11272240   child=T svc_cpu=99.0 Liveness=None Fault=None
+T inj+  55.3s State=recording  Elapsed=76.42    Level=0       raw=11272240   child=T svc_cpu=99.4 Liveness=None Fault=None
+T inj+  60.3s State=recording  Elapsed=81.45    Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+  65.3s State=recording  Elapsed=86.47    Level=0       raw=11272240   child=T svc_cpu=102.9 Liveness=None Fault=None
+T inj+  70.3s State=recording  Elapsed=91.49    Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+  75.4s State=recording  Elapsed=96.52    Level=0       raw=11272240   child=T svc_cpu=99.0 Liveness=None Fault=None
+T inj+  80.4s State=recording  Elapsed=101.54   Level=0       raw=11272240   child=T svc_cpu=99.0 Liveness=None Fault=None
+T inj+  85.4s State=recording  Elapsed=106.57   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+  90.4s State=recording  Elapsed=111.6    Level=0       raw=11272240   child=T svc_cpu=99.1 Liveness=None Fault=None
+T inj+  95.5s State=recording  Elapsed=116.61   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+ 100.5s State=recording  Elapsed=121.63   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+ 105.5s State=recording  Elapsed=126.66   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+ 110.5s State=recording  Elapsed=131.69   Level=0       raw=11272240   child=T svc_cpu=100.2 Liveness=None Fault=None
+T inj+ 115.6s State=recording  Elapsed=136.71   Level=0       raw=11272240   child=T svc_cpu=99.4 Liveness=None Fault=None
+T inj+ 120.6s State=recording  Elapsed=141.74   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+ 125.6s State=recording  Elapsed=146.77   Level=0       raw=11272240   child=T svc_cpu=99.7 Liveness=None Fault=None
+T inj+ 130.6s State=recording  Elapsed=151.79   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+ 135.6s State=recording  Elapsed=156.81   Level=0       raw=11272240   child=T svc_cpu=99.1 Liveness=None Fault=None
+T inj+ 140.7s State=recording  Elapsed=161.84   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+T inj+ 145.7s State=recording  Elapsed=166.86   Level=0       raw=11272240   child=T svc_cpu=100.0 Liveness=None Fault=None
+# after 150s: State=recording - main has no watchdog, so this is issue #113's ORIGINAL defect
+# cleaning up: killing the child I stopped
+# still not idle; issuing /record/stop
+{'Dir': '/Users/soren/Movies/AgentEyes/2026-11-15_132045_video', 'File': '/Users/soren/Movies/AgentEyes/2026-11-15_132045_video/recording.mp4', 'DurationSeconds': 232.45, 'Shots': 0}
+# UTC end 2026-11-15T18:24:38Z

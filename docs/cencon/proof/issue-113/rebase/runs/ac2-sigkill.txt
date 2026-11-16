@@ -1,0 +1,24 @@
+== issue #113 rebase re-verification, mode=KILL ==
+start requested 2026-11-15T17:26:10.962Z
+start response: {"State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 1.27, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_122611_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 51, "LastStopFailed": false, "LastStopError": null, "LastStopDir": null, "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastCaptureFaultDir": null}
+2026-11-15T17:26:12.543Z State=recording Elapsed=1.28 Level=0 Liveness=starting Bytes=0 LastGrowth=None SinceGrowth=None LastStopFailed=False Fault=None 
+2026-11-15T17:26:14.554Z State=recording Elapsed=3.29 Level=0 Liveness=growing Bytes=761 LastGrowth=2026-11-15T17:26:14.541518Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:16.565Z State=recording Elapsed=5.3 Level=0 Liveness=growing Bytes=1284303 LastGrowth=2026-11-15T17:26:16.542287Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:18.580Z State=recording Elapsed=7.31 Level=0 Liveness=growing Bytes=2480845 LastGrowth=2026-11-15T17:26:18.543501Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:20.586Z State=recording Elapsed=9.32 Level=0 Liveness=growing Bytes=3668072 LastGrowth=2026-11-15T17:26:20.544745Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:22.602Z State=recording Elapsed=11.34 Level=0 Liveness=growing Bytes=5057244 LastGrowth=2026-11-15T17:26:22.546886Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:24.611Z State=recording Elapsed=13.35 Level=0 Liveness=growing Bytes=6391513 LastGrowth=2026-11-15T17:26:24.549047Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:26.625Z State=recording Elapsed=15.36 Level=0 Liveness=growing Bytes=7588448 LastGrowth=2026-11-15T17:26:26.551169Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:28.640Z State=recording Elapsed=17.37 Level=0 Liveness=growing Bytes=8783040 LastGrowth=2026-11-15T17:26:28.553358Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:30.655Z State=recording Elapsed=19.39 Level=0 Liveness=growing Bytes=10187198 LastGrowth=2026-11-15T17:26:30.554508Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:32.670Z State=recording Elapsed=21.41 Level=0 Liveness=growing Bytes=11531069 LastGrowth=2026-11-15T17:26:32.556609Z SinceGrowth=0 LastStopFailed=False Fault=None 
+ffmpeg children matching raw.mp4: ['9769']
+INJECTED -KILL on pid 9769 at 2026-11-15T17:26:32.692Z
+2026-11-15T17:26:32.697Z State=recording Elapsed=21.44 Level=0 Liveness=growing Bytes=11531069 LastGrowth=2026-11-15T17:26:32.556609Z SinceGrowth=0 LastStopFailed=False Fault=None 
+2026-11-15T17:26:34.824Z State=finalizing Elapsed=23.29 Level=0 Liveness=faulted Bytes=11531069 LastGrowth=2026-11-15T17:26:32.556609Z SinceGrowth=2 LastStopFailed=True Fault='capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11531069 bytes'   <-- FIRST NOT-RECORDING POLL, 2.16s after injection
+2026-11-15T17:26:35.115Z State=idle Elapsed=23.29 Level=0 Liveness=None Bytes=None LastGrowth=None SinceGrowth=None LastStopFailed=True Fault='capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11531069 bytes'   <-- IDLE
+RESULT: named not-recording 2.16s after the injection (at 2026-11-15T17:26:34.824Z)
+RESULT fault text: 'capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11531069 bytes'
+2026-11-15T17:26:37.121Z State=idle Elapsed=23.29 Level=0 Liveness=None Bytes=None LastGrowth=None SinceGrowth=None LastStopFailed=True Fault='capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 11531069 bytes'   <-- FINAL
+recording dir: None
+polls written: final-ac2/polls.json

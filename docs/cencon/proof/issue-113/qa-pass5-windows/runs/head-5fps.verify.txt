@@ -1,0 +1,12 @@
+=== 2026-11-16_150117_video/recording.original.mp4  size=904538
+    video start_time=0.000000 duration=42.800000 counted_frames=210
+    audio start_time=0.000000 duration=37.863220 counted_frames=1630
+    format duration=42.800000
+    full decode: exit=0 error_lines=0
+    last-second frame: exit=0 png_bytes=961646
+=== 2026-11-16_150117_video/recording.mp4  size=1050026
+    video start_time=0.000000 duration=42.400000 counted_frames=210
+    audio start_time=0.000000 duration=37.850000 counted_frames=1775
+    format duration=42.400000
+    full decode: exit=0 error_lines=0
+    last-second frame: exit=0 png_bytes=961646

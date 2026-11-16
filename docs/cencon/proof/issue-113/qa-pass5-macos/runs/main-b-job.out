@@ -1,0 +1,9 @@
+[hook] pid=74253 exe=~/Library/Application Support/AgentEyes/bin/agenteyes screenGrant=True
+[hook] loaded AgentEyes.Tests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null from <scratch>/out/main/AgentEyes.Tests.dll
+[harness] pid=74253 core=1.11.11+277a9bcf71c7f82547353177299178efc1020327 coreLocation=<scratch>/out/main/agenteyes.dll
+[harness] data=<scratch>/runs/main-b/root/LocalAppData/AgentEyes
+[harness] recordings=<scratch>/runs/main-b/root/Videos/AgentEyes
+[harness] listening http://127.0.0.1:7917/
+[harness] stop file seen
+[harness] exiting
+[hook] Environment.Exit(0) - the installed Main is never reached

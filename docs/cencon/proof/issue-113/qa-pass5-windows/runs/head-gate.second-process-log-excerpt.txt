@@ -1,0 +1,5 @@
+14:50:39.583 [pid 21180] [INFO] [CliDispatcher] Run: args=3 command=package
+14:50:39.597 [pid 21180] [INFO] [CliDispatcher] Dispatch: parsed package options=[no-frames] positionals=1
+14:50:39.602 [pid 21180] [INFO] [CliDispatcher] Dispatch: running package
+14:50:39.783 [pid 21180] [INFO] [CaptureLock] ThrowIfLive DECLINED: refusing to package 2026-11-16_145021_video: it is being captured by the capture session of pid 22568 on host <laptop> (started 2026-11-16T19:50:21.6217645Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+14:50:39.784 [pid 21180] [WARN] [CliDispatcher] Run: usage error: refusing to package 2026-11-16_145021_video: it is being captured by the capture session of pid 22568 on host <laptop> (started 2026-11-16T19:50:21.6217645Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.

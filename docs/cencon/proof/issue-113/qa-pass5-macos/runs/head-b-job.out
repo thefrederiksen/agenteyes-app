@@ -1,0 +1,18 @@
+[hook] pid=71634 exe=~/Library/Application Support/AgentEyes/bin/agenteyes screenGrant=True
+[hook] loaded AgentEyes.Tests, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null from <scratch>/out/head/AgentEyes.Tests.dll
+[harness] pid=71634 core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9 coreLocation=<scratch>/out/head/agenteyes.dll
+[harness] data=<scratch>/runs/head-b/root/LocalAppData/AgentEyes
+[harness] recordings=<scratch>/runs/head-b/root/Videos/AgentEyes
+[harness] listening http://127.0.0.1:7916/
+  2 frame(s) served on demand (none written to disk)
+  transcribing (DevThrottle, whisper-large-v3) ...
+  transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+  11 frame(s) served on demand (none written to disk)
+  transcribing (DevThrottle, whisper-large-v3) ...
+  transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+  4 frame(s) served on demand (none written to disk)
+  transcribing (DevThrottle, whisper-large-v3) ...
+  transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+[harness] stop file seen
+[harness] exiting
+[hook] Environment.Exit(0) - the installed Main is never reached

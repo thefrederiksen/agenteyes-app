@@ -41,6 +41,10 @@
     <!-- Issue #122: pure argument-parsing tests shared by all three suites (Windows, Linux, macOS),
          compiled from ONE source file so every platform's build of the CLI passes the same ones. -->
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
+    <!-- Issue #113: the platform-neutral capture watchdog, tested once for all three platforms. -->
+    <Compile Include="..\Shared\CaptureWatchdogTests.cs" Link="Shared\CaptureWatchdogTests.cs" />
+    <Compile Include="..\Shared\CaptureWatchdogWiringTests.cs" Link="Shared\CaptureWatchdogWiringTests.cs" />
+    <Compile Include="..\Shared\RecordingStopOrderTests.cs" Link="Shared\RecordingStopOrderTests.cs" />
     <!-- Issue #116: the desktop app's quit-path tests, shared with AgentEyes.Tests.DesktopApp (Windows gate). -->
     <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
     <!-- Issue #118: the macOS bundle's committed inputs (Info.plist, AgentEyes.icns) and the app name. -->

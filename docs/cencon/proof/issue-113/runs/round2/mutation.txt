@@ -1,0 +1,76 @@
+=== F-behind-never-recorded
+    Failed!  - Failed:     2, Passed:   300, Skipped:     0, Total:   302, Duration: 710 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.BehindAtStop_JustPastTheTolerance_IsAFault
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.BehindAtStop_TheEvidenceRecording_IsRecordedAsBehind
+=== A-watchdog-never-fires
+    Failed!  - Failed:    14, Passed:   288, Skipped:     0, Total:   302, Duration: 20 s - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Exited_ProcessEnds_FiresAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Fault_IsFinal_GrowthAfterTheDecisionDoesNotClearIt
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_AnEmptyFileIsNotOutput
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_NoOutputPastTheStartupWindow_Fires
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_GrowthStops_FiresStalledInsideTheWindow
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== B-no-fragmented-output
+    Failed!  - Failed:     3, Passed:   299, Skipped:     0, Total:   302, Duration: 863 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Linux.LinuxFfmpegArgsTests.X11VideoCapture_ScreenAndMic_ExactCommandLine
+    FAILED AgentEyes.Tests.Linux.LinuxFfmpegArgsTests.X11VideoCapture_WithPreview_FragmentsTheRecordingNotThePreview
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.FragmentedOutput_IsOnTheWindowsCaptureImmediatelyBeforeTheOutputPath
+=== C-gaps-counted-as-stalls
+    Failed!  - Failed:     2, Passed:   300, Skipped:     0, Total:   302, Duration: 830 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_LongPauseBetweenChecks_IsNotCountedAsAStall
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+=== D-no-startup-window
+    Failed!  - Failed:     4, Passed:   298, Skipped:     0, Total:   302, Duration: 784 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Healthy_FileGrowsOnlyEveryFortySeconds_NeverFaults
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_NoOutputPastTheStartupWindow_Fires
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Startup_NoBytesYet_InsideTheWindow_DoesNotFireAndReportsStarting
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Startup_SlowFirstOutputThenGrowth_DoesNotFire
+=== E-stall-ignores-timeout
+    Failed!  - Failed:     8, Passed:   294, Skipped:     0, Total:   302, Duration: 20 s - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_GrowthStops_FiresStalledInsideTheWindow
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== W-startvideo-never-starts-the-watchdog
+    Failed!  - Failed:     7, Passed:   295, Skipped:     0, Total:   302, Duration: 736 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.StartVideo_StartsTheWatchdog_OnTheCaptureFile
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_TakesTheWatchdogDownBeforeTheWritersStop
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== P-verdict-published-only-after-the-stop
+    Failed!  - Failed:     2, Passed:   300, Skipped:     0, Total:   302, Duration: 840 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+=== K-abandon-drains-and-quits
+    Failed!  - Failed:     1, Passed:   301, Skipped:     0, Total:   302, Duration: 13 s - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.RecorderAbandonTests.Abandon_OnAProcessThatIgnoresTheQuit_KillsItWithinTheAbandonBound
+=== O-watchdog-down-after-the-writers
+    Failed!  - Failed:     1, Passed:   301, Skipped:     0, Total:   302, Duration: 763 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_TakesTheWatchdogDownBeforeTheWritersStop
+=== V-verdict-not-in-the-stop-report
+    Failed!  - Failed:     3, Passed:   299, Skipped:     0, Total:   302, Duration: 784 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+=== G-stop-after-the-verdict-takes-16s
+    Failed!  - Failed:     4, Passed:   298, Skipped:     0, Total:   302, Duration: 704 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Defaults_StallPlusOneCheckPlusTheStop_FitInsideTheSixtySecondWindow
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999)
+=== restored: Passed!  - Failed:     0, Passed:   302, Skipped:     0, Total:   302, Duration: 814 ms - AgentEyes.Tests.Linux.dll (net8.0)

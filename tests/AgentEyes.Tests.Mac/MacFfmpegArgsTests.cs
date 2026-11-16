@@ -28,8 +28,19 @@ namespace AgentEyes.Tests.Mac
                 // The output's declared rate. Without it the mp4 carried "1000k fps, 1000k tbn",
                 // which x264 sized the file's level from (issue #114).
                 "-r", "30",
+                // Issue #113: fragmented, flushed MP4 - playable after an unclean end.
+                "-movflags", "+frag_keyframe+empty_moov+default_base_moof+delay_moov", "-frag_duration", "2000000",
+                "-flush_packets", "1",
                 "/r/raw.mp4",
             }, args);
+        }
+
+        [Fact]
+        public void AvfVideoCapture_WithPreview_FragmentsTheRecordingNotThePreview()
+        {
+            // Issue #113: the fragment options bind to the MP4 output, which the preview output follows.
+            var args = FfmpegArgs.AvfVideoCapture(FullScreen, 0, Screen, 30, 23, "/r/raw.mp4", previewStream: true);
+            AgentEyes.Tests.Shared.CaptureWatchdogTests.AssertFragmentedBefore(args, "/r/raw.mp4");
         }
 
         [Fact]

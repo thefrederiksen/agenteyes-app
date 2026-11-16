@@ -1,0 +1,32 @@
+15:03:19.883 [pid 14076] [INFO] [CaptureLock] TryAcquire: 2026-11-16_150319_video for capture session
+15:03:19.888 [pid 14076] [INFO] [CaptureLock] ReadOrCreateHostId: created <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\LocalAppData\AgentEyes\host-id
+15:03:19.921 [pid 14076] [INFO] [CaptureLock] TryAcquire: 2026-11-16_150319_video claimed by capture session of pid 14076 on host <laptop> (started 2026-11-16T20:03:19.9005464Z)
+15:03:19.923 [pid 14076] [INFO] [RecordingWorkset] Attach: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video#1 now carries CaptureLock
+15:03:19.924 [pid 14076] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_150319_video - pid 14076 on <laptop> (process started 2026-11-16T20:03:18.6087731Z)
+15:03:20.428 [pid 14076] [INFO] [CaptureLock] NoteWriter: 2026-11-16_150319_video video pid 11680
+15:03:20.441 [pid 14076] [INFO] [CaptureLock] NoteWriter: 2026-11-16_150319_video video pid 11680 recorded (started 2026-11-16T20:03:19.9859547Z)
+15:03:20.894 [pid 14076] [INFO] [RecordingService] StartWatchdog: watching <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+15:03:22.903 [pid 14076] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=3.0s (detected 2026-11-16T20:03:22.901Z) dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 0 bytes - ending the recording now and keeping what was captured
+15:03:22.903 [pid 14076] [INFO] [PostRecording] TrackWork: capture fault <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video (in flight=1)
+15:03:22.905 [pid 14076] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+15:03:22.907 [pid 14076] [WARN] [FfmpegRecorder] Abandon: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video\raw.mp4 - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 0 bytes - killing the capture process now
+15:03:22.910 [pid 14076] [INFO] [FfmpegRecorder] Abandon: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video\raw.mp4 ended in 1ms (had already exited, exit 137, last reported position 0.00s)
+15:03:23.064 [pid 14076] [INFO] [CaptureLock] Release: 2026-11-16_150319_video released by pid 14076
+15:03:23.064 [pid 14076] [INFO] [RecordingWorkset] Release: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video - attached CaptureLock released
+15:03:23.069 [pid 14076] [INFO] [PostRecording] Run: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video hostedWork=True
+15:03:23.070 [pid 14076] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_150319_video (in flight=2)
+15:03:23.074 [pid 14076] [INFO] [PostRecording] Execute: 2026-11-16_150319_video - capture claim: no capture holds it
+15:03:23.075 [pid 14076] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_150319_video (post-recording) - no owner record; nothing to clear
+15:03:23.083 [pid 14076] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_150319_video stage=mux by=AgentEyes.Tests pid 14076 on <laptop>
+15:03:23.090 [pid 14076] [INFO] [PostRecording] stage mux: start dir=2026-11-16_150319_video
+15:03:23.107 [pid 14076] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_150319_video (finalize) - no capture holds it
+15:03:23.107 [pid 14076] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_150319_video (finalize) - no owner record; nothing to clear
+15:03:23.197 [pid 14076] [ERROR] [PostRecording] stage mux FAILED: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video
+15:03:23.197 [pid 14076] [ERROR]    at AgentEyes.RecordingService.FinalizePending(String dir) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\RecordingService.cs:line 1294
+15:03:23.197 [pid 14076] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 518
+15:03:23.198 [pid 14076] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_150319_video stage=mux error=could not read the audio channel count of <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+15:03:23.203 [pid 14076] [INFO] [PostRecording] Execute: 2026-11-16_150319_video - the mux failed; the thumbnail and packaging stages need the final media file, so they stay outstanding for the next recovery pass
+15:03:23.204 [pid 14076] [INFO] [PostRecording] Run: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video done
+15:03:23.206 [pid 14076] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_150319_video
+15:03:23.207 [pid 14076] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_150319_video (in flight=1)
+15:03:23.207 [pid 14076] [INFO] [PostRecording] TrackWork released: capture fault <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150319_video (in flight=0)

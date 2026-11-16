@@ -1,0 +1,10 @@
+=== 2026-11-16_150439_video/recording.original.mp4  size=1241
+    video start_time=None duration=0.000000 counted_frames=None
+    audio start_time=None duration=0.000000 counted_frames=None
+    format duration=None
+    full decode: exit=3199971767 error_lines=7 first='[vf#0:0 @ 00000230fc64cf80] Cannot determine format of input 0:0 after EOF'
+    last-second frame: exit=3199971767 png_bytes=0
+=== 2026-11-16_150439_video/recording.mp4  size=262
+    format duration=None
+    full decode: exit=4294967274 error_lines=3 first='[out#0/null @ 000002984cd40a40] Output file does not contain any stream'
+    last-second frame: exit=4294967274 png_bytes=0

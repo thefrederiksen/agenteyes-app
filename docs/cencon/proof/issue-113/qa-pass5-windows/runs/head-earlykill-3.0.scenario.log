@@ -1,0 +1,32 @@
+20:04:11.319Z +    0.0s host pid=15732 exe=<home>\AppData\Local\Temp\qa113\bin-head\AgentEyes.Tests.exe
+20:04:11.975Z +    0.7s host stdout: [harness] pid=15732 core=1.11.11+2716e0f884084f6993ad4a1e4ac7dca3c6708d03 | [harness] data=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\LocalAppData\AgentEyes | [harness] recordings=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes | [harness] listening http://127.0.0.1:7990/ | 
+20:04:13.294Z +    2.0s POST /record/start fps=30 -> 200 {
+
+  "State": "recording",
+
+  "Mode": "video",
+
+  "Source": "mic",
+
+  "ElapsedSeconds": 0.91,
+
+  "Level": 0,
+
+  "MicLevel": 0,
+
+  "SystemLevel": 0,
+
+  "Dir": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-earlykill-3.0\\host\\Videos\\AgentEyes\\2026-11-16_150412_video",
+
+  "Camera
+20:04:15.443Z +    4.1s INJECT (MINE): TerminateProcess(ffmpeg pid 19200, child of my host 15732) at ffmpeg age 3.00s (found at age 0.86s) -> 1; raw.mp4 size just before=247594
+20:04:15.443Z +    4.1s capture ffmpeg command line: <home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe -hide_banner -y -f gdigrab -thread_queue_size 1024 -framerate 30 -offset_x 0 -offset_y 0 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i audio=Microphone (2- Realtek(R) Audio) -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\raw.mp4
+20:04:16.444Z +    5.1s raw.mp4 size 1s after kill = 247594
+20:04:16.472Z +    5.2s /status [after kill 0] State=recording CaptureLiveness=growing CaptureBytes=247594 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+20:04:18.492Z +    7.2s /status [after kill 1] State=idle CaptureLiveness=None CaptureBytes=None CaptureSecondsSinceGrowth=None LastStopFailed=True LastCaptureFault=capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 247594 bytes
+20:04:18.493Z +    7.2s dir [after kill] audio_16k.wav=37624, capture.lock=0, manifest.json=2369, mux.lock=0, raw.mp4.ffmpeg.log=2794, recording.mp4=253371, recording.original.mp4=247594, thumb.jpg=27054
+20:04:18.493Z +    7.2s mux State=done after 0.0s
+20:04:18.493Z +    7.2s manifest [final] PendingMux=null PostProcessing={"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:04:17.4805572Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:04:17.4805572Z by AgentEyes.Tests pid 15732 on <laptop>"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:04:18.2120343Z"}, "package": {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:04:18.3949328Z", "Error": "Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in."}} CaptureFault=exited CaptureFaultDetectedUtc=2026-11-16T20:04:17.2671487Z CapturedSeconds=2 DurationSeconds=1.63
+20:04:18.494Z +    7.2s dir [final] audio_16k.wav=37624, capture.lock=0, manifest.json=2369, mux.lock=0, raw.mp4.ffmpeg.log=2794, recording.mp4=253371, recording.original.mp4=247594, thumb.jpg=27054
+20:04:38.603Z +   27.3s host exit=0
+20:04:38.604Z +   27.3s app logs: AgentEyes-20261116.log

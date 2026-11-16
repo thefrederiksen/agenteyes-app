@@ -242,12 +242,27 @@ namespace AgentEyes.Tests
                 "public void StartVideo(");
 
             Assert.Contains("StartSession(steps)", body, StringComparison.Ordinal);
-            foreach (string writerStart in new[] { "FfmpegRecorder.Start(", "_loop.Start(", "_audio.StartMonitor(" })
+            // Issue #113, round two: the screen writer is started through the capture seam,
+            // _seams.StartScreen(, whose production default is FfmpegRecorder.Start (asserted below).
+            // The needle follows the call the method actually makes, and must still be found.
+            foreach (string writerStart in new[] { "_seams.StartScreen(", "_loop.Start(", "_audio.StartMonitor(" })
             {
                 Assert.True(EveryOccurrenceIsAStartStep(body, writerStart),
                     $"StartVideo calls {writerStart} outside a RecordingStartStep: it would run before the "
                     + "manifest reaches disk, and outside the rollback that stops writers already started");
             }
+
+            // The old spelling stays watched: a direct FfmpegRecorder.Start( added back to StartVideo,
+            // bypassing the seam, must still be inside a step.
+            Assert.True(NoOccurrenceOutsideAStartStep(body, "FfmpegRecorder.Start("),
+                "StartVideo calls FfmpegRecorder.Start( outside a RecordingStartStep: it would run before the "
+                + "manifest reaches disk, and outside the rollback that stops writers already started");
+
+            // And the seam needle only stands for the screen writer while the seam's production default
+            // IS the screen writer.
+            string seams = RepoSource.Read("src/AgentEyes.Core/RecordingServiceSeams.cs");
+            Assert.Contains("FfmpegRecorder.Start(capture, mic, fps, crf, outPath, preview, screenNumber)",
+                            seams, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -322,6 +337,24 @@ namespace AgentEyes.Tests
                 if (!steps.Any(r => i > r.Start && i < r.End)) return false;
             }
             return found;   // an occurrence that vanished entirely is a finding, not a pass
+        }
+
+        /// <summary>
+        /// True when no occurrence of <paramref name="needle"/> lies outside a <c>new RecordingStartStep(...)</c>.
+        /// Unlike <see cref="EveryOccurrenceIsAStartStep"/>, zero occurrences is allowed - so this is
+        /// only ever used ALONGSIDE a needle that must be found, never as a guard on its own.
+        /// </summary>
+        private static bool NoOccurrenceOutsideAStartStep(string body, string needle)
+        {
+            var steps = StartStepRanges(body).ToList();
+            Assert.NotEmpty(steps);   // instrument check: no steps at all means this proves nothing
+
+            for (int i = body.IndexOf(needle, StringComparison.Ordinal); i >= 0;
+                 i = body.IndexOf(needle, i + 1, StringComparison.Ordinal))
+            {
+                if (!steps.Any(r => i > r.Start && i < r.End)) return false;
+            }
+            return true;
         }
 
         private static IEnumerable<(int Start, int End)> StartStepRanges(string body)

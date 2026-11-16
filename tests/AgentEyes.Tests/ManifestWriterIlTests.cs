@@ -265,6 +265,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::ReapOrphans -> System.IO.File::Delete x7",  // run\ffmpeg\<pid>.json records of reaped/exited children (issue #128): unreadable, exited, killed, and the four capture-writer outcomes (issue #156 pass 2, D1)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::WriteRecord -> System.IO.File::WriteAllText x1",// run\ffmpeg\<pid>.json: a running post-processing child (issue #128), or a capture writer (issue #156)
             "agenteyes.dll!AgentEyes.Video.FfmpegChildRegistry::Unregister -> System.IO.File::Delete x1",   // run\ffmpeg\<pid>.json of a child that exited (issue #128)
+            "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Abandon -> System.IO.File::WriteAllText x1",      // the ffmpeg stderr log of a capture the watchdog killed (issue #113); the same file Stop writes, never the manifest
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Start -> System.IO.File::WriteAllText x1",        // the ffmpeg stderr log of a failed start
             "agenteyes.dll!AgentEyes.Video.FfmpegRecorder::Stop -> System.IO.File::WriteAllText x1",         // the ffmpeg stderr log
             "agenteyes.dll!AgentEyes.VideoImport::RunAsync -> System.IO.File::Copy x1",                      // the imported video file

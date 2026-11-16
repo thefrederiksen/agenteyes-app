@@ -1,0 +1,50 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-11-16T20:00:09.6648162Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "Microphone (2- Realtek(R) Audio)",
+  "DurationSeconds": 43.2,
+  "VideoFile": "recording.mp4",
+  "CaptureFault": "behind",
+  "CaptureFaultDetail": "the capture wrote 37.85s of a 41.37s session; raw.mp4 is short by 3.52s",
+  "CaptureFaultDetectedUtc": "2026-11-16T20:00:52.5620308Z",
+  "CaptureFaultElapsedSeconds": 41.4,
+  "CapturedSeconds": 37.85,
+  "FfmpegCommand": "\u0022<home>\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.1-full_build\\bin\\ffmpeg.exe\u0022 -y -f gdigrab -thread_queue_size 1024 -framerate 5 -offset_x 0 -offset_y 0 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i \u0022audio=Microphone (2- Realtek(R) Audio)\u0022 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags \u002Bfrag_keyframe\u002Bempty_moov\u002Bdefault_base_moof -frag_duration 2000000 -flush_packets 1 <home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\ctl-5fps\\host\\Videos\\AgentEyes\\2026-11-16_150009_video\\raw.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [],
+  "Files": [
+    "recording.mp4",
+    "recording.original.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [
+    "recording.original.mp4"
+  ],
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T20:00:52.6139721Z"
+    },
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T20:00:54.9736516Z"
+    },
+    "package": {
+      "State": "failed",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T20:00:55.1687762Z",
+      "Error": "Not signed in to DevThrottle. Open Settings \u003E DevThrottle Account and sign in."
+    }
+  }
+}

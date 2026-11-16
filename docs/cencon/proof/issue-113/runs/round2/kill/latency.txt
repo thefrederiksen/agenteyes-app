@@ -1,0 +1,2 @@
+[2026-11-14T18:23:38.223Z] State left recording after 1.807620476s (now finalizing)
+[2026-11-14T18:23:38.300Z] /status first NAMED the fault after 1.885400368s: capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 475529 bytes

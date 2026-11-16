@@ -1,0 +1,23 @@
+Issue #113 rebase: does FragmentedOutput() earn its place?
+The merge resolution that took main's side of src/AgentEyes.Core/Platform/Mac/FfmpegArgs.Mac.cs would
+have deleted the call. Same encoder settings as the macOS screen capture, same unclean end (SIGKILL
+12 s in), with the flags and without them. Run on devthrottle-mac-mini, 2026-11-15, ffmpeg 9.0.2.
+
+  ffmpeg -f lavfi -i testsrc=size=1920x1080:rate=30 -c:v libx264 -preset veryfast \
+         -pix_fmt yuv420p -crf 23 -r 30 [FLAGS] out.mp4        then: kill -KILL
+
+WITHOUT the flags (the "take main" resolution)
+  size:            2359344 bytes
+  moov:            ABSENT - no moov atom
+  boxes:           ftyp free mdat
+  ffprobe:         moov atom not found / Invalid data found when processing input
+  full decode:     exit 183
+  -> this is the 2026-11-12 failure in issue #113 verbatim, reproduced on demand.
+
+WITH the flags (-movflags +frag_keyframe+empty_moov+default_base_moof -frag_duration 2000000
+               -flush_packets 1, which is what FragmentedOutput() adds)
+  size:            2573660 bytes
+  moov:            @ 28
+  boxes:           ftyp moov moof mdat moof mdat moof mdat
+  ffprobe:         duration 127.000000, 3810 frames
+  full decode:     exit 0

@@ -1,0 +1,24 @@
+20:30:15.204Z +   0.00s evidence host pid=2118933
+20:30:15.656Z +   0.45s host.out: [harness] pid=2118933 core=1.11.11+fc49b666c90d758b807b51b442bb1a3fc70df6f9 | [harness] data=<scratch>/ev/head-early5.0/LocalAppData/AgentEyes | [harness] recordings=<scratch>/ev/head-early5.0/Videos/AgentEyes | [harness] listening http://127.0.0.1:7991/ | 
+20:30:16.099Z +   0.90s capture writer pid=2119093 parent=2118933 (host 2118933) age=0.030s
+20:30:16.099Z +   0.90s writer cmdline: /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 <scratch>/ev/head-early5.0/Videos/AgentEyes/2026-11-16_153015_video/raw.mp4
+20:30:21.065Z +   5.86s INJECT: SIGKILL(pid 2119093) by THIS SCRIPT at writer age 5.000s; raw.mp4 bytes just before=727026
+20:30:21.066Z +   5.86s POST /record/start -> 200 {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.13,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "<scratch>/ev/head-early5.0/Videos/AgentEyes/2026-11-16_
+20:30:24.068Z +   8.86s /status [after early kill] {"State": "idle", "ElapsedSeconds": 7.14, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": true, "LastCaptureFault": "capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes", "LastCaptureFaultUtc": "2026-11-16T20:30:23.0025953Z", "LastStopError": "capture watchdog: capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes"}
+20:30:25.069Z +   9.87s manifest mux: {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:30:23.5212136Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:30:23.5212136Z by AgentEyes.Tests pid 2118933 on devlinux"]}
+20:30:25.072Z +   9.87s /status [final] {"State": "idle", "ElapsedSeconds": 7.14, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastStopFailed": true, "LastCaptureFault": "capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes", "LastCaptureFaultUtc": "2026-11-16T20:30:23.0025953Z", "LastStopError": "capture watchdog: capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes"}
+20:30:25.072Z +   9.87s files: {"capture.lock": 0, "manifest.json": 1983, "manifest.json.73da434c05be4abd967f2a54ef864194.tmp": 1983, "mux.lock": 0, "raw.mp4.ffmpeg.log": 3319, "recording.mp4": 736314, "recording.original.mp4": 727026, "thumb.jpg": 25981}
+20:30:25.073Z +   9.87s manifest fields: {"DurationSeconds": 2, "CaptureFault": "exited", "CaptureFaultDetail": "the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes", "CaptureFaultDetectedUtc": "2026-11-16T20:30:23.0025953Z", "CaptureFaultElapsedSeconds": 6, "CapturedSeconds": 2, "CaptureOwner": {"Host": "devlinux", "Pid": 2118933, "ProcessStartUtc": "2026-11-16T20:30:15.202277Z"}, "PostProcessing": {"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:30:23.5212136Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:30:23.5212136Z by AgentEyes.Tests pid 2118933 on devlinux"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:30:24.9617222Z"}}}
+20:30:25.073Z +   9.87s app log: 15:30:23.004 [pid 2118933] [INFO] [RecordingService] PublishVerdict: /status now reports LastStopFailed=true, LastCaptureFault="capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes" for <scratch>/ev/head-early5.0/Videos/AgentEyes/2026-11-16_153015_video
+20:30:25.073Z +   9.87s app log: 15:30:23.006 [pid 2118933] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=7.1s (detected 2026-11-16T20:30:23.002Z) dir=<scratch>/ev/head-early5.0/Videos/AgentEyes/2026-11-16_153015_video - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes - ending the r
+20:30:25.073Z +   9.87s app log: 15:30:23.014 [pid 2118933] [WARN] [FfmpegRecorder] Abandon: <scratch>/ev/head-early5.0/Videos/AgentEyes/2026-11-16_153015_video/raw.mp4 - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 727026 bytes - killing the capture process now
+20:30:25.073Z +   9.87s app log: 15:30:23.014 [pid 2118933] [INFO] [FfmpegRecorder] Abandon: <scratch>/ev/head-early5.0/Videos/AgentEyes/2026-11-16_153015_video/raw.mp4 ended in 0ms (had already exited, exit 137, last reported position 4.59s)
+20:30:45.391Z +  30.19s evidence host exited 0

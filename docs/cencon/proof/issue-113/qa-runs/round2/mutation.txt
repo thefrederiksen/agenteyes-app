@@ -1,0 +1,28 @@
+=== W-StartWatchdog-deleted
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+-                StartWatchdog(_video!);
++                // QA-MUTANT-W
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_DeadCapture_IsNamedAtTheNextCheck
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.Status_AtDetection_NamesTheFaultBeforeTheWriterStopReturns
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.WatchdogEnded_Recording_IsAFailedStop_AbandonedNotDrained_WithTheManifestFields
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_AfterTheVerdictWasPublished_CarriesTheVerdict
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.UserStop_TakesTheWatchdogDownBeforeTheWritersStop
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.StartVideo_StartsTheWatchdog_OnTheCaptureFile
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogWiringTests.NextRecording_ClearsThePreviousVerdict
+Failed!  - Failed:     7, Passed:   295, Skipped:     0, Total:   302, Duration: 553 ms - AgentEyes.Tests.Linux.dll (net8.0)
+=== K-Abandon-calls-Stop
+ 1 file changed, 1 insertion(+)
++            Stop(); return; // QA-MUTANT-K: round one's Abandon
+  Failed AgentEyes.Tests.Shared.RecorderAbandonTests.Abandon_OnAProcessThatIgnoresTheQuit_KillsItWithinTheAbandonBound
+Failed!  - Failed:     1, Passed:   301, Skipped:     0, Total:   302, Duration: 13 s - AgentEyes.Tests.Linux.dll (net8.0)
+=== G-stop-budget-16s
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+-        internal static readonly TimeSpan AbandonExitWait = TimeSpan.FromSeconds(3);
++        internal static readonly TimeSpan AbandonExitWait = TimeSpan.FromSeconds(16); // QA-MUTANT-G
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Defaults_StallPlusOneCheckPlusTheStop_FitInsideTheSixtySecondWindow
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5)
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999)
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0) [< 1 ms]
+Failed!  - Failed:     4, Passed:   298, Skipped:     0, Total:   302, Duration: 1 s - AgentEyes.Tests.Linux.dll (net8.0)
+=== RESTORED
+Passed!  - Failed:     0, Passed:   302, Skipped:     0, Total:   302, Duration: 970 ms - AgentEyes.Tests.Linux.dll (net8.0)

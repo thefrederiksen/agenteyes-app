@@ -395,16 +395,46 @@ namespace AgentEyes
                 { IsBackground = true };
                 keys.Start();
 
+                // Issue #113: the same capture watchdog the service runs, checked from this loop. A
+                // capture whose file stops growing ends the recording instead of counting up forever.
+                var watchdog = new CaptureWatchdog(
+                    Path.GetFileName(ffOut), () => CaptureWatchdog.FileSize(ffOut), () => recorder.ExitCode,
+                    new SystemCaptureClock());
+                var nextCheck = CaptureWatchdog.DefaultCheckInterval;
+                CaptureFault? captureFault = null;
+
                 int autoStop = ParseAutoStop(opts);
                 while (!flag.Value)
                 {
                     Console.Write($"\rREC {Timecodes.Label(sw.Elapsed)}   ");
                     Thread.Sleep(250);
+                    if (sw.Elapsed >= nextCheck)
+                    {
+                        nextCheck = sw.Elapsed + CaptureWatchdog.DefaultCheckInterval;
+                        captureFault = watchdog.Check().Fault;
+                        if (captureFault != null)
+                        {
+                            Log.Error($"[Commands] video: CAPTURE FAULT at elapsed={sw.Elapsed.TotalSeconds:F1}s dir={dir} - {captureFault}");
+                            Console.WriteLine($"\n[fail] {captureFault} - stopping and keeping what was captured.");
+                            break;
+                        }
+                    }
                     if (recorder.HasExited) { Console.WriteLine("\n[warn] ffmpeg exited early; stopping."); break; }
                     if (autoStop > 0 && sw.Elapsed.TotalSeconds >= autoStop) flag.Value = true;
                 }
 
-                recorder.Stop();
+                if (captureFault != null) recorder.Abandon(captureFault.ToString());
+                else recorder.Stop();
+                captureFault ??= RecordingService.BehindAtStop(
+                    Path.GetFileName(ffOut), recorder.MediaSeconds, sw.Elapsed.TotalSeconds, DateTime.UtcNow);
+                manifest.CapturedSeconds = Math.Round(recorder.MediaSeconds, 2);
+                if (captureFault != null)
+                {
+                    manifest.CaptureFault = captureFault.Kind;
+                    manifest.CaptureFaultDetail = captureFault.Message;
+                    manifest.CaptureFaultDetectedUtc = captureFault.DetectedUtc;
+                    manifest.CaptureFaultElapsedSeconds = Math.Round(captureFault.ElapsedSeconds, 1);
+                }
                 // Stopped AFTER the screen recorder, so both files carry the screen recorder's drain
                 // wait and their durations stay within a second of each other.
                 //
@@ -496,6 +526,12 @@ namespace AgentEyes
                           + $"{completeness} (stop: {CameraObservation.Text(cameraRec.StopKind) ?? "not observed"})");
                 }
                 Console.WriteLine($"[ok] manifest.json written to {dir}");
+                if (captureFault != null)
+                {
+                    Console.WriteLine($"[fail] the screen capture did not record the whole session ({captureFault.Kind}): "
+                        + $"{captureFault.Message}. What was captured is saved.");
+                    return 1;
+                }
                 if (cameraStopFailure != null)
                 {
                     Console.WriteLine("[fail] the camera did not stop cleanly - the screen recording and the "

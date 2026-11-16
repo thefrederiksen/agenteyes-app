@@ -1,0 +1,43 @@
+14:53:36.554 [pid 8516] [INFO] [CliDispatcher] Run: args=3 command=package
+14:53:36.565 [pid 8516] [INFO] [CliDispatcher] Dispatch: parsed package options=[no-frames] positionals=1
+14:53:36.570 [pid 8516] [INFO] [CliDispatcher] Dispatch: running package
+14:53:36.577 [pid 8516] [INFO] [MuxCoordinator] RunForPackage: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video
+14:53:36.766 [pid 8516] [INFO] [MuxLock] TryAcquire: 2026-11-16_145317_video (package) - acquired by pid 8516
+14:53:36.767 [pid 8516] [INFO] [MuxCoordinator] Reconcile: 2026-11-16_145317_video
+14:53:36.771 [pid 8516] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_145317_video stage=mux
+14:53:36.773 [pid 8516] [INFO] [ManifestStore] Update: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video
+14:53:36.829 [pid 8516] [INFO] [ManifestStore] Update: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video written
+14:53:36.856 [pid 8516] [INFO] [MuxLock] TryAcquire: 2026-11-16_145317_video (finalize) - re-entered, depth 2
+14:53:36.858 [pid 8516] [INFO] finalize: begin mux video src=mic dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video
+14:53:36.865 [pid 8516] [INFO] [MediaProbe] AudioChannels: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\raw.mp4
+14:53:37.032 [pid 8516] [INFO] [MediaProbe] AudioChannels: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\raw.mp4 -> 2
+14:53:37.036 [pid 8516] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\raw.mp4 intermediate=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\audio_processed.wav muxing=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\recording.mp4.muxing.tmp out=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\recording.mp4
+14:53:37.045 [pid 8516] [INFO] ffmpeg [process mic audio (audio)]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,asetnsamples=n=480:p=1,arnndn=m='C\:/Users/<user>/AppData/Local/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\audio_processed.wav
+14:53:37.067 [pid 8516] [INFO] [KillOnCloseJob] Assign: pid 20264 ends when AgentEyes ends
+14:53:37.085 [pid 8516] [INFO] [FfmpegChildRegistry] Register: pid 20264 [process mic audio (audio)] owner pid 8516
+14:53:37.908 [pid 8516] [INFO] [FfmpegChildRegistry] Unregister: pid 20264
+14:53:37.908 [pid 8516] [INFO] ffmpeg [process mic audio (audio)] ok
+14:53:37.909 [pid 8516] [INFO] ffmpeg [process mic audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\raw.mp4 -i <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\recording.mp4.muxing.tmp
+14:53:37.929 [pid 8516] [INFO] [KillOnCloseJob] Assign: pid 11476 ends when AgentEyes ends
+14:53:37.931 [pid 8516] [INFO] [FfmpegChildRegistry] Register: pid 11476 [process mic audio] owner pid 8516
+14:53:38.908 [pid 8516] [INFO] [FfmpegChildRegistry] Unregister: pid 11476
+14:53:38.909 [pid 8516] [INFO] ffmpeg [process mic audio] ok
+14:53:38.911 [pid 8516] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\recording.mp4
+14:53:38.914 [pid 8516] [INFO] [AudioMix] MuxInTwoPasses: process mic audio removed the intermediate processed audio <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video\audio_processed.wav
+14:53:39.068 [pid 8516] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_145317_video stage=mux error=The process cannot access the file because it is being used by another process.
+14:53:39.069 [pid 8516] [INFO] [ManifestStore] Update: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video
+14:53:39.074 [pid 8516] [INFO] [ManifestStore] Update: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes\2026-11-16_145317_video written
+14:53:39.075 [pid 8516] [INFO] [MuxLock] Release: 2026-11-16_145317_video - released by pid 8516
+14:53:39.115 [pid 8516] [ERROR] [CliDispatcher] Run FAILED
+14:53:39.115 [pid 8516] [ERROR] System.IO.IOException: The process cannot access the file because it is being used by another process.
+14:53:39.115 [pid 8516] [ERROR]    at System.IO.FileSystem.MoveFile(String sourceFullPath, String destFullPath, Boolean overwrite)
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.OriginalBackup.Preserve(String dir, String mode, AudioSourceKind src) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\OriginalBackup.cs:line 72
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.RecordingService.PublishFinalized(String dir, PendingMuxInfo p, AudioSourceKind src, Double elapsed) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\RecordingService.cs:line 1329
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.RecordingService.FinalizePending(String dir) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\RecordingService.cs:line 1274
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.MuxCoordinator.RunForPackage(String dir) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\MuxCoordinator.cs:line 143
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\Package.cs:line 118
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.Package.Run(String path, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\Package.cs:line 46
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.Commands.Package(CliArgs opts) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\Commands.cs:line 657
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.CliDispatcher.Dispatch(IReadOnlyList`1 args, TextWriter stdout, TextWriter stderr, IReadOnlyList`1 commands) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\CliDispatcher.cs:line 164
+14:53:39.115 [pid 8516] [ERROR]    at AgentEyes.CliDispatcher.Run(IReadOnlyList`1 args, TextWriter stdout, TextWriter stderr, IReadOnlyList`1 commands) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\CliDispatcher.cs:line 38
+14:53:39.117 [pid 8516] [INFO] [CliDispatcher] Run: exit=3

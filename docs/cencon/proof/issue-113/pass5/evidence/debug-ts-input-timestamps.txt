@@ -1,0 +1,18 @@
+== plain: first demuxer packets per input, and their rebased timestamps
+[vist#0:0/bmp @ 000001fee160db80] demuxer -> ist_index:0:0 type:video pkt_pts:1794855406636570 pkt_pts_time:1794855406.63657 pkt_dts:1794855406636570 pkt_dts_time:1794855406.63657 duration:0 duration_time:0
+[vist#0:0/bmp @ 000001fee160db80] demuxer+tsfixup -> ist_index:0:0 type:video pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:0 duration_time:0
+[vist#0:0/bmp @ 000001fee160db80] demuxer+ffmpeg -> ist_index:0:0 type:video pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:0 duration_time:0 off:-1794855406636570 off_time:-1794855406.63657
+[aist#1:0/pcm_s16le @ 000001fee8227ec0] demuxer -> ist_index:1:0 type:audio pkt_pts:4685705220000 pkt_pts_time:468570.522 pkt_dts:4685705220000 pkt_dts_time:468570.522 duration:800000 duration_time:0.08
+[aist#1:0/pcm_s16le @ 000001fee8227ec0] demuxer+tsfixup -> ist_index:1:0 type:audio pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:800000 duration_time:0.08
+[aist#1:0/pcm_s16le @ 000001fee8227ec0] demuxer+ffmpeg -> ist_index:1:0 type:audio pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:800000 duration_time:0.08 off:-468570522000 off_time:-468570.522
+[vist#0:0/bmp @ 000001fee160db80] demuxer -> ist_index:0:0 type:video pkt_pts:1794855407328056 pkt_pts_time:1794855407.328056 pkt_dts:1794855407328056 pkt_dts_time:1794855407.328056 duration:1 duration_time:0.000001
+[vist#0:0/bmp @ 000001fee160db80] demuxer+tsfixup -> ist_index:0:0 type:video pkt_pts:691486 pkt_pts_time:0.691486 pkt_dts:691486 pkt_dts_time:0.691486 duration:1 duration_time:0.000001
+== frag: first demuxer packets per input, and their rebased timestamps
+[aist#1:0/pcm_s16le @ 0000026aab24f900] demuxer -> ist_index:1:0 type:audio pkt_pts:4685798650000 pkt_pts_time:468579.865 pkt_dts:4685798650000 pkt_dts_time:468579.865 duration:800000 duration_time:0.08
+[aist#1:0/pcm_s16le @ 0000026aab24f900] demuxer+tsfixup -> ist_index:1:0 type:audio pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:800000 duration_time:0.08
+[aist#1:0/pcm_s16le @ 0000026aab24f900] demuxer+ffmpeg -> ist_index:1:0 type:audio pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:800000 duration_time:0.08 off:-468579865000 off_time:-468579.865
+[vist#0:0/bmp @ 0000026aa69bf840] demuxer -> ist_index:0:0 type:video pkt_pts:1794855415988807 pkt_pts_time:1794855415.988807 pkt_dts:1794855415988807 pkt_dts_time:1794855415.988807 duration:0 duration_time:0
+[vist#0:0/bmp @ 0000026aa69bf840] demuxer+tsfixup -> ist_index:0:0 type:video pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:0 duration_time:0
+[vist#0:0/bmp @ 0000026aa69bf840] demuxer+ffmpeg -> ist_index:0:0 type:video pkt_pts:0 pkt_pts_time:0 pkt_dts:0 pkt_dts_time:0 duration:0 duration_time:0 off:-1794855415988807 off_time:-1794855415.988807
+[vist#0:0/bmp @ 0000026aa69bf840] demuxer -> ist_index:0:0 type:video pkt_pts:1794855416672627 pkt_pts_time:1794855416.672627 pkt_dts:1794855416672627 pkt_dts_time:1794855416.672627 duration:1 duration_time:0.000001
+[vist#0:0/bmp @ 0000026aa69bf840] demuxer+tsfixup -> ist_index:0:0 type:video pkt_pts:683820 pkt_pts_time:0.68382 pkt_dts:683820 pkt_dts_time:0.68382 duration:1 duration_time:0.000001

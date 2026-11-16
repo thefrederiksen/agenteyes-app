@@ -179,6 +179,35 @@ namespace AgentEyes
         /// </summary>
         public double? PreviewOverlayInset { get; set; }
 
+        /// <summary>
+        /// Issue #113: how the screen capture failed to produce output, when it did - null (and so
+        /// absent from manifest.json) for a capture that wrote everything it was asked to. One of:
+        ///  - "stalled": the file stopped growing while recording; the watchdog ended the recording.
+        ///  - "never-started": no output at all within the start-up window; the watchdog ended it.
+        ///  - "exited": the capture process ended by itself while recording; the watchdog ended it.
+        ///  - "behind": the capture was still running at the stop but had written more than
+        ///    RecordingService.BehindToleranceSeconds short of the session (the 2026-11-14 Linux case:
+        ///    1.33 s written of a 6.46 s session). The stop itself worked; the take is short.
+        /// </summary>
+        public string? CaptureFault { get; set; }
+
+        /// <summary>Issue #113: what was observed, in one line - the file, the byte count, the times.</summary>
+        public string? CaptureFaultDetail { get; set; }
+
+        /// <summary>Issue #113: when the fault was detected, UTC. Null when there is no fault.</summary>
+        public DateTime? CaptureFaultDetectedUtc { get; set; }
+
+        /// <summary>Issue #113: seconds into the recording at which the fault was detected.</summary>
+        public double? CaptureFaultElapsedSeconds { get; set; }
+
+        /// <summary>
+        /// Issue #113: seconds of video the screen capture's ffmpeg reported writing - its own
+        /// account of the file, not wall time. <see cref="DurationSeconds"/> is never larger than
+        /// this for a video recording, so a capture that fell behind or died is not recorded with
+        /// the duration of the session it failed to save. Null for audio-only recordings.
+        /// </summary>
+        public double? CapturedSeconds { get; set; }
+
         public string? Transcript { get; set; }
         public string? Walkthrough { get; set; }
         public string? FfmpegCommand { get; set; }

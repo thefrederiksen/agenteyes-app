@@ -1,0 +1,10 @@
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_AnEmptyFileIsNotOutput [4 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_GrowthStops_FiresStalledInsideTheWindow [1 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Fault_IsFinal_GrowthAfterTheDecisionDoesNotClearIt [1 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Exited_ProcessEnds_FiresAtTheNextCheck [< 1 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0.5) [2 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 1.8999999999999999) [< 1 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_WhereverInTheIntervalItBegins_IsDetectedWithinSixtySeconds(offset: 0) [< 1 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume [< 1 ms]
+  Failed AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_NoOutputPastTheStartupWindow_Fires [< 1 ms]
+Failed!  - Failed:     9, Passed:   285, Skipped:     0, Total:   294, Duration: 810 ms - AgentEyes.Tests.Linux.dll (net8.0)

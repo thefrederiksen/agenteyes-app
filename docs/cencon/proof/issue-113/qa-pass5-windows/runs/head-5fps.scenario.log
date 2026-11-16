@@ -1,0 +1,43 @@
+20:01:16.320Z +    0.0s host pid=15436 exe=<home>\AppData\Local\Temp\qa113\bin-head\AgentEyes.Tests.exe
+20:01:16.935Z +    0.6s host stdout: [harness] pid=15436 core=1.11.11+2716e0f884084f6993ad4a1e4ac7dca3c6708d03 | [harness] data=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-5fps\host\LocalAppData\AgentEyes | [harness] recordings=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-5fps\host\Videos\AgentEyes | [harness] listening http://127.0.0.1:7990/ | 
+20:01:18.161Z +    1.9s POST /record/start fps=5 -> 200 {
+
+  "State": "recording",
+
+  "Mode": "video",
+
+  "Source": "mic",
+
+  "ElapsedSeconds": 0.74,
+
+  "Level": 0,
+
+  "MicLevel": 0,
+
+  "SystemLevel": 0,
+
+  "Dir": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-5fps\\host\\Videos\\AgentEyes\\2026-11-16_150117_video",
+
+  "Camera": null,
+
+20:01:24.191Z +    7.9s /status [healthy 1] State=recording CaptureLiveness=starting CaptureBytes=0 CaptureSecondsSinceGrowth=None LastStopFailed=False LastCaptureFault=None
+20:01:34.196Z +   17.9s /status [healthy 2] State=recording CaptureLiveness=growing CaptureBytes=417709 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+20:01:34.197Z +   17.9s recording dir 2026-11-16_150117_video
+20:01:34.773Z +   18.5s capture ffmpeg pid=6744 (parent = my host 15436)
+20:01:58.793Z +   42.5s /status [before stop] State=recording CaptureLiveness=growing CaptureBytes=822909 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+20:02:00.381Z +   44.1s POST /record/stop -> 200 {
+
+  "Dir": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-5fps\\host\\Videos\\AgentEyes\\2026-11-16_150117_video",
+
+  "File": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-5fps\\host\\Videos\\AgentEyes\\2026-11-16_150117_video\\recording.mp4",
+
+  "DurationSeconds": 37.84,
+
+  "Shots": 0
+
+}
+20:02:03.388Z +   47.1s mux State=done after 3.0s
+20:02:03.388Z +   47.1s manifest [final] PendingMux=null PostProcessing={"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:02:00.395316Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:02:00.3953160Z by AgentEyes.Tests pid 15436 on <laptop>"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:02:02.7209634Z"}, "package": {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:02:02.9253477Z", "Error": "Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in."}} CaptureFault=behind CaptureFaultDetectedUtc=2026-11-16T20:02:00.3362004Z CapturedSeconds=37.84 DurationSeconds=42.4
+20:02:03.389Z +   47.1s dir [final] audio_16k.wav=1211812, capture.lock=0, manifest.json=2356, mux.lock=0, raw.mp4.ffmpeg.log=14282, recording.mp4=1050026, recording.original.mp4=904538, thumb.jpg=27187
+20:02:23.686Z +   67.4s host exit=0
+20:02:23.687Z +   67.4s app logs: AgentEyes-20261116.log

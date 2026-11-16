@@ -1,0 +1,226 @@
+14:05:55.503 [pid 18724] [INFO] [AppDataPaths] RedirectForThisProcess: localAppData=<evidence>\final-stall-suspend\LocalAppData videos=<evidence>\final-stall-suspend\Videos
+14:05:55.539 [pid 18724] [INFO] [HeadlessControlServer] Start: binding http://127.0.0.1:7990/
+14:05:55.543 [pid 18724] [INFO] [HeadlessControlServer] Start: listening on http://127.0.0.1:7990/
+14:05:55.894 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:05:55.992 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (924 bytes)
+14:05:56.014 [pid 18724] [INFO] [HeadlessControlServer] POST /record/start
+14:05:56.029 [pid 18724] [INFO] [HeadlessControlServer] StartFrom: mode=video screen=1 source=Mic mic=Microphone (2- Realtek(R) Audio) camera=(none) fps=30
+14:05:56.532 [pid 18724] [INFO] [RecordingService] StartVideo: framing=(none)
+14:05:56.532 [pid 18724] [INFO] [RecordingService] StartVideo: preview armed=False screenTap=False cameraTap=False
+14:05:56.533 [pid 18724] [INFO] [RecordingStartSequence] Run: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video steps=2
+14:05:56.534 [pid 18724] [INFO] [RecordingService] BeginSession: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:05:56.538 [pid 18724] [INFO] [RecordingWorkset] TryClaim: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video claimed by Capture/capture session#1
+14:05:56.539 [pid 18724] [INFO] [CaptureLock] TryAcquire: 2026-11-16_140556_video for capture session
+14:05:56.544 [pid 18724] [INFO] [CaptureLock] ReadOrCreateHostId: created <evidence>\final-stall-suspend\LocalAppData\AgentEyes\host-id
+14:05:56.564 [pid 18724] [INFO] [CaptureLock] TryAcquire: 2026-11-16_140556_video claimed by capture session of pid 18724 on host <laptop> (started 2026-11-16T19:05:56.5550648Z)
+14:05:56.566 [pid 18724] [INFO] [RecordingWorkset] Attach: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video#1 now carries CaptureLock
+14:05:56.567 [pid 18724] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_140556_video - pid 18724 on <laptop> (process started 2026-11-16T19:05:55.3349670Z)
+14:05:56.568 [pid 18724] [INFO] [CaptureSignal] CaptureStarted: epoch=1 - any repair pass in flight must yield
+14:05:56.569 [pid 18724] [INFO] [ManifestStore] Replace: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:05:56.600 [pid 18724] [INFO] [ManifestStore] Replace: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:05:56.601 [pid 18724] [INFO] [RecordingStartSequence] Run: starting video dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:05:57.040 [pid 18724] [INFO] [RecordingService] NoteCaptureWriter: video pid=23232 dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:05:57.041 [pid 18724] [INFO] [CaptureLock] NoteWriter: 2026-11-16_140556_video video pid 23232
+14:05:57.053 [pid 18724] [INFO] [FfmpegChildRegistry] Register: pid 23232 [capture video (2026-11-16_140556_video)] owner pid 18724 (capture writer)
+14:05:57.053 [pid 18724] [INFO] [CaptureLock] NoteWriter: 2026-11-16_140556_video video pid 23232 recorded (started 2026-11-16T19:05:56.6092133Z)
+14:05:57.054 [pid 18724] [INFO] [RecordingStartSequence] Run: starting mic level meter dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:05:57.938 [pid 18724] [INFO] [RecordingStartSequence] Run: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video started with no failures
+14:05:57.947 [pid 18724] [INFO] [RecordingService] StartWatchdog: watching <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+14:05:57.948 [pid 18724] [INFO] start video src=Mic dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video camera=(none)
+14:05:57.956 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:05:57.962 [pid 18724] [INFO] [HeadlessControlServer] POST /record/start: 200 answer written (1057 bytes)
+14:05:57.965 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:05:57.966 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:05:57.968 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1057 bytes)
+14:05:57.971 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:05:57.972 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:05:57.973 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1057 bytes)
+14:06:05.994 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:05.995 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:05.997 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1084 bytes)
+14:06:15.999 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:16.000 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:16.001 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+14:06:19.469 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:19.470 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:19.470 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1085 bytes)
+14:06:21.487 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:21.489 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:21.490 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1089 bytes)
+14:06:23.515 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:23.516 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:23.517 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1089 bytes)
+14:06:25.536 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:25.537 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:25.537 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1086 bytes)
+14:06:27.565 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:27.566 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:27.566 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1089 bytes)
+14:06:29.569 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:29.571 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:29.572 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1090 bytes)
+14:06:31.594 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:31.595 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:31.596 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1090 bytes)
+14:06:33.599 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:33.600 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:33.601 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:35.615 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:35.616 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:35.616 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:37.636 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:37.637 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:37.638 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1091 bytes)
+14:06:39.665 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:39.667 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:39.667 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:41.695 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:41.696 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:41.697 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:43.699 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:43.700 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:43.701 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:45.714 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:45.715 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:45.716 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:47.737 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:47.738 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:47.739 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1091 bytes)
+14:06:49.754 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:49.755 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:49.756 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:51.775 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:51.776 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:51.776 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:53.798 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:53.799 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:53.800 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:55.819 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:55.820 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:55.821 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:57.823 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:57.824 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:57.824 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:06:59.827 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:06:59.828 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:06:59.829 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:07:01.855 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:07:01.856 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:07:01.857 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:07:03.863 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:07:03.864 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=0
+14:07:03.865 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1092 bytes)
+14:07:04.165 [pid 18724] [INFO] [RecordingService] PublishVerdict: /status now reports LastStopFailed=true, LastCaptureFault="capture stalled: raw.mp4 stopped growing at 994385 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T19:06:18.006Z" for <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:04.166 [pid 18724] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=67.6s (detected 2026-11-16T19:07:04.164Z) dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video - capture stalled: raw.mp4 stopped growing at 994385 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T19:06:18.006Z - ending the recording now and keeping what was captured
+14:07:04.168 [pid 18724] [INFO] [PostRecording] TrackWork: capture fault <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video (in flight=1)
+14:07:04.170 [pid 18724] [INFO] stop: begin (synchronous raw save only)
+14:07:04.171 [pid 18724] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+14:07:04.171 [pid 18724] [INFO] stop: saving video (flush raw + writers)
+14:07:04.172 [pid 18724] [INFO] [RecordingStopSequence] Run: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video steps=2
+14:07:04.173 [pid 18724] [WARN] [FfmpegRecorder] Abandon: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4 - capture stalled: raw.mp4 stopped growing at 994385 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T19:06:18.006Z - killing the capture process now
+14:07:04.249 [pid 18724] [INFO] [FfmpegRecorder] Abandon: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4 ended in 75ms (killed, exit -1, last reported position 19.43s)
+14:07:04.424 [pid 18724] [INFO] stop: abandoned capture - raw.mp4 probes at 20.47s (ffmpeg last reported 19.43s)
+14:07:04.425 [pid 18724] [WARN] stop: the screen capture wrote 20.47s of a 67.64s session - recording DurationSeconds=20.47, not the session length
+14:07:04.426 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:04.451 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:04.453 [pid 18724] [ERROR] [RecordingStopSequence] Run FAILED: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video failures=1 manifest=on disk - capture watchdog: capture stalled: raw.mp4 stopped growing at 994385 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T19:06:18.006Z
+14:07:04.461 [pid 18724] [INFO] [FfmpegChildRegistry] Unregister: pid 23232
+14:07:04.462 [pid 18724] [INFO] [CaptureLock] Release: 2026-11-16_140556_video released by pid 18724
+14:07:04.462 [pid 18724] [INFO] [RecordingWorkset] Release: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video - attached CaptureLock released
+14:07:04.463 [pid 18724] [INFO] [RecordingWorkset] Release: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video released by Capture/capture session#1
+14:07:04.464 [pid 18724] [ERROR] stop: FAILED dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video dur=67.6s manifest=on disk - capture watchdog: capture stalled: raw.mp4 stopped growing at 994385 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T19:06:18.006Z
+14:07:04.465 [pid 18724] [WARN] [RecordingService] EndFaultedCapture: recording ended as a failed stop dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video - stopping the recording in <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video failed (the manifest was saved): capture watchdog: capture stalled: raw.mp4 stopped growing at 994385 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T19:06:18.006Z
+14:07:04.465 [pid 18724] [INFO] [RecordingService] EndFaultedCapture: queuing post-processing for <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:04.466 [pid 18724] [INFO] [PostRecording] Run: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video hostedWork=True
+14:07:04.467 [pid 18724] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_140556_video (in flight=2)
+14:07:04.467 [pid 18724] [INFO] [RecordingWorkset] TryClaim: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video claimed by FullPipeline/post-recording#2
+14:07:04.470 [pid 18724] [INFO] [PostRecording] Execute: 2026-11-16_140556_video - capture claim: no capture holds it
+14:07:04.471 [pid 18724] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_140556_video (post-recording) - no owner record; nothing to clear
+14:07:04.478 [pid 18724] [INFO] [MuxLock] TryAcquire: 2026-11-16_140556_video (post-recording) - acquired by pid 18724
+14:07:04.479 [pid 18724] [INFO] [MuxCoordinator] Reconcile: 2026-11-16_140556_video
+14:07:04.481 [pid 18724] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_140556_video stage=mux by=AgentEyes.Tests pid 18724 on <laptop>
+14:07:04.482 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:04.486 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:04.487 [pid 18724] [INFO] [PostRecording] stage mux: start dir=2026-11-16_140556_video
+14:07:04.496 [pid 18724] [INFO] [MuxLock] TryAcquire: 2026-11-16_140556_video (finalize) - re-entered, depth 2
+14:07:04.497 [pid 18724] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_140556_video (finalize) - no capture holds it
+14:07:04.497 [pid 18724] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_140556_video (finalize) - no owner record; nothing to clear
+14:07:04.498 [pid 18724] [INFO] finalize: begin mux video src=mic dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:04.504 [pid 18724] [INFO] [MediaProbe] AudioChannels: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4
+14:07:04.597 [pid 18724] [INFO] [MediaProbe] AudioChannels: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4 -> 2
+14:07:04.598 [pid 18724] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4 intermediate=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\audio_processed.wav muxing=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\recording.mp4.muxing.tmp out=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\recording.mp4
+14:07:04.601 [pid 18724] [INFO] ffmpeg [process mic audio (audio)]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=stereo,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='C\:/ReposFred/agenteyes-evidence/issue-113-pass5/final-stall-suspend/LocalAppData/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\audio_processed.wav
+14:07:04.615 [pid 18724] [INFO] [KillOnCloseJob] Assign: pid 11724 ends when AgentEyes ends
+14:07:04.617 [pid 18724] [INFO] [FfmpegChildRegistry] Register: pid 11724 [process mic audio (audio)] owner pid 18724
+14:07:05.135 [pid 18724] [INFO] [FfmpegChildRegistry] Unregister: pid 11724
+14:07:05.136 [pid 18724] [INFO] ffmpeg [process mic audio (audio)] ok
+14:07:05.136 [pid 18724] [INFO] ffmpeg [process mic audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\raw.mp4 -i <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\recording.mp4.muxing.tmp
+14:07:05.149 [pid 18724] [INFO] [KillOnCloseJob] Assign: pid 11216 ends when AgentEyes ends
+14:07:05.150 [pid 18724] [INFO] [FfmpegChildRegistry] Register: pid 11216 [process mic audio] owner pid 18724
+14:07:05.622 [pid 18724] [INFO] [FfmpegChildRegistry] Unregister: pid 11216
+14:07:05.622 [pid 18724] [INFO] ffmpeg [process mic audio] ok
+14:07:05.623 [pid 18724] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\recording.mp4
+14:07:05.626 [pid 18724] [INFO] [AudioMix] MuxInTwoPasses: process mic audio removed the intermediate processed audio <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\audio_processed.wav
+14:07:05.720 [pid 18724] [INFO] [OriginalBackup] preserved raw.mp4 -> recording.original.mp4
+14:07:05.721 [pid 18724] [INFO] [OriginalBackup] Present: 2026-11-16_140556_video -> 1
+14:07:05.721 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:05.725 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:05.726 [pid 18724] [INFO] [RecordingService] PublishFinalized: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video dur=19.7s originals=1
+14:07:05.726 [pid 18724] [INFO] finalize: done dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:05.727 [pid 18724] [INFO] [PostRecording] stage mux: done dir=2026-11-16_140556_video in 1.2s
+14:07:05.728 [pid 18724] [INFO] [PostRecordingState] NoteDone: 2026-11-16_140556_video stage=mux
+14:07:05.729 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:05.737 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:05.738 [pid 18724] [INFO] [MuxLock] Release: 2026-11-16_140556_video - released by pid 18724
+14:07:05.748 [pid 18724] [INFO] [PostRecording] Execute: 2026-11-16_140556_video - no camera to compose
+14:07:05.750 [pid 18724] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_140556_video
+14:07:05.750 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:05.753 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:05.754 [pid 18724] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_140556_video attempt 1/3
+14:07:05.765 [pid 18724] [INFO] ffmpeg [poster thumbnail]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -ss 1.97 -i <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\thumb.jpg
+14:07:05.882 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:07:05.884 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=1
+14:07:05.885 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1457 bytes)
+14:07:06.000 [pid 18724] [INFO] ffmpeg [poster thumbnail] ok
+14:07:06.000 [pid 18724] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_140556_video in 0.3s
+14:07:06.001 [pid 18724] [INFO] [PostRecordingState] NoteDone: 2026-11-16_140556_video stage=thumbnail
+14:07:06.001 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:06.003 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:06.015 [pid 18724] [INFO] [PostRecording] stage package: start dir=2026-11-16_140556_video
+14:07:06.016 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:06.019 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:06.020 [pid 18724] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_140556_video attempt 1/3
+14:07:06.023 [pid 18724] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_140556_video (package) - no capture holds it
+14:07:06.023 [pid 18724] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_140556_video (package) - no owner record; nothing to clear
+14:07:06.024 [pid 18724] [INFO] [MuxCoordinator] RunForPackage: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:06.031 [pid 18724] [INFO] [MuxCoordinator] RunForPackage: 2026-11-16_140556_video - no pending mux
+14:07:06.032 [pid 18724] [INFO] ffmpeg [extract audio]: "<home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe" -y -i <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\recording.mp4 -vn -ac 1 -ar 16000 -f wav <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\audio_16k.wav
+14:07:06.169 [pid 18724] [INFO] ffmpeg [extract audio] ok
+14:07:06.174 [pid 18724] [INFO] [Transcriber] TranscribeWavAsync: wavPath=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\audio_16k.wav
+14:07:06.177 [pid 18724] [INFO] [DevThrottleClient] TranscribeAsync: wavPath=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video\audio_16k.wav
+14:07:06.211 [pid 18724] [ERROR] [PostRecording] stage package FAILED: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:06.211 [pid 18724] [ERROR] AgentEyes.UsageException: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+14:07:06.211 [pid 18724] [ERROR]  ---> AgentEyes.DevThrottle.DevThrottleException: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.DevThrottle.DevThrottleAccount.RequireApiKey() in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\DevThrottle\DevThrottleAccount.cs:line 119
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.DevThrottle.DevThrottleClient.TranscribeAsync(String wavPath, CancellationToken ct) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\DevThrottle\DevThrottleClient.cs:line 283
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.Packaging.Transcriber.TranscribeWavAsync(String wavPath) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Packaging\Transcriber.cs:line 32
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 172
+14:07:06.211 [pid 18724] [ERROR]    --- End of inner exception stack trace ---
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 177
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.Package.Run(String path, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Package.cs:line 46
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.PostRecording.<>c.<DefaultPackageStep>b__19_0(String d) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.PostRecording.RunCountingAttempt(String dir, Action`1 package) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 153
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.PostRecording.DefaultPackageStep(String dir) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+14:07:06.211 [pid 18724] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 518
+14:07:06.212 [pid 18724] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_140556_video stage=package error=Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+14:07:06.213 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video
+14:07:06.218 [pid 18724] [INFO] [ManifestStore] Update: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video written
+14:07:06.218 [pid 18724] [INFO] [PostRecording] Run: dir=<evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video done
+14:07:06.219 [pid 18724] [INFO] [RecordingWorkset] Release: <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video released by FullPipeline/post-recording#2
+14:07:06.222 [pid 18724] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_140556_video
+14:07:06.223 [pid 18724] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_140556_video (in flight=1)
+14:07:06.223 [pid 18724] [INFO] [PostRecording] TrackWork released: capture fault <evidence>\final-stall-suspend\Videos\AgentEyes\2026-11-16_140556_video (in flight=0)
+14:07:08.605 [pid 18724] [INFO] [HeadlessControlServer] GET /status
+14:07:08.608 [pid 18724] [INFO] [TranscriptionBacklog] FindPending: root=<evidence>\final-stall-suspend\Videos\AgentEyes, pending=1
+14:07:08.610 [pid 18724] [INFO] [HeadlessControlServer] GET /status: 200 answer written (1457 bytes)
+14:07:28.734 [pid 18724] [INFO] [HeadlessControlServer] Dispose

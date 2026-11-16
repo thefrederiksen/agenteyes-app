@@ -1,0 +1,10 @@
+gh run view 43629843142 --log (excerpt); run https://github.com/thefrederiksen/agenteyes-app/actions/runs/43629843142
+job linux: success
+job windows: failure
+job macos: success
+linux | Passed!  - Failed:     0, Passed:   302, Skipped:     0, Total:   302, Duration: 316 ms - AgentEyes.Tests.Linux.dll (net8.0)
+windows |   Failed AgentEyes.Tests.SessionManifestTests.StartVideo_StartsEveryWriterInsideTheSequence [1 ms]
+windows |   Error Message:
+windows |    StartVideo calls _seams.StartScreen( outside a RecordingStartStep: it would run before the manifest reaches disk, and outside the rollback that stops writers already started
+windows | Failed!  - Failed:     1, Passed:  2329, Skipped:     0, Total:  2330, Duration: 35 s - AgentEyes.Tests.dll (net8.0)
+macos | Passed!  - Failed:     0, Passed:   260, Skipped:     0, Total:   260, Duration: 342 ms - AgentEyes.Tests.Mac.dll (net8.0)

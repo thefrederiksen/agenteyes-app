@@ -1,0 +1,80 @@
+## final-30fps recording.original.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=44.300000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=44.300000 nb_frames=None r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=42.830227 nb_frames=None r_frame_rate=0/0 sample_rate=44100
+counted video frames=1273 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=990771 -> OK
+video packet pts: first=0.000 last=43.533 count=1273
+## final-30fps recording.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=43.566667
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=43.566667 nb_frames=1273 r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=42.820000 nb_frames=2009 r_frame_rate=0/0 sample_rate=48000
+counted video frames=1273 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=991229 -> OK
+video packet pts: first=0.000 last=43.533 count=1273
+## final-5fps recording.original.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=44.400000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=44.400000 nb_frames=None r_frame_rate=5/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=39.067211 nb_frames=None r_frame_rate=0/0 sample_rate=44100
+counted video frames=218 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=970117 -> OK
+video packet pts: first=0.000 last=43.800 count=218
+## final-5fps recording.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=44.000000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=44.000000 nb_frames=218 r_frame_rate=5/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=39.060000 nb_frames=1832 r_frame_rate=0/0 sample_rate=48000
+counted video frames=218 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=970117 -> OK
+video packet pts: first=0.000 last=43.800 count=218
+## final-gate-scenario recording.original.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=134.933333
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=134.933333 nb_frames=None r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=133.549229 nb_frames=None r_frame_rate=0/0 sample_rate=44100
+counted video frames=3962 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=991177 -> OK
+video packet pts: first=0.000 last=134.233 count=3962
+## final-gate-scenario recording.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=134.266667
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=134.266667 nb_frames=3962 r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=133.540000 nb_frames=6261 r_frame_rate=0/0 sample_rate=48000
+counted video frames=3962 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=991139 -> OK
+video packet pts: first=0.000 last=134.233 count=3962
+## final-stall-suspend recording.original.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=20.466667
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=20.466667 nb_frames=None r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=19.590431 nb_frames=None r_frame_rate=0/0 sample_rate=44100
+counted video frames=559 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=991131 -> OK
+video packet pts: first=0.000 last=19.667 count=559
+## final-stall-suspend recording.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=19.700000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=19.700000 nb_frames=559 r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=19.560000 nb_frames=918 r_frame_rate=0/0 sample_rate=48000
+counted video frames=559 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=990932 -> OK
+video packet pts: first=0.000 last=19.667 count=559
+## final-kill-terminate recording.original.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=18.866667
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=18.866667 nb_frames=None r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=18.072132 nb_frames=None r_frame_rate=0/0 sample_rate=44100
+counted video frames=500 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=988317 -> OK
+video packet pts: first=0.000 last=18.067 count=500
+## final-kill-terminate recording.mp4
+format=mov,mp4,m4a,3gp,3g2,mj2 duration=18.100000
+stream index=0 codec_type=video codec_name=h264 start_time=0.000000 duration=18.100000 nb_frames=500 r_frame_rate=30/1 sample_rate=None
+stream index=1 codec_type=audio codec_name=aac start_time=0.000000 duration=18.050000 nb_frames=848 r_frame_rate=0/0 sample_rate=48000
+counted video frames=500 (exit 0)
+full decode exit=0 error_lines=0
+frame from the last second: exit=0 png_bytes=988282 -> OK
+video packet pts: first=0.000 last=18.067 count=500

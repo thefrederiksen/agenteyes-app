@@ -1,0 +1,6 @@
+exit=1 elapsed=0.44s
+--- stdout
+
+--- stderr
+[error] refusing to package 2026-11-16_145021_video: it is being captured by the capture session of pid 22568 on host <laptop> (started 2026-11-16T19:50:21.6217645Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+

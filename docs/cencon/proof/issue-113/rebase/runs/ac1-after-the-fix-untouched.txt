@@ -1,0 +1,12 @@
+service pid 9208
+started 2026-11-15T17:23:34.583Z dir=/Users/soren/Movies/AgentEyes/2026-11-15_122333_video
+INJECTED SIGSTOP on capture pid 9400 at 2026-11-15T17:23:56.627Z - NOTHING will touch it again
+2026-11-15T17:23:56.653Z +   0.0s State=recording   Liveness=growing Fault=no | capture pid 9400 state=T | service cpu=6.1% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:24:06.692Z +  10.1s State=recording   Liveness=not-growing Fault=no | capture pid 9400 state=T | service cpu=100.3% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:24:16.718Z +  20.1s State=recording   Liveness=not-growing Fault=no | capture pid 9400 state=T | service cpu=98.9% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:24:26.743Z +  30.1s State=recording   Liveness=not-growing Fault=no | capture pid 9400 state=T | service cpu=99.0% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:24:36.764Z +  40.1s State=recording   Liveness=not-growing Fault=no | capture pid 9400 state=T | service cpu=100.9% | dir: manifest.json mic_native.wav raw.mp4 shots
+2026-11-15T17:24:46.782Z +  50.1s State=idle        Liveness=None Fault=YES | capture pid 9400 state=(gone) | service cpu=1.1% | dir: audio_16k.wav manifest.json mic_native.wav mux.lock raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots thumb.jpg
+   <-- reached idle on its own
+end 2026-11-15T17:24:46.782Z: final state=idle
+deliberately leaving the frozen pid for the caller to clean up: 9400

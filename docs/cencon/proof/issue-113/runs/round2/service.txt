@@ -1,0 +1,1 @@
+branch build: worktree HEAD a65a4fc + uncommitted round-two changes; service pid 2910064; agenteyes.dll sha256 5116697b919da56424c53cccd40309ff823b2458f4d99e1523142e167a3c3542; installed 2026-11-14T18:20:59Z

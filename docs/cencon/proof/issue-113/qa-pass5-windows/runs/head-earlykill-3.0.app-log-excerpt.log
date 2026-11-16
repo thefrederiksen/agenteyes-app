@@ -1,0 +1,47 @@
+15:04:12.348 [pid 15732] [INFO] [CaptureLock] TryAcquire: 2026-11-16_150412_video for capture session
+15:04:12.354 [pid 15732] [INFO] [CaptureLock] ReadOrCreateHostId: created <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\LocalAppData\AgentEyes\host-id
+15:04:12.387 [pid 15732] [INFO] [CaptureLock] TryAcquire: 2026-11-16_150412_video claimed by capture session of pid 15732 on host <laptop> (started 2026-11-16T20:04:12.3676572Z)
+15:04:12.389 [pid 15732] [INFO] [RecordingWorkset] Attach: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video#1 now carries CaptureLock
+15:04:12.390 [pid 15732] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_150412_video - pid 15732 on <laptop> (process started 2026-11-16T20:04:11.3116470Z)
+15:04:12.877 [pid 15732] [INFO] [CaptureLock] NoteWriter: 2026-11-16_150412_video video pid 19200
+15:04:12.890 [pid 15732] [INFO] [CaptureLock] NoteWriter: 2026-11-16_150412_video video pid 19200 recorded (started 2026-11-16T20:04:12.4418214Z)
+15:04:13.249 [pid 15732] [INFO] [RecordingService] StartWatchdog: watching <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+15:04:17.270 [pid 15732] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=4.9s (detected 2026-11-16T20:04:17.267Z) dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 247594 bytes - ending the recording now and keeping what was captured
+15:04:17.271 [pid 15732] [INFO] [PostRecording] TrackWork: capture fault <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video (in flight=1)
+15:04:17.274 [pid 15732] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+15:04:17.276 [pid 15732] [WARN] [FfmpegRecorder] Abandon: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\raw.mp4 - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 247594 bytes - killing the capture process now
+15:04:17.277 [pid 15732] [INFO] [FfmpegRecorder] Abandon: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\raw.mp4 ended in 0ms (had already exited, exit 137, last reported position 1.86s)
+15:04:17.463 [pid 15732] [INFO] [CaptureLock] Release: 2026-11-16_150412_video released by pid 15732
+15:04:17.463 [pid 15732] [INFO] [RecordingWorkset] Release: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video - attached CaptureLock released
+15:04:17.467 [pid 15732] [INFO] [PostRecording] Run: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video hostedWork=True
+15:04:17.467 [pid 15732] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_150412_video (in flight=2)
+15:04:17.471 [pid 15732] [INFO] [PostRecording] Execute: 2026-11-16_150412_video - capture claim: no capture holds it
+15:04:17.471 [pid 15732] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_150412_video (post-recording) - no owner record; nothing to clear
+15:04:17.481 [pid 15732] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_150412_video stage=mux by=AgentEyes.Tests pid 15732 on <laptop>
+15:04:17.487 [pid 15732] [INFO] [PostRecording] stage mux: start dir=2026-11-16_150412_video
+15:04:17.499 [pid 15732] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_150412_video (finalize) - no capture holds it
+15:04:17.499 [pid 15732] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_150412_video (finalize) - no owner record; nothing to clear
+15:04:17.595 [pid 15732] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\raw.mp4 intermediate=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\audio_processed.wav muxing=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\recording.mp4.muxing.tmp out=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\recording.mp4
+15:04:17.912 [pid 15732] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\recording.mp4
+15:04:17.914 [pid 15732] [INFO] [AudioMix] MuxInTwoPasses: process mic audio removed the intermediate processed audio <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video\audio_processed.wav
+15:04:18.012 [pid 15732] [INFO] [OriginalBackup] preserved raw.mp4 -> recording.original.mp4
+15:04:18.013 [pid 15732] [INFO] [OriginalBackup] Present: 2026-11-16_150412_video -> 1
+15:04:18.018 [pid 15732] [INFO] [PostRecording] stage mux: done dir=2026-11-16_150412_video in 0.5s
+15:04:18.019 [pid 15732] [INFO] [PostRecordingState] NoteDone: 2026-11-16_150412_video stage=mux
+15:04:18.037 [pid 15732] [INFO] [PostRecording] Execute: 2026-11-16_150412_video - no camera to compose
+15:04:18.038 [pid 15732] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_150412_video
+15:04:18.210 [pid 15732] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_150412_video in 0.2s
+15:04:18.210 [pid 15732] [INFO] [PostRecordingState] NoteDone: 2026-11-16_150412_video stage=thumbnail
+15:04:18.224 [pid 15732] [INFO] [PostRecording] stage package: start dir=2026-11-16_150412_video
+15:04:18.233 [pid 15732] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_150412_video (package) - no capture holds it
+15:04:18.233 [pid 15732] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_150412_video (package) - no owner record; nothing to clear
+15:04:18.392 [pid 15732] [ERROR] [PostRecording] stage package FAILED: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video
+15:04:18.392 [pid 15732] [ERROR]    at AgentEyes.PostRecording.<>c.<DefaultPackageStep>b__19_0(String d) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+15:04:18.392 [pid 15732] [ERROR]    at AgentEyes.PostRecording.RunCountingAttempt(String dir, Action`1 package) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 153
+15:04:18.392 [pid 15732] [ERROR]    at AgentEyes.PostRecording.DefaultPackageStep(String dir) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 144
+15:04:18.392 [pid 15732] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 518
+15:04:18.393 [pid 15732] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_150412_video stage=package error=Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+15:04:18.398 [pid 15732] [INFO] [PostRecording] Run: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video done
+15:04:18.401 [pid 15732] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_150412_video
+15:04:18.402 [pid 15732] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_150412_video (in flight=1)
+15:04:18.402 [pid 15732] [INFO] [PostRecording] TrackWork released: capture fault <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-3.0\host\Videos\AgentEyes\2026-11-16_150412_video (in flight=0)

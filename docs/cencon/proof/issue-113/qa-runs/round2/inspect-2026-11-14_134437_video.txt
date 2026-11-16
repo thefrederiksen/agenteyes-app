@@ -1,0 +1,13 @@
+=== /home/soren/Videos/AgentEyes/2026-11-14_134437_video
+files: manifest.json raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots 
+  manifest.DurationSeconds = 605.13
+  manifest.CapturedSeconds = 604.97
+  manifest.CaptureFault = null
+  manifest.CaptureFaultDetail = null
+  manifest.CaptureFaultDetectedUtc = null
+  manifest.CaptureFaultElapsedSeconds = null
+  manifest.PendingMux = null
+  manifest.PostProcessing = {'mux': 'done'}
+  ffprobe recording.mp4: codec_type=video|nb_read_frames=18152 codec_type=audio|nb_read_frames=28356 duration=605.132683 
+  ffprobe recording.original.mp4: codec_type=video|nb_read_frames=18152 codec_type=audio|nb_read_frames=28355 duration=605.133334 
+top-level boxes recording.mp4: ftyp free mdat moov ... moov present: True moof count: 0

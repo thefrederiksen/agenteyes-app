@@ -1,0 +1,33 @@
+=== F-behind-never-recorded
+    Failed!  - Failed:     2, Passed:   292, Skipped:     0, Total:   294, Duration: 846 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.BehindAtStop_JustPastTheTolerance_IsAFault
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.BehindAtStop_TheEvidenceRecording_IsRecordedAsBehind
+=== A-watchdog-never-fires
+    Failed!  - Failed:     9, Passed:   285, Skipped:     0, Total:   294, Duration: 714 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Exited_ProcessEnds_FiresAtTheNextCheck
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Fault_IsFinal_GrowthAfterTheDecisionDoesNotClearIt
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_AnEmptyFileIsNotOutput
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_NoOutputPastTheStartupWindow_Fires
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_GrowthStops_FiresStalledInsideTheWindow
+=== B-no-fragmented-output
+    Failed!  - Failed:     3, Passed:   291, Skipped:     0, Total:   294, Duration: 657 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Linux.LinuxFfmpegArgsTests.X11VideoCapture_ScreenAndMic_ExactCommandLine
+    FAILED AgentEyes.Tests.Linux.LinuxFfmpegArgsTests.X11VideoCapture_WithPreview_FragmentsTheRecordingNotThePreview
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.FragmentedOutput_IsOnTheWindowsCaptureImmediatelyBeforeTheOutputPath
+=== C-gaps-counted-as-stalls
+    Failed!  - Failed:     2, Passed:   292, Skipped:     0, Total:   294, Duration: 872 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_LongPauseBetweenChecks_IsNotCountedAsAStall
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+=== D-no-startup-window
+    Failed!  - Failed:     4, Passed:   290, Skipped:     0, Total:   294, Duration: 736 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Healthy_FileGrowsOnlyEveryFortySeconds_NeverFaults
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.NeverStarted_NoOutputPastTheStartupWindow_Fires
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Startup_NoBytesYet_InsideTheWindow_DoesNotFireAndReportsStarting
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Startup_SlowFirstOutputThenGrowth_DoesNotFire
+=== E-stall-ignores-timeout
+    Failed!  - Failed:     5, Passed:   289, Skipped:     0, Total:   294, Duration: 750 ms - AgentEyes.Tests.Linux.dll (net8.0)
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Gap_ThenNoGrowth_StillFiresOneWindowAfterTheResume
+    FAILED AgentEyes.Tests.Shared.CaptureWatchdogTests.Stall_GrowthStops_FiresStalledInsideTheWindow
+=== restored: Passed!  - Failed:     0, Passed:   294, Skipped:     0, Total:   294, Duration: 876 ms - AgentEyes.Tests.Linux.dll (net8.0)
+exit=0

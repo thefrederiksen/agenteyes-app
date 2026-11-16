@@ -1,0 +1,6 @@
+14:08:47.783 [pid 23152] [INFO] [CliDispatcher] Run: args=3 command=package
+14:08:47.795 [pid 23152] [INFO] [CliDispatcher] Dispatch: parsed package options=[no-frames] positionals=1
+14:08:47.799 [pid 23152] [INFO] [CliDispatcher] Dispatch: running package
+14:08:47.936 [pid 23152] [INFO] [CaptureLock] ThrowIfLive DECLINED: refusing to package 2026-11-16_140834_video: it is being captured by the capture session of pid 22440 on host <laptop> (started 2026-11-16T19:08:34.5821513Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+14:08:47.939 [pid 23152] [WARN] [CliDispatcher] Run: usage error: refusing to package 2026-11-16_140834_video: it is being captured by the capture session of pid 22440 on host <laptop> (started 2026-11-16T19:08:34.5821513Z). Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.
+14:08:47.940 [pid 23152] [INFO] [CliDispatcher] Run: exit=1
