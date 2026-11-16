@@ -42,7 +42,7 @@
     <!-- The product version, the same as the engine's (AgentEyes.Core.csproj). The macOS bundle's
          CFBundleShortVersionString is read from here by scripts/mac/build-app.sh (issue #118), so a
          release that bumps the engine's version must bump this one too. -->
-    <Version>1.11.11</Version>
+    <Version>1.12.0</Version>
     <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
