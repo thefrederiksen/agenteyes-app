@@ -333,3 +333,270 @@ CI only builds and checks linkage. It never launches the app, which is how the Q
   4 on shorter ones.
 - Whether the 41 s cold start repeats on another machine or after a reboot.
 - A fix. QA does not implement.
+
+---
+
+# Windows QA pass 3 - the tray Quit guard (TrayPopupCloseGuard + DeferredQuit)
+
+| | |
+|---|---|
+| Machine | **SOREN_NORTH** (Windows 11 Enterprise 10.0.26200, x64), the owner's workstation |
+| Head tested | PR #141 branch `issue-116-desktop-app` at **02b6f3725cfc7fbfcde182f83a2c959678fca19e** (the handoff commit). `git diff e5ce76c 02b6f37` touches only `handoff.md` (5 lines), so the code under test is **e5ce76c** |
+| Embedded commit, read from the binary I ran | `AgentEyesDesktop.exe` and `AgentEyesDesktop.dll` ProductVersion `1.0.0+02b6f3725cfc7fbfcde182f83a2c959678fca19e`; `agenteyes.dll` `1.11.11+02b6f3725cfc7fbfcde182f83a2c959678fca19e`, all built at 08:15 today |
+| Binary run | `src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe`, from `dotnet build AgentEyes.sln -c Release`. A stale `bin\Release\` also exists in this clone; it was not run |
+| Date | 2026-11-16, 08:15 - 09:05 local |
+| Raw evidence | `windows-pass3-qa-runs.txt` (every run, its log lines by pid, and the tally), `windows-pass3-qa-criteria.txt` (criteria 4/9/10/11 run and the test transcript), `windows-pass3-qa-harness.ps1.txt` (my harness), `windows-pass3-qa-window.png`, `windows-pass3-qa-tray-menu.png` |
+
+## Verdict (Windows half only)
+
+**PASS on Windows for all five items of the pass 3 brief.** The guard fires on every guarded run. The crash
+comes back without the guard, and it comes back harder with the pre-fix code. With the guard in place, neither
+build crashes. Criterion 11 now passes on Windows in full: the handoff works and the first instance exits
+cleanly.
+
+**The label stays `flow:ready-qa`.** Linux and macOS were not re-verified here, and this is not a pass for them.
+
+| Item | Verdict |
+|---|---|
+| (1) Repro, own runs | **PASS**: 50 valid runs of the head, 0 crashes. Every run exited 0 with `[App] Quit`, `[SingleInstance] Dispose` and `[Program] Main: exited`, and the pipe was gone |
+| (2) Positive control | **PASS, with a caveat**: 7 crashes in 71 unguarded runs, against 0 in 62 guarded. The trigger is late popup activation (see below), and the head itself met that trigger in only 2 runs |
+| (3) Popup-close is the same defect | **PASS**: the pre-fix build crashed on a plain dismiss 4 times; no guarded build crashed on any dismiss. No separate popup-close defect found |
+| (4) Test project real and wired in | **PASS**: `AgentEyes.Tests.DesktopApp` 13/13, locally and in CI; I made 3 mutations and each was caught by a named test |
+| (5) Other criteria | 1, 4, 5, 7, 9, 11 (handoff) and 13 **PASS**; 10 **REPORTED, unchanged** (#163) |
+
+## The harness, and a finding the brief did not ask for: the crash needs LATE ACTIVATION
+
+My harness is `scripts\windows\tray-quit-repro.ps1`, extended; it is saved as `windows-pass3-qa-harness.ps1.txt`.
+It drives the tray like this:
+
+- The menu is opened with the shell's own tray callback: `WM_TRAYMOUSE` / `WM_RBUTTONUP`, posted to the app's
+  `AvaloniaMessageWindow`.
+- It is dismissed with `WM_CLOSE` or UIA `WindowPattern.Close`.
+- Quit is clicked with messages posted to the popup's own window.
+
+**No input went to any window that was not the test app's.** I did not do a physical right-click on
+Explorer's overflow, because that means driving the owner's cursor into the shell, which both this brief and
+CLAUDE.md forbid.
+
+I added four things to the script:
+
+- **`-Window tray | open | closed`:** start with `--tray`; or start with the window open and Quit with it open;
+  or start with the window open, close it to the tray (`[App] window closed to the tray`), and then Quit.
+- **Dismiss before Quit:** 0 to 3 times, by `WM_CLOSE` or UIA close, optionally walking the menu's UIA items
+  first. That walk is the previous seat's long sequence.
+- **A foreground probe:** 150 ms after each popup appears, is `GetForegroundWindow()` the popup (`FG`) or not
+  (`notFG`)?
+- **A precondition before every launch:** `GET /status` must read `idle`, or the run aborts.
+
+**What the probe showed.** Across all four builds, **every crash (7 of 7) came on a run where the popup was
+`notFG`.** In those runs the popup appeared, was not yet the foreground window, and was activated later.
+**No run in which every open was `FG` crashed, in any build.** That includes the unguarded pre-fix code: there
+were 0 crashes in 64 such unguarded runs.
+
+Whether a popup gets the foreground at once depends on the Windows foreground lock. The lock in turn depends
+on what the owner was doing a moment before. This explains four things:
+
+- Why the rate moves between sessions: 3 of 3 for the first QA seat, 5 of 28 for the developer, 7 of 71 here.
+- Why my 7 in 71 sits a little below 5 in 28: the probability of 7 or fewer in 71 at 5/28 is 0.047.
+- Why my dedicated 24-run popup-close batch was clean in every build: every one of its opens was `FG`.
+- Why the runs that count are the guarded runs in the `notFG` state, not the overall pass rate.
+
+## Item (1) - the repro on the head (`fixed`, 02b6f37)
+
+50 valid runs with 102 menu opens: 42 Quit runs and 8 popup-close runs. The exact list is the `fixed-*` lines
+in `windows-pass3-qa-runs.txt`.
+
+| Scenario | Runs |
+|---|---|
+| `--tray`, Quit at once | 7 |
+| `--tray`, 1 dismiss (WM_CLOSE), then Quit | 7 |
+| `--tray`, 2 dismisses, then Quit | 7 |
+| window open, Quit | 7 |
+| window closed to tray, Quit | 7 |
+| window closed to tray, 1 UIA dismiss after walking the items, then Quit | 7 |
+| 3 dismisses (WM_CLOSE or UIA, with and without the item walk; tray, open or closed), then Quit | 8 |
+
+There were **0 crashes**, and all 50 runs ended with `exit=0`. Every run logged this sequence:
+
+- `[DeferredQuit] Request`, then `[DeferredQuit] Run`;
+- `[App] Quit (the recorder service keeps running)`;
+- `[SingleInstance] Dispose: pipe agenteyes-app-soren`;
+- `[Program] Main: exited`.
+
+No run logged an unhandled exception, and the named pipe was gone after every one.
+
+**On every guarded run the guard logged `cancelled a re-entrant close`**: 3 times per Quit open, and 3 to 4
+times per dismiss open. So the re-entrant close it targets happens on every open, and the guard handles each one.
+
+**Arithmetic.** If the head were as crash-prone as the unguarded code, how likely are 50 clean runs by luck?
+
+- At the developer's unguarded rate (5/28 = 0.179): 0.821^50 = 5.3e-5.
+- At my own unguarded rate (7/71): 0.0056.
+
+**Neither number is the honest one,** because the trigger is the `notFG` state, and the head met it in only
+**2 of its 50 runs**. Both were clean: `fixed-quit-3`, which also dismissed in that state, and `fixed-quit-7`.
+So the head's own evidence in the crash-prone state is 2 runs. The guard's evidence in that state is 6 runs,
+once the 4 `guardsync` runs from item (2) are added.
+
+**Not counted:** `control-quit-58` and `guardsync-quit-102` were harness misses. The popup never got activation
+and closed itself before the click: the log shows `closing (reason=WindowClosing, active=False)`, no Quit
+request and no exception. The app stayed alive, and I killed my own test process. Neither is a product result.
+
+## Item (2) - the positive control: the guard fires, and the crash comes back without it
+
+I built three scratch builds in temporary worktrees, which are now removed. Nothing was committed to the
+branch. Before running each build, I fingerprinted it by its UTF-16 log literals to be sure it was the variant
+I meant.
+
+The builds:
+
+- **`control`:** 02b6f37 with the guard's `e.Cancel = true` removed. It logs `QA-CONTROL OBSERVED (NOT cancelled)`
+  instead, and the deferral is kept.
+- **`prefix`:** 6da099a, the pre-fix code. There is no guard, and Quit runs `Close` + `Shutdown` inside the click.
+- **`guardsync`:** 02b6f37 with `DeferredQuit`'s production constructor made synchronous. This is the guard alone.
+- **`fixed`:** the head, for comparison.
+
+| Build | Valid runs | Crashes | `notFG` runs | Crashes when `notFG` | Crashes when all `FG` |
+|---|---|---|---|---|---|
+| `control` | 37 | **1** | 1 | **1** | 0 |
+| `prefix` | 34 | **6** | 6 | **6** | 0 |
+| `guardsync` | 12 | 0 | 4 | 0 | 0 |
+| `fixed` | 50 | 0 | 2 | 0 | 0 |
+
+What the table shows:
+
+- **The crash is the same defect the developer traced.** In `control-quit-14` (pid 11668) the log shows, in
+  order:
+  - `tray popup ... closing (reason=WindowClosing, active=True)`;
+  - `QA-CONTROL OBSERVED (NOT cancelled) a re-entrant close`;
+  - `[Program] unhandled exception` with `System.NotSupportedException: DefaultMenuInteractionHandler is not
+    attached to the menu.`, before `[App] Quit` was ever reached.
+
+  The process exited with `-1073740771`, with no `Dispose` and no `Main: exited`.
+- **Unguarded (`control` + `prefix`): 7 crashes in 71 runs. Guarded (`fixed` + `guardsync`): 0 in 62.** The
+  chance of 62 clean guarded runs by luck is 0.0016 at 7/71, and 5.1e-6 at 5/28.
+- **In the crash-prone state, unguarded runs crashed 7 of 7 and guarded runs 0 of 6.** From 7 of 7, the crash
+  rate in that state is at least 0.65 at 95 percent confidence. So 6 clean guarded runs by luck has probability
+  at most 0.35^6 = 0.0018. This is the strongest single number in this pass, and it rests on 6 runs.
+- **More evidence would need a safe way to put the popup into the `notFG` state on demand.** I did not find one:
+  changing the foreground-lock timeout is a system setting on the owner's machine, and I did not touch it.
+- **The deferral is not the fix,** as the developer measured: `control` keeps the deferral and still crashes,
+  while `guardsync` drops it and does not crash, including in 4 runs in the crash-prone state.
+
+## Item (3) - the popup-close crash is the same defect
+
+- **The reverted build crashes on a dismiss.** Runs `prefix-quit-103`, `-106`, `-114` and `-120` each crashed on
+  the **first dismiss** (`WM_CLOSE` to the popup, no Quit clicked), with the same `NotSupportedException`. All
+  four were `notFG` runs. This is the previous seat's 2-of-6 popup-close crash, reproduced by the
+  late-activation state rather than by the long sequence.
+- **The guarded builds do not, in the same state.** `fixed-quit-3` (1 dismiss), `guardsync-quit-109`
+  (2 dismisses) and `guardsync-quit-119` (1 dismiss) all dismissed a `notFG` popup without crashing. Across all
+  guarded runs, every dismiss was clean: the 24 dismisses in `fixed`'s close batch, and every dismiss before a
+  Quit.
+- **My dedicated popup-close batch has no power, so I do not count it.** It was 24 runs, 8 per build, with 3
+  dismisses each (WM_CLOSE or UIA, with and without the item walk; tray, open or closed). It was clean in all
+  three builds, `prefix` included, because all 96 of its opens were `FG`.
+- **I saw no case of popup-close crashing while Quit was clean,** so I file no separate defect.
+
+## Item (4) - the new test project runs in the Windows gate, and catches mutations
+
+**It is in the solution.** `AgentEyes.sln` holds `AgentEyes.DesktopApp` (line 24) and `AgentEyes.Tests.DesktopApp`
+(line 26). The solution build lists:
+
+`AgentEyes.Tests.DesktopApp -> ...\tests\AgentEyes.Tests.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyes.Tests.DesktopApp.dll`
+
+**Local run.** I ran the solution-built assembly: `Total tests: 13`, all 13 `Passed`. The names are listed at
+the end of `windows-pass3-qa-criteria.txt`.
+
+**The x64 trap applies here too.** `dotnet test tests/AgentEyes.Tests.DesktopApp -c Release --no-build` looks in
+`bin\Release\` and reports "The test source file ... was not found". The solution build lands in
+`bin\x64\Release\`, so I ran that assembly directly, and passed `-p:Platform=x64` for the mutation runs.
+
+**CI at 02b6f37 (run 43873340100).**
+
+- windows job: `Passed!  - Failed: 0, Passed: 13, Skipped: 0, Total: 13 - AgentEyes.Tests.DesktopApp.dll`;
+- windows job: `Passed!  - Failed: 0, Passed: 2297 ... - AgentEyes.Tests.dll`;
+- linux job: `Passed: 292 ... AgentEyes.Tests.Linux.dll`, which includes the same 13.
+
+**Mutations I made.** All three were in a scratch worktree, restored afterwards, and never on the branch.
+
+| Mutation | Test that failed | Message |
+|---|---|---|
+| M1: delete `TrayPopupCloseGuard.Install();` from `App.axaml.cs` | `App_InstallsTheGuard_BeforeTheTrayIconExists` | `App.axaml.cs no longer installs TrayPopupCloseGuard` (Failed 1, Passed 12) |
+| M2: make `DeferredQuit`'s production constructor run the work synchronously (`this(work => work(), shutdown)`) | `DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit` | `Assert.Contains() Failure: Sub-string not found ... "Dispatcher.UIThread.Post(work, Dispatcher"` (Failed 1, Passed 12) |
+| M3: have `App` build `new DeferredQuit(work => work(), () => ShutdownNow(desktop))` through the test constructor | `DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit` | `Assert.Contains() Failure: Sub-string not found` (Failed 1, Passed 12) |
+
+**Caveat: the two tests that caught these mutations read source text.** They load `App.axaml.cs` and
+`DeferredQuit.cs` and match strings. That pins the shape against a refactor, which is their purpose, but it
+cuts both ways:
+
+- a rewrite that behaves identically would fail them;
+- a regression spelled differently might pass them.
+
+The guard's decision logic is tested by behaviour (`CancelThisClose_*`, `ReopenIfNotClosed_*`), and the
+type-exists test uses real reflection. As the handoff says, nothing in any gate reaches the crash itself.
+
+## Item (5) - the other criteria at this head
+
+| # | Expected | Actual | Verdict |
+|---|---|---|---|
+| 1 | No old names outside a deliberate historical comment | The issue's grep finds 2 hits, both historical comments: `scripts/linux/install.sh:113` (the pre-#116 name, so an install over an older one works) and `src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj:4` (project history) | PASS |
+| 4 | Builds, window opens, `[MainWindow] Opened`, screenshot read | `Build succeeded.` with `0 Error(s)`; `08:40:13.932 [pid 19552] [INFO] [MainWindow] Opened`; `windows-pass3-qa-window.png` (PrintWindow, 1296x759), read and not blank: Record page, REC button, Monitor 1 1920x1080, the mic, system sound, the VIDEO/MIC/SYSTEM cards, "Signed in" | PASS |
+| 5 | The solution builds it, with the line quoted | `AgentEyes.DesktopApp -> D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.dll`, `Build succeeded.`, `0 Error(s)`. There are 22 warnings, none in DesktopApp | PASS |
+| 7 | gdigrab present AND x11grab absent, with a positive control | One command counting UTF-16LE literals. The Windows-linked `DesktopApp\...\agenteyes.dll` has `gdigrab=2 x11grab=0 pulse=0`. The control, the Unix engine `AgentEyes.Core\bin\x64\Release\net8.0\agenteyes.dll`, has `gdigrab=2 x11grab=1 pulse=8`. gdigrab alone does not tell the two engines apart; x11grab and pulse do, and the control shows the check finds them when they are there | PASS |
+| 9 | Live recorder state in the window while `/health` is ok | `GET /health -> {"ok":true,"app":"AgentEyes"}` at 08:40:18. The screenshot 0.1 s later shows the devices the app read from `/devices` (`GetDevicesAsync: 3 monitor(s), 3 mic(s)`) and the signed-in state, not "not answering". The log has `[AppState] PollAsync: service answering, state=idle`, and the tray menu reads "Ready to record" | PASS |
+| 10 | Report the tray again | **Unchanged from #163.** The icon registers but is not promoted: in `HKCU\Control Panel\NotifyIconSettings`, `AgentEyesDesktop.exe` has `IsPromoted` empty, and the "AgentEyes" button on the taskbar is the installed WPF app (`IsPromoted=1`). Pass 3 does not touch the icon drawing code. The menu opens with all five entries and a live status line (`windows-pass3-qa-tray-menu.png`, read). The items still expose only `ScrollItemPatternIdentifiers.Pattern`, with no Invoke. **The one change:** closing the menu no longer crashes the app | REPORTED |
+| 11 | Second launch raises the first and exits; the first exits cleanly | The first instance (pid 19552) had its window closed to the tray. The second (pid 73092) logged `TryAcquire: another instance is running - sent it 'show'` and exited 0 in under 1 s. The first logged `Accept: 'show'`, `ShowWindow` and `[MainWindow] Opened`, and its window was visible again and in the foreground. A tray Quit on the first then gave exit 0, `Dispose` and `Main: exited` | PASS (Windows) |
+| 13 | CI green on all three jobs at this head | Run 43873340100 at 02b6f37: linux, macos and windows `success`. Run 43872825652 at e5ce76c: the same. The PR #141 check rollup at 02b6f37: windows, linux and macos SUCCESS. The mac job also shows `AgentEyes.Tests.Mac.dll Passed: 226` | PASS |
+
+**Criterion 12, Windows half: I did NOT run `dotnet test AgentEyes.sln` on this machine.** The reason is the
+#151 hazard: the suite's failure path can kill a live recording's ffmpeg by start time, and this is the owner's
+working machine. I ran the targeted `AgentEyes.Tests.DesktopApp` instead. For the full suite I cite CI run
+43873340100 at this exact head, windows job: `AgentEyes.Tests.dll Failed: 0, Passed: 2297` and
+`AgentEyes.Tests.DesktopApp.dll Failed: 0, Passed: 13`.
+
+## Findings outside the criteria (none blocks the pass; none is fixed here)
+
+1. **The guarded evidence in the crash-prone state is thin: 6 runs.** This is the real limit of this pass, and
+   of any rate-based check of this defect (see the harness section). A reviewer can re-run it with
+   `windows-pass3-qa-harness.ps1.txt`. Each RESULT line's `fg=[...]` field shows whether a batch sampled the
+   crash-prone state at all.
+2. **`DeferredQuit.cs`'s class comment still gives the disproved cause.** It says a synchronous shutdown "closed
+   that popup from inside its own click handling ... the popup was torn down twice", and that posting the
+   shutdown avoids this. The handoff and these measurements show the deferral is not the fix: `control` keeps
+   it and still crashes. A future reader could take that comment as licence to remove the guard. This is a
+   documentation defect, not a behaviour defect.
+3. **Every test build leaves a tray registration in the owner's registry.** Windows keeps one `NotifyIconSettings`
+   entry per executable path, so each worktree or scratch build adds a permanent entry. There are now about 10
+   entries for `AgentEyesDesktop.exe`, 4 of them from my scratch builds. They are harmless, but they accumulate.
+   I left them in place: deleting entries from his notification settings is not mine to do. This belongs with #163.
+4. **The app saves its settings file every time the window opens** (`[AppSettings] Save: screen=1 mic=...
+   mode=grid`). The values written equal the values read, so nothing changed, but a QA run of this app does
+   write the owner's desktop-app settings file.
+
+## The owner's machine during this pass
+
+- **Recorder:** `/status` read `idle` before every one of about 138 launches. The harness aborts otherwise, and it
+  never had to. No ffmpeg was started or killed, I changed no recording, preset or audio setting, and the
+  installed WPF app ran throughout.
+- **Focus:** each tray popup takes the foreground while it is open, for under a second. That happened about 280
+  times between 08:18 and 09:00, plus about 60 brief window opens in the `open` and `closed` scenarios.
+- **Crashes I caused:** 7, all in the scratch control builds. Each one left a Windows Error Reporting report for
+  `AgentEyesDesktop.exe`.
+- **Processes:** I killed only my own test processes. At the end no `AgentEyesDesktop.exe` was running.
+- **Worktrees:** the scratch worktrees `agenteyes-app.wt-qa116-control` and `agenteyes-app.wt-qa116-prefix` are
+  removed.
+
+## What I did NOT cover
+
+- **Linux and macOS.** Nothing in this pass ran there. Linux criterion 11 (the D-Bus Quit, which now goes through
+  `DeferredQuit`) and macOS each still need their own seat. This Windows pass does not stand in for either.
+- **The full-solution `dotnet test` on this machine**, because of the #151 hazard. CI is cited instead.
+- **A physical right-click on the tray icon**, and dismissing the menu with Escape or a click elsewhere. I used
+  the shell's own callback message and messages posted to the app's own windows.
+- **A way to force the late-activation state on demand**, so that the crash-prone state could be sampled in
+  volume.
+- **An Avalonia upgrade:** I did not re-check the developer's claim about 11.3.23 and 12.1.6.
+- **The rest of the app:** recording from the new app, "Show AgentEyes" and "Open recordings folder" from the
+  menu, and anything on SORENLAPTOP.
+- **A fix.** QA does not implement.

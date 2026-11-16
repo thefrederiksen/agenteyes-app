@@ -1,0 +1,71 @@
+== criteria 4/9/10/11 run (qa-criteria.ps1), 2026-11-16
+[08:40:12.953] first instance pid=19552 (no --tray: window opens)
+[08:40:18.220] GET /health -> {"ok":true,"app":"AgentEyes"}
+[08:40:18.285] PrintWindow main window 0x30415B6 title='AgentEyes' -> windows-pass3-window.png (1296x759)
+[08:40:19.493] window closed to tray: visible=False first alive=True
+[08:40:19.591] second instance pid=73092 exited=True exit=0
+[08:40:21.106] after second launch: first pid=19552 alive=True window visible again=True foreground is first window=True
+[08:40:21.930] tray menu popup 0xB02A8 -> windows-pass3-tray-menu.png (323x178); items: Ready to record | Start recording | Show AgentEyes | Open recordings folder | Quit AgentEyes (the recorder keeps running); UIA patterns on items: ScrollItemPatternIdentifiers.Pattern
+[08:40:24.371] UIA element named 'AgentEyes': type=ControlType.Button class=SystemTray.NormalButton parent=/Windows.UI.Input.InputSite.WindowClass offscreen=False pid=13232
+[08:40:24.373] UIA element named 'AgentEyes': type=ControlType.Window class=MainWindow parent=/#32769 offscreen=False pid=19552
+[08:40:24.375] UIA element named 'AgentEyes': type=ControlType.Window class=Window parent=/#32769 offscreen=False pid=26652
+[08:40:25.384] Quit clicked on first instance: exited=True exit=0
+--- log lines (both pids):
+08:40:13.031 [pid 19552] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=19552)
+08:40:13.035 [pid 19552] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='show'
+08:40:13.039 [pid 19552] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:40:13.359 [pid 19552] [INFO] [App] OnFrameworkInitializationCompleted
+08:40:13.359 [pid 19552] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:40:13.418 [pid 19552] [INFO] [TrayController] ctor
+08:40:13.492 [pid 19552] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:40:13.493 [pid 19552] [INFO] [AppState] StartPolling
+08:40:13.517 [pid 19552] [INFO] [App] Run: show
+08:40:13.518 [pid 19552] [INFO] [App] ShowWindow
+08:40:13.739 [pid 19552] [INFO] [MainWindow] ctor
+08:40:13.932 [pid 19552] [INFO] [MainWindow] Opened
+08:40:13.940 [pid 19552] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:40:14.583 [pid 19552] [INFO] [AppSettings] Save: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:40:18.301 [pid 19552] [INFO] [App] window closed to the tray
+08:40:19.563 [pid 73092] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=73092)
+08:40:19.567 [pid 73092] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='show'
+08:40:19.571 [pid 73092] [INFO] [SingleInstance] TryAcquire: pipe agenteyes-app-soren is owned by another instance (UnauthorizedAccessException: Access to the path is denied.)
+08:40:19.573 [pid 73092] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+08:40:19.574 [pid 19552] [INFO] [SingleInstance] Accept: 'show'
+08:40:19.574 [pid 19552] [INFO] [App] Run: show
+08:40:19.575 [pid 19552] [INFO] [App] ShowWindow
+08:40:19.594 [pid 19552] [INFO] [MainWindow] Opened
+08:40:19.998 [pid 19552] [INFO] [AppSettings] Save: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:40:21.130 [pid 19552] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:40:21.933 [pid 19552] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:40:21.936 [pid 19552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:40:21.936 [pid 19552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:40:21.940 [pid 19552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:40:24.388 [pid 19552] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:40:25.183 [pid 19552] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:40:25.184 [pid 19552] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:40:25.186 [pid 19552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:40:25.186 [pid 19552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:40:25.191 [pid 19552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:40:25.224 [pid 19552] [INFO] [DeferredQuit] Run: shutting down
+08:40:25.224 [pid 19552] [INFO] [App] Quit (the recorder service keeps running)
+08:40:25.286 [pid 19552] [INFO] [App] Quit: lifetime shutdown requested
+08:40:25.286 [pid 19552] [INFO] [DeferredQuit] Run: shutdown returned
+08:40:25.288 [pid 19552] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:40:25.293 [pid 19552] [INFO] [Program] Main: exited
+FIRSTPID=19552
+
+== dotnet test of the solution-built AgentEyes.Tests.DesktopApp.dll (x64), 02b6f37
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.IsTrayPopup_AnyOtherWindow_IsFalse [5 s]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_CloseAlreadyCancelledByOthers_DoesNotMarkClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_FirstCloseCancelledElsewhere_LetsTheNextCloseThrough [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_PostedWorkRuns_ShutsDownOnce [620 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_ReturnsWithoutRunningTheShutdown [2 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayController_QuitItem_TakesADeferredQuitNotAnAction [1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_FirstClose_IsAllowedAndMarksClosing [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [9 s]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.TrayPopupTypeName_NamesAvaloniasWindowsTrayPopup_WhichIsAWindow [281 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.App_InstallsTheGuard_BeforeTheTrayIconExists [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.Request_Twice_PostsOneShutdown [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.ReopenIfNotClosed_PopupClosed_KeepsCancellingLaterCloses [< 1 ms]
+  Passed AgentEyes.Tests.Shared.DesktopAppQuitTests.CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled [< 1 ms]
+Total tests: 13
