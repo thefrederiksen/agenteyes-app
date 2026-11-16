@@ -679,3 +679,63 @@ changes into `AgentEyes.Core` (#128, #136, #146, #151). What to verify:
    two new tests.
 
 I believe this pass is finished.
+
+---
+
+# Post-QA redaction (after Windows QA pass 4, on 46d287a)
+
+The Lead's ruling: the owner's personal email address that this PR added must be redacted before it
+merges. The four instances already on `main` are issue #173 and are NOT touched here. This is the
+whole delta after QA's pass: the redaction. No product source, test, measurement, count or verdict
+changed.
+
+## 1. What was redacted
+
+`docs/cencon/proof/issue-116/linux-install-transcript.txt`, two lines, nothing else:
+
+    line  7  before: [OK] built /tmp/tmp.kVn8D3Ibcl/agenteyes
+             after:  [OK] built <stage>/agenteyes
+    line 14  before: [OK] signed in as <the owner's address, removed here>
+             after:  [OK] signed in as <owner account>
+
+The convention is the one `main` already uses, not a new one. It was checked against the
+unredacted ancestor: `0c62e33:docs/cencon/proof/issue-142/linux/row1-install-transcript.txt` and
+`main`'s `docs/cencon/proof/issue-142/linux/earlier-c80cb9d/row1-install-transcript.txt` differ in
+exactly two lines. The mktemp staging path becomes `<stage>` and the signed-in address becomes
+`<owner account>`. The `/home/...` install paths stay as evidence there, and so they stay here too.
+The transcript still shows the same install: the build, the install paths, the service health JSON,
+a successful sign-in, the app start, exit=0, and the before and after pids.
+
+## 2. What the rest of the PR adds, searched by shape
+
+Scope: every file added or modified between merge-base `17c244d` (= `main`) and `46d287a`. That is
+107 files, 26 of them binary (24 png, 1 jpg, 1 LinuxApp). Only the ADDED lines were searched
+(`git diff -U0`, `+` lines, 11739 lines), so content inherited from `main` is not attributed to this PR.
+
+- Email shape, strict: `[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}`.
+  1 hit, line 14 above. That hit is also the positive control: the pattern finds a known address.
+- Email shape, loose: `[A-Za-z0-9._%+-]@[A-Za-z0-9]`. Hits are only `actions/checkout@v4` (CI
+  excerpts) and a `// path@x` comment in a Swift helper. Neither is an address.
+- Obfuscated forms: `%40`, `[at]`, `(at)`, `mailto:`. 0 hits.
+- Binaries: `strings -n 6` on all 26 files, then the strict pattern. 0 hits.
+- Temp and harness paths: `/tmp/`, `/private/tmp`, `/var/folders/`, `AppData\Local\Temp`, `\temp\`,
+  `%TEMP%`, `$env:TEMP`, `tmp.XXXXXX`, `mktemp`, `scratchpad`, `/T/`. Hits:
+  - `linux-install-transcript.txt` line 7. Redacted above.
+  - `mac-pass3-gate.txt`: `/tmp/x`, a literal test argument in a test name. Not a temp path.
+  - `mac-runtime.txt` and `qa-report-macos.md`: `/var/folders/b8/<redacted>/T/...`. Already redacted
+    by the macOS seat.
+  - `mac-gate.txt`: 4 lines carry the raw macOS per-user `$TMPDIR` segment
+    (`/var/folders/b8/<32 chars>/T/`). **Reported, NOT changed.** It is not the owner's identity, and
+    it is not a staging path in the `<stage>` sense. Also, those lines record a path-LENGTH failure
+    (`ArgumentOutOfRangeException ... invalid length`), so rewriting the path would change the
+    evidence. The same segment is already `<redacted>` in `qa-report-macos.md`. If the Lead or #173
+    wants it masked, that is a separate, length-aware change.
+
+Result: this PR adds exactly one email address, and it is now redacted. It adds one mktemp staging
+path, which is also redacted. The method above is what produced that result.
+
+## 3. Tests
+
+Not run. This change edits text in one proof file and appends this section. No build input or test
+input is touched. `AgentEyes.sln` cannot build on this Mac in any case. A suite run here would prove
+nothing about the change, so none is quoted.

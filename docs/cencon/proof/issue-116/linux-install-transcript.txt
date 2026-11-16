@@ -4,14 +4,14 @@ BEFORE: app processes:
 $ scripts/linux/install.sh
 Building agenteyes (Release, linux-x64, self-contained) ...
 /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
-[OK] built /tmp/tmp.kVn8D3Ibcl/agenteyes
+[OK] built <stage>/agenteyes
 Stopping the running service (a running recording is stopped and kept) ...
 [OK] installed /home/soren/.local/lib/agenteyes, linked /home/soren/.local/bin/agenteyes, unit /home/soren/.config/systemd/user/agenteyes.service
 [OK] enabled at login (graphical-session.target)
 Building the AgentEyes app (Release, linux-x64, self-contained) ...
 [OK] installed the app (/home/soren/.local/lib/agenteyes-app): 'AgentEyes' in the app grid, starts in the tray at login
 [OK] service is up: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
-[OK] signed in as soren@centerconsulting.com
+[OK] signed in as <owner account>
 [OK] AgentEyes app started - its window opens, and the moon in the top bar stays when you close it
 
 Ready. Open AgentEyes from the app grid or the moon in the top bar. From a terminal:
