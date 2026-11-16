@@ -1,0 +1,54 @@
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-11-16T19:50:21.5865771Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "Microphone (2- Realtek(R) Audio)",
+  "DurationSeconds": 139.13,
+  "VideoFile": "recording.mp4",
+  "CapturedSeconds": 138.24,
+  "FfmpegCommand": "\u0022<home>\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.1.1-full_build\\bin\\ffmpeg.exe\u0022 -y -f gdigrab -thread_queue_size 1024 -framerate 30 -offset_x 0 -offset_y 0 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i \u0022audio=Microphone (2- Realtek(R) Audio)\u0022 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags \u002Bfrag_keyframe\u002Bempty_moov\u002Bdefault_base_moof\u002Bdelay_moov -frag_duration 2000000 -flush_packets 1 <home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-gate\\host\\Videos\\AgentEyes\\2026-11-16_145021_video\\raw.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [],
+  "Files": [
+    "recording.mp4",
+    "recording.original.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [
+    "recording.original.mp4"
+  ],
+  "CaptureOwner": {
+    "Host": "<laptop>",
+    "Pid": 22568,
+    "ProcessStartUtc": "2026-11-16T19:50:20.3434459Z"
+  },
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T19:52:41.2496998Z",
+      "AttemptedBy": [
+        "attempt 1 at 2026-11-16T19:52:41.2496998Z by AgentEyes.Tests pid 22568 on <laptop>"
+      ]
+    },
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T19:52:48.0967262Z"
+    },
+    "package": {
+      "State": "failed",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T19:52:48.4834883Z",
+      "Error": "Not signed in to DevThrottle. Open Settings \u003E DevThrottle Account and sign in."
+    }
+  }
+}

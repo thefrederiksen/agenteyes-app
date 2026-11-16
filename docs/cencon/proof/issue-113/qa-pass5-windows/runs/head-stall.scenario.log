@@ -1,0 +1,55 @@
+19:57:24.782Z +    0.0s host pid=15388 exe=<home>\AppData\Local\Temp\qa113\bin-head\AgentEyes.Tests.exe
+19:57:25.425Z +    0.7s host stdout: [harness] pid=15388 core=1.11.11+2716e0f884084f6993ad4a1e4ac7dca3c6708d03 | [harness] data=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-stall\host\LocalAppData\AgentEyes | [harness] recordings=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-stall\host\Videos\AgentEyes | [harness] listening http://127.0.0.1:7990/ | 
+19:57:26.823Z +    2.1s POST /record/start fps=30 -> 200 {
+
+  "State": "recording",
+
+  "Mode": "video",
+
+  "Source": "mic",
+
+  "ElapsedSeconds": 0.88,
+
+  "Level": 0,
+
+  "MicLevel": 0,
+
+  "SystemLevel": 0,
+
+  "Dir": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-stall\\host\\Videos\\AgentEyes\\2026-11-16_145725_video",
+
+  "Camera": null,
+19:57:32.847Z +    8.1s /status [healthy 1] State=recording CaptureLiveness=growing CaptureBytes=322704 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:57:42.853Z +   18.1s /status [healthy 2] State=recording CaptureLiveness=growing CaptureBytes=702318 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:57:42.855Z +   18.1s recording dir 2026-11-16_145725_video
+19:57:43.745Z +   19.0s capture ffmpeg pid=8888 (parent = my host 15388)
+19:57:43.746Z +   19.0s INJECT (MINE): NtSuspendProcess(ffmpeg pid 8888) -> 0
+19:57:45.771Z +   21.0s /status [+2.0s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=2 LastStopFailed=False LastCaptureFault=None
+19:57:47.775Z +   23.0s /status [+4.0s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=4 LastStopFailed=False LastCaptureFault=None
+19:57:49.779Z +   25.0s /status [+6.0s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=6 LastStopFailed=False LastCaptureFault=None
+19:57:51.806Z +   27.0s /status [+8.0s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=8.1 LastStopFailed=False LastCaptureFault=None
+19:57:53.809Z +   29.0s /status [+10.1s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=10.1 LastStopFailed=False LastCaptureFault=None
+19:57:55.828Z +   31.1s /status [+12.1s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=12.1 LastStopFailed=False LastCaptureFault=None
+19:57:57.847Z +   33.1s /status [+14.1s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=14.1 LastStopFailed=False LastCaptureFault=None
+19:57:59.873Z +   35.1s /status [+16.1s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=16.1 LastStopFailed=False LastCaptureFault=None
+19:58:01.898Z +   37.1s /status [+18.1s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=18.1 LastStopFailed=False LastCaptureFault=None
+19:58:03.914Z +   39.1s /status [+20.2s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=20.1 LastStopFailed=False LastCaptureFault=None
+19:58:05.943Z +   41.2s /status [+22.2s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=22.1 LastStopFailed=False LastCaptureFault=None
+19:58:07.966Z +   43.2s /status [+24.2s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=24.1 LastStopFailed=False LastCaptureFault=None
+19:58:09.981Z +   45.2s /status [+26.2s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=26.1 LastStopFailed=False LastCaptureFault=None
+19:58:11.999Z +   47.2s /status [+28.2s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=28.1 LastStopFailed=False LastCaptureFault=None
+19:58:14.014Z +   49.2s /status [+30.3s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=30.2 LastStopFailed=False LastCaptureFault=None
+19:58:16.030Z +   51.3s /status [+32.3s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=32.2 LastStopFailed=False LastCaptureFault=None
+19:58:18.052Z +   53.3s /status [+34.3s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=34.2 LastStopFailed=False LastCaptureFault=None
+19:58:20.055Z +   55.3s /status [+36.3s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=36.2 LastStopFailed=False LastCaptureFault=None
+19:58:22.076Z +   57.3s /status [+38.3s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=38.2 LastStopFailed=False LastCaptureFault=None
+19:58:24.102Z +   59.3s /status [+40.3s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=40.2 LastStopFailed=False LastCaptureFault=None
+19:58:26.123Z +   61.4s /status [+42.4s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=42.2 LastStopFailed=False LastCaptureFault=None
+19:58:28.143Z +   63.4s /status [+44.4s after inject] State=recording CaptureLiveness=not-growing CaptureBytes=702318 CaptureSecondsSinceGrowth=44.2 LastStopFailed=False LastCaptureFault=None
+19:58:30.173Z +   65.4s /status [+46.4s after inject] State=idle CaptureLiveness=None CaptureBytes=None CaptureSecondsSinceGrowth=None LastStopFailed=True LastCaptureFault=capture stalled: raw.mp4 stopped growing at 702318 bytes and has not grown for 46s (limit 45s); last growth 2026-11-16T19:57:42.845Z
+19:58:30.173Z +   65.4s ffmpeg pid 8888 alive after verdict=False
+19:58:31.174Z +   66.4s mux State=done after 1.0s
+19:58:31.175Z +   66.4s manifest [final] PendingMux=null PostProcessing={"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T19:58:29.3790651Z", "AttemptedBy": ["attempt 1 at 2026-11-16T19:58:29.3790651Z by AgentEyes.Tests pid 15388 on <laptop>"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T19:58:30.7501883Z"}, "package": {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T19:58:30.9490837Z", "Error": "Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in."}} CaptureFault=stalled CaptureFaultDetectedUtc=2026-11-16T19:58:29.0447077Z CapturedSeconds=15.83 DurationSeconds=15.17
+19:58:31.175Z +   66.4s dir [final] audio_16k.wav=481358, capture.lock=0, manifest.json=2404, mux.lock=0, raw.mp4.ffmpeg.log=6145, recording.mp4=768816, recording.original.mp4=702318, thumb.jpg=27072
+19:58:51.234Z +   86.5s host exit=0
+19:58:51.235Z +   86.5s app logs: AgentEyes-20261116.log

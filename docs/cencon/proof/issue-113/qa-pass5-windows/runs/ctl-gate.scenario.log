@@ -1,0 +1,74 @@
+19:53:16.681Z +    0.1s host pid=12668 exe=<home>\AppData\Local\Temp\qa113\bin-ctl\AgentEyes.Tests.exe
+19:53:17.349Z +    0.7s host stdout: [harness] pid=12668 core=1.11.11+ad21557bb177d52323a8484b3f6e9d73f16daf52 | [harness] data=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\LocalAppData\AgentEyes | [harness] recordings=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-gate\host\Videos\AgentEyes | [harness] listening http://127.0.0.1:7990/ | 
+19:53:19.359Z +    2.7s POST /record/start fps=30 -> 200 {
+
+  "State": "recording",
+
+  "Mode": "video",
+
+  "Source": "mic",
+
+  "ElapsedSeconds": 1.46,
+
+  "Level": 0,
+
+  "MicLevel": 0,
+
+  "SystemLevel": 0,
+
+  "Dir": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\ctl-gate\\host\\Videos\\AgentEyes\\2026-11-16_145317_video",
+
+  "Camera": null,
+
+
+19:53:25.396Z +    8.8s /status [healthy 1] State=recording CaptureLiveness=growing CaptureBytes=326901 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:53:35.402Z +   18.8s /status [healthy 2] State=recording CaptureLiveness=growing CaptureBytes=711309 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:53:35.403Z +   18.8s recording dir 2026-11-16_145317_video
+19:53:36.278Z +   19.6s capture ffmpeg pid=13512 (parent = my host 12668)
+19:53:36.279Z +   19.6s manifest [before second process] PendingMux={"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "FinalFile": "recording.mp4", "RawDurationSeconds": 0, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}} PostProcessing={} CaptureFault=None CaptureFaultDetectedUtc=None CapturedSeconds=None DurationSeconds=0
+19:53:36.279Z +   19.6s dir [before second process] manifest.json=934, raw.mp4=749211
+19:53:39.165Z +   22.5s SECOND PROCESS agenteyes package --no-frames: exit=3 in 2.88s; out='[error] The process cannot access the file because it is being used by another process.'
+19:53:39.165Z +   22.5s dir [right after second process] manifest.json=1162, mux.lock=0, raw.mp4=996284, recording.mp4=834826
+19:53:39.165Z +   22.5s manifest [right after second process] PendingMux={"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "FinalFile": "recording.mp4", "RawDurationSeconds": 0, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}} PostProcessing={"mux": {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T19:53:36.7710623Z", "Error": "The process cannot access the file because it is being used by another process."}} CaptureFault=None CaptureFaultDetectedUtc=None CapturedSeconds=None DurationSeconds=0
+19:53:39.166Z +   22.5s capture ffmpeg pid 13512 alive=True
+19:53:49.224Z +   32.6s /status [watch 1] State=recording CaptureLiveness=growing CaptureBytes=1349822 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:53:49.224Z +   32.6s    disk: raw.mp4=1349822 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:53:59.241Z +   42.6s /status [watch 2] State=recording CaptureLiveness=growing CaptureBytes=1706339 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:53:59.241Z +   42.6s    disk: raw.mp4=1744214 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:54:09.245Z +   52.6s /status [watch 3] State=recording CaptureLiveness=growing CaptureBytes=2095470 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:54:09.246Z +   52.6s    disk: raw.mp4=2133091 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:54:19.251Z +   62.6s /status [watch 4] State=recording CaptureLiveness=growing CaptureBytes=2486179 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:54:19.251Z +   62.6s    disk: raw.mp4=2530237 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:54:29.280Z +   72.6s /status [watch 5] State=recording CaptureLiveness=growing CaptureBytes=2884914 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:54:29.281Z +   72.6s    disk: raw.mp4=2884914 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:54:39.296Z +   82.7s /status [watch 6] State=recording CaptureLiveness=growing CaptureBytes=3238019 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:54:39.296Z +   82.7s    disk: raw.mp4=3471646 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:54:49.302Z +   92.7s /status [watch 7] State=recording CaptureLiveness=growing CaptureBytes=3822978 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:54:49.302Z +   92.7s    disk: raw.mp4=3860486 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:54:59.322Z +  102.7s /status [watch 8] State=recording CaptureLiveness=growing CaptureBytes=4215847 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:54:59.322Z +  102.7s    disk: raw.mp4=4253450 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:55:09.328Z +  112.7s /status [watch 9] State=recording CaptureLiveness=growing CaptureBytes=4606449 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:55:09.329Z +  112.7s    disk: raw.mp4=4643972 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:55:19.333Z +  122.7s /status [watch 10] State=recording CaptureLiveness=growing CaptureBytes=5002698 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:55:19.333Z +  122.7s    disk: raw.mp4=5002698 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:55:29.362Z +  132.7s /status [watch 11] State=recording CaptureLiveness=growing CaptureBytes=5356358 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:55:29.363Z +  132.7s    disk: raw.mp4=5592642 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:55:39.383Z +  142.8s /status [watch 12] State=recording CaptureLiveness=growing CaptureBytes=5947671 CaptureSecondsSinceGrowth=0 LastStopFailed=False LastCaptureFault=None
+19:55:39.383Z +  142.8s    disk: raw.mp4=5985192 recording.mp4=EXISTS 834826 ffmpeg alive=True
+19:55:39.383Z +  142.8s WATCH SUMMARY: growing (state+liveness+disk size) at 12 of 12 polls
+19:55:40.310Z +  143.7s POST /record/stop -> 200 {
+
+  "Dir": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\ctl-gate\\host\\Videos\\AgentEyes\\2026-11-16_145317_video",
+
+  "File": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\ctl-gate\\host\\Videos\\AgentEyes\\2026-11-16_145317_video\\recording.mp4",
+
+  "DurationSeconds": 141.53,
+
+  "Shots": 0
+
+}
+19:55:40.314Z +  143.7s mux State=failed after 0.0s
+19:55:40.314Z +  143.7s manifest [final] PendingMux={"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "FinalFile": "recording.mp4", "RawDurationSeconds": 141.53, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}} PostProcessing={"mux": {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T19:53:36.7710623Z", "Error": "The process cannot access the file because it is being used by another process."}} CaptureFault=None CaptureFaultDetectedUtc=None CapturedSeconds=141.29 DurationSeconds=141.53
+19:55:40.315Z +  143.7s dir [final] manifest.json=1946, mux.lock=0, raw.mp4=6023457, raw.mp4.ffmpeg.log=39419, recording.mp4=834826
+19:56:00.690Z +  164.1s host exit=0
+19:56:00.691Z +  164.1s app logs: AgentEyes-20261116.log

@@ -1,0 +1,34 @@
+15:04:40.718 [pid 19824] [INFO] [RecordingService] StartWatchdog: watching <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+15:04:42.725 [pid 19824] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=2.8s (detected 2026-11-16T20:04:42.722Z) dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 1241 bytes - ending the recording now and keeping what was captured
+15:04:42.726 [pid 19824] [INFO] [PostRecording] TrackWork: capture fault <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video (in flight=1)
+15:04:42.729 [pid 19824] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+15:04:42.731 [pid 19824] [WARN] [FfmpegRecorder] Abandon: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\raw.mp4 - capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 1241 bytes - killing the capture process now
+15:04:42.733 [pid 19824] [INFO] [FfmpegRecorder] Abandon: <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\raw.mp4 ended in 1ms (had already exited, exit 137, last reported position 0.00s)
+15:04:42.896 [pid 19824] [INFO] [PostRecording] Run: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video hostedWork=True
+15:04:42.896 [pid 19824] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_150439_video (in flight=2)
+15:04:42.910 [pid 19824] [INFO] [PostRecordingState] NoteStarted: 2026-11-16_150439_video stage=mux
+15:04:42.916 [pid 19824] [INFO] [PostRecording] stage mux: start dir=2026-11-16_150439_video
+15:04:42.999 [pid 19824] [INFO] [AudioMix] MuxInTwoPasses: process mic audio video=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\raw.mp4 intermediate=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\audio_processed.wav muxing=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\recording.mp4.muxing.tmp out=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\recording.mp4
+15:04:43.231 [pid 19824] [INFO] [AudioMix] MuxInTwoPasses: process mic audio done out=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\recording.mp4
+15:04:43.232 [pid 19824] [INFO] [AudioMix] MuxInTwoPasses: process mic audio removed the intermediate processed audio <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video\audio_processed.wav
+15:04:43.300 [pid 19824] [INFO] [OriginalBackup] preserved raw.mp4 -> recording.original.mp4
+15:04:43.301 [pid 19824] [INFO] [OriginalBackup] Present: 2026-11-16_150439_video -> 1
+15:04:43.307 [pid 19824] [INFO] [PostRecording] stage mux: done dir=2026-11-16_150439_video in 0.4s
+15:04:43.308 [pid 19824] [INFO] [PostRecordingState] NoteDone: 2026-11-16_150439_video stage=mux
+15:04:43.327 [pid 19824] [INFO] [PostRecording] Execute: 2026-11-16_150439_video - no camera to compose
+15:04:43.329 [pid 19824] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_150439_video
+15:04:43.420 [pid 19824] [ERROR] [PostRecording] stage thumbnail FAILED: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video
+15:04:43.420 [pid 19824] [ERROR]    at AgentEyes.PostRecording.<>c.<.cctor>b__38_1(String dir) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\PostRecording.cs:line 127
+15:04:43.420 [pid 19824] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\PostRecording.cs:line 492
+15:04:43.421 [pid 19824] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_150439_video stage=thumbnail error=ffmpeg failed during poster thumbnail (exit -22). ...:
+15:04:43.435 [pid 19824] [INFO] [PostRecording] stage package: start dir=2026-11-16_150439_video
+15:04:43.516 [pid 19824] [ERROR] [PostRecording] stage package FAILED: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video
+15:04:43.516 [pid 19824] [ERROR]    at AgentEyes.PostRecording.<>c.<DefaultPackageStep>b__19_0(String d) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\PostRecording.cs:line 144
+15:04:43.516 [pid 19824] [ERROR]    at AgentEyes.PostRecording.RunCountingAttempt(String dir, Action`1 package) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\PostRecording.cs:line 153
+15:04:43.516 [pid 19824] [ERROR]    at AgentEyes.PostRecording.DefaultPackageStep(String dir) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\PostRecording.cs:line 144
+15:04:43.516 [pid 19824] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in <home>\AppData\Local\Temp\qa113\wt-ad21557\src\AgentEyes.Core\PostRecording.cs:line 492
+15:04:43.520 [pid 19824] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_150439_video stage=package error=ffmpeg failed during extract audio (exit -22). ...
+15:04:43.525 [pid 19824] [INFO] [PostRecording] Run: dir=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video done
+15:04:43.528 [pid 19824] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_150439_video
+15:04:43.528 [pid 19824] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_150439_video (in flight=1)
+15:04:43.529 [pid 19824] [INFO] [PostRecording] TrackWork released: capture fault <home>\AgentEyes-QA-evidence\issue113-pass5-qa\ctl-earlykill-1.0\host\Videos\AgentEyes\2026-11-16_150439_video (in flight=0)

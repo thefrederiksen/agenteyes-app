@@ -1,0 +1,32 @@
+20:03:44.741Z +    0.0s host pid=8372 exe=<home>\AppData\Local\Temp\qa113\bin-head\AgentEyes.Tests.exe
+20:03:45.371Z +    0.6s host stdout: [harness] pid=8372 core=1.11.11+2716e0f884084f6993ad4a1e4ac7dca3c6708d03 | [harness] data=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.8\host\LocalAppData\AgentEyes | [harness] recordings=<home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.8\host\Videos\AgentEyes | [harness] listening http://127.0.0.1:7990/ | 
+20:03:46.684Z +    2.0s POST /record/start fps=30 -> 200 {
+
+  "State": "recording",
+
+  "Mode": "video",
+
+  "Source": "mic",
+
+  "ElapsedSeconds": 0.88,
+
+  "Level": 0,
+
+  "MicLevel": 0,
+
+  "SystemLevel": 0,
+
+  "Dir": "<home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-earlykill-1.8\\host\\Videos\\AgentEyes\\2026-11-16_150345_video",
+
+  "Camera
+20:03:47.660Z +    2.9s INJECT (MINE): TerminateProcess(ffmpeg pid 20188, child of my host 8372) at ffmpeg age 1.80s (found at age 0.84s) -> 1; raw.mp4 size just before=0
+20:03:47.660Z +    2.9s capture ffmpeg command line: <home>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe -hide_banner -y -f gdigrab -thread_queue_size 1024 -framerate 30 -offset_x 0 -offset_y 0 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i audio=Microphone (2- Realtek(R) Audio) -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 <home>\AgentEyes-QA-evidence\issue113-pass5-qa\head-earlykill-1.8\host\Videos\AgentEyes\2026-11-16_150345_video\raw.mp4
+20:03:48.662Z +    3.9s raw.mp4 size 1s after kill = 0
+20:03:48.673Z +    3.9s /status [after kill 0] State=finalizing CaptureLiveness=faulted CaptureBytes=0 CaptureSecondsSinceGrowth=None LastStopFailed=True LastCaptureFault=capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 0 bytes
+20:03:50.695Z +    6.0s /status [after kill 1] State=idle CaptureLiveness=None CaptureBytes=None CaptureSecondsSinceGrowth=None LastStopFailed=True LastCaptureFault=capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 0 bytes
+20:03:50.697Z +    6.0s dir [after kill] capture.lock=0, manifest.json=2622, mux.lock=0, raw.mp4=0, raw.mp4.ffmpeg.log=2434
+20:03:50.698Z +    6.0s mux State=failed after 0.0s
+20:03:50.698Z +    6.0s manifest [final] PendingMux={"Mode": "video", "Source": "mic", "RawVideo": "raw.mp4", "FinalFile": "recording.mp4", "RawDurationSeconds": 2.88, "Options": {"MicGain": 1, "SystemGain": 0.7, "NoiseSuppression": true, "NoiseGate": false, "GateCalibrated": false, "VoiceLeveling": true, "MicProcessing": true, "GateApplies": false}} PostProcessing={"mux": {"State": "failed", "Attempts": 1, "LastAttemptUtc": "2026-11-16T20:03:49.0100747Z", "AttemptedBy": ["attempt 1 at 2026-11-16T20:03:49.0100747Z by AgentEyes.Tests pid 8372 on <laptop>"], "Error": "could not read the audio channel count of <home>\\AgentEyes-QA-evidence\\issue113-pass5-qa\\head-earlykill-1.8\\host\\Videos\\AgentEyes\\2026-11-16_150345_video\\raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it."}} CaptureFault=exited CaptureFaultDetectedUtc=2026-11-16T20:03:48.6405198Z CapturedSeconds=0 DurationSeconds=0
+20:03:50.699Z +    6.0s dir [final] capture.lock=0, manifest.json=2622, mux.lock=0, raw.mp4=0, raw.mp4.ffmpeg.log=2434
+20:04:11.015Z +   26.3s host exit=0
+20:04:11.016Z +   26.3s app logs: AgentEyes-20261116.log

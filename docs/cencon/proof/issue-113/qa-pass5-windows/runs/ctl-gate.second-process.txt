@@ -1,0 +1,6 @@
+exit=3 elapsed=2.88s
+--- stdout
+
+--- stderr
+[error] The process cannot access the file because it is being used by another process.
+
