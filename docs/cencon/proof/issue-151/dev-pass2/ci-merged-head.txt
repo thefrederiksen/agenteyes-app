@@ -1,0 +1,22 @@
+# Issue #151 pass 2 - CI on the merged head 6a65fa18af8955e45fd1f5ca7105f977513de43b
+# Linux and macOS cannot be run on SORENLAPTOP; these counts are CI's, quoted from the job logs.
+
+## job 133309954668 (run 43870216038 windows success)
+Passed!  - Failed:     0, Passed:  2375, Skipped:    15, Total:  2390, Duration: 39 s - AgentEyes.Tests.dll (net8.0)
+Passed!  - Failed:     0, Passed:  2394, Skipped:     0, Total:  2394, Duration: 46 s - AgentEyes.Tests.dll (net8.0)
+
+## job 133310001368 (run 43870216038 linux success)
+Passed!  - Failed:     0, Passed:   291, Skipped:     1, Total:   292, Duration: 780 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Passed!  - Failed:     0, Passed:   292, Skipped:     0, Total:   292, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+## job 133309957336 (run 43870216038 macos success)
+Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 421 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+## job 133309946542 (run 43870208914 linux success)
+Passed!  - Failed:     0, Passed:   291, Skipped:     1, Total:   292, Duration: 604 ms - AgentEyes.Tests.Linux.dll (net8.0)
+Passed!  - Failed:     0, Passed:   292, Skipped:     0, Total:   292, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
+
+## job 133310011099 (run 43870208914 macos success)
+Passed!  - Failed:     0, Passed:   283, Skipped:     1, Total:   284, Duration: 788 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+## Windows on the push run 43870208914: failed twice in 'Download ffmpeg (essentials build)' - www.gyan.dev 503 Service Unavailable - before build or test (jobs 133309062692, 133309944571). Infrastructure, no test ran.

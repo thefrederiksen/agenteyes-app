@@ -1,0 +1,11 @@
+# shim positive control: 3 x ffmpeg sine, 1 x ffprobe -version, 1 x ffmpeg -bogusflag (exit 8 forwarded)
+ffmpeg-639304278320251838-3376.txt
+ffmpeg-639304278333446132-15172.txt
+ffmpeg-639304278334891965-19100.txt
+ffmpeg-639304278351164877-19264.txt
+ffprobe-639304278338248856-2316.txt
+2026-11-16T12:10:32.0101589Z	ffmpeg	pid=3376	-hide_banner -loglevel error -f lavfi -i sine=d=0.1 -f null -
+2026-11-16T12:10:33.3423460Z	ffmpeg	pid=15172	-hide_banner -loglevel error -f lavfi -i sine=d=0.1 -f null -
+2026-11-16T12:10:33.4858212Z	ffmpeg	pid=19100	-hide_banner -loglevel error -f lavfi -i sine=d=0.1 -f null -
+2026-11-16T12:10:35.1141186Z	ffmpeg	pid=19264	-bogusflag
+2026-11-16T12:10:33.8223199Z	ffprobe	pid=2316	-version

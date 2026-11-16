@@ -36,10 +36,12 @@ jobs:
           if ($version -ne $tag) { throw "tag ${{ github.ref_name }} does not match csproj version $version" }
 
       - name: Download ffmpeg (essentials build)
-        # Before "Run tests": the Housekeeper end-to-end tests exercise the real encoder
-        # (a transcode, a frame conversion, a real WAV), and the runner has no ffmpeg. The
-        # suite refuses to skip - a skip is indistinguishable from a pass in every report
-        # this repository produces - so the runner gets the binary instead. QA_RECORD_FFMPEG_DIR
+        # Before "Run tests": the end-to-end tests exercise the real encoder (a transcode, a
+        # frame conversion, a real WAV), and the runner has no ffmpeg. A skip is
+        # indistinguishable from a pass in every report this repository produces, so a release
+        # never runs with ffmpeg-backed tests skipped: the runner gets the binary, and "Run
+        # tests" sets AGENTEYES_FFMPEG_TESTS=1 so the opt-in tests (issue #151) run as well.
+        # Only the everyday gate skips them, and CI runs them on every push. QA_RECORD_FFMPEG_DIR
         # is the name FfmpegLocator reads; FFMPEG_DIR is what the publish step passes on.
         shell: pwsh
         run: |
@@ -51,8 +53,13 @@ jobs:
           "FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "QA_RECORD_FFMPEG_DIR=$($bin.DirectoryName)" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
+      # Issue #151: AGENTEYES_FFMPEG_TESTS=1, because the tests that launch a real ffmpeg (the #128
+      # mic-chain guards among them) are opt-in so the everyday gate stays fast. A release is built
+      # with every test, not the everyday subset.
       - name: Run tests
         shell: pwsh
+        env:
+          AGENTEYES_FFMPEG_TESTS: "1"
         run: dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj -c Release
 
       # Publish the four first-party exes + the ffmpeg zip into dist/release, but

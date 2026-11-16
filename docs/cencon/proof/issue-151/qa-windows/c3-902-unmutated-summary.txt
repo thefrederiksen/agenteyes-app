@@ -1,0 +1,6 @@
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | stereo | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 960 non-finite of 960960 | framed: exit 0, 0 of 960960
+--
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers | mono | 480123 samples (% 480 = 123) | arnndn alone, 1 run(s): exit 0, 480 non-finite of 480480 | framed: exit 0, 0 of 480480
+--
+Total tests: 27
+Passed: 27

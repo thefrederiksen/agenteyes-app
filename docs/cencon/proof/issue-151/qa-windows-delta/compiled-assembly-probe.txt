@@ -1,0 +1,50 @@
+assembly: C:/ReposFred/agenteyes-app/tests/AgentEyes.Tests/bin/x64/Release/net8.0-windows10.0.19041.0/AgentEyes.Tests.dll
+typedefs: 911
+  TYPE  [MicChainOrderTests] AgentEyes.Tests.Shared.MicChainOrderTests
+  TYPE  [OwnedFfmpeg] AgentEyes.Tests.OwnedFfmpeg
+  TYPE  [OwnedFfmpeg] AgentEyes.Tests.OwnedFfmpegTests
+  TYPE  [OwnedFfmpegTests] AgentEyes.Tests.OwnedFfmpegTests
+  TYPE  [FfmpegOptInFact] AgentEyes.Tests.FfmpegOptInFactAttribute
+  TYPE  [MicChainStallTests] AgentEyes.Tests.MicChainStallTests
+pdb documents: 148
+  DOC   [MicChainOrderTests] C:\ReposFred\agenteyes-app\tests\Shared\MicChainOrderTests.cs
+  DOC   [OwnedFfmpeg] C:\ReposFred\agenteyes-app\tests\Shared\OwnedFfmpeg.cs
+  DOC   [OwnedFfmpegTests] C:\ReposFred\agenteyes-app\tests\Shared\OwnedFfmpegTests.cs
+  DOC   [FfmpegOptInAttributes] C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\FfmpegOptInAttributes.cs
+  DOC   [FfmpegOptInFact] ABSENT
+  DOC   [MicChainStallTests] C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\MicChainStallTests.cs
+  DOC   [MacMicAlignmentTests] ABSENT
+
+assembly: C:/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Linux/bin/Release/net8.0/AgentEyes.Tests.Linux.dll
+typedefs: 61
+  TYPE  [MicChainOrderTests] AgentEyes.Tests.Shared.MicChainOrderTests
+  TYPE  [OwnedFfmpeg] AgentEyes.Tests.OwnedFfmpeg
+  TYPE  [OwnedFfmpeg] AgentEyes.Tests.OwnedFfmpegTests
+  TYPE  [OwnedFfmpegTests] AgentEyes.Tests.OwnedFfmpegTests
+  TYPE  [FfmpegOptInFact] AgentEyes.Tests.FfmpegOptInFactAttribute
+pdb documents: 23
+  DOC   [MicChainOrderTests] C:\ReposFred\agenteyes-app\tests\Shared\MicChainOrderTests.cs
+  DOC   [OwnedFfmpeg] C:\ReposFred\agenteyes-app\tests\Shared\OwnedFfmpeg.cs
+  DOC   [OwnedFfmpegTests] C:\ReposFred\agenteyes-app\tests\Shared\OwnedFfmpegTests.cs
+  DOC   [FfmpegOptInAttributes] C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\FfmpegOptInAttributes.cs
+  DOC   [FfmpegOptInFact] ABSENT
+  DOC   [MicChainStallTests] ABSENT
+  DOC   [MacMicAlignmentTests] ABSENT
+
+assembly: C:/ReposFred/agenteyes-app/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll
+typedefs: 57
+  TYPE  [MicChainOrderTests] AgentEyes.Tests.Shared.MicChainOrderTests
+  TYPE  [OwnedFfmpeg] AgentEyes.Tests.OwnedFfmpeg
+  TYPE  [OwnedFfmpeg] AgentEyes.Tests.OwnedFfmpegTests
+  TYPE  [OwnedFfmpegTests] AgentEyes.Tests.OwnedFfmpegTests
+  TYPE  [FfmpegOptInFact] AgentEyes.Tests.FfmpegOptInFactAttribute
+  TYPE  [MacMicAlignmentTests] AgentEyes.Tests.Mac.MacMicAlignmentTests
+pdb documents: 22
+  DOC   [MicChainOrderTests] C:\ReposFred\agenteyes-app\tests\Shared\MicChainOrderTests.cs
+  DOC   [OwnedFfmpeg] C:\ReposFred\agenteyes-app\tests\Shared\OwnedFfmpeg.cs
+  DOC   [OwnedFfmpegTests] C:\ReposFred\agenteyes-app\tests\Shared\OwnedFfmpegTests.cs
+  DOC   [FfmpegOptInAttributes] C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests\FfmpegOptInAttributes.cs
+  DOC   [FfmpegOptInFact] ABSENT
+  DOC   [MicChainStallTests] ABSENT
+  DOC   [MacMicAlignmentTests] C:\ReposFred\agenteyes-app\tests\AgentEyes.Tests.Mac\MacMicAlignmentTests.cs
+
