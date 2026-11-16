@@ -1,0 +1,12 @@
+# shim positive control: 3 x ffmpeg sine, 1 x ffprobe -version, 1 x ffmpeg -bogusflag (exit 8 forwarded)
+# first attempt counted 0/0: the scratch path was given to bash PATH as C:/..., and the colon split it, so the shim was never on PATH. Rerun with a POSIX path:
+ffmpeg-639304315850768065-22900.txt
+ffmpeg-639304315852218096-9272.txt
+ffmpeg-639304315853677649-4556.txt
+ffmpeg-639304315857104741-10812.txt
+ffprobe-639304315855625547-16172.txt
+2026-11-16T13:13:05.0740195Z	ffmpeg	pid=22900	cwd=%QA_SCRATCH%	-hide_banner -loglevel error -f lavfi -i sine=d=0.1 -f null -
+2026-11-16T13:13:05.2195472Z	ffmpeg	pid=9272	cwd=%QA_SCRATCH%	-hide_banner -loglevel error -f lavfi -i sine=d=0.1 -f null -
+2026-11-16T13:13:05.3655387Z	ffmpeg	pid=4556	cwd=%QA_SCRATCH%	-hide_banner -loglevel error -f lavfi -i sine=d=0.1 -f null -
+2026-11-16T13:13:05.7076572Z	ffmpeg	pid=10812	cwd=%QA_SCRATCH%	-bogusflag
+2026-11-16T13:13:05.5601800Z	ffprobe	pid=16172	cwd=%QA_SCRATCH%	-version

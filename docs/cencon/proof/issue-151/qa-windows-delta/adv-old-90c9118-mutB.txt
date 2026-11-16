@@ -1,0 +1,28 @@
+# adversarial ownership run: old-90c9118-mutB  worktree=%QA_SCRATCH%\wt-old  optin=0
+2026-11-16T08:19:21.5244674-05:00  laptop app /status before: State=idle
+2026-11-16T08:19:21.5419787-05:00  ffmpeg processes before: 0 []
+2026-11-16T08:19:21.5821255-05:00  dotnet test started pid 19576
+2026-11-16T08:19:27.7896840-05:00  test's stalling ffmpeg seen by shim: 2026-11-16T13:19:27.5740643Z	ffmpeg	pid=21176	cwd=%QA_SCRATCH%\w
+2026-11-16T08:19:29.8239966-05:00  FOREIGN ffmpeg started: pid 18304 start 2026-11-16T08:19:29.8136895-05:00 (after the test's own ffmpeg, so inside the window)
+2026-11-16T08:20:27.7955928-05:00  dotnet test exited: code 1
+2026-11-16T08:20:27.8238242-05:00    test: [xUnit.net 00:01:03.52]         killed leaked ffmpeg pid 21176
+2026-11-16T08:20:27.8238242-05:00    test: [xUnit.net 00:01:03.52]         could not kill ffmpeg pid 22380: Cannot process request because the process (22380) has exited.
+2026-11-16T08:20:27.8465613-05:00    test: [xUnit.net 00:01:03.52]         killed leaked ffmpeg pid 18304
+2026-11-16T08:20:27.8623471-05:00    test: killed leaked ffmpeg pid 21176
+2026-11-16T08:20:27.8769247-05:00    test: could not kill ffmpeg pid 22380: Cannot process request because the process (22380) has exited.
+2026-11-16T08:20:27.8879909-05:00    test: killed leaked ffmpeg pid 18304
+2026-11-16T08:20:27.9050689-05:00    test: Total tests: 1
+2026-11-16T08:20:27.9221607-05:00  FOREIGN pid 18304: DEAD - killed during the run
+2026-11-16T08:20:27.9326471-05:00  FOREIGN exit code: -1
+2026-11-16T08:20:27.9473186-05:00  ffmpeg processes after: 0 []
+2026-11-16T08:20:27.9901791-05:00  laptop app /status after: State=idle
+2026-11-16T08:20:27.9981729-05:00  RESULT old-90c9118-mutB foreignAlive=False testExit=1
+   RunWatched was still running after 60 s - the stall guard did not fire
+  Error Message:
+ could not kill ffmpeg pid 22380: Cannot process request because the process (22380) has exited.
+ killed leaked ffmpeg pid 18304
+ killed leaked ffmpeg pid 21176
+[xUnit.net 00:01:03.52]         could not kill ffmpeg pid 22380: Cannot process request because the process (22380) has exited.
+[xUnit.net 00:01:03.52]         killed leaked ffmpeg pid 18304
+[xUnit.net 00:01:03.52]         killed leaked ffmpeg pid 21176
+[xUnit.net 00:01:03.52]       RunWatched was still running after 60 s - the stall guard did not fire

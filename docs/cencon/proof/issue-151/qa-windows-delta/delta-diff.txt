@@ -1,0 +1,80 @@
+# Issue #151 delta QA - every path that differs between the verified head 2f50acf and the tested head aec0be4
+# Outside docs/: classified against main. MAIN-ONLY = blob at aec0be4 == blob at main 497e9d4 AND blob at 2f50acf == blob at the PR base 90c9118
+# (i.e. this PR never touched it and it arrived from main unchanged). INSPECT = anything else (diffs follow).
+INSPECT   CLAUDE.md
+MAIN-ONLY src/AgentEyes.Core/Video/FfmpegArgs.cs
+INSPECT   tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj
+INSPECT   tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj
+MAIN-ONLY tests/AgentEyes.Tests.Mac/MacMicAlignmentTests.cs
+INSPECT   tests/AgentEyes.Tests/AgentEyes.Tests.csproj
+MAIN-ONLY tests/AgentEyes.Tests/MicChainSampleRateTests.cs
+MAIN-ONLY tests/Shared/MicChainOrderTests.cs
+
+# Reverse check: every non-doc file main changed (90c9118..497e9d4), and whether aec0be4 carries main's blob unchanged
+CARRIED  src/AgentEyes.Core/Video/FfmpegArgs.cs
+DIFFERS  tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj  (merged - see diff below)
+DIFFERS  tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj  (merged - see diff below)
+CARRIED  tests/AgentEyes.Tests.Mac/MacMicAlignmentTests.cs
+DIFFERS  tests/AgentEyes.Tests/AgentEyes.Tests.csproj  (merged - see diff below)
+CARRIED  tests/AgentEyes.Tests/FfmpegOptInAttributes.cs
+CARRIED  tests/AgentEyes.Tests/MicChainSampleRateTests.cs
+CARRIED  tests/Shared/MicChainOrderTests.cs
+
+# Commits on the branch after 2f50acf
+* aec0be4 docs(cencon): #151 pass 2 handoff names the two skills without their folder path
+* 4d570eb docs: the gate's counts and ffmpeg/ffprobe starts, measured on main 497e9d4 merged into #151 (#151)
+*   6a65fa1 Merge origin/main (497e9d4, #146) into issue-151-gate-ffmpeg
+|\  
+| * 497e9d4 fix(audio): resample the mic to 48 kHz ahead of arnndn's framing (#146) (#150)
+| * ae80c4d docs(cencon): #142 Linux report in-repo; rows 4-6 re-run on main f9ef230 (row 5 FAIL) (#158)
+| * 0b67385 docs(cencon): #142 macOS QA report - Wave A on main f9ef230 (#154)
+| * f9ef230 docs: CLAUDE.md carried the superseded D5 merge rule, which told QA to merge
+* 3084271 docs(cencon): #151 independent Windows QA on 2f50acf - criteria met on the branch, qa-failed on merge into main 497e9d4
+
+# Non-doc paths changed by the branch's own commits after the merge (6a65fa1..aec0be4):
+CLAUDE.md
+
+# src tests .github scripts AgentEyes.sln: 6a65fa1 vs aec0be4 (empty = identical trees; CI run 43870216038 is at 6a65fa1)
+
+# INSPECT diffs: csproj, verified head 2f50acf -> tested head aec0be4
+diff --git a/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj b/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj
+index 183edbf..3908f23 100644
+--- a/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj
++++ b/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj
+@@ -52,6 +52,7 @@
+     <!-- The opt-in for tests that launch a real ffmpeg (AGENTEYES_FFMPEG_TESTS=1), shared with the
+          Windows suite so the repo has one convention. -->
+     <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
++    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
+   </ItemGroup>
+ 
+ </Project>
+diff --git a/tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj b/tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj
+index 3d52e7c..e5bc1a5 100644
+--- a/tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj
++++ b/tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj
+@@ -66,6 +66,7 @@
+     <!-- The opt-in for tests that launch a real ffmpeg (AGENTEYES_FFMPEG_TESTS=1), shared with the
+          Windows suite so the repo has one convention. -->
+     <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
++    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
+   </ItemGroup>
+ 
+ </Project>
+diff --git a/tests/AgentEyes.Tests/AgentEyes.Tests.csproj b/tests/AgentEyes.Tests/AgentEyes.Tests.csproj
+index 5c53141..c7108ee 100644
+--- a/tests/AgentEyes.Tests/AgentEyes.Tests.csproj
++++ b/tests/AgentEyes.Tests/AgentEyes.Tests.csproj
+@@ -72,6 +72,7 @@
+          all three suites so each platform's process handling is proven by its own gate. -->
+     <Compile Include="../Shared/OwnedFfmpeg.cs" Link="Shared/OwnedFfmpeg.cs" />
+     <Compile Include="../Shared/OwnedFfmpegTests.cs" Link="Shared/OwnedFfmpegTests.cs" />
++    <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
+   </ItemGroup>
+ 
+ </Project>
+
+# Duplicate Compile Include items per csproj at aec0be4 (none printed = none)
+tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj: 7 Compile items
+tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj: 7 Compile items
+tests/AgentEyes.Tests/AgentEyes.Tests.csproj: 6 Compile items

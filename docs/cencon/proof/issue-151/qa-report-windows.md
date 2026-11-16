@@ -200,3 +200,191 @@ gave 2394/2394. It is recorded as a teardown flake that someone should track.
 `shim-positive-control.txt` - `shim-{default,optin,b9b-default,merge-default,merge-optin2}-ffmpeg.txt` (one
 line per ffmpeg start) - `roots-{default,optin,b9b-default,merge-default}.txt` - `adv-old-90c9118-mutB.txt`,
 `adv-new-2f50acf-mutB.txt` - `c3-*-summary.txt` - `b9b-default-flake.txt`, `merge-optin-run1-flake.txt`.
+
+---
+
+# Delta re-QA on aec0be4 (pass 2), Windows - a different QA seat
+
+**Verdict: PASS. Set `flow:ready-gate`.** All four delta items hold, and the safety re-run on this
+head holds, with its positive control. Nothing outside main's own changes and the three csproj lines
+moved after 2f50acf, so the criterion-by-criterion verification above still covers this head. Three
+observations follow. None of them is a defect of this PR, and two of them are about text on main.
+Evidence for this section: `docs/cencon/proof/issue-151/qa-windows-delta/`.
+
+## What was tested
+
+| | |
+|---|---|
+| Machine | SORENLAPTOP, Windows 11 Home 10.0.26200, not elevated |
+| Head under test | `aec0be41a537fdd39aecee3172a20d055857c8e8`, branch `issue-151-gate-ffmpeg` after `git fetch origin`, equal to `origin/issue-151-gate-ffmpeg` |
+| Embedded commit, binary actually run | `tests\AgentEyes.Tests\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.dll` ProductVersion **`1.11.11+aec0be41a537fdd39aecee3172a20d055857c8e8`** (AgentEyes.Tests.dll `1.0.0+aec0be4...`, AgentEyesApp.dll `1.11.11+aec0be4...`). The identity is the embedded commit, not a dll hash |
+| Stale-binary trap | `bin\Release\...\agenteyes.dll` here is `1.11.11+b9bdec1...`. Not used: every "Test run for" line names the `x64` path |
+| SDK / runtime | SDK **10.0.301** building net8.0. A net8.0 probe prints **`.NET 8.0.21`** (8.0.6, 8.0.7 and 8.0.21 are installed, and roll-forward picks 8.0.21) |
+| Build | `dotnet build AgentEyes.sln -c Release`: **0 Error(s)**, 22 warnings |
+| Laptop app | AgentEyesApp pid 16160, `/status` `idle` before and after every ffmpeg-touching run; no ffmpeg or ffprobe running before or after any run |
+
+## (1) Nothing else moved - PASS
+
+`delta-diff.txt`. Every path outside `docs/` that differs between 2f50acf and aec0be4, checked blob by
+blob against main:
+
+| Path | Result |
+|---|---|
+| `src/AgentEyes.Core/Video/FfmpegArgs.cs`, `tests/AgentEyes.Tests/MicChainSampleRateTests.cs`, `tests/AgentEyes.Tests.Mac/MacMicAlignmentTests.cs`, `tests/Shared/MicChainOrderTests.cs` | **MAIN-ONLY**: blob at aec0be4 == blob at main 497e9d4, and blob at 2f50acf == blob at the PR base 90c9118. The PR never touched them; they arrived from main byte for byte |
+| `tests/AgentEyes.Tests/AgentEyes.Tests.csproj`, `tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj`, `tests/AgentEyes.Tests.Mac/AgentEyes.Tests.Mac.csproj` | the merge: `git diff 2f50acf aec0be4` is exactly **one added line per file**, `<Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />`, nothing removed |
+| `CLAUDE.md` | doc: main's D7 text plus this PR's tier-1 passage, see (4) |
+
+The reverse check: every non-doc file main changed in 90c9118..497e9d4 is carried at aec0be4 with
+main's blob unchanged, except the three csproj files above (`FfmpegOptInAttributes.cs` is CARRIED: an
+identical add on both sides). The branch's own commits after the merge (4d570eb, aec0be4) touch only
+`docs/`. `git diff 6a65fa1 aec0be4 -- src tests .github scripts AgentEyes.sln` is empty. Every other
+file in `src` and `tests` is byte-identical to the head the first seat verified.
+
+## (2) The merge resolution - PASS, proven in the compiled assemblies
+
+From the csproj: no duplicate `Compile Include` in any of the three (6, 7 and 7 items, `uniq -d`
+empty). Both sides are present: the OwnedFfmpeg links (and the `FfmpegOptInAttributes.cs` link on
+Linux and macOS) sit directly above main's `MicChainOrderTests.cs` link. `git diff 497e9d4 aec0be4`
+on the csproj files adds only this PR's lines and drops none of main's.
+
+From the binaries (`compiled-assembly-probe.txt`; instrument `pdbprobe-Program.cs` reads TypeDefs from
+the dll and source Documents from the portable pdb). All three assemblies were built here from aec0be4
+(Windows via the solution, into `bin\x64\Release`; Linux and macOS via their csproj, into
+`bin\Release\net8.0`, both at 08:11).
+
+| Source file | Windows `AgentEyes.Tests` | Linux `AgentEyes.Tests.Linux` | macOS `AgentEyes.Tests.Mac` |
+|---|---|---|---|
+| `tests/Shared/MicChainOrderTests.cs` (main) | compiled, type `AgentEyes.Tests.Shared.MicChainOrderTests` | compiled | compiled |
+| `tests/Shared/OwnedFfmpeg.cs` (#151) | compiled, type `AgentEyes.Tests.OwnedFfmpeg` | compiled | compiled |
+| `tests/Shared/OwnedFfmpegTests.cs` (#151) | compiled | compiled | compiled |
+| `tests/AgentEyes.Tests/FfmpegOptInAttributes.cs` | compiled, `FfmpegOptInFactAttribute` | compiled (link) | compiled (link) |
+| control: `MicChainStallTests.cs` (Windows only) | compiled | **ABSENT** | **ABSENT** |
+| control: `MacMicAlignmentTests.cs` (macOS only) | **ABSENT** | **ABSENT** | compiled |
+
+The ABSENT rows are the probe's positive control: it does report a missing file. So the presence
+rows are real.
+
+## (3) The counts - my own, and they match
+
+Instrument: the first seat's `counting-shim-Program.cs`, rebuilt unchanged in my scratch. It runs
+through `rungate2.sh` (the same shape as `rungate.sh`) on `QA_RECORD_FFMPEG_DIR` and the front of
+`PATH`. The real tools are winget ffmpeg 8.1.1.
+
+**The positive control caught a broken instrument first.** My first control run counted **0 of 4
+ffmpeg and 0 of 1 ffprobe**. I had passed the scratch folder to bash as `C:/...`, the colon split
+`PATH`, and the shim was never found. I reran it with a POSIX path: **4 ffmpeg (one a bad flag, exit
+8 forwarded) and 1 ffprobe counted, 4 and 1** (`shim-positive-control.txt`). Both gate arms ran after
+that fix, and `where ffmpeg` named the shim in both. **Anyone reusing `rungate.sh` should note that
+`QA_SCRATCH` must be a POSIX path.** A `C:` path silently counts zero.
+
+| Arm (`windows-gate.txt`) | Total | Passed | Skipped | Failed | Test time | ffmpeg / ffprobe |
+|---|---|---|---|---|---|---|
+| Default, no shim | **2390** | 2375 | **15** | **0** | 1 m 11 s | - |
+| Opt-in, no shim | **2394** | 2394 | **0** | **0** | 1 m 31 s | - |
+| Default, shim | 2390 | 2375 | 15 | 0 | 1 m 22 s | **235 / 115** |
+| Opt-in, shim | 2394 | 2394 | 0 | 0 | 1 m 41 s | **322 / 128** |
+
+Compared with the developer's figures (2390/15/0 at 235/115; 2394/0/0 at 322/128), **every count is
+identical**. In the default arm, 0 ffmpeg lines name an `agenteyes-128-` or `agenteyes-146` temp root;
+in the opt-in arm, 55 and 21 do. Durations differ (71 s here against the developer's 65 s, and 91 s
+against 77 s, on the same laptop and different runs). That is run-to-run timing, not a count
+difference. See observation (a).
+
+Exclusions, stated: the shim sees only launches resolved through `QA_RECORD_FFMPEG_DIR` or `PATH`. An
+absolute-path launch is invisible, so 235 is a **floor for the ffmpeg binary**, not a total of child
+processes. ffprobe is counted separately, and no other child-process type is counted.
+
+**CI run 43870216038** (`ci-runs.txt`): it exists, it is a `pull_request` run, conclusion `success`,
+at `6a65fa18af8955e45fd1f5ca7105f977513de43b`, the merge commit and not aec0be4. It is at this head's
+code tree all the same: src, tests, .github, scripts and the sln are identical between 6a65fa1 and
+aec0be4. Its job logs say Windows 2390 (2375 + 15 skipped) in 39 s and opt-in 2394/2394 in 46 s;
+Linux 292 (291 + 1 skipped) in 780 ms and opt-in 292/292; macOS 284 (283 + 1 skipped) in 421 ms. That
+is **exactly what the handoff claims**. Runs at aec0be4 itself agree: push 43871518893 and pull_request
+43871527682 are both green with the same totals. The single Linux and macOS skip is the opt-in
+`OwnedFfmpegTests` fact at `tests/Shared/OwnedFfmpegTests.cs:131`, the only skip source compiled into
+the macOS suite, and the Linux opt-in arm skips 0. So "1 opt-in skip each" is true.
+
+## (4) The wording - PASS
+
+The before text is main f241730, which is what this PR replaces on landing. The after text is
+aec0be4. `git diff origin/main aec0be4 -- CLAUDE.md docs/cencon/DEVELOPMENT_METHOD.md` changes only
+these two hunks.
+
+**CLAUDE.md, tier 1.** Before:
+> It is FAST and SILENT: 288 tests in ~2 seconds, no app launch, no audio, no ffmpeg.
+
+After (excerpt):
+> It is silent (no app launch, no audio) but it is NOT ffmpeg-free. [...] 2390 tests, 15 of them
+> skipped [...] 39 s of test time on the Windows CI runner (run 43870216038) and 65 s on a laptop
+> (SDK 10.0.301 building net8.0, runtime 8.0.21). [...] **235 ffmpeg and 115 ffprobe** [...] (2394
+> tests; 46 s on CI, 77 s on the laptop; 322 ffmpeg and 128 ffprobe starts). [...] an open policy
+> question tracked in issue #153 and NOT settled here. The Linux and macOS gates [...] are 292 and 284
+> tests (1 opt-in skip each), in under a second on CI (run 43870216038).
+
+**DEVELOPMENT_METHOD.md, dev gate item 4.** Before:
+> `dotnet test` is FAST and SILENT - 288 tests in ~2 seconds, no app launch, no audio, no ffmpeg.
+
+After (excerpt):
+> 2390 tests, 15 skipped by default, in 39 s on the Windows CI runner (run 43870216038) and 65 s on a
+> laptop [...] NOT ffmpeg-free: [...] 235 ffmpeg and 115 ffprobe processes. [...] 2394 tests, 322
+> ffmpeg and 128 ffprobe starts [...] an open policy question, issue #153. The Linux and macOS suites
+> are 292 and 284 tests on CI (same run). The old figure here, "288 tests in ~2 seconds, no ffmpeg",
+> was the LINUX suite's count [...]
+
+Checked: every count in both texts equals what I measured or what the CI logs say. "No ffmpeg" no
+longer describes the Windows gate in either text. Both point the policy question at #153. **The hard
+rule is untouched**: the `THE HUMAN NEVER RUNS TESTS. EVER.` blocks (CLAUDE.md:62,
+DEVELOPMENT_METHOD.md:248 and :314) are byte-identical to the pre-PR base 90c9118, and neither
+diff hunk touches them.
+
+**The four texts together** (these two plus the developer-agent skill (`skill.md:138-143`) and
+the implementation-loop skill (`skill.md:214-218`) as corrected on main in f241730): the numbers
+agree. All four say 235 ffmpeg and 115 ffprobe, all four point at #153, and none still says "~2s" or
+"no ffmpeg" of the Windows gate. They disagree in two places, see observations (b) and (c).
+
+## Safety re-run on this head - PASS, with a positive control in the same session
+
+The first seat's harness `adversarial.ps1` was rerun unchanged (copy in `qa-windows-delta/`). Mutation B
+(`FfmpegProgressWatchdog.IsStalled` always false) was applied in throwaway worktrees and never
+committed. The worktrees have been removed.
+
+| Run | Code (embedded commit) | Foreign ffmpeg (QA-started, not through the suite or the shim, 2 s after the test's own stalling ffmpeg, so inside the old sweep's window) | Result |
+|---|---|---|---|
+| **Positive control** (`adv-old-90c9118-mutB.txt`) | `1.11.11+90c9118...` + mutation B | pid 18304, started 08:19:29.81 | **DEAD.** The old sweep logged `killed leaked ffmpeg pid 21176` (the test's own) and **`killed leaked ffmpeg pid 18304`**; foreign exit code -1. The check can fail |
+| **Under test** (`adv-new-aec0be4-mutB.txt`) | `1.11.11+aec0be4...` + mutation B, opt-in | pid 8400, started 08:20:36.87 | **ALIVE after the failure path** (pid and start time both re-matched). The test logged only `failure path: pid 23328: killed`, its own run, and failed by name: "RunWatched was still running after 60 s - the stall guard did not fire". `ffmpeg processes after: 0` once QA had killed its own foreign process by handle, so the owned run left no orphan. `/status` stayed `idle` |
+
+## Observations (not defects of this PR)
+
+a. **The laptop durations in the texts are one run's numbers.** On the same laptop I measured 71 s and
+   91 s against the texts' 65 s and 77 s. The texts label them as laptop measurements and the counts are
+   exact, so this is not wrong. But whoever quotes a duration later should quote a range.
+b. **"Silent" means two different things.** CLAUDE.md and DEVELOPMENT_METHOD.md say the gate "is
+   silent (no app launch, no audio) but NOT ffmpeg-free". The developer-agent skill (main, line 138) says
+   "it is NOT silent: the default gate starts roughly 235 ffmpeg". The substance agrees, but the word is
+   used oppositely. That is for the lead to reconcile on main, not here.
+c. **The two skill texts expire when this PR lands.** developer-agent `skill.md:141-143` ("do not start
+   it while a recording is running: until #151 lands, its failure path can kill an ffmpeg it does not
+   own. Check `/status` first") and implementation-loop `skill.md:217-218` ("must not be started while
+   a recording is in progress until #151 lands") are true today and become stale on merge. CLAUDE.md
+   carries no such caveat. Someone needs to remove them after the merge, or they keep the tiptoeing
+   this PR exists to end.
+
+## What this re-QA did NOT cover
+
+- **Criteria 1-6 were not re-verified from scratch.** They rest on the first seat's verification at
+  2f50acf, together with item (1) here, which shows that src and tests moved only by main's files and
+  three link lines. The mutation-A framing run (criterion 3) was not repeated.
+- **Linux and macOS were not run.** Their assemblies were only compiled here, for item (2). Their
+  counts come from CI logs (runs 43870216038, 43871518893, 43871527682).
+- **No kernel process accounting.** Not elevated, so the ffmpeg count is a floor (see the exclusions).
+- **No real recording.** The foreign ffmpeg was a stand-in that QA started. SOREN_NORTH was not touched.
+- **Main's #146 change itself** (`FfmpegArgs.cs` resample) was not reviewed. It is main's, merged
+  under its own QA. I only checked that it arrived byte for byte.
+- **No review of the developer's `dev-pass2/` evidence files** beyond comparing their numbers with mine.
+
+## Evidence index (`docs/cencon/proof/issue-151/qa-windows-delta/`)
+
+`delta-diff.txt` (item 1 and the csproj diffs) - `compiled-assembly-probe.txt`, `pdbprobe-Program.cs`
+(item 2) - `windows-gate.txt`, `shim-positive-control.txt`, `shim-{default,optin}-{ffmpeg,ffprobe}.txt`
+(one line per start), `rungate2.sh` (item 3) - `ci-runs.txt` (item 3, CI) - `adversarial.ps1`,
+`adv-old-90c9118-mutB.txt`, `adv-new-aec0be4-mutB.txt` (safety re-run).
