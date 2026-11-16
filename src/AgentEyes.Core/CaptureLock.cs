@@ -9,10 +9,13 @@ namespace AgentEyes
     /// <summary>What <see cref="CaptureLock.Inspect"/> found on a recording directory (issue #156).</summary>
     internal sealed class CaptureLiveness
     {
-        public CaptureLiveness(bool live, string reason)
+        public CaptureLiveness(bool live, string reason, bool undetermined = false)
         {
+            if (undetermined && !live)
+                throw new ArgumentException("an undetermined capture claim is always treated as live", nameof(undetermined));
             Live = live;
             Reason = reason;
+            Undetermined = undetermined;
         }
 
         /// <summary>True when a capture is (or may still be) writing into the directory, so nothing
@@ -22,6 +25,16 @@ namespace AgentEyes
         /// <summary>Why - naming the holder when there is one. Always set, so a decline and a
         /// takeover both say what they saw.</summary>
         public string Reason { get; }
+
+        /// <summary>
+        /// Issue #156 pass 4: true when whether a capture is still writing CANNOT BE ESTABLISHED from
+        /// this process (a recorded writer's identity answered <see cref="Video.ProcessIdentity.Unknown"/>
+        /// - measured: a sandboxed prober refused a live writer's start time). Always together with
+        /// <see cref="Live"/>: an undetermined claim is not touched - not finalized, not cleared, not
+        /// counted - because guessing "stale" can finalize a file that is still being written, while
+        /// waiting only delays a recovery. Callers report it as undetermined, not as a plain skip.
+        /// </summary>
+        public bool Undetermined { get; }
     }
 
     /// <summary>
@@ -108,9 +121,10 @@ namespace AgentEyes
             public DateTime StartUtc { get; set; }
         }
 
-        /// <summary>TEST SEAM: true when <c>pid</c> is still the process that started at the given
-        /// UTC time. Production: <see cref="Video.FfmpegChildRegistry.IsSameProcess"/>.</summary>
-        internal static Func<int, DateTime, bool> IsSameProcess = Video.FfmpegChildRegistry.IsSameProcess;
+        /// <summary>TEST SEAM: whether <c>pid</c> is still the process that started at the given UTC
+        /// time - Mine, NotMine or Unknown (issue #156 pass 4). Production:
+        /// <see cref="Video.FfmpegChildRegistry.IdentifyProcess"/>.</summary>
+        internal static Func<int, DateTime, Video.ProcessAnswer> IdentifyProcess = Video.FfmpegChildRegistry.IdentifyProcess;
 
         /// <summary>TEST SEAM: this machine's name, compared with a record's <see cref="OwnerRecord.Host"/>.</summary>
         internal static Func<string> HostName = () => Environment.MachineName;
@@ -299,7 +313,7 @@ namespace AgentEyes
 
             string msg = $"refusing to {purpose} {Path.GetFileName(RecordingWorkset.Key(dir))}: {live.Reason}. " +
                          "Nothing was muxed, renamed or counted as an attempt; the recording is finalized when its capture ends.";
-            Log.Info($"[CaptureLock] ThrowIfLive DECLINED: {msg}");
+            Log.Info($"[CaptureLock] ThrowIfLive DECLINED{(live.Undetermined ? " (undetermined)" : "")}: {msg}");
             throw new UsageException(msg);
         }
 
@@ -318,9 +332,23 @@ namespace AgentEyes
             if (_disposed) return;
             _disposed = true;
 
+            // Issue #156 pass 4: a writer whose identity is Unknown is kept as running - the record is
+            // what protects its file, and it is removed only on proof that every writer is gone.
             var running = new List<WriterRecord>();
+            var unproved = new HashSet<WriterRecord>();
             foreach (var w in _owner.Writers)
-                if (IsSameProcess(w.Pid, w.StartUtc)) running.Add(w);
+            {
+                var answer = IdentifyProcess(w.Pid, w.StartUtc);
+                if (answer.IsNotMine) continue;
+                running.Add(w);
+                if (answer.IsUnknown)
+                {
+                    unproved.Add(w);
+                    Log.Warn($"[CaptureLock] Release: {Path.GetFileName(_key)} - the {w.Label} ffmpeg pid {w.Pid} could not be proved " +
+                             $"exited ({answer.Why}). The owner record is KEPT, so no process finalizes a file that may still be " +
+                             "written; a later probe that can answer (the service's repair pass) decides it.");
+                }
+            }
 
             lock (Gate)
             {
@@ -344,9 +372,10 @@ namespace AgentEyes
                 else
                 {
                     foreach (var w in running)
-                        Log.Error($"[CaptureLock] Release: {Path.GetFileName(_key)} - the {w.Label} ffmpeg pid {w.Pid} is STILL " +
-                                  "RUNNING after its capture stopped. The owner record is KEPT so no other process finalizes " +
-                                  "a file that is still being written; the next service start reaps it.");
+                        if (!unproved.Contains(w))
+                            Log.Error($"[CaptureLock] Release: {Path.GetFileName(_key)} - the {w.Label} ffmpeg pid {w.Pid} is STILL " +
+                                      "RUNNING after its capture stopped. The owner record is KEPT so no other process finalizes " +
+                                      "a file that is still being written; the next service start reaps it.");
                 }
                 _stream.Dispose();
                 HeldKeys.Remove(_key);
@@ -455,6 +484,10 @@ namespace AgentEyes
 
             string here = HostName();
             bool sameHost = IsThisHost(owner);
+            // Issue #156 pass 4: a writer proved running wins over one that is Unknown (the stronger,
+            // actionable reason); an Unknown one alone keeps the claim live as UNDETERMINED. Only when
+            // every writer is proved gone is the claim stale.
+            (WriterRecord Writer, string Why)? unknown = null;
             foreach (var w in owner.Writers)
             {
                 if (!sameHost)
@@ -463,11 +496,22 @@ namespace AgentEyes
                         $"cannot be checked from {here}. Finalize it from {owner.Host}, or - once you have checked nothing is " +
                         $"writing into {key} - delete {OwnerFileName}");
 
-                if (IsSameProcess(w.Pid, w.StartUtc))
+                var answer = IdentifyProcess(w.Pid, w.StartUtc);
+                if (answer.IsMine)
                     return new CaptureLiveness(true,
                         $"its capture owner ({owner}) is gone but its {w.Label} ffmpeg pid {w.Pid} is STILL RUNNING and writing " +
                         $"into it. Stop that process, or restart the AgentEyes service, which reaps an ffmpeg whose owner is gone");
+                if (answer.IsUnknown && unknown == null) unknown = (w, answer.Why);
             }
+
+            if (unknown is { } u)
+                return new CaptureLiveness(true,
+                    $"UNDETERMINED: its capture owner ({owner}) is gone, but whether its {u.Writer.Label} ffmpeg pid {u.Writer.Pid} " +
+                    $"is still writing into it CANNOT BE ESTABLISHED from this process (pid {Environment.ProcessId}): {u.Why}. " +
+                    "It is treated as live and left untouched. Run the repair from an unrestricted AgentEyes process (the " +
+                    $"service, or the CLI outside any sandbox), or - once you have checked that pid {u.Writer.Pid} is not " +
+                    $"writing into {key} - delete {OwnerFileName}",
+                    undetermined: true);
 
             return new CaptureLiveness(false,
                 $"stale capture claim taken over: its owner ({owner}) is gone and its {owner.Writers.Count} writer(s) have exited");

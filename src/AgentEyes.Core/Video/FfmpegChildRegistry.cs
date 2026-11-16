@@ -129,7 +129,7 @@ namespace AgentEyes.Video
 
         /// <summary>The real probe, signal and kill with an explicit capture-writer bound (tests).</summary>
         internal static List<string> ReapOrphansIn(string folder, TimeSpan captureWriterGrace) =>
-            ReapOrphans(folder, IsSameProcess, RequestGracefulExit, KillTree, captureWriterGrace);
+            ReapOrphans(folder, IdentifyProcess, RequestGracefulExit, KillTree, captureWriterGrace);
 
         /// <summary>
         /// Testable core: the probe, the graceful request and the kill are injected.
@@ -142,8 +142,14 @@ namespace AgentEyes.Video
         /// one that is STILL the same process after that is killed. The report says which path each
         /// took. <paramref name="requestGracefulExit"/> returns false when this platform has no such
         /// request; that writer is killed at once and the report says so.
+        ///
+        /// Issue #156 pass 4: an <see cref="ProcessIdentity.Unknown"/> answer - for the owner or for the
+        /// child, before the signal or after it - is never acted on. The process is not signalled or
+        /// killed and its record is KEPT, so a later reap that can answer still can; the report line
+        /// says Unknown and why. Only a proved NotMine owner lets the reap go on, and only a proved Mine
+        /// child is signalled or killed.
         /// </summary>
-        internal static List<string> ReapOrphans(string folder, Func<int, DateTime, bool> isSameProcess,
+        internal static List<string> ReapOrphans(string folder, Func<int, DateTime, ProcessAnswer> identify,
             Func<int, bool> requestGracefulExit, Action<int> kill, TimeSpan captureWriterGrace)
         {
             var report = new List<string>();
@@ -161,17 +167,31 @@ namespace AgentEyes.Video
                     continue;
                 }
 
-                if (isSameProcess(e.OwnerPid, e.OwnerStartUtc))
+                var owner = identify(e.OwnerPid, e.OwnerStartUtc);
+                if (owner.IsMine)
                 {
                     // A live AgentEyes still owns it (e.g. the app while a CLI starts) - not ours to touch.
                     report.Add($"pid {e.Pid} [{e.Label}]: owner pid {e.OwnerPid} is alive - left alone");
                     continue;
                 }
+                if (owner.IsUnknown)
+                {
+                    report.Add($"pid {e.Pid} [{e.Label}]: UNKNOWN whether owner pid {e.OwnerPid} is alive ({owner.Why}) - " +
+                               "left alone, record kept");
+                    continue;
+                }
 
-                if (!isSameProcess(e.Pid, e.StartUtc))
+                var child = identify(e.Pid, e.StartUtc);
+                if (child.IsNotMine)
                 {
                     report.Add($"pid {e.Pid} [{e.Label}]: already exited (or pid reused) - record removed");
                     File.Delete(file);
+                    continue;
+                }
+                if (child.IsUnknown)
+                {
+                    report.Add($"pid {e.Pid} [{e.Label}]: owner pid {e.OwnerPid} gone, but UNKNOWN whether pid {e.Pid} is still " +
+                               $"this ffmpeg ({child.Why}) - not signalled, left alone, record kept");
                     continue;
                 }
 
@@ -204,7 +224,8 @@ namespace AgentEyes.Video
                     for (int i = waiting.Count - 1; i >= 0; i--)
                     {
                         var (e, file) = waiting[i];
-                        if (isSameProcess(e.Pid, e.StartUtc)) continue;
+                        // Not proved gone - Mine, or Unknown - is still waiting: the deadline decides.
+                        if (!identify(e.Pid, e.StartUtc).IsNotMine) continue;
                         // Not "its file is complete": a non-child's exit status cannot be read, so
                         // this says what is known - it ended on SIGTERM and was never killed. The
                         // recovery's mux is what proves the file.
@@ -219,7 +240,17 @@ namespace AgentEyes.Video
 
                 foreach (var (e, file) in waiting)
                 {
-                    if (!isSameProcess(e.Pid, e.StartUtc))
+                    var last = identify(e.Pid, e.StartUtc);
+                    if (last.IsUnknown)
+                    {
+                        // Signalled while proved ours; now its identity cannot be checked. A kill needs
+                        // proof, so it is not killed, and its record stays for the next reap.
+                        report.Add($"pid {e.Pid} [{e.Label}]: ORPHAN capture writer (owner pid {e.OwnerPid} gone) - SIGTERM sent, " +
+                                   $"still not proved exited at the {captureWriterGrace.TotalSeconds:F0}s deadline and now UNKNOWN " +
+                                   $"({last.Why}) - NOT killed, record kept");
+                        continue;
+                    }
+                    if (last.IsNotMine)
                     {
                         // It exited between the last poll and the deadline: graceful after all.
                         report.Add($"pid {e.Pid} [{e.Label}]: ORPHAN capture writer (owner pid {e.OwnerPid} gone) - SIGTERM, " +
@@ -276,91 +307,202 @@ namespace AgentEyes.Video
         private static extern int PosixKill(int pid, int sig);
 
         /// <summary>
-        /// True when a process with <paramref name="pid"/> exists and started at <paramref name="startUtc"/>:
-        /// "this pid still names the process that was recorded".
+        /// Does <paramref name="pid"/> still name the process that was recorded as starting at
+        /// <paramref name="startUtc"/>? Answers <see cref="ProcessIdentity.Mine"/>,
+        /// <see cref="ProcessIdentity.NotMine"/> or <see cref="ProcessIdentity.Unknown"/>, always with
+        /// the reason. It never throws.
         ///
-        /// Issue #156 pass 3: this predicate is TOTAL - it answers, it never throws. Every caller
-        /// (<see cref="CaptureLock"/>'s liveness checks, the reaper's owner and child checks) is right
-        /// to expect an answer, and one exception here used to strand a crashed recording and stop
-        /// the repair pass for every recording on the machine. Each outcome, and why:
+        /// Issue #156 pass 4 - THE RULE: liveness is PROVED or reported unknown. It is never inferred
+        /// from readability. Pass 3 answered "not the recorded process" for a pid of this user whose
+        /// start time it could not read, on the strength of "the only cause measured is a zombie".
+        /// The Review Gate measured a second cause: a prober inside a Seatbelt sandbox that allows
+        /// process-info only within its own sandbox is refused the start time of a LIVE process of
+        /// this same user, while kill(pid, 0) still succeeds. That prober admitted a recording whose
+        /// writer was still running, spent an attempt on it, and deleted its capture claim.
         ///
-        /// * No such process (GetProcessById throws ArgumentException): FALSE. The recorded process
-        ///   has exited.
-        /// * The process has exited (HasExited, or InvalidOperationException because it exited
-        ///   between two reads): FALSE.
-        /// * Start time read and different: FALSE - the pid was reused by another process.
-        /// * Start time read and equal (within <see cref="StartTimeTolerance"/>): TRUE.
-        /// * The start time CANNOT BE READ (Win32Exception): FALSE. Every recorded start time was
-        ///   read by an AgentEyes process of this user account, from a process this account started.
-        ///   As long as that process is running it stays readable to this account, so a pid whose
-        ///   start time this account cannot read now is not that process. Measured on macOS
-        ///   (2026-11-16) there are exactly two ways to reach this, both logged at the decision with
-        ///   the pid by <see cref="DescribeUnreadable"/>:
-        ///     - the pid belongs to ANOTHER USER (kill(pid, 0) fails with EPERM) - after a crash and
-        ///       a reboot, low pids are reused by root daemons; pid 1 is the stand-in. Our writer ran
-        ///       as us, so a process we may not even signal cannot be it. On Linux the start time of
-        ///       any process is readable, so there the answer comes from the start-time comparison;
-        ///       on Windows the analogue is OpenProcess refusing another user's process (UNMEASURED -
-        ///       and the premise is weakest there: if a non-elevated probe is also refused for an
-        ///       ELEVATED process of the same user, a writer started by an elevated AgentEyes would
-        ///       read as not running to a non-elevated one).
-        ///     - the pid is OURS but a ZOMBIE (kill(pid, 0) succeeds, HasExited is false, and
-        ///       proc_pidinfo refuses the start time): it has exited and writes nothing. (Linux reads
-        ///       a zombie's start time, so there a zombie answers TRUE until its parent reaps it; an
-        ///       orphaned writer's parent is init or a subreaper, which reaps it at once.)
-        ///   The one case where the premise does not hold - a SECOND user account on this machine
-        ///   probing a record written by the first account, whose writer is still running - is
-        ///   resolved FALSE too. Every capture claim is made by RecordingService in a directory from
-        ///   RecordingPaths.NewDir, under this account's own recordings root (the CLI's --out
-        ///   captures take no claim at all), and the reap registry is per-user application data. Neither
-        ///   account can open the other's (each lives in its own home; ~/Movies is mode 700 on
-        ///   macOS), so the product never puts one account's record in front of another's probe.
+        /// THE TRADEOFF, decided and not to be re-derived: Unknown delays a recovery, which can be
+        /// recovered from - the recording stays on disk and is finalized by the next prober that CAN
+        /// answer, or after its capture ends. Answering NotMine wrongly finalizes a file that is still
+        /// being written and destroys the claim that protects it, which cannot be recovered from.
+        /// Answering Mine wrongly would let the reaper signal a process it never identified. So every
+        /// case not proved one way or the other is Unknown, and every caller treats Unknown as "do not
+        /// touch this, and say so": <see cref="CaptureLock"/> reports it as live (ThrowIfLive refuses,
+        /// ClearStaleClaim keeps the record, Inspect carries <see cref="CaptureLiveness.Undetermined"/>,
+        /// the repair sweep warns), and the reaper leaves the process and its record alone.
+        ///
+        /// Each outcome, and the fact behind it:
+        ///
+        /// * pid 0 or below: NotMine. No recorded process has one; a record holding it is corrupt.
+        /// * No such process (GetProcessById throws ArgumentException): NotMine - it has exited.
+        /// * HasExited, or InvalidOperationException (it exited between two reads): NotMine.
+        /// * Start time read and different: NotMine - the pid was reused.
+        /// * Start time read and equal (within <see cref="StartTimeTolerance"/>): Mine.
+        /// * The start time CANNOT BE READ (Win32Exception): decided by <see cref="ClassifyUnreadable"/>
+        ///   from a second, positive fact - see there. Only facts map to NotMine; the rest is Unknown.
+        ///
+        /// PREMISE NOT HANDLED, stated so nobody assumes it away: this predicate assumes the prober sees
+        /// the SAME pid namespace the recorder did. A Linux prober in its own pid namespace (a container)
+        /// with the recordings directory mounted in would get "no such process" for a live writer of
+        /// the host and answer NotMine. Unmeasured as of pass 4 (no Linux machine in that seat); see
+        /// docs/cencon/proof/issue-156/handoff.md, pass 4.
         /// </summary>
-        internal static bool IsSameProcess(int pid, DateTime startUtc)
+        internal static ProcessAnswer IdentifyProcess(int pid, DateTime startUtc)
         {
+            if (pid <= 0) return ProcessAnswer.NotMine($"pid {pid} is not a process id (a record holding it is corrupt)");
+
             Process p;
             try { p = Process.GetProcessById(pid); }
-            catch (ArgumentException) { return false; }   // no such process: the documented signal
+            catch (ArgumentException) { return ProcessAnswer.NotMine($"no process {pid} exists"); }
             using (p)
             {
                 try
                 {
-                    if (p.HasExited) return false;
-                    return (p.StartTime.ToUniversalTime() - startUtc).Duration() <= StartTimeTolerance;
+                    if (p.HasExited) return ProcessAnswer.NotMine($"pid {pid} has exited");
+                    DateTime actual = p.StartTime.ToUniversalTime();
+                    return (actual - startUtc).Duration() <= StartTimeTolerance
+                        ? ProcessAnswer.Mine($"pid {pid} is running and started at the recorded time {startUtc:o}")
+                        : ProcessAnswer.NotMine($"pid {pid} started at {actual:o}, not the recorded {startUtc:o} (the pid was reused)");
                 }
-                catch (InvalidOperationException) { return false; }   // exited between the two calls
+                catch (InvalidOperationException) { return ProcessAnswer.NotMine($"pid {pid} exited while being read"); }
                 catch (Win32Exception ex)
                 {
-                    // Not the recorded process - see the summary for why that is a fact, not a guess.
-                    Log.Info($"[FfmpegChildRegistry] IsSameProcess: pid {pid} - start time cannot be read " +
-                             $"({ex.NativeErrorCode}: {ex.Message}); {DescribeUnreadable(pid)} - answered NOT the recorded process");
-                    return false;
+                    var answer = ClassifyUnreadable(pid, ex.NativeErrorCode, $"{ex.NativeErrorCode}: {ex.Message}");
+                    Log.Info($"[FfmpegChildRegistry] IdentifyProcess: pid {pid} - start time cannot be read " +
+                             $"({ex.NativeErrorCode}: {ex.Message}) - answered {answer.Identity}: {answer.Why}");
+                    return answer;
                 }
             }
         }
 
+        /// <summary>The start time of <paramref name="pid"/> was refused: ask the second question with
+        /// the real platform probes.</summary>
+        internal static ProcessAnswer ClassifyUnreadable(int pid, int nativeError, string refusal) =>
+            ClassifyUnreadable(pid, nativeError, refusal, OperatingSystem.IsWindows(), OperatingSystem.IsMacOS(), ProbeSignal, ReadMacProcessState);
+
         /// <summary>
-        /// Why a pid's start time could not be read, for the decision's log line. On macOS and Linux
-        /// this asks kill(pid, 0), which fails only with ESRCH (no such process) or EPERM (it exists
-        /// and belongs to another user) - EINVAL is for an invalid signal number, and 0 is valid. On
-        /// Windows there is no such second question; the caller's line carries the native error (5 is
-        /// ERROR_ACCESS_DENIED), and this says only that the open was refused. Never sends anything
-        /// to pid 0 or below, which kill reads as a process GROUP rather than a process.
+        /// Testable core of the unreadable-start-time decision. The probes are injected so EVERY row is
+        /// pinned by a test, including the ones a test machine cannot produce on demand. The rows:
+        ///
+        /// WINDOWS, ERROR_ACCESS_DENIED (5) - NotMine, a MEASURED fact (Windows QA, issue #156 pass 3,
+        /// docs/cencon/proof/issue-156/qa-report-windows.md): .NET 8 reads StartTime and HasExited
+        /// through OpenProcess with PROCESS_QUERY_LIMITED_INFORMATION (read from the IL of
+        /// System.Diagnostics.Process 8.0.21), and Windows grants that right to the same user ACROSS
+        /// integrity levels - measured against four High-integrity processes of the user from a
+        /// Medium-integrity probe, all readable. So a refusal (error 5) means the process is another
+        /// user's (SYSTEM services, pid 4 - measured) or a protected process; our writer is neither.
+        /// WINDOWS, any other error - Unknown: it is not a refusal, so it is not that fact.
+        /// NOT MEASURED, and stated so nobody assumes it away: a prober inside an AppContainer or under a
+        /// restricted token may be refused (5) for a LIVE process of the same user - the Windows
+        /// counterpart of the macOS sandbox row below. The pass 3 measurement covered integrity levels
+        /// only. Left as the lead ruled (5 is NotMine) and raised with the lead in the pass 4 handoff.
+        ///
+        /// POSIX, kill(pid, 0) - which can fail only with ESRCH or EPERM, since signal 0 is valid:
+        /// * ESRCH: NotMine - the process is gone.
+        /// * EPERM: NotMine - it belongs to ANOTHER USER (after a crash and a reboot, low pids are reused
+        ///   by root daemons; pid 1 is the measured stand-in). The writer ran as this user, so a process
+        ///   this user may not signal is not it. (A writer started under sudo is root's, and is read the
+        ///   same way: see the pass 4 handoff for what that case does and does not reach.)
+        /// * any other errno: Unknown - the probe itself failed.
+        /// * 0 - the process EXISTS AND IS THIS USER'S. This is the row pass 3 got wrong. A refused start
+        ///   time here is not evidence of anything. On macOS the kernel state is read with sysctl
+        ///   KERN_PROC_PID (the call ps uses), which the measured sandbox still answers:
+        ///     - p_stat == SZOMB: NotMine, PROVED - a zombie has exited and writes nothing.
+        ///     - no such process in the reply: NotMine - it exited between the two calls.
+        ///     - any other state (running, sleeping, stopped): Unknown - a live process of this user
+        ///       whose identity cannot be checked from here (measured: the sandboxed prober).
+        ///     - the sysctl itself refused: Unknown.
+        ///   On Linux there is no second probe to ask (a refused /proc read refuses the state too), and
+        ///   Linux reads a zombie's start time anyway: Unknown.
         /// </summary>
-        internal static string DescribeUnreadable(int pid)
+        internal static ProcessAnswer ClassifyUnreadable(int pid, int nativeError, string refusal, bool isWindows, bool isMac,
+            Func<int, (int Rc, int Errno)> signalProbe, Func<int, MacProcessState> macState)
         {
-            if (pid <= 0) return "not a process id (a record holding it is corrupt)";
-            if (OperatingSystem.IsWindows())
-                return "Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, " +
-                       "or possibly an elevated process; the elevated case is unmeasured)";
-            if (PosixKill(pid, 0) == 0)
-                return "it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, " +
-                       "which has exited and writes nothing";
-            int errno = System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
-            return errno == Esrch
-                ? "it exited while being read"
-                : $"it belongs to ANOTHER USER (kill(pid, 0) errno {errno}); the recorded process ran as this user, so this is not it";
+            if (pid <= 0) return ProcessAnswer.NotMine($"pid {pid} is not a process id (a record holding it is corrupt)");
+
+            if (isWindows && nativeError != ErrorAccessDenied)
+                return ProcessAnswer.Unknown(
+                    $"Windows could not read pid {pid} ({refusal}); that is not an access refusal, so it says nothing about whose process it is");
+            if (isWindows)
+                return ProcessAnswer.NotMine(
+                    $"Windows refused to open pid {pid} ({refusal}). .NET asks only for PROCESS_QUERY_LIMITED_INFORMATION, " +
+                    "which Windows grants to the same user across elevation (measured, issue #156 pass 3), so this is another " +
+                    "user's or a protected process - the recorded process ran as this user, so this is not it");
+
+            var (rc, errno) = signalProbe(pid);
+            if (rc != 0)
+            {
+                if (errno == Esrch) return ProcessAnswer.NotMine($"pid {pid} exited while being read");
+                if (errno == Eperm)
+                    return ProcessAnswer.NotMine(
+                        $"pid {pid} belongs to ANOTHER USER (kill(pid, 0) errno {errno}); the recorded process ran as this user, so this is not it");
+                return ProcessAnswer.Unknown(
+                    $"pid {pid}: its start time is refused ({refusal}) and kill(pid, 0) failed with errno {errno}, which says nothing about it");
+            }
+
+            if (!isMac)
+                return ProcessAnswer.Unknown(
+                    $"pid {pid} exists and is this user's, but its start time is refused ({refusal}) and this platform has no " +
+                    "second probe - this process (a restricted or sandboxed one?) cannot tell whether it is the recorded process");
+
+            var state = macState(pid);
+            switch (state.Kind)
+            {
+                case MacProcessStateKind.Zombie:
+                    return ProcessAnswer.NotMine($"pid {pid} is a ZOMBIE (sysctl KERN_PROC_PID p_stat {state.PStat} = SZOMB): it has exited and writes nothing");
+                case MacProcessStateKind.Gone:
+                    return ProcessAnswer.NotMine($"pid {pid} exited while being read (sysctl KERN_PROC_PID returned no process)");
+                case MacProcessStateKind.Alive:
+                    return ProcessAnswer.Unknown(
+                        $"pid {pid} is ALIVE (p_stat {state.PStat}) and this user's, but this process is refused its start time ({refusal}) - " +
+                        "typically a sandboxed prober - so whether it is the recorded process cannot be proved from here");
+                default:
+                    return ProcessAnswer.Unknown(
+                        $"pid {pid} is this user's, its start time is refused ({refusal}) and its state could not be read ({state.Detail})");
+            }
         }
+
+        /// <summary>kill(pid, 0): rc and errno. Never called with pid 0 or below (a process GROUP to kill).</summary>
+        private static (int Rc, int Errno) ProbeSignal(int pid)
+        {
+            int rc = PosixKill(pid, 0);
+            return (rc, rc == 0 ? 0 : System.Runtime.InteropServices.Marshal.GetLastPInvokeError());
+        }
+
+        /// <summary>
+        /// macOS: the kernel's state for <paramref name="pid"/>, from sysctl {CTL_KERN, KERN_PROC,
+        /// KERN_PROC_PID, pid} - the call ps uses. The reply is one struct kinfo_proc (648 bytes on every
+        /// 64-bit macOS); p_stat is the char at offset 36 of its extern_proc (two pointers' union of 16,
+        /// p_vmspace, p_sigacts, p_flag). Measured 2026-11-16 on this layout: a running process reads 2
+        /// (SRUN), a zombie 5 (SZOMB), a missing pid an empty reply - from a plain prober and from the
+        /// gate's sandbox alike. Any other reply size is reported, never guessed at.
+        /// </summary>
+        internal static MacProcessState ReadMacProcessState(int pid)
+        {
+            int[] mib = { CtlKern, KernProc, KernProcPid, pid };
+            var buf = new byte[KinfoProcSize];
+            var len = (UIntPtr)KinfoProcSize;
+            if (Sysctl(mib, (uint)mib.Length, buf, ref len, IntPtr.Zero, UIntPtr.Zero) != 0)
+            {
+                int errno = System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
+                return new MacProcessState(MacProcessStateKind.Unreadable, 0, $"sysctl KERN_PROC_PID refused, errno {errno}");
+            }
+            ulong n = len.ToUInt64();
+            if (n == 0) return new MacProcessState(MacProcessStateKind.Gone, 0, "no such process");
+            if (n != KinfoProcSize)
+                return new MacProcessState(MacProcessStateKind.Unreadable, 0, $"sysctl KERN_PROC_PID returned {n} bytes, not the {KinfoProcSize} of a kinfo_proc");
+            int stat = buf[PStatOffset];
+            return stat == SZomb
+                ? new MacProcessState(MacProcessStateKind.Zombie, stat, "zombie")
+                : new MacProcessState(MacProcessStateKind.Alive, stat, "alive");
+        }
+
+        private const int ErrorAccessDenied = 5;   // Windows ERROR_ACCESS_DENIED
+        private const int Eperm = 1;       // "operation not permitted", the same number on Linux and macOS
+        private const int CtlKern = 1, KernProc = 14, KernProcPid = 1;
+        private const int KinfoProcSize = 648, PStatOffset = 36, SZomb = 5;
+
+        [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "sysctl", SetLastError = true)]
+        private static extern int Sysctl(int[] name, uint namelen, byte[] oldp, ref UIntPtr oldlenp, IntPtr newp, UIntPtr newlen);
 
         internal static void KillTree(int pid)
         {

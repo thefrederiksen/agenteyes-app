@@ -369,8 +369,14 @@ namespace AgentEyes
                 var capture = CaptureLock.Inspect(dir);
                 if (capture.Live)
                 {
-                    Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} DECLINED by pid {Environment.ProcessId} - "
-                        + $"{capture.Reason}. No stage ran and no attempt was counted; leaving it for a pass after the capture ends");
+                    // Issue #156 pass 4: an undetermined claim is declined exactly like a live one, at
+                    // warning level so it is not mistaken for an ordinary in-progress capture.
+                    if (capture.Undetermined)
+                        Log.Warn($"[PostRecording] Execute: {Path.GetFileName(dir)} DECLINED (undetermined) by pid {Environment.ProcessId} - "
+                            + $"{capture.Reason}. No stage ran and no attempt was counted");
+                    else
+                        Log.Info($"[PostRecording] Execute: {Path.GetFileName(dir)} DECLINED by pid {Environment.ProcessId} - "
+                            + $"{capture.Reason}. No stage ran and no attempt was counted; leaving it for a pass after the capture ends");
                     outcome.Skipped = true;
                     return outcome;
                 }

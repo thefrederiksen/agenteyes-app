@@ -166,7 +166,10 @@ namespace AgentEyes
                 }
                 if (capture.Live)
                 {
-                    Log.Info($"[Thumbnails] NeedsThumb: skipping {Path.GetFileName(dir)} - {capture.Reason}");
+                    if (capture.Undetermined)
+                        Log.Warn($"[Thumbnails] NeedsThumb: NOT GENERATED for {Path.GetFileName(dir)} - {capture.Reason}");
+                    else
+                        Log.Info($"[Thumbnails] NeedsThumb: skipping {Path.GetFileName(dir)} - {capture.Reason}");
                     return false;
                 }
             }

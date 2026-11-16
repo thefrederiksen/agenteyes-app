@@ -51,7 +51,7 @@ namespace AgentEyes.Tests
             Record(pid: 500, ownerPid: 100);
             var killed = new List<int>();
             var report = FfmpegChildRegistry.ReapOrphans(_folder,
-                (pid, start) => pid == 500 && start == ChildStart,   // owner 100 gone, child 500 alive
+                TestIdentity.From((pid, start) => pid == 500 && start == ChildStart),   // owner 100 gone, child 500 alive
                 NoGracefulRequest, killed.Add, TimeSpan.Zero);
 
             Assert.Equal(new[] { 500 }, killed);
@@ -64,7 +64,7 @@ namespace AgentEyes.Tests
         {
             Record(pid: 500, ownerPid: 100);
             var killed = new List<int>();
-            var report = FfmpegChildRegistry.ReapOrphans(_folder, (pid, start) => true, NoGracefulRequest, killed.Add, TimeSpan.Zero);
+            var report = FfmpegChildRegistry.ReapOrphans(_folder, TestIdentity.From((pid, start) => true), NoGracefulRequest, killed.Add, TimeSpan.Zero);
 
             Assert.Empty(killed);
             Assert.Contains(report, l => l.Contains("owner pid 100 is alive"));
@@ -78,7 +78,7 @@ namespace AgentEyes.Tests
             // same process" for both the owner and the child.
             Record(pid: 500, ownerPid: 100);
             var killed = new List<int>();
-            var report = FfmpegChildRegistry.ReapOrphans(_folder, (pid, start) => false, NoGracefulRequest, killed.Add, TimeSpan.Zero);
+            var report = FfmpegChildRegistry.ReapOrphans(_folder, TestIdentity.From((pid, start) => false), NoGracefulRequest, killed.Add, TimeSpan.Zero);
 
             Assert.Empty(killed);
             Assert.Contains(report, l => l.Contains("pid 500") && l.Contains("record removed"));
@@ -88,7 +88,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void ReapOrphans_NoFolder_ReturnsEmptyReport()
         {
-            var report = FfmpegChildRegistry.ReapOrphans(Path.Combine(_folder, "missing"), (p, s) => true, NoGracefulRequest, _ => throw new Exception("must not kill"), TimeSpan.Zero);
+            var report = FfmpegChildRegistry.ReapOrphans(Path.Combine(_folder, "missing"), TestIdentity.From((p, s) => true), NoGracefulRequest, _ => throw new Exception("must not kill"), TimeSpan.Zero);
             Assert.Empty(report);
         }
 

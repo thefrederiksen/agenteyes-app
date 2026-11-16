@@ -63,7 +63,7 @@ namespace AgentEyes.Tests
             TimeSpan killedAt = TimeSpan.Zero;
 
             var report = FfmpegChildRegistry.ReapOrphans(_folder,
-                (pid, _) => pid == 500,                       // owner gone; the writer never exits by itself
+                TestIdentity.From((pid, _) => pid == 500),                       // owner gone; the writer never exits by itself
                 pid => { calls.Add($"TERM {pid}"); return true; },
                 pid => { calls.Add($"KILL {pid}"); killedAt = clock.Elapsed; },
                 grace);
@@ -84,7 +84,7 @@ namespace AgentEyes.Tests
             var killed = new List<int>();
 
             var report = FfmpegChildRegistry.ReapOrphans(_folder,
-                (pid, _) => pid == 500 && !termed,
+                TestIdentity.From((pid, _) => pid == 500 && !termed),
                 pid => { termed = true; return true; },
                 killed.Add,
                 TimeSpan.FromSeconds(30));
@@ -107,7 +107,7 @@ namespace AgentEyes.Tests
             var clock = Stopwatch.StartNew();
 
             FfmpegChildRegistry.ReapOrphans(_folder,
-                (pid, _) => pid is 500 or 501,
+                TestIdentity.From((pid, _) => pid is 500 or 501),
                 pid => { calls.Add($"TERM {pid}"); return true; },
                 pid => calls.Add($"KILL {pid}"),
                 grace);
@@ -128,7 +128,7 @@ namespace AgentEyes.Tests
             var calls = new List<string>();
 
             var report = FfmpegChildRegistry.ReapOrphans(_folder,
-                (pid, _) => pid == 600,
+                TestIdentity.From((pid, _) => pid == 600),
                 pid => { calls.Add($"TERM {pid}"); return true; },
                 pid => calls.Add($"KILL {pid}"),
                 TimeSpan.FromSeconds(30));
@@ -145,7 +145,7 @@ namespace AgentEyes.Tests
             Record(pid: 500, captureWriter: true);
             var killed = new List<int>();
 
-            var report = FfmpegChildRegistry.ReapOrphans(_folder, (pid, _) => pid == 500, _ => false, killed.Add, TimeSpan.FromSeconds(30));
+            var report = FfmpegChildRegistry.ReapOrphans(_folder, TestIdentity.From((pid, _) => pid == 500), _ => false, killed.Add, TimeSpan.FromSeconds(30));
 
             Assert.Equal(new[] { 500 }, killed);
             Assert.Contains(report, l => l.Contains("pid 500") && l.Contains("no graceful stop") && l.Contains("KILLED at once"));
@@ -157,12 +157,71 @@ namespace AgentEyes.Tests
         {
             Record(pid: 500, captureWriter: true);
 
-            var report = FfmpegChildRegistry.ReapOrphans(_folder, (_, _) => true,
+            var report = FfmpegChildRegistry.ReapOrphans(_folder, TestIdentity.From((_, _) => true),
                 _ => throw new Exception("must not signal a live owner's writer"),
                 _ => throw new Exception("must not kill a live owner's writer"),
                 TimeSpan.FromSeconds(30));
 
             Assert.Contains(report, l => l.Contains("owner pid 100 is alive"));
+            Assert.Single(Directory.GetFiles(_folder));
+        }
+
+        // ---- the third answer (issue #156 pass 4): Unknown is never acted on -----------
+
+        private static ProcessAnswer Unknown => ProcessAnswer.Unknown("test: start time refused, process alive");
+
+        /// <summary>An owner whose liveness is Unknown is not proved gone: no signal, no kill, record kept.</summary>
+        [Fact]
+        public void ReapOrphans_OwnerIdentityUnknown_LeftAloneRecordKept()
+        {
+            Record(pid: 500, captureWriter: true);
+
+            var report = FfmpegChildRegistry.ReapOrphans(_folder,
+                (pid, _) => pid == 100 ? Unknown : ProcessAnswer.Mine("writer"),
+                _ => throw new Exception("must not signal when the owner may be alive"),
+                _ => throw new Exception("must not kill when the owner may be alive"),
+                TimeSpan.FromSeconds(30));
+
+            Assert.Contains(report, l => l.Contains("pid 500") && l.Contains("UNKNOWN whether owner pid 100") && l.Contains("record kept"));
+            Assert.Single(Directory.GetFiles(_folder));
+        }
+
+        /// <summary>The owner is proved gone but the writer pid's identity is Unknown: it is not
+        /// signalled (it may not be our ffmpeg), and its record is NOT removed as "already exited".</summary>
+        [Fact]
+        public void ReapOrphans_ChildIdentityUnknown_NotSignalledRecordKept()
+        {
+            Record(pid: 500, captureWriter: true);
+            Record(pid: 600, captureWriter: false);
+
+            var report = FfmpegChildRegistry.ReapOrphans(_folder,
+                (pid, _) => pid == 100 ? ProcessAnswer.NotMine("owner gone") : Unknown,
+                _ => throw new Exception("must not signal a process whose identity is unproved"),
+                _ => throw new Exception("must not kill a process whose identity is unproved"),
+                TimeSpan.FromSeconds(30));
+
+            Assert.Contains(report, l => l.Contains("pid 500") && l.Contains("not signalled") && l.Contains("record kept"));
+            Assert.Contains(report, l => l.Contains("pid 600") && l.Contains("not signalled") && l.Contains("record kept"));
+            Assert.Equal(2, Directory.GetFiles(_folder).Length);
+        }
+
+        /// <summary>Signalled while proved ours, then Unknown at the deadline: a kill needs proof, so it
+        /// is NOT killed and the record stays for the next reap.</summary>
+        [Fact]
+        public void ReapOrphans_WriterUnknownAfterSigterm_NotKilledAtTheDeadline()
+        {
+            Record(pid: 500, captureWriter: true);
+            bool termed = false;
+            var calls = new List<string>();
+
+            var report = FfmpegChildRegistry.ReapOrphans(_folder,
+                (pid, _) => pid == 100 ? ProcessAnswer.NotMine("owner gone") : termed ? Unknown : ProcessAnswer.Mine("writer"),
+                pid => { calls.Add($"TERM {pid}"); termed = true; return true; },
+                pid => calls.Add($"KILL {pid}"),
+                TimeSpan.FromMilliseconds(200));
+
+            Assert.Equal(new[] { "TERM 500" }, calls);
+            Assert.Contains(report, l => l.Contains("pid 500") && l.Contains("UNKNOWN") && l.Contains("NOT killed"));
             Assert.Single(Directory.GetFiles(_folder));
         }
 

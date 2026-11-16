@@ -452,8 +452,9 @@ runtime 10.0.x (`DOTNET_ROLL_FORWARD=Major`), because there is no .NET 8 here.
 
 `FfmpegChildRegistry.IsSameProcess` threw `System.ComponentModel.Win32Exception` instead of answering
 when a recorded pid is now held by ANOTHER USER's process. I started from the gate's scratch
-reproduction (`GateProbeScratchTests.cs` from its scratchpad, committed unchanged below a provenance
-header at `pass3/harness/GateProbeScratchTests.cs`) and ran it at the PR head before changing anything:
+reproduction (`GateProbeScratchTests.cs` from its scratchpad, committed at
+`pass3/harness/GateProbeScratchTests.cs` - [pass 4 correction: body unchanged, header replaced. The
+gate's line 1 was replaced by a four-line provenance header; lines 2-100 are byte-identical]) and ran it at the PR head before changing anything:
 every row of the gate's table reproduced (`Inspect`, `ClearStaleClaim`, `ThrowIfLive`, `FindMissing` and
 `ReapOrphansIn` threw; `FindUnfinished` dropped the crashed recording), and both controls passed.
 
@@ -701,3 +702,267 @@ is the same code in both flavours, but I re-ran every real-binary arm on an expl
    the new mapping.
 
 I believe this is finished.
+
+## Pass 4 - prove liveness or report Unknown (gate comment 6921080636, lead's ruling 6921153923)
+
+Seated on `devthrottle-mac-mini` (macOS 26, Apple silicon). Every number below was run on this Mac on
+.NET SDK 10.0.403 with the net8.0 build ROLLED FORWARD to runtime 10.0.15
+(`DOTNET_ROLL_FORWARD=LatestMajor`), because there is no .NET 8 here.
+
+### The defect, and where I started
+
+Pass 3 answered "not the recorded process" for a pid that `kill(pid, 0)` had just shown EXISTS and is
+THIS USER's, whenever its start time was refused. The reason given was "the only cause measured (macOS)
+is a zombie". The Review Gate measured a second cause. A prober inside a Seatbelt sandbox that allows
+process-info only within its own sandbox is refused the start time of a LIVE same-user process. That
+prober admitted a live capture, spent an attempt on it and deleted `capture.owner.json` while the
+writer ran.
+
+**I started from the gate's own reproduction, not a new one.** Its probe and run logs were at
+`/private/tmp/agenteyes-gate-156-pass3/` on this machine (`probe/live-orphan.sh`, `probe/rusage.py`,
+`run-lo-*.txt`). `pass4/repro-sandbox.sh` is `live-orphan.sh` with its live arm unchanged in shape: the
+same lavfi ffmpeg writer, the same manifest and owner record, the same two-rule profile. I added the
+STALE arm the ruling asks for as the positive control, so both run in one invocation.
+
+Before writing code I extended the gate's system-call table with the call the fix relies on. Its
+`rusage.py`, plus `sysctl KERN_PROC_PID`, against a live same-user `sleep`, a zombie of this user,
+pid 1 and a missing pid:
+
+| Target | prober | `sysctl KERN_PROC_PID` (p_stat) | `proc_pid_rusage` | `kill(pid, 0)` |
+|---|---|---|---|---|
+| live same-user `sleep` | plain | rc 0, **2 (SRUN)** | rc 0 | rc 0 |
+| live same-user `sleep` | **sandboxed** | rc 0, **2 (SRUN)** | **rc -1, EPERM** | rc 0 |
+| zombie of this user | plain | rc 0, **5 (SZOMB)** | rc 0 | rc 0 |
+| zombie of this user | **sandboxed** | rc 0, **5 (SZOMB)** | rc -1, EPERM | rc 0 |
+| pid 1 (root) | both | rc 0, 2 | rc -1, EPERM | rc -1, EPERM |
+| 999999 (none) | both | rc 0, **empty reply** | rc -1, ESRCH | rc -1, ESRCH |
+
+So the kernel state can still be read where the start time is refused. A zombie can be PROVED, and a
+live process in the same position can be told apart from it.
+
+### What changed
+
+**The predicate has three answers.** `FfmpegChildRegistry.IsSameProcess` (bool) is replaced by
+`IdentifyProcess`, which returns a `ProcessAnswer`: `Mine`, `NotMine` or `Unknown`, each with the fact
+behind it (`Video/ProcessIdentity.cs`). The bool is gone, so no caller can drop the third state by
+accident. `Unknown` is enum value 0, so an answer nobody filled in reads as the safe one (pinned).
+
+**The unreadable-start-time decision proves or reports** (`ClassifyUnreadable`; the old
+`DescribeUnreadable` is gone). The probes are injected, so every row has a test:
+
+| Row | Answer | The fact |
+|---|---|---|
+| Windows, any error other than 5 | Unknown | not a refusal, so not the measured fact (added after self-review) |
+| Windows, open refused (error 5) | NotMine | MEASURED (Windows QA, pass 3): .NET opens with `PROCESS_QUERY_LIMITED_INFORMATION`, which Windows grants the same user across integrity levels, so a refusal means another user's or a protected process. The "elevated case is unmeasured" sentence is gone from the code and the log line. #171 keeps the KillTree-across-elevation measurement and the two unpinned mappings. |
+| `kill` ESRCH | NotMine | gone |
+| `kill` EPERM | NotMine | another user's; our writer ran as us |
+| `kill` other errno | Unknown | the probe failed |
+| `kill` 0, Linux | Unknown | no second probe exists. Linux reads a zombie's start time anyway. |
+| `kill` 0, macOS, p_stat SZOMB | NotMine | **PROVED zombie** |
+| `kill` 0, macOS, empty reply | NotMine | exited between the calls |
+| `kill` 0, macOS, any other state | **Unknown** | **the gate's row: alive, this user's, unidentifiable from here** |
+| `kill` 0, macOS, sysctl refused or odd size | Unknown | cannot know. `Unreadable` is enum value 0, so an unread state is never a proof (pinned) |
+
+The tradeoff is written in the predicate's summary. Unknown delays a recovery, which can be recovered
+from. Guessing NotMine finalizes a live file and destroys its claim, which cannot.
+
+**The callers learned the third state.** Each one, with the test that pins it:
+
+| Caller | On Unknown | Test |
+|---|---|---|
+| `CaptureLock.FreeLockLiveness` / `Inspect` | live AND `Undetermined`, reason starts `UNDETERMINED:` and names the pid, the why and the fix. A writer proved running wins over an Unknown one. | `Inspect_WriterIdentityUnknown_LiveUndeterminedAndNothingCleared`, `Inspect_OneWriterUnknownOneRunning_ReportsStillRunningNotUndetermined` |
+| `ThrowIfLive` | refuses; logged `DECLINED (undetermined)` | same, first test |
+| `ClearStaleClaim` | keeps the record | same, first test |
+| `CaptureLock.Dispose` (the capture's own release) | the writer counts as still running, so the owner record is kept | `Release_WriterIdentityUnknown_OwnerRecordKept` |
+| `PostRecording.Execute` | declined, no stage, no attempt; WARN `DECLINED (undetermined)` | `Resume_WriterUnknownBesideAStaleClaim_DeclinesOneRecoversTheOther` |
+| The sweep, `PostRecordingPlan.FindUnfinished` | not admitted; WARN `NOT REPAIRED ...` on every pass, and the pass summary counts `UNDETERMINED=n` | `FindUnfinished_WriterUnknownBesideAStaleClaim_AdmitsOnlyTheStaleOne` |
+| `Thumbnails.NeedsThumb` | skipped; WARN `NOT GENERATED` | (same decline as before; the log level is the change) |
+| The reaper, owner Unknown | left alone, record kept, no signal | `ReapOrphans_OwnerIdentityUnknown_LeftAloneRecordKept` |
+| The reaper, child Unknown | not signalled, record kept (NOT removed as "exited") | `ReapOrphans_ChildIdentityUnknown_NotSignalledRecordKept` |
+| The reaper, Unknown at the SIGTERM deadline | NOT killed, record kept | `ReapOrphans_WriterUnknownAfterSigterm_NotKilledAtTheDeadline` |
+| Test helper `OwnedFfmpeg.KillOwned` | left alone | `KillOwned_IdentityUnknown_LeavesItAlone` |
+
+### (1) + (2) The gate's reproduction failing before, passing after, with the positive control in the same run
+
+`pass4/repro-sandbox.sh <binary> <scratch>`, four arms per run. Before = the PR head `384e3fe`, built
+`-p:AgentEyesUnixPlatform=mac` in a separate worktree (flavour checked: `AvfStream` 1, `PulseStream` 0).
+After = this pass, built `-p:AgentEyesUnixPlatform=mac` immediately before its run. Full output:
+`pass4/run-before-384e3fe.txt` and `pass4/run-after-pass4.txt`. The product's own decision lines for the
+sandboxed arm, copied read-only from the log: `pass4/product-log-sandbox-arm.txt`.
+
+| Arm | BEFORE `384e3fe` | AFTER (pass 4) |
+|---|---|---|
+| live writer, plain prober (control) | exit 1 STILL RUNNING; pending, no attempt; claim PRESENT | exit 1 STILL RUNNING; pending, no attempt; claim PRESENT |
+| **live writer, sandboxed prober** | **ADMITTED: `mux.State=failed`, `Attempts=1` by the foreign pid; claim ABSENT** while the writer ran | **exit 1 UNDETERMINED; pending, no attempt; claim PRESENT; writer untouched** |
+| **stale claim, plain prober (positive control)** | recovered: mux done, `recording.mp4` 471649 bytes, claim cleared | **recovered: mux done, `recording.mp4` 471649 bytes, claim cleared** |
+| stale claim, sandboxed prober | recovered, claim cleared | **recovered, claim cleared** |
+
+The stale arms exit 1 because of the transcription stage, AFTER the mux: "Not signed in to DevThrottle"
+on this Mac. The recovery itself is the `PendingMux=cleared  mux.State=done` line and the file.
+The sandboxed stale arm still recovers because a writer that has exited gives ESRCH from `kill`
+(`GetProcessById` throws). That is a fact the sandbox does not hide, so the guard is not a wall.
+
+`run-after-pass4.txt` is the run on the FINAL code (re-run after the self-review changes; same result as
+the first after-run). The AFTER decision line, verbatim:
+`IdentifyProcess: pid 64172 - start time cannot be read (2: ...) - answered Unknown: pid 64172 is ALIVE (p_stat 2) and this user's, but this process is refused its start time (...) - typically a sandboxed prober - so whether it is the recorded process cannot be proved from here`
+
+The same arm is also an automated test: `PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim`
+runs the real `agenteyes package` under `sandbox-exec` with the gate's profile against a live `sleep`
+writer, with the unsandboxed control in the same test. It is **opt-in** (`AGENTEYES_REAL_CLI_TESTS=1`),
+because its first run on this Mac appended four lines to the owner's real AgentEyes log: the CLI child's
+log is not moved by HOME (#161). The macOS CI job now sets the variable (`.github/workflows/ci.yml`);
+a hosted runner has no user log to protect. The row it proves end to end runs in the default gate too,
+as `ClassifyUnreadable_OursOnMacAlive_Unknown`.
+
+### (3) The zombie, proved
+
+`IdentifyProcess_ThisUsersZombie_NotMineProvedBySzomb` makes a real zombie of this user. It asserts
+three things: `ps` says Z (the precondition), `ReadMacProcessState` reads p_stat 5 (SZOMB), and the
+answer is NotMine with the Why naming the ZOMBIE. `ReadMacProcessState_RunningAndMissingPids_AliveAndGone`
+pins the other two kernel reads on real processes (this process reads 2, a missing pid reads Gone). The
+`kinfo_proc` size (648) and the p_stat offset (36) are checked on every read: any other reply size is
+Unknown, never a guess.
+
+### (4) A test per mapping, each with a mutation shown failing
+
+`pass4/mutate.py` applies one mutation, builds and runs the identity, ownership, reap and owned-ffmpeg
+tests, then restores the file. All 18 mutations fail at least one test, on the final code
+(`pass4/mutations.txt`, run with `AGENTEYES_REAL_CLI_TESTS=1`):
+
+| Mutation | Fails |
+|---|---|
+| M1 Alive -> NotMine (**the pass 3 behaviour**) | `ClassifyUnreadable_OursOnMacAlive_Unknown`, `PackageCli_SandboxedProberLiveWriter_...` |
+| M2 Zombie -> Unknown | `ClassifyUnreadable_OursOnMacZombie_NotMine`, `IdentifyProcess_ThisUsersZombie_NotMineProvedBySzomb` |
+| M3 Gone -> Unknown | `ClassifyUnreadable_OursOnMacGoneBetweenCalls_NotMine` |
+| M4 state unreadable -> NotMine | `ClassifyUnreadable_OursOnMacStateRefused_Unknown`, `MacProcessState_Default_IsUnreadableNotAProof` |
+| M5 EPERM -> Unknown | 7, incl. `ClassifyUnreadable_KillEperm_NotMineAnotherUser`, the real pid-1 probe, `Resume_WriterPidHeldByAnotherUser_RecoversTheRecording` |
+| M6 ESRCH -> Unknown | `ClassifyUnreadable_KillEsrch_NotMineGone` |
+| M7 other errno -> NotMine | `ClassifyUnreadable_KillOtherErrno_Unknown` |
+| M8 ours on Linux -> NotMine | `ClassifyUnreadable_OursOnLinux_Unknown` |
+| M9 Windows refusal -> Unknown | `ClassifyUnreadable_Windows_NotMineWithoutAskingPosix` |
+| M10 SZOMB constant 5 -> 4 | `IdentifyProcess_ThisUsersZombie_NotMineProvedBySzomb` |
+| M11 equal start time -> Unknown | 7, incl. `IdentifyProcess_OwnProcessRecordedStartTime_Mine`, `Inspect_WriterStillRunning_IsLive` |
+| M12 FreeLockLiveness ignores Unknown | 4: `Inspect_WriterIdentityUnknown_...`, `Resume_WriterUnknownBeside...`, `FindUnfinished_WriterUnknownBeside...`, the CLI test |
+| M13 Release treats Unknown as exited | `Release_WriterIdentityUnknown_OwnerRecordKept` |
+| M14 reaper: Unknown owner treated as gone | `ReapOrphans_OwnerIdentityUnknown_LeftAloneRecordKept` |
+| M15 reaper: Unknown child treated as exited | `ReapOrphans_ChildIdentityUnknown_NotSignalledRecordKept` |
+| M16 reaper: Unknown at the deadline killed | `ReapOrphans_WriterUnknownAfterSigterm_NotKilledAtTheDeadline` |
+| M17 Windows: any error -> NotMine | `ClassifyUnreadable_WindowsOtherError_Unknown` |
+| M18 `MacProcessStateKind`: Zombie becomes value 0 | `MacProcessState_Default_IsUnreadableNotAProof` |
+
+### (5) The two same-premise cases the gate read but did not measure
+
+**Linux, a prober in its own pid namespace: NOT MEASURED, and NOT HANDLED by this change.** This seat is
+a Mac. A Linux suite run here is not a Linux run, and I did not take a Linux machine from another seat.
+By reading the code: the namespaced prober asks for a host pid that does not exist in its namespace.
+`GetProcessById` throws `ArgumentException` and the answer is NotMine ("no such process"). That is the
+pass 1 mapping, and it is a fact only inside one pid namespace. So I expect the defect class to be
+**present** there: a live host writer would be read as gone. The predicate's summary now states this
+premise in a paragraph headed "PREMISE NOT HANDLED", so nobody assumes it away. Fixing it needs a design
+decision I have not taken. One option: record the writer's pid-namespace identity (`/proc/self/ns/pid`)
+in `capture.owner.json`, and answer Unknown when the prober's differs. That changes the owner file, so it
+is the lead's call, and I have asked. For QA on Linux:
+`unshare --user --map-root-user --pid --fork --mount-proc agenteyes package <dir> --no-frames` against
+a crash fixture whose writer is a live host ffmpeg (shape: `pass4/repro-sandbox.sh`, live arm). Expected
+on this code: ADMITTED (the defect). The control: the same command without `unshare` declines STILL RUNNING.
+
+**macOS, a writer under `sudo`: NOT MEASURED.** `sudo -n true` here asks for a password, and a seat
+does not type the owner's password (that is a user-input step). By reading: the writer is root's, so the
+unprivileged prober gets EPERM, and EPERM answers NotMine ("another user's"). The kept mapping is a fact
+for a writer this product started as this user. A root writer breaks that premise in the same way as the
+Windows elevation question. Two things I could not establish, and QA should: (a) whether a CLI under
+sudo puts its recordings in the user's library at all. On macOS .NET resolves the data roots without
+HOME (#161), which suggests root's home, `/var/root/Movies/AgentEyes`, where the user's prober never
+looks. (b) If it does write into the user's library, whether the unprivileged prober can delete the
+root-owned `capture.owner.json`. Deleting it needs write permission on the directory, which root created.
+If either fails, the case cannot reach the defect. If both hold, it is the EPERM row answering NotMine
+for a live writer.
+
+### (6) The Windows sentence
+
+Rewritten from the measurement (row 1 of the table above). The log line no longer says "possibly an
+elevated process; the elevated case is unmeasured". `ClassifyUnreadable_Windows_NotMineWithoutAskingPosix`
+asserts that the word "unmeasured" is gone.
+
+### Gates (run by me, on this Mac; SDK 10.0.403, net8.0 rolled forward to runtime 10.0.15)
+
+| Suite | Result |
+|---|---|
+| `tests/AgentEyes.Tests.Mac` (default gate) | **367 passed, 2 skipped, 0 failed** (the gate measured 345/1 at `384e3fe`: +23 tests; the new skip is the opt-in CLI test) |
+| `tests/AgentEyes.Tests.Mac` with `AGENTEYES_REAL_CLI_TESTS=1` | **368 passed, 1 skipped, 0 failed** |
+| `tests/AgentEyes.Tests.Linux` built `-p:AgentEyesUnixPlatform=linux`, RUN ON THIS MAC | 374 passed, 3 skipped, 0 failed. **NOT a Linux run.** On Linux the opt-in CLI test skips as macOS-only. |
+| `tests/AgentEyes.Tests` (Windows) | **compile only**, with `-p:EnableWindowsTargeting=true`: 0 errors. It caught three call sites in `FfmpegChildRegistryTests.cs` that the Unix suites cannot see. NOT run; CI runs it. |
+| `AgentEyes.sln` | cannot build on a Mac (expected) |
+
+### Scope kept
+
+Untouched, and not regressed (their tests are in the runs above): the lock, the owner file and its
+format, the four decline sites (their decline condition is unchanged; only Unknown now reaches it), the
+attempt counting, the shared hold in `ClearStaleClaim`, the SIGTERM bound (10 s,
+`CaptureWriterGrace_IsTheMeasuredBound`), the awaited reap, G1's `CaptureOwner` manifest field, and the
+`main` merge. **D3 stays #113's**, and both conflicts still stand: the two `CaptureLiveness` types (this
+pass ADDS `Undetermined` to ours, which #113's merge will now also have to carry), and `IScreenRecorder`
+lacking `ProcessId`. No #113 code was pulled in. #170 is not touched. One CI change, inside the tests'
+scope: the macOS job sets `AGENTEYES_REAL_CLI_TESTS=1`.
+
+### Hazards, as handled - and my footprint
+
+No screen capture was started. Every ffmpeg was started and ended by my scripts (`pgrep ffmpeg` was
+empty before and after each run). I signalled nothing I did not start. No recording outside my scratch
+directory was read or written, and none was deleted. The launchd agent and the owner's serve (pid 50642)
+were not touched. `/status` read idle before the suites ran. **#161 footprint, reported:** every real
+`agenteyes package` run appended lines to the owner's real
+`~/Library/Application Support/AgentEyes/logs/AgentEyes-20261116.log`. That is the two
+`repro-sandbox.sh` invocations, the first run of the CLI test before I made it opt-in, and the mutation
+runs with the opt-in set. Under M1, M11 and M12 the mutated CLI admitted my temp fixture and ran its mux
+on it, inside the test's temp root. Only the log was touched. I read it read-only to copy the decision
+lines.
+
+### Self-review (`/code-review` on the pass-4 diff): what changed, and what was dismissed
+
+Changed because of it (all re-run above):
+- **Windows: only error 5 is the measured fact.** Every `Win32Exception` used to be NotMine. Any other
+  code is now Unknown (`ClassifyUnreadable_WindowsOtherError_Unknown`, M17).
+- **`MacProcessStateKind.Zombie` was enum value 0**, so `default(MacProcessState)` read as a PROVED
+  zombie. `Unreadable` is now 0 (`MacProcessState_Default_IsUnreadableNotAProof`, M18).
+- `CaptureLock.Dispose` logged an Unknown writer at Error level as "STILL RUNNING ... the next service
+  start reaps it". Neither was true. That writer now gets only its own warning, which says what is known.
+- The opt-in CLI test returned (a silent pass) off macOS. It now SKIPS there, with the reason.
+
+Raised, NOT changed - a decision for the lead (sent):
+- **Windows AppContainer or restricted-token prober.** It may be refused (error 5) for a LIVE process of
+  the same user, which is the Windows counterpart of the macOS sandbox row. The pass 3 measurement
+  covered integrity levels only. The ruling keeps 5 as NotMine, so the mapping is unchanged, and the
+  code now names this as unmeasured. A possible discriminator is a positive fact about the PROBER:
+  `GetTokenInformation(TokenIsAppContainer)` or `IsTokenRestricted` on its own token, which answers Unknown
+  when the prober is sandboxed. I cannot write or measure that on a Mac. **QA on Windows:** run the
+  pass-3 harness from a restricted-token or AppContainer prober (a launcher of QA's choice; I have not
+  tried any) against a live process of the same user.
+- **The EPERM row and a root writer** (sudo). This is the same point as (5) above, and the mapping is
+  kept as ruled.
+
+Dismissed, with reasons:
+- *"Stop waiting for a writer that turns Unknown after SIGTERM."* Kept as is. The wait loop and its
+  bound are pass-2 behaviour, which this pass must not move. A writer can only turn Unknown mid-wait in
+  a prober whose readability changes under it (not observed). The wait is bounded at 10 s either way.
+- *"The undetermined WARN lines repeat on every pass."* That is the reporting the ruling asks for ("the
+  sweep must report it rather than silently skipping"). The lines are bounded by how often a pass runs,
+  and each one names the fix.
+- *"Use one tri-state instead of `Live` plus `Undetermined`."* `Live` keeps every existing caller's
+  decline unchanged, which is the point. The constructor rejects the one invalid combination.
+- *"ProcessIdentity.cs is untracked."* Committed with the rest.
+
+### What QA should verify (pass 4 delta)
+
+1. macOS: `pass4/repro-sandbox.sh <binary> <scratch>` against the branch binary. Expect the table in
+   (1)+(2): the sandboxed live arm declines UNDETERMINED with no attempt and the claim PRESENT, and both
+   stale arms recover. Against a `384e3fe` binary the sandboxed live arm is ADMITTED.
+2. macOS: `AGENTEYES_REAL_CLI_TESTS=1 dotnet test tests/AgentEyes.Tests.Mac -c Release` (writes your
+   real AgentEyes log; see #161). Any of the 18 mutations in `pass4/mutate.py`.
+3. Linux on `devlinux`: the `.Linux` suite, and the pid-namespace case in (5). I expect it to show the
+   defect, and that case is not fixed here.
+4. Windows: the suite (only compiled here), and the AppContainer or restricted-token prober above.
+5. macOS with a password-holder present: the `sudo` writer case in (5).
+
+I believe this is finished, with the Linux pid-namespace case and the Windows AppContainer case named
+as open and sent to the lead for a decision.

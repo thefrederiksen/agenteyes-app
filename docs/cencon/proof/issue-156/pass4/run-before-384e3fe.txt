@@ -1,0 +1,28 @@
+15:53:47 binary: <scratch>/before/src/AgentEyes.Core/bin/Release/net8.0/agenteyes
+15:53:50 ARM live-plain: LIVE writer = my ffmpeg pid 59351 (uid 501), raw.mp4 262192 bytes and growing
+15:53:50   writer still running after package: YES
+15:53:50   package exit 1
+    [error] refusing to package 2026-11-15_12000p_live-plain: its capture owner (capture session of pid 99999 on host devthrottle-mac-mini (started 2026-11-15T12:00:00.0000000Z)) is gone but its video ffmpeg pid 59351 is STILL RUNNING and writing into it. Stop that process, or restart the AgentEyes serv
+    PendingMux=pending  mux.State=None  mux.Attempts=None  AttemptedBy=None
+15:53:50   capture.owner.json: PRESENT  recording.mp4: absent
+15:53:50   my ffmpeg 59351 ended by me
+15:53:53 ARM live-sandbox: LIVE writer = my ffmpeg pid 59381 (uid 501), raw.mp4 262192 bytes and growing
+15:53:53   writer still running after package: YES
+15:53:53   package exit 1
+    [error] could not read the audio channel count of <scratch>/run-before/2026-11-15_12000s_live-sandbox/raw.mp4 (ffprobe said: ''). The mic chain cannot be built without it.
+    PendingMux=pending  mux.State=failed  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T15:53:53.3556690Z by agenteyes pid 59395 on devthrottle-mac-mini']
+15:53:53   capture.owner.json: ABSENT  recording.mp4: absent
+15:53:53   my ffmpeg 59381 ended by me
+15:53:57 ARM stale-plain: writer my ffmpeg pid 59412 has EXITED (gone), raw.mp4 430016 bytes
+15:53:57   package exit 1
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    PendingMux=cleared  mux.State=done  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T15:53:57.1250280Z by agenteyes pid 59442 on devthrottle-mac-mini']
+15:53:57   capture.owner.json: ABSENT  recording.mp4: 471649 bytes
+15:54:00 ARM stale-sandbox: writer my ffmpeg pid 59462 has EXITED (gone), raw.mp4 430016 bytes
+15:54:01   package exit 1
+      transcription FAILED: Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    [error] Not signed in to DevThrottle. Open Settings > DevThrottle Account and sign in.
+    PendingMux=cleared  mux.State=done  mux.Attempts=1  AttemptedBy=['attempt 1 at 2026-11-16T15:54:01.0303890Z by agenteyes pid 59475 on devthrottle-mac-mini']
+15:54:01   capture.owner.json: ABSENT  recording.mp4: 471649 bytes
+15:54:01 done

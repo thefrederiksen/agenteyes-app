@@ -4,19 +4,31 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using AgentEyes;
+using AgentEyes.Video;
 using Xunit;
 
 namespace AgentEyes.Tests
 {
     /// <summary>
     /// Non-parallel: these tests swap process-wide seams (<see cref="PostRecording.MuxStep"/>,
-    /// <see cref="CaptureLock.IsSameProcess"/>, <see cref="CaptureLock.HostName"/>) that other test
+    /// <see cref="CaptureLock.IdentifyProcess"/>, <see cref="CaptureLock.HostName"/>) that other test
     /// classes also read.
     /// </summary>
     [CollectionDefinition(Name, DisableParallelization = true)]
     public sealed class CaptureOwnershipCollection
     {
         public const string Name = "CaptureOwnership (issue #156)";
+    }
+
+    /// <summary>
+    /// Issue #156 pass 4: adapts a yes/no stand-in for the identity probe to the three-state answer.
+    /// It can only produce Mine and NotMine - every test that needs Unknown says so explicitly, so a
+    /// test that means "the writer is gone" is never satisfied by an Unknown.
+    /// </summary>
+    internal static class TestIdentity
+    {
+        public static Func<int, DateTime, ProcessAnswer> From(Func<int, DateTime, bool> isSame) =>
+            (pid, start) => isSame(pid, start) ? ProcessAnswer.Mine("test stand-in: same") : ProcessAnswer.NotMine("test stand-in: not same");
     }
 
     /// <summary>
@@ -38,7 +50,7 @@ namespace AgentEyes.Tests
     public sealed class CaptureOwnershipTests : IDisposable
     {
         private readonly string _dir;
-        private readonly Func<int, DateTime, bool> _realIsSame = CaptureLock.IsSameProcess;
+        private readonly Func<int, DateTime, ProcessAnswer> _realIsSame = CaptureLock.IdentifyProcess;
         private readonly Func<string> _realHost = CaptureLock.HostName;
         private readonly Func<string> _realHostId = CaptureLock.ThisHostId;
         private readonly List<string> _muxCalls = new();
@@ -54,7 +66,7 @@ namespace AgentEyes.Tests
 
         public void Dispose()
         {
-            CaptureLock.IsSameProcess = _realIsSame;
+            CaptureLock.IdentifyProcess = _realIsSame;
             CaptureLock.HostName = _realHost;
             CaptureLock.ThisHostId = _realHostId;
             // Tests that record THIS process as a writer leave its reap record behind (a running
@@ -270,7 +282,7 @@ namespace AgentEyes.Tests
         public void Inspect_OwnerDeadButItsWriterStillRunning_IsLiveAndNamesTheWriter()
         {
             CaptureLock.HostName = () => "OTHERBOX";
-            CaptureLock.IsSameProcess = (pid, _) => pid == 91047;
+            CaptureLock.IdentifyProcess = TestIdentity.From((pid, _) => pid == 91047);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91100, host: "OTHERBOX", writers: new[] { Writer(91047) });
 
             var r = CaptureLock.Inspect(_dir);
@@ -285,7 +297,7 @@ namespace AgentEyes.Tests
         public void Inspect_OwnerDeadAndWritersExited_IsNotLiveAndSaysItTookOver()
         {
             CaptureLock.HostName = () => "OTHERBOX";
-            CaptureLock.IsSameProcess = (_, _) => false;
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91100, host: "OTHERBOX", writers: new[] { Writer(91047) });
 
             var r = CaptureLock.Inspect(_dir);
@@ -310,7 +322,7 @@ namespace AgentEyes.Tests
         public void Inspect_WriterOnAnotherHost_IsLiveWithTheExactFix()
         {
             CaptureLock.HostName = () => "THISBOX";
-            CaptureLock.IsSameProcess = (_, _) => throw new InvalidOperationException("a foreign host's pid must never be probed locally");
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => throw new InvalidOperationException("a foreign host's pid must never be probed locally"));
             HoldLikeAnotherProcess(holdLock: false, host: "OTHERBOX", writers: new[] { Writer(5555) });
 
             var r = CaptureLock.Inspect(_dir);
@@ -410,7 +422,7 @@ namespace AgentEyes.Tests
         public void Resume_CaptureOwnerDiedAndWritersExited_RepairsTheRecording()
         {
             WriteStartManifest();
-            CaptureLock.IsSameProcess = (_, _) => false;
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91092, host: Environment.MachineName, writers: new[] { Writer(91038) });
             File.WriteAllText(LockPath, "");   // the lock file a dead capture leaves, unheld
 
@@ -427,7 +439,7 @@ namespace AgentEyes.Tests
         {
             WriteStartManifest();
             bool writerAlive = true;
-            CaptureLock.IsSameProcess = (pid, _) => pid == 91047 && writerAlive;
+            CaptureLock.IdentifyProcess = TestIdentity.From((pid, _) => pid == 91047 && writerAlive);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91100, host: Environment.MachineName, writers: new[] { Writer(91047) });
 
             Assert.True(PostRecording.Resume(_dir, hostedWorkAllowed: false).Skipped);
@@ -490,7 +502,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void Inspect_AnotherProbeOpenAtTheSameInstant_IsNotLive()
         {
-            CaptureLock.IsSameProcess = (_, _) => false;
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);
             HoldLikeAnotherProcess(holdLock: false, host: Environment.MachineName, writers: new[] { Writer(91038) });
             File.WriteAllText(LockPath, "");
             using var otherProbe = new FileStream(LockPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -531,7 +543,7 @@ namespace AgentEyes.Tests
             // macOS renames the host when the network changes; the record from before the rename is
             // still this machine's, and its exited writer must not strand the recording.
             CaptureLock.HostName = () => "NEWNAME";
-            CaptureLock.IsSameProcess = (_, _) => false;
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);
             var owner = new CaptureLock.OwnerRecord
             {
                 Host = "OLDNAME", HostId = CaptureLock.ThisHostId(), Pid = 1, What = "capture session",
@@ -593,7 +605,7 @@ namespace AgentEyes.Tests
         public void Resume_CrashedCaptureRecovered_AnotherHostThenAcceptsTheRecording()
         {
             WriteStartManifest();
-            CaptureLock.IsSameProcess = (_, _) => false;   // owner and writer both dead
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);   // owner and writer both dead
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91092, host: Environment.MachineName, writers: new[] { Writer(91038) });
             File.WriteAllText(LockPath, "");
 
@@ -633,7 +645,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void ClearStaleClaim_OwnerDeadButWriterStillRunning_KeepsTheRecord()
         {
-            CaptureLock.IsSameProcess = (pid, _) => pid == 91047;
+            CaptureLock.IdentifyProcess = TestIdentity.From((pid, _) => pid == 91047);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91100, host: Environment.MachineName, writers: new[] { Writer(91047) });
 
             Assert.False(CaptureLock.ClearStaleClaim(_dir, "test"));
@@ -646,7 +658,7 @@ namespace AgentEyes.Tests
         public void ClearStaleClaim_WriterRecordedByAnotherHost_KeepsTheRecord()
         {
             // This host cannot probe another machine's pid, so it cannot PROVE the claim stale.
-            CaptureLock.IsSameProcess = (_, _) => false;
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91100, host: "OTHERBOX", writers: new[] { Writer(91047) });
 
             Assert.False(CaptureLock.ClearStaleClaim(_dir, "test"));
@@ -668,7 +680,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void ClearStaleClaim_ProvablyStale_RemovesTheRecordAndReleasesTheLock()
         {
-            CaptureLock.IsSameProcess = (_, _) => false;
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91092, host: Environment.MachineName, writers: new[] { Writer(91038) });
 
             Assert.True(CaptureLock.ClearStaleClaim(_dir, "test"));
@@ -685,7 +697,7 @@ namespace AgentEyes.Tests
         [Fact]
         public void ClearStaleClaim_AnotherFinalizerProbingAtTheSameInstant_StillClearsAndNeitherSeesAHolder()
         {
-            CaptureLock.IsSameProcess = (_, _) => false;
+            CaptureLock.IdentifyProcess = TestIdentity.From((_, _) => false);
             HoldLikeAnotherProcess(holdLock: false, ownerPid: 91092, host: Environment.MachineName, writers: new[] { Writer(91038) });
             File.WriteAllText(LockPath, "");   // the unheld lock a crashed capture leaves
             using var otherProbe = new FileStream(LockPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
