@@ -1,0 +1,25 @@
+probe pid=16372 user=SORENLAPTOP\soren IL=Medium elevated=False runtime=.NET 8.0.21
+processes probed: 284
+== count by (target IL, QUERY_INFORMATION, QUERY_LIMITED, .NET HasExited, .NET StartTime):
+    163 IL=? QUERY_INFORMATION=ERR5 QUERY_LIMITED=ERR5 HasExited=Win32Exception(5) StartTime=Win32Exception(5)
+     87 IL=Medium QUERY_INFORMATION=ok QUERY_LIMITED=ok HasExited=False StartTime=read
+     16 IL=0x0 QUERY_INFORMATION=ok QUERY_LIMITED=ok HasExited=False StartTime=read
+     12 IL=Low QUERY_INFORMATION=ok QUERY_LIMITED=ok HasExited=False StartTime=read
+      4 IL=High QUERY_INFORMATION=ERR5 QUERY_LIMITED=ok HasExited=False StartTime=read
+      1 IL=Medium QUERY_INFORMATION=ERR5 QUERY_LIMITED=ok HasExited=False StartTime=read
+      1 IL=? QUERY_INFORMATION=ERR87 QUERY_LIMITED=ERR87 HasExited=Win32Exception(5) StartTime=Win32Exception(5)
+== every High-IL process (all four are this user's):
+pid=14552  name=ctfmon                       owner=SORENLAPTOP\soren            IL=High      QUERY_INFORMATION=ERR5   QUERY_LIMITED=ok     LIMITED|SYNC=ok     GetProcessTimes(limited)=2026-11-11T16:23:40.4440278Z       .NET HasExited=False                  .NET StartTime=2026-11-11T16:23:40.4440278Z
+pid=2996   name=AsusOSD                      owner=SORENLAPTOP\soren            IL=High      QUERY_INFORMATION=ERR5   QUERY_LIMITED=ok     LIMITED|SYNC=ok     GetProcessTimes(limited)=2026-11-11T16:24:37.6122047Z       .NET HasExited=False                  .NET StartTime=2026-11-11T16:24:37.6122047Z
+pid=21740  name=AsusSoftwareManagerAgent     owner=SORENLAPTOP\soren            IL=High      QUERY_INFORMATION=ERR5   QUERY_LIMITED=ok     LIMITED|SYNC=ok     GetProcessTimes(limited)=2026-11-11T16:45:10.1102420Z       .NET HasExited=False                  .NET StartTime=2026-11-11T16:45:10.1102420Z
+pid=4752   name=taskhostw                    owner=SORENLAPTOP\soren            IL=High      QUERY_INFORMATION=ERR5   QUERY_LIMITED=ok     LIMITED|SYNC=ok     GetProcessTimes(limited)=2026-11-13T01:23:08.3490816Z       .NET HasExited=False                  .NET StartTime=2026-11-13T01:23:08.3490816Z
+== SYSTEM-owned rows used as 'another user' (pid 4 and the named services):
+pid=4      name=System                       owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=1100   name=wininit                      owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=1168   name=winlogon                     owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=1248   name=services                     owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=1276   name=lsass                        owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=1420   name=svchost                      owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=1592   name=svchost                      owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=1656   name=svchost                      owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
+pid=4040   name=spoolsv                      owner=?(open 5)                    IL=?         QUERY_INFORMATION=ERR5   QUERY_LIMITED=ERR5   LIMITED|SYNC=ERR5   GetProcessTimes(limited)=-                                  .NET HasExited=Win32Exception(5)      .NET StartTime=Win32Exception(5)
