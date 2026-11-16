@@ -1,0 +1,101 @@
+# row4.txt - issue #142 Linux re-run on main b0e6ae8 (installed binary 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb, service pid 2211032)
+# harness: one-second samples of /status (State, ElapsedSeconds, CaptureLiveness, CaptureBytes) and 1-min loadavg;
+# after stop, the manifest's PostProcessing states are followed every 0.5 s until every stage is terminal.
+
+## take log
+15:59:12.261 [row4] body={"mode":"video","screen":1,"source":"none"} load=6.05
+15:59:12.337 ffmpeg before: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/']
+15:59:12.957 POST /record/start -> 200 {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "none",
+  "ElapsedSeconds": 0.52,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "~/Videos/AgentEyes/2026-11-16_155912_video",
+  "Camera": null,
+  "SignedIn": true,
+  "AccountEmail": "<owner account>",
+  "PendingTranscriptions": 1,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  
+15:59:12.957 dir=~/Videos/AgentEyes/2026-11-16_155912_video
+15:59:13.038 ffmpeg after start: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/', '2213909 /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -c:v libx264 -preset very']
+15:59:13.044 t=+    0.7 state=recording el=0.61 live=starting capbytes=0 raw=-1 load=6.05
+15:59:14.048 t=+    1.7 state=recording el=1.61 live=starting capbytes=0 raw=-1 load=6.05
+15:59:15.052 t=+    2.7 state=recording el=2.62 live=starting capbytes=0 raw=-1 load=5.89
+15:59:16.057 t=+    3.7 state=recording el=3.62 live=starting capbytes=0 raw=-1 load=5.89
+15:59:17.063 t=+    4.7 state=recording el=4.63 live=growing capbytes=221466 raw=-1 load=5.89
+15:59:18.067 t=+    5.7 state=recording el=5.63 live=growing capbytes=221466 raw=-1 load=5.89
+15:59:19.072 t=+    6.7 state=recording el=6.64 live=growing capbytes=298870 raw=-1 load=5.89
+15:59:20.077 t=+    7.7 state=recording el=7.64 live=growing capbytes=298870 raw=-1 load=6.21
+15:59:21.081 t=+    8.7 state=recording el=8.65 live=growing capbytes=308754 raw=-1 load=6.21
+15:59:22.085 t=+    9.7 state=recording el=9.65 live=growing capbytes=308754 raw=-1 load=6.21
+15:59:23.090 t=+   10.8 state=recording el=10.65 live=growing capbytes=446026 raw=-1 load=6.21
+15:59:24.095 t=+   11.8 state=recording el=11.66 live=growing capbytes=446026 raw=-1 load=6.21
+15:59:25.100 t=+   12.8 state=recording el=12.66 live=growing capbytes=761596 raw=-1 load=5.80
+15:59:26.104 t=+   13.8 state=recording el=13.67 live=growing capbytes=761596 raw=-1 load=5.80
+15:59:27.110 t=+   14.8 state=recording el=14.67 live=growing capbytes=874849 raw=-1 load=5.80
+15:59:28.114 t=+   15.8 state=recording el=15.68 live=growing capbytes=874849 raw=-1 load=5.80
+15:59:29.119 t=+   16.8 state=recording el=16.68 live=growing capbytes=976219 raw=-1 load=5.80
+15:59:30.123 t=+   17.8 state=recording el=17.69 live=growing capbytes=976219 raw=-1 load=5.81
+15:59:31.127 t=+   18.8 state=recording el=18.69 live=growing capbytes=1055984 raw=-1 load=5.81
+15:59:32.136 t=+   19.8 state=recording el=19.7 live=growing capbytes=1055984 raw=-1 load=5.81
+15:59:33.139 t=+   20.8 state=recording el=20.71 live=growing capbytes=1397933 raw=-1 load=5.81
+15:59:34.144 t=+   21.8 state=recording el=21.71 live=growing capbytes=1397933 raw=-1 load=5.81
+15:59:35.149 t=+   22.8 state=recording el=22.71 live=growing capbytes=1503857 raw=-1 load=6.71
+15:59:36.155 t=+   23.8 state=recording el=23.72 live=growing capbytes=1503857 raw=-1 load=6.71
+15:59:37.159 t=+   24.8 state=recording el=24.72 live=growing capbytes=1583865 raw=-1 load=6.71
+15:59:38.484 POST /record/stop -> 200 (+0.32s) {
+  "Dir": "~/Videos/AgentEyes/2026-11-16_155912_video",
+  "File": "~/Videos/AgentEyes/2026-11-16_155912_video/recording.mp4",
+  "DurationSeconds": 25.74,
+  "Shots": 0
+}
+15:59:38.989 manifest PostProcessing.thumbnail.State=done at +0.50s after stop returned; /status=idle
+15:59:39.492 manifest PostProcessing.package.State=failed at +1.00s after stop returned; /status=idle
+
+## row4-probe.txt
+== file: 2026-11-16_155912_video/recording.mp4  size 1958629
+== top-level atoms
+  ftyp: count 1, first at offset 0, first size 28
+  moov: count 1, first at offset 28, first size 770
+  moof: count 16, first at offset 798, first size 584
+  mdat: count 16, first at offset 1382, first size 220084
+  mfra: count 1, first at offset 1958277, first size 352
+  walked to 1958629 of 1958629 bytes
+== streams
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=25.700000|nb_frames=N/A
+== format duration
+duration=25.700000
+== decoded video frame count
+nb_read_frames=771
+== audio packets
+== full decode: ffmpeg -v error -i <f> -f null -
+   exit=0  (.676344876 s, load 2.74)
+== frame read near the end: -ss 24.700000 of 25.700000
+   exit=0 png=row4-near-end.png 1929956 bytes
+   first frame pts at or after seek: 16.666667
+
+## row4-extra.txt
+== capture ffmpeg final progress line and warning count
+frame=  771 fps= 30 q=-1.0 Lsize=    1913kB time=00:00:25.60 bitrate= 612.1kbits/s speed=0.996x    
+queue/backward/non-monotonic warnings: 0
+threads=34 lookahead_threads=8
+== manifest PostProcessing
+{
+ "thumbnail": {
+  "State": "done",
+  "Attempts": 1,
+  "LastAttemptUtc": "2026-11-16T20:59:38.9208545Z"
+ },
+ "package": {
+  "State": "failed",
+  "Attempts": 1,
+  "LastAttemptUtc": "2026-11-16T20:59:39.0888193Z",
+  "Error": "ffmpeg failed during extract audio (exit 234). ...00000, bitrate: 609 kb/s\n  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, 606 kb/s, 30 fps, 30 tbr, 15360 tbn (default)\n    Metadata:\n      handler_name    : VideoHandler\n      vendor_id       : [0][0]"
+ }
+}

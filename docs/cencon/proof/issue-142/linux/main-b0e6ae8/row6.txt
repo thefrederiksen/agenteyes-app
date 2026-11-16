@@ -1,0 +1,142 @@
+# row6.txt - issue #142 Linux re-run on main b0e6ae8 (installed binary 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb, service pid 2211032)
+# harness as row4.txt; 606 one-second samples condensed below to every 30th plus the ones around the two not-growing readings
+16:15:09.056 [row6] body={"mode":"video","screen":1,"source":"mixed","mic":"Family 17h"} load=21.25
+16:15:09.130 ffmpeg before: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/']
+16:15:10.913 POST /record/start -> 200 {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mixed",
+  "ElapsedSeconds": 1.61,
+  "Level": 0.001,
+  "MicLevel": 0.001,
+  "SystemLevel": 0,
+  "Dir": "~/Videos/AgentEyes/2026-11-16_161509_video",
+  "Camera": null,
+  "SignedIn": true,
+  "AccountEmail": "<owner account>",
+  "PendingTranscriptions": 0,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir":
+16:15:10.914 dir=~/Videos/AgentEyes/2026-11-16_161509_video
+16:15:11.010 ffmpeg after start: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/', '2261040 /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_si', '2261224 /usr/bin/ffmpeg -hide_banner -nostats -loglevel warning -f pulse -fragment_size 1920 -i alsa_input.pci-0000_08_00.3.analog-stereo -ac 1 -ar 48000 -f s16', '2261369 /usr/bin/ffmpeg -hide_banner -nostats -loglevel warning -f pulse -fragment_size 3840 -i alsa_output.pci-0000_08_00.3.iec958-stereo.monitor -ac 2 -ar 480']
+16:15:14.029 FIRST BYTES in raw.mp4 at +4.90s (331716)
+16:15:11.014 t=+    1.9 file=raw.mp4 state=recording el=1.72 live=starting capbytes=0 raw=0 load=20.03
+16:15:41.207 t=+   32.1 file=raw.mp4 state=recording el=31.91 live=growing capbytes=2854121 raw=2854121 load=24.59
+16:16:11.344 t=+   62.2 file=raw.mp4 state=recording el=62.04 live=growing capbytes=7446144 raw=7446144 load=19.06
+16:16:41.489 t=+   92.4 file=raw.mp4 state=recording el=92.19 live=growing capbytes=12422638 raw=12422638 load=14.92
+16:17:11.641 t=+  122.5 file=raw.mp4 state=recording el=122.34 live=growing capbytes=15261771 raw=15261771 load=11.03
+16:17:41.773 t=+  152.6 file=raw.mp4 state=recording el=152.47 live=growing capbytes=17626247 raw=17734773 load=10.49
+16:18:11.903 t=+  182.8 file=raw.mp4 state=recording el=182.6 live=growing capbytes=20610194 raw=20610194 load=11.31
+16:18:42.021 t=+  212.9 file=raw.mp4 state=recording el=212.72 live=growing capbytes=23128475 raw=23415332 load=10.81
+16:19:12.137 t=+  243.0 file=raw.mp4 state=recording el=242.84 live=growing capbytes=25737281 raw=25737281 load=8.40
+16:19:42.256 t=+  273.1 file=raw.mp4 state=recording el=272.96 live=growing capbytes=29214041 raw=29340045 load=6.09
+16:20:12.387 t=+  303.3 file=raw.mp4 state=recording el=303.09 live=growing capbytes=31387397 raw=31484225 load=4.73
+16:20:42.508 t=+  333.4 file=raw.mp4 state=recording el=333.21 live=growing capbytes=33745254 raw=33850648 load=3.82
+16:21:12.646 t=+  363.5 file=raw.mp4 state=recording el=363.35 live=growing capbytes=35842017 raw=36103996 load=2.74
+16:21:42.770 t=+  393.6 file=raw.mp4 state=recording el=393.47 live=growing capbytes=38252162 raw=38359174 load=2.19
+16:22:12.899 t=+  423.8 file=raw.mp4 state=recording el=423.6 live=growing capbytes=40674909 raw=40782479 load=3.69
+16:22:43.029 t=+  453.9 file=raw.mp4 state=recording el=453.73 live=growing capbytes=43086315 raw=43086315 load=4.11
+16:23:13.148 t=+  484.0 file=raw.mp4 state=recording el=483.85 live=growing capbytes=45704012 raw=45704012 load=5.37
+16:23:43.280 t=+  514.2 file=raw.mp4 state=recording el=513.98 live=growing capbytes=48136371 raw=48136371 load=6.07
+16:24:13.405 t=+  544.3 file=raw.mp4 state=recording el=544.11 live=growing capbytes=50936937 raw=50944452 load=4.83
+16:24:43.536 t=+  574.4 file=raw.mp4 state=recording el=574.24 live=growing capbytes=53515053 raw=53515053 load=3.56
+16:25:13.668 t=+  604.5 file=raw.mp4 state=recording el=604.37 live=growing capbytes=55738593 raw=56067849 load=3.09
+... around the only two not-growing readings:
+16:20:06.362 t=+  297.2 file=raw.mp4 state=recording el=297.06 live=growing capbytes=31164617 raw=31164617 load=5.05
+16:20:07.366 t=+  298.2 file=raw.mp4 state=recording el=298.07 live=growing capbytes=31277258 raw=31277258 load=5.05
+16:20:08.370 t=+  299.2 file=raw.mp4 state=recording el=299.07 live=growing capbytes=31277258 raw=31277258 load=5.05
+16:20:09.374 t=+  300.2 file=raw.mp4 state=recording el=300.07 live=not-growing capbytes=31277258 raw=31387397 load=5.05
+16:20:10.379 t=+  301.2 file=raw.mp4 state=recording el=301.08 live=not-growing capbytes=31277258 raw=31387397 load=4.73
+16:20:11.383 t=+  302.3 file=raw.mp4 state=recording el=302.08 live=growing capbytes=31387397 raw=31484225 load=4.73
+16:20:12.387 t=+  303.3 file=raw.mp4 state=recording el=303.09 live=growing capbytes=31387397 raw=31484225 load=4.73
+16:20:13.392 t=+  304.3 file=raw.mp4 state=recording el=304.09 live=growing capbytes=31484225 raw=31805726 load=4.73
+16:25:17.683 t=+  608.6 file=raw.mp4 state=recording el=608.39 live=growing capbytes=56191931 raw=56287038 load=3.17
+16:25:18.687 t=+  609.6 file=raw.mp4 state=recording el=609.39 live=growing capbytes=56191931 raw=56287038 load=3.17
+16:25:20.467 POST /record/stop -> 200 (+0.78s) {
+  "Dir": "~/Videos/AgentEyes/2026-11-16_161509_video",
+  "File": "~/Videos/AgentEyes/2026-11-16_161509_video/recording.mp4",
+  "DurationSeconds": 610.4,
+  "Shots": 0
+}
+16:25:20.971 manifest PostProcessing.mux.State=running at +0.50s after stop returned; /status=idle
+16:26:07.011 manifest PostProcessing.mux.State=done at +46.54s after stop returned; /status=idle
+16:26:07.515 manifest PostProcessing.thumbnail.State=done at +47.04s after stop returned; /status=idle
+16:26:15.525 manifest PostProcessing.package.State=done at +55.05s after stop returned; /status=idle
+16:26:15.525 final PostProcessing: {"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:25:20.4678269Z", "AttemptedBy": ["attempt 1 at 2026-11-16T21:25:20.4678269Z by agenteyes pid 2211032 on devlinux"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:26:07.390687Z"}, "package": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:26:15.0449279Z"}}
+16:26:15.590 ffmpeg at end: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/']
+16:26:15.591 files: ['audio_16k.wav', 'capture.lock', 'manifest.json', 'mux.lock', 'raw.mp4.ffmpeg.log', 'recording.mp4', 'recording.original.mp4', 'shots', 'system.original.wav', 'thumb.jpg', 'transcript.en.vtt', 'transcript.json', 'transcript.txt', 'walkthrough.html']
+## liveness value counts over all samples
+    600 live=growing
+      2 live=not-growing
+      4 live=starting
+
+## row6-probe.txt
+== file: 2026-11-16_161509_video/recording.mp4  size 59400228
+== top-level atoms
+  ftyp: count 1, first at offset 0, first size 32
+  free: count 1, first at offset 32, first size 8
+  mdat: count 1, first at offset 40, first size 58732197
+  moov: count 1, first at offset 58732237, first size 667991
+  walked to 59400228 of 59400228 bytes
+== streams
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=610.566667|nb_frames=18317
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=610.500000|nb_frames=28619
+== format duration
+duration=610.566667
+== decoded video frame count
+nb_read_frames=18317
+== audio packets
+stream|index=1|sample_rate=48000|nb_read_packets=28619
+== full decode: ffmpeg -v error -i <f> -f null -
+   exit=0  (10.646344302 s, load 5.24)
+== frame read near the end: -ss 608.566667 of 610.566667
+   exit=0 png=row6-near-end.png 1668363 bytes
+   frames decoded at or after 608.566667: 60, first 608.566667, LAST frame pts 610.533333
+== audio timestamps, final recording.mp4
+  audio packets 28619, first pts -0.021, end 610.500, sum of packet durations 610.512 s
+  gaps > 50 ms: 0
+== raw capture recording.original.mp4 (fragmented, #113)
+stream|codec_name=h264|codec_type=video|duration=610.566667
+stream|codec_name=aac|codec_type=audio|duration=610.534979
+  audio packets 28617, first pts 0.000, end 610.530, sum of packet durations 610.486 s
+  gaps > 50 ms: 0
+== system track system.original.wav
+format|duration=608.980000
+== capture ffmpeg final progress line and warning count
+frame=18317 fps= 30 q=-1.0 Lsize=   55410kB time=00:10:10.50 bitrate= 743.5kbits/s dup=6 drop=5 speed=   1x    
+queue/backward/non-monotonic warnings: 0
+== capture command line
+"/usr/bin/ffmpeg" -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 ~/Videos/AgentEyes/2026-11-16_161509_video/raw.mp4
+== camera on-screen clock (go2rtc wall, visible in the captured screen): pts 30.0 -> 16:15:40, pts 608.57 -> 16:25:19 (579 s of wall clock over 578.57 s of media); stop request 16:25:20.467
+
+== POSITIVE CONTROL: why the old criterion is vacuous, and what the new one adds
+# a COPY of recording.original.mp4 in a scratch dir, truncated to half its bytes; the library file was not modified
+######## full.mp4 (56739548 bytes, a COPY in scratch)
+  OLD criterion - moov atom present: YES at offset 28  (moof fragments: 367)
+  format duration: 610.566667
+  full decode exit=0 (0 error lines; first: )
+  NEW criterion part 2 - frame read near the EXPECTED end (t >= 608.57 s of 610.57 s): 59 frames at or after 608.57, last pts 610.533333
+######## half.mp4 (28369774 bytes, a COPY in scratch)
+  OLD criterion - moov atom present: YES at offset 28  (moof fragments: 156)
+  format duration: 260.333333
+  full decode exit=0 (1 error lines; first: [mov,mp4,m4a,3gp,3g2,mj2 @ 0x6414886955c0] stream 1, offset 0x1b12095: partial file)
+[NULL @ 0x596b4c302080] Invalid NAL unit size (2509 > 24).
+[NULL @ 0x596b4c302080] missing picture in access unit with size 28
+[h264 @ 0x596b4c36c000] Invalid NAL unit size (2509 > 24).
+[h264 @ 0x596b4c36c000] Error splitting the input into NAL units.
+[mov,mp4,m4a,3gp,3g2,mj2 @ 0x596b4c301040] stream 0, offset 0x1b0ed23: partial file
+  NEW criterion part 2 - frame read near the EXPECTED end (t >= 608.57 s of 610.57 s): 0 frames at or after 608.57, last pts 259.633333
+
+== the same control on row 5 take A's raw capture (expected 100.77 s)
+######## full.mp4 (9227482 bytes, a COPY in scratch)
+  OLD criterion - moov atom present: YES at offset 28  (moof fragments: 61)
+  format duration: 100.766667
+  full decode exit=0 (0 error lines; first: )
+  NEW criterion part 2 - frame read near the EXPECTED end (t >= 98.77 s of 100.77 s): 59 frames at or after 98.77, last pts 100.733333
+######## half.mp4 (4613741 bytes, a COPY in scratch)
+  OLD criterion - moov atom present: YES at offset 28  (moof fragments: 30)
+  format duration: 50.000000
+  full decode exit=0 (3 error lines; first: [mov,mp4,m4a,3gp,3g2,mj2 @ 0x63b707fdc5c0] stream 1, offset 0x466770: partial file
+[aac @ 0x63b708051380] decode_band_ty)
+  NEW criterion part 2 - frame read near the EXPECTED end (t >= 98.77 s of 100.77 s): 0 frames at or after 98.77, last pts 49.966667

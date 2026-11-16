@@ -1,0 +1,19 @@
+# install transcript - scripts/linux/install.sh from main b0e6ae8, 2026-11-16 15:57:51 - 15:58:10 EST, exit 0
+# checkout: git rev-parse HEAD = b0e6ae8213c9777781ba28b588c5edc04c0a85fb (branch made from origin/main after git fetch)
+
+Building agenteyes (Release, linux-x64, self-contained) ...
+<repo>/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [<repo>/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+[OK] built <stage>/agenteyes
+Stopping the running service (a running recording is stopped and kept) ...
+[OK] installed ~/.local/lib/agenteyes, linked ~/.local/bin/agenteyes, unit ~/.config/systemd/user/agenteyes.service
+[OK] enabled at login (graphical-session.target)
+Building the AgentEyes app (Release, linux-x64, self-contained) ...
+[OK] installed the app (~/.local/lib/agenteyes-app): 'AgentEyes' in the app grid, starts in the tray at login
+[OK] service is up: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
+[OK] signed in as <owner account>
+[OK] AgentEyes app started - its window opens, and the moon in the top bar stays when you close it
+
+Ready. Open AgentEyes from the app grid or the moon in the top bar. From a terminal:
+            record: agenteyes record start --mix --mic "<part of your mic name>"
+            stop:   agenteyes record stop
+  list mics with:   agenteyes screens

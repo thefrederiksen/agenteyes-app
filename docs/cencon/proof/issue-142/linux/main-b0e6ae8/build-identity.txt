@@ -1,0 +1,38 @@
+# build identity - issue #142 Linux rows 4-6 re-run, 2026-11-16
+
+git fetch origin; git rev-parse origin/main = b0e6ae8213c9777781ba28b588c5edc04c0a85fb
+built and installed from HEAD = b0e6ae8213c9777781ba28b588c5edc04c0a85fb
+
+embedded commit (AssemblyInformationalVersion 1.11.11+<sha>), the primary identifier:
+  FOUND ON ARRIVAL  service lib ~/.local/lib/agenteyes/agenteyes.dll      ['1.11.11+89e15934278fdf106d30d6ae2cfd13c22e9972c2']
+  FOUND ON ARRIVAL  app lib     ~/.local/lib/agenteyes-app/agenteyes.dll  ['1.11.11+89e15934278fdf106d30d6ae2cfd13c22e9972c2']
+  UNDER TEST        service lib ~/.local/lib/agenteyes/agenteyes.dll      ['1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb']
+  UNDER TEST        app lib     ~/.local/lib/agenteyes-app/agenteyes.dll  ['1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb']
+
+feature markers, counted as UTF-16LE + UTF-8 (string literals are UTF-16LE in metadata):
+  marker            from    found-on-arrival  under-test
+  capture.lock      #156                   0  3
+  CAPTURE FAULT     #113                   2  2
+  frag_keyframe     #113                   1  1
+  delay_moov        #113 pass 5                0  1
+
+sha256 of agenteyes.dll - machine-local only, NOT an identity across machines (the dll embeds the source path):
+  found on arrival  77586071b7e2921fb131419b34743ae0d305b4d2469f9dabbd6a99865298284e
+  under test        f50b04b2d512e7ac9908f974d6d8f948532d1396ca422f5d829c8f88a129f78b
+
+service: systemctl --user show agenteyes.service -> MainPID=2211032, ActiveEnterTimestamp=Mon 2026-11-16 15:58:08 EST
+         command line: ~/.local/lib/agenteyes/agenteyes serve
+         service found on arrival: pid 6560, started 06:35:49, same unit
+desktop app: AgentEyesDesktop pid 2211136 (started by install.sh); found on arrival: AgentEyesLinux --tray pid 1298614 (stopped by install.sh)
+ffmpeg: ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FF
+machine: Ubuntu 24.04.5 LTS, kernel 6.8.0-149-generic, 32 cores, 39 GB RAM, DISPLAY=:0
+
+systemd unit after the reinstall (#165 baseline, checked at the lead's request):
+  diff <unit from the pre-session tarball> ~/.config/systemd/user/agenteyes.service -> no differences (byte-identical)
+  grep KillMode: 21:KillMode=mixed
+  systemctl --user show: TimeoutStopUSec=2min KillMode=mixed KillSignal=15 
+
+pre-session install kept, restore NOT blocked: ~/qa-backups/agenteyes-142/pre-session-install-89e1593.tgz
+  sha256 ebb55525008d502101e2ca6d6feb834d505f73331e352d9b7654542d11d1b0d9
+  holds ~/.local/lib/agenteyes, ~/.local/lib/agenteyes-app, the unit, and the autostart + app-grid agenteyes.desktop entries (509 entries), taken 15:57 EST before install.sh ran
+  restore: systemctl --user stop agenteyes.service; kill the AgentEyesDesktop pid; rm -rf ~/.local/lib/agenteyes ~/.local/lib/agenteyes-app; tar xzf <tgz> -C ~; systemctl --user daemon-reload; systemctl --user start agenteyes.service

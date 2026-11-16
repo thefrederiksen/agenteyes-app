@@ -3,8 +3,12 @@
 This is the **Linux** platform report. The Windows report is `qa-report-windows.md`. The macOS report is
 not part of this one and was not run here.
 
-This report combines two runs on two builds. **Each row says which build it was measured on.**
+This report combines three runs on three builds. **Each row says which build it was measured on.**
 
+- **NEWEST: rows 4, 5 and 6 were re-run on 2026-11-16 on `main` at b0e6ae8, which contains #113 and #156.**
+  See the section "2026-11-16 RE-RUN" directly below the build table. Verdicts there: row 4 PASS,
+  row 5 PASS on 2 of 2 takes (with #157 not exercised), row 6 PASS on the amended criterion. The f9ef230 rows
+  4-6 further down are kept as the record of main before #113.
 - **Rows 4, 5 and 6 (the recorder) were re-measured on current `main` at f9ef230.** That is this
   seat's own work, done on 2026-11-15 between 14:08 and 15:00 EST.
 - **Rows 1, 2, 3, 7, 8, 9 and 10 are carried forward from the earlier Linux seat.** That seat measured
@@ -27,7 +31,204 @@ comment on #142, "both existing reports measured the WRONG BUILD").
 | Machine load (1-min loadavg, 32 cores) | 9.2 - 10.5 during the gate and install. Then **10 - 26** for row 4, **32 - 43** for row 5 take A, **16 - 44** for take B, **17.9 - 71.5** for row 6. Background on every take: the foreign go2rtc camera-wall ffmpeg (pid 2197930, 115 - 165% CPU, not touched). From 14:21 onward, also other sessions' .NET builds: a 32-node `dotnet build` of cc-director, then a `csc` at up to 1241% CPU. None of them were mine |
 | Test gate (this seat, on f9ef230) | `dotnet build src/AgentEyes.Core -c Release`: **0 Error(s)**, 1 warning (the existing CS8602 at AlwaysOnEngine.cs:901). `dotnet test tests/AgentEyes.Tests.Linux -c Release`: **Passed 282, Failed 0, Skipped 0**. `AgentEyes.sln` contains the WPF app and cannot build on Linux, so it was not run here |
 
-## Summary
+## 2026-11-16 RE-RUN: rows 4, 5 and 6 on main b0e6ae8 (with #113 and #156)
+
+This section is a later seat's work, done on 2026-11-16 between 15:56 and 16:35 EST. It **adds to** the
+f9ef230 measurements further down and does not replace them. Those are still the record of main
+before #113. Evidence is in `linux/main-b0e6ae8/`.
+
+**Why these rows were re-run:** #113 (merged as `b0e6ae8`) changes the container of **every** screen
+capture to fragmented MP4 (`-movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov
+-frag_duration 2000000 -flush_packets 1`, seen in the capture command line of every take below). It
+also adds a capture watchdog. #156 (merged as `d0d0a27`) makes a capture hold a `capture.lock` claim.
+Both change the healthy path that rows 4-6 measure.
+
+### Verdicts
+
+| # | Check | Build | Result |
+|---|---|---|---|
+| 4 | Records the screen, no audio | **main b0e6ae8** | **PASS** - one h264 stream and no audio stream, 25.700 s, 771 frames decoded, full decode exit 0 with no error output, a frame read 1 s before the end |
+| 5 | Records screen + microphone, audio within 1.5 s of video | **main b0e6ae8** | **PASS, 2 of 2 takes** - audio **0.095 s** and **0.080 s** short on ~100.7 s takes. The defect behind the earlier FAIL (#157, open) was **not exercised**: no take dropped samples (see the limit below) |
+| 6 | A 10-minute recording completes and is playable | **main b0e6ae8** | **PASS, on the amended criterion** - 610.567 s, full decode **exit 0 with no error output**, and **60 frames read in the last 2 s** (last pts 610.533). The picture tracks the wall clock to within 1 s of the stop request |
+
+### Which binary was actually running
+
+| | |
+|---|---|
+| Found installed on arrival | `~/.local/lib/agenteyes` and `~/.local/lib/agenteyes-app` both embed **`1.11.11+89e15934278fdf106d30d6ae2cfd13c22e9972c2`**. That is the unmerged #113 branch. It is **pre-#156**: the `capture.lock` marker is absent from its dll (0 vs 3). Service pid 6560, running since 06:35:49. Its dll sha256 `77586071...298284e` is the same file the f9ef230 seat restored on 2026-11-15, so nothing changed it in between |
+| Reinstalled | **Yes.** `scripts/linux/install.sh` from this clone at `b0e6ae8213c9777781ba28b588c5edc04c0a85fb` (= `git rev-parse origin/main` after `git fetch`), 2026-11-16 **15:57:51 - 15:58:10 EST**, exit 0 (`linux/main-b0e6ae8/install-main-b0e6ae8.txt`). It replaced the 89e1593 service lib, the 89e1593 app lib and the `AgentEyesLinux --tray` app (pid 1298614) |
+| Service under test | `~/.local/lib/agenteyes/agenteyes serve`, **pid 2211032**, started 15:58:08. The dll embeds **`1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb`**, and so does the app lib. Every log line quoted here carries `[pid 2211032]`. The dll sha256 `f50b04b2...` is machine-local only, not an identity |
+| Feature markers (found-on-arrival vs under-test dll) | `capture.lock` (#156): **0 vs 3**. `delay_moov` (#113 pass 5): **0 vs 1**. `CAPTURE FAULT` and `frag_keyframe` (#113): present in both, as expected of a #113-branch build. Runtime: every take logged `[CaptureLock] TryAcquire ... claimed by capture session of pid 2211032` and `StartWatchdog: watching ... (stall 45s, start-up 45s, every 2s)` |
+| systemd unit (#165 baseline) | byte-identical before and after the reinstall. **`KillMode=mixed`**, `KillSignal=15`, `TimeoutStopUSec=2min` (`systemctl --user show` agrees) |
+| Left installed afterwards | **main b0e6ae8**, on the lead's instruction. 89e1593 was not restored, because a pre-#156 service runs the repair pass over the real library while ignoring `capture.lock`. The pre-session install is kept at **`~/qa-backups/agenteyes-142/pre-session-install-89e1593.tgz`** (both libs, the unit, both `.desktop` entries). Restoring it is not blocked, and the steps are in `linux/main-b0e6ae8/build-identity.txt` |
+| Test gate, this seat, on b0e6ae8 | `dotnet build src/AgentEyes.Core -c Release`: **0 Error(s)**, 1 warning (the existing CS8602). `dotnet test tests/AgentEyes.Tests.Linux -c Release`: **Passed 472, Failed 0, Skipped 2**. `AgentEyes.sln` holds the WPF app and does not build on Linux |
+| ffmpeg | 6.1.1-3ubuntu5, the system package |
+| Machine load (1-min, 32 cores) | row 4: 5.8 - 6.7. Row 5 take A: 4.4 - 10.3. Take B: 5.8 - 7.6. Row 6: 1.9 - 27.6. On every take the foreign go2rtc camera-wall ffmpeg (pid 72110) was running and was not touched. The f9ef230 run's row 5 FAIL came at load 32 - 43, so **today's machine was much quieter** |
+
+**Comparing with the f9ef230 numbers further down:** the binary moved twice. On 2026-11-15 rows 4-6
+were measured on **f9ef230**, installed by that seat, which then restored **89e1593**. Today's rows are on
+**b0e6ae8**, installed at 15:58:08. A difference between the two sets is a difference between builds
+and loads, not necessarily a regression.
+
+### All takes ran at default settings
+
+All takes used `POST /record/start` with no `fps`, so the Control API default of **30 fps** applies
+(`ControlApiRequest.cs:64`). The capture lines show `-framerate 30`. x264 ran with `threads=34
+lookahead_threads=8 bframes=3` on this 32-core machine. **No low frame rate was used**, so #184 and #188 were
+not in scope.
+
+### The empty window, measured here (limit 2)
+
+No byte reached the capture file until, measured from the `/record/start` response:
+
+| take | first bytes | source |
+|---|---|---|
+| row 4 | between **+3.7 s and +4.7 s** | `/status` `CaptureBytes` 0 then 221,466 |
+| row 5 A | between **+4.3 s and +5.3 s** | `/status` `CaptureBytes` 0 then 404,891 |
+| row 5 B | **+4.31 s** | `stat` of `raw.mp4`, 306,407 bytes |
+| row 6 | **+4.90 s** | `stat` of `raw.mp4`, 331,716 bytes |
+
+So **at the default 30 fps on 32 cores the empty window is about 4-5 s.** That is not the 2-5 s figure
+the lead published and corrected. The corrected figures (about 7.7 s at 5 fps, about 30 s at 1 fps) apply
+to low frame rates, which were not run here. None of these rows ended uncleanly, so none of them
+depends on the window. It is quoted because every take passed through it.
+
+### Row 4 - Records the screen, no audio: PASS (main b0e6ae8)
+
+`POST /record/start {"mode":"video","screen":1,"source":"none"}` -> 200 at 15:59:12.957, and
+`POST /record/stop {}` at 15:59:38.484 -> `DurationSeconds 25.74`. Directory `2026-11-16_155912_video`.
+
+| check | Expected | Actual |
+|---|---|---|
+| streams | video only | **exactly one stream: h264** 1920x1080 30/1. `-count_packets` on the audio streams returns nothing |
+| positive control for the absence | the same `ffprobe` finds audio when there is audio | on row 5 take A the identical command returns `index=1 ... nb_read_packets=4719` |
+| duration + frames | about the wall time | **25.700 s**, `nb_read_frames=771` (= 25.7 x 30). The wall time from start response to stop request was 25.53 s |
+| playable | full decode exit 0 | `ffmpeg -v error -i recording.mp4 -f null -`: **exit 0, no error output** |
+| frame near the end | a frame within 1 s of the end | 30 frames decoded at or after 24.70 s, last pts **25.667**. The frame shows the app's `REC 00:24` (`row4-near-end-frame-appwindow.png`), and the camera wall's on-screen clock in the same frame reads 15:59:38, the stop second |
+| container | the #113 fragmented form | for screen-only, the capture file **is** `recording.mp4`. It holds `ftyp`, `moov` (770 bytes, at offset 28), **16 `moof`/`mdat` pairs**, and a closing `mfra` (a clean end) |
+
+The package stage failed with `ffmpeg failed during extract audio (exit 234)`. That is known **#126**,
+met again here, and the service retried it a bounded number of times (16:12:00). Screen-only has no mux
+stage: the manifest holds `thumbnail: done` and `package: failed`. Evidence: `linux/main-b0e6ae8/row4.txt`.
+
+### Row 5 - Records screen + microphone, audio within 1.5 s of video: PASS on 2 of 2 takes (main b0e6ae8)
+
+`POST /record/start {"mode":"video","screen":1,"source":"mic","mic":"Family 17h"}`, with default mic
+settings. Capture topology as before: one process (`x11grab` + `pulse` in one ffmpeg). Audio duration
+is AAC packets x 1024 / 48000. The mux timing comes from **manifest `PostProcessing.mux.State`**, not from
+`/status`, because `/status` was already `idle` 0.5 s after the stop on both takes, while the mux was still
+`running`.
+
+| take | dir | capture health | final video | final audio | difference (bound 1.5 s) | gaps > 50 ms (raw / final) | mux (manifest) |
+|---|---|---|---|---|---|---|---|
+| **A** | `2026-11-16_161009_video` | speed 1x, dup 6 / drop 4, 0 queue or non-monotonic warnings | 3023 frames, **100.767 s** | 4719 pkts = **100.672 s** | **0.095 s short - PASS** | 0 / 0 | `running` at +0.50 s, `done` by +5.51 s |
+| **B** | `2026-11-16_161246_video` | speed 1x, dup 6 / drop 4, 0 warnings | 3020 frames, **100.667 s** | 4715 pkts = **100.587 s** | **0.080 s short - PASS** | 0 / 0 | `running` at +0.50 s, `done` by +6.01 s |
+
+Both final files fully decode with **exit 0 and no error output**, and both yield 30 frames in their last
+second (`row5A-`/`row5B-near-end-frame-appwindow.png`, showing `REC 01:39`). The package stage completed
+on both. Title generation logged `transcript is empty; nothing to title` because the room was silent,
+and each recording kept its preset name.
+
+**The limit on this PASS:** the f9ef230 row 5 FAILED because a CPU-starved capture dropped ~5.5 s of
+mic samples, and the two-pass mux then closed the holes up (L1, now **#157, still OPEN on main**).
+Today **neither raw capture had a single timestamp gap**, so #157's path was never entered. This PASS
+shows the healthy path is within the bound on b0e6ae8. It does **not** show that the earlier FAIL is
+fixed. Under the load that produced it, I would expect it to fail the same way. Evidence:
+`linux/main-b0e6ae8/row5.txt`.
+
+### Row 6 - A 10-minute recording completes and is playable: PASS on the amended criterion (main b0e6ae8)
+
+**The criterion used is the amended one: a FULL DECODE TO EXIT 0, plus A FRAME READ FROM NEAR THE END.**
+This seat added one tightening, from its own control below: the full decode must also leave **no
+error output**, because exit 0 alone is vacuous on a truncated file too.
+
+`POST /record/start {"mode":"video","screen":1,"source":"mixed","mic":"Family 17h"}` (screen + mic +
+system) -> 200 at 16:15:10.913. `POST /record/stop {}` at 16:25:20.467 -> `DurationSeconds 610.4`.
+Directory `2026-11-16_161509_video`. Every second of the take was sampled: `CaptureLiveness` was
+`starting` x4, **`growing` x600** and `not-growing` x2 (see O2). The service log shows no `CAPTURE FAULT`
+and no abandon line. After the stop, the manifest showed mux `running` at +0.50 s and `done` by
+**+46.54 s**, then thumbnail `done` (+47.04 s) and package `done` (+55.05 s), while `/status` read `idle`
+the whole time.
+
+| check | Expected | Actual |
+|---|---|---|
+| full decode | exit 0, no error output | `ffmpeg -v error -i recording.mp4 -f null -`: **exit 0, empty stderr** (10.6 s) |
+| frame near the end | frames in the last 2 s of the **expected** (wall-clock) length | **60 frames** decoded at or after 608.57 s, last pts **610.533** |
+| length vs wall clock | about 610 s | 18317 frames, **610.567 s**. The camera wall's on-screen clock, which is part of the captured screen, reads **16:15:40 at pts 30.0** and **16:25:19 at pts 608.57**: 579 s of wall clock over 578.57 s of media, ending 1 s before the stop request (`row6-camera-clock-at-pts30.png`, `...-pts608.57.png`) |
+| audio vs video | within 1.5 s | 28619 pkts = **610.539 s** against 610.567 s: **0.028 s** short. 0 gaps > 50 ms in the final file and in the raw capture |
+| capture health | keeping up | final progress line: speed 1x, dup 6 / drop 5 over 18317 frames, 0 queue or non-monotonic warnings |
+| raw capture | fragmented (#113) and complete | `recording.original.mp4`: `moov` at offset 28, **367 `moof` fragments**, 610.567 s, fully decodes with exit 0 and no error output |
+| final file | a muxed MP4 | `ftyp`, `free`, `mdat`, **`moov` (667,991 bytes) at offset 58,732,237**, the index at the end, written by the mux |
+
+**Positive control, showing that the old criterion, and exit 0 alone, are vacuous** (`row6.txt`, end). A
+**copy** of the raw fragmented capture was made in a scratch directory and truncated to half its bytes. The
+library file was not modified. Both criteria were then applied to the full copy and the half copy:
+
+| | full copy | half copy (truncated) |
+|---|---|---|
+| OLD: `moov` atom present | yes, at offset 28 | **yes, at offset 28 - passes on a truncated file** |
+| format duration | 610.567 s | 260.333 s |
+| full decode exit code | 0 | **0 - passes on a truncated file too** |
+| full decode error output | none | `partial file`, `Invalid NAL unit size` |
+| NEW: frames at or after 608.57 s of the expected 610.57 s | **59** | **0** (last pts 259.633) |
+
+The same control on row 5 take A's raw capture gives the same pattern (half copy: `moov` present, exit 0,
+0 frames near the expected end). So on this ffmpeg (6.1.1) **a truncated fragmented file decodes to exit
+0**, and only two checks catch it: the frame read near the **expected** end, measured against the wall
+clock rather than the file's own reported duration, and an empty error output. Row 6 passes both.
+
+The `system.original.wav` track is 608.980 s against 610.567 s of video, **1.59 s short**. That is known
+**#121**, met here and not re-raised (the f9ef230 run measured 2.373 s). The system source was silent.
+Evidence: `linux/main-b0e6ae8/row6.txt`.
+
+### Observations, not judged as defects
+
+- **O2 - `CaptureLiveness` read `not-growing` for 2 s on a healthy capture.** At elapsed 300.07 s and 301.08 s
+  of row 6, `/status` reported `not-growing` with `CaptureBytes` 31,277,258. My own `stat` of `raw.mp4` at
+  those same instants already read **31,387,397**. By 302.08 s the service reported `growing` again. So the
+  service's view trailed the disk by about one 2 s poll. It is far inside the 45 s stall limit and caused
+  no action. A client that polls `/status` and alarms on `not-growing` would see a false flicker.
+- **O3 - the desktop app's Record page did not reflect the API-started recording's source.** During row 5
+  (mic) and row 6 (mixed), the app window showed `REC` and `STOP` but its Microphone selector read
+  "No microphone". That is app UI, outside rows 4-6, and was not investigated.
+- **O4 - `install.sh` opens the app window on the desktop**, and it stayed open during every take, so it
+  appears in the captured frames. An Ubuntu "upgrade available" dialog appeared over it during row 6.
+  That dialog was not mine and was not touched. It is why the row 6 frame cannot show the `REC` counter,
+  and why the camera clock is used instead.
+- The first capture created `~/.local/share/AgentEyes/host-id` (`[CaptureLock] ReadOrCreateHostId: created`).
+  That is #156's own behaviour on its first run on this machine, noted because it is a new file in the
+  owner's app data.
+
+### What this re-run does NOT cover
+
+- **#113's failure path.** No take stalled or ended uncleanly, so the watchdog's stall and abandon actions,
+  and the playability of an unclean end, were **not** exercised. The truncation control shows how a truncated
+  fragmented file behaves. It is not a capture that the product itself ended.
+- **#156's protection against a second process.** The claim was taken and released on every take (log
+  lines above), but no second process tried to act on a live recording, so the refusal itself was not tested.
+- **#157 under load.** See row 5. Today's load (peak 27.6, mostly under 11) did not starve the capture.
+- **Low frame rates (#184, #188).** Not run, as instructed.
+- **Audio content and lip sync on a sound event.** The mic and the system source were near-silent. These
+  rows prove track length and timestamps, not intelligibility or a sound lining up with its picture.
+- **Rows 1-3 and 7-12**, and **Windows and macOS**.
+
+### State of devlinux after this re-run
+
+- **Installed: main b0e6ae8**, service pid 2211032, app `AgentEyesDesktop` pid 2211136. The pre-session
+  89e1593 install is in the tarball named above.
+- **`~/Videos/AgentEyes`: nothing deleted.** Four recordings were added: `2026-11-16_155912_video`
+  (row 4), `_161009_video` (row 5 A), `_161246_video` (row 5 B), `_161509_video` (row 6).
+  `2026-11-14_102532_video` is present. The library holds 86 entries.
+- **Processes:** every capture ffmpeg was started by the service and exited with its recording. `pgrep`
+  after each take shows only the go2rtc ffmpeg (pid 72110), which was never touched. The only process I
+  killed was my own harness script (`take.py`, after row 4: its end condition waited for a mux stage that
+  screen-only recordings do not have). No ffmpeg was killed by me, and the watchdog killed none.
+- The truncation controls and every scratch file were written to a session scratch directory, never into
+  the library.
+
+---
+
+## Summary (2026-11-15 runs: rows 4-6 on f9ef230, the rest on c80cb9d)
 
 | # | Check | Build | Result |
 |---|---|---|---|

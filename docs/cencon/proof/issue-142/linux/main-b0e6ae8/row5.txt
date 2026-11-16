@@ -1,0 +1,338 @@
+# row5.txt - issue #142 Linux re-run on main b0e6ae8 (installed binary 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb, service pid 2211032)
+# harness as row4.txt
+########## TAKE A
+16:10:09.186 [row5A] body={"mode":"video","screen":1,"source":"mic","mic":"Family 17h"} load=4.05
+16:10:09.264 ffmpeg before: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/']
+16:10:10.504 POST /record/start -> 200 {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.08,
+  "Level": 0.001,
+  "MicLevel": 0.001,
+  "SystemLevel": 0,
+  "Dir": "~/Videos/AgentEyes/2026-11-16_161009_video",
+  "Camera": null,
+  "SignedIn": true,
+  "AccountEmail": "<owner account>",
+  "PendingTranscriptions": 1,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": n
+16:10:10.504 dir=~/Videos/AgentEyes/2026-11-16_161009_video
+16:10:10.586 ffmpeg after start: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/', '2244043 /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_si', '2244287 /usr/bin/ffmpeg -hide_banner -nostats -loglevel warning -f pulse -fragment_size 1920 -i alsa_input.pci-0000_08_00.3.analog-stereo -ac 1 -ar 48000 -f s16']
+16:10:10.590 t=+    1.3 file=raw.mp4 state=recording el=1.16 live=starting capbytes=0 raw=-1 load=4.68
+16:10:11.593 t=+    2.3 file=raw.mp4 state=recording el=2.17 live=starting capbytes=0 raw=-1 load=4.68
+16:10:12.597 t=+    3.3 file=raw.mp4 state=recording el=3.17 live=starting capbytes=0 raw=-1 load=4.68
+16:10:13.603 t=+    4.3 file=raw.mp4 state=recording el=4.18 live=starting capbytes=0 raw=-1 load=4.68
+16:10:14.608 t=+    5.3 file=raw.mp4 state=recording el=5.18 live=growing capbytes=404891 raw=-1 load=4.68
+16:10:15.613 t=+    6.3 file=raw.mp4 state=recording el=6.19 live=growing capbytes=404891 raw=-1 load=4.63
+16:10:16.617 t=+    7.4 file=raw.mp4 state=recording el=7.19 live=growing capbytes=586251 raw=-1 load=4.63
+16:10:17.621 t=+    8.4 file=raw.mp4 state=recording el=8.2 live=growing capbytes=586251 raw=-1 load=4.63
+16:10:18.627 t=+    9.4 file=raw.mp4 state=recording el=9.2 live=growing capbytes=731343 raw=-1 load=4.63
+16:10:19.632 t=+   10.4 file=raw.mp4 state=recording el=10.21 live=growing capbytes=731343 raw=-1 load=4.63
+16:10:20.636 t=+   11.4 file=raw.mp4 state=recording el=11.21 live=growing capbytes=941611 raw=-1 load=4.74
+16:10:21.641 t=+   12.4 file=raw.mp4 state=recording el=12.21 live=growing capbytes=941611 raw=-1 load=4.74
+16:10:22.646 t=+   13.4 file=raw.mp4 state=recording el=13.22 live=growing capbytes=1304182 raw=-1 load=4.74
+16:10:23.651 t=+   14.4 file=raw.mp4 state=recording el=14.22 live=growing capbytes=1304182 raw=-1 load=4.74
+16:10:24.655 t=+   15.4 file=raw.mp4 state=recording el=15.23 live=growing capbytes=1427746 raw=-1 load=4.74
+16:10:25.659 t=+   16.4 file=raw.mp4 state=recording el=16.23 live=growing capbytes=1427746 raw=-1 load=4.60
+16:10:26.664 t=+   17.4 file=raw.mp4 state=recording el=17.24 live=growing capbytes=1574498 raw=-1 load=4.60
+16:10:27.668 t=+   18.4 file=raw.mp4 state=recording el=18.24 live=growing capbytes=1574498 raw=-1 load=4.60
+16:10:28.671 t=+   19.4 file=raw.mp4 state=recording el=19.25 live=growing capbytes=1702249 raw=-1 load=4.60
+16:10:29.676 t=+   20.4 file=raw.mp4 state=recording el=20.25 live=growing capbytes=1702249 raw=-1 load=4.60
+16:10:30.679 t=+   21.4 file=raw.mp4 state=recording el=21.25 live=growing capbytes=2061881 raw=-1 load=4.39
+16:10:31.684 t=+   22.4 file=raw.mp4 state=recording el=22.26 live=growing capbytes=2061881 raw=-1 load=4.39
+16:10:32.687 t=+   23.4 file=raw.mp4 state=recording el=23.26 live=growing capbytes=2185291 raw=-1 load=4.39
+16:10:33.692 t=+   24.4 file=raw.mp4 state=recording el=24.27 live=growing capbytes=2185291 raw=-1 load=4.39
+16:10:34.696 t=+   25.4 file=raw.mp4 state=recording el=25.27 live=growing capbytes=2293359 raw=-1 load=4.39
+16:10:35.700 t=+   26.4 file=raw.mp4 state=recording el=26.27 live=growing capbytes=2293359 raw=-1 load=5.56
+16:10:36.705 t=+   27.4 file=raw.mp4 state=recording el=27.28 live=growing capbytes=2434294 raw=-1 load=5.56
+16:10:37.709 t=+   28.4 file=raw.mp4 state=recording el=28.28 live=growing capbytes=2434294 raw=-1 load=5.56
+16:10:38.712 t=+   29.4 file=raw.mp4 state=recording el=29.29 live=growing capbytes=2789770 raw=-1 load=5.56
+16:10:39.717 t=+   30.5 file=raw.mp4 state=recording el=30.29 live=growing capbytes=2789770 raw=-1 load=5.56
+16:10:40.721 t=+   31.5 file=raw.mp4 state=recording el=31.3 live=growing capbytes=2904884 raw=-1 load=5.60
+16:10:41.726 t=+   32.5 file=raw.mp4 state=recording el=32.3 live=growing capbytes=2904884 raw=-1 load=5.60
+16:10:42.730 t=+   33.5 file=raw.mp4 state=recording el=33.3 live=growing capbytes=3028165 raw=-1 load=5.60
+16:10:43.735 t=+   34.5 file=raw.mp4 state=recording el=34.31 live=growing capbytes=3028165 raw=-1 load=5.60
+16:10:44.739 t=+   35.5 file=raw.mp4 state=recording el=35.31 live=growing capbytes=3137489 raw=-1 load=5.60
+16:10:45.745 t=+   36.5 file=raw.mp4 state=recording el=36.32 live=growing capbytes=3137489 raw=-1 load=5.79
+16:10:46.749 t=+   37.5 file=raw.mp4 state=recording el=37.32 live=growing capbytes=3146767 raw=-1 load=5.79
+16:10:47.754 t=+   38.5 file=raw.mp4 state=recording el=38.33 live=growing capbytes=3146767 raw=-1 load=5.79
+16:10:48.758 t=+   39.5 file=raw.mp4 state=recording el=39.33 live=growing capbytes=3498881 raw=-1 load=5.79
+16:10:49.762 t=+   40.5 file=raw.mp4 state=recording el=40.34 live=growing capbytes=3498881 raw=-1 load=5.79
+16:10:50.767 t=+   41.5 file=raw.mp4 state=recording el=41.34 live=growing capbytes=3633311 raw=-1 load=5.57
+16:10:51.771 t=+   42.5 file=raw.mp4 state=recording el=42.35 live=growing capbytes=3633311 raw=-1 load=5.57
+16:10:52.775 t=+   43.5 file=raw.mp4 state=recording el=43.35 live=growing capbytes=3741402 raw=-1 load=5.57
+16:10:53.779 t=+   44.5 file=raw.mp4 state=recording el=44.35 live=growing capbytes=3741402 raw=-1 load=5.57
+16:10:54.784 t=+   45.5 file=raw.mp4 state=recording el=45.36 live=growing capbytes=3875837 raw=-1 load=5.57
+16:10:55.789 t=+   46.5 file=raw.mp4 state=recording el=46.36 live=growing capbytes=3875837 raw=-1 load=5.20
+16:10:56.792 t=+   47.5 file=raw.mp4 state=recording el=47.37 live=growing capbytes=4238217 raw=-1 load=5.20
+16:10:57.797 t=+   48.5 file=raw.mp4 state=recording el=48.37 live=growing capbytes=4238217 raw=-1 load=5.20
+16:10:58.802 t=+   49.5 file=raw.mp4 state=recording el=49.38 live=growing capbytes=4357327 raw=-1 load=5.20
+16:10:59.807 t=+   50.5 file=raw.mp4 state=recording el=50.38 live=growing capbytes=4357327 raw=-1 load=5.20
+16:11:00.812 t=+   51.5 file=raw.mp4 state=recording el=51.39 live=growing capbytes=4493948 raw=-1 load=5.18
+16:11:01.817 t=+   52.6 file=raw.mp4 state=recording el=52.39 live=growing capbytes=4493948 raw=-1 load=5.18
+16:11:02.822 t=+   53.6 file=raw.mp4 state=recording el=53.4 live=growing capbytes=4615369 raw=-1 load=5.18
+16:11:03.830 t=+   54.6 file=raw.mp4 state=recording el=54.4 live=growing capbytes=4615369 raw=-1 load=5.18
+16:11:04.834 t=+   55.6 file=raw.mp4 state=recording el=55.41 live=growing capbytes=4969006 raw=-1 load=5.18
+16:11:05.840 t=+   56.6 file=raw.mp4 state=recording el=56.41 live=growing capbytes=4969006 raw=-1 load=8.53
+16:11:06.854 t=+   57.6 file=raw.mp4 state=recording el=57.43 live=growing capbytes=5105986 raw=-1 load=8.53
+16:11:07.859 t=+   58.6 file=raw.mp4 state=recording el=58.43 live=growing capbytes=5105986 raw=-1 load=8.53
+16:11:08.865 t=+   59.6 file=raw.mp4 state=recording el=59.44 live=growing capbytes=5212679 raw=-1 load=8.53
+16:11:09.869 t=+   60.6 file=raw.mp4 state=recording el=60.44 live=growing capbytes=5212679 raw=-1 load=8.53
+16:11:10.873 t=+   61.6 file=raw.mp4 state=recording el=61.45 live=growing capbytes=5384623 raw=-1 load=8.09
+16:11:11.877 t=+   62.6 file=raw.mp4 state=recording el=62.45 live=growing capbytes=5384623 raw=-1 load=8.09
+16:11:12.883 t=+   63.6 file=raw.mp4 state=recording el=63.46 live=growing capbytes=5700762 raw=-1 load=8.09
+16:11:13.888 t=+   64.6 file=raw.mp4 state=recording el=64.46 live=growing capbytes=5700762 raw=-1 load=8.09
+16:11:14.892 t=+   65.6 file=raw.mp4 state=recording el=65.47 live=growing capbytes=5806566 raw=-1 load=8.09
+16:11:15.896 t=+   66.6 file=raw.mp4 state=recording el=66.47 live=growing capbytes=5806566 raw=-1 load=8.48
+16:11:16.899 t=+   67.6 file=raw.mp4 state=recording el=67.47 live=growing capbytes=5967361 raw=-1 load=8.48
+16:11:17.905 t=+   68.6 file=raw.mp4 state=recording el=68.48 live=growing capbytes=5967361 raw=-1 load=8.48
+16:11:18.909 t=+   69.6 file=raw.mp4 state=recording el=69.48 live=growing capbytes=6081133 raw=-1 load=8.48
+16:11:19.914 t=+   70.6 file=raw.mp4 state=recording el=70.49 live=growing capbytes=6081133 raw=-1 load=8.48
+16:11:20.918 t=+   71.7 file=raw.mp4 state=recording el=71.49 live=growing capbytes=6428823 raw=-1 load=8.84
+16:11:21.922 t=+   72.7 file=raw.mp4 state=recording el=72.5 live=growing capbytes=6428823 raw=-1 load=8.84
+16:11:22.928 t=+   73.7 file=raw.mp4 state=recording el=73.5 live=growing capbytes=6546771 raw=-1 load=8.84
+16:11:23.932 t=+   74.7 file=raw.mp4 state=recording el=74.51 live=growing capbytes=6546771 raw=-1 load=8.84
+16:11:24.936 t=+   75.7 file=raw.mp4 state=recording el=75.51 live=growing capbytes=6648940 raw=-1 load=8.84
+16:11:25.941 t=+   76.7 file=raw.mp4 state=recording el=76.52 live=growing capbytes=6648940 raw=-1 load=8.78
+16:11:26.945 t=+   77.7 file=raw.mp4 state=recording el=77.52 live=growing capbytes=6787096 raw=-1 load=8.78
+16:11:27.950 t=+   78.7 file=raw.mp4 state=recording el=78.52 live=growing capbytes=6787096 raw=-1 load=8.78
+16:11:28.953 t=+   79.7 file=raw.mp4 state=recording el=79.53 live=growing capbytes=7131174 raw=-1 load=8.78
+16:11:29.957 t=+   80.7 file=raw.mp4 state=recording el=80.53 live=growing capbytes=7131174 raw=-1 load=8.78
+16:11:30.961 t=+   81.7 file=raw.mp4 state=recording el=81.54 live=growing capbytes=7240534 raw=-1 load=8.23
+16:11:31.967 t=+   82.7 file=raw.mp4 state=recording el=82.54 live=growing capbytes=7240534 raw=-1 load=8.23
+16:11:32.971 t=+   83.7 file=raw.mp4 state=recording el=83.55 live=growing capbytes=7367590 raw=-1 load=8.23
+16:11:33.975 t=+   84.7 file=raw.mp4 state=recording el=84.55 live=growing capbytes=7367590 raw=-1 load=8.23
+16:11:34.979 t=+   85.7 file=raw.mp4 state=recording el=85.55 live=growing capbytes=7471851 raw=-1 load=7.81
+16:11:35.983 t=+   86.7 file=raw.mp4 state=recording el=86.56 live=growing capbytes=7471851 raw=-1 load=7.81
+16:11:36.987 t=+   87.7 file=raw.mp4 state=recording el=87.56 live=growing capbytes=7480989 raw=-1 load=7.81
+16:11:37.992 t=+   88.7 file=raw.mp4 state=recording el=88.57 live=growing capbytes=7480989 raw=-1 load=7.81
+16:11:38.996 t=+   89.7 file=raw.mp4 state=recording el=89.57 live=growing capbytes=7832861 raw=-1 load=7.81
+16:11:40.000 t=+   90.7 file=raw.mp4 state=recording el=90.57 live=growing capbytes=7832861 raw=-1 load=7.51
+16:11:41.006 t=+   91.7 file=raw.mp4 state=recording el=91.58 live=growing capbytes=7956957 raw=-1 load=7.51
+16:11:42.009 t=+   92.7 file=raw.mp4 state=recording el=92.58 live=growing capbytes=7956957 raw=-1 load=7.51
+16:11:43.014 t=+   93.8 file=raw.mp4 state=recording el=93.59 live=growing capbytes=8062660 raw=-1 load=7.51
+16:11:44.018 t=+   94.8 file=raw.mp4 state=recording el=94.59 live=growing capbytes=8062660 raw=-1 load=7.51
+16:11:45.029 t=+   95.8 file=raw.mp4 state=recording el=95.6 live=growing capbytes=8204092 raw=-1 load=10.27
+16:11:46.034 t=+   96.8 file=raw.mp4 state=recording el=96.61 live=growing capbytes=8204092 raw=-1 load=10.27
+16:11:47.038 t=+   97.8 file=raw.mp4 state=recording el=97.61 live=growing capbytes=8559670 raw=-1 load=10.27
+16:11:48.042 t=+   98.8 file=raw.mp4 state=recording el=98.62 live=growing capbytes=8559670 raw=-1 load=10.27
+16:11:49.046 t=+   99.8 file=raw.mp4 state=recording el=99.62 live=growing capbytes=8598458 raw=-1 load=10.27
+16:11:50.868 POST /record/stop -> 200 (+0.82s) {
+  "Dir": "~/Videos/AgentEyes/2026-11-16_161009_video",
+  "File": "~/Videos/AgentEyes/2026-11-16_161009_video/recording.mp4",
+  "DurationSeconds": 100.63,
+  "Shots": 0
+}
+16:11:51.371 manifest PostProcessing.mux.State=running at +0.50s after stop returned; /status=idle
+16:11:56.378 manifest PostProcessing.mux.State=done at +5.51s after stop returned; /status=idle
+16:11:56.882 manifest PostProcessing.thumbnail.State=done at +6.01s after stop returned; /status=idle
+16:12:00.388 manifest PostProcessing.package.State=done at +9.52s after stop returned; /status=idle
+16:12:00.388 final PostProcessing: {"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:11:50.8716277Z", "AttemptedBy": ["attempt 1 at 2026-11-16T21:11:50.8716277Z by agenteyes pid 2211032 on devlinux"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:11:56.5425658Z"}, "package": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:11:59.9447834Z"}}
+16:12:00.468 ffmpeg at end: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/']
+16:12:00.469 files: ['audio_16k.wav', 'capture.lock', 'manifest.json', 'mux.lock', 'raw.mp4.ffmpeg.log', 'recording.mp4', 'recording.original.mp4', 'shots', 'thumb.jpg', 'transcript.en.vtt', 'transcript.json', 'transcript.txt', 'walkthrough.html']
+== file: 2026-11-16_161009_video/recording.mp4  size 9665330
+== top-level atoms
+  ftyp: count 1, first at offset 0, first size 32
+  free: count 1, first at offset 32, first size 8
+  mdat: count 1, first at offset 40, first size 9553951
+  moov: count 1, first at offset 9553991, first size 111339
+  walked to 9665330 of 9665330 bytes
+== streams
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=100.766667|nb_frames=3023
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=100.630000|nb_frames=4719
+== format duration
+duration=100.766667
+== decoded video frame count
+nb_read_frames=3023
+== audio packets
+stream|index=1|sample_rate=48000|nb_read_packets=4719
+== full decode: ffmpeg -v error -i <f> -f null -
+   exit=0  (2.091402576 s, load 8.23)
+== frame read near the end: -ss 99.766667 of 100.766667
+   exit=0 png=row5A-near-end.png 1797027 bytes
+   frames decoded at or after 99.766667: 30, first 99.766667, LAST frame pts 100.733333
+== audio timestamps, final recording.mp4
+  audio packets 4719, first pts -0.021, end 100.630, sum of packet durations 100.650 s
+  gaps > 50 ms: 0
+== audio timestamps, raw capture recording.original.mp4
+stream|codec_name=h264|codec_type=video|duration=100.766667
+stream|codec_name=aac|codec_type=audio|duration=100.677354
+  audio packets 4717, first pts 0.000, end 100.665, sum of packet durations 100.628 s
+  gaps > 50 ms: 0
+== capture ffmpeg final progress line and warning count
+frame= 3023 fps= 30 q=-1.0 Lsize=    9011kB time=00:01:40.66 bitrate= 733.3kbits/s dup=6 drop=4 speed=   1x    
+queue/backward/non-monotonic warnings: 0
+== capture command line (manifest FfmpegCommand)
+"/usr/bin/ffmpeg" -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 ~/Videos/AgentEyes/2026-11-16_161009_video/raw.mp4
+
+########## TAKE B
+16:12:46.630 [row5B] body={"mode":"video","screen":1,"source":"mic","mic":"Family 17h"} load=7.01
+16:12:46.703 ffmpeg before: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/']
+16:12:47.917 POST /record/start -> 200 {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.04,
+  "Level": 0.001,
+  "MicLevel": 0.001,
+  "SystemLevel": 0,
+  "Dir": "~/Videos/AgentEyes/2026-11-16_161246_video",
+  "Camera": null,
+  "SignedIn": true,
+  "AccountEmail": "<owner account>",
+  "PendingTranscriptions": 0,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": n
+16:12:47.917 dir=~/Videos/AgentEyes/2026-11-16_161246_video
+16:12:48.001 ffmpeg after start: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/', '2253673 /usr/bin/ffmpeg -hide_banner -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_si', '2253902 /usr/bin/ffmpeg -hide_banner -nostats -loglevel warning -f pulse -fragment_size 1920 -i alsa_input.pci-0000_08_00.3.analog-stereo -ac 1 -ar 48000 -f s16']
+16:12:48.005 t=+    1.3 file=raw.mp4 state=recording el=1.13 live=starting capbytes=0 raw=0 load=7.01
+16:12:49.009 t=+    2.3 file=raw.mp4 state=recording el=2.13 live=starting capbytes=0 raw=0 load=7.01
+16:12:50.012 t=+    3.3 file=raw.mp4 state=recording el=3.14 live=starting capbytes=0 raw=0 load=6.77
+16:12:51.017 FIRST BYTES in raw.mp4 at +4.31s (306407)
+16:12:51.017 t=+    4.3 file=raw.mp4 state=recording el=4.14 live=starting capbytes=0 raw=306407 load=6.77
+16:12:52.023 t=+    5.3 file=raw.mp4 state=recording el=5.15 live=growing capbytes=306407 raw=306407 load=6.77
+16:12:53.027 t=+    6.3 file=raw.mp4 state=recording el=6.15 live=growing capbytes=306407 raw=436650 load=6.77
+16:12:54.032 t=+    7.3 file=raw.mp4 state=recording el=7.16 live=growing capbytes=436650 raw=436650 load=6.77
+16:12:55.036 t=+    8.3 file=raw.mp4 state=recording el=8.16 live=growing capbytes=436650 raw=543650 load=6.47
+16:12:56.040 t=+    9.3 file=raw.mp4 state=recording el=9.16 live=growing capbytes=543650 raw=543650 load=6.47
+16:12:57.044 t=+   10.3 file=raw.mp4 state=recording el=10.17 live=growing capbytes=543650 raw=674226 load=6.47
+16:12:58.048 t=+   11.3 file=raw.mp4 state=recording el=11.17 live=growing capbytes=682688 raw=682688 load=6.47
+16:12:59.053 t=+   12.3 file=raw.mp4 state=recording el=12.18 live=growing capbytes=682688 raw=682688 load=6.47
+16:13:00.057 t=+   13.4 file=raw.mp4 state=recording el=13.18 live=growing capbytes=1035855 raw=1035855 load=7.63
+16:13:01.062 t=+   14.4 file=raw.mp4 state=recording el=14.19 live=growing capbytes=1035855 raw=1035855 load=7.63
+16:13:02.067 t=+   15.4 file=raw.mp4 state=recording el=15.19 live=growing capbytes=1134133 raw=1134133 load=7.63
+16:13:03.071 t=+   16.4 file=raw.mp4 state=recording el=16.2 live=growing capbytes=1134133 raw=1134133 load=7.63
+16:13:04.075 t=+   17.4 file=raw.mp4 state=recording el=17.2 live=growing capbytes=1248683 raw=1248683 load=7.63
+16:13:05.080 t=+   18.4 file=raw.mp4 state=recording el=18.2 live=growing capbytes=1248683 raw=1248683 load=7.10
+16:13:06.084 t=+   19.4 file=raw.mp4 state=recording el=19.21 live=growing capbytes=1380280 raw=1380280 load=7.10
+16:13:07.089 t=+   20.4 file=raw.mp4 state=recording el=20.21 live=growing capbytes=1380280 raw=1380280 load=7.10
+16:13:08.094 t=+   21.4 file=raw.mp4 state=recording el=21.22 live=growing capbytes=1694226 raw=1694226 load=7.10
+16:13:09.099 t=+   22.4 file=raw.mp4 state=recording el=22.22 live=growing capbytes=1694226 raw=1694226 load=7.10
+16:13:10.104 t=+   23.4 file=raw.mp4 state=recording el=23.23 live=growing capbytes=1826399 raw=1826399 load=6.77
+16:13:11.109 t=+   24.4 file=raw.mp4 state=recording el=24.23 live=growing capbytes=1826399 raw=1826399 load=6.77
+16:13:12.114 t=+   25.4 file=raw.mp4 state=recording el=25.24 live=growing capbytes=1921188 raw=1921188 load=6.77
+16:13:13.119 t=+   26.4 file=raw.mp4 state=recording el=26.24 live=growing capbytes=1921188 raw=1921188 load=6.77
+16:13:14.123 t=+   27.4 file=raw.mp4 state=recording el=27.25 live=growing capbytes=2084880 raw=2084880 load=6.77
+16:13:15.128 t=+   28.4 file=raw.mp4 state=recording el=28.25 live=growing capbytes=2084880 raw=2084880 load=6.63
+16:13:16.132 t=+   29.4 file=raw.mp4 state=recording el=29.26 live=growing capbytes=2432719 raw=2432719 load=6.63
+16:13:17.136 t=+   30.4 file=raw.mp4 state=recording el=30.26 live=growing capbytes=2432719 raw=2432719 load=6.63
+16:13:18.141 t=+   31.4 file=raw.mp4 state=recording el=31.27 live=growing capbytes=2529085 raw=2529085 load=6.63
+16:13:19.145 t=+   32.4 file=raw.mp4 state=recording el=32.27 live=growing capbytes=2529085 raw=2529085 load=6.63
+16:13:20.148 t=+   33.4 file=raw.mp4 state=recording el=33.27 live=growing capbytes=2662069 raw=2662069 load=7.06
+16:13:21.152 t=+   34.4 file=raw.mp4 state=recording el=34.28 live=growing capbytes=2662069 raw=2662069 load=7.06
+16:13:22.156 t=+   35.5 file=raw.mp4 state=recording el=35.28 live=growing capbytes=2776144 raw=2776144 load=7.06
+16:13:23.160 t=+   36.5 file=raw.mp4 state=recording el=36.29 live=growing capbytes=2776144 raw=2791554 load=7.06
+16:13:24.166 t=+   37.5 file=raw.mp4 state=recording el=37.29 live=growing capbytes=2791554 raw=2791554 load=7.06
+16:13:25.173 t=+   38.5 file=raw.mp4 state=recording el=38.3 live=growing capbytes=2791554 raw=3116597 load=7.06
+16:13:26.177 t=+   39.5 file=raw.mp4 state=recording el=39.3 live=growing capbytes=3116597 raw=3116597 load=7.06
+16:13:27.181 t=+   40.5 file=raw.mp4 state=recording el=40.31 live=growing capbytes=3116597 raw=3245777 load=7.06
+16:13:28.186 t=+   41.5 file=raw.mp4 state=recording el=41.31 live=growing capbytes=3245777 raw=3337249 load=7.06
+16:13:29.190 t=+   42.5 file=raw.mp4 state=recording el=42.31 live=growing capbytes=3245777 raw=3337249 load=7.06
+16:13:30.194 t=+   43.5 file=raw.mp4 state=recording el=43.32 live=growing capbytes=3337249 raw=3469386 load=7.45
+16:13:31.198 t=+   44.5 file=raw.mp4 state=recording el=44.32 live=growing capbytes=3337249 raw=3478827 load=7.45
+16:13:32.202 t=+   45.5 file=raw.mp4 state=recording el=45.33 live=growing capbytes=3478827 raw=3478827 load=7.45
+16:13:33.206 t=+   46.5 file=raw.mp4 state=recording el=46.33 live=growing capbytes=3478827 raw=3830254 load=7.45
+16:13:34.210 t=+   47.5 file=raw.mp4 state=recording el=47.34 live=growing capbytes=3830254 raw=3830254 load=7.45
+16:13:35.214 t=+   48.5 file=raw.mp4 state=recording el=48.34 live=growing capbytes=3830254 raw=3930259 load=7.01
+16:13:36.220 t=+   49.5 file=raw.mp4 state=recording el=49.35 live=growing capbytes=3930259 raw=3930259 load=7.01
+16:13:37.227 t=+   50.5 file=raw.mp4 state=recording el=50.35 live=growing capbytes=3930259 raw=4060761 load=7.01
+16:13:38.231 t=+   51.5 file=raw.mp4 state=recording el=51.36 live=growing capbytes=4060761 raw=4060761 load=7.01
+16:13:39.235 t=+   52.5 file=raw.mp4 state=recording el=52.36 live=growing capbytes=4060761 raw=4196737 load=7.01
+16:13:40.240 t=+   53.5 file=raw.mp4 state=recording el=53.36 live=growing capbytes=4196737 raw=4196737 load=6.93
+16:13:41.244 t=+   54.5 file=raw.mp4 state=recording el=54.37 live=growing capbytes=4196737 raw=4522156 load=6.93
+16:13:42.250 t=+   55.5 file=raw.mp4 state=recording el=55.37 live=growing capbytes=4522156 raw=4522156 load=6.93
+16:13:43.254 t=+   56.6 file=raw.mp4 state=recording el=56.38 live=growing capbytes=4522156 raw=4639023 load=6.93
+16:13:44.259 t=+   57.6 file=raw.mp4 state=recording el=57.38 live=growing capbytes=4639023 raw=4639023 load=6.93
+16:13:45.263 t=+   58.6 file=raw.mp4 state=recording el=58.39 live=growing capbytes=4639023 raw=4737139 load=6.62
+16:13:46.270 t=+   59.6 file=raw.mp4 state=recording el=59.39 live=growing capbytes=4737139 raw=4737139 load=6.62
+16:13:47.275 t=+   60.6 file=raw.mp4 state=recording el=60.4 live=growing capbytes=4737139 raw=4875586 load=6.62
+16:13:48.281 t=+   61.6 file=raw.mp4 state=recording el=61.4 live=growing capbytes=4875586 raw=4875586 load=6.62
+16:13:49.285 t=+   62.6 file=raw.mp4 state=recording el=62.41 live=growing capbytes=4875586 raw=5230868 load=6.62
+16:13:50.289 t=+   63.6 file=raw.mp4 state=recording el=63.41 live=growing capbytes=5230868 raw=5230868 load=6.41
+16:13:51.293 t=+   64.6 file=raw.mp4 state=recording el=64.42 live=growing capbytes=5230868 raw=5324350 load=6.41
+16:13:52.297 t=+   65.6 file=raw.mp4 state=recording el=65.42 live=growing capbytes=5324350 raw=5324350 load=6.41
+16:13:53.301 t=+   66.6 file=raw.mp4 state=recording el=66.43 live=growing capbytes=5324350 raw=5433670 load=6.41
+16:13:54.305 t=+   67.6 file=raw.mp4 state=recording el=67.43 live=growing capbytes=5433670 raw=5433670 load=6.41
+16:13:55.310 t=+   68.6 file=raw.mp4 state=recording el=68.43 live=growing capbytes=5433670 raw=5550519 load=5.97
+16:13:56.314 t=+   69.6 file=raw.mp4 state=recording el=69.44 live=growing capbytes=5564062 raw=5564062 load=5.97
+16:13:57.319 t=+   70.6 file=raw.mp4 state=recording el=70.44 live=growing capbytes=5564062 raw=5564062 load=5.97
+16:13:58.323 t=+   71.6 file=raw.mp4 state=recording el=71.45 live=growing capbytes=5883405 raw=5883405 load=5.97
+16:13:59.327 t=+   72.6 file=raw.mp4 state=recording el=72.45 live=growing capbytes=5883405 raw=5883405 load=5.97
+16:14:00.332 t=+   73.6 file=raw.mp4 state=recording el=73.46 live=growing capbytes=6000941 raw=6000941 load=5.82
+16:14:01.337 t=+   74.6 file=raw.mp4 state=recording el=74.46 live=growing capbytes=6000941 raw=6000941 load=5.82
+16:14:02.341 t=+   75.6 file=raw.mp4 state=recording el=75.47 live=growing capbytes=6093719 raw=6093719 load=5.82
+16:14:03.345 t=+   76.6 file=raw.mp4 state=recording el=76.47 live=growing capbytes=6093719 raw=6093719 load=5.82
+16:14:04.349 t=+   77.6 file=raw.mp4 state=recording el=77.47 live=growing capbytes=6247979 raw=6247979 load=5.82
+16:14:05.354 t=+   78.7 file=raw.mp4 state=recording el=78.48 live=growing capbytes=6247979 raw=6247979 load=7.03
+16:14:06.357 t=+   79.7 file=raw.mp4 state=recording el=79.48 live=growing capbytes=6590330 raw=6590330 load=7.03
+16:14:07.361 t=+   80.7 file=raw.mp4 state=recording el=80.49 live=growing capbytes=6590330 raw=6590330 load=7.03
+16:14:08.366 t=+   81.7 file=raw.mp4 state=recording el=81.49 live=growing capbytes=6678477 raw=6678477 load=7.03
+16:14:09.372 t=+   82.7 file=raw.mp4 state=recording el=82.49 live=growing capbytes=6678477 raw=6678477 load=7.03
+16:14:10.376 t=+   83.7 file=raw.mp4 state=recording el=83.5 live=growing capbytes=6801636 raw=6801636 load=6.79
+16:14:11.380 t=+   84.7 file=raw.mp4 state=recording el=84.5 live=growing capbytes=6801636 raw=6801636 load=6.79
+16:14:12.386 t=+   85.7 file=raw.mp4 state=recording el=85.51 live=growing capbytes=6907200 raw=6920198 load=6.79
+16:14:13.390 t=+   86.7 file=raw.mp4 state=recording el=86.51 live=growing capbytes=6907200 raw=6920198 load=6.79
+16:14:14.394 t=+   87.7 file=raw.mp4 state=recording el=87.52 live=growing capbytes=6920198 raw=7240052 load=6.79
+16:14:15.398 t=+   88.7 file=raw.mp4 state=recording el=88.52 live=growing capbytes=6920198 raw=7240052 load=6.41
+16:14:16.403 t=+   89.7 file=raw.mp4 state=recording el=89.53 live=growing capbytes=7240052 raw=7356193 load=6.41
+16:14:17.407 t=+   90.7 file=raw.mp4 state=recording el=90.53 live=growing capbytes=7240052 raw=7356193 load=6.41
+16:14:18.412 t=+   91.7 file=raw.mp4 state=recording el=91.54 live=growing capbytes=7356193 raw=7442651 load=6.41
+16:14:19.416 t=+   92.7 file=raw.mp4 state=recording el=92.54 live=growing capbytes=7356193 raw=7442651 load=6.41
+16:14:20.420 t=+   93.7 file=raw.mp4 state=recording el=93.54 live=growing capbytes=7442651 raw=7484293 load=6.13
+16:14:21.424 t=+   94.7 file=raw.mp4 state=recording el=94.55 live=growing capbytes=7442651 raw=7490784 load=6.13
+16:14:22.428 t=+   95.7 file=raw.mp4 state=recording el=95.55 live=growing capbytes=7490784 raw=7490784 load=6.13
+16:14:23.433 t=+   96.7 file=raw.mp4 state=recording el=96.56 live=growing capbytes=7490784 raw=7826673 load=6.13
+16:14:24.438 t=+   97.7 file=raw.mp4 state=recording el=97.56 live=growing capbytes=7826673 raw=7826673 load=6.13
+16:14:25.443 t=+   98.7 file=raw.mp4 state=recording el=98.57 live=growing capbytes=7826673 raw=7924766 load=5.80
+16:14:26.446 t=+   99.7 file=raw.mp4 state=recording el=99.57 live=growing capbytes=7924766 raw=7924766 load=5.80
+16:14:28.039 POST /record/stop -> 200 (+0.59s) {
+  "Dir": "~/Videos/AgentEyes/2026-11-16_161246_video",
+  "File": "~/Videos/AgentEyes/2026-11-16_161246_video/recording.mp4",
+  "DurationSeconds": 100.58,
+  "Shots": 0
+}
+16:14:28.543 manifest PostProcessing.mux.State=running at +0.50s after stop returned; /status=idle
+16:14:34.054 manifest PostProcessing.mux.State=done at +6.01s after stop returned; /status=idle
+16:14:34.558 manifest PostProcessing.thumbnail.State=done at +6.52s after stop returned; /status=idle
+16:14:38.065 manifest PostProcessing.package.State=done at +10.02s after stop returned; /status=idle
+16:14:38.065 final PostProcessing: {"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:14:28.0399644Z", "AttemptedBy": ["attempt 1 at 2026-11-16T21:14:28.0399644Z by agenteyes pid 2211032 on devlinux"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:14:34.199122Z"}, "package": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T21:14:37.7111706Z"}}
+16:14:38.145 ffmpeg at end: ['72110 ffmpeg -hide_banner -v error -fflags nobuffer -flags low_delay -timeout 5000000 -user_agent go2rtc/ffmpeg -rtsp_flags prefer_tcp -i rtsp://127.0.0.1:8554/']
+16:14:38.145 files: ['audio_16k.wav', 'capture.lock', 'manifest.json', 'mux.lock', 'raw.mp4.ffmpeg.log', 'recording.mp4', 'recording.original.mp4', 'shots', 'thumb.jpg', 'transcript.en.vtt', 'transcript.json', 'transcript.txt', 'walkthrough.html']
+== file: 2026-11-16_161246_video/recording.mp4  size 8868454
+== top-level atoms
+  ftyp: count 1, first at offset 0, first size 32
+  free: count 1, first at offset 32, first size 8
+  mdat: count 1, first at offset 40, first size 8756775
+  moov: count 1, first at offset 8756815, first size 111639
+  walked to 8868454 of 8868454 bytes
+== streams
+stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|duration=100.666667|nb_frames=3020
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|r_frame_rate=0/0|duration=100.550000|nb_frames=4715
+== format duration
+duration=100.666667
+== decoded video frame count
+nb_read_frames=3020
+== audio packets
+stream|index=1|sample_rate=48000|nb_read_packets=4715
+== full decode: ffmpeg -v error -i <f> -f null -
+   exit=0  (5.927740547 s, load 16.33)
+== frame read near the end: -ss 99.666667 of 100.666667
+   exit=0 png=row5B-near-end.png 1800813 bytes
+   frames decoded at or after 99.666667: 30, first 99.666667, LAST frame pts 100.633333
+== audio timestamps, final recording.mp4
+  audio packets 4715, first pts -0.021, end 100.550, sum of packet durations 100.570 s
+  gaps > 50 ms: 0
+== audio timestamps, raw capture recording.original.mp4
+stream|codec_name=h264|codec_type=video|duration=100.666667
+stream|codec_name=aac|codec_type=audio|duration=100.595396
+  audio packets 4713, first pts 0.000, end 100.578, sum of packet durations 100.542 s
+  gaps > 50 ms: 0
+== capture ffmpeg final progress line and warning count
+frame= 3020 fps= 30 q=-1.0 Lsize=    8232kB time=00:01:40.56 bitrate= 670.6kbits/s dup=6 drop=4 speed=   1x    
+queue/backward/non-monotonic warnings: 0
+== capture command line (manifest FfmpegCommand)
+"/usr/bin/ffmpeg" -y -f x11grab -thread_queue_size 1024 -framerate 30 -video_size 1920x1080 -draw_mouse 1 -i :0+0,0 -f pulse -thread_queue_size 1024 -fragment_size 3840 -i alsa_input.pci-0000_08_00.3.analog-stereo -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 ~/Videos/AgentEyes/2026-11-16_161246_video/raw.mp4
