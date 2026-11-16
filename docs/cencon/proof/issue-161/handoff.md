@@ -843,6 +843,10 @@ test defects of mine, fixed in the next commit:**
   consequence, now in the isolation doc:** on Windows a redirected start with no service on 7882 is 2 s slower.
   Everything else on windows passed, including `ManifestWriterIlTests` with the new marker-write pin.
 
-Second run: see the issue comment (head and run id).
+Second run, head c86081c (run 43940975137): **all three green.**
+- linux: 532 passed / 0 failed / 2 skipped (534); opt-in 533 / 0 / 1. The 7882 service-wiring test RAN here
+  (the port is free on the runner), and #156's `sg` test passes outside Landlock, as on devlinux.
+- macos: 488 / 0 / 2 (490).
+- windows: AgentEyes.Tests 2565 / 0 / 31 (2596), opt-in 2584 / 0 / 16 (2600); DesktopApp 25 / 25 twice.
 
 I believe this pass is finished.
