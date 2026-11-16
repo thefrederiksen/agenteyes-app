@@ -248,3 +248,46 @@ The non-Mach-O files in Contents/MacOS (.dll, .json) carry their signatures in e
   after cp -R:                     codesign --verify --deep --strict -> OK
   after ditto -c -k then unzip:    'code object is not signed at all  In subcomponent: .../System.Xml.XPath.XDocument.dll'
   -> the notarised download must be a format that keeps xattrs (ditto zip extracted by Archive Utility, a .dmg, or a .pkg) - or the layout must change. A note for the follow-up, measured, not decided here.
+
+=================== L. After the self-review (PR #179): installer fixes and the Application.Name question ===================
+L1. install-app.sh third run: the app running, then --no-start (stop by LITERAL path, the --no-start warning):
+== BEFORE 12:56:43
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+24880 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+$ scripts/mac/install-app.sh --no-start
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp>/AgentEyes.app: replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <tmp>/AgentEyes.app (198M)
+[OK] stopped the running app (pid 24880)
+[OK] installed ~/Applications/AgentEyes.app
+[OK] registered with Launch Services
+WARNING: AgentEyes was running and has been stopped for the update (--no-start). Its menu bar
+         icon is gone until you open it again: open "~/Applications/AgentEyes.app"
+
+AgentEyes.app is in ~/Applications/AgentEyes.app - open it from Finder, Launchpad or Spotlight.
+It needs no permission of its own: recording is done by the AgentEyes service,
+which is the one that appears as "agenteyes" under System Settings > Privacy
+and Security > Screen and System Audio Recording.
+exit=0
+== AFTER 12:56:58
+50642 ~/Library/Application Support/AgentEyes/bin/agenteyes serve
+348b93b81d867fc3
+{"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+AgentEyesDesktop processes: 0
+installed bundle verifies
+L2. The matcher, both arms, with a copy of the bundle running from ANOTHER path (<scratch>/b2/...):
+  matcher for the INSTALLED path -> '' (expected empty)
+  matcher for the OTHER copy's path -> '26407' (expected 26407)
+L3. Does Name="AgentEyes" change the Linux window class (StartupWMClass=AgentEyesDesktop) or anything on Windows? IL inventory of every direct call to Avalonia.Application::get_Name in the Avalonia 11.3.22 assemblies the app ships (tools/ilscan):
+$ dotnet ilscan.dll Avalonia.Application::get_Name Avalonia.X11.dll Avalonia.Native.dll Avalonia.Win32.dll Avalonia.FreeDesktop.dll Avalonia.Controls.dll Avalonia.Base.dll
+Avalonia.Native.dll: Avalonia.Native.AvaloniaNativeMenuExporter::PopulateStandardOSXMenuItems calls Avalonia.Application::get_Name
+Avalonia.Native.dll: Avalonia.Native.AvaloniaNativePlatform::SetupApplicationName calls Avalonia.Application::get_Name   (x2)
+Avalonia.FreeDesktop.dll: Avalonia.FreeDesktop.DBusIme.DBusTextInputMethodBase::GetAppName calls Avalonia.Application::get_Name
+Avalonia.Controls.dll: .<>c::<.cctor>b__81_0 calls Avalonia.Application::get_Name
+POSITIVE CONTROL, same tool: X11PlatformOptions::get_WmClass -> X11Window::.ctor, X11Window::SetWmClass, X11Window::CreateIC (x2), all in Avalonia.X11.dll.
+  -> X11 never reads Application.Name; WM_CLASS comes from X11PlatformOptions.WmClass, which Program.cs sets to AgentEyesDesktop. Win32 never reads it. macOS reads it for the process name and the standard app menu ('About ...', 'Quit ...'). Linux reads it as the input-method client name (cosmetic).
+  LIMIT: a direct-call inventory. A read through the property system (GetValue(NameProperty)) or reflection is invisible to it; the Avalonia.Controls hit is an anonymous static handler I did not decompile further.

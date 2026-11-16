@@ -94,7 +94,8 @@ ok "assembled AgentEyes.app"
 signed=0
 while IFS= read -r -d '' f; do
     [[ "$f" == "$bundle/Contents/MacOS/$exe_name" ]] && continue
-    codesign --force --sign - --timestamp=none "$f" 2>/dev/null || fail "codesign could not sign $f"
+    err="$(codesign --force --sign - --timestamp=none "$f" 2>&1)" \
+        || fail "codesign could not sign $f: $err (a volume without extended attributes cannot hold these signatures - build onto the Mac's own disk)"
     signed=$((signed + 1))
 done < <(find "$bundle/Contents/MacOS" -type f -print0)
 codesign --force --sign - --timestamp=none "$bundle" || fail "codesign could not sign the bundle"

@@ -40,14 +40,26 @@ trap 'rm -rf "$stage"' EXIT
 # developer's build, another checkout). Replacing a bundle under a running app is how an update
 # half-applies. SIGTERM, then wait: the app must be GONE before its files move, or the new one finds
 # the old one holding the single-instance socket, hands it the launch and exits.
-pids="$(pgrep -f "^$exe( |\$)" || true)"
+# The match is a LITERAL comparison of each candidate's command line with the path, not a regex: the
+# path holds $HOME, and a regex built from it would stop matching if HOME held a '+', '(' or '['.
+installed_app_pids() {
+    local pid cmd
+    for pid in $(pgrep -f AgentEyesDesktop || true); do
+        cmd="$(ps -o command= -p "$pid" 2>/dev/null || true)"
+        if [[ "$cmd" == "$exe" || "$cmd" == "$exe "* ]]; then echo "$pid"; fi
+    done
+}
+was_running=0
+pids="$(installed_app_pids)"
 if [[ -n "$pids" ]]; then
-    kill $pids
+    was_running=1
+    # It may quit on its own between the lookup and the kill; the wait below is what decides.
+    kill $pids 2>/dev/null || true
     for _ in $(seq 1 50); do
-        pgrep -f "^$exe( |\$)" >/dev/null || break
+        [[ -z "$(installed_app_pids)" ]] && break
         sleep 0.2
     done
-    pgrep -f "^$exe( |\$)" >/dev/null && fail "the running AgentEyes app (pid $pids) did not quit within 10 s - quit it from its menu bar icon, then run this again"
+    [[ -z "$(installed_app_pids)" ]] || fail "the running AgentEyes app (pid $pids) did not quit within 10 s - quit it from its menu bar icon, then run this again"
     ok "stopped the running app (pid $pids)"
 fi
 
@@ -72,6 +84,9 @@ ok "registered with Launch Services"
 if [[ $start -eq 1 ]]; then
     open "$app" || fail "macOS could not open $app"
     ok "AgentEyes opened - its window, its icon in the dock, and its icon in the menu bar"
+elif [[ $was_running -eq 1 ]]; then
+    echo "WARNING: AgentEyes was running and has been stopped for the update (--no-start). Its menu bar"
+    echo "         icon is gone until you open it again: open \"$app\""
 fi
 
 cat <<EOF
