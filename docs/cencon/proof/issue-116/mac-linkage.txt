@@ -1,0 +1,57 @@
+QA, issue #116 - criterion 8 (macOS half): the macOS build links the macOS backend
+Run on devthrottle-mac-mini against a build made ON THIS MAC from c80cb9d - not a cross-compile.
+The check is the CI step 'The macOS desktop app must link the macOS engine and carry libvlc'
+(.github/workflows/ci.yml:167-184), copied verbatim except that the output directory is an
+argument so it can be aimed at a deliberately BAD build.
+
+=== the engine's UTF-16 string literals, counted ===
+  x11grab        0
+  pulse          0
+  v4l2           0
+  xrandr         0
+  avfoundation   2
+  screencapture  4
+  gdigrab        2
+  (gdigrab=2 is expected and is why criterion 7 cannot rest on it: it is in the shared recorder
+   code in EVERY engine build. The deciding words here are the four Linux ones at 0 and
+   avfoundation above 0.)
+  libvlc natives shipped next to the app:
+    src/AgentEyes.DesktopApp/bin/Release/net8.0/libvlc/osx-arm64/
+    src/AgentEyes.DesktopApp/bin/Release/net8.0/libvlc/osx-x64/
+
+=== GOOD: the build made on this Mac ===
+[OK] the macOS desktop app links the macOS engine and carries libvlc
+exit=0
+
+=== And it FIRES on bad input. Three mutations, each a copy of the good output: ===
+
+--- BAD 1: the Linux-configuration engine swapped in for agenteyes.dll ---
+[FAIL] the macOS app's engine contains 'x11grab'
+[FAIL] the macOS app's engine contains 'pulse'
+[FAIL] the macOS app's engine contains 'v4l2'
+[FAIL] the macOS app's engine contains 'xrandr'
+[FAIL] the macOS app's engine does NOT contain 'avfoundation'
+exit=1
+
+--- BAD 2: the libvlc folder (VideoLAN.LibVLC.Mac) deleted ---
+[FAIL] libvlc.dylib (VideoLAN.LibVLC.Mac) is missing from <tmp>/bad2
+exit=1
+
+--- BAD 3: an empty output folder ---
+[FAIL] AgentEyesDesktop was not built
+exit=1
+
+Three arms: good = exit 0 with the [OK] line; bad = exit 1 naming the word or the missing file;
+an empty/absent output folder is caught by BAD 3 rather than passing silently.
+
+=== One thing a Mac developer has to know, found while running the gate above ===
+tests/AgentEyes.Tests.Linux references the desktop app pinned to AgentEyesUnixPlatform=linux,
+and the mac and linux flavours share src/AgentEyes.DesktopApp/bin/Release/net8.0. So running
+the macOS gate REPLACES the macOS app output with a Linux-flavoured one. Measured here, in
+this order, in the same directory:
+  after the gate run: {'x11grab': 1, 'pulse': 8, 'avfoundation': 0}
+  after rebuilding mac: {'x11grab': 0, 'pulse': 0, 'avfoundation': 2}
+  Launching bin/Release/net8.0/AgentEyesDesktop straight after the gate therefore starts an app
+  carrying the X11/PulseAudio engine on a Mac. CI does not hit this (its macOS job never builds
+  the Linux test project). It is not a criterion failure - it is a trap worth a note in the
+  developer loop: rebuild the app after the gate, before you run it.

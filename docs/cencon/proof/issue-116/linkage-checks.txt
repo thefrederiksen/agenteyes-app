@@ -1,0 +1,52 @@
+The three CI linkage steps from .github/workflows/ci.yml, run on devlinux against cross-built outputs (good) and doctored copies (bad). Windows outputs carry a stub AgentEyesDesktop.exe: the Linux cross-build makes no Windows apphost.
+== CI check 'windows' on: GOOD Windows build (EnableWindowsTargeting cross-build)
+[OK] the Windows desktop app links the Windows engine (gdigrab, NAudio; no x11grab/pulse/v4l2/avfoundation)
+exit=0
+== CI check 'windows' on: BAD Windows app with the Linux engine dll
+[FAIL] the Windows app's engine contains 'x11grab'
+[FAIL] the Windows app's engine contains 'pulse'
+[FAIL] the Windows app's engine contains 'v4l2'
+[FAIL] the Windows app's engine has no NAudio reference - it is not the Windows engine
+exit=1
+== CI check 'windows' on: BAD Windows app with the mac engine dll
+[FAIL] the Windows app's engine contains 'avfoundation'
+[FAIL] the Windows app's engine has no NAudio reference - it is not the Windows engine
+exit=1
+== CI check 'windows' on: BAD Windows app without libvlc
+[FAIL] libvlc.dll (VideoLAN.LibVLC.Windows) is missing from bad/win-novlc
+exit=1
+== CI check 'windows' on: BAD empty folder
+[FAIL] bad/empty/AgentEyesDesktop.exe was not built
+exit=1
+== CI check 'macos' on: GOOD mac build (-p:AgentEyesUnixPlatform=mac)
+[OK] the macOS desktop app links the macOS engine and carries libvlc
+exit=0
+== CI check 'macos' on: BAD mac app with the Linux engine dll
+[FAIL] the macOS app's engine contains 'x11grab'
+[FAIL] the macOS app's engine contains 'pulse'
+[FAIL] the macOS app's engine contains 'v4l2'
+[FAIL] the macOS app's engine contains 'xrandr'
+[FAIL] the macOS app's engine does NOT contain 'avfoundation'
+exit=1
+== CI check 'macos' on: BAD mac app without libvlc
+[FAIL] libvlc.dylib (VideoLAN.LibVLC.Mac) is missing from bad/mac-novlc
+exit=1
+== CI check 'macos' on: BAD empty folder
+[FAIL] AgentEyesDesktop was not built
+exit=1
+== CI check 'linux' on: GOOD Linux build
+[OK] the Linux desktop app links the Linux engine (x11grab, pulse; no avfoundation, no NAudio)
+exit=0
+== CI check 'linux' on: BAD Linux app with the mac engine dll
+[FAIL] the Linux app's engine does NOT contain 'x11grab'
+[FAIL] the Linux app's engine does NOT contain 'pulse'
+[FAIL] the Linux app's engine carries macOS or Windows capture code
+exit=1
+== CI check 'linux' on: BAD Linux app with the Windows engine dll
+[FAIL] the Linux app's engine does NOT contain 'x11grab'
+[FAIL] the Linux app's engine does NOT contain 'pulse'
+[FAIL] the Linux app's engine carries macOS or Windows capture code
+exit=1
+== CI check 'linux' on: BAD empty folder
+[FAIL] AgentEyesDesktop was not built
+exit=1

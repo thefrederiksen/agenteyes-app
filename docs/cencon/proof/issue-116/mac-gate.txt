@@ -1,0 +1,109 @@
+QA, issue #116 - the macOS gate on devthrottle-mac-mini (criterion 12, macOS half)
+Host: macOS 26.5.2 (25F84), arm64, Mac mini. SDK: dotnet 10.0.403 (no .NET 8 SDK on this machine;
+DOTNET_ROLL_FORWARD=LatestMajor is exported for the shell, not written into any script).
+Branch: issue-116-desktop-app at c80cb9d. Baseline: origin/main at af0ddb1, same machine, same commands.
+Commands are the four of the documented macOS developer loop (issue #114, 'The macOS developer loop').
+
+=========== 1/4  engine, mac configuration ===========
+
+Build succeeded.
+
+<repo>/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [<repo>/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.55
+
+=========== 2/4  tests/AgentEyes.Tests.Mac ===========
+Test run for <repo>/tests/AgentEyes.Tests.Mac/bin/Release/net8.0/AgentEyes.Tests.Mac.dll (.NETCoreApp,Version=v8.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   226, Skipped:     0, Total:   226, Duration: 35 ms - AgentEyes.Tests.Mac.dll (net8.0)
+
+=========== 3/4  engine, linux configuration ===========
+
+Build succeeded.
+
+<repo>/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [<repo>/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:00.52
+
+=========== 4/4  tests/AgentEyes.Tests.Linux  -- THIS IS THE FAILURE ===========
+  Skipped AgentEyes.Tests.Linux.LinuxPathsTests.MachineLocalAppData_OnLinux_IsTheXdgDataHome [1 ms]
+[xUnit.net 00:00:00.09]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [FAIL]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [3 ms]
+  Error Message:
+   System.ArgumentOutOfRangeException : The path '/var/folders/b8/h15spgks77ng9vv47szk7m9h0000gn/T/agenteyes-linux-tests/run-20261115-094152-45049/single-d9b09b35/app.sock' is of an invalid length for use with domain sockets on this platform.  The length must be between 1 and 104 characters, inclusive. (Parameter 'path')
+Actual value was /var/folders/b8/h15spgks77ng9vv47szk7m9h0000gn/T/agenteyes-linux-tests/run-20261115-094152-45049/single-d9b09b35/app.sock.
+  Stack Trace:
+     at System.Net.Sockets.UnixDomainSocketEndPoint..ctor(String path, String boundFileName)
+   at AgentEyes.DesktopApp.Services.SingleInstance.TryAcquireSocket(String command, String path) in <repo>/src/AgentEyes.DesktopApp/Services/SingleInstance.cs:line 91
+   at AgentEyes.Tests.Linux.DesktopAppPlatformTests.<>c__DisplayClass6_0.<TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull>b__0(String cmd) in <repo>/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs:line 80
+   at AgentEyes.Tests.Linux.DesktopAppPlatformTests.AssertHandoff(Func`2 acquire, String transport) in <repo>/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs:line 93
+   at AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull() in <repo>/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs:line 80
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.10]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnThisLinuxHost_IsLinux [FAIL]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnThisLinuxHost_IsLinux [1 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+           v (pos 0)
+Expected: "linux"
+Actual:   "mac"
+           ^ (pos 0)
+  Stack Trace:
+     at AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnThisLinuxHost_IsLinux() in <repo>/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs:line 39
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+[xUnit.net 00:00:00.10]     AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [FAIL]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [2 ms]
+  Error Message:
+   System.ArgumentOutOfRangeException : The path '/var/folders/b8/h15spgks77ng9vv47szk7m9h0000gn/T/CoreFxPipe_agenteyes-test-e8637feef3b1485b8417c4f48894d1f2' is of an invalid length for use with domain sockets on this platform.  The length must be between 1 and 104 characters, inclusive. (Parameter 'path')
+Actual value was /var/folders/b8/h15spgks77ng9vv47szk7m9h0000gn/T/CoreFxPipe_agenteyes-test-e8637feef3b1485b8417c4f48894d1f2.
+  Stack Trace:
+     at System.Net.Sockets.UnixDomainSocketEndPoint..ctor(String path, String boundFileName)
+   at System.IO.Pipes.NamedPipeServerStream.SharedServer..ctor(String path, Int32 maxCount, Boolean isFirstPipeInstance)
+   at System.IO.Pipes.NamedPipeServerStream.SharedServer.Get(String path, Int32 maxCount, PipeOptions pipeOptions)
+   at System.IO.Pipes.NamedPipeServerStream.Create(String pipeName, PipeDirection direction, Int32 maxNumberOfServerInstances, PipeTransmissionMode transmissionMode, PipeOptions options, Int32 inBufferSize, Int32 outBufferSize, HandleInheritability inheritability)
+   at System.IO.Pipes.NamedPipeServerStream..ctor(String pipeName, PipeDirection direction, Int32 maxNumberOfServerInstances, PipeTransmissionMode transmissionMode, PipeOptions options)
+   at AgentEyes.DesktopApp.Services.SingleInstance.NewPipeInstance(String pipeName, Boolean claim) in <repo>/src/AgentEyes.DesktopApp/Services/SingleInstance.cs:line 132
+   at AgentEyes.DesktopApp.Services.SingleInstance.TryAcquirePipe(String command, String pipeName) in <repo>/src/AgentEyes.DesktopApp/Services/SingleInstance.cs:line 111
+   at AgentEyes.Tests.Linux.DesktopAppPlatformTests.<>c__DisplayClass7_0.<TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull>b__0(String cmd) in <repo>/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs:line 87
+   at AgentEyes.Tests.Linux.DesktopAppPlatformTests.AssertHandoff(Func`2 acquire, String transport) in <repo>/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs:line 93
+   at AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull() in <repo>/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs:line 87
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Failed!  - Failed:     3, Passed:   274, Skipped:     1, Total:   278, Duration: 98 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+=========== Determinism: the same three, three runs in a row (branch c80cb9d) ===========
+--- branch run 1 ---
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [3 ms]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnThisLinuxHost_IsLinux [< 1 ms]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [1 ms]
+Failed!  - Failed:     3, Passed:   274, Skipped:     1, Total:   278, Duration: 74 ms - AgentEyes.Tests.Linux.dll (net8.0)
+--- branch run 2 ---
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [5 ms]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnThisLinuxHost_IsLinux [< 1 ms]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [3 ms]
+Failed!  - Failed:     3, Passed:   274, Skipped:     1, Total:   278, Duration: 77 ms - AgentEyes.Tests.Linux.dll (net8.0)
+--- branch run 3 ---
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquireSocket_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [2 ms]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.PlatformName_OnThisLinuxHost_IsLinux [< 1 ms]
+  Failed AgentEyes.Tests.Linux.DesktopAppPlatformTests.TryAcquirePipe_SecondLaunch_HandsItsCommandToTheFirstAndReturnsNull [< 1 ms]
+Failed!  - Failed:     3, Passed:   274, Skipped:     1, Total:   278, Duration: 78 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+=========== Baseline: origin/main af0ddb1, SAME machine, SAME command, three runs ===========
+Build succeeded.
+    0 Error(s)
+--- main run 1 ---
+Passed!  - Failed:     0, Passed:   267, Skipped:     1, Total:   268, Duration: 81 ms - AgentEyes.Tests.Linux.dll (net8.0)
+--- main run 2 ---
+Passed!  - Failed:     0, Passed:   267, Skipped:     1, Total:   268, Duration: 72 ms - AgentEyes.Tests.Linux.dll (net8.0)
+--- main run 3 ---
+Passed!  - Failed:     0, Passed:   267, Skipped:     1, Total:   268, Duration: 69 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+The instrument's three arms: 3 failures on the branch = the defect; 0 failures on main = the
+check is not simply broken on this host; an EMPTY result (no 'Passed!'/'Failed!' line at all)
+would be a broken instrument and is not what happened - every run above printed its summary.

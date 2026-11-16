@@ -1,6 +1,10 @@
 # CI (issue #102): proves both builds on every pull request and branch push.
-#   windows - the existing agent gate, unchanged: build + test AgentEyes.sln (Release).
+#   windows - the existing agent gate: build + test AgentEyes.sln (Release), which builds the desktop
+#             app (src/AgentEyes.DesktopApp) since issue #116.
 #   linux   - the Linux build of AgentEyes.Core (net8.0) and its tests (tests/AgentEyes.Tests.Linux).
+#   macos   - the macOS build of AgentEyes.Core and its tests (tests/AgentEyes.Tests.Mac).
+# Issue #116: each job also builds the desktop app for its own platform and proves the app links that
+# platform's engine (string checks over the engine assembly in the app's own output folder).
 # Releases are still built only by release.yml on a v* tag.
 name: ci
 
@@ -41,6 +45,32 @@ jobs:
       - name: Test AgentEyes.sln
         run: dotnet test AgentEyes.sln -c Release --no-build
 
+      # Issue #116: the desktop app must link the engine's WINDOWS target. Its net8.0 target is the
+      # Unix engine (x11grab, PulseAudio), and a Windows app that picked it up would build and then
+      # record nothing. Checked over the engine assembly in the APP's output, the copy the app loads.
+      # gdigrab alone does not decide it (the shared recorder code names gdigrab in every build); the
+      # NAudio assembly reference does - only the Windows engine has it.
+      - name: The Windows desktop app must link the Windows engine
+        shell: bash
+        run: |
+          out=src/AgentEyes.DesktopApp/bin/x64/Release/net8.0-windows10.0.19041.0
+          dll=$out/agenteyes.dll
+          test -f "$out/AgentEyesDesktop.exe" || { echo "[FAIL] $out/AgentEyesDesktop.exe was not built"; exit 1; }
+          test -f "$dll" || { echo "[FAIL] $dll was not built"; exit 1; }
+          test -f "$out/libvlc/win-x64/libvlc.dll" || { echo "[FAIL] libvlc.dll (VideoLAN.LibVLC.Windows) is missing from $out"; exit 1; }
+          fail=0
+          for word in x11grab pulse v4l2 avfoundation; do
+            if python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('$word'.encode('utf-16-le')) else 1)"; then
+              echo "[FAIL] the Windows app's engine contains '$word'"; fail=1
+            fi
+          done
+          python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('gdigrab'.encode('utf-16-le')) else 1)" \
+            || { echo "[FAIL] the Windows app's engine does NOT contain 'gdigrab'"; fail=1; }
+          python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count(b'NAudio') else 1)" \
+            || { echo "[FAIL] the Windows app's engine has no NAudio reference - it is not the Windows engine"; fail=1; }
+          test $fail -eq 0 && echo "[OK] the Windows desktop app links the Windows engine (gdigrab, NAudio; no x11grab/pulse/v4l2/avfoundation)"
+          exit $fail
+
       # Issue #151: the tests that launch a real ffmpeg are opt-in, so the gate an agent runs after
       # every change stays fast. They are NOT optional here: this second pass sets the opt-in and
       # runs the whole suite again, so every opt-in test (the #128 mic-chain guards among them) still
@@ -64,6 +94,28 @@ jobs:
 
       - name: Test the Linux build
         run: dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release
+
+      # Issue #116: the desktop app for Linux, and proof it links the Linux engine.
+      - name: Build the desktop app (Linux)
+        run: dotnet build src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj -c Release
+
+      - name: The Linux desktop app must link the Linux engine
+        shell: bash
+        run: |
+          dll=src/AgentEyes.DesktopApp/bin/Release/net8.0/agenteyes.dll
+          test -f src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop || { echo "[FAIL] AgentEyesDesktop was not built"; exit 1; }
+          test -f "$dll" || { echo "[FAIL] $dll was not built"; exit 1; }
+          fail=0
+          for word in x11grab pulse; do
+            if ! python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('$word'.encode('utf-16-le')) else 1)"; then
+              echo "[FAIL] the Linux app's engine does NOT contain '$word'"; fail=1
+            fi
+          done
+          if python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('avfoundation'.encode('utf-16-le')) or d.count(b'NAudio') else 1)"; then
+            echo "[FAIL] the Linux app's engine carries macOS or Windows capture code"; fail=1
+          fi
+          test $fail -eq 0 && echo "[OK] the Linux desktop app links the Linux engine (x11grab, pulse; no avfoundation, no NAudio)"
+          exit $fail
 
       # Issue #151: the opt-in tests that launch a real ffmpeg - among them the proof that a test's
       # failure path kills only the ffmpeg it started and leaves an unrelated one running.
@@ -124,4 +176,28 @@ jobs:
             fi
           done
           test $fail -eq 0 && echo "[OK] macOS build carries AVFoundation and no Linux capture code"
+          exit $fail
+
+      # Issue #116: the desktop app for macOS - it builds, carries the libvlc natives its player needs
+      # (without them it throws before any window opens), and its engine is the macOS one.
+      - name: Build the desktop app (macOS)
+        run: dotnet build src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj -c Release
+
+      - name: The macOS desktop app must link the macOS engine and carry libvlc
+        shell: bash
+        run: |
+          out=src/AgentEyes.DesktopApp/bin/Release/net8.0
+          dll=$out/agenteyes.dll
+          test -f "$out/AgentEyesDesktop.dll" || { echo "[FAIL] AgentEyesDesktop was not built"; exit 1; }
+          test -f "$dll" || { echo "[FAIL] $dll was not built"; exit 1; }
+          ls "$out"/libvlc/osx-*/lib/libvlc.dylib >/dev/null 2>&1 || { echo "[FAIL] libvlc.dylib (VideoLAN.LibVLC.Mac) is missing from $out"; exit 1; }
+          fail=0
+          for word in x11grab pulse v4l2 xrandr; do
+            if python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('$word'.encode('utf-16-le')) else 1)"; then
+              echo "[FAIL] the macOS app's engine contains '$word'"; fail=1
+            fi
+          done
+          python3 -c "import sys;d=open('$dll','rb').read();sys.exit(0 if d.count('avfoundation'.encode('utf-16-le')) else 1)" \
+            || { echo "[FAIL] the macOS app's engine does NOT contain 'avfoundation'"; fail=1; }
+          test $fail -eq 0 && echo "[OK] the macOS desktop app links the macOS engine and carries libvlc"
           exit $fail

@@ -19,6 +19,9 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Issue #116 pass 4: the headless Avalonia platform, so the tray-popup close guard is driven through
+         real windows (DesktopAppQuitTests.TrayPopupCloseGuardWindowTests). Same version as the app's Avalonia. -->
+    <PackageReference Include="Avalonia.Headless" Version="11.3.22" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,13 +30,20 @@
          failing to compile against Platform/Mac. -->
     <ProjectReference Include="..\..\src\AgentEyes.Core\AgentEyes.Core.csproj"
                       AdditionalProperties="AgentEyesUnixPlatform=linux" />
-    <ProjectReference Include="..\..\src\AgentEyes.LinuxApp\AgentEyes.LinuxApp.csproj" />
+    <!-- The desktop app (issue #116: one project for all three platforms) picks its engine from the
+         host. Pinned to linux here as well, so the app and this suite reference ONE build of the
+         engine (the same global properties) instead of two that race to the same output folder. -->
+    <ProjectReference Include="..\..\src\AgentEyes.DesktopApp\AgentEyes.DesktopApp.csproj"
+                      AdditionalProperties="AgentEyesUnixPlatform=linux" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Issue #122: pure argument-parsing tests shared by all three suites (Windows, Linux, macOS),
          compiled from ONE source file so every platform's build of the CLI passes the same ones. -->
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
+    <!-- Issue #116: the desktop app's quit-path tests, shared with AgentEyes.Tests.DesktopApp (Windows gate). -->
+    <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
+
     <Compile Include="..\Shared\MuxLockTests.cs" Link="Shared\MuxLockTests.cs" />
 
     <!-- Issue #136: ONE guard, compiled into all three suites. FfmpegMuxShapeTests sweeps the
