@@ -1,0 +1,188 @@
+== Issue #116 pass 3 - measurements behind the fix (SOREN_NORTH, 2026-11-16). App log: %LOCALAPPDATA%\AgentEyes\logs, filtered by pid.
+All runs: scripts\windows\tray-quit-repro.ps1 (messages posted only to the test app's own windows). Recorder /status was 'idle' before every run.
+
+== 1. Baseline, unchanged code (78a973e/6da099a): Quit inside the click. CRASH.
+07:20:08.101 [pid 30872] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=30872)
+07:20:08.105 [pid 30872] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+07:20:08.111 [pid 30872] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+07:20:08.377 [pid 30872] [INFO] [App] OnFrameworkInitializationCompleted
+07:20:08.438 [pid 30872] [INFO] [TrayController] ctor
+07:20:08.503 [pid 30872] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+07:20:08.504 [pid 30872] [INFO] [AppState] StartPolling
+07:20:08.568 [pid 30872] [INFO] [AppState] PollAsync: service answering, state=idle
+07:20:08.569 [pid 30872] [INFO] [TrayController] Render:  -> idle
+07:20:10.550 [pid 30872] [INFO] [App] Quit (the recorder service keeps running)
+07:20:10.675 [pid 30872] [ERROR] [Program] unhandled exception - the app is going down
+07:20:10.675 [pid 30872] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+
+== 2. QA's hypothesis alone: Quit deferred with Dispatcher.UIThread.Post, no guard. CRASH - and before the shutdown ever runs ([App] Quit is never logged).
+07:24:15.323 [pid 31172] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=31172)
+07:24:15.332 [pid 31172] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+07:24:15.340 [pid 31172] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+07:24:15.590 [pid 31172] [INFO] [App] OnFrameworkInitializationCompleted
+07:24:15.661 [pid 31172] [INFO] [TrayController] ctor
+07:24:15.728 [pid 31172] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+07:24:15.728 [pid 31172] [INFO] [AppState] StartPolling
+07:24:15.800 [pid 31172] [INFO] [AppState] PollAsync: service answering, state=idle
+07:24:15.801 [pid 31172] [INFO] [TrayController] Render:  -> idle
+07:24:32.853 [pid 31172] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+07:24:33.208 [pid 31172] [ERROR] [Program] unhandled exception - the app is going down
+07:24:33.208 [pid 31172] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+
+== 3. Same build plus a temporary Closing/Closed trace on the tray popup (TrayPopupDiag, removed). CRASH. The two closes, with stacks (System/Avalonia.Base frames trimmed):
+07:28:05.609 [pid 77040] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=77040)
+07:28:05.616 [pid 77040] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+07:28:05.622 [pid 77040] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+07:28:05.927 [pid 77040] [INFO] [App] OnFrameworkInitializationCompleted
+07:28:06.001 [pid 77040] [INFO] [TrayController] ctor
+07:28:06.084 [pid 77040] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+07:28:06.085 [pid 77040] [INFO] [AppState] StartPolling
+07:28:06.166 [pid 77040] [INFO] [AppState] PollAsync: service answering, state=idle
+07:28:06.167 [pid 77040] [INFO] [TrayController] Render:  -> idle
+07:28:08.029 [pid 77040] [INFO] [DIAG] popup 29578451 opened
+07:28:08.721 [pid 77040] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+07:28:09.686 [pid 77040] [INFO] [DIAG] popup 29578451 Closing #1 reason=WindowClosing
+07:28:09.686 [pid 77040] [INFO]    at AgentEyes.DesktopApp.TrayPopupDiag.<>c__DisplayClass0_0.<Install>b__2(Object _, WindowClosingEventArgs e) in D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\TrayPopupDiag.cs:line 17
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.Window.OnClosing(WindowClosingEventArgs e)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.Window.ShouldCancelClose(WindowClosingEventArgs args)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.Window.Close()
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Win32.TrayIconImpl.TrayIconMenuFlyoutPresenter.Close()
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.CloseMenu(IMenuItem item)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.Click(IMenuItem item)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.PointerReleased(Object sender, PointerReleasedEventArgs e)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.TopLevel.<>c.<HandleInput>b__150_0(Object state)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.TopLevel.HandleInput(RawInputEventArgs e)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.AppWndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.WndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.WndProcMessageHandler(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Win32.Interop.UnmanagedMethods.DispatchMessage(MSG& lpmsg)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Win32.Interop.UnmanagedMethods.DispatchMessage(MSG& lpmsg)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Win32.Win32DispatcherImpl.RunLoop(CancellationToken cancellationToken)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.ApplicationLifetimes.ClassicDesktopStyleApplicationLifetime.StartCore(String[] args)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.Controls.ApplicationLifetimes.ClassicDesktopStyleApplicationLifetime.Start(String[] args)
+07:28:09.686 [pid 77040] [INFO]    at Avalonia.ClassicDesktopStyleApplicationLifetimeExtensions.StartWithClassicDesktopLifetime(AppBuilder builder, String[] args, ShutdownMode shutdownMode)
+07:28:09.686 [pid 77040] [INFO]    at AgentEyes.DesktopApp.Program.Main(String[] args) in D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\Program.cs:line 45
+07:28:09.695 [pid 77040] [INFO] [DIAG] popup 29578451 Closing #2 reason=WindowClosing
+07:28:09.695 [pid 77040] [INFO]    at AgentEyes.DesktopApp.TrayPopupDiag.<>c__DisplayClass0_0.<Install>b__2(Object _, WindowClosingEventArgs e) in D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\TrayPopupDiag.cs:line 17
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.OnClosing(WindowClosingEventArgs e)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.ShouldCancelClose(WindowClosingEventArgs args)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.Close()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.TrayIconImpl.TrayPopupRoot.TrayPopupRoot_Deactivated(Object sender, EventArgs e)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.WindowBase.HandleDeactivated()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.WindowBase.HandleClosed()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.HandleClosed()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.AppWndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.WndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.WndProcMessageHandler(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.Interop.UnmanagedMethods.DestroyWindow(IntPtr hwnd)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.Interop.UnmanagedMethods.DestroyWindow(IntPtr hwnd)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.Dispose()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.CloseInternal()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.CloseCore(WindowCloseReason reason, Boolean isProgrammatic, Boolean ignoreCancel)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Window.Close()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.TrayIconImpl.TrayIconMenuFlyoutPresenter.Close()
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.CloseMenu(IMenuItem item)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.Click(IMenuItem item)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.PointerReleased(Object sender, PointerReleasedEventArgs e)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.TopLevel.<>c.<HandleInput>b__150_0(Object state)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.TopLevel.HandleInput(RawInputEventArgs e)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.AppWndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.WndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.WindowImpl.WndProcMessageHandler(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.Interop.UnmanagedMethods.DispatchMessage(MSG& lpmsg)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.Interop.UnmanagedMethods.DispatchMessage(MSG& lpmsg)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Win32.Win32DispatcherImpl.RunLoop(CancellationToken cancellationToken)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.ApplicationLifetimes.ClassicDesktopStyleApplicationLifetime.StartCore(String[] args)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.Controls.ApplicationLifetimes.ClassicDesktopStyleApplicationLifetime.Start(String[] args)
+07:28:09.695 [pid 77040] [INFO]    at Avalonia.ClassicDesktopStyleApplicationLifetimeExtensions.StartWithClassicDesktopLifetime(AppBuilder builder, String[] args, ShutdownMode shutdownMode)
+07:28:09.695 [pid 77040] [INFO]    at AgentEyes.DesktopApp.Program.Main(String[] args) in D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\Program.cs:line 45
+07:28:09.722 [pid 77040] [INFO] [DIAG] popup 29578451 Closed depth=2
+07:28:09.731 [pid 77040] [INFO] [DIAG] popup 29578451 Deactivated depth=2
+07:28:09.971 [pid 77040] [ERROR] [Program] unhandled exception - the app is going down
+07:28:09.971 [pid 77040] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.DetachCore(IMenu menu)
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Controls.Platform.DefaultMenuInteractionHandler.Detach(MenuBase menu)
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Controls.MenuBase.OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Controls.MenuFlyoutPresenter.OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Controls.TopLevel.HandleClosed()
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Controls.WindowBase.HandleClosed()
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Controls.Window.HandleClosed()
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Win32.WindowImpl.AppWndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Win32.WindowImpl.WndProc(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+07:28:09.971 [pid 77040] [ERROR]    at Avalonia.Win32.WindowImpl.WndProcMessageHandler(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam)
+
+== 4. Guard installed, Quit made synchronous again on purpose (temporary). PASS - the guard alone fixes it:
+[07:31:35.747] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=56552 action=quit dismissFirst=0
+[07:31:37.993] message window=0x12A17EE; pipe present while running=True
+[07:31:50.276] menu popup=0x5C19C0; posted a left click to Quit at client 161,158
+[07:31:50.815] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 56552 (stack frames elided):
+07:31:36.275 [pid 56552] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=56552)
+07:31:36.280 [pid 56552] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+07:31:36.286 [pid 56552] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+07:31:36.499 [pid 56552] [INFO] [App] OnFrameworkInitializationCompleted
+07:31:36.499 [pid 56552] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+07:31:36.553 [pid 56552] [INFO] [TrayController] ctor
+07:31:36.612 [pid 56552] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+07:31:36.613 [pid 56552] [INFO] [AppState] StartPolling
+07:31:36.668 [pid 56552] [INFO] [AppState] PollAsync: service answering, state=idle
+07:31:36.669 [pid 56552] [INFO] [TrayController] Render:  -> idle
+07:31:42.357 [pid 56552] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+07:31:50.279 [pid 56552] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+07:31:50.279 [pid 56552] [INFO] [DeferredQuit] Run: shutting down
+07:31:50.280 [pid 56552] [INFO] [App] Quit (the recorder service keeps running)
+07:31:50.283 [pid 56552] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=ApplicationShutdown)
+07:31:50.290 [pid 56552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing)
+07:31:50.292 [pid 56552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing)
+07:31:50.302 [pid 56552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing)
+07:31:50.375 [pid 56552] [INFO] [App] Quit: lifetime shutdown requested
+07:31:50.376 [pid 56552] [INFO] [DeferredQuit] Run: shutdown returned
+07:31:50.377 [pid 56552] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing)
+07:31:50.380 [pid 56552] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+07:31:50.387 [pid 56552] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+
+== 5. A/B in the same environment, alternating two builds: 'observe' = the guard LOGS re-entrant closes but does not cancel them; 'fixed' = this branch.
+Quit runs (8 pairs, dismissFirst=1 on pairs 3 and 6): observe 6 PASS / 2 CRASH, fixed 8 PASS / 0.
+Dismiss x2 then Quit (5 pairs): observe 5/0, fixed 5/0.
+Earlier observe-only runs (6): 6 PASS - the re-entrant close happened in every one (logged), so it is necessary but not on its own sufficient; the crash is intermittent.
+The two observe crashes, both on the dismiss (WM_CLOSE) path - QA's criterion-10 popup-close crash:
+-- pid 51320
+07:39:14.080 [pid 51320] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=51320)
+07:39:14.086 [pid 51320] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+07:39:14.091 [pid 51320] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+07:39:14.485 [pid 51320] [INFO] [App] OnFrameworkInitializationCompleted
+07:39:14.486 [pid 51320] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+07:39:14.567 [pid 51320] [INFO] [TrayController] ctor
+07:39:14.652 [pid 51320] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+07:39:14.653 [pid 51320] [INFO] [AppState] StartPolling
+07:39:14.751 [pid 51320] [INFO] [AppState] PollAsync: service answering, state=idle
+07:39:14.752 [pid 51320] [INFO] [TrayController] Render:  -> idle
+07:39:15.939 [pid 51320] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+07:39:16.540 [pid 51320] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+07:39:16.549 [pid 51320] [INFO] [TrayPopupCloseGuard] OBSERVED (not cancelled) a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+07:39:16.623 [pid 51320] [ERROR] [Program] unhandled exception - the app is going down
+07:39:16.623 [pid 51320] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+-- pid 31520
+07:40:14.282 [pid 31520] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=31520)
+07:40:14.293 [pid 31520] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+07:40:14.305 [pid 31520] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+07:40:14.883 [pid 31520] [INFO] [App] OnFrameworkInitializationCompleted
+07:40:14.884 [pid 31520] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+07:40:15.037 [pid 31520] [INFO] [TrayController] ctor
+07:40:15.166 [pid 31520] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+07:40:15.167 [pid 31520] [INFO] [AppState] StartPolling
+07:40:15.316 [pid 31520] [INFO] [AppState] PollAsync: service answering, state=idle
+07:40:15.317 [pid 31520] [INFO] [TrayController] Render:  -> idle
+07:40:16.374 [pid 31520] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+07:40:17.200 [pid 31520] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+07:40:17.210 [pid 31520] [INFO] [TrayPopupCloseGuard] OBSERVED (not cancelled) a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+07:40:17.286 [pid 31520] [ERROR] [Program] unhandled exception - the app is going down
+07:40:17.286 [pid 31520] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
+
+== 6. Totals. Every crash seen today (5 of 5, rows 1, 2, 3, 5) followed a re-entrant close of the tray popup. Unguarded: 5 crashes in 28 runs (1 baseline, 2 deferral-only, 6 guard-not-installed, 6 observe, 13 observe A/B).
+Guarded: 0 crashes in 38 runs (1 guard+sync, 4 first fixed runs, 13 fixed A/B, 10 before the review fix, 10 final on the committed code in windows-pass3-quit-runs.txt); the guard cancelled a re-entrant close in every one.
+The crash is intermittent, so these are rates, not a proof of absence: at the unguarded rate (5 in 28) the chance of 38 clean guarded runs by luck is about 0.06 percent ((23/28)^38).

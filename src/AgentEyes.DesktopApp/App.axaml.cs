@@ -13,6 +13,7 @@ namespace AgentEyes.DesktopApp
     {
         private MainWindow? _window;
         private TrayController? _tray;
+        private DeferredQuit? _quit;
 
         public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -21,7 +22,11 @@ namespace AgentEyes.DesktopApp
             Log.Info("[App] OnFrameworkInitializationCompleted");
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                _tray = new TrayController(ShowWindow, () => Quit(desktop));
+                // The Windows tray popup closes itself twice without this - see TrayPopupCloseGuard (issue #116).
+                TrayPopupCloseGuard.Install();
+                // Quit is DEFERRED until the tray menu has closed - see DeferredQuit (issue #116).
+                _quit = new DeferredQuit(() => ShutdownNow(desktop));
+                _tray = new TrayController(ShowWindow, _quit);
                 AppState.Current.StartPolling();
                 Program.Instance!.CommandReceived += cmd => Dispatcher.UIThread.Post(() => Run(cmd));
                 if (!Program.StartInTray) Run(Program.StartCommand);
@@ -92,12 +97,14 @@ namespace AgentEyes.DesktopApp
 
         private bool _quitting;
 
-        private void Quit(IClassicDesktopStyleApplicationLifetime desktop)
+        /// <summary>The shutdown itself. Only ever run by DeferredQuit, never inside a menu's click handling.</summary>
+        private void ShutdownNow(IClassicDesktopStyleApplicationLifetime desktop)
         {
             Log.Info("[App] Quit (the recorder service keeps running)");
             _quitting = true;
             _window?.Close();
             desktop.Shutdown();
+            Log.Info("[App] Quit: lifetime shutdown requested");
         }
     }
 }

@@ -38,6 +38,8 @@
     <!-- Issue #122: pure argument-parsing tests shared by all three suites (Windows, Linux, macOS),
          compiled from ONE source file so every platform's build of the CLI passes the same ones. -->
     <Compile Include="..\Shared\CliDispatcherTests.cs" Link="Shared\CliDispatcherTests.cs" />
+    <!-- Issue #116: the desktop app's quit-path tests, shared with AgentEyes.Tests.DesktopApp (Windows gate). -->
+    <Compile Include="..\Shared\DesktopAppQuitTests.cs" Link="Shared\DesktopAppQuitTests.cs" />
   </ItemGroup>
 
 </Project>

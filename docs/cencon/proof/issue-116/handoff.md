@@ -396,3 +396,132 @@ Recorder service not reinstalled and not restarted. Nothing deleted under `~/Mov
 `2026-11-15_093623_video`, added by QA as evidence, is untouched. No app was launched in this pass.
 
 I believe this is finished.
+
+---
+
+# Developer pass 3 - the Windows tray Quit crash (answering the Windows QA FAIL)
+
+Machine `SOREN_NORTH`, branch `issue-116-desktop-app` on top of `6da099a`. This pass answers the one
+defect in `qa-report-windows.md` and the Implementation Lead's ruling on the issue: on Windows, Quit
+from the tray crashed the app 3 of 3 with `NotSupportedException: DefaultMenuInteractionHandler is not
+attached to the menu`, so `[SingleInstance] Dispose` and `[Program] Main: exited` never ran.
+
+## 1. The cause, measured - and the hypothesis was wrong
+
+QA's hypothesis (and the ruling's) was that `App.Quit` ran `Close`/`Shutdown` synchronously inside the
+menu's click and tore the window down under the popup. **I made exactly that change first and it did
+not fix it**: with Quit deferred through `Dispatcher.UIThread.Post` the app still crashed, 2 of 2, and
+it crashed **before the shutdown ever ran** - `[App] Quit` is never logged
+(`windows-pass3-measurements.txt`, rows 2 and 3). Our shutdown was never the trigger.
+
+A temporary `Closing`/`Closed` trace on the tray popup (removed again) caught the real sequence with
+stacks (row 3). It is Avalonia's own Windows tray popup, `Avalonia.Win32.TrayIconImpl+TrayPopupRoot`,
+which closes itself on `Deactivated`. After ANY item is clicked:
+
+```
+Close #1:  DefaultMenuInteractionHandler.Click -> CloseMenu -> TrayIconMenuFlyoutPresenter.Close -> Window.Close
+             -> CloseInternal -> WindowImpl.Dispose -> DestroyWindow -> WM_DESTROY -> Window.HandleClosed
+Close #2:      -> WindowBase.HandleDeactivated -> TrayPopupRoot_Deactivated -> Window.Close     (re-entrant)
+```
+
+The nested Close runs while the first is still inside `DestroyWindow` (Avalonia's `WindowImpl.Dispose`
+clears its HWND only after `DestroyWindow` returns - read from the decompiled 11.3.22 source), so the
+popup is torn down a second time and its menu presenter is detached twice; the second detach throws in
+the message loop. It is intermittent: the re-entrant close happened in every run I traced, the crash in
+5 of 28 unguarded runs today (it was 3 of 3 for QA and for my first three runs). Avalonia 11.3.23 (the
+latest 11.x) and 12.1.6 have the same `TrayPopupRoot` and the same `Dispose` ordering, so an upgrade
+does not fix it.
+
+**The criterion-10 popup-close crash is the same defect.** QA saw it 2 of 6 when closing the popup
+without choosing anything. In an A/B in the same session (row 5) the unguarded build crashed exactly
+there - on the WM_CLOSE dismiss, a re-entrant close, then the same exception - and the fixed build did
+not. One change fixes both, so no separate issue is filed.
+
+## 2. What changed
+
+| File | Change |
+|---|---|
+| `src/AgentEyes.DesktopApp/TrayPopupCloseGuard.cs` (new) | **The fix.** A class handler on `Window.WindowOpenedEvent` that, for that one Avalonia type only, cancels in `Closing` any close that starts while the popup is already closing. The first close always proceeds; the duplicate is dropped, so the popup is torn down once. If anything else ever cancels the first close (nothing does today), a check posted after it sees the popup never reached `Closed` and lets the next close through, so the menu can still be dismissed (from the code review). Logs every decision with `active=`. Inert on Linux (D-Bus menu) and macOS (native menu): the type never opens there. |
+| `src/AgentEyes.DesktopApp/DeferredQuit.cs` (new) | Quit is posted to the UI dispatcher at Background priority instead of running inside the menu's click. **Not the fix - measured above - but kept as the shape the ruling asked to pin.** With the guard and a synchronous Quit the app also exits cleanly (row 4), but `Shutdown` then closes the popup from inside its own click handling and the menu's `CloseMenu` runs on a closed window. Deferred, the menu closes its popup itself and the shutdown runs after it. A second Quit while one is pending is ignored and logged. |
+| `App.axaml.cs`, `TrayController.cs` | Install the guard before the tray icon exists; the tray takes a `DeferredQuit`, not an `Action`, so its Quit item cannot be wired straight to a shutdown again. `Quit` is renamed `ShutdownNow`; its log line is unchanged (`[App] Quit (the recorder service keeps running)`). |
+| `tests/AgentEyes.Tests.DesktopApp/` (new, **in `AgentEyes.sln`**) | The first desktop-app test project the Windows gate runs. Its TFM follows the app's (`net8.0-windows10.0.19041.0` on Windows), so it links the Windows engine: gdigrab 2, x11grab 0 in its output. |
+| `tests/Shared/DesktopAppQuitTests.cs` (new) | 13 tests, compiled into the new project AND `AgentEyes.Tests.Linux` (so Linux CI runs them). They pin: the guard's decisions (first close allowed, re-entrant ones cancelled, a close cancelled elsewhere marks nothing and is reopened); that `Avalonia.Win32.TrayIconImpl+TrayPopupRoot` still exists and is a `Window` (an Avalonia upgrade that renames it fails here instead of silently disarming the guard); that App installs the guard before creating the tray; that `Request` never runs the shutdown inside the caller and posts it once; that `TrayController` only accepts a `DeferredQuit`; and, as a source fact, that the only `.Shutdown(` in the app is in `ShutdownNow`, handed only to `DeferredQuit`, whose production constructor posts to the dispatcher. |
+| `scripts/windows/tray-quit-repro.ps1` (new) | QA's repro as a script: start `--tray`, open the menu with the shell's own tray callback, optionally dismiss it N times with WM_CLOSE, click Quit, then report the exit code, the three log lines, any unhandled exception and the pipe. **It posts messages only to the test app's own windows** - no input at the cursor, no other window touched; the popup is on screen for under a second per open. |
+| `windows-pass3-quit-runs.txt`, `windows-pass3-measurements.txt` (new) | The final runs, and every measurement in section 1. |
+
+## 3. The Windows runtime repro, passing (ruling artefact 1)
+
+`windows-pass3-quit-runs.txt`: **10 of 10 PASS** on the solution-built binary of the committed code:
+plain Quit, Quit after one or two dismissals, and "dismiss, stay alive, then Quit". Every run shows
+`[App] Quit`, `[SingleInstance] Dispose: pipe agenteyes-app-soren`, `[Program] Main: exited`, **exit
+code 0**, no unhandled exception, and the pipe gone afterwards. In every run the guard logged the
+re-entrant close it cancelled. Across the session: **0 crashes in 38 guarded runs**, against 5 in 28
+unguarded. Because the crash is intermittent these are rates, not a proof of absence; the measurements
+file states the arithmetic.
+
+Note for QA: the binary's ProductVersion embeds `6da099a` because it is stamped from HEAD at build time
+and was built just before the commit. Rebuild from the pass 3 commit before you verify.
+
+## 4. What the Windows gate covers now, and what it still cannot (ruling artefact 2)
+
+- **Now covered** by `dotnet test AgentEyes.sln -c Release` (and the CI windows job, which runs it):
+  the 13 tests above - the guard's logic, that its target type still exists, that it is installed, and
+  that the quit path cannot run the shutdown inside a click.
+- **Still not covered by any gate:** the crash itself. It happens in Avalonia's Win32 message loop, only
+  with a real tray popup holding activation, and intermittently. No unit test reaches it and CI never
+  launches the app. The only check is `scripts\windows\tray-quit-repro.ps1`, run by an agent on a
+  Windows desktop (it shows the popup briefly). Also not covered: an Avalonia upgrade that **changes the
+  popup's behaviour without renaming it** - the type-exists test catches a rename only.
+- The other desktop-app tests (`DesktopAppTests.cs`, `DesktopAppPlatformTests.cs`) still live in
+  `AgentEyes.Tests.Linux` and still do not run on Windows. Moving them is out of this issue's scope.
+
+## 5. Linux and macOS need re-verification - not "should be fine"
+
+**Linux must be re-run before this passes.** It passed criterion 11 four of four through the real
+D-Bus tray menu, and this change is in shared code. My reasoning that it is unaffected - the guard only
+matches a Win32 type, and the deferral changes WHEN the shutdown runs, not what it does - is reasoning,
+not a measurement. The platform difference is exactly the risk the ruling named: on Linux the Quit click
+arrives over D-Bus, and posting the shutdown to the dispatcher from there has not been observed.
+devlinux was offline, so **nothing in this pass ran on Linux**: no build, no `AgentEyes.Tests.Linux`
+run, no tray Quit. The Linux CI job compiles and runs the 13 shared tests on push; that is unit
+coverage, not the runtime re-run. QA on devlinux: re-run the criterion 11 tray Quit (the steps in
+`qa-report-linux-criterion11.md`) and expect new `[DeferredQuit]` lines between the click and `[App] Quit`.
+
+**macOS was not re-run either.** Its Quit also goes through `DeferredQuit` now. Pass 2 never exercised
+a tray Quit on the Mac (section 6.3 of pass 2), so that gap is unchanged.
+
+## 6. Scope rulings, honoured
+
+- The tray presentation findings (icon in the overflow, off-white idle icon, UIA cannot invoke the menu
+  items) are #163 and are **not touched here**. The repro script works around the UIA gap by posting to
+  the popup; it does not fix it.
+- **`linux-app.json` stays, deliberately.** The settings file name (`Model/AppSettings.cs:23`) survived
+  the rename. Renaming it without a migration would silently reset every existing Linux user's settings,
+  which is worse than a stale name. It is a follow-up that must carry a migration, not an oversight.
+- The 41-second first cold start is out of scope. I saw one slow first start here too (the first tray
+  popup took over 5 s to appear on the first launch after a build); I did not measure it further.
+
+## 7. Gates run, and the owner's machine
+
+- `dotnet build AgentEyes.sln -c Release`: `Build succeeded.`, `0 Error(s)`. The output lists
+  `AgentEyes.DesktopApp -> ...\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.dll` and
+  `AgentEyes.Tests.DesktopApp -> ...`. The warnings are in `AgentEyes.Core` and `AgentEyes.Tests`, which
+  this pass does not touch.
+- `dotnet test tests/AgentEyes.Tests.DesktopApp -c Release`: `Failed: 0, Passed: 13`.
+- **Mutation check**: three deliberate regressions, each caught by its test and each restored -
+  synchronous Quit (`DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit`), guard not installed
+  (`App_InstallsTheGuard_BeforeTheTrayIconExists`), guard never cancels
+  (`CancelThisClose_ReentrantSecondAndThirdClose_AreCancelled`).
+- **I did NOT run the whole solution test suite** (`dotnet test AgentEyes.sln`), per the ruling: until
+  #151 is on `main` that suite starts real ffmpeg processes and its cleanup kills ffmpeg by start time.
+  This change touches neither `AgentEyes.Core` nor the WPF app, so the targeted project is the relevant
+  one. The CI windows job runs the full suite on push.
+- The owner's recorder: `GET /status` read `idle` immediately before every app launch in this pass
+  (about 70), and each batch was set to stop itself if it was not. No ffmpeg was started or killed. Every
+  process I stopped was an `AgentEyesDesktop` test instance I had started, left over after a crash or a
+  harness timeout. No recording, preset or audio setting was touched, and the installed WPF app ran
+  throughout. No input was sent to any other window. **But the tray popup takes the foreground while
+  it is open** (Avalonia shows it activated), so each run took keyboard focus from whatever the owner
+  had in front for up to about a second per open - roughly 100 times over about 45 minutes. It is the
+  menu's own behaviour, the same as a real right-click, but it is a focus steal and QA's re-run will
+  repeat it.

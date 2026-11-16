@@ -67,6 +67,7 @@
     <Compile Include="..\AgentEyes.App\TranscriptPresentation.cs" Link="Shared\TranscriptPresentation.cs" />
     <AvaloniaResource Include="Assets\**" />
     <InternalsVisibleTo Include="AgentEyes.Tests.Linux" />
+    <InternalsVisibleTo Include="AgentEyes.Tests.DesktopApp" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,362 @@
+== Pass 3, Windows tray Quit repro (scripts\windows\tray-quit-repro.ps1) on SOREN_NORTH, 2026-11-16 08:03
+binary: src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe (built by dotnet build AgentEyes.sln -c Release)
+ProductVersion: 1.0.0+6da099a8bddd158689f41375730ce57649f38196; AgentEyesDesktop.dll SHA256 prefix 6513D022DE708607; source = the pass 3 commit on top of 6da099a
+
+-- run 1 of 10: action=quit dismissFirst=0; recorder /status State before the run: idle
+[08:03:56.883] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=89156 action=quit dismissFirst=0
+[08:03:59.037] message window=0x28E0AA2; pipe present while running=True
+[08:04:00.563] menu popup=0x14A17F0; posted a left click to Quit at client 162,158
+[08:04:01.107] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 89156 (stack frames elided):
+08:03:57.125 [pid 89156] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=89156)
+08:03:57.134 [pid 89156] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:03:57.153 [pid 89156] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:03:57.730 [pid 89156] [INFO] [App] OnFrameworkInitializationCompleted
+08:03:57.731 [pid 89156] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:03:57.874 [pid 89156] [INFO] [TrayController] ctor
+08:03:58.012 [pid 89156] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:03:58.018 [pid 89156] [INFO] [AppState] StartPolling
+08:03:58.165 [pid 89156] [INFO] [AppState] PollAsync: service answering, state=idle
+08:03:58.166 [pid 89156] [INFO] [TrayController] Render:  -> idle
+08:03:59.379 [pid 89156] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:00.567 [pid 89156] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:00.573 [pid 89156] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:00.585 [pid 89156] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:00.585 [pid 89156] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:00.592 [pid 89156] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:00.664 [pid 89156] [INFO] [DeferredQuit] Run: shutting down
+08:04:00.665 [pid 89156] [INFO] [App] Quit (the recorder service keeps running)
+08:04:00.669 [pid 89156] [INFO] [App] Quit: lifetime shutdown requested
+08:04:00.670 [pid 89156] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:00.673 [pid 89156] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:00.677 [pid 89156] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 2 of 10: action=quit dismissFirst=0; recorder /status State before the run: idle
+[08:04:01.519] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=70796 action=quit dismissFirst=0
+[08:04:03.514] message window=0x2E0956; pipe present while running=True
+[08:04:04.861] menu popup=0x2080988; posted a left click to Quit at client 162,158
+[08:04:05.427] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 70796 (stack frames elided):
+08:04:01.645 [pid 70796] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=70796)
+08:04:01.656 [pid 70796] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:01.669 [pid 70796] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:02.339 [pid 70796] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:02.340 [pid 70796] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:02.505 [pid 70796] [INFO] [TrayController] ctor
+08:04:02.654 [pid 70796] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:02.655 [pid 70796] [INFO] [AppState] StartPolling
+08:04:02.976 [pid 70796] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:02.978 [pid 70796] [INFO] [TrayController] Render:  -> idle
+08:04:03.763 [pid 70796] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:04.866 [pid 70796] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:04.872 [pid 70796] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:04.890 [pid 70796] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:04.891 [pid 70796] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:04.908 [pid 70796] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:05.001 [pid 70796] [INFO] [DeferredQuit] Run: shutting down
+08:04:05.002 [pid 70796] [INFO] [App] Quit (the recorder service keeps running)
+08:04:05.007 [pid 70796] [INFO] [App] Quit: lifetime shutdown requested
+08:04:05.008 [pid 70796] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:05.010 [pid 70796] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:05.018 [pid 70796] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 3 of 10: action=quit dismissFirst=1; recorder /status State before the run: idle
+[08:04:05.658] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=88276 action=quit dismissFirst=1
+[08:04:07.525] message window=0x37808E6; pipe present while running=True
+[08:04:08.230] open 1: menu popup=0x1CE0EF0; dismissing with WM_CLOSE
+[08:04:09.834] menu popup=0x2BB0076; posted a left click to Quit at client 162,158
+[08:04:10.482] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 88276 (stack frames elided):
+08:04:05.785 [pid 88276] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=88276)
+08:04:05.794 [pid 88276] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:05.805 [pid 88276] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:06.398 [pid 88276] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:06.399 [pid 88276] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:06.540 [pid 88276] [INFO] [TrayController] ctor
+08:04:06.672 [pid 88276] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:06.673 [pid 88276] [INFO] [AppState] StartPolling
+08:04:06.791 [pid 88276] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:06.792 [pid 88276] [INFO] [TrayController] Render:  -> idle
+08:04:07.709 [pid 88276] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:08.243 [pid 88276] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:08.254 [pid 88276] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:08.256 [pid 88276] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:08.260 [pid 88276] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:09.526 [pid 88276] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:09.838 [pid 88276] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:09.841 [pid 88276] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:09.853 [pid 88276] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:09.854 [pid 88276] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:09.859 [pid 88276] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:09.934 [pid 88276] [INFO] [DeferredQuit] Run: shutting down
+08:04:09.935 [pid 88276] [INFO] [App] Quit (the recorder service keeps running)
+08:04:09.940 [pid 88276] [INFO] [App] Quit: lifetime shutdown requested
+08:04:09.941 [pid 88276] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:09.942 [pid 88276] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:09.958 [pid 88276] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 4 of 10: action=close dismissFirst=1; recorder /status State before the run: idle
+[08:04:10.674] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=53392 action=close dismissFirst=1
+[08:04:12.653] message window=0x37908E6; pipe present while running=True
+[08:04:13.821] open 1: menu popup=0x28099C; dismissing with WM_CLOSE
+[08:04:15.159] open 2: menu popup=0x2B099C; dismissing with WM_CLOSE
+[08:04:18.392] after 2 open/dismiss cycle(s): alive, no unhandled exception
+[08:04:18.727] menu popup=0x2C099C; posted a left click to Quit at client 162,158
+[08:04:19.235] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 53392 (stack frames elided):
+08:04:10.834 [pid 53392] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=53392)
+08:04:10.845 [pid 53392] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:10.868 [pid 53392] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:11.439 [pid 53392] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:11.440 [pid 53392] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:11.566 [pid 53392] [INFO] [TrayController] ctor
+08:04:11.673 [pid 53392] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:11.674 [pid 53392] [INFO] [AppState] StartPolling
+08:04:11.769 [pid 53392] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:11.771 [pid 53392] [INFO] [TrayController] Render:  -> idle
+08:04:12.948 [pid 53392] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:13.831 [pid 53392] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:13.842 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:13.845 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:13.852 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:15.058 [pid 53392] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:15.160 [pid 53392] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:15.168 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:15.169 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:15.174 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:18.415 [pid 53392] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:18.732 [pid 53392] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:18.736 [pid 53392] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:18.747 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:18.748 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:18.756 [pid 53392] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:18.797 [pid 53392] [INFO] [DeferredQuit] Run: shutting down
+08:04:18.799 [pid 53392] [INFO] [App] Quit (the recorder service keeps running)
+08:04:18.803 [pid 53392] [INFO] [App] Quit: lifetime shutdown requested
+08:04:18.803 [pid 53392] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:18.805 [pid 53392] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:18.811 [pid 53392] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 5 of 10: action=quit dismissFirst=0; recorder /status State before the run: idle
+[08:04:19.456] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=35504 action=quit dismissFirst=0
+[08:04:21.332] message window=0x37A08E6; pipe present while running=True
+[08:04:22.103] menu popup=0x20B0988; posted a left click to Quit at client 162,158
+[08:04:22.613] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 35504 (stack frames elided):
+08:04:19.586 [pid 35504] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=35504)
+08:04:19.593 [pid 35504] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:19.603 [pid 35504] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:19.929 [pid 35504] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:19.930 [pid 35504] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:20.033 [pid 35504] [INFO] [TrayController] ctor
+08:04:20.125 [pid 35504] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:20.126 [pid 35504] [INFO] [AppState] StartPolling
+08:04:20.222 [pid 35504] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:20.223 [pid 35504] [INFO] [TrayController] Render:  -> idle
+08:04:21.478 [pid 35504] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:22.106 [pid 35504] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:22.111 [pid 35504] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:22.124 [pid 35504] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:22.124 [pid 35504] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:22.135 [pid 35504] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:22.214 [pid 35504] [INFO] [DeferredQuit] Run: shutting down
+08:04:22.215 [pid 35504] [INFO] [App] Quit (the recorder service keeps running)
+08:04:22.219 [pid 35504] [INFO] [App] Quit: lifetime shutdown requested
+08:04:22.219 [pid 35504] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:22.222 [pid 35504] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:22.225 [pid 35504] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 6 of 10: action=quit dismissFirst=2; recorder /status State before the run: idle
+[08:04:22.757] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=65600 action=quit dismissFirst=2
+[08:04:24.530] message window=0x1940752; pipe present while running=True
+[08:04:25.624] open 1: menu popup=0x320956; dismissing with WM_CLOSE
+[08:04:26.951] open 2: menu popup=0x72C0FB0; dismissing with WM_CLOSE
+[08:04:28.464] menu popup=0x1D50EF0; posted a left click to Quit at client 162,158
+[08:04:29.321] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 65600 (stack frames elided):
+08:04:22.838 [pid 65600] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=65600)
+08:04:22.845 [pid 65600] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:22.850 [pid 65600] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:23.342 [pid 65600] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:23.343 [pid 65600] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:23.471 [pid 65600] [INFO] [TrayController] ctor
+08:04:23.577 [pid 65600] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:23.578 [pid 65600] [INFO] [AppState] StartPolling
+08:04:23.688 [pid 65600] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:23.690 [pid 65600] [INFO] [TrayController] Render:  -> idle
+08:04:24.775 [pid 65600] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:25.630 [pid 65600] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:25.638 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:25.640 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:25.642 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:26.852 [pid 65600] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:26.952 [pid 65600] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:26.959 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:26.960 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:26.969 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:28.166 [pid 65600] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:28.467 [pid 65600] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:28.470 [pid 65600] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:28.478 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:28.479 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:28.487 [pid 65600] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:28.581 [pid 65600] [INFO] [DeferredQuit] Run: shutting down
+08:04:28.583 [pid 65600] [INFO] [App] Quit (the recorder service keeps running)
+08:04:28.586 [pid 65600] [INFO] [App] Quit: lifetime shutdown requested
+08:04:28.587 [pid 65600] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:28.589 [pid 65600] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:28.627 [pid 65600] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 7 of 10: action=close dismissFirst=0; recorder /status State before the run: idle
+[08:04:29.608] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=73920 action=close dismissFirst=0
+[08:04:31.567] message window=0x1491D0C; pipe present while running=True
+[08:04:33.268] open 1: menu popup=0x2FE0A74; dismissing with WM_CLOSE
+[08:04:36.562] after 1 open/dismiss cycle(s): alive, no unhandled exception
+[08:04:36.912] menu popup=0x3609C4; posted a left click to Quit at client 162,158
+[08:04:37.457] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 73920 (stack frames elided):
+08:04:29.701 [pid 73920] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=73920)
+08:04:29.707 [pid 73920] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:29.714 [pid 73920] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:30.293 [pid 73920] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:30.294 [pid 73920] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:30.513 [pid 73920] [INFO] [TrayController] ctor
+08:04:30.702 [pid 73920] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:30.703 [pid 73920] [INFO] [AppState] StartPolling
+08:04:30.989 [pid 73920] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:30.991 [pid 73920] [INFO] [TrayController] Render:  -> idle
+08:04:31.875 [pid 73920] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:33.279 [pid 73920] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:33.287 [pid 73920] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:33.290 [pid 73920] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:33.292 [pid 73920] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:36.590 [pid 73920] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:36.916 [pid 73920] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:36.919 [pid 73920] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:36.930 [pid 73920] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:36.930 [pid 73920] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:36.944 [pid 73920] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:37.015 [pid 73920] [INFO] [DeferredQuit] Run: shutting down
+08:04:37.016 [pid 73920] [INFO] [App] Quit (the recorder service keeps running)
+08:04:37.021 [pid 73920] [INFO] [App] Quit: lifetime shutdown requested
+08:04:37.021 [pid 73920] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:37.023 [pid 73920] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:37.028 [pid 73920] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 8 of 10: action=quit dismissFirst=0; recorder /status State before the run: idle
+[08:04:37.742] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=17872 action=quit dismissFirst=0
+[08:04:40.098] message window=0x3CE0A40; pipe present while running=True
+[08:04:41.331] menu popup=0xBB11498; posted a left click to Quit at client 162,158
+[08:04:41.872] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 17872 (stack frames elided):
+08:04:37.884 [pid 17872] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=17872)
+08:04:37.894 [pid 17872] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:37.904 [pid 17872] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:38.817 [pid 17872] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:38.818 [pid 17872] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:38.949 [pid 17872] [INFO] [TrayController] ctor
+08:04:39.058 [pid 17872] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:39.059 [pid 17872] [INFO] [AppState] StartPolling
+08:04:39.149 [pid 17872] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:39.150 [pid 17872] [INFO] [TrayController] Render:  -> idle
+08:04:40.337 [pid 17872] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:41.334 [pid 17872] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:41.340 [pid 17872] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:41.354 [pid 17872] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:41.355 [pid 17872] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:41.360 [pid 17872] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:41.425 [pid 17872] [INFO] [DeferredQuit] Run: shutting down
+08:04:41.426 [pid 17872] [INFO] [App] Quit (the recorder service keeps running)
+08:04:41.430 [pid 17872] [INFO] [App] Quit: lifetime shutdown requested
+08:04:41.430 [pid 17872] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:41.432 [pid 17872] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:41.449 [pid 17872] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 9 of 10: action=quit dismissFirst=1; recorder /status State before the run: idle
+[08:04:42.279] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=15952 action=quit dismissFirst=1
+[08:04:44.257] message window=0x1970752; pipe present while running=True
+[08:04:45.224] open 1: menu popup=0x3D20A40; dismissing with WM_CLOSE
+[08:04:46.759] menu popup=0x3D40A40; posted a left click to Quit at client 162,158
+[08:04:47.274] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 15952 (stack frames elided):
+08:04:42.431 [pid 15952] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=15952)
+08:04:42.440 [pid 15952] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:42.452 [pid 15952] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:42.960 [pid 15952] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:42.961 [pid 15952] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:43.063 [pid 15952] [INFO] [TrayController] ctor
+08:04:43.195 [pid 15952] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:43.196 [pid 15952] [INFO] [AppState] StartPolling
+08:04:43.353 [pid 15952] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:43.354 [pid 15952] [INFO] [TrayController] Render:  -> idle
+08:04:44.506 [pid 15952] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:45.236 [pid 15952] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:45.246 [pid 15952] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:45.248 [pid 15952] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:45.253 [pid 15952] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:46.443 [pid 15952] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:46.763 [pid 15952] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:46.768 [pid 15952] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:46.778 [pid 15952] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:46.779 [pid 15952] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:46.786 [pid 15952] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:46.847 [pid 15952] [INFO] [DeferredQuit] Run: shutting down
+08:04:46.848 [pid 15952] [INFO] [App] Quit (the recorder service keeps running)
+08:04:46.854 [pid 15952] [INFO] [App] Quit: lifetime shutdown requested
+08:04:46.855 [pid 15952] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:46.857 [pid 15952] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:46.862 [pid 15952] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+-- run 10 of 10: action=close dismissFirst=1; recorder /status State before the run: idle
+[08:04:47.523] started D:\ReposFred\agenteyes-app\src\AgentEyes.DesktopApp\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesDesktop.exe --tray pid=84216 action=close dismissFirst=1
+[08:04:49.428] message window=0xB09C0; pipe present while running=True
+[08:04:50.181] open 1: menu popup=0x6A0E48; dismissing with WM_CLOSE
+[08:04:51.517] open 2: menu popup=0x3C09C4; dismissing with WM_CLOSE
+[08:04:54.819] after 2 open/dismiss cycle(s): alive, no unhandled exception
+[08:04:55.212] menu popup=0x4309C4; posted a left click to Quit at client 162,158
+[08:04:55.861] process exited=True exitCode=0; pipe present after=False
+--- log lines for pid 84216 (stack frames elided):
+08:04:47.654 [pid 84216] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=True, pid=84216)
+08:04:47.663 [pid 84216] [INFO] [SingleInstance] TryAcquirePipe: agenteyes-app-soren command='tray'
+08:04:47.672 [pid 84216] [INFO] [SingleInstance] TryAcquire: listening on pipe agenteyes-app-soren
+08:04:48.133 [pid 84216] [INFO] [App] OnFrameworkInitializationCompleted
+08:04:48.134 [pid 84216] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+08:04:48.252 [pid 84216] [INFO] [TrayController] ctor
+08:04:48.375 [pid 84216] [INFO] [AppSettings] Load: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
+08:04:48.376 [pid 84216] [INFO] [AppState] StartPolling
+08:04:48.548 [pid 84216] [INFO] [AppState] PollAsync: service answering, state=idle
+08:04:48.550 [pid 84216] [INFO] [TrayController] Render:  -> idle
+08:04:49.632 [pid 84216] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:50.186 [pid 84216] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:50.195 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:50.198 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:50.202 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:51.410 [pid 84216] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:51.518 [pid 84216] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:51.525 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:51.525 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:51.535 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:54.861 [pid 84216] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
+08:04:55.216 [pid 84216] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
+08:04:55.220 [pid 84216] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
+08:04:55.231 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:55.231 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:55.236 [pid 84216] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
+08:04:55.351 [pid 84216] [INFO] [DeferredQuit] Run: shutting down
+08:04:55.353 [pid 84216] [INFO] [App] Quit (the recorder service keeps running)
+08:04:55.358 [pid 84216] [INFO] [App] Quit: lifetime shutdown requested
+08:04:55.359 [pid 84216] [INFO] [DeferredQuit] Run: shutdown returned
+08:04:55.361 [pid 84216] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
+08:04:55.379 [pid 84216] [INFO] [Program] Main: exited
+RESULT: PASS (exit=0, missing=[], unhandled=False, pipeAfter=False)
+
+TOTAL: 10 of 10 PASS

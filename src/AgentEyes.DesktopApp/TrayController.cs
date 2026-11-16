@@ -23,7 +23,7 @@ namespace AgentEyes.DesktopApp
         private readonly WindowIcon _offline = Draw(DrawMoon(Color.Parse("#8A8A93"), crossed: true));
         private string _shown = "";
 
-        public TrayController(Action showWindow, Action quit)
+        public TrayController(Action showWindow, DeferredQuit quit)
         {
             Log.Info("[TrayController] ctor");
             var menu = new NativeMenu();
@@ -44,7 +44,9 @@ namespace AgentEyes.DesktopApp
             menu.Add(folder);
             menu.Add(new NativeMenuItemSeparator());
             var quitItem = new NativeMenuItem("Quit AgentEyes (the recorder keeps running)");
-            quitItem.Click += (_, _) => quit();
+            // Request, never shut down here: on Windows this Click runs inside the menu popup's own click
+            // handling, and closing the app under it crashed (issue #116, see DeferredQuit).
+            quitItem.Click += (_, _) => quit.Request();
             menu.Add(quitItem);
 
             _tray = new TrayIcon { Icon = _offline, ToolTipText = "AgentEyes", Menu = menu, IsVisible = true };
