@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -274,7 +275,47 @@ namespace AgentEyes.Video
         [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "kill", SetLastError = true)]
         private static extern int PosixKill(int pid, int sig);
 
-        /// <summary>True when a process with <paramref name="pid"/> exists and started at <paramref name="startUtc"/>.</summary>
+        /// <summary>
+        /// True when a process with <paramref name="pid"/> exists and started at <paramref name="startUtc"/>:
+        /// "this pid still names the process that was recorded".
+        ///
+        /// Issue #156 pass 3: this predicate is TOTAL - it answers, it never throws. Every caller
+        /// (<see cref="CaptureLock"/>'s liveness checks, the reaper's owner and child checks) is right
+        /// to expect an answer, and one exception here used to strand a crashed recording and stop
+        /// the repair pass for every recording on the machine. Each outcome, and why:
+        ///
+        /// * No such process (GetProcessById throws ArgumentException): FALSE. The recorded process
+        ///   has exited.
+        /// * The process has exited (HasExited, or InvalidOperationException because it exited
+        ///   between two reads): FALSE.
+        /// * Start time read and different: FALSE - the pid was reused by another process.
+        /// * Start time read and equal (within <see cref="StartTimeTolerance"/>): TRUE.
+        /// * The start time CANNOT BE READ (Win32Exception): FALSE. Every recorded start time was
+        ///   read by an AgentEyes process of this user account, from a process this account started.
+        ///   As long as that process is running it stays readable to this account, so a pid whose
+        ///   start time this account cannot read now is not that process. Measured on macOS
+        ///   (2026-11-16) there are exactly two ways to reach this, both logged at the decision with
+        ///   the pid by <see cref="DescribeUnreadable"/>:
+        ///     - the pid belongs to ANOTHER USER (kill(pid, 0) fails with EPERM) - after a crash and
+        ///       a reboot, low pids are reused by root daemons; pid 1 is the stand-in. Our writer ran
+        ///       as us, so a process we may not even signal cannot be it. On Linux the start time of
+        ///       any process is readable, so there the answer comes from the start-time comparison;
+        ///       on Windows the analogue is OpenProcess refusing another user's process (UNMEASURED -
+        ///       and the premise is weakest there: if a non-elevated probe is also refused for an
+        ///       ELEVATED process of the same user, a writer started by an elevated AgentEyes would
+        ///       read as not running to a non-elevated one).
+        ///     - the pid is OURS but a ZOMBIE (kill(pid, 0) succeeds, HasExited is false, and
+        ///       proc_pidinfo refuses the start time): it has exited and writes nothing. (Linux reads
+        ///       a zombie's start time, so there a zombie answers TRUE until its parent reaps it; an
+        ///       orphaned writer's parent is init or a subreaper, which reaps it at once.)
+        ///   The one case where the premise does not hold - a SECOND user account on this machine
+        ///   probing a record written by the first account, whose writer is still running - is
+        ///   resolved FALSE too. Every capture claim is made by RecordingService in a directory from
+        ///   RecordingPaths.NewDir, under this account's own recordings root (the CLI's --out
+        ///   captures take no claim at all), and the reap registry is per-user application data. Neither
+        ///   account can open the other's (each lives in its own home; ~/Movies is mode 700 on
+        ///   macOS), so the product never puts one account's record in front of another's probe.
+        /// </summary>
         internal static bool IsSameProcess(int pid, DateTime startUtc)
         {
             Process p;
@@ -288,7 +329,37 @@ namespace AgentEyes.Video
                     return (p.StartTime.ToUniversalTime() - startUtc).Duration() <= StartTimeTolerance;
                 }
                 catch (InvalidOperationException) { return false; }   // exited between the two calls
+                catch (Win32Exception ex)
+                {
+                    // Not the recorded process - see the summary for why that is a fact, not a guess.
+                    Log.Info($"[FfmpegChildRegistry] IsSameProcess: pid {pid} - start time cannot be read " +
+                             $"({ex.NativeErrorCode}: {ex.Message}); {DescribeUnreadable(pid)} - answered NOT the recorded process");
+                    return false;
+                }
             }
+        }
+
+        /// <summary>
+        /// Why a pid's start time could not be read, for the decision's log line. On macOS and Linux
+        /// this asks kill(pid, 0), which fails only with ESRCH (no such process) or EPERM (it exists
+        /// and belongs to another user) - EINVAL is for an invalid signal number, and 0 is valid. On
+        /// Windows there is no such second question; the caller's line carries the native error (5 is
+        /// ERROR_ACCESS_DENIED), and this says only that the open was refused. Never sends anything
+        /// to pid 0 or below, which kill reads as a process GROUP rather than a process.
+        /// </summary>
+        internal static string DescribeUnreadable(int pid)
+        {
+            if (pid <= 0) return "not a process id (a record holding it is corrupt)";
+            if (OperatingSystem.IsWindows())
+                return "Windows refused to read it (see the native error: 5 is access denied - another user's, a protected, " +
+                       "or possibly an elevated process; the elevated case is unmeasured)";
+            if (PosixKill(pid, 0) == 0)
+                return "it is this user's but its start time is refused - the only cause measured (macOS) is a zombie, " +
+                       "which has exited and writes nothing";
+            int errno = System.Runtime.InteropServices.Marshal.GetLastPInvokeError();
+            return errno == Esrch
+                ? "it exited while being read"
+                : $"it belongs to ANOTHER USER (kill(pid, 0) errno {errno}); the recorded process ran as this user, so this is not it";
         }
 
         private static void KillTree(int pid)
