@@ -11,6 +11,10 @@ the Control API (rows 1, 4, 5, 6), plus rows 11 and 12, which turned out to be r
 > against the expected take length plus frames decoded at the expected end, with a truncation control
 > that fails). The
 > 2026-11-15 results below are kept unchanged as the record of main 93681fa.
+>
+> **Row 5 was then measured on a working microphone** (the owner's Windows desktop, main b0e6ae8):
+> **PASS, 2 of 2 takes**, audio 0.487 s and 0.683 s short of the video, mean volume -45.2 and -64.3 dB.
+> See the last section, "Row 5 on a working microphone".
 
 | | |
 |---|---|
@@ -668,3 +672,127 @@ Evidence files (`docs/cencon/proof/issue-142/windows/rerun-b0e6ae8/`):
 
 No images are committed. The three end frames I read show the owner's screen, and each is described in
 its row.
+
+---
+
+## Row 5 on a working microphone: the owner's Windows desktop, main b0e6ae8 (2026-11-16)
+
+The laptop could not measure row 5 because its microphone records silence. This section adds the
+measurement from the second Windows machine, whose microphone works. It is the only Windows measurement
+of row 5 with a real signal on the track.
+
+**Row 5 - Records screen + microphone, audio within 1.5 s of video: PASS, 2 of 2 takes.**
+
+| | |
+|---|---|
+| Machine | The owner's working Windows desktop: Windows 11 Enterprise 10.0.26200, Intel i7-13700 (24 logical CPUs), three monitors. Screen 1, the API default, is a 1920x1080 secondary monitor |
+| Date | 2026-11-16, 16:40 - 16:45 EST |
+| Commit under test | `main` at **b0e6ae8**, clean worktree, `dotnet build src/AgentEyes.Core/AgentEyes.Core.csproj -c Release` (0 errors) |
+| Binary that ran | `agenteyes.exe serve --port 7894` from that build, embedded **1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb**. One serve process per take (pid 68796, then pid 86472), started and stopped by the seat. It was NOT installed |
+| ffmpeg | the installed app's **9.0.2**, used read-only via `QA_RECORD_FFMPEG_DIR` (no ffmpeg is next to a dev build) |
+| The owner's installed app | **left untouched and idle throughout** (port 7882, `State=idle` before every take). Embedded commit **1.11.11+01ada189948e03a6acd858889ea255ca4066c78e** (`01ada18`, "Release v1.11.11"), running since 2026-11-13. That is **pre-#146 and pre-#156**, so it ignores `capture.lock`, and nothing about cross-process behaviour can be read from it. (The brief expected 93681fa. The binary on disk says 01ada18) |
+| Settings | **API defaults**: `{"mode":"video","source":"mic","mic":"Microphone (FDUCE SL40 Audio Device)"}`. That means 30 fps, denoise on, leveling on, the gate at its default for a mic source, mic gain 100%. The mic had to be named: the headless host refuses a mic source without one (`mic is required for this source`). I named the mic the owner's own presets use (five of them), and changed nothing in his audio settings, presets or default device |
+| Load | Windows `LoadPercentage` during the takes: take 1 37 - 99%, take 2 40 - 83% (the owner's Director and agent sessions were running) |
+| Test gate | Not run. This is a docs-only change, and the brief said not to run the full suite on this machine |
+
+### The two takes
+
+Each take ran for 65 s of wall clock at default settings. I followed post-processing in the manifest's
+`PostProcessing.mux.State`, not `/status`. `/status` said `idle` within 0.03 s of the stop returning,
+before the mux had finished (#159).
+
+| | take 1 (`2026-11-16_164121_video`) | take 2 (`2026-11-16_164336_video`) |
+|---|---|---|
+| Stop response `DurationSeconds` | 67.85 | 67.69 |
+| Manifest `DurationSeconds` / `CapturedSeconds` | 68.67 / 68.56 | 68.53 / 68.43 |
+| **Video**, `recording.mp4` (ffprobe stream duration; decoded frames) | **68.667 s**, 1942 frames (`nb_frames` = `nb_read_frames` = 1942) | **68.533 s**, 1910 frames (1910 = 1910) |
+| **Audio**, `recording.mp4` (ffprobe stream duration) | **68.180 s**, aac 48000 Hz stereo, 3197 packets | **67.850 s**, aac 48000 Hz stereo, 3182 packets |
+| Last packet end, video / audio | 68.667 / 68.180 s | 68.533 / 67.850 s |
+| **Audio short of video** | **0.487 s** (within 1.5 s) | **0.683 s** (within 1.5 s) |
+| Same, in the capture `recording.original.mp4` (44100 Hz) | 0.500 s (68.667 vs 68.167 last packet end) | 0.687 s (68.533 vs 67.846) |
+| Audio packet gaps > 50 ms, capture and final | **0 and 0** | **0 and 0** |
+| Full decode of `recording.mp4` | exit 0, no stderr | exit 0, no stderr |
+| Mux | `done/1`, 4.87 s after the stop was sent | `done/1`, 3.75 s after the stop was sent |
+
+**The numbers sit inside the range the other machines measured.** The laptop's silent take was 0.723 s
+short, and Linux measured 0.095 s and 0.080 s on main. On Windows the audio track consistently ends
+0.5 - 0.7 s before the video. That is within the criterion. It is also about five to eight times the
+Linux figure. I am stating it as an observation, not a defect: the shortfall is already present in the
+capture (`recording.original.mp4`), so it is not introduced by the mux. Nothing at default settings
+resembled #184's 4.5 s.
+
+### The audio has content - this is not the laptop's silence
+
+| | take 1 | take 2 | laptop (for comparison) |
+|---|---|---|---|
+| `volumedetect` mean, `recording.mp4` | **-45.2 dB** | **-64.3 dB** | -68.5 dB (mic floor -96.7 dBFS) |
+| `volumedetect` max, `recording.mp4` | **-6.5 dB** | **-25.4 dB** | -49.5 dB |
+| `volumedetect` mean / max, capture | -48.7 / -6.8 dB | -66.4 / -25.0 dB | -80.3 dB mean |
+| RMS per 10 s window | -71.5, -68.5, -71.5, -65.7, **-38.2**, -64.6, **-42.8** | -77.7, -77.7, -71.7, -67.7, -78.2, **-56.6**, -76.2 | |
+
+Something real was recorded on both takes. The signal varies window by window, with loud events of up to
+-6.5 dB, so this is not a constant floor. **But it was room sound, not speech.** Nobody spoke to the mic
+during either take: the seat had no way to make a reference sound without playing audio on the owner's
+machine, and I chose not to. Take 2's transcript shows the typical Whisper output for a near-silent track
+("Thank you." five times). So these takes prove that **the tracks line up and that the mic chain
+recorded a live signal.** They do not prove that speech lines up with the picture (lip sync). Only the
+track lengths were compared.
+
+### The three carried limits
+
+1. **#157 was not exercised.** Neither take dropped audio samples: 0 audio packet gaps over 50 ms in
+   the capture and the final file on both takes. The two-pass mux therefore had no gap to close. **A
+   clean row 5 here does not retire #157**, which bites only when samples drop under load. The capture
+   log's `drop=15` (take 1) and `drop=31` (take 2) are ffmpeg's **video** frame drop counters at 30 fps,
+   not audio.
+2. **#184 is not inside these takes.** They ran at the default 30 fps, and both shortfalls are under 0.7 s.
+3. **#159.** Mux completion was read from the manifest, not from `/status` (see the table above).
+
+**#113 and #156 seen as presences, on healthy takes only:**
+- The watchdog was armed at start (`stall 45s, start-up 45s, every 2s`) and stopped before the writer.
+- Liveness read `growing` in every sample.
+- No capture fault was reported.
+- Each serve took the claim, recorded its writer pid in the manifest's `CaptureOwner`, and released the
+  claim at stop.
+
+### What I touched on the owner's machine
+
+- **Two recordings were added to his library**, as the row requires: `2026-11-16_164121_video` and
+  `2026-11-16_164336_video`. Nothing was deleted.
+- **I made exactly two takes**, plus one start request at 16:40:56 that was refused before any capture
+  (`mic is required for this source`), which created no directory.
+- **Take 1's transcription was cut short** when my driver stopped its serve about 5 s after the stop.
+  Take 2's serve then found it in the library backlog (`TranscriptionBacklog ... pending=1`) and
+  transcribed it. Take 1 now has its transcript but no `walkthrough.html`. For take 2, the driver waited
+  for `PendingTranscriptions=0` before stopping. Note the consequence: **a dev serve pointed at the real
+  library also works on the owner's own untranscribed recordings.** There were none today (`pending=0`
+  before take 1), but this is the same exposure #161 describes.
+- **An unintended file: `%LOCALAPPDATA%\AgentEyes\host-id` (32 bytes) was CREATED by my serve** at
+  16:41:21 (`[CaptureLock] ReadOrCreateHostId: created ...`). This is #156's code. The owner's installed
+  app is pre-#156 and never created it, and its CreationTime is that second. I verified it read-only,
+  reported it to the lead at once, and **left it in place**. It is inert to his installed app, and any
+  #156+ install creates it anyway. It is another instance of #161.
+  The lead ruled to **leave it**: it is the machine's stable identity for #156's cross-host claims, and
+  deleting it would make the next install mint a different id, turning any earlier claim into a foreign
+  host's. It is the config-directory case of #161, not only the log case.
+- **364 log lines** from my two serve pids went into his `logs\AgentEyes-20261116.log` (the #161 class
+  again).
+- **Nothing else.** No ffmpeg was killed: none was running before or after either take, apart from the
+  ones my serve started and stopped. No preset, audio setting or default device was changed. His app
+  was not stopped, restarted or reinstalled. No process of mine is left running. The build is in a
+  separate git worktree, not in his installed app folder.
+
+### What this section does NOT cover
+
+- **Speech-to-picture sync.** Only track lengths were compared, on room sound, not on a reference signal.
+- **#157 under load.** No samples were dropped.
+- **Low frame rates (#184, #188).** Deliberately not run.
+- **The installed app path.** These takes ran through `agenteyes serve`, the headless host, not
+  `AgentEyesApp.exe`. The capture and mux code is shared, but the WPF app's own start path was not
+  exercised by this row on this machine.
+- **More than two takes**, and any mic other than the FDUCE SL40.
+- **#113's failure paths and #156 against a second process.** Not exercised.
+
+Evidence: `windows/rerun-b0e6ae8/row5-working-mic.txt`. It holds both driver transcripts, the serve
+output, the full ffprobe / volumedetect / astats analysis, the first and last capture progress lines,
+both final manifests, and the relevant app log lines. User path and host name are scrubbed.

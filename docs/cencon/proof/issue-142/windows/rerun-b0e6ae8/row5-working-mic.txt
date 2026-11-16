@@ -1,0 +1,451 @@
+# Issue #142 row 5 on main b0e6ae8 - the owner's Windows desktop (working microphone), 2026-11-16
+# Two takes, screen + microphone, API defaults (30 fps, denoise on, leveling on, gate default).
+# Driver: the seat's own 'agenteyes serve --port 7894' built from main b0e6ae8 (NOT installed),
+# driven over the Control API. The owner's installed app (port 7882) was idle throughout and untouched.
+# Analysis: the installed ffprobe/ffmpeg 9.0.2, read-only. Paths, user and host name scrubbed.
+# CPU: 13th Gen Intel Core i7-13700, 24 logical CPUs. Three monitors; screen 1 is a 1920x1080 secondary.
+# The first start attempt (16:40:56) was refused with 'mic is required for this source' - the headless
+# host has no default mic - so the mic named in five of the owner's own presets was passed explicitly.
+
+################ take1 ################
+
+## Driver transcript
+# row5 take1 driver
+16:41:18.755 built exe embedded=1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb
+16:41:18.786 ffmpeg pids before (not mine, never touched): 
+16:41:18.851 owner app /status State=idle
+16:41:18.870 started serve pid=68796
+16:41:19.928 devices: {"monitors":[{"Index":1,"Width":1920,"Height":1080,"Primary":false,"Name":"DISPLAY1","X":1920,"Y":-5},{"Index":2,"Width":1920,"Height":1080,"Primary":true,"Name":"DISPLAY3","X":0,"Y":0},{"Index":3,"Width":1366,"Height":768,"Primary":false,"Name":"DISPLAY2","X":1173,"Y":1080}],"mics":[{"Number":0,"Name":"Headset Microphone (Yealink UH36)"},{"Number":1,"Name":"Microphone (FDUCE SL40 Audio Device)"},{"Number":2,"Name":"Microphone (HD Pro Webcam C920)"}],"dshow":["Headset Microphone (Yealink UH36)","Microphone (FDUCE SL40 Audio Device)","Microphone (HD Pro Webcam C920)"],"cameras":["HD Pro Webcam C920","OBS Virtual Camera"],"systemAudio":"(WASAPI loopback of the default output)"}
+16:41:21.073 load before=68%
+16:41:21.076 POST /record/start {"mode":"video","source":"mic","mic":"Microphone (FDUCE SL40 Audio Device)"}
+16:41:22.033 start: State=recording Source=mic Dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video
+16:41:33.211 status State=recording Elapsed=10.79 MicLevel=0 Liveness=growing Bytes=321171 Fault= load=79%
+16:41:44.398 status State=recording Elapsed=21.96 MicLevel=0 Liveness=growing Bytes=698012 Fault= load=77%
+16:41:55.619 status State=recording Elapsed=33.14 MicLevel=0 Liveness=growing Bytes=1279763 Fault= load=99%
+16:42:06.753 status State=recording Elapsed=44.36 MicLevel=0.002 Liveness=growing Bytes=1745657 Fault= load=37%
+16:42:17.926 status State=recording Elapsed=55.5 MicLevel=0 Liveness=growing Bytes=2153698 Fault= load=64%
+16:42:29.078 status State=recording Elapsed=66.66 MicLevel=0.027 Liveness=growing Bytes=2714707 Fault= load=59%
+16:42:29.081 POST /record/stop
+16:42:30.314 stop response after 1.21s: {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_164121_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_164121_video\\recording.mp4","DurationSeconds":67.85,"Shots":0}
+16:42:30.336 status after stop: State=idle LastStopFailed=False LastStopError=
+16:42:30.885 manifest at +1.79s: mux=running/1
+16:42:33.964 manifest at +4.87s: mux=done/1 thumbnail=done/1
+16:42:34.001 post-processing settled at +4.9s after stop was sent
+16:42:34.032 file shots 1
+16:42:34.037 file audio_16k.wav 2181838
+16:42:34.045 file capture.lock 0
+16:42:34.055 file manifest.json 1749
+16:42:34.067 file mux.lock 0
+16:42:34.078 file raw.mp4.ffmpeg.log 20630
+16:42:34.088 file recording.mp4 3372021
+16:42:34.098 file recording.original.mp4 3077382
+16:42:34.108 file thumb.jpg 19585
+16:42:34.118 DIR=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video
+16:42:35.157 stopped my serve pid=68796; ffmpeg pids after:
+
+## serve stdout
+[ok] AgentEyes headless service listening on http://127.0.0.1:7894/
+     recordings -> %USERPROFILE%\Videos\AgentEyes
+     signed in to DevThrottle: yes
+  14 frame(s) served on demand (none written to disk)
+  transcribing (DevThrottle, whisper-large-v3) ...
+
+## Analysis
+ffprobe: ffprobe version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers
+=== recording.mp4 size=3372021
+--- streams
+stream|index=0|codec_name=h264|codec_type=video|start_time=0.000000|duration=68.666667|nb_frames=1942
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|start_time=0.000000|duration=68.180000|nb_frames=3197
+format|duration=68.666667
+--- decoded video frames (count_frames)
+stream|nb_read_frames=1942
+--- last packet end (pts_time + duration_time)
+  v:0: last packet ends at 68.667 s (1942 packets)
+  a:0: last packet ends at 68.180 s (3197 packets)
+--- audio pts gaps > 50 ms (sample drops closed or left as gaps)
+  audio pts gaps >50ms: 0, missing ~0.000 s, last end 68.180
+=== recording.original.mp4 size=3077382
+--- streams
+stream|index=0|codec_name=h264|codec_type=video|start_time=0.000000|duration=69.233333|nb_frames=N/A
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=44100|channels=2|start_time=0.000000|duration=68.190227|nb_frames=N/A
+format|duration=69.233333
+--- decoded video frames (count_frames)
+stream|nb_read_frames=1942
+--- last packet end (pts_time + duration_time)
+  v:0: last packet ends at 68.667 s (1942 packets)
+  a:0: last packet ends at 68.167 s (2937 packets)
+--- audio pts gaps > 50 ms (sample drops closed or left as gaps)
+  audio pts gaps >50ms: 0, missing ~0.000 s, last end 68.167
+=== full decode of recording.mp4
+  exit=0 stderr_lines=0
+=== volumedetect, recording.mp4 audio
+[Parsed_volumedetect_0 @ 000002d2cee5db40] n_samples: 0
+[Parsed_volumedetect_0 @ 000002d2ceec3200] n_samples: 6545280
+[Parsed_volumedetect_0 @ 000002d2ceec3200] mean_volume: -45.2 dB
+[Parsed_volumedetect_0 @ 000002d2ceec3200] max_volume: -6.5 dB
+=== volumedetect, recording.original.mp4 audio (raw capture)
+[Parsed_volumedetect_0 @ 0000018d6d567980] n_samples: 0
+[Parsed_volumedetect_0 @ 0000018d6f245b00] n_samples: 6012928
+[Parsed_volumedetect_0 @ 0000018d6f245b00] mean_volume: -48.7 dB
+[Parsed_volumedetect_0 @ 0000018d6f245b00] max_volume: -6.8 dB
+=== astats per 10 s window of recording.mp4 (RMS level dB) - is there content throughout
+  window 1: RMS_level=-71.517078
+  window 2: RMS_level=-68.523836
+  window 3: RMS_level=-71.538728
+  window 4: RMS_level=-65.701147
+  window 5: RMS_level=-38.222939
+  window 6: RMS_level=-64.616084
+  window 7: RMS_level=-42.831895
+=== manifest.json
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "CreatedUtc": "2026-11-16T21:41:21.2728334Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "Microphone (FDUCE SL40 Audio Device)",
+  "DurationSeconds": 68.67,
+  "VideoFile": "recording.mp4",
+  "CapturedSeconds": 68.56,
+  "FfmpegCommand": "\u0022%USERPROFILE%\\AppData\\Local\\AgentEyes\\app\\ffmpeg.exe\u0022 -y -f gdigrab -thread_queue_size 1024 -framerate 30 -offset_x 1920 -offset_y -5 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i \u0022audio=Microphone (FDUCE SL40 Audio Device)\u0022 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags \u002Bfrag_keyframe\u002Bempty_moov\u002Bdefault_base_moof\u002Bdelay_moov -frag_duration 2000000 -flush_packets 1 %USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_164121_video\\raw.mp4",
+  "Transcripts": {},
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [],
+  "Files": [
+    "recording.mp4",
+    "recording.original.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [
+    "recording.original.mp4"
+  ],
+  "CaptureOwner": {
+    "Host": "<owner-desktop>",
+    "Pid": 68796,
+    "ProcessStartUtc": "2026-11-16T21:41:18.8625453Z"
+  },
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T21:42:30.3102449Z",
+      "AttemptedBy": [
+        "attempt 1 at 2026-11-16T21:42:30.3102449Z by agenteyes pid 68796 on <owner-desktop>"
+      ]
+    },
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T21:42:33.7761242Z"
+    }
+  }
+}
+
+## capture log: first and last ffmpeg progress lines (drop= counts VIDEO frames, not audio samples)
+frame=    0 fps=0.0 q=0.0 size=       0KiB time=00:00:00.02 bitrate=   0.0kbits/s speed=0.0456x elapsed=0:00:00.50    
+frame= 1942 fps= 28 q=-1.0 Lsize=    3005KiB time=00:01:08.56 bitrate= 359.1kbits/s dup=0 drop=15 speed=1.01x elapsed=0:01:08.17    
+
+## App log lines from serve pid 68796 (claim, watchdog, mux, transcription, faults)
+16:41:21.284 [pid 68796] [INFO] [CaptureLock] TryAcquire: 2026-11-16_164121_video for capture session
+16:41:21.288 [pid 68796] [INFO] [CaptureLock] ReadOrCreateHostId: created %USERPROFILE%\AppData\Local\AgentEyes\host-id
+16:41:21.309 [pid 68796] [INFO] [CaptureLock] TryAcquire: 2026-11-16_164121_video claimed by capture session of pid 68796 on host <owner-desktop> (started 2026-11-16T21:41:21.2972275Z)
+16:41:21.983 [pid 68796] [INFO] [RecordingStartSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video started with no failures
+16:41:21.986 [pid 68796] [INFO] [RecordingService] StartWatchdog: watching %USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:41:22.016 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:41:32.080 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:41:43.255 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:41:54.481 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:42:05.648 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:42:16.795 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:42:27.951 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:42:29.123 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:42:29.127 [pid 68796] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+16:42:30.288 [pid 68796] [INFO] [RecordingStopSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video completed with no failures
+16:42:30.296 [pid 68796] [INFO] [CaptureLock] Release: 2026-11-16_164121_video released by pid 68796
+16:42:30.297 [pid 68796] [INFO] stop: return dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video dur=67.9s deferredMux=True (HUD may close now)
+16:42:30.316 [pid 68796] [INFO] [PostRecording] stage mux: start dir=2026-11-16_164121_video
+16:42:30.331 [pid 68796] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
+16:42:33.478 [pid 68796] [INFO] [PostRecording] stage mux: done dir=2026-11-16_164121_video in 3.2s
+16:42:33.791 [pid 68796] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_164121_video attempt 1/3
+16:42:34.042 [pid 68796] [INFO] [Transcriber] TranscribeWavAsync: wavPath=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video\audio_16k.wav
+16:42:34.044 [pid 68796] [INFO] [DevThrottleClient] TranscribeAsync: wavPath=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video\audio_16k.wav
+16:42:34.066 [pid 68796] [INFO] [BatchTranscription] split 2181838 bytes into 2 parts; transcribing up to 4 in parallel
+
+################ take2 ################
+
+## Driver transcript
+# row5 take2 driver
+16:43:33.503 built exe embedded=1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb
+16:43:33.537 ffmpeg pids before (not mine, never touched): 
+16:43:33.666 owner app /status State=idle
+16:43:33.688 started serve pid=86472
+16:43:34.850 devices: {"monitors":[{"Index":1,"Width":1920,"Height":1080,"Primary":false,"Name":"DISPLAY1","X":1920,"Y":-5},{"Index":2,"Width":1920,"Height":1080,"Primary":true,"Name":"DISPLAY3","X":0,"Y":0},{"Index":3,"Width":1366,"Height":768,"Primary":false,"Name":"DISPLAY2","X":1173,"Y":1080}],"mics":[{"Number":0,"Name":"Headset Microphone (Yealink UH36)"},{"Number":1,"Name":"Microphone (FDUCE SL40 Audio Device)"},{"Number":2,"Name":"Microphone (HD Pro Webcam C920)"}],"dshow":["Headset Microphone (Yealink UH36)","Microphone (FDUCE SL40 Audio Device)","Microphone (HD Pro Webcam C920)"],"cameras":["HD Pro Webcam C920","OBS Virtual Camera"],"systemAudio":"(WASAPI loopback of the default output)"}
+16:43:36.006 load before=59%
+16:43:36.009 POST /record/start {"mode":"video","source":"mic","mic":"Microphone (FDUCE SL40 Audio Device)"}
+16:43:36.861 start: State=recording Source=mic Dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video
+16:43:48.011 status State=recording Elapsed=10.72 MicLevel=0 Liveness=growing Bytes=342134 Fault= load=51%
+16:43:59.138 status State=recording Elapsed=21.85 MicLevel=0 Liveness=growing Bytes=701860 Fault= load=83%
+16:44:10.339 status State=recording Elapsed=32.99 MicLevel=0.002 Liveness=growing Bytes=1360500 Fault= load=80%
+16:44:21.498 status State=recording Elapsed=44.19 MicLevel=0 Liveness=growing Bytes=1835803 Fault= load=41%
+16:44:32.653 status State=recording Elapsed=55.34 MicLevel=0.01 Liveness=growing Bytes=2185125 Fault= load=40%
+16:44:43.827 status State=recording Elapsed=66.51 MicLevel=0 Liveness=growing Bytes=2585176 Fault= load=45%
+16:44:43.829 POST /record/stop
+16:44:44.994 stop response after 1.14s: {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_164336_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_164336_video\\recording.mp4","DurationSeconds":67.69,"Shots":0}
+16:44:45.021 status after stop: State=idle LastStopFailed=False LastStopError=
+16:44:45.550 manifest at +1.71s: mux=running/1
+16:44:47.591 manifest at +3.75s: mux=done/1
+16:44:47.598 post-processing settled at +3.76s after stop was sent
+16:45:01.814 PendingTranscriptions=0 after waiting 14.2s
+16:45:01.828 file shots 1
+16:45:01.833 file audio_16k.wav 2171278
+16:45:01.844 file capture.lock 0
+16:45:01.856 file manifest.json 3201
+16:45:01.868 file mux.lock 0
+16:45:01.880 file raw.mp4.ffmpeg.log 21285
+16:45:01.890 file recording.mp4 3094509
+16:45:01.903 file recording.original.mp4 2800246
+16:45:01.914 file thumb.jpg 21006
+16:45:01.926 file transcript.en.vtt 246
+16:45:01.941 file transcript.json 572
+16:45:01.953 file transcript.txt 106
+16:45:01.964 file walkthrough.html 3921
+16:45:01.974 DIR=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video
+16:45:03.040 stopped my serve pid=86472; ffmpeg pids after:
+
+## serve stdout
+[ok] AgentEyes headless service listening on http://127.0.0.1:7894/
+     recordings -> %USERPROFILE%\Videos\AgentEyes
+     signed in to DevThrottle: yes
+  14 frame(s) served on demand (none written to disk)
+  transcribing (DevThrottle, whisper-large-v3) ...
+  6 transcript segment(s)
+  naming the recording (devthrottle/agenteyes) ...
+  title: Brief Thank You Recording  (221 tokens)
+  assembling walkthrough (HTML) ... done
+[ok] walkthrough.html + transcript.json written to %USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video
+  14 frame(s) served on demand (none written to disk)
+  transcribing (DevThrottle, whisper-large-v3) ...
+  15 transcript segment(s)
+  naming the recording (devthrottle/agenteyes) ...
+
+## Analysis
+ffprobe: ffprobe version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers
+=== recording.mp4 size=3094509
+--- streams
+stream|index=0|codec_name=h264|codec_type=video|start_time=0.000000|duration=68.533333|nb_frames=1910
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|start_time=0.000000|duration=67.850000|nb_frames=3182
+format|duration=68.533333
+--- decoded video frames (count_frames)
+stream|nb_read_frames=1910
+--- last packet end (pts_time + duration_time)
+  v:0: last packet ends at 68.533 s (1910 packets)
+  a:0: last packet ends at 67.850 s (3182 packets)
+--- audio pts gaps > 50 ms (sample drops closed or left as gaps)
+  audio pts gaps >50ms: 0, missing ~0.000 s, last end 67.850
+=== recording.original.mp4 size=2800246
+--- streams
+stream|index=0|codec_name=h264|codec_type=video|start_time=0.000000|duration=69.000000|nb_frames=N/A
+stream|index=1|codec_name=aac|codec_type=audio|sample_rate=44100|channels=2|start_time=0.000000|duration=67.869229|nb_frames=N/A
+format|duration=69.000000
+--- decoded video frames (count_frames)
+stream|nb_read_frames=1910
+--- last packet end (pts_time + duration_time)
+  v:0: last packet ends at 68.533 s (1910 packets)
+  a:0: last packet ends at 67.846 s (2923 packets)
+--- audio pts gaps > 50 ms (sample drops closed or left as gaps)
+  audio pts gaps >50ms: 0, missing ~0.000 s, last end 67.846
+=== full decode of recording.mp4
+  exit=0 stderr_lines=0
+=== volumedetect, recording.mp4 audio
+[Parsed_volumedetect_0 @ 00000278da85bd80] n_samples: 0
+[Parsed_volumedetect_0 @ 00000278d8c78a40] n_samples: 6513600
+[Parsed_volumedetect_0 @ 00000278d8c78a40] mean_volume: -64.3 dB
+[Parsed_volumedetect_0 @ 00000278d8c78a40] max_volume: -25.4 dB
+=== volumedetect, recording.original.mp4 audio (raw capture)
+[Parsed_volumedetect_0 @ 000001ec0d734500] n_samples: 0
+[Parsed_volumedetect_0 @ 000001ec0b73d200] n_samples: 5984256
+[Parsed_volumedetect_0 @ 000001ec0b73d200] mean_volume: -66.4 dB
+[Parsed_volumedetect_0 @ 000001ec0b73d200] max_volume: -25.0 dB
+=== astats per 10 s window of recording.mp4 (RMS level dB) - is there content throughout
+  window 1: RMS_level=-77.670955
+  window 2: RMS_level=-77.707698
+  window 3: RMS_level=-71.719182
+  window 4: RMS_level=-67.657250
+  window 5: RMS_level=-78.240045
+  window 6: RMS_level=-56.613185
+  window 7: RMS_level=-76.189609
+=== manifest.json
+{
+  "Tool": "AgentEyes",
+  "Mode": "video",
+  "Imported": false,
+  "Label": "video",
+  "Title": "Brief Thank You Recording",
+  "Description": "A short recording consisting only of repeated thank-yous with no clear subject or purpose.",
+  "AiCost": {
+    "Model": "devthrottle/agenteyes",
+    "PromptTokens": 183,
+    "CompletionTokens": 38,
+    "CostUsd": 0,
+    "IsEstimate": false,
+    "Basis": "DevThrottle usage (221 tokens)"
+  },
+  "CreatedUtc": "2026-11-16T21:43:36.1656319Z",
+  "MonitorIndex": 1,
+  "MonitorName": "DISPLAY1",
+  "Microphone": "Microphone (FDUCE SL40 Audio Device)",
+  "DurationSeconds": 68.53,
+  "VideoFile": "recording.mp4",
+  "CapturedSeconds": 68.43,
+  "Transcript": "transcript.json",
+  "Walkthrough": "walkthrough.html",
+  "FfmpegCommand": "\u0022%USERPROFILE%\\AppData\\Local\\AgentEyes\\app\\ffmpeg.exe\u0022 -y -f gdigrab -thread_queue_size 1024 -framerate 30 -offset_x 1920 -offset_y -5 -video_size 1920x1080 -i desktop -f dshow -thread_queue_size 1024 -audio_buffer_size 80 -i \u0022audio=Microphone (FDUCE SL40 Audio Device)\u0022 -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -c:a aac -b:a 128k -movflags \u002Bfrag_keyframe\u002Bempty_moov\u002Bdefault_base_moof\u002Bdelay_moov -frag_duration 2000000 -flush_packets 1 %USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_164336_video\\raw.mp4",
+  "Transcripts": {
+    "en": "transcript.en.vtt"
+  },
+  "TranscribeAttempts": 1,
+  "TitleAttempts": 0,
+  "ThumbAttempts": 1,
+  "Shots": [
+    {
+      "OffsetSeconds": 0,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 5,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 10,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 15,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 20,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 25,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 30,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 35,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 40,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 45,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 50,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 55,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 60,
+      "File": ""
+    },
+    {
+      "OffsetSeconds": 65,
+      "File": ""
+    }
+  ],
+  "Files": [
+    "recording.mp4",
+    "recording.original.mp4"
+  ],
+  "Keep": false,
+  "Housekeeping": [],
+  "OriginalFiles": [
+    "recording.original.mp4"
+  ],
+  "CaptureOwner": {
+    "Host": "<owner-desktop>",
+    "Pid": 86472,
+    "ProcessStartUtc": "2026-11-16T21:43:33.6794482Z"
+  },
+  "PostProcessing": {
+    "mux": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T21:44:44.9918029Z",
+      "AttemptedBy": [
+        "attempt 1 at 2026-11-16T21:44:44.9918029Z by agenteyes pid 86472 on <owner-desktop>"
+      ]
+    },
+    "thumbnail": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T21:44:47.8430937Z"
+    },
+    "package": {
+      "State": "done",
+      "Attempts": 1,
+      "LastAttemptUtc": "2026-11-16T21:44:54.5821524Z"
+    }
+  }
+}
+
+## capture log: first and last ffmpeg progress lines (drop= counts VIDEO frames, not audio samples)
+frame=    0 fps=0.0 q=0.0 size=       0KiB time=00:00:00.02 bitrate=   0.0kbits/s speed=0.046x elapsed=0:00:00.50    
+frame= 1910 fps= 28 q=-1.0 Lsize=    2735KiB time=00:01:08.43 bitrate= 327.4kbits/s dup=0 drop=31 speed=   1x elapsed=0:01:08.10    
+
+## App log lines from serve pid 86472 (claim, watchdog, mux, transcription, faults)
+16:43:36.172 [pid 86472] [INFO] [CaptureLock] TryAcquire: 2026-11-16_164336_video for capture session
+16:43:36.183 [pid 86472] [INFO] [CaptureLock] TryAcquire: 2026-11-16_164336_video claimed by capture session of pid 86472 on host <owner-desktop> (started 2026-11-16T21:43:36.1751338Z)
+16:43:36.802 [pid 86472] [INFO] [RecordingStartSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video started with no failures
+16:43:36.806 [pid 86472] [INFO] [RecordingService] StartWatchdog: watching %USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video\raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:43:36.843 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:43:46.901 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:43:58.040 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:09.178 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:20.372 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:31.523 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:42.684 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:43.858 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:43.861 [pid 86472] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+16:44:44.973 [pid 86472] [INFO] [RecordingStopSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video completed with no failures
+16:44:44.980 [pid 86472] [INFO] [CaptureLock] Release: 2026-11-16_164336_video released by pid 86472
+16:44:44.980 [pid 86472] [INFO] stop: return dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video dur=67.7s deferredMux=True (HUD may close now)
+16:44:44.999 [pid 86472] [INFO] [PostRecording] stage mux: start dir=2026-11-16_164336_video
+16:44:45.015 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:47.574 [pid 86472] [INFO] [PostRecording] stage mux: done dir=2026-11-16_164336_video in 2.6s
+16:44:47.615 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=2
+16:44:47.856 [pid 86472] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_164336_video attempt 1/3
+16:44:48.006 [pid 86472] [INFO] [Transcriber] TranscribeWavAsync: wavPath=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video\audio_16k.wav
+16:44:48.009 [pid 86472] [INFO] [DevThrottleClient] TranscribeAsync: wavPath=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164336_video\audio_16k.wav
+16:44:48.023 [pid 86472] [INFO] [BatchTranscription] split 2171278 bytes into 2 parts; transcribing up to 4 in parallel
+16:44:49.646 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=2
+16:44:51.298 [pid 86472] [INFO] [DevThrottleClient] TranscribeAsync: length=54, duration=67.85000000000001, segments=6
+16:44:51.300 [pid 86472] [INFO] [Transcriber] TranscribeWavAsync: length=54, segments=6
+16:44:51.678 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:53.715 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:55.741 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:56.548 [pid 86472] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_164121_video attempt 2/3
+16:44:56.827 [pid 86472] [INFO] [Transcriber] TranscribeWavAsync: wavPath=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video\audio_16k.wav
+16:44:56.828 [pid 86472] [INFO] [DevThrottleClient] TranscribeAsync: wavPath=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164121_video\audio_16k.wav
+16:44:56.839 [pid 86472] [INFO] [BatchTranscription] split 2181838 bytes into 2 parts; transcribing up to 4 in parallel
+16:44:57.762 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:44:59.782 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=1
+16:45:00.700 [pid 86472] [INFO] [DevThrottleClient] TranscribeAsync: length=233, duration=68.18, segments=15
+16:45:00.701 [pid 86472] [INFO] [Transcriber] TranscribeWavAsync: length=233, segments=15
+16:45:01.812 [pid 86472] [INFO] [TranscriptionBacklog] FindPending: root=%USERPROFILE%\Videos\AgentEyes, pending=0
