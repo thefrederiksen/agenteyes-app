@@ -8,6 +8,55 @@ the published body (acceptance criterion 3) is the lead's step after the gate me
 
     gh release edit v1.12.0 --repo thefrederiksen/agenteyes-app --notes-file docs/releases/v1.12.0.md
 
+## QA bounce 1 - two sentences changed, nothing else
+
+QA (`docs/cencon/proof/issue-197/qa-report.md`, comment 6943232861) failed two of my sentences. Both
+are fixed; no other sentence, version, tag, code or test changed.
+
+**Defect 1 (#159, Linux).** My first pass took its figure from a summary of the Linux seat's prose,
+not from the seat's raw table, and named the wrong starting point. The new figures come from the raw
+rows of `docs/cencon/proof/issue-193/linux-install/take.txt` (PR #198, branch
+`issue-193-linux-install-qa`), quoted here so the next reader can check them instead of trusting me:
+
+    18:22:02.118 POST /record/stop  (dir=~/Videos/AgentEyes/2026-11-16_182129_video)
+    18:22:02.750 stop+1s status=[idle False] manifest.mux=[running] files=[capture.lock manifest.json mux.lock raw.mp4 raw.mp4.ffmpeg.log shots ]
+    18:22:03.825 stop+2s status=[idle False] manifest.mux=[running] files=[audio_processed.wav capture.lock manifest.json mux.lock raw.mp4 raw.mp4.ffmpeg.log shots ]
+    18:22:04.898 stop+3s status=[idle False] manifest.mux=[running] files=[audio_processed.wav capture.lock manifest.json mux.lock raw.mp4 raw.mp4.ffmpeg.log recording.mp4.muxing.tmp shots ]
+    18:22:05.974 stop+4s status=[idle False] manifest.mux=[done] files=[capture.lock manifest.json mux.lock raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots thumb.jpg ]
+
+The `stopN s` labels are the script's loop count; the real offsets come from the timestamps.
+First `idle` read: 02.750 - 02.118 = 0.63 s after the stop request. Last read without
+`recording.mp4`: 04.898 - 02.118 = 2.78 s after the stop request, and 04.898 - 02.750 = 2.15 s
+after `idle` was first read. First read with `recording.mp4`: 05.974 - 02.118 = 3.86 s after the
+stop request, 05.974 - 04.898 = 1.08 s after the last missing read. The new sentence rounds these to
+2.8 s, 2.1 s and 1.1 s:
+
+    after a 32 s take, `recording.mp4` was still
+      missing 2.8 s after the stop request, by which time `/status` had read `idle` for 2.1 s (it was
+      there 1.1 s later), and the `File` path that `/record/stop` returned did
+      not exist yet.
+
+The rest of that sentence stands: the `File` returned at 02.118 is `.../recording.mp4`, absent from
+the listings until 05.974, and there is no `recording.mp4.muxing.tmp` in the first two listings.
+
+**Defect 2 (SmartScreen).** "they are a link, though they do not look like one" was wrong: screenshot
+`06-smartscreen-windows-protected.png` (PR #199) shows "More info" underlined. New text, QA's wording:
+"they are a small underlined link, easy to miss."
+
+**Re-verified after the fix** (sections 4b and 1/7 below are updated to the new text):
+
+- Reversal, re-run over the 13 Before/After pairs parsed from this file's "Every before and after":
+  forward (main `02a4622` + replacements == new notes) `True`; reverse (new notes - replacements ==
+  main) `True`. Control: one character changed outside the edits (`is safe.` -> `is safe!`, line
+  115) gives forward `False`, reverse `False`.
+- `git diff --stat 4c27852` (QA's head) for this round: only `docs/releases/v1.12.0.md` (2 hunks, 2 lines out, 3 in) and this file.
+- ASCII: 0 non-ASCII lines in both files (control: `cafe` with an e-acute counts 1). Attribution:
+  only the `CLAUDE.md` filename. Identity: 0 hits for owner name, domain, `/Users/`, `/home/`,
+  machine name (control: 3 `/Users/` hits in `docs/cencon/proof/issue-142/qa-report-macos.md`).
+- Tests on macOS, .NET SDK 10.0.403 with `DOTNET_ROLL_FORWARD=Major` (no .NET 8 runtime here):
+  `tests/AgentEyes.Tests.Mac` 430 passed, 2 skipped, 0 failed, 432 total;
+  `tests/AgentEyes.Tests.DesktopApp` 23 passed, 0 failed. `/status` read `idle` before the run.
+
 ## The spec
 
 Issue #197: the body's two items, plus four from the Linux install seat (comment of 2026-11-16 23:27Z,
@@ -20,7 +69,7 @@ Windows install seat (comment of 23:38Z, evidence in PR #199
 | 1 | SmartScreen: the first screen is "Windows protected your PC" with only "Don't run"; "More info" must be clicked before "Run anyway" exists | Windows install report, SmartScreen section and section 6 items 1-2 (screenshots 06, 07, 01) |
 | 2 | #157: the post-processing sentence marked Linux only; macOS place of loss read, not tested | #197 body item 1; gate comment 6932209492 |
 | 3 | Section 6: #187 was found by code reading, not by running the app rows | #197 body item 2 |
-| 4 | #159 on Linux: file missing 3.9 s after `idle`, `/record/stop` returns a path that does not exist yet, no `.muxing.tmp` at first | Linux install report N1 (timeline table) |
+| 4 | #159 on Linux: file still missing 2.8 s after the stop request (2.1 s after `idle` was first read), present 1.1 s later; `/record/stop` returns a path that does not exist yet; no `.muxing.tmp` at first | the raw rows of `docs/cencon/proof/issue-193/linux-install/take.txt` (PR #198), quoted under "QA bounce 1" below |
 | 5 | Linux install: Wayland refusal, xrandr, libvlc as root, sign-in failing the install, an update stops a live recording | Linux install report N2, checked against `scripts/linux/install.sh` lines 55, 58-65, 68, 79, 154-160 at the tag |
 | 6 | Section 4: Linux polite stop does not save the installed service's capture (#165), marked inferred | Linux install report N3 |
 | 7 | Smart App Control: unmentioned and unmeasured | Windows install report section 6 item 3 |
@@ -128,7 +177,7 @@ After:
     **Windows will warn you before the installer runs, because it is not signed. Here is what to click.**
     If you downloaded it with a browser and open it from File Explorer, a window says **"Windows
     protected your PC"**, and its only button is **"Don't run"**. Do not click that button. Click the
-    words **"More info"** under the message: they are a link, though they do not look like one. The
+    words **"More info"** under the message: they are a small underlined link, easy to miss. The
     window then shows "Publisher: Unknown publisher" and a second button, **"Run anyway"**. Click
     **"Run anyway"** and the installer opens. If the installer is started some other way, you may see an
     "Open File - Security Warning" box instead, saying the publisher could not be verified. Click
@@ -190,7 +239,8 @@ After:
 
     The missing file itself was
       looked for on macOS, and on Linux on this release: after a 32 s take, `recording.mp4` was still
-      missing 3.9 s after `/status` read `idle`, and the `File` path that `/record/stop` returned did
+      missing 2.8 s after the stop request, by which time `/status` had read `idle` for 2.1 s (it was
+      there 1.1 s later), and the `File` path that `/record/stop` returned did
       not exist yet. On Windows the status read `idle` while the manifest still said the mux was
       running; the file itself was not looked for there.
 
