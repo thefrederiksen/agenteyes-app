@@ -5,17 +5,15 @@ an ordinary file, and one that is only shown leaks has never been shown it does 
 repository. Every file under tests/evidence-identity-corpus/ is planted, one at a time, as the only
 proof file in a throwaway repository root, and the real guard is run on it as CI runs it:
 
-  green/          identity-free files. Each MUST exit 0. They include the shapes a guard that joins
-                  line breaks flags (a pytest decorator, a property setter, ls output, a mention),
-                  and the allowances: RFC 2606 / RFC 6761 reserved domains, systemd unit names
-                  (user@1000.service, getty@tty1.service), and the container test accounts.
-  red/            single-line leak shapes, including UTF-16LE/BE text and JSON-escaped and
-                  URL-encoded forms. Each MUST exit 1 and name the file.
-  declared-miss/  leaks the single-line guard does not catch, BY DESIGN (see the guard's docstring).
-                  The wrapped-* files are every console-wrap shape built in #173 rounds 2 and 3;
-                  catching them is issue #218. Each MUST exit 0 - if one turns red, the guard
-                  changed: update the docstring and move it.
-  declared-flag/  identity-free files the guard flags, BY DESIGN. Each MUST exit 1, same rule.
+  green/          identity-free files that a guard joining EVERY line break flags (a pytest
+                  decorator, a property setter, ls output, a mention, a heading ending in /Users...).
+                  Each MUST exit 0.
+  red/            every wrapped and unwrapped leak shape, including the six QA round 2 found the
+                  round-2 guard missed (trailing spaces/tab before the break, a lone CR, a name that
+                  starts with an allowed one, UTF-16LE). Each MUST exit 1 and name the file.
+  declared-miss/  leaks the wrap rule does not catch, BY DESIGN (see the guard's docstring). Each
+                  MUST exit 0 - if one turns red, the guard changed: update the docstring and move it.
+  declared-flag/  identity-free files the wrap rule flags, BY DESIGN. Each MUST exit 1, same rule.
 
 Every name and address in the corpus is a fake (planted-probe, acme-widgets.io); the corpus holds
 shapes, never an identity. Exit 0 when every file behaves as its directory says, 1 when one does
