@@ -54,7 +54,7 @@ contains 'Input #0': False
 ## 2. AC3 - two separate files, REST Control API
 
 `POST /record/start {"mode":"video","screen":1,"source":"none","camera":"HD Webcam eMeet C960"}`,
-6 s, `POST /record/stop`. Directory `C:\Users\soren\Videos\AgentEyes\2026-08-28_110743_video`.
+6 s, `POST /record/stop`. Directory `C:\Users\<user>\Videos\AgentEyes\2026-08-28_110743_video`.
 
 ```
 POST /record/start -> 200   "State": "recording",  "Camera": "HD Webcam eMeet C960"

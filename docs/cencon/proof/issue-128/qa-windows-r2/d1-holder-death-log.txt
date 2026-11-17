@@ -1,8 +1,8 @@
-15:44:39.736 [pid 17172] [INFO] [MuxCoordinator] RunForPackage: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death
+15:44:39.736 [pid 17172] [INFO] [MuxCoordinator] RunForPackage: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death
 15:44:39.864 [pid 17172] [INFO] [MuxLock] TryAcquire: 2026-11-14_210150_qa128r2death (package) - acquired by pid 17172
 15:44:39.864 [pid 17172] [INFO] [MuxCoordinator] Reconcile: 2026-11-14_210150_qa128r2death
 15:44:39.921 [pid 17172] [INFO] [MuxLock] TryAcquire: 2026-11-14_210150_qa128r2death (finalize) - re-entered, depth 2
-15:44:45.979 [pid 19756] [INFO] [MuxCoordinator] RunForPackage: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death
+15:44:45.979 [pid 19756] [INFO] [MuxCoordinator] RunForPackage: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death
 15:44:46.084 [pid 19756] [INFO] [MuxLock] TryAcquire: 2026-11-14_210150_qa128r2death (package) - acquired by pid 19756
 15:44:46.084 [pid 19756] [INFO] [MuxCoordinator] Reconcile: 2026-11-14_210150_qa128r2death
 15:44:46.086 [pid 19756] [ERROR] [MuxCoordinator] Reconcile: 2026-11-14_210150_qa128r2death - interrupted: mux attempt 1 (started 2026-11-14T20:44:39.8669289Z) never finished - the AgentEyes process running it ended (killed, crashed or restarted) part-way through

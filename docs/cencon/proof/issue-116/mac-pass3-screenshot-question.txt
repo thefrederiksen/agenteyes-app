@@ -15,7 +15,7 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.preflight
   out: preflight=false pid=29240 ppid=1
 
 ===== C. The installed agenteyes (sha256 348b93b8...7022, UNCHANGED before and after) run as a one-shot launchd job with DOTNET_STARTUP_HOOKS=QaCaptureHook.dll
-09:04:40 job com.agenteyes.qa116.wincap argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/b/C', 'QA_CAPTURES': 'win|-x -o -l 711;rect|-x -R 320,162,1280,748', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+09:04:40 job com.agenteyes.qa116.wincap argv ['/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/b/C', 'QA_CAPTURES': 'win|-x -o -l 711;rect|-x -R 320,162,1280,748', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
 $ launchctl bootstrap gui/501 <scratch>/b/C/com.agenteyes.qa116.wincap.plist
   exit=0  
 09:04:41 after 0.5s: state = not running last exit code = 0 
@@ -23,7 +23,7 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.wincap
   exit=0  
   post-bootout print exit=113 (non-zero = the label is gone)
 --- hook report
-09:04:40.722 [hook] pid=29303 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:04:40.722 [hook] pid=29303 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 09:04:40.739 [hook] CGPreflightScreenCaptureAccess() = True
 09:04:40.739 [hook] win: screencapture -x -o -l 711 <scratch>/b/C/win.png
 09:04:40.828 [hook] win: exit=0 ms=88 file_bytes=74194 stderr=''
@@ -35,10 +35,10 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.wincap
 09:05:02
 "CGSSessionScreenIsLocked"=Yes
 09:05:02 POST /record/start screen-only
-{'State': 'recording', 'Source': 'none', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090503_video'}
+{'State': 'recording', 'Source': 'none', 'Dir': '/Users/<user>/Movies/AgentEyes/2026-11-16_090503_video'}
 09:05:09 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
 09:05:09 GET /status recording 6.72
-09:05:09 job com.agenteyes.qa116.wincap2 argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/b/D', 'QA_CAPTURES': 'win-recording|-x -o -l 711;fullscreen|-x', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+09:05:09 job com.agenteyes.qa116.wincap2 argv ['/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/b/D', 'QA_CAPTURES': 'win-recording|-x -o -l 711;fullscreen|-x', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
 $ launchctl bootstrap gui/501 <scratch>/b/D/com.agenteyes.qa116.wincap2.plist
   exit=0  
 09:05:10 after 0.5s: state = not running last exit code = 0 
@@ -48,9 +48,9 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.wincap2
 09:05:10 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
 09:05:10 GET /status recording 7.34
 09:05:10 POST /record/stop
-{  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090503_video",  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090503_video/recording.mp4",  "DurationSeconds": 7.36,  "Shots": 0}
+{  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-16_090503_video",  "File": "/Users/<user>/Movies/AgentEyes/2026-11-16_090503_video/recording.mp4",  "DurationSeconds": 7.36,  "Shots": 0}
 --- hook report
-09:05:09.968 [hook] pid=29461 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:05:09.968 [hook] pid=29461 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 09:05:09.986 [hook] CGPreflightScreenCaptureAccess() = True
 09:05:09.986 [hook] win-recording: screencapture -x -o -l 711 <scratch>/b/D/win-recording.png
 09:05:10.046 [hook] win-recording: exit=0 ms=59 file_bytes=61886 stderr=''
@@ -75,7 +75,7 @@ pid=431 owner="Control Center" window=32 layer=25 onscreen=true alpha=1.0 bounds
 pid=431 owner="Control Center" window=31 layer=25 onscreen=true alpha=1.0 bounds=157x30 at 1763,0 name=(name withheld: no Screen Recording grant)
 pid=171 owner="Window Server" window=26 layer=24 onscreen=true alpha=1.0 bounds=1920x30 at 0,0 name=Menubar
 --- E (09:05:37)
-09:05:37.313 [hook] pid=29743 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:05:37.313 [hook] pid=29743 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 09:05:37.330 [hook] CGPreflightScreenCaptureAccess() = True
 09:05:37.384 [hook] item712: exit=0 ms=54 file_bytes=1428 stderr=''
 09:05:37.435 [hook] item471: exit=0 ms=50 file_bytes=1583 stderr=''
@@ -91,7 +91,7 @@ status idle
 09:06:51 after 1.0s: state = not running last exit code = 0 
   exit=0  
   post-bootout print exit=113 (non-zero = the label is gone)
-09:06:50.784 [hook] pid=30353 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:06:50.784 [hook] pid=30353 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 09:06:50.800 [hook] CGPreflightScreenCaptureAccess() = True
 09:06:50.804 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
 09:06:50.805 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
@@ -108,13 +108,13 @@ status idle
 09:06:51.383 [hook] i31: exit=0 ms=59 file_bytes=2504 stderr=''
 09:06:51.383 [hook] Environment.Exit(0) - the recorder's Main is never reached
 === G: recording (screen only)
-start -> recording /Users/soren/Movies/AgentEyes/2026-11-16_090652_video
+start -> recording /Users/<user>/Movies/AgentEyes/2026-11-16_090652_video
 health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"} status recording 4.78
   exit=0  
 09:06:58 after 1.0s: state = not running last exit code = 0 
   exit=0  
   post-bootout print exit=113 (non-zero = the label is gone)
-09:06:57.095 [hook] pid=30419 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+09:06:57.095 [hook] pid=30419 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 09:06:57.114 [hook] CGPreflightScreenCaptureAccess() = True
 09:06:57.118 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
 09:06:57.119 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
@@ -130,7 +130,7 @@ health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"} status
 09:06:57.650 [hook] i32: exit=0 ms=50 file_bytes=1070 stderr=''
 09:06:57.699 [hook] i31: exit=0 ms=49 file_bytes=2504 stderr=''
 09:06:57.699 [hook] Environment.Exit(0) - the recorder's Main is never reached
-{  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090652_video",  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090652_video/recording.mp4",  "DurationSeconds": 5.96,  "Shots": 0}
+{  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-16_090652_video",  "File": "/Users/<user>/Movies/AgentEyes/2026-11-16_090652_video/recording.mp4",  "DurationSeconds": 5.96,  "Shots": 0}
 --- H after the app exited (09:08:12)
 09:08:12.609 [hook] i712: screencapture -x -o -l 712 <scratch>/b/H/i712.png
 09:08:12.669 [hook] i712: exit=0 ms=58 file_bytes=703 stderr=''

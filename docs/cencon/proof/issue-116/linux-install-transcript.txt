@@ -1,15 +1,15 @@
 devlinux 2026-11-14T16:33:31-05:00 branch=issue-116-desktop-app head=09fd207
 BEFORE: app processes:
-3035138 /home/soren/.local/lib/agenteyes-app/AgentEyesLinux
+3035138 /home/<user>/.local/lib/agenteyes-app/AgentEyesLinux
 $ scripts/linux/install.sh
 Building agenteyes (Release, linux-x64, self-contained) ...
-/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
+/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/AlwaysOn/AlwaysOnEngine.cs(901,47): warning CS8602: Dereference of a possibly null reference. [/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/AgentEyes.Core.csproj::TargetFramework=net8.0]
 [OK] built <stage>/agenteyes
 Stopping the running service (a running recording is stopped and kept) ...
-[OK] installed /home/soren/.local/lib/agenteyes, linked /home/soren/.local/bin/agenteyes, unit /home/soren/.config/systemd/user/agenteyes.service
+[OK] installed /home/<user>/.local/lib/agenteyes, linked /home/<user>/.local/bin/agenteyes, unit /home/<user>/.config/systemd/user/agenteyes.service
 [OK] enabled at login (graphical-session.target)
 Building the AgentEyes app (Release, linux-x64, self-contained) ...
-[OK] installed the app (/home/soren/.local/lib/agenteyes-app): 'AgentEyes' in the app grid, starts in the tray at login
+[OK] installed the app (/home/<user>/.local/lib/agenteyes-app): 'AgentEyes' in the app grid, starts in the tray at login
 [OK] service is up: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
 [OK] signed in as <owner account>
 [OK] AgentEyes app started - its window opens, and the moon in the top bar stays when you close it
@@ -20,7 +20,7 @@ Ready. Open AgentEyes from the app grid or the moon in the top bar. From a termi
   list mics with:   agenteyes screens
 exit=0
 AFTER: app processes:
-2450474 /home/soren/.local/lib/agenteyes-app/AgentEyesDesktop
+2450474 /home/<user>/.local/lib/agenteyes-app/AgentEyesDesktop
 old pid 3035138 alive? no
 
 $ cat ~/.local/share/applications/agenteyes.desktop
@@ -28,8 +28,8 @@ $ cat ~/.local/share/applications/agenteyes.desktop
 Type=Application
 Name=AgentEyes
 Comment=Screen, system sound and microphone recorder
-Exec=/home/soren/.local/lib/agenteyes-app/AgentEyesDesktop
-Icon=/home/soren/.local/lib/agenteyes-app/agenteyes.png
+Exec=/home/<user>/.local/lib/agenteyes-app/AgentEyesDesktop
+Icon=/home/<user>/.local/lib/agenteyes-app/agenteyes.png
 Terminal=false
 Categories=AudioVideo;Recorder;
 StartupWMClass=AgentEyesDesktop
@@ -39,8 +39,8 @@ $ cat ~/.config/autostart/agenteyes.desktop
 Type=Application
 Name=AgentEyes
 Comment=Screen, system sound and microphone recorder
-Exec=/home/soren/.local/lib/agenteyes-app/AgentEyesDesktop --tray
-Icon=/home/soren/.local/lib/agenteyes-app/agenteyes.png
+Exec=/home/<user>/.local/lib/agenteyes-app/AgentEyesDesktop --tray
+Icon=/home/<user>/.local/lib/agenteyes-app/agenteyes.png
 Terminal=false
 Categories=AudioVideo;Recorder;
 StartupWMClass=AgentEyesDesktop

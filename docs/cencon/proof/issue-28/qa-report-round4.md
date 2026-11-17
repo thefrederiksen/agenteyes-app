@@ -212,7 +212,7 @@ Same names as AC1, from the same enumerator. The `(none found)` branch exists at
 
 `POST /record/start {"mode":"video","screen":1,"source":"none","camera":"HD Webcam eMeet C960"}`
 -> 200, then `POST /record/stop` -> 200.
-Directory `C:\Users\soren\Videos\AgentEyes\2026-08-28_122547_video`:
+Directory `C:\Users\<user>\Videos\AgentEyes\2026-08-28_122547_video`:
 
 ```
 camera.mp4                11,743,350

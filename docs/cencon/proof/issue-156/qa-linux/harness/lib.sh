@@ -5,7 +5,7 @@ set -u
 SP=${SCRATCH:?set SCRATCH to an empty scratch directory}
 WT=$SP/wt
 declare -A BINS=(
-  [fix]=/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+  [fix]=/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
   [fixfrag]=$WT/fixfrag/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
   [main]=$WT/main/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
   [mainfrag]=$WT/mainfrag/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes

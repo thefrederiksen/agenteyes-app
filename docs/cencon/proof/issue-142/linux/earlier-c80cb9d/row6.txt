@@ -1,6 +1,6 @@
 # row 6 ten-minute screen+mixed  service pid 4100728  load: 4.55 6.96 9.23 4/3274 4193645
 POST /record/start {"mode":"video","screen":1,"source":"mixed","mic":"Family 17h"} at 09:39:07.013932010
-{'State': 'recording', 'Mode': 'video', 'Source': 'mixed', 'Dir': '/home/soren/Videos/AgentEyes/2026-11-15_093907_video'}
+{'State': 'recording', 'Mode': 'video', 'Source': 'mixed', 'Dir': '/home/<user>/Videos/AgentEyes/2026-11-15_093907_video'}
 status before stop: elapsed 612.41 s at 09:49:21
 POST /record/stop at 09:49:38.656294774  load: 3.22 3.80 6.30 2/3382 22773
-{'Dir': '/home/soren/Videos/AgentEyes/2026-11-15_093907_video', 'File': '/home/soren/Videos/AgentEyes/2026-11-15_093907_video/recording.mp4', 'DurationSeconds': 629.92, 'Shots': 0}
+{'Dir': '/home/<user>/Videos/AgentEyes/2026-11-15_093907_video', 'File': '/home/<user>/Videos/AgentEyes/2026-11-15_093907_video/recording.mp4', 'DurationSeconds': 629.92, 'Shots': 0}

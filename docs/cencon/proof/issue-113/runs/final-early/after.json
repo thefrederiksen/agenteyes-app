@@ -33,5 +33,5 @@
   "CaptureSecondsSinceGrowth": null,
   "LastCaptureFault": "capture behind: the capture wrote 0.00s of a 6.83s session; raw.mp4 is short by 6.83s",
   "LastCaptureFaultUtc": "2026-11-14T17:29:29.5735835Z",
-  "LastCaptureFaultDir": "/home/soren/Videos/AgentEyes/2026-11-14_122912_video"
+  "LastCaptureFaultDir": "/home/<user>/Videos/AgentEyes/2026-11-14_122912_video"
 }

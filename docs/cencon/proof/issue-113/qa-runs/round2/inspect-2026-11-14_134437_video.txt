@@ -1,4 +1,4 @@
-=== /home/soren/Videos/AgentEyes/2026-11-14_134437_video
+=== /home/<user>/Videos/AgentEyes/2026-11-14_134437_video
 files: manifest.json raw.mp4.ffmpeg.log recording.mp4 recording.original.mp4 shots 
   manifest.DurationSeconds = 605.13
   manifest.CapturedSeconds = 604.97

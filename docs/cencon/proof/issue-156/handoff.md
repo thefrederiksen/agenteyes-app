@@ -199,7 +199,7 @@ reaped at the next service start. No new stealth path, no new data leaving the m
 
 ## Pass 2 - after the Linux QA failure (QA comment 6916902446, lead's rulings 6916944268)
 
-Developer pass on `devlinux`, in the clone `/home/soren/ReposFred/agenteyes-app`, branch
+Developer pass on `devlinux`, in the clone `/home/<user>/ReposFred/agenteyes-app`, branch
 `issue-156-capture-ownership` (PR #162). This pass started from QA's report commit `760e6a7` (code head
 `d245037`). It covers D1, D2 and G1, and names D3 for #113's next pass. I believe it is finished; the one
 open platform gap (Windows, under D1) is stated below and went to the lead as a decision.

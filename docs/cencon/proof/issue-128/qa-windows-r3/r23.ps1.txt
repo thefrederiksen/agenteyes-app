@@ -1,5 +1,5 @@
 param([string]$app, [string]$suffix, [string]$tag)
-$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\<user>\AppData\Local\AgentEyes\app'
 $F = "$PSScriptRoot\..\fixture3"; $root = "$env:USERPROFILE\Videos\AgentEyes"
 $pub  = "$root\2026-11-15_101000_qa128r3pub$suffix"
 $gone = "$root\2026-11-15_101100_qa128r3gone$suffix"

@@ -121,7 +121,7 @@ Same names as AC1. The `(none found)` branch is not verifiable on this hardware.
 
 Run exactly as the criterion specifies:
 `POST /record/start {"mode":"video","screen":1,"source":"none","camera":"HD Webcam eMeet C960"}`,
-6 s, then `POST /record/stop`. Directory `C:\Users\soren\Videos\AgentEyes\2026-08-28_104509_video`.
+6 s, then `POST /record/stop`. Directory `C:\Users\<user>\Videos\AgentEyes\2026-08-28_104509_video`.
 
 What PASSES:
 

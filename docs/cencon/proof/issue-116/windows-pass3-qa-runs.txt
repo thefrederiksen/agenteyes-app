@@ -176,7 +176,7 @@ RESULT: PASS pid=68236 tag=control-quit-6 window=tray dismiss=2 via=wmclose walk
 08:20:08.299 [pid 38248] [INFO] [App] ShowWindow
 08:20:08.813 [pid 38248] [INFO] [MainWindow] ctor
 08:20:09.083 [pid 38248] [INFO] [MainWindow] Opened
-08:20:09.101 [pid 38248] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:20:09.101 [pid 38248] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:20:09.734 [pid 38248] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:20:10.425 [pid 38248] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:20:10.431 [pid 38248] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -204,7 +204,7 @@ RESULT: PASS pid=38248 tag=fixed-quit-7 window=open dismiss=0 via=wmclose walk=F
 08:20:12.872 [pid 36240] [INFO] [App] ShowWindow
 08:20:13.211 [pid 36240] [INFO] [MainWindow] ctor
 08:20:13.439 [pid 36240] [INFO] [MainWindow] Opened
-08:20:13.449 [pid 36240] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:20:13.449 [pid 36240] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:20:14.088 [pid 36240] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:20:14.714 [pid 36240] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:20:14.719 [pid 36240] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -232,7 +232,7 @@ RESULT: PASS pid=36240 tag=control-quit-8 window=open dismiss=0 via=wmclose walk
 08:20:16.759 [pid 62564] [INFO] [App] ShowWindow
 08:20:17.035 [pid 62564] [INFO] [MainWindow] ctor
 08:20:17.289 [pid 62564] [INFO] [MainWindow] Opened
-08:20:17.302 [pid 62564] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:20:17.302 [pid 62564] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:20:18.040 [pid 62564] [INFO] [App] window closed to the tray
 08:20:18.728 [pid 62564] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:20:19.197 [pid 62564] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -262,7 +262,7 @@ RESULT: PASS pid=62564 tag=fixed-quit-9 window=closed dismiss=0 via=wmclose walk
 08:20:21.308 [pid 38684] [INFO] [App] ShowWindow
 08:20:21.559 [pid 38684] [INFO] [MainWindow] ctor
 08:20:21.790 [pid 38684] [INFO] [MainWindow] Opened
-08:20:21.801 [pid 38684] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:20:21.801 [pid 38684] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:20:22.590 [pid 38684] [INFO] [App] window closed to the tray
 08:20:23.310 [pid 38684] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:20:23.889 [pid 38684] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -291,7 +291,7 @@ RESULT: PASS pid=38684 tag=control-quit-10 window=closed dismiss=0 via=wmclose w
 08:20:26.382 [pid 10644] [INFO] [App] ShowWindow
 08:20:26.847 [pid 10644] [INFO] [MainWindow] ctor
 08:20:27.185 [pid 10644] [INFO] [MainWindow] Opened
-08:20:27.200 [pid 10644] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:20:27.200 [pid 10644] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:20:27.555 [pid 10644] [INFO] [App] window closed to the tray
 08:20:28.285 [pid 10644] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:20:28.721 [pid 10644] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -327,7 +327,7 @@ RESULT: PASS pid=10644 tag=fixed-quit-11 window=closed dismiss=1 via=uia walk=Tr
 08:20:32.453 [pid 81412] [INFO] [App] ShowWindow
 08:20:32.739 [pid 81412] [INFO] [MainWindow] ctor
 08:20:33.008 [pid 81412] [INFO] [MainWindow] Opened
-08:20:33.023 [pid 81412] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:20:33.023 [pid 81412] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:20:33.821 [pid 81412] [INFO] [App] window closed to the tray
 08:20:34.518 [pid 81412] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:20:34.905 [pid 81412] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -507,7 +507,7 @@ RESULT: PASS pid=83012 tag=control-quit-18 window=tray dismiss=2 via=wmclose wal
 08:21:22.105 [pid 73972] [INFO] [App] ShowWindow
 08:21:22.373 [pid 73972] [INFO] [MainWindow] ctor
 08:21:22.603 [pid 73972] [INFO] [MainWindow] Opened
-08:21:22.610 [pid 73972] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:21:22.610 [pid 73972] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:21:23.448 [pid 73972] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:21:23.900 [pid 73972] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:21:23.903 [pid 73972] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -535,7 +535,7 @@ RESULT: PASS pid=73972 tag=fixed-quit-19 window=open dismiss=0 via=wmclose walk=
 08:21:26.147 [pid 12536] [INFO] [App] ShowWindow
 08:21:26.489 [pid 12536] [INFO] [MainWindow] ctor
 08:21:26.822 [pid 12536] [INFO] [MainWindow] Opened
-08:21:26.837 [pid 12536] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:21:26.837 [pid 12536] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:21:27.396 [pid 12536] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:21:27.912 [pid 12536] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:21:27.915 [pid 12536] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -562,7 +562,7 @@ RESULT: PASS pid=12536 tag=control-quit-20 window=open dismiss=0 via=wmclose wal
 08:21:29.793 [pid 83476] [INFO] [App] ShowWindow
 08:21:30.020 [pid 83476] [INFO] [MainWindow] ctor
 08:21:30.212 [pid 83476] [INFO] [MainWindow] Opened
-08:21:30.221 [pid 83476] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:21:30.221 [pid 83476] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:21:31.156 [pid 83476] [INFO] [App] window closed to the tray
 08:21:31.823 [pid 83476] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:21:32.259 [pid 83476] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -592,7 +592,7 @@ RESULT: PASS pid=83476 tag=fixed-quit-21 window=closed dismiss=0 via=wmclose wal
 08:21:34.202 [pid 34324] [INFO] [App] ShowWindow
 08:21:34.479 [pid 34324] [INFO] [MainWindow] ctor
 08:21:34.732 [pid 34324] [INFO] [MainWindow] Opened
-08:21:34.744 [pid 34324] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:21:34.744 [pid 34324] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:21:35.542 [pid 34324] [INFO] [App] window closed to the tray
 08:21:36.256 [pid 34324] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:21:36.778 [pid 34324] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -621,7 +621,7 @@ RESULT: PASS pid=34324 tag=control-quit-22 window=closed dismiss=0 via=wmclose w
 08:21:39.165 [pid 58756] [INFO] [App] ShowWindow
 08:21:39.484 [pid 58756] [INFO] [MainWindow] ctor
 08:21:39.792 [pid 58756] [INFO] [MainWindow] Opened
-08:21:39.805 [pid 58756] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:21:39.805 [pid 58756] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:21:40.404 [pid 58756] [INFO] [App] window closed to the tray
 08:21:41.139 [pid 58756] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:21:41.545 [pid 58756] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -657,7 +657,7 @@ RESULT: PASS pid=58756 tag=fixed-quit-23 window=closed dismiss=1 via=uia walk=Tr
 08:21:45.204 [pid 30136] [INFO] [App] ShowWindow
 08:21:45.472 [pid 30136] [INFO] [MainWindow] ctor
 08:21:45.705 [pid 30136] [INFO] [MainWindow] Opened
-08:21:45.714 [pid 30136] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:21:45.714 [pid 30136] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:21:46.515 [pid 30136] [INFO] [App] window closed to the tray
 08:21:47.239 [pid 30136] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:21:47.595 [pid 30136] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -841,7 +841,7 @@ RESULT: PASS pid=25008 tag=control-quit-30 window=tray dismiss=2 via=wmclose wal
 08:22:43.513 [pid 39212] [INFO] [App] ShowWindow
 08:22:44.225 [pid 39212] [INFO] [MainWindow] ctor
 08:22:44.602 [pid 39212] [INFO] [MainWindow] Opened
-08:22:44.616 [pid 39212] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:22:44.616 [pid 39212] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:22:45.014 [pid 39212] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:22:45.723 [pid 39212] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:22:45.729 [pid 39212] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -869,7 +869,7 @@ RESULT: PASS pid=39212 tag=fixed-quit-31 window=open dismiss=0 via=wmclose walk=
 08:22:48.466 [pid 21792] [INFO] [App] ShowWindow
 08:22:49.049 [pid 21792] [INFO] [MainWindow] ctor
 08:22:49.441 [pid 21792] [INFO] [MainWindow] Opened
-08:22:49.455 [pid 21792] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:22:49.455 [pid 21792] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:22:49.807 [pid 21792] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:22:50.421 [pid 21792] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:22:50.427 [pid 21792] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -896,7 +896,7 @@ RESULT: PASS pid=21792 tag=control-quit-32 window=open dismiss=0 via=wmclose wal
 08:22:53.098 [pid 64408] [INFO] [App] ShowWindow
 08:22:53.467 [pid 64408] [INFO] [MainWindow] ctor
 08:22:53.717 [pid 64408] [INFO] [MainWindow] Opened
-08:22:53.726 [pid 64408] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:22:53.726 [pid 64408] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:22:54.353 [pid 64408] [INFO] [App] window closed to the tray
 08:22:55.084 [pid 64408] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:22:55.658 [pid 64408] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -926,7 +926,7 @@ RESULT: PASS pid=64408 tag=fixed-quit-33 window=closed dismiss=0 via=wmclose wal
 08:22:58.889 [pid 35148] [INFO] [App] ShowWindow
 08:22:59.229 [pid 35148] [INFO] [MainWindow] ctor
 08:22:59.472 [pid 35148] [INFO] [MainWindow] Opened
-08:22:59.480 [pid 35148] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:22:59.480 [pid 35148] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:23:00.106 [pid 35148] [INFO] [App] window closed to the tray
 08:23:00.839 [pid 35148] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:23:01.408 [pid 35148] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -955,7 +955,7 @@ RESULT: PASS pid=35148 tag=control-quit-34 window=closed dismiss=0 via=wmclose w
 08:23:03.545 [pid 19572] [INFO] [App] ShowWindow
 08:23:03.830 [pid 19572] [INFO] [MainWindow] ctor
 08:23:04.197 [pid 19572] [INFO] [MainWindow] Opened
-08:23:04.211 [pid 19572] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:23:04.211 [pid 19572] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:23:04.967 [pid 19572] [INFO] [App] window closed to the tray
 08:23:05.722 [pid 19572] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:23:06.157 [pid 19572] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -991,7 +991,7 @@ RESULT: PASS pid=19572 tag=fixed-quit-35 window=closed dismiss=1 via=uia walk=Tr
 08:23:10.070 [pid 25888] [INFO] [App] ShowWindow
 08:23:10.506 [pid 25888] [INFO] [MainWindow] ctor
 08:23:10.849 [pid 25888] [INFO] [MainWindow] Opened
-08:23:10.860 [pid 25888] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:23:10.860 [pid 25888] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:23:11.285 [pid 25888] [INFO] [App] window closed to the tray
 08:23:12.029 [pid 25888] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:23:12.452 [pid 25888] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1175,7 +1175,7 @@ RESULT: PASS pid=10268 tag=control-quit-42 window=tray dismiss=2 via=wmclose wal
 08:23:50.958 [pid 81220] [INFO] [App] ShowWindow
 08:23:51.285 [pid 81220] [INFO] [MainWindow] ctor
 08:23:51.499 [pid 81220] [INFO] [MainWindow] Opened
-08:23:51.508 [pid 81220] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:23:51.508 [pid 81220] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:23:52.144 [pid 81220] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:23:52.700 [pid 81220] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:23:52.703 [pid 81220] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1203,7 +1203,7 @@ RESULT: PASS pid=81220 tag=fixed-quit-43 window=open dismiss=0 via=wmclose walk=
 08:23:55.185 [pid 49732] [INFO] [App] ShowWindow
 08:23:55.535 [pid 49732] [INFO] [MainWindow] ctor
 08:23:55.779 [pid 49732] [INFO] [MainWindow] Opened
-08:23:55.791 [pid 49732] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:23:55.791 [pid 49732] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:23:56.153 [pid 49732] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:23:56.685 [pid 49732] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:23:56.691 [pid 49732] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1230,7 +1230,7 @@ RESULT: PASS pid=49732 tag=control-quit-44 window=open dismiss=0 via=wmclose wal
 08:24:01.120 [pid 48428] [INFO] [App] ShowWindow
 08:24:02.022 [pid 48428] [INFO] [MainWindow] ctor
 08:24:02.779 [pid 48428] [INFO] [MainWindow] Opened
-08:24:02.793 [pid 48428] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:24:02.793 [pid 48428] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:24:03.184 [pid 48428] [INFO] [App] window closed to the tray
 08:24:04.124 [pid 48428] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:24:04.768 [pid 48428] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -1260,7 +1260,7 @@ RESULT: PASS pid=48428 tag=fixed-quit-45 window=closed dismiss=0 via=wmclose wal
 08:24:09.298 [pid 19440] [INFO] [App] ShowWindow
 08:24:10.275 [pid 19440] [INFO] [MainWindow] ctor
 08:24:11.235 [pid 19440] [INFO] [MainWindow] Opened
-08:24:11.255 [pid 19440] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:24:11.255 [pid 19440] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:24:11.652 [pid 19440] [INFO] [App] window closed to the tray
 08:24:12.438 [pid 19440] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:24:13.077 [pid 19440] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -1289,7 +1289,7 @@ RESULT: PASS pid=19440 tag=control-quit-46 window=closed dismiss=0 via=wmclose w
 08:24:16.269 [pid 3224] [INFO] [App] ShowWindow
 08:24:16.815 [pid 3224] [INFO] [MainWindow] ctor
 08:24:17.277 [pid 3224] [INFO] [MainWindow] Opened
-08:24:17.293 [pid 3224] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:24:17.293 [pid 3224] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:24:17.657 [pid 3224] [INFO] [App] window closed to the tray
 08:24:18.412 [pid 3224] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:24:18.832 [pid 3224] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1325,7 +1325,7 @@ RESULT: PASS pid=3224 tag=fixed-quit-47 window=closed dismiss=1 via=uia walk=Tru
 08:24:23.124 [pid 44244] [INFO] [App] ShowWindow
 08:24:23.708 [pid 44244] [INFO] [MainWindow] ctor
 08:24:24.075 [pid 44244] [INFO] [MainWindow] Opened
-08:24:24.088 [pid 44244] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:24:24.088 [pid 44244] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:24:24.398 [pid 44244] [INFO] [App] window closed to the tray
 08:24:25.175 [pid 44244] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:24:25.692 [pid 44244] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1509,7 +1509,7 @@ RESULT: PASS pid=2328 tag=control-quit-54 window=tray dismiss=2 via=wmclose walk
 08:25:11.009 [pid 55248] [INFO] [App] ShowWindow
 08:25:11.277 [pid 55248] [INFO] [MainWindow] ctor
 08:25:11.479 [pid 55248] [INFO] [MainWindow] Opened
-08:25:11.487 [pid 55248] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:25:11.487 [pid 55248] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:25:12.333 [pid 55248] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:25:12.744 [pid 55248] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:25:12.748 [pid 55248] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1537,7 +1537,7 @@ RESULT: PASS pid=55248 tag=fixed-quit-55 window=open dismiss=0 via=wmclose walk=
 08:25:14.891 [pid 78044] [INFO] [App] ShowWindow
 08:25:15.191 [pid 78044] [INFO] [MainWindow] ctor
 08:25:15.411 [pid 78044] [INFO] [MainWindow] Opened
-08:25:15.420 [pid 78044] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:25:15.420 [pid 78044] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:25:16.169 [pid 78044] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:25:16.636 [pid 78044] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:25:16.638 [pid 78044] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1564,7 +1564,7 @@ RESULT: PASS pid=78044 tag=control-quit-56 window=open dismiss=0 via=wmclose wal
 08:25:18.862 [pid 5608] [INFO] [App] ShowWindow
 08:25:19.164 [pid 5608] [INFO] [MainWindow] ctor
 08:25:19.415 [pid 5608] [INFO] [MainWindow] Opened
-08:25:19.425 [pid 5608] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:25:19.425 [pid 5608] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:25:20.157 [pid 5608] [INFO] [App] window closed to the tray
 08:25:20.886 [pid 5608] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:25:21.362 [pid 5608] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -1595,7 +1595,7 @@ RESULT: PASS pid=5608 tag=fixed-quit-57 window=closed dismiss=0 via=wmclose walk
 08:25:23.688 [pid 61656] [INFO] [App] ShowWindow
 08:25:24.120 [pid 61656] [INFO] [MainWindow] ctor
 08:25:24.479 [pid 61656] [INFO] [MainWindow] Opened
-08:25:24.491 [pid 61656] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:25:24.491 [pid 61656] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:25:24.832 [pid 61656] [INFO] [App] window closed to the tray
 08:25:25.613 [pid 61656] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:25:25.920 [pid 61656] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=False)
@@ -1616,7 +1616,7 @@ RESULT: FAIL pid=61656 tag=control-quit-58 window=closed dismiss=0 via=wmclose w
 08:25:39.424 [pid 31144] [INFO] [App] ShowWindow
 08:25:39.909 [pid 31144] [INFO] [MainWindow] ctor
 08:25:40.310 [pid 31144] [INFO] [MainWindow] Opened
-08:25:40.324 [pid 31144] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:25:40.324 [pid 31144] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:25:40.651 [pid 31144] [INFO] [App] window closed to the tray
 08:25:41.412 [pid 31144] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:25:41.857 [pid 31144] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1652,7 +1652,7 @@ RESULT: PASS pid=31144 tag=fixed-quit-59 window=closed dismiss=1 via=uia walk=Tr
 08:25:47.279 [pid 24148] [INFO] [App] ShowWindow
 08:25:48.423 [pid 24148] [INFO] [MainWindow] ctor
 08:25:49.158 [pid 24148] [INFO] [MainWindow] Opened
-08:25:49.247 [pid 24148] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:25:49.247 [pid 24148] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:25:49.639 [pid 24148] [INFO] [App] window closed to the tray
 08:25:50.550 [pid 24148] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:25:51.082 [pid 24148] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -1841,7 +1841,7 @@ RESULT: PASS pid=48484 tag=guardsync-quit-109 window=tray dismiss=2 via=wmclose 
 08:30:24.496 [pid 19024] [INFO] [App] ShowWindow
 08:30:24.831 [pid 19024] [INFO] [MainWindow] ctor
 08:30:25.217 [pid 19024] [INFO] [MainWindow] Opened
-08:30:25.231 [pid 19024] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:30:25.231 [pid 19024] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:30:26.701 [pid 19024] [INFO] [App] Quit (the recorder service keeps running)
 08:30:26.930 [pid 19024] [ERROR] [Program] unhandled exception - the app is going down
 08:30:26.930 [pid 19024] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
@@ -1860,7 +1860,7 @@ RESULT: CRASH pid=19024 tag=prefix-quit-110 window=open dismiss=0 via=wmclose wa
 08:30:36.671 [pid 80908] [INFO] [App] ShowWindow
 08:30:36.925 [pid 80908] [INFO] [MainWindow] ctor
 08:30:37.139 [pid 80908] [INFO] [MainWindow] Opened
-08:30:37.149 [pid 80908] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:30:37.149 [pid 80908] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:30:37.992 [pid 80908] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:30:38.457 [pid 80908] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:30:38.457 [pid 80908] [INFO] [DeferredQuit] Run: shutting down
@@ -1889,7 +1889,7 @@ RESULT: PASS pid=80908 tag=guardsync-quit-111 window=open dismiss=0 via=wmclose 
 08:30:40.639 [pid 60748] [INFO] [App] ShowWindow
 08:30:41.009 [pid 60748] [INFO] [MainWindow] ctor
 08:30:41.271 [pid 60748] [INFO] [MainWindow] Opened
-08:30:41.282 [pid 60748] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:30:41.282 [pid 60748] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:30:41.994 [pid 60748] [INFO] [App] window closed to the tray
 08:30:43.188 [pid 60748] [INFO] [App] Quit (the recorder service keeps running)
 08:30:43.259 [pid 60748] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
@@ -1910,7 +1910,7 @@ RESULT: PASS pid=60748 tag=prefix-quit-112 window=closed dismiss=0 via=wmclose w
 08:30:45.275 [pid 67972] [INFO] [App] ShowWindow
 08:30:45.592 [pid 67972] [INFO] [MainWindow] ctor
 08:30:45.834 [pid 67972] [INFO] [MainWindow] Opened
-08:30:45.842 [pid 67972] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:30:45.842 [pid 67972] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:30:46.488 [pid 67972] [INFO] [App] window closed to the tray
 08:30:47.249 [pid 67972] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:30:47.726 [pid 67972] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -1941,7 +1941,7 @@ RESULT: PASS pid=67972 tag=guardsync-quit-113 window=closed dismiss=0 via=wmclos
 08:30:49.702 [pid 76184] [INFO] [App] ShowWindow
 08:30:49.956 [pid 76184] [INFO] [MainWindow] ctor
 08:30:50.176 [pid 76184] [INFO] [MainWindow] Opened
-08:30:50.186 [pid 76184] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:30:50.186 [pid 76184] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:30:51.027 [pid 76184] [INFO] [App] window closed to the tray
 08:30:52.229 [pid 76184] [ERROR] [Program] unhandled exception - the app is going down
 08:30:52.229 [pid 76184] [ERROR] System.NotSupportedException: DefaultMenuInteractionHandler is not attached to the menu.
@@ -1962,7 +1962,7 @@ RESULT: CRASH pid=76184 tag=prefix-quit-114 window=closed dismiss=1 via=uia walk
 08:30:56.530 [pid 60420] [INFO] [App] ShowWindow
 08:30:56.815 [pid 60420] [INFO] [MainWindow] ctor
 08:30:57.093 [pid 60420] [INFO] [MainWindow] Opened
-08:30:57.106 [pid 60420] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:30:57.106 [pid 60420] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:30:57.762 [pid 60420] [INFO] [App] window closed to the tray
 08:30:58.570 [pid 60420] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:30:59.005 [pid 60420] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -2116,7 +2116,7 @@ RESULT: PASS pid=41356 tag=guardsync-quit-121 window=tray dismiss=2 via=wmclose 
 08:31:45.641 [pid 37988] [INFO] [App] ShowWindow
 08:31:46.450 [pid 37988] [INFO] [MainWindow] ctor
 08:31:46.789 [pid 37988] [INFO] [MainWindow] Opened
-08:31:46.800 [pid 37988] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:31:46.800 [pid 37988] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:31:47.860 [pid 37988] [INFO] [App] Quit (the recorder service keeps running)
 08:31:48.108 [pid 37988] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
 08:31:48.153 [pid 37988] [INFO] [Program] Main: exited
@@ -2135,7 +2135,7 @@ RESULT: PASS pid=37988 tag=prefix-quit-122 window=open dismiss=0 via=wmclose wal
 08:31:51.526 [pid 7256] [INFO] [App] ShowWindow
 08:31:51.930 [pid 7256] [INFO] [MainWindow] ctor
 08:31:52.216 [pid 7256] [INFO] [MainWindow] Opened
-08:31:52.227 [pid 7256] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:31:52.227 [pid 7256] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:31:52.576 [pid 7256] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:31:53.214 [pid 7256] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:31:53.215 [pid 7256] [INFO] [DeferredQuit] Run: shutting down
@@ -2184,7 +2184,7 @@ RESULT: PASS pid=62280 tag=prefix-quit-124 window=closed dismiss=0 via=wmclose w
 08:32:00.440 [pid 25676] [INFO] [App] ShowWindow
 08:32:00.839 [pid 25676] [INFO] [MainWindow] ctor
 08:32:01.292 [pid 25676] [INFO] [MainWindow] Opened
-08:32:01.306 [pid 25676] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:32:01.306 [pid 25676] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:32:01.667 [pid 25676] [INFO] [App] window closed to the tray
 08:32:02.452 [pid 25676] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:32:03.060 [pid 25676] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -2215,7 +2215,7 @@ RESULT: PASS pid=25676 tag=guardsync-quit-125 window=closed dismiss=0 via=wmclos
 08:32:05.371 [pid 26116] [INFO] [App] ShowWindow
 08:32:05.684 [pid 26116] [INFO] [MainWindow] ctor
 08:32:05.914 [pid 26116] [INFO] [MainWindow] Opened
-08:32:05.926 [pid 26116] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:32:05.926 [pid 26116] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:32:06.684 [pid 26116] [INFO] [App] window closed to the tray
 08:32:10.316 [pid 26116] [INFO] [App] Quit (the recorder service keeps running)
 08:32:10.499 [pid 26116] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
@@ -2237,7 +2237,7 @@ RESULT: PASS pid=26116 tag=prefix-quit-126 window=closed dismiss=1 via=uia walk=
 08:32:14.070 [pid 81376] [INFO] [App] ShowWindow
 08:32:14.663 [pid 81376] [INFO] [MainWindow] ctor
 08:32:15.014 [pid 81376] [INFO] [MainWindow] Opened
-08:32:15.026 [pid 81376] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:32:15.026 [pid 81376] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:32:15.302 [pid 81376] [INFO] [App] window closed to the tray
 08:32:16.087 [pid 81376] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:32:16.443 [pid 81376] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -2357,7 +2357,7 @@ RESULT: PASS pid=32996 tag=control-close-203 window=tray dismiss=3 via=wmclose w
 08:33:29.351 [pid 80088] [INFO] [App] ShowWindow
 08:33:29.687 [pid 80088] [INFO] [MainWindow] ctor
 08:33:30.080 [pid 80088] [INFO] [MainWindow] Opened
-08:33:30.093 [pid 80088] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:33:30.093 [pid 80088] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:33:30.494 [pid 80088] [INFO] [App] window closed to the tray
 08:33:31.246 [pid 80088] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:33:31.659 [pid 80088] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -2402,7 +2402,7 @@ RESULT: PASS pid=80088 tag=fixed-close-204 window=closed dismiss=3 via=uia walk=
 08:33:41.104 [pid 69376] [INFO] [App] ShowWindow
 08:33:41.450 [pid 69376] [INFO] [MainWindow] ctor
 08:33:41.787 [pid 69376] [INFO] [MainWindow] Opened
-08:33:41.800 [pid 69376] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:33:41.800 [pid 69376] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:33:42.409 [pid 69376] [INFO] [App] window closed to the tray
 08:33:50.483 [pid 69376] [INFO] [App] Quit (the recorder service keeps running)
 08:33:50.556 [pid 69376] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
@@ -2424,7 +2424,7 @@ RESULT: PASS pid=69376 tag=prefix-close-205 window=closed dismiss=3 via=uia walk
 08:33:52.723 [pid 42780] [INFO] [App] ShowWindow
 08:33:53.025 [pid 42780] [INFO] [MainWindow] ctor
 08:33:53.247 [pid 42780] [INFO] [MainWindow] Opened
-08:33:53.258 [pid 42780] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:33:53.258 [pid 42780] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:33:53.920 [pid 42780] [INFO] [App] window closed to the tray
 08:33:54.782 [pid 42780] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:33:55.301 [pid 42780] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -2542,7 +2542,7 @@ RESULT: PASS pid=65756 tag=control-close-209 window=tray dismiss=3 via=uia walk=
 08:34:43.608 [pid 87300] [INFO] [App] ShowWindow
 08:34:44.151 [pid 87300] [INFO] [MainWindow] ctor
 08:34:44.625 [pid 87300] [INFO] [MainWindow] Opened
-08:34:44.639 [pid 87300] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:34:44.639 [pid 87300] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:34:45.024 [pid 87300] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:34:45.519 [pid 87300] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
 08:34:45.525 [pid 87300] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
@@ -2585,7 +2585,7 @@ RESULT: PASS pid=87300 tag=fixed-close-210 window=open dismiss=3 via=wmclose wal
 08:34:56.222 [pid 34208] [INFO] [App] ShowWindow
 08:34:56.561 [pid 34208] [INFO] [MainWindow] ctor
 08:34:56.868 [pid 34208] [INFO] [MainWindow] Opened
-08:34:56.880 [pid 34208] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:34:56.880 [pid 34208] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:35:05.070 [pid 34208] [INFO] [App] Quit (the recorder service keeps running)
 08:35:05.199 [pid 34208] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
 08:35:05.218 [pid 34208] [INFO] [Program] Main: exited
@@ -2605,7 +2605,7 @@ RESULT: PASS pid=34208 tag=prefix-close-211 window=open dismiss=3 via=wmclose wa
 08:35:07.914 [pid 55936] [INFO] [App] ShowWindow
 08:35:08.384 [pid 55936] [INFO] [MainWindow] ctor
 08:35:08.746 [pid 55936] [INFO] [MainWindow] Opened
-08:35:08.762 [pid 55936] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:35:08.762 [pid 55936] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:35:09.111 [pid 55936] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:35:09.586 [pid 55936] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
 08:35:09.592 [pid 55936] [INFO] [TrayPopupCloseGuard] QA-CONTROL OBSERVED (NOT cancelled) a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
@@ -2723,7 +2723,7 @@ RESULT: PASS pid=19904 tag=control-close-215 window=tray dismiss=3 via=wmclose w
 08:35:56.008 [pid 62096] [INFO] [App] ShowWindow
 08:35:56.538 [pid 62096] [INFO] [MainWindow] ctor
 08:35:56.896 [pid 62096] [INFO] [MainWindow] Opened
-08:35:56.908 [pid 62096] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:35:56.908 [pid 62096] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:35:57.411 [pid 62096] [INFO] [App] window closed to the tray
 08:35:58.297 [pid 62096] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:35:58.981 [pid 62096] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -2768,7 +2768,7 @@ RESULT: PASS pid=62096 tag=fixed-close-216 window=closed dismiss=3 via=uia walk=
 08:36:08.913 [pid 78368] [INFO] [App] ShowWindow
 08:36:09.577 [pid 78368] [INFO] [MainWindow] ctor
 08:36:10.056 [pid 78368] [INFO] [MainWindow] Opened
-08:36:10.069 [pid 78368] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:36:10.069 [pid 78368] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:36:10.401 [pid 78368] [INFO] [App] window closed to the tray
 08:36:18.610 [pid 78368] [INFO] [App] Quit (the recorder service keeps running)
 08:36:18.666 [pid 78368] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
@@ -2790,7 +2790,7 @@ RESULT: PASS pid=78368 tag=prefix-close-217 window=closed dismiss=3 via=uia walk
 08:36:20.319 [pid 30908] [INFO] [App] ShowWindow
 08:36:20.520 [pid 30908] [INFO] [MainWindow] ctor
 08:36:20.678 [pid 30908] [INFO] [MainWindow] Opened
-08:36:20.685 [pid 30908] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:36:20.685 [pid 30908] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:36:21.743 [pid 30908] [INFO] [App] window closed to the tray
 08:36:22.462 [pid 30908] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:36:22.748 [pid 30908] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -2908,7 +2908,7 @@ RESULT: PASS pid=68744 tag=control-close-221 window=tray dismiss=3 via=uia walk=
 08:37:06.399 [pid 74356] [INFO] [App] ShowWindow
 08:37:06.607 [pid 74356] [INFO] [MainWindow] ctor
 08:37:06.785 [pid 74356] [INFO] [MainWindow] Opened
-08:37:06.793 [pid 74356] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:37:06.793 [pid 74356] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:37:07.830 [pid 74356] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:37:08.107 [pid 74356] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
 08:37:08.111 [pid 74356] [INFO] [TrayPopupCloseGuard] cancelled a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
@@ -2951,7 +2951,7 @@ RESULT: PASS pid=74356 tag=fixed-close-222 window=open dismiss=3 via=wmclose wal
 08:37:17.205 [pid 25508] [INFO] [App] ShowWindow
 08:37:17.758 [pid 25508] [INFO] [MainWindow] ctor
 08:37:18.228 [pid 25508] [INFO] [MainWindow] Opened
-08:37:18.240 [pid 25508] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:37:18.240 [pid 25508] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:37:25.772 [pid 25508] [INFO] [App] Quit (the recorder service keeps running)
 08:37:25.840 [pid 25508] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
 08:37:25.843 [pid 25508] [INFO] [Program] Main: exited
@@ -2971,7 +2971,7 @@ RESULT: PASS pid=25508 tag=prefix-close-223 window=open dismiss=3 via=wmclose wa
 08:37:27.604 [pid 81188] [INFO] [App] ShowWindow
 08:37:27.785 [pid 81188] [INFO] [MainWindow] ctor
 08:37:27.932 [pid 81188] [INFO] [MainWindow] Opened
-08:37:27.938 [pid 81188] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:37:27.938 [pid 81188] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:37:29.073 [pid 81188] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:37:29.364 [pid 81188] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
 08:37:29.367 [pid 81188] [INFO] [TrayPopupCloseGuard] QA-CONTROL OBSERVED (NOT cancelled) a re-entrant close of tray popup 'AvaloniaTrayPopupRoot_AgentEyes' (reason=WindowClosing, active=False)
@@ -3129,7 +3129,7 @@ RESULT: PASS pid=43228 tag=prefix-quit-306 window=tray dismiss=2 via=wmclose wal
 08:46:03.894 [pid 25996] [INFO] [App] ShowWindow
 08:46:07.131 [pid 25996] [INFO] [MainWindow] ctor
 08:46:07.983 [pid 25996] [INFO] [MainWindow] Opened
-08:46:08.239 [pid 25996] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:46:08.239 [pid 25996] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:46:12.437 [pid 25996] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:46:12.853 [pid 25996] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:46:12.855 [pid 25996] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -3156,7 +3156,7 @@ RESULT: PASS pid=25996 tag=fixed-quit-307 window=open dismiss=0 via=wmclose walk
 08:46:14.772 [pid 10416] [INFO] [App] ShowWindow
 08:46:17.063 [pid 10416] [INFO] [MainWindow] ctor
 08:46:18.189 [pid 10416] [INFO] [MainWindow] Opened
-08:46:18.381 [pid 10416] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:46:18.381 [pid 10416] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:46:23.194 [pid 10416] [INFO] [App] Quit (the recorder service keeps running)
 08:46:23.276 [pid 10416] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
 08:46:23.282 [pid 10416] [INFO] [Program] Main: exited
@@ -3176,7 +3176,7 @@ RESULT: PASS pid=10416 tag=prefix-quit-308 window=open dismiss=0 via=wmclose wal
 08:46:27.247 [pid 18392] [INFO] [App] ShowWindow
 08:46:27.502 [pid 18392] [INFO] [MainWindow] ctor
 08:46:27.741 [pid 18392] [INFO] [MainWindow] Opened
-08:46:27.752 [pid 18392] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:46:27.752 [pid 18392] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:46:28.618 [pid 18392] [INFO] [App] window closed to the tray
 08:46:29.327 [pid 18392] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:46:29.758 [pid 18392] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -3205,7 +3205,7 @@ RESULT: PASS pid=18392 tag=fixed-quit-309 window=closed dismiss=0 via=wmclose wa
 08:46:31.647 [pid 71792] [INFO] [App] ShowWindow
 08:46:31.854 [pid 71792] [INFO] [MainWindow] ctor
 08:46:32.026 [pid 71792] [INFO] [MainWindow] Opened
-08:46:32.037 [pid 71792] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:46:32.037 [pid 71792] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:46:33.042 [pid 71792] [INFO] [App] window closed to the tray
 08:46:34.192 [pid 71792] [INFO] [App] Quit (the recorder service keeps running)
 08:46:34.268 [pid 71792] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
@@ -3227,7 +3227,7 @@ RESULT: PASS pid=71792 tag=prefix-quit-310 window=closed dismiss=0 via=wmclose w
 08:46:35.988 [pid 49332] [INFO] [App] ShowWindow
 08:46:36.178 [pid 49332] [INFO] [MainWindow] ctor
 08:46:36.334 [pid 49332] [INFO] [MainWindow] Opened
-08:46:36.339 [pid 49332] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:46:36.339 [pid 49332] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:46:37.417 [pid 49332] [INFO] [App] window closed to the tray
 08:46:38.139 [pid 49332] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:46:38.425 [pid 49332] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -3262,7 +3262,7 @@ RESULT: PASS pid=49332 tag=fixed-quit-311 window=closed dismiss=1 via=uia walk=T
 08:46:42.052 [pid 27108] [INFO] [App] ShowWindow
 08:46:42.294 [pid 27108] [INFO] [MainWindow] ctor
 08:46:42.494 [pid 27108] [INFO] [MainWindow] Opened
-08:46:42.506 [pid 27108] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:46:42.506 [pid 27108] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:46:43.376 [pid 27108] [INFO] [App] window closed to the tray
 08:46:46.088 [pid 27108] [INFO] [App] Quit (the recorder service keeps running)
 08:46:46.140 [pid 27108] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
@@ -3403,7 +3403,7 @@ RESULT: PASS pid=88144 tag=prefix-quit-318 window=tray dismiss=2 via=wmclose wal
 08:47:21.030 [pid 66512] [INFO] [App] ShowWindow
 08:47:21.254 [pid 66512] [INFO] [MainWindow] ctor
 08:47:21.420 [pid 66512] [INFO] [MainWindow] Opened
-08:47:21.426 [pid 66512] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:47:21.426 [pid 66512] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:47:22.426 [pid 66512] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:47:22.837 [pid 66512] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
 08:47:22.839 [pid 66512] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -3430,7 +3430,7 @@ RESULT: PASS pid=66512 tag=fixed-quit-319 window=open dismiss=0 via=wmclose walk
 08:47:24.974 [pid 41100] [INFO] [App] ShowWindow
 08:47:25.336 [pid 41100] [INFO] [MainWindow] ctor
 08:47:25.572 [pid 41100] [INFO] [MainWindow] Opened
-08:47:25.584 [pid 41100] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:47:25.584 [pid 41100] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:47:26.974 [pid 41100] [INFO] [App] Quit (the recorder service keeps running)
 08:47:27.103 [pid 41100] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
 08:47:27.112 [pid 41100] [INFO] [Program] Main: exited
@@ -3450,7 +3450,7 @@ RESULT: PASS pid=41100 tag=prefix-quit-320 window=open dismiss=0 via=wmclose wal
 08:47:29.151 [pid 24948] [INFO] [App] ShowWindow
 08:47:29.402 [pid 24948] [INFO] [MainWindow] ctor
 08:47:29.672 [pid 24948] [INFO] [MainWindow] Opened
-08:47:29.686 [pid 24948] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:47:29.686 [pid 24948] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:47:30.430 [pid 24948] [INFO] [App] window closed to the tray
 08:47:31.345 [pid 24948] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:47:31.978 [pid 24948] [INFO] [DeferredQuit] Request: shutdown posted to run after the menu has closed
@@ -3479,7 +3479,7 @@ RESULT: PASS pid=24948 tag=fixed-quit-321 window=closed dismiss=0 via=wmclose wa
 08:47:34.430 [pid 45028] [INFO] [App] ShowWindow
 08:47:34.706 [pid 45028] [INFO] [MainWindow] ctor
 08:47:34.895 [pid 45028] [INFO] [MainWindow] Opened
-08:47:34.905 [pid 45028] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:47:34.905 [pid 45028] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:47:35.521 [pid 45028] [INFO] [App] window closed to the tray
 08:47:36.749 [pid 45028] [INFO] [App] Quit (the recorder service keeps running)
 08:47:36.818 [pid 45028] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren
@@ -3501,7 +3501,7 @@ RESULT: PASS pid=45028 tag=prefix-quit-322 window=closed dismiss=0 via=wmclose w
 08:47:38.664 [pid 86928] [INFO] [App] ShowWindow
 08:47:38.893 [pid 86928] [INFO] [MainWindow] ctor
 08:47:39.075 [pid 86928] [INFO] [MainWindow] Opened
-08:47:39.084 [pid 86928] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:47:39.084 [pid 86928] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:47:40.034 [pid 86928] [INFO] [App] window closed to the tray
 08:47:40.839 [pid 86928] [INFO] [TrayPopupCloseGuard] guarding tray popup 'AvaloniaTrayPopupRoot_AgentEyes'
 08:47:41.223 [pid 86928] [INFO] [TrayPopupCloseGuard] tray popup 'AvaloniaTrayPopupRoot_AgentEyes' closing (reason=WindowClosing, active=True)
@@ -3536,7 +3536,7 @@ RESULT: PASS pid=86928 tag=fixed-quit-323 window=closed dismiss=1 via=uia walk=T
 08:47:44.849 [pid 44120] [INFO] [App] ShowWindow
 08:47:45.028 [pid 44120] [INFO] [MainWindow] ctor
 08:47:45.170 [pid 44120] [INFO] [MainWindow] Opened
-08:47:45.175 [pid 44120] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:47:45.175 [pid 44120] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:47:46.289 [pid 44120] [INFO] [App] window closed to the tray
 08:47:48.854 [pid 44120] [INFO] [App] Quit (the recorder service keeps running)
 08:47:48.897 [pid 44120] [INFO] [SingleInstance] Dispose: pipe agenteyes-app-soren

@@ -1,6 +1,6 @@
 # AC4 healthy 10-minute run, build dll 4cb4665c, service pid 26649
 # UTC start 2026-11-15T18:08:24Z load 2.64 3.07 3.90
-# dir /Users/soren/Movies/AgentEyes/2026-11-15_130825_video
+# dir /Users/<user>/Movies/AgentEyes/2026-11-15_130825_video
 poll   6 t=+  60.1s State=recording Live=growing Bytes=21742817 SinceGrowth=0 Fault=None load=3.04 3.07 3.84
 poll  12 t=+ 120.1s State=recording Live=growing Bytes=52761613 SinceGrowth=0 Fault=None load=2.77 3.03 3.77
 poll  18 t=+ 180.2s State=recording Live=growing Bytes=87387757 SinceGrowth=0 Fault=None load=2.51 2.92 3.68
@@ -13,6 +13,6 @@ poll  54 t=+ 540.7s State=recording Live=growing Bytes=284794806 SinceGrowth=0 F
 poll  60 t=+ 600.8s State=recording Live=growing Bytes=318615422 SinceGrowth=0 Fault=None load=3.19 2.93 3.34
 # polls=60 bad_polls=0 []
 # UTC stop issued 2026-11-15T18:18:27Z
-# /record/stop -> {"Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_130825_video", "File": "/Users/soren/Movies/AgentEyes/2026-11-15_130825_video/recording.mp4", "DurationSeconds": 601.95, "Shots": 0}
+# /record/stop -> {"Dir": "/Users/<user>/Movies/AgentEyes/2026-11-15_130825_video", "File": "/Users/<user>/Movies/AgentEyes/2026-11-15_130825_video/recording.mp4", "DurationSeconds": 601.95, "Shots": 0}
 # after: {"State": "idle", "LastStopFailed": false, "LastStopError": null, "LastCaptureFault": null}
 # UTC end 2026-11-15T18:18:33Z load 3.50 3.00 3.36

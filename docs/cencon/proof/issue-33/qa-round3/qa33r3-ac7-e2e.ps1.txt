@@ -1,9 +1,9 @@
 param([string]$Exe)
 $ErrorActionPreference = 'Stop'
-$SP = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$SP = "C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
 $SHOT = "$SP\shots-r3"
 New-Item -ItemType Directory -Force -Path $SHOT | Out-Null
-$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+$cfg = "C:\Users\<user>\AppData\Local\AgentEyes\config.json"
 
 function Hud($a, $b, $o) { if ($o) { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a -Arg $b -Out $o } elseif ($b) { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa-hud-uia-r3.ps1" -Action $a } }
 function Rec()      { & powershell -NoProfile -File "$SP\qa-main-uia.ps1" -Action click -Arg REC }

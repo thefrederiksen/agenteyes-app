@@ -390,7 +390,7 @@ plus this round's.
 
 Displaced and restored:
 
-- The human's installed **v1.6.2** tray app (`C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe`,
+- The human's installed **v1.6.2** tray app (`C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe`,
   sha256 `A6C6E340...`) holds the single-instance mutex and port 7882, so it was stopped for the
   running-app work and **restarted afterwards with its own autostart command line
   (`AgentEyesApp.exe --tray`)**; `/version` now reports `1.6.2` again and `/status` is `idle`.

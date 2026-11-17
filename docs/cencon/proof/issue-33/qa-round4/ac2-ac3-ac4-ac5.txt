@@ -2,8 +2,8 @@
 dll sha256: A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8
   [app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe  MQS_HUD_CAPTURABLE=(unset)]
   status: armed=True publishing=True available=True corner=bottom-right
-  screenFrame=C:\Users\soren\AppData\Local\AgentEyes\preview\screen.jpg
-  cameraFrame=C:\Users\soren\AppData\Local\AgentEyes\preview\camera.jpg
+  screenFrame=C:\Users\<user>\AppData\Local\AgentEyes\preview\screen.jpg
+  cameraFrame=C:\Users\<user>\AppData\Local\AgentEyes\preview\camera.jpg
   -- AC2/AC3 liveness: the published frames must CHANGE while the screen and camera do --
   AC2 screen t0=065C9ECA28A76C93 len=13793  t+3=B15179ABA26CE09A len=13726  DIFFER=True
   AC3 camera t0=EB16CA248E81730D len=13204  t+3=B1FAB8C387C1B123 len=13086  DIFFER=True
@@ -54,7 +54,7 @@ dll sha256: A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8
       [Image] name='' help='' enabled=True rect=1400,113,490,276
       [Image] name='' help='' enabled=True rect=1736,313,145,82
   -- AC5: the LAST corner framed must reach the manifest (set to top-right) --
-  --- AC2/AC3/AC4/AC5 armed both-mode recording : C:\Users\soren\Videos\AgentEyes\2026-08-29_011319_video ---
+  --- AC2/AC3/AC4/AC5 armed both-mode recording : C:\Users\<user>\Videos\AgentEyes\2026-08-29_011319_video ---
     audio_16k.wav 1227512
     camera.mp4 130538151
     camera.mp4.ffmpeg.log 13820

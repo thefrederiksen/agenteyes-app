@@ -1,7 +1,7 @@
 # usage: rungate.sh <label> <optin 0|1> [extra dotnet test args]
 S=${QA_SCRATCH:?set QA_SCRATCH to a scratch folder}
 label=$1; optin=$2; shift 2
-export SHIM_REAL_DIR='C:\Users\soren\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin'
+export SHIM_REAL_DIR='C:\Users\<user>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin'
 export SHIM_LOG_DIR="$S/log-$label"; rm -rf "$SHIM_LOG_DIR"; mkdir -p "$SHIM_LOG_DIR"
 export QA_RECORD_FFMPEG_DIR=$(cygpath -w "$S/shim")
 export PATH="$S/shim:$PATH"

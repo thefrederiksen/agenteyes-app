@@ -59,7 +59,7 @@ config after a real border drag: Left=893 Top=150 Width=971 Height=400 Visible=T
     STILL DRAINING while hidden: framesRead 291 -> 321
     preview SHOWN again: publishing=True frame file back? True
 HUD rect: X=893 Y=150 W=520 H=400
-  recording: C:\Users\soren\Videos\AgentEyes\2026-08-29_052658_video
+  recording: C:\Users\<user>\Videos\AgentEyes\2026-08-29_052658_video
     camera.mp4 56695880
     camera.mp4.ffmpeg.log 15898
     manifest.json 1570

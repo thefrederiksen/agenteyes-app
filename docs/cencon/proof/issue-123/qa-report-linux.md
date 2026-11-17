@@ -18,11 +18,11 @@ The service another seat left running (PID 3526377, up since 09:55:00) was repla
 git checkout issue-123-bodyless-post-411  -> HEAD 9b0ec6864e926a1a387b747bbe0d40106782b9d8, clean tree
 10:23:32 bash scripts/linux/install.sh   (exit 0, 10:23:52)
 [OK] built /tmp/tmp.2FUAu6JmTx/agenteyes
-[OK] installed /home/soren/.local/lib/agenteyes, linked /home/soren/.local/bin/agenteyes, unit ...agenteyes.service
+[OK] installed /home/<user>/.local/lib/agenteyes, linked /home/<user>/.local/bin/agenteyes, unit ...agenteyes.service
 [OK] enabled at login (graphical-session.target)
-[OK] installed the app (/home/soren/.local/lib/agenteyes-app) ...
+[OK] installed the app (/home/<user>/.local/lib/agenteyes-app) ...
 [OK] service is up: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
-[OK] signed in as soren@centerconsulting.com
+[OK] signed in as <owner account>
 ```
 
 Tying the running process to that build:
@@ -32,7 +32,7 @@ Tying the running process to that build:
 | installed `~/.local/lib/agenteyes/agenteyes.dll` mtime | 2026-11-14 10:23:38.89 (during my install run) |
 | sha256 of that dll | `240e44c2f05c08f1c7fc6de0167265629759e1a1a47d55dd9dabdc862dd596d1` |
 | new-code string `REJECTED before any effect` in that dll | present (1 hit, UTF-16) - this string exists only in the PR's code |
-| service MainPID / started / exe | 35489, Sat Nov 14 10:23:50, `/home/soren/.local/lib/agenteyes/agenteyes` |
+| service MainPID / started / exe | 35489, Sat Nov 14 10:23:50, `/home/<user>/.local/lib/agenteyes/agenteyes` |
 | service log | every log line quoted below is `[pid 35489]` and includes the PR's `REJECTED before any effect` / `200 answer written` messages, which `main` does not have |
 
 `GET /version` answers `1.11.11` on both builds, so it cannot tell them apart. PID, mtime, and the
@@ -43,7 +43,7 @@ new log strings can.
 Recording started with `-H 'Content-Type: application/json' -d '{"source":"none"}'` at 10:25:08 -> 200.
 
 ```
-[10:25:12.262] GET /status -> State= recording Elapsed= 3.24 Dir= /home/soren/Videos/AgentEyes/2026-11-14_102508_video
+[10:25:12.262] GET /status -> State= recording Elapsed= 3.24 Dir= /home/<user>/Videos/AgentEyes/2026-11-14_102508_video
 [10:25:12.744] curl -i -X POST http://127.0.0.1:7882/record/stop
 HTTP/1.1 411 Length Required
 Content-Type: text/html
@@ -52,7 +52,7 @@ Content-Length: 24
 Connection: close
 
 <h1>Length Required</h1>
-[10:25:12.755] GET /status immediately after -> State= recording Elapsed= 3.51 Dir= /home/soren/Videos/AgentEyes/2026-11-14_102508_video
+[10:25:12.755] GET /status immediately after -> State= recording Elapsed= 3.51 Dir= /home/<user>/Videos/AgentEyes/2026-11-14_102508_video
 ```
 
 Service log for that request:
@@ -134,15 +134,15 @@ Content-Type: application/json
 Content-Length: 188
 
 {
-  "Dir": "/home/soren/Videos/AgentEyes/2026-11-14_102508_video",
-  "File": "/home/soren/Videos/AgentEyes/2026-11-14_102508_video/recording.mp4",
+  "Dir": "/home/<user>/Videos/AgentEyes/2026-11-14_102508_video",
+  "File": "/home/<user>/Videos/AgentEyes/2026-11-14_102508_video/recording.mp4",
   "DurationSeconds": 9.06,
   "Shots": 0
 }
 [10:25:20.734] GET /status -> State= idle
 ```
 ```
-10:25:20.721 [pid 35489] [INFO] [HeadlessControlServer] Stop: /home/soren/Videos/AgentEyes/2026-11-14_102508_video saved; post-processing running in the background
+10:25:20.721 [pid 35489] [INFO] [HeadlessControlServer] Stop: /home/<user>/Videos/AgentEyes/2026-11-14_102508_video saved; post-processing running in the background
 10:25:20.730 [pid 35489] [INFO] [HeadlessControlServer] POST /record/stop: 200 answer written (188 bytes)
 ```
 ffprobe on `recording.mp4` (113343 bytes): `codec_name=h264 width=1920 height=1080 nb_read_frames=340 duration=11.333333`.
@@ -157,13 +157,13 @@ ffprobe on `recording.mp4` (113343 bytes): `codec_name=h264 width=1920 height=10
 [10:25:32.104] start (-d '{"source":"none"}') -> HTTP/1.1 200 OK ; Dir 2026-11-14_102532_video
 [10:25:35.897] curl -i -X POST -d '' http://127.0.0.1:7882/record/shot
 HTTP/1.1 200 OK
-{ "file": "/home/soren/Videos/AgentEyes/2026-11-14_102532_video/shots/00m03s.png" }      shots/ 0 -> 1
+{ "file": "/home/<user>/Videos/AgentEyes/2026-11-14_102532_video/shots/00m03s.png" }      shots/ 0 -> 1
 [10:25:39.234] curl -i -X POST -d '' http://127.0.0.1:7882/record/stop
 HTTP/1.1 200 OK
 Content-Length: 188
 {
-  "Dir": "/home/soren/Videos/AgentEyes/2026-11-14_102532_video",
-  "File": "/home/soren/Videos/AgentEyes/2026-11-14_102532_video/recording.mp4",
+  "Dir": "/home/<user>/Videos/AgentEyes/2026-11-14_102532_video",
+  "File": "/home/<user>/Videos/AgentEyes/2026-11-14_102532_video/recording.mp4",
   "DurationSeconds": 6.46,
   "Shots": 1
 }

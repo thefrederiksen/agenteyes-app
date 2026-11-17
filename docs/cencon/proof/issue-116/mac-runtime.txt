@@ -23,7 +23,7 @@ pid 90675 is the installed recorder service (launchd), pid 43308 is the desktop 
 09:35:45.303 [pid 43308] [INFO] [MainWindow] ctor
 09:35:45.380 [pid 43308] [INFO] [MainWindow] Opened
 09:35:45.381 [pid 43308] [INFO] [ControlClient] GetDevicesAsync
-09:35:45.430 [pid 43308] [INFO] [MainWindow] StartWatchingLibrary: /Users/soren/Movies/AgentEyes
+09:35:45.430 [pid 43308] [INFO] [MainWindow] StartWatchingLibrary: /Users/<user>/Movies/AgentEyes
 09:35:45.522 [pid 43308] [INFO] [AppState] PollAsync: service answering, state=idle
 09:35:45.522 [pid 43308] [INFO] [TrayController] Render:  -> idle
 09:35:45.524 [pid 43308] [INFO] [MainWindow] RequestScan: 53 recording(s), 49 pending, 92 ms

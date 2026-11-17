@@ -31,7 +31,7 @@ agenteyes.dll!AgentEyes.AppDataPaths::get_Videos -> MyVideos x1
 agenteyes.dll!AgentEyes.Preview.PreviewPaths::get_Dir -> LocalApplicationData x1
   Error Message:
    these AgentEyes state locations escape the test run's folder:
-PreviewPaths.Dir = C:\Users\soren\AppData\Local\AgentEyes\preview
+PreviewPaths.Dir = C:\Users\<user>\AppData\Local\AgentEyes\preview
 Failed!  - Failed:     2, Passed:    10, Skipped:     0, Total:    12, Duration: 972 ms - AgentEyes.Tests.dll (net8.0)
 reverted (git checkout of the mutated file)
 ==================================================================

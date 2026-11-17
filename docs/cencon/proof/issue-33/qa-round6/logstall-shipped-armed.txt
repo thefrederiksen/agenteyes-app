@@ -37,7 +37,7 @@ START  /status reached 'recording' = True after 26 ms (state=recording)
 MID    LOGS PATH SWAPPED TO A FRESH BLACKHOLE: SymbolicLink -> \64.6.64.6\share
 STOP   POST /record/stop -> HTTP 200 in 3.74 s
 STOP   /status returned to 'idle' = True after 8 ms (state=idle)
-  recording dir: C:\Users\soren\Videos\AgentEyes\2026-08-29_093254_video
+  recording dir: C:\Users\<user>\Videos\AgentEyes\2026-08-29_093254_video
     recording.mp4 duration=15.4
     camera.mp4    duration=15.733318
     "DurationSeconds": 15.4,

@@ -1,5 +1,5 @@
 service pid 94050
-started 2026-11-15T17:13:05.646Z dir=/Users/soren/Movies/AgentEyes/2026-11-15_121304_video
+started 2026-11-15T17:13:05.646Z dir=/Users/<user>/Movies/AgentEyes/2026-11-15_121304_video
 INJECTED SIGSTOP on capture pid 2175 at 2026-11-15T17:13:27.706Z - NOTHING will touch it again
 2026-11-15T17:13:27.718Z +   0.0s State=recording   Liveness=growing Fault=no | capture pid 2175 state=T | service cpu=0.7% | dir: manifest.json mic_native.wav raw.mp4 shots
 2026-11-15T17:13:37.733Z +  10.0s State=recording   Liveness=not-growing Fault=no | capture pid 2175 state=T | service cpu=100.0% | dir: manifest.json mic_native.wav raw.mp4 shots

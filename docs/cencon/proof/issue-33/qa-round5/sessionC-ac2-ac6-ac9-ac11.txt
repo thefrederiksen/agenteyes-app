@@ -7,7 +7,7 @@
 ===== D2. AC6 - the HUD, parked ON the captured monitor, must not appear in recording.mp4 =====
 HUD rect after move: X=2300 Y=300 W=520 H=400
 HUD rect: X=2300 Y=300 W=520 H=400
-  recording: C:\Users\soren\Videos\AgentEyes\2026-08-29_053109_video
+  recording: C:\Users\<user>\Videos\AgentEyes\2026-08-29_053109_video
   recording.mp4 duration=36.533008 camera.mp4 duration=37.099963
     "DurationSeconds": 36.53,
     "CameraStopKind": "clean-quit",
@@ -21,7 +21,7 @@ HUD rect: X=2300 Y=300 W=520 H=400
 ===== D3. AC6 known-bad control - the same crop with the capture exclusion switched OFF =====
 HUD rect after move: X=2300 Y=300 W=520 H=400
 HUD rect: X=2300 Y=300 W=520 H=400
-  known-bad recording: C:\Users\soren\Videos\AgentEyes\2026-08-29_053213_video duration=32.866992
+  known-bad recording: C:\Users\<user>\Videos\AgentEyes\2026-08-29_053213_video duration=32.866992
     ac6-knownbad-01.png distinctColours=683
     ac6-knownbad-02.png distinctColours=708
     ac6-knownbad-03.png distinctColours=2929
@@ -29,12 +29,12 @@ HUD rect: X=2300 Y=300 W=520 H=400
 
 ===== D4. AC9 - 60s with the preview ON and 60s with it OFF, both numbers reported =====
   preview ON: publishing=True
-  ON  dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_053307_video framesRead=661/667
+  ON  dir=C:\Users\<user>\Videos\AgentEyes\2026-08-29_053307_video framesRead=661/667
   ON  raw drops=11 recording=72.466992 camera=72.699927
     "DurationSeconds": 72.47,
     "CameraComplete": "yes",
   preview OFF: armed=False publishing=False
-  OFF dir=C:\Users\soren\Videos\AgentEyes\2026-08-29_053436_video framesRead=0/0
+  OFF dir=C:\Users\<user>\Videos\AgentEyes\2026-08-29_053436_video framesRead=0/0
   OFF raw drops=8 recording=71.533333 camera=72.166595
     "DurationSeconds": 71.53,
     "CameraComplete": "yes",

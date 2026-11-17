@@ -4,11 +4,11 @@ dll sha256: A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8
    itself is proved separately in the AC6 run, which has it ON)
   [app: D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe  MQS_HUD_CAPTURABLE=1]
   before the kill: HUD rect: X=1384 Y=16 W=520 H=400
-  C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac10-before-kill.png 520x400
+  C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac10-before-kill.png 520x400
   preview directory deleted
   after the kill: state=recording elapsed=17.52 PreviewFailed=True framesRead=173/180
-  C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac10-after-kill.png 520x400
-  --- AC10 message run : C:\Users\soren\Videos\AgentEyes\2026-08-29_014513_video ---
+  C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\ac-proof\ac10-after-kill.png 520x400
+  --- AC10 message run : C:\Users\<user>\Videos\AgentEyes\2026-08-29_014513_video ---
     audio_16k.wav 664312
     camera.mp4 74581685
     camera.mp4.ffmpeg.log 9505

@@ -19,6 +19,36 @@ permissions:
   contents: read
 
 jobs:
+  # Issue #173: committed evidence must not carry an email address. The repository is public and
+  # proof files are copied between seats, so one leak became 84 files. The check matches the SHAPE
+  # of an address and never names one (scripts/check-proof-identity.py says why and lists its two
+  # allowances). It stops the NEXT leak; addresses already in git history stay there.
+  evidence-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The guard is made to fire on every run before its silence is believed: plant an
+      # address-shaped string in a new proof file and require a red result that names that file.
+      # The planted value is assembled at run time so this workflow holds no address-shaped literal.
+      - name: Positive control - the guard must fail on a planted address
+        shell: bash
+        run: |
+          probe=docs/cencon/proof/ci-identity-probe.txt
+          printf 'signed in as %s@%s\n' planted.probe acme-widgets.io > "$probe"
+          set +e
+          out=$(python3 scripts/check-proof-identity.py)
+          code=$?
+          set -e
+          rm -f "$probe"
+          echo "$out"
+          test $code -eq 1 || { echo "[FAIL] the guard exited $code on a planted address; expected 1 - it cannot fail, so its green means nothing"; exit 1; }
+          echo "$out" | grep -q "ci-identity-probe.txt:1" || { echo "[FAIL] the guard went red but did not name the planted file"; exit 1; }
+          echo "[OK] the guard fails on a planted address and names the file"
+
+      - name: No email address in committed evidence
+        run: python3 scripts/check-proof-identity.py
+
   windows:
     runs-on: windows-latest
     steps:

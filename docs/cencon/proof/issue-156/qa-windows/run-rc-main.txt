@@ -5,7 +5,7 @@
     owner: capturing into <scratch>\rc-main\Videos\AgentEyes\2026-11-16_101721_video
 15:17:35.532 start manifest: PendingMux={"Mode":"video","Source":"mic","RawVideo":"raw.mp4","FinalFile":"recording.mp4","RawDurationSeconds":0,"Options":{"MicGain":1,"SystemGain":0.7,"NoiseSuppression":true,"NoiseGate":true,"GateCalibrated":false,"VoiceLeveling":true,"MicProcessing":true,"GateApplies":false}} capture file=raw.mp4
 powershell : Get-Content : Cannot find path 
-'C:\Users\soren\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69d
+'C:\Users\<user>\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69d
 At line:1 char:560
 + ... llName)" }; powershell -NoProfile -ExecutionPolicy Bypass -File C:\Re ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -16,7 +16,7 @@ At line:1 char:560
 At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:46 char:8
 + $own = Get-Content -Raw (Join-Path $dir 'capture.owner.json') | Conve ...
 +        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (C:\Users\soren\...ture.owner.json:String) [Get-Content], ItemNotFoundEx 
+    + CategoryInfo          : ObjectNotFound: (C:\Users\<user>\...ture.owner.json:String) [Get-Content], ItemNotFoundEx 
    ception
     + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
  
@@ -49,14 +49,14 @@ At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.
 15:17:40.852   PendingMux=pending mux.State=failed mux.Attempts=2 AttemptedBy= recording.mp4=absent capture.owner.json=absent
 15:17:40.853 capture-related log lines (redirected data root):
 15:17:40.862 ffmpeg running after: [20580]
-Remove-Item : Cannot remove item C:\Users\soren\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69
+Remove-Item : Cannot remove item C:\Users\<user>\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69
 d0f84802\scratchpad\rc-main\Videos\AgentEyes\2026-11-16_101721_video\raw.mp4: The process cannot access the file 'C:\Us
 ers\soren\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69d0f84802\scratchpad\rc-main\Videos\Age
 ntEyes\2026-11-16_101721_video\raw.mp4' because it is being used by another process.
 At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:88 char:67
 + ... dir -Include *.mp4, *.mkv, *.png, *.jpg -Recurse | Remove-Item -Force
 +                                                        ~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : WriteError: (C:\Users\soren\...1_video\raw.mp4:FileInfo) [Remove-Item], IOException
+    + CategoryInfo          : WriteError: (C:\Users\<user>\...1_video\raw.mp4:FileInfo) [Remove-Item], IOException
     + FullyQualifiedErrorId : RemoveFileSystemItemIOError,Microsoft.PowerShell.Commands.RemoveItemCommand
 15:17:40.887 captured media deleted from <scratch>\rc-main\Videos\AgentEyes\2026-11-16_101721_video (manifest and logs kept)
 

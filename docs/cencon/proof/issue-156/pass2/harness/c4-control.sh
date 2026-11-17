@@ -12,7 +12,7 @@ set -u
 TAG=$1; PB=$2
 SP=${SP:?set SP to a scratch directory holding wt-d245037/ and shim/}
 case $TAG in
-  fix)    BIN=/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
+  fix)    BIN=/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
   prefix) BIN=$SP/wt-d245037/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
   *) echo "usage"; exit 2 ;;
 esac

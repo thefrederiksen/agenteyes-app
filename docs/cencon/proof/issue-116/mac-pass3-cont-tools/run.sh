@@ -2,7 +2,7 @@
 # QA #116 pass 3, continuation seat: one launch -> handoff -> (optional capture) -> Quit through the tray menu item's click -> what is left.
 # usage: run.sh <name> <capture:0|1>
 S=$(cd "$(dirname "$0")" && pwd); name=$1; cap=$2
-REPO=/Users/soren/ReposFred/agenteyes-qa-mac; APP=$REPO/src/AgentEyes.DesktopApp/bin/Release/net8.0
+REPO=/Users/<user>/ReposFred/agenteyes-qa-mac; APP=$REPO/src/AgentEyes.DesktopApp/bin/Release/net8.0
 INST="$HOME/Library/Application Support/AgentEyes/bin/agenteyes"
 LOG="$HOME/Library/Application Support/AgentEyes/logs/AgentEyes-$(date +%Y%m%d).log"
 SOCK="${TMPDIR}agenteyes-app.sock"; R=$S/run/$name; rm -rf "$R"; mkdir -p "$R"

@@ -1,4 +1,4 @@
-[2026-11-14T18:44:38.995Z] started /home/soren/Videos/AgentEyes/2026-11-14_134437_video
+[2026-11-14T18:44:38.995Z] started /home/<user>/Videos/AgentEyes/2026-11-14_134437_video
 [2026-11-14T18:44:49.436Z] poll 1: State=recording CaptureLiveness=growing CaptureBytes=202299 CaptureLastGrowthUtc=2026-11-14T18:44:48.9873877Z ElapsedSeconds=10.14
 [2026-11-14T18:44:59.890Z] poll 2: State=recording CaptureLiveness=growing CaptureBytes=475047 CaptureLastGrowthUtc=2026-11-14T18:44:58.9994118Z ElapsedSeconds=20.58
 [2026-11-14T18:45:10.366Z] poll 3: State=recording CaptureLiveness=growing CaptureBytes=709691 CaptureLastGrowthUtc=2026-11-14T18:45:09.0064192Z ElapsedSeconds=31.19
@@ -58,5 +58,5 @@
 [2026-11-14T18:54:21.771Z] poll 57: State=recording CaptureLiveness=growing CaptureBytes=13742282 CaptureLastGrowthUtc=2026-11-14T18:54:21.1080112Z ElapsedSeconds=582.68
 [2026-11-14T18:54:31.978Z] poll 58: State=recording CaptureLiveness=growing CaptureBytes=13977838 CaptureLastGrowthUtc=2026-11-14T18:54:31.1090047Z ElapsedSeconds=592.88
 [2026-11-14T18:54:42.175Z] poll 59: State=recording CaptureLiveness=growing CaptureBytes=14181101 CaptureLastGrowthUtc=2026-11-14T18:54:41.1094833Z ElapsedSeconds=603.07
-[2026-11-14T18:54:42.247Z] stop: {  "Dir": "/home/soren/Videos/AgentEyes/2026-11-14_134437_video",  "File": "/home/soren/Videos/AgentEyes/2026-11-14_134437_video/recording.mp4",  "DurationSeconds": 603.29,  "Shots": 0}
+[2026-11-14T18:54:42.247Z] stop: {  "Dir": "/home/<user>/Videos/AgentEyes/2026-11-14_134437_video",  "File": "/home/<user>/Videos/AgentEyes/2026-11-14_134437_video/recording.mp4",  "DurationSeconds": 603.29,  "Shots": 0}
 polls=59 all-recording-and-advancing=yes LastCaptureFault=None LastStopFailed=False

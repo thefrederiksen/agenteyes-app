@@ -79,7 +79,7 @@ socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:26 <TMPDIR>/agente
 --- capture by window id through the documented one-shot launchd job (installed binary + QaCaptureHook built from the committed source)
 installed sha256 before: 348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
 11:26:40 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
-11:26:40 job com.agenteyes.qa116.cont-r1 argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r1/cap', 'QA_CAPTURES': 'win|-x -o -l 733;item|-x -o -l 734', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+11:26:40 job com.agenteyes.qa116.cont-r1 argv ['/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r1/cap', 'QA_CAPTURES': 'win|-x -o -l 733;item|-x -o -l 734', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
 $ launchctl bootstrap gui/501 <scratch>/run/r1/cap/com.agenteyes.qa116.cont-r1.plist
   exit=0  
 11:26:40 after 0.5s: state = not running last exit code = 0 
@@ -88,7 +88,7 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.cont-r1
   post-bootout print exit=113 (non-zero = the label is gone)
 11:26:40 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
 --- hook report
-11:26:40.177 [hook] pid=72197 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+11:26:40.177 [hook] pid=72197 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 11:26:40.190 [hook] CGPreflightScreenCaptureAccess() = True
 11:26:40.193 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
 11:26:40.193 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
@@ -98,11 +98,11 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.cont-r1
 11:26:40.339 [hook] item: exit=0 ms=59 file_bytes=1428 stderr=''
 11:26:40.339 [hook] Environment.Exit(0) - the recorder's Main is never reached
 installed sha256 after:  348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
-recorder still: 50642 /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes serve
+recorder still: 50642 /Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes serve
 --- 11:26:40 trigger: raise the tray menu's Quit click
 11:27:12 [FAIL] the app did NOT exit within 30 s of the Quit click - sampling and killing it
 --- hook transcript
-11:26:36.383 [quit-hook pid 72087] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r1/quit.trigger
+11:26:36.383 [quit-hook pid 72087] loaded into /Users/<user>/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r1/quit.trigger
 11:26:40.774 [quit-hook pid 72087] trigger seen
 11:26:40.774 [quit-hook pid 72087] posted to the UI thread
 11:26:40.776 [quit-hook pid 72087] tray icon 1: IsVisible=True ToolTipText='AgentEyes'
@@ -161,7 +161,7 @@ socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:27 <TMPDIR>/agente
 --- capture by window id through the documented one-shot launchd job (installed binary + QaCaptureHook built from the committed source)
 installed sha256 before: 348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
 11:27:40 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
-11:27:40 job com.agenteyes.qa116.cont-r2 argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r2/cap', 'QA_CAPTURES': 'win|-x -o -l 736;item|-x -o -l 737', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+11:27:40 job com.agenteyes.qa116.cont-r2 argv ['/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r2/cap', 'QA_CAPTURES': 'win|-x -o -l 736;item|-x -o -l 737', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
 $ launchctl bootstrap gui/501 <scratch>/run/r2/cap/com.agenteyes.qa116.cont-r2.plist
   exit=0  
 11:27:41 after 0.5s: state = not running last exit code = 0 
@@ -170,7 +170,7 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.cont-r2
   post-bootout print exit=113 (non-zero = the label is gone)
 11:27:41 GET /health {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
 --- hook report
-11:27:40.819 [hook] pid=73282 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+11:27:40.819 [hook] pid=73282 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 11:27:40.831 [hook] CGPreflightScreenCaptureAccess() = True
 11:27:40.834 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
 11:27:40.835 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
@@ -180,11 +180,11 @@ $ launchctl bootout gui/501/com.agenteyes.qa116.cont-r2
 11:27:40.958 [hook] item: exit=0 ms=49 file_bytes=1428 stderr=''
 11:27:40.958 [hook] Environment.Exit(0) - the recorder's Main is never reached
 installed sha256 after:  348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022
-recorder still: 50642 /Users/soren/Library/Application Support/AgentEyes/bin/agenteyes serve
+recorder still: 50642 /Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes serve
 --- 11:27:41 trigger: raise the tray menu's Quit click
 11:27:41 process exit code = 0
 --- hook transcript
-11:27:37.292 [quit-hook pid 73182] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r2/quit.trigger
+11:27:37.292 [quit-hook pid 73182] loaded into /Users/<user>/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r2/quit.trigger
 11:27:41.373 [quit-hook pid 73182] trigger seen
 11:27:41.374 [quit-hook pid 73182] posted to the UI thread
 11:27:41.374 [quit-hook pid 73182] tray icon 1: IsVisible=True ToolTipText='AgentEyes'
@@ -217,14 +217,14 @@ probe of the dead pid exit=2 (2 = no window, as expected)
 app.out bytes:        0
 --- the status item window 737 after the app is gone, captured the same way
 pid=431 owner="Control Center" window=737 layer=25 onscreen=false alpha=1.0 bounds=38x30 at 1424,0 name=(name withheld: no Screen Recording grant)
-11:27:41 job com.agenteyes.qa116.cont-r2-b argv ['/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r2/cap2', 'QA_CAPTURES': 'item-after|-x -o -l 737', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+11:27:41 job com.agenteyes.qa116.cont-r2-b argv ['/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/caphook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/run/r2/cap2', 'QA_CAPTURES': 'item-after|-x -o -l 737', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
 $ launchctl bootstrap gui/501 <scratch>/run/r2/cap2/com.agenteyes.qa116.cont-r2-b.plist
   exit=0  
 11:27:42 after 0.5s: state = not running last exit code = 0 
 $ launchctl bootout gui/501/com.agenteyes.qa116.cont-r2-b
   exit=0  
   post-bootout print exit=113 (non-zero = the label is gone)
-11:27:41.868 [hook] pid=73346 exe=/Users/soren/Library/Application Support/AgentEyes/bin/agenteyes
+11:27:41.868 [hook] pid=73346 exe=/Users/<user>/Library/Application Support/AgentEyes/bin/agenteyes
 11:27:41.884 [hook] CGPreflightScreenCaptureAccess() = True
 11:27:41.888 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
 11:27:41.889 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
@@ -265,7 +265,7 @@ socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:27 <TMPDIR>/agente
 --- 11:27:58 trigger: raise the tray menu's Quit click
 11:27:58 process exit code = 0
 --- hook transcript
-11:27:55.131 [quit-hook pid 73582] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r3/quit.trigger
+11:27:55.131 [quit-hook pid 73582] loaded into /Users/<user>/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r3/quit.trigger
 11:27:58.617 [quit-hook pid 73582] trigger seen
 11:27:58.618 [quit-hook pid 73582] posted to the UI thread
 11:27:58.618 [quit-hook pid 73582] tray icon 1: IsVisible=True ToolTipText='AgentEyes'
@@ -329,7 +329,7 @@ socket while running: srwxr-xr-x@ 1 soren  staff  0 Nov 16 11:27 <TMPDIR>/agente
 --- 11:28:02 trigger: raise the tray menu's Quit click
 11:28:02 process exit code = 0
 --- hook transcript
-11:27:59.128 [quit-hook pid 73762] loaded into /Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r4/quit.trigger
+11:27:59.128 [quit-hook pid 73762] loaded into /Users/<user>/ReposFred/agenteyes-qa-mac/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop; waiting for <scratch>/run/r4/quit.trigger
 11:28:02.701 [quit-hook pid 73762] trigger seen
 11:28:02.702 [quit-hook pid 73762] posted to the UI thread
 11:28:02.702 [quit-hook pid 73762] tray icon 1: IsVisible=True ToolTipText='AgentEyes'

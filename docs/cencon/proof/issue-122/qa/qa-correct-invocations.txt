@@ -15,7 +15,7 @@ $ agenteyes record start --screen 1 --mic Family 17h
 --- before:
     count=49  newest5(ls -1 | tail -5): 2026-11-14_102532_video 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 
 --- output:
-    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_111948_video
+    [ok] recording -> /home/<user>/Videos/AgentEyes/2026-11-14_111948_video
          source=mic mode=video
          stop with: agenteyes record stop
 --- exit code: 0
@@ -28,7 +28,7 @@ $ agenteyes record stop
 --- before:
     count=50  newest5(ls -1 | tail -5): 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 
 --- output:
-    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_111948_video (4.2s)
+    [ok] saved /home/<user>/Videos/AgentEyes/2026-11-14_111948_video (4.2s)
          mixing, thumbnail, transcription and title continue in the service;
          watch with: agenteyes record status   (or GET /recordings)
 --- exit code: 0
@@ -42,7 +42,7 @@ $ agenteyes record start --audio-only --mic Family 17h
 --- before:
     count=50  newest5(ls -1 | tail -5): 2026-11-14_105026_video 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 
 --- output:
-    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_111956_audio
+    [ok] recording -> /home/<user>/Videos/AgentEyes/2026-11-14_111956_audio
          source=mic mode=audio
          stop with: agenteyes record stop
 --- exit code: 0
@@ -55,7 +55,7 @@ $ agenteyes record stop
 --- before:
     count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
 --- output:
-    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_111956_audio (4.2s)
+    [ok] saved /home/<user>/Videos/AgentEyes/2026-11-14_111956_audio (4.2s)
          mixing, thumbnail, transcription and title continue in the service;
          watch with: agenteyes record status   (or GET /recordings)
 --- exit code: 0
@@ -76,7 +76,7 @@ $ agenteyes record status
     count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
 --- GET /status: "State": "idle"
 SUMMARY | agenteyes record status | exit=0 | count 51 -> 51 | "State": "idle"
-==================== BINARY: branch (/home/soren/.local/bin/agenteyes) ====================
+==================== BINARY: branch (/home/<user>/.local/bin/agenteyes) ====================
 ################################################################
 $ agenteyes record start --audio-only
 --- before:
@@ -93,7 +93,7 @@ $ agenteyes record start --screen 1 --mic Family 17h
 --- before:
     count=51  newest5(ls -1 | tail -5): 2026-11-14_105106_audio 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 
 --- output:
-    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_112002_video
+    [ok] recording -> /home/<user>/Videos/AgentEyes/2026-11-14_112002_video
          source=mic mode=video
          stop with: agenteyes record stop
 --- exit code: 0
@@ -106,7 +106,7 @@ $ agenteyes record stop
 --- before:
     count=52  newest5(ls -1 | tail -5): 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 
 --- output:
-    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_112002_video (4.2s)
+    [ok] saved /home/<user>/Videos/AgentEyes/2026-11-14_112002_video (4.2s)
          mixing, thumbnail, transcription and title continue in the service;
          watch with: agenteyes record status   (or GET /recordings)
 --- exit code: 0
@@ -120,7 +120,7 @@ $ agenteyes record start --audio-only --mic Family 17h
 --- before:
     count=52  newest5(ls -1 | tail -5): 2026-11-14_110118_video 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 
 --- output:
-    [ok] recording -> /home/soren/Videos/AgentEyes/2026-11-14_112010_audio
+    [ok] recording -> /home/<user>/Videos/AgentEyes/2026-11-14_112010_audio
          source=mic mode=audio
          stop with: agenteyes record stop
 --- exit code: 0
@@ -133,7 +133,7 @@ $ agenteyes record stop
 --- before:
     count=53  newest5(ls -1 | tail -5): 2026-11-14_110130_audio 2026-11-14_111948_video 2026-11-14_111956_audio 2026-11-14_112002_video 2026-11-14_112010_audio 
 --- output:
-    [ok] saved /home/soren/Videos/AgentEyes/2026-11-14_112010_audio (4.2s)
+    [ok] saved /home/<user>/Videos/AgentEyes/2026-11-14_112010_audio (4.2s)
          mixing, thumbnail, transcription and title continue in the service;
          watch with: agenteyes record status   (or GET /recordings)
 --- exit code: 0

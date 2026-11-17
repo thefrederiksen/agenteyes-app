@@ -1,7 +1,7 @@
 QA probe for issue #35 - 2026-08-29 03:14:29
-backed up config.json and presets.json into C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa35\out
-assembly AgentEyesApp: C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa35\probe\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
-assembly agenteyes  : C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa35\probe\bin\Release\net8.0-windows10.0.19041.0\agenteyes.dll
+backed up config.json and presets.json into C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa35\out
+assembly AgentEyesApp: C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa35\probe\bin\Release\net8.0-windows10.0.19041.0\AgentEyesApp.dll
+assembly agenteyes  : C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa35\probe\bin\Release\net8.0-windows10.0.19041.0\agenteyes.dll
 App.xaml resources loaded: 50 keys
 editor opened: 1000x760 (XAML Width/Height 1000x760)
 

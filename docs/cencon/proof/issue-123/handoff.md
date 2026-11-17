@@ -68,7 +68,7 @@ Content-Length: 24
 Connection: close
 
 <h1>Length Required</h1>
-  GET /status -> State: recording Dir: /home/soren/Videos/AgentEyes/2026-11-14_095518_video
+  GET /status -> State: recording Dir: /home/<user>/Videos/AgentEyes/2026-11-14_095518_video
 ```
 
 Response says "not done"; /status says still recording. They agree. Before the fix, the same call
@@ -83,8 +83,8 @@ QA: start a recording with a body, then `curl -i -X POST http://127.0.0.1:7882/r
 ```
 == 4. bodied stop -H 'Content-Type: application/json' -d '{}'
 {
-  "Dir": "/home/soren/Videos/AgentEyes/2026-11-14_095518_video",
-  "File": "/home/soren/Videos/AgentEyes/2026-11-14_095518_video/recording.mp4",
+  "Dir": "/home/<user>/Videos/AgentEyes/2026-11-14_095518_video",
+  "File": "/home/<user>/Videos/AgentEyes/2026-11-14_095518_video/recording.mp4",
   "DurationSeconds": 6.17,
   "Shots": 0
 }  -> HTTP 200
@@ -105,7 +105,7 @@ pid 3526377):
 09:55:23.145 [INFO] [HeadlessControlServer] POST /record/stop: the listener had already answered 411 itself (ObjectDisposedException); no action taken
 ...
 09:55:25.243 [INFO] [HeadlessControlServer] POST /record/stop
-09:55:39.593 [INFO] [HeadlessControlServer] Stop: /home/soren/Videos/AgentEyes/2026-11-14_095518_video saved; post-processing running in the background
+09:55:39.593 [INFO] [HeadlessControlServer] Stop: /home/<user>/Videos/AgentEyes/2026-11-14_095518_video saved; post-processing running in the background
 09:55:39.596 [INFO] [HeadlessControlServer] POST /record/stop: 200 answer written (188 bytes)
 ```
 

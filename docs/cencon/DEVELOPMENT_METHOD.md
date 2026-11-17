@@ -298,6 +298,24 @@ note and the QA proof travel on the **pull request branch**:
 The QA Agent's proof report follows the same path: committed under `docs/cencon/proof/issue-<n>/`
 (e.g. `qa-report.html`) and linked from the `flow:done` (or `flow:qa-failed`) comment.
 
+**Scrub IDENTITY as well as paths before committing proof (issue #173).** The repository is public,
+and proof is the most-copied thing in it: one leaked address became 84 files because a poll loop wrote
+one JSON per poll and every response carried the signed-in account. Before you commit evidence:
+
+- An **email address** becomes `<owner account>` (a second, different one: `<owner second account>`).
+  Where a test or example needs an address, use a reserved domain (`user@example.com`, `*.invalid`).
+- The **username in a home path** becomes `<user>`: `/home/<user>`, `/Users/<user>`,
+  `C:\Users\<user>`. Keep the rest of the path - it is usually the evidence.
+- A **harness or temp staging path** becomes `<stage>`.
+- **Redact the identity, never the evidence.** No count, timestamp, verdict, pid, byte size or command
+  changes. Where a path's LENGTH is itself the evidence (a too-long path failure), leave it intact or
+  write the stand-in beside its original character count (`<stage> (57 chars)`), so the redaction
+  can still be checked against the measurement.
+- CI enforces the address rule: `scripts/check-proof-identity.py` (the `evidence-identity` job) fails
+  on any email-shaped string under `docs/cencon/proof/` or `docs/cencon/review/`. It does not check
+  home paths or host names - those are on you. It also does not undo the past: addresses already in
+  git history stay there, and the #173 sweep did not rewrite history.
+
 ### 6b. Definition of Verified (QA Agent's bar)
 
 The gate (revised 2026-07-14): the Developer's gate is **build + `dotnet test`** (Section 6 item 4);

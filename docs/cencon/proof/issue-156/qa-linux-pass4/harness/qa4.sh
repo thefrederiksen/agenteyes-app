@@ -13,7 +13,7 @@ set -u
 TAG=$1; PB=$2; SCEN=$3
 SP=${SCRATCH:?}
 case $TAG in
-  fix)  BIN=/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
+  fix)  BIN=/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
   pre)  BIN=$SP/wt-d245037/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
   p3)   BIN=$SP/wt-1927c62/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
   main) BIN=$SP/wt-17c244d/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;

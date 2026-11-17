@@ -1,6 +1,6 @@
 # MAIN CONTROL (no watchdog) dll 0446dd56 service_pid=32386
 # UTC start 2026-11-15T18:20:45Z load 3.13 3.01 3.31
-# dir /Users/soren/Movies/AgentEyes/2026-11-15_132045_video
+# dir /Users/<user>/Movies/AgentEyes/2026-11-15_132045_video
 # screen ffmpeg pid 32520
 # raw.mp4 before inject: 11272240 bytes
 # INJECTED SIGSTOP on 32520 at +20.0s UTC 18:21:07Z
@@ -37,5 +37,5 @@ T inj+ 145.7s State=recording  Elapsed=166.86   Level=0       raw=11272240   chi
 # after 150s: State=recording - main has no watchdog, so this is issue #113's ORIGINAL defect
 # cleaning up: killing the child I stopped
 # still not idle; issuing /record/stop
-{'Dir': '/Users/soren/Movies/AgentEyes/2026-11-15_132045_video', 'File': '/Users/soren/Movies/AgentEyes/2026-11-15_132045_video/recording.mp4', 'DurationSeconds': 232.45, 'Shots': 0}
+{'Dir': '/Users/<user>/Movies/AgentEyes/2026-11-15_132045_video', 'File': '/Users/<user>/Movies/AgentEyes/2026-11-15_132045_video/recording.mp4', 'DurationSeconds': 232.45, 'Shots': 0}
 # UTC end 2026-11-15T18:24:38Z

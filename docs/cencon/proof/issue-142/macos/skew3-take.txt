@@ -9,7 +9,7 @@
   "Level": 0,
   "MicLevel": 0,
   "SystemLevel": 0,
-  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_142036_video",
+  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-15_142036_video",
   "Camera": null,
   "SignedIn": false,
   "AccountEmail": null,
@@ -389,8 +389,8 @@
 19:50:38Z LOAD at stop: 3.15 3.70 3.36
 19:50:38Z STOP
 {
-  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_142036_video",
-  "File": "/Users/soren/Movies/AgentEyes/2026-11-15_142036_video/recording.mp4",
+  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-15_142036_video",
+  "File": "/Users/<user>/Movies/AgentEyes/2026-11-15_142036_video/recording.mp4",
   "DurationSeconds": 1801.93,
   "Shots": 0
 }

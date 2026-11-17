@@ -4,7 +4,7 @@
 # The container is docker's default private pid namespace, run as uid 1000; the host's .NET 8 is
 # bind-mounted read-only. Only pids this script started are ever signalled.
 set -u
-S=${SCRATCH:?}; BIND=/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0
+S=${SCRATCH:?}; BIND=/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0
 H=$S/harness/out-${HB:-a70fd90}/AgentEyes.Tests.Linux
 R=$S/runs/pidns-$(date -u +%H%M%S); mkdir -p "$R/home/.config" "$R/home/.local/share" "$R/home/Videos/AgentEyes"
 export HOME=$R/home XDG_CONFIG_HOME=$R/home/.config XDG_DATA_HOME=$R/home/.local/share

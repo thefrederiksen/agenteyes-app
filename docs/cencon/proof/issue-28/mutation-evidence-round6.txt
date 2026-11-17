@@ -129,7 +129,7 @@ Actual:   ExitedEarly
   Failed AgentEyes.Tests.StrandedCameraOwnerTests.Report_WhenTheStrandedProcessDiedOnItsOwn_StopsReportingItAndReleasesTheClaim [11 ms]
   Error Message:
    Assert.Empty() Failure: Collection was not empty
-Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = "C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"..., Output = "C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"..., Pid = 24512 }]
+Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = "C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"..., Output = "C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"..., Pid = 24512 }]
   Stack Trace:
      at AgentEyes.Tests.StrandedCameraOwnerTests.Report_WhenTheStrandedProcessDiedOnItsOwn_StopsReportingItAndReleasesTheClaim() in D:\ReposFred\agenteyes-wt-28\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs:line 360
    at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
@@ -137,7 +137,7 @@ Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = "C:\\
   Failed AgentEyes.Tests.StrandedCameraOwnerTests.Report_WhenOneStrandedProcessDiedAndAnotherDidNot_KeepsOnlyTheLiveOne [8 ms]
   Error Message:
    Assert.Single() Failure: The collection contained 2 items
-Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = "C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"..., Output = "C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"..., Pid = 24512 }, StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = "C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"..., Output = "C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"..., Pid = 24512 }]
+Collection: [StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = "C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"..., Output = "C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"..., Pid = 24512 }, StrandedCameraReport { Device = "HD Webcam eMeet C960", Dir = "C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"..., Output = "C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"..., Pid = 24512 }]
   Stack Trace:
      at AgentEyes.Tests.StrandedCameraOwnerTests.Report_WhenOneStrandedProcessDiedAndAnotherDidNot_KeepsOnlyTheLiveOne() in D:\ReposFred\agenteyes-wt-28\tests\AgentEyes.Tests\StrandedCameraOwnerTests.cs:line 425
    at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)

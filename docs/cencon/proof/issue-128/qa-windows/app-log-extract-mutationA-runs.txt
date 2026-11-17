@@ -1,21 +1,21 @@
-12:39:14.074 [pid 22000] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+12:39:14.074 [pid 22000] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\<user>\AppData\Local\AgentEyes\run\ffmpeg
 12:39:14.076 [pid 22000] [INFO] [RepairService] Start: orphan ffmpeg reap examined 0 record(s)
 12:39:14.079 [pid 22000] [INFO] [RepairService] Start: first pass in 20s, then every 15 minute(s)
 12:39:34.272 [pid 22000] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-14_130000_qa128 needs mux
-12:39:34.272 [pid 22000] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+12:39:34.272 [pid 22000] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\<user>\Videos\AgentEyes, unfinished=1
 12:39:34.291 [pid 22000] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_130000_qa128 stage=mux
-12:39:34.333 [pid 22000] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128
+12:39:34.333 [pid 22000] [INFO] finalize: begin mux video src=mic dir=C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128
 12:39:34.359 [pid 22000] [INFO] [FfmpegChildRegistry] Register: pid 336 [process mic audio] owner pid 22000
-12:40:31.547 [pid 8724] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+12:40:31.547 [pid 8724] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\<user>\AppData\Local\AgentEyes\run\ffmpeg
 12:40:31.557 [pid 8724] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 336 [process mic audio]: already exited (or pid reused) - record removed
 12:40:31.557 [pid 8724] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)
 12:40:31.561 [pid 8724] [INFO] [RepairService] Start: first pass in 20s, then every 15 minute(s)
 12:40:51.723 [pid 8724] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-14_130000_qa128 needs mux, thumbnail, package
-12:40:51.724 [pid 8724] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=1
+12:40:51.724 [pid 8724] [INFO] [PostRecordingPlan] FindUnfinished: root=C:\Users\<user>\Videos\AgentEyes, unfinished=1
 12:40:51.738 [pid 8724] [INFO] [PostRecordingState] NoteStarted: 2026-11-14_130000_qa128 stage=mux
-12:40:51.772 [pid 8724] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128
+12:40:51.772 [pid 8724] [INFO] finalize: begin mux video src=mic dir=C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128
 12:40:51.793 [pid 8724] [INFO] [FfmpegChildRegistry] Register: pid 15332 [process mic audio] owner pid 8724
-12:41:09.093 [pid 15088] [INFO] finalize: begin mux video src=mic dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128
+12:41:09.093 [pid 15088] [INFO] finalize: begin mux video src=mic dir=C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128
 12:41:09.171 [pid 15088] [INFO] [FfmpegChildRegistry] Register: pid 12196 [process mic audio] owner pid 15088
 12:41:53.116 [pid 8724] [ERROR] ffmpeg [process mic audio] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 61s - process killed. ...frame=  454 fps=8.0 q=-1.0 size=   17920KiB time=00:00:30.26 bitrate=4850.3kbits/s speed=0.532x elapsed=0:00:56.89    
 12:41:53.116 [pid 8724] [ERROR] frame=  454 fps=7.8 q=-1.0 size=   17920KiB time=00:00:30.26 bitrate=4850.3kbits/s speed=0.523x elapsed=0:00:57.90    
@@ -24,25 +24,25 @@
 12:41:53.116 [pid 8724] [ERROR] frame=  454 fps=7.4 q=-1.0 size=   17920KiB time=00:00:30.26 bitrate=4850.3kbits/s speed=0.497x elapsed=0:01:00.94    
 12:41:53.116 [pid 8724] [ERROR] 
 12:41:53.149 [pid 8724] [INFO] [FfmpegChildRegistry] Unregister: pid 15332
-12:41:53.176 [pid 8724] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128
-12:41:53.176 [pid 8724] [ERROR] System.IO.IOException: The process cannot access the file 'C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4' because it is being used by another process.
+12:41:53.176 [pid 8724] [ERROR] [PostRecording] stage mux FAILED: dir=C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128
+12:41:53.176 [pid 8724] [ERROR] System.IO.IOException: The process cannot access the file 'C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4' because it is being used by another process.
 12:41:53.176 [pid 8724] [ERROR]    at System.IO.FileSystem.DeleteFile(String fullPath)
 12:41:53.176 [pid 8724] [ERROR]    at AgentEyes.Audio.AudioMix.RunStage(IReadOnlyList`1 args, String outPath, String label) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Audio\AudioMix.cs:line 56
 12:41:53.176 [pid 8724] [ERROR]    at AgentEyes.Audio.AudioMix.ProcessVideoMic(String rawMp4, String outMp4, AudioMixOptions o) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Audio\AudioMix.cs:line 34
 12:41:53.176 [pid 8724] [ERROR]    at AgentEyes.RecordingService.FinalizePending(String dir) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\RecordingService.cs:line 1013
 12:41:53.176 [pid 8724] [ERROR]    at AgentEyes.PostRecording.RunStage(String dir, String stage, String label, Action`1 progress, Action`1 work, PostRecordingOutcome outcome) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\PostRecording.cs:line 462
-12:41:53.178 [pid 8724] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_130000_qa128 stage=mux error=The process cannot access the file 'C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4' because it is being used by another process.
-12:41:53.297 [pid 8724] [INFO] [Thumbnails] FindMissing: root=C:\Users\soren\Videos\AgentEyes, missing=1
+12:41:53.178 [pid 8724] [INFO] [PostRecordingState] NoteFailed: 2026-11-14_130000_qa128 stage=mux error=The process cannot access the file 'C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4' because it is being used by another process.
+12:41:53.297 [pid 8724] [INFO] [Thumbnails] FindMissing: root=C:\Users\<user>\Videos\AgentEyes, missing=1
 12:41:53.311 [pid 8724] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-14_130000_qa128 attempt 1/3
 12:41:53.390 [pid 8724] [ERROR] ffmpeg [poster thumbnail] failed (exit -1094995529). [in#0 @ 00000271386918c0] moov atom not found
 12:41:53.390 [pid 8724] [ERROR] [in#0 @ 00000271386f9340] Error opening input: Invalid data found when processing input
-12:41:53.390 [pid 8724] [ERROR] Error opening input file C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4.
+12:41:53.390 [pid 8724] [ERROR] Error opening input file C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4.
 12:41:53.390 [pid 8724] [ERROR] Error opening input files: Invalid data found when processing input
 12:41:53.390 [pid 8724] [ERROR] 
-12:41:53.391 [pid 8724] [ERROR] [RepairService] thumb repair C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128
+12:41:53.391 [pid 8724] [ERROR] [RepairService] thumb repair C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128
 12:41:53.391 [pid 8724] [ERROR] AgentEyes.UsageException: ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 00000271386918c0] moov atom not found
 12:41:53.391 [pid 8724] [ERROR] [in#0 @ 00000271386f9340] Error opening input: Invalid data found when processing input
-12:41:53.391 [pid 8724] [ERROR] Error opening input file C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4.
+12:41:53.391 [pid 8724] [ERROR] Error opening input file C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4.
 12:41:53.391 [pid 8724] [ERROR] Error opening input files: Invalid data found when processing input
 12:41:53.391 [pid 8724] [ERROR] 
 12:41:53.391 [pid 8724] [ERROR]    at AgentEyes.Video.Ffmpeg.RunCore(IReadOnlyList`1 args, String label, Nullable`1 stallTimeout) in C:\ReposFred\agenteyes-app\src\AgentEyes.Core\Video\Ffmpeg.cs:line 100
@@ -59,4 +59,4 @@
 12:42:10.604 [pid 15088] [ERROR] frame=  454 fps=7.4 q=-1.0 size=   17920KiB time=00:00:30.26 bitrate=4850.3kbits/s speed=0.497x elapsed=0:01:00.95    
 12:42:10.604 [pid 15088] [ERROR] 
 12:42:10.628 [pid 15088] [INFO] [FfmpegChildRegistry] Unregister: pid 12196
-12:42:10.631 [pid 15088] [INFO] [AudioMix] RunStage: process mic audio did not complete - removed partial output C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
+12:42:10.631 [pid 15088] [INFO] [AudioMix] RunStage: process mic audio did not complete - removed partial output C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4

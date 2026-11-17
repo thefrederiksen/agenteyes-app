@@ -256,7 +256,7 @@ new writer could not be added quietly.
 The gate policy asks the agent that changed the code to run the heavy smokes **when the change
 touches that area**, and this one does. It was not possible here without disturbing the human:
 
-- The installed v1.6.2 tray app is running from `C:\Users\soren\AppData\Local\AgentEyes\app\`. It
+- The installed v1.6.2 tray app is running from `C:\Users\<user>\AppData\Local\AgentEyes\app\`. It
   holds the `AgentEyes-singleinstance` mutex and port 7882, so a second `AgentEyesApp.exe` from this
   worktree shows "AgentEyes is already running" and shuts down. Displacing the human's app to run a
   smoke is not a developer decision.

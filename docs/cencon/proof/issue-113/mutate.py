@@ -6,7 +6,7 @@ for (QA deleted the StartWatchdog call and the suite stayed 294 / 0 green).
 Usage: python3 mutate.py [MUTANT-PREFIX ...]   (no argument = every mutant)"""
 import pathlib, re, shutil, subprocess, sys
 
-repo = pathlib.Path("/home/soren/ReposFred/agenteyes-app-113")
+repo = pathlib.Path("/home/<user>/ReposFred/agenteyes-app-113")
 dog = repo / "src/AgentEyes.Core/Video/CaptureWatchdog.cs"
 args = repo / "src/AgentEyes.Core/Video/FfmpegArgs.cs"
 svc = repo / "src/AgentEyes.Core/RecordingService.cs"

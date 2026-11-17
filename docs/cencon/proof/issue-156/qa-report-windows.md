@@ -96,7 +96,7 @@ the same. That is the safe answer: the live capture is not read as stale. The pr
 nothing about it is unreadable at the right .NET asks for.
 
 **Reachability in the shipped product.** The configuration IS reachable, but narrowly. The app installs
-per-user (`C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe`, running here as pid 16160)
+per-user (`C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe`, running here as pid 16160)
 and autostarts unelevated. The capture writer is a child ffmpeg and inherits its parent's token. So a
 writer ends up High-integrity, and the probing process Medium, whenever a user:
 

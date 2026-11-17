@@ -36,13 +36,13 @@ email or timestamps. The driver fixes only `CommitMessage`; the actual
 The current public head uses:
 
 ```
-thefrederiksen <soren@centerconsulting.com>
+thefrederiksen <<owner account>>
 ```
 
 This machine's effective Git config uses:
 
 ```
-thefrederiksen <soren@duksrevo.com>
+thefrederiksen <<owner second account>>
 ```
 
 I ran a dry run and authorized push against a throwaway bare remote without
@@ -51,7 +51,7 @@ overriding that config. Observed:
 ```
 REMOTE_MOVED=True
 PUSHED=True
-PUBLISHED_IDENTITY=thefrederiksen|soren@duksrevo.com|thefrederiksen|soren@duksrevo.com
+PUBLISHED_IDENTITY=thefrederiksen|<owner second account>|thefrederiksen|<owner second account>
 MANIFEST_CONTAINS_PUBLISHED_EMAIL=False
 TOKEN_MATCHED_BETWEEN_DRY_AND_PUSH=True
 ```

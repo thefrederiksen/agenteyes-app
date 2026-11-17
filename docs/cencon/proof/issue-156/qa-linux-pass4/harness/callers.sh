@@ -4,7 +4,7 @@
 set -u
 B=$1; MODE=$2; S=${SCRATCH:?}
 H=$S/harness/out-$B/AgentEyes.Tests.Linux
-BIN=$( [ $B = a70fd90 ] || [ $B = 9abbb01 ] && echo /home/soren/ReposFred/agenteyes-app || echo $S/wt-$B )/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+BIN=$( [ $B = a70fd90 ] || [ $B = 9abbb01 ] && echo /home/<user>/ReposFred/agenteyes-app || echo $S/wt-$B )/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
 R=$S/runs/callers-$B-$MODE-$(date -u +%H%M%S); mkdir -p "$R/home/.config" "$R/home/.local/share" "$R/home/Videos/AgentEyes"
 export HOME=$R/home XDG_CONFIG_HOME=$R/home/.config XDG_DATA_HOME=$R/home/.local/share
 T=$R/transcript.txt; say() { printf '%s %s\n' "$(date -u +%H:%M:%S.%3N)" "$*" | tee -a "$T"; }

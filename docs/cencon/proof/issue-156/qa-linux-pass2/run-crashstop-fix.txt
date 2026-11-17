@@ -1,5 +1,5 @@
 13:50:51.116 === QA #156 pass 2 scenario=crashstop binary=fix scratch=$SCRATCH/runs/crashstop-fix-135051
-13:50:51.120 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+13:50:51.120 binary: /home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
 13:50:51.140 embedded version: 1.11.11+2594cfc733eb58103a36055ec7b7d1295fe4d8c5
 13:50:51.213   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
 13:50:51.573 isolation: report-only housekeep (no service) -> this host root=$SCRATCH/runs/crashstop-fix-135051/home/Videos/AgentEyes ; other host root=$SCRATCH/runs/crashstop-fix-135051/home/Videos/AgentEyes ; data roots $SCRATCH/runs/crashstop-fix-135051/home/.local/share/AgentEyes/logs/.. and $SCRATCH/runs/crashstop-fix-135051/other/.local/share/AgentEyes/logs/..

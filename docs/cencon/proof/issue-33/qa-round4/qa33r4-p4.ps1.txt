@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
-. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
-$LOG = "C:\Users\soren\AppData\Local\AgentEyes\logs\AgentEyes-" + (Get-Date -Format 'yyyyMMdd') + ".log"
+. "C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+$LOG = "C:\Users\<user>\AppData\Local\AgentEyes\logs\AgentEyes-" + (Get-Date -Format 'yyyyMMdd') + ".log"
 
 $ARMED = @'
 {

@@ -1,7 +1,7 @@
 # label=FIXED-ac1-sigstop-screen+mic inject=STOP source=mic observe=180.0s service_pid=26649
 # load at start: 13:02  up 2 days, 21:55, 1 user, load averages: 3.62 3.79 4.50
 # UTC start 2026-11-15T18:02:14Z
-# /record/start -> {"State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 1.1, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_130215_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 54, "LastStopFailed": false, "LastStopError": null, "LastStopDir": null, "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastCaptureFaultDir": null}
+# /record/start -> {"State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 1.1, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-15_130215_video", "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 54, "LastStopFailed": false, "LastStopError": null, "LastStopDir": null, "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": "starting", "CaptureFile": "raw.mp4", "CaptureBytes": 0, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": null, "LastCaptureFaultUtc": null, "LastCaptureFaultDir": null}
 # healthy at +2.1s  liveness=growing bytes=761
 # children: screen=26837 mic=26840
 #   screen cmd: /opt/homebrew/bin/ffmpeg -hide_banner -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 
@@ -50,7 +50,7 @@ T +   68.7s (inj+  46.5s) State=idle        Live=None         Fault=capture stal
  "PendingTranscriptions": 54,
  "LastStopFailed": true,
  "LastStopError": "capture watchdog: capture stalled: raw.mp4 stopped growing at 13071834 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T18:02:38.299Z",
- "LastStopDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130215_video",
+ "LastStopDir": "/Users/<user>/Movies/AgentEyes/2026-11-15_130215_video",
  "CameraStuck": false,
  "StuckCameras": [],
  "PreviewScreenFrame": null,
@@ -70,11 +70,11 @@ T +   68.7s (inj+  46.5s) State=idle        Live=None         Fault=capture stal
  "CaptureSecondsSinceGrowth": null,
  "LastCaptureFault": "capture stalled: raw.mp4 stopped growing at 13071834 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T18:02:38.299Z",
  "LastCaptureFaultUtc": "2026-11-15T18:03:24.341734Z",
- "LastCaptureFaultDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130215_video"
+ "LastCaptureFaultDir": "/Users/<user>/Movies/AgentEyes/2026-11-15_130215_video"
 }
 # SUMMARY label=FIXED-ac1-sigstop-screen+mic fault_at=None not_recording_at=46.53670001029968 idle_at=46.53670001029968
 # final child state: pid 26837 -> gone
 # remaining ffmpegs: []
-# final /status: {"State": "idle", "Mode": null, "Source": null, "ElapsedSeconds": 69.17, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": null, "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 54, "LastStopFailed": true, "LastStopError": "capture watchdog: capture stalled: raw.mp4 stopped growing at 13071834 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T18:02:38.299Z", "LastStopDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130215_video", "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": "capture stalled: raw.mp4 stopped growing at 13071834 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T18:02:38.299Z", "LastCaptureFaultUtc": "2026-11-15T18:03:24.341734Z", "LastCaptureFaultDir": "/Users/soren/Movies/AgentEyes/2026-11-15_130215_video"}
+# final /status: {"State": "idle", "Mode": null, "Source": null, "ElapsedSeconds": 69.17, "Level": 0, "MicLevel": 0, "SystemLevel": 0, "Dir": null, "Camera": null, "SignedIn": false, "AccountEmail": null, "PendingTranscriptions": 54, "LastStopFailed": true, "LastStopError": "capture watchdog: capture stalled: raw.mp4 stopped growing at 13071834 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T18:02:38.299Z", "LastStopDir": "/Users/<user>/Movies/AgentEyes/2026-11-15_130215_video", "CameraStuck": false, "StuckCameras": [], "PreviewScreenFrame": null, "PreviewCameraFrame": null, "PreviewAvailable": false, "PreviewArmed": false, "PreviewPublishing": false, "PreviewScreenFramesRead": 0, "PreviewCameraFramesRead": 0, "PreviewFailed": false, "PreviewOverlayCorner": null, "PreviewOverlayShape": null, "CaptureLiveness": null, "CaptureFile": null, "CaptureBytes": null, "CaptureLastGrowthUtc": null, "CaptureSecondsSinceGrowth": null, "LastCaptureFault": "capture stalled: raw.mp4 stopped growing at 13071834 bytes and has not grown for 46s (limit 45s); last growth 2026-11-15T18:02:38.299Z", "LastCaptureFaultUtc": "2026-11-15T18:03:24.341734Z", "LastCaptureFaultDir": "/Users/<user>/Movies/AgentEyes/2026-11-15_130215_video"}
 # load at end: 13:03  up 2 days, 21:56, 1 user, load averages: 2.91 3.53 4.35
 # UTC end 2026-11-15T18:03:24Z

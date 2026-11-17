@@ -1,5 +1,5 @@
 param([string]$cli, [string]$dir, [string]$tag)
-$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\<user>\AppData\Local\AgentEyes\app'
 $L = "$PSScriptRoot\listing.ps1"; $out = "$PSScriptRoot\$tag"
 function Mux { (Get-Content "$dir\manifest.json" -Raw | ConvertFrom-Json).PostProcessing.mux | ConvertTo-Json -Compress }
 function FfFor { @(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.CommandLine -like "*$dir*" }) }

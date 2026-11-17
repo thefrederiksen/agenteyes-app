@@ -17,7 +17,7 @@ QA seat on `devlinux`, 2026-11-14, Linux only (x11grab 1920x1080 at 30 fps + Pul
 
 | | |
 |---|---|
-| Branch | `issue-113-capture-watchdog` at `c3eabd821288b1b1e4293a392bc9ddb382ada12a` (= `origin`, clean worktree `/home/soren/ReposFred/agenteyes-app-113`) |
+| Branch | `issue-113-capture-watchdog` at `c3eabd821288b1b1e4293a392bc9ddb382ada12a` (= `origin`, clean worktree `/home/<user>/ReposFred/agenteyes-app-113`) |
 | Before | service pid 2624298, `~/.local/lib/agenteyes/agenteyes.dll` sha256 `79979fd7...319b03c` (main `af0ddb1`; `/status` had no `Capture*` fields) |
 | Installed by QA | `bash scripts/linux/install.sh` from the branch worktree, 12:38 EST |
 | Under test | service **pid 2657099**, started Sat Nov 14 12:38:19 2026, `/proc/2657099/maps` maps `~/.local/lib/agenteyes/agenteyes.dll`, sha256 **`4087240e290af3c6dcc88f1b85f614e30f0745adf50aa60a4e349b58a548ef50`**, which contains the `CaptureWatchdog` type |
@@ -37,7 +37,7 @@ Local log times are EST (UTC-5). `/status` times are UTC.
 | 6 | Manifest records the fault and its UTC detection time | `CaptureFault`, `CaptureFaultDetail`, `CaptureFaultDetectedUtc`, `CaptureFaultElapsedSeconds`, `CapturedSeconds` present in all four (quoted below) | PASS |
 | 7 | Detection logged at detection time, with elapsed seconds | `12:40:07.433 [pid 2657099] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=66.0s (detected 2026-11-14T17:40:07.431Z) ...`, before the stop starts at 12:40:07.435 and 13.6 s before the stop ends | PASS |
 | 8 | Healthy recordings on Windows and Linux are not ended; argument tests pass and are named | Linux: AC4 at runtime. Windows: CI `windows` job `dotnet test AgentEyes.sln` 2322 / 0 on `c3eabd8`. Files: `tests/AgentEyes.Tests.Linux/LinuxFfmpegArgsTests.cs`, `tests/AgentEyes.Tests.Mac/MacFfmpegArgsTests.cs`, `tests/AgentEyes.Tests/FfmpegArgsTests.cs`, `tests/Shared/CaptureWatchdogTests.cs` (fake clock + fake size source) | PASS (Windows at CI level only, not at runtime) |
-| 9 | mac + linux builds 0 errors; both suites `Failed: 0`; Windows sln build + test | linux build and mac build: `Build succeeded.` `0 Error(s)` (1 pre-existing warning, `AlwaysOnEngine.cs(901)`). Linux suite **294 / 0**. Mac suite on Linux 251 / 1 - the one failure is `MacPathsTests.MachineLocalAppData_OnMac_IsTheApplicationSupportFolder`, which fails **identically on main** (225 / 1, same `Expected "/home/soren/Library/Application Support"` / `Actual "/home/soren/.local/share"`) and **passes on the real Mac CI runner (252 / 0)**. Windows: CI 2322 / 0 | PASS |
+| 9 | mac + linux builds 0 errors; both suites `Failed: 0`; Windows sln build + test | linux build and mac build: `Build succeeded.` `0 Error(s)` (1 pre-existing warning, `AlwaysOnEngine.cs(901)`). Linux suite **294 / 0**. Mac suite on Linux 251 / 1 - the one failure is `MacPathsTests.MachineLocalAppData_OnMac_IsTheApplicationSupportFolder`, which fails **identically on main** (225 / 1, same `Expected "/home/<user>/Library/Application Support"` / `Actual "/home/<user>/.local/share"`) and **passes on the real Mac CI runner (252 / 0)**. Windows: CI 2322 / 0 | PASS |
 | 10 | Watchdog unit tests with fake clock and growth: fires on stop, not while growing, not in start-up | Present in `tests/Shared/CaptureWatchdogTests.cs`; the mutation run below shows they fail when the guard is disabled | PASS |
 
 ## The defect (criterion 1)
