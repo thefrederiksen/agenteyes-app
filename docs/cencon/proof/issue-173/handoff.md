@@ -3,6 +3,78 @@
 Branch `issue-173-scrub-identity`, from main `02a4622`. Scope is the issue body as CORRECTED by the
 lead's comment 6943321310 (84-ish files, not five; `AccountStateTests.cs` brought IN).
 
+## QA round 2 bounce (2026-11-17) - the guard joins only console-wrap breaks; read this first
+
+QA (comment 6945003526, `qa/qa-report-round2.html`) passed the sweep and judged the verifier residual
+acceptable. The blocking defect was the guard: removing EVERY line break made identity-free files red
+(a pytest decorator after `import pytest` read as an address) while six leak shapes stayed green.
+
+**The discriminator: join a break only when it has the structure of a hard console wrap.**
+1. The next line starts at column 0 with a visible character. A console continues a wrapped line at
+   column 0; an indented or blank next line is a new line (this alone clears the property setter).
+2. Whitespace before the break is ignored - console captures pad lines to the width. (B, B2, B3.)
+3. Tier 1, MID-WORD: the characters on both sides are word characters (letter, digit, `_`, `-`). A
+   person ending a line almost never splits a word; a console does it all the time. Joined at any
+   width, so QA's short synthetic leaks are caught.
+4. Tier 2, BESIDE PUNCTUATION (a line ending `/` or `\`, a line starting `@` or `/`): joined only when
+   the line before is 80+ columns, padding included. Lines that start with `@` or `/` are ordinary in
+   code and listings (decorators, mentions, scoped packages, `ls` output) and follow short lines; a
+   real console wrap follows a full-width line. (FP1, FP3, FP5, FP6.)
+5. CRLF, LF and a lone CR all count as breaks. (D.)
+6. `/home/runner` followed by a line that carries on as a path (`bob/Videos`) is reported: a name
+   that only begins with an allowed one. (F.)
+7. UTF-16 text - any run of 4+ ASCII chars each followed by NUL, anywhere in a file - is decoded and
+   scanned the same way; UTF-16BE matches one byte along. (E.)
+
+Why not QA's width-only hint: QA's own leak probes break after SHORT lines (`Cannot remove C:\Us   `),
+so a width-only rule would turn B, B3, C, C2, D and F green. Tier 1 keeps them red; the width gate is
+used only where the break is beside punctuation, which is exactly where the false positives were.
+
+**What it misses (pinned GREEN in `declared-miss/`):** a wrap beside punctuation on a console narrower
+than 80 columns (`C:\Users\` | name, `name` | `@domain`); an indented continuation (PowerShell
+Format-List style) split inside the prefix - a split after the prefix is still red as written, because
+the partial name is itself a name; `/home/runner` + a name with no path after it; UTF-32 and any other
+encoding. **What it flags that is not a leak (pinned RED in `declared-flag/`):** a line of 80+ columns
+ending at a home prefix or mid-word, followed by a line that completes a home path or an address.
+
+**The deliverable: `tests/evidence-identity-corpus/`, run by `scripts/test-check-proof-identity.py`.**
+Each file is planted alone in a throwaway repository root and the real guard runs on it as CI runs it.
+green 21 (QA's FP1-FP6 and A, plus decorators, mentions, `cd /Users/` then `ls`, `dir C:\Users\` CRLF,
+path lists, a markdown hard break, UTF-16 identity-free files, QA's literal B2) must exit 0; red 22
+(every wrapped and unwrapped shape incl. QA's six misses, a padded 120-column PowerShell wrap, UTF-16LE
+wrapped, UTF-16BE with and without BOM, UTF-16 inside a binary) must exit 1 and name the file;
+declared-miss 5 and declared-flag 2 pinned both ways. `.gitattributes` keeps the corpus byte for byte.
+CI runs it after planting an identity-free pytest file in the real tree and requiring green.
+
+The corpus can fail (`guard-round3.txt` section 2): the round-2 guard fails it on 25 files (11 green
+gone red, 11 red gone green); WRAP_WIDTH set to 0 fails 13; no joining fails 16; no UTF-16 scan fails 5.
+
+| QA round-3 ask | Result | Proof |
+|---|---|---|
+| FP1-FP6 green, FP4 and A still green | all green | `guard-round3.txt` s1, s3 |
+| B/B3 red | red | s1 (leak03, leak05), s3 |
+| B2 red | **QA's literal cannot be**: it is `/ho<TAB>LF/me/...` - an extra `/`, so no reading of it holds a home path. The intended shape (`/ho<TAB>LF me/...`) is red (leak04); QA's literal is pinned green (fp19). | s3 note |
+| D/F/E fixed or declared | all three FIXED, red | s1 (leak08, leak09, leak10), s3 |
+| Green FP control in CI | new step "Negative control": plants an identity-free pytest file, requires exit 0, then runs the corpus. Both steps run locally from the YAML: exit 0. | s5, `ci.yml` |
+| "exact" only on a passing mapping | a failing run now prints `[FAIL] ... NOT exact - 1 failure(s)` | s7 |
+| `qa-r2-probes.py` "as expected" on every line | every line but B2 (above) | s3 |
+
+**Re-measured at 388b111 (main da85516; main has not moved)**, every blob, plain and wrapped: owner 87 -> 0,
+second 3 -> 0, `/home/<username>` 794 -> 0, `/Users/<username>` 330 -> 0, Windows home 3522 -> 1 (the declared
+`CameraFailurePathTests.cs:77`), WRAPPED 1 -> 0. QA's `qa-forms.py` and `qa-wrapped-r2.py` agree at 388b111.
+Whole tree under the new guard: 1690 files, 0 hits; 214017 breaks, of which 93993 joined.
+
+**Gates:** Linux 474/3/0 (477), Mac 433/2/0 (435), SDK 10.0.403. No C# changed. Windows: CI on this tip,
+named in the #173 comment.
+
+**Noticed, not changed:** `verify-sweep.py:39` holds the bare username as a constant (present since an
+earlier round of this issue). A bare username is outside the three path forms this issue scrubs and
+the guard checks - the #212 class. Flagged so QA can decide whether it belongs in this issue.
+
+**Still OUT, unchanged:** git history (the address is in the author metadata of 67 commits);
+`CameraFailurePathTests.cs:77`; usernames in pipe names, host names and `ls` owner columns (#212); and
+the four open evidence PRs #190 #198 #199 #177, which this zero does not cover.
+
 ## QA round 1 bounce (2026-11-17) - what changed, read before the rest
 
 QA (comment 6944138900, `qa/qa-report.html`) found ONE survivor: a Windows home path split across a
