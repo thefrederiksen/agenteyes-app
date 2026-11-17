@@ -311,10 +311,18 @@ one JSON per poll and every response carried the signed-in account. Before you c
   changes. Where a path's LENGTH is itself the evidence (a too-long path failure), leave it intact or
   write the stand-in beside its original character count (`<stage> (57 chars)`), so the redaction
   can still be checked against the measurement.
-- CI enforces the address rule: `scripts/check-proof-identity.py` (the `evidence-identity` job) fails
-  on any email-shaped string under `docs/cencon/proof/` or `docs/cencon/review/`. It does not check
-  home paths or host names - those are on you. It also does not undo the past: addresses already in
-  git history stay there, and the #173 sweep did not rewrite history.
+- **Search across line wraps.** A console wraps long output at its width, so a path or an address
+  can be split across two lines (`C:\Us` at the end of one, `ers\<name>\...` at the start of the
+  next). A line-by-line search cannot see it: #173's sweep and its first guard both missed one that
+  QA found. When you check your own evidence, search with the line breaks removed as well.
+- CI enforces the rule: `scripts/check-proof-identity.py` (the `evidence-identity` job) fails on any
+  email-shaped string, and on any home path (`/home/`, `/Users/`, `<drive>:\Users\`) whose user
+  segment is a name rather than a placeholder, under `docs/cencon/proof/` or `docs/cencon/review/` -
+  both as written and with the line breaks removed, so a wrapped one is caught too. Every CI run first
+  plants each of those shapes, wrapped and unwrapped, and requires the guard to go red on it. It does
+  not check host names, pipe names or any other place a username appears (#212 tracks host names) -
+  those are on you. It also does not undo the past: addresses already in git history stay there, and
+  the #173 sweep did not rewrite history.
 
 ### 6b. Definition of Verified (QA Agent's bar)
 

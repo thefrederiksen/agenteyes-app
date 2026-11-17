@@ -28,25 +28,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The guard is made to fire on every run before its silence is believed: plant an
-      # address-shaped string in a new proof file and require a red result that names that file.
-      # The planted value is assembled at run time so this workflow holds no address-shaped literal.
-      - name: Positive control - the guard must fail on a planted address
+      # The guard is made to fire on every run before its silence is believed: plant each shape it
+      # claims to see in a new proof file - an address, a named home path, and BOTH broken across a
+      # line break the way a console wraps them (#173 QA: a wrapped home path got past every
+      # line-by-line search) - and require a red result that names that file and line for each.
+      # The planted values are assembled at run time so this workflow holds no such literal.
+      - name: Positive control - the guard must fail on each planted shape, wrapped or not
         shell: bash
         run: |
           probe=docs/cencon/proof/ci-identity-probe.txt
+          check() {
+            local what=$1 want=$2
+            set +e
+            out=$(python3 scripts/check-proof-identity.py)
+            code=$?
+            set -e
+            rm -f "$probe"
+            echo "$out"
+            test $code -eq 1 || { echo "[FAIL] the guard exited $code on a planted $what; expected 1 - it cannot fail, so its green means nothing"; exit 1; }
+            echo "$out" | grep -q "ci-identity-probe.txt:$want" || { echo "[FAIL] the guard went red on a planted $what but did not name ci-identity-probe.txt:$want"; exit 1; }
+            echo "[OK] the guard fails on a planted $what and names the file and line"
+          }
           printf 'signed in as %s@%s\n' planted.probe acme-widgets.io > "$probe"
-          set +e
-          out=$(python3 scripts/check-proof-identity.py)
-          code=$?
-          set -e
-          rm -f "$probe"
-          echo "$out"
-          test $code -eq 1 || { echo "[FAIL] the guard exited $code on a planted address; expected 1 - it cannot fail, so its green means nothing"; exit 1; }
-          echo "$out" | grep -q "ci-identity-probe.txt:1" || { echo "[FAIL] the guard went red but did not name the planted file"; exit 1; }
-          echo "[OK] the guard fails on a planted address and names the file"
+          check address "1:"
+          printf 'line one\nsigned in as planted.probe@acme-wid\ngets.%s\n' io > "$probe"
+          check "address wrapped across a line" "2: WRAPPED"
+          printf 'output to %s:\\%s\\%s\\Videos\n' C Users planted-probe > "$probe"
+          check "home path" "1:"
+          printf 'line one\nCannot remove C:\\Us\r\ners\\%s\\AppData\\Local\n' planted-probe > "$probe"
+          check "home path wrapped across a CRLF line break" "2: WRAPPED"
+          python3 scripts/check-proof-identity.py || { echo "[FAIL] the guard is still red with every probe removed"; exit 1; }
 
-      - name: No email address in committed evidence
+      - name: No email address and no named home path in committed evidence
         run: python3 scripts/check-proof-identity.py
 
   windows:

@@ -51,7 +51,7 @@ At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.
 15:17:40.862 ffmpeg running after: [20580]
 Remove-Item : Cannot remove item C:\Users\<user>\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69
 d0f84802\scratchpad\rc-main\Videos\AgentEyes\2026-11-16_101721_video\raw.mp4: The process cannot access the file 'C:\Us
-ers\soren\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69d0f84802\scratchpad\rc-main\Videos\Age
+ers\<user>\AppData\Local\Temp\<qa-session>\caeb0b513047a76e\4b5a473d-0b32-40e8-a4f2-1b69d0f84802\scratchpad\rc-main\Videos\Age
 ntEyes\2026-11-16_101721_video\raw.mp4' because it is being used by another process.
 At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:88 char:67
 + ... dir -Include *.mp4, *.mkv, *.png, *.jpg -Recurse | Remove-Item -Force

@@ -1,0 +1,119 @@
+# (Probe files are shown as od -c, characters spaced apart, so this record does not trip the guard it documents.)
+# Issue #173 QA round 1 bounce - the guard must see a string broken by a console line wrap.
+# Run on devthrottle-mac-mini, 2026-11-17T09:50Z, branch issue-173-scrub-identity working tree
+# (main da85516 merged in), Python 3.14.6.
+# Probes are planted in a NEW nested directory under docs/cencon/review/ and removed after.
+# The planted names are made up (planted-probe, acme-widgets.io); no real value is used.
+
+## 1. The real defect: run-rc-main.txt as it stood at 7ffa6d5 (C:\Us / ers\<username> across the wrap)
+# OLD guard (7ffa6d5), which only read line by line and only looked for addresses:
+$ python3 <7ffa6d5>/scripts/check-proof-identity.py
+[check-proof-identity] scanned 1683 files, 23178345 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string in committed evidence
+exit=0
+
+# NEW guard:
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1683 files, 23178345 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53: WRAPPED across a line break: home path naming user s***
+exit=1
+
+# Redacted (this change):
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1683 files, 23178346 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string and no named home path in committed evidence, as written or across line wraps
+exit=0
+
+## 2. Planted WRAPPED probes, shaped the way the console broke the real one
+### 2a. Windows home path split C:\Us | ers\..., CRLF (the exact shape of the defect). File:
+           R   e   m   o   v   e   -   I   t   e   m       :       C   a
+           n   n   o   t       r   e   m   o   v   e       i   t   e   m
+           .       T   h   e       p   r   o   c   e   s   s       c   a
+           n   n   o   t       a   c   c   e   s   s       t   h   e    
+           f   i   l   e       '   C   :   \   U   s  \r  \n   e   r   s
+           \   p   l   a   n   t   e   d   -   p   r   o   b   e   \   A
+           p   p   D   a   t   a   \   L   o   c   a   l   \   T   e   m
+           p   \   x   \   r   a   w   .   m   p   4   '       b   e   c
+           a   u   s   e       i   t       i   s       b   e   i   n   g
+               u   s   e   d       b   y       a   n   o   t   h   e   r
+               p   r   o   c   e   s   s   .  \r  \n                    
+
+
+# OLD guard:
+$ python3 <7ffa6d5>/scripts/check-proof-identity.py
+[check-proof-identity] scanned 1684 files, 23178517 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string in committed evidence
+exit=0
+
+# NEW guard:
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1684 files, 23178517 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/review/wrap-probe-173/nested/wrapped-path-crlf.txt:1: WRAPPED across a line break: home path naming user p***
+exit=1
+
+### 2b. /home/ path split between /home and /<name> (neither line is a home path alone), LF. File:
+           {  \n           "   L   a   s   t   S   t   o   p   D   i   r
+           "   :       "   /   h   o   m   e  \n   /   p   l   a   n   t
+           e   d   -   p   r   o   b   e   /   V   i   d   e   o   s   /
+           A   g   e   n   t   E   y   e   s   /   2   0   2   6   -   1
+           1   -   1   4   _   1   3   3   9   3   1   _   v   i   d   e
+           o   "  \n   }  \n                                            
+
+# NEW guard:
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1684 files, 23178431 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/review/wrap-probe-173/nested/wrapped-path-lf.json:2: WRAPPED across a line break: home path naming user p***
+exit=1
+
+### 2c. Address split inside the domain, next line indented (neither line is an address alone). File:
+           s   i   g   n   e   d       i   n       a   s       p   l   a
+           n   t   e   d   .   p   r   o   b   e   @   a   c   m   e   -
+           w   i   d  \n                   g   e   t   s   .   i   o    
+           (   i   n   d   e   n   t   e   d       c   o   n   t   i   n
+           u   a   t   i   o   n   )  \n                                
+
+# OLD guard:
+$ python3 <7ffa6d5>/scripts/check-proof-identity.py
+[check-proof-identity] scanned 1684 files, 23178418 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string in committed evidence
+exit=0
+
+# NEW guard:
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1684 files, 23178418 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/review/wrap-probe-173/nested/wrapped-address.txt:1: WRAPPED across a line break: email-shaped string p***@***.io
+exit=1
+
+### 2d. URL-encoded address split inside %40, CRLF. File:
+           a   c   c   o   u   n   t   :       p   l   a   n   t   e   d
+           .   p   r   o   b   e   %   4  \r  \n   0   a   c   m   e   -
+           w   i   d   g   e   t   s   .   i   o  \r  \n                
+
+# NEW guard:
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1684 files, 23178390 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/review/wrap-probe-173/nested/wrapped-encoded.txt:1: WRAPPED across a line break: email-shaped string p***%40***.io
+exit=1
+
+## 3. False-positive controls - a COMPLETE allowed string followed by a line break must stay green
+# File:
+           u   s   e   r   @   e   x   a   m   p   l   e   .   c   o   m
+          \n   f   o   o       b   a   r  \n   /   h   o   m   e   /   r
+           u   n   n   e   r  \n   w   o   r   k   /   a   g   e   n   t
+           e   y   e   s   -   a   p   p  \n   C   :   \   U   s   e   r
+           s   \   <   u   s   e   r   >  \n   A   p   p   D   a   t   a
+          \n                                                            
+
+# NEW guard:
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1684 files, 23178427 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string and no named home path in committed evidence, as written or across line wraps
+exit=0
+
+## 4. Probes removed
+ls: docs/cencon/review/wrap-probe-173: No such file or directory
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1683 files, 23178346 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string and no named home path in committed evidence, as written or across line wraps
+exit=0
+
