@@ -1,0 +1,14 @@
+real app pid before: 20576
+--- case A backslash bundle dir: DOTNET_BUNDLE_EXTRACT_BASE_DIR=<scratch>\iso-bs\bundle
+pid=1140 exited=True exitcode=0x00000000
+its log line: 03:48:41.014 [pid 1140] [WARN] second instance refused: another AgentEyes already holds the single-instance lock. response=ExitQuietly, host=AgentEyes
+.NET Runtime event: (none)
+--- case B forward-slash bundle dir: DOTNET_BUNDLE_EXTRACT_BASE_DIR=<scratch-fwd>/iso-fs\bundle
+pid=7572 exited=True exitcode=0xC00000FD
+its log line: (none - died before logging)
+.NET Runtime event: (none)
+--- case C forward-slash bundle dir, repeat: DOTNET_BUNDLE_EXTRACT_BASE_DIR=<scratch-fwd>/iso-fs2\bundle
+pid=13040 exited=True exitcode=0xC00000FD
+its log line: (none - died before logging)
+.NET Runtime event: (none)
+real app pid after: 20576  (unchanged=True)

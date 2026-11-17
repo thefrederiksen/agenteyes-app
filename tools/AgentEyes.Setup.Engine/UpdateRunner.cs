@@ -217,7 +217,7 @@ public sealed class UpdateRunner
                 string? backup = null;
                 if (item.AssetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                 {
-                    foreach (var (target, fileBackup) in ArchiveInstaller.Place(_layout.AppDir, s.StagedPath))
+                    foreach (var (target, fileBackup) in ArchiveInstaller.Place(_layout.AppDir, s.StagedPath, _layout.StagingDir))
                         placed.Add((item.ComponentId, target, fileBackup));
                 }
                 else

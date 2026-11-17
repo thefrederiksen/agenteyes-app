@@ -1,0 +1,70 @@
+?=== snapshot: BEFORE run 3 (forward-slash --root, v1.12.0 setup, unfixed) at 2026-11-17 03:47:17.826
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=19004 name=AgentEyesApp.exe started=03:47:16 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmdline="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+=== command: agenteyes-setup-1.12.0.exe install --release-dir <scratch>/release --root <scratch>/repro-root3 --no-finalize   (FORWARD SLASHES, as Git Bash passed them last night)
+exit=0
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+restarted the running app (pid 19004 -> pid 17648)
+note: the stopped process (pid 19004) was running from %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, not from the installed <scratch>/repro-root3\app\AgentEyesApp.exe; the installed build was started. If that other build is started again it will not report this update's version.
+=== snapshot: AFTER run 3 +0s at 2026-11-17 03:47:30.943
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=17648 name=AgentEyesApp.exe started=03:47:30 exe=<scratch>\repro-root3\app\AgentEyesApp.exe cmdline=<scratch>/repro-root3\app\AgentEyesApp.exe --tray
+--- service state: GET http://127.0.0.1:7882/health
+NO ANSWER: The operation has timed out.
+--- service state: GET /status (State field)
+NO ANSWER: Unable to connect to the remote server
+--- who owns 127.0.0.1:7882
+nothing listening on 7882
+=== snapshot: AFTER run 3 +15s at 2026-11-17 03:47:51.473
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+(no AgentEyes processes)
+--- service state: GET http://127.0.0.1:7882/health
+NO ANSWER: Unable to connect to the remote server
+--- service state: GET /status (State field)
+NO ANSWER: Unable to connect to the remote server
+--- who owns 127.0.0.1:7882
+nothing listening on 7882
+--- .NET Runtime / Application Error events since the command
+03:47:38 id=1000 Application Error: Faulting application name: AgentEyesApp.exe, version: 1.12.0.0, time stamp: 0x6ada6f8e
+Faulting module name: KERNELBASE.dll, version: 10.0.26100.9974, time stamp: 0xa3ff6954
+Exception code: 0xc000041d
+Fault offset: 0x00000000000c569a
+Faulting process id: 0x44F0
+Faulting application start time: 0x1DD7670480B7BC8
+Faulting application path: <scratch>\repro-root3\app\AgentEyesApp.exe
+Faulting module path: C:\Windows\System32\KERNELBASE.dll
+Report Id: c90a28b9-e874-40af-a4c7-c55cecf164b3
+Faulting package full name: 
+Faulting package-relative application ID: 
+03:47:31 id=1000 Application Error: Faulting application name: AgentEyesApp.exe, version: 1.12.0.0, time stamp: 0x6ada6f8e
+Faulting module name: KERNELBASE.dll, version: 10.0.26100.9974, time stamp: 0xa3ff6954
+Exception code: 0xe0434352
+Fault offset: 0x00000000000c569a
+Faulting process id: 0x44F0
+Faulting application start time: 0x1DD7670480B7BC8
+Faulting application path: <scratch>\repro-root3\app\AgentEyesApp.exe
+Faulting module path: C:\Windows\System32\KERNELBASE.dll
+Report Id: c8e24677-5fe9-4084-9c85-e2f99a1e0dd4
+Faulting package full name: 
+Faulting package-relative application ID: 
+03:47:31 id=1026 .NET Runtime: Application: AgentEyesApp.exe
+CoreCLR Version: 8.0.3326.52219
+.NET Version: 8.0.33
+Description: The process was terminated due to an unhandled exception.
+Exception Info: System.DllNotFoundException: Dll was not found.
+   at MS.Internal.WindowsBase.NativeMethodsSetLastError.SetWindowLongPtrWndProc(HandleRef hWnd, Int32 nIndex, WndProc dwNewLong)
+   at MS.Win32.UnsafeNativeMethods.CriticalSetWindowLong(HandleRef hWnd, Int32 nIndex, WndProc dwNewLong)
+   at MS.Win32.HwndSubclass.HookWindowProc(IntPtr hwnd, WndProc newWndProc, IntPtr oldWndProc)
+   at MS.Win32.HwndSubclass.SubclassWndProc(IntPtr hwnd, Int32 msg, IntPtr wParam, IntPtr lParam)
+

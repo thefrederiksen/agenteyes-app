@@ -30,6 +30,7 @@ namespace AgentEyes.Tests
         private readonly FakeLauncher _launcher = new();
         private readonly Func<InstallLayout, IRunningAppHandle> _handleBefore;
         private readonly Func<InstallLayout, IAppLauncher> _launcherBefore;
+        private readonly Func<InstallLayout> _layoutBefore;
 
         public SetupCliRestartTests()
         {
@@ -43,12 +44,17 @@ namespace AgentEyes.Tests
             _launcherBefore = CliCommands.AppLauncherFactory;
             CliCommands.RunningAppHandleFactory = _ => _app;
             CliCommands.AppLauncherFactory = _ => _launcher;
+            // Issue #200: --root is now an ISOLATED install that never stops or starts an app, so these tests of
+            // the stop -> swap -> relaunch cycle reach their temp root as the CLI's default layout instead.
+            _layoutBefore = CliProgram.DefaultLayoutFactory;
+            CliProgram.DefaultLayoutFactory = () => _layout;
         }
 
         public void Dispose()
         {
             CliCommands.RunningAppHandleFactory = _handleBefore;
             CliCommands.AppLauncherFactory = _launcherBefore;
+            CliProgram.DefaultLayoutFactory = _layoutBefore;
             EngineLog.Sink = null;
             try { Directory.Delete(_temp, recursive: true); } catch (IOException) { }
         }
@@ -60,7 +66,7 @@ namespace AgentEyes.Tests
             _app.StopSucceeds = true;
             _launcher.NewPid = 22104;
 
-            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(0, exit);
             Assert.Equal("", stderr);
@@ -80,7 +86,7 @@ namespace AgentEyes.Tests
             _app.StopSucceeds = true;
             _launcher.NewPid = 22104;
 
-            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize", "--json");
+            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--no-finalize", "--json");
 
             Assert.Equal(0, exit);
             Assert.True(stdout.Contains("\"restarted\": true", StringComparison.Ordinal), "stdout was:\n" + stdout);
@@ -94,7 +100,7 @@ namespace AgentEyes.Tests
         {
             _app.Instance = null;
 
-            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(0, exit);
             Assert.Equal("", stderr);
@@ -122,7 +128,7 @@ namespace AgentEyes.Tests
             _app.Instance = new RunningAppInstance(13680, exe, new[] { "--tray" });
             _app.StopSucceeds = false;
 
-            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(1, exit);
             Assert.Contains("ERROR: AgentEyes (pid 13680) is running and could not be stopped.", stderr);
@@ -156,7 +162,7 @@ namespace AgentEyes.Tests
             _app.Instance = new RunningAppInstance(13680, exe, new[] { "--tray" });
             _app.StopSucceeds = true;
 
-            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, stderr) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(1, exit);
             Assert.Contains("ERROR: app could not be downloaded and verified (SHA-256 mismatch", stderr);
@@ -179,7 +185,7 @@ namespace AgentEyes.Tests
             UpdateAttemptMarker.WriteFailed(_layout, "9.9.9", UpdateAttemptMarker.StageDownload, "an earlier try", "cli");
             _app.Instance = null;
 
-            var (exit, _, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, _, _) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(0, exit);
             Assert.Null(UpdateAttemptMarker.Read(_layout));
@@ -196,7 +202,7 @@ namespace AgentEyes.Tests
             _app.StopSucceeds = true;
             _launcher.NewPid = 22104;
 
-            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(0, exit);
             Assert.Contains("restarted the running app (pid 13680 -> pid 22104)", stdout);
@@ -211,7 +217,7 @@ namespace AgentEyes.Tests
             _app.Instance = new RunningAppInstance(13680, _layout.PathFor(ComponentRegistry.App), new[] { "--tray" });
             _app.StopSucceeds = true;
 
-            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(0, exit);
             Assert.DoesNotContain("note: the stopped process", stdout);
@@ -222,7 +228,7 @@ namespace AgentEyes.Tests
         {
             _app.Instance = new RunningAppInstance(1, _layout.PathFor(ComponentRegistry.App), new[] { "--tray" });
 
-            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--dry-run");
+            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--dry-run");
 
             Assert.Equal(0, exit);
             Assert.Contains("Plan:", stdout);
@@ -237,12 +243,12 @@ namespace AgentEyes.Tests
             // First run installs 9.9.9 (the app "was not running"); the second finds nothing to do and
             // must not stop or start anything even though the app is now reported running.
             _app.Instance = null;
-            var first = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var first = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
             Assert.Equal(0, first.Exit);
 
             _app.Instance = new RunningAppInstance(13680, _layout.PathFor(ComponentRegistry.App), new[] { "--tray" });
             int findsBefore = _app.FindCalls;
-            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, _) = await Run("update", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(0, exit);
             Assert.Contains("Nothing to do", stdout);
@@ -258,7 +264,7 @@ namespace AgentEyes.Tests
             _app.StopSucceeds = true;
             _launcher.NewPid = 200;
 
-            var (exit, stdout, stderr) = await Run("install", "--release-dir", _releaseDir, "--root", _layout.LocalRoot, "--no-finalize");
+            var (exit, stdout, stderr) = await Run("install", "--release-dir", _releaseDir, "--no-finalize");
 
             Assert.Equal(0, exit);
             Assert.Equal("", stderr);

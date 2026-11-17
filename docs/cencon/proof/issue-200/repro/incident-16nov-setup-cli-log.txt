@@ -1,0 +1,53 @@
+# setup-cli.log of the two --root runs on 16 Nov 2026 (the incident), verbatim lines; paths scrubbed
+## root-good
+2026-11-16 18:21:03 [Program] RunAsync: command=install positionals=[] flags=[no-finalize] options=[release-dir=<scratch-16nov>/dl,root=<scratch-16nov>/root-good] root=<scratch-16nov>/root-good
+2026-11-16 18:21:03 [UpdatePlanner] Plan: 4 components, 4 install, 0 update, 0 missing-asset.
+2026-11-16 18:21:03 [UpdateRestartCycle] RunAsync: looking for a running AgentEyes
+2026-11-16 18:21:04 [RunningAppHandle] Find: pid 19972, exe %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, arguments: --tray
+2026-11-16 18:21:04 [UpdateRestartCycle] RunAsync: AgentEyes is running (pid 19972, %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, arguments: --tray) - it keeps running while the update is downloaded and verified
+2026-11-16 18:21:04 [UpdateRestartCycle] RunAsync: preparing (download + verify) before anything is stopped or replaced
+2026-11-16 18:21:04 [UpdateRunner] StageAsync: downloading and verifying 4 component(s) before anything is stopped or replaced
+2026-11-16 18:21:06 [UpdateRunner] StageAsync: app (absent) -> 1.12.0 verified at %USERPROFILE%\AppData\Local\Temp\agenteyes-setup-6b1c17f6cfd64d149da8f79b88ee326c-AgentEyesApp-win-x64.exe
+2026-11-16 18:21:08 [UpdateRunner] StageAsync: cli (absent) -> 1.12.0 verified at %USERPROFILE%\AppData\Local\Temp\agenteyes-setup-ce0d7c062270432588bd50a6a6b8d9df-agenteyes-win-x64.exe
+2026-11-16 18:21:09 [UpdateRunner] StageAsync: setup-cli (absent) -> 1.12.0 verified at %USERPROFILE%\AppData\Local\Temp\agenteyes-setup-c39f9d5ba6b547ec9e62977df1cd5b98-agenteyes-setup-cli-win-x64.exe
+2026-11-16 18:21:09 [UpdateRunner] StageAsync: ffmpeg (absent) -> 9.0.2 verified at %USERPROFILE%\AppData\Local\Temp\agenteyes-setup-0e8c3d0db95942b39329b1e264a4fd07-agenteyes-ffmpeg-win-x64.zip
+2026-11-16 18:21:09 [UpdateRunner] StageAsync: all 4 component(s) verified; nothing installed has been touched
+2026-11-16 18:21:09 [UpdateRestartCycle] RunAsync: prepared; stopping pid 19972 before anything is replaced
+2026-11-16 18:21:09 [RunningApp] StopAndWait: name=AgentEyesApp, graceful=30s, timeout=60s
+2026-11-16 18:21:09 [RunningApp] StopAndWait: 1 instance(s) running - stopping
+2026-11-16 18:21:09 [QuitRequest] TrySignal: quit requested from pid=19972 via AgentEyes-quit-19972
+2026-11-16 18:21:09 [RunningApp] StopAndWait: quit request delivered=True; waiting up to 30s for a clean exit
+2026-11-16 18:21:10 [RunningApp] StopAndWait: gone=True
+2026-11-16 18:21:10 [UpdateRestartCycle] RunAsync: pid 19972 is gone - replacing
+2026-11-16 18:21:10 [UpdateRunner] Swap: placing 4 verified component(s)
+2026-11-16 18:21:10 [InstallSwapper] Place: fresh install at <scratch-16nov>/root-good\app\AgentEyesApp.exe
+2026-11-16 18:21:10 [UpdateRunner] Swap: app Installed
+2026-11-16 18:21:10 [InstallSwapper] Place: fresh install at <scratch-16nov>/root-good\app\agenteyes.exe
+2026-11-16 18:21:10 [UpdateRunner] Swap: cli Installed
+2026-11-16 18:21:10 [InstallSwapper] Place: fresh install at <scratch-16nov>/root-good\app\agenteyes-setup.exe
+2026-11-16 18:21:10 [UpdateRunner] Swap: setup-cli Installed
+2026-11-16 18:21:11 [InstallSwapper] Place: fresh install at <scratch-16nov>/root-good\app\ffmpeg.exe
+2026-11-16 18:21:11 [InstallSwapper] Place: fresh install at <scratch-16nov>/root-good\app\ffprobe.exe
+2026-11-16 18:21:11 [ArchiveInstaller] placed 2 file(s) into <scratch-16nov>/root-good\app
+2026-11-16 18:21:11 [UpdateRunner] Swap: ffmpeg Installed
+2026-11-16 18:21:11 [UpdateRunner] Swap done: installed=4, updated=0
+2026-11-16 18:21:11 [UpdateRestartCycle] Relaunch: starting the installed <scratch-16nov>/root-good\app\AgentEyesApp.exe with argument(s): --tray (the stopped process ran from %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe)
+2026-11-16 18:21:11 [ProcessAppLauncher] BuildCommandLine: 1 argument(s) -> <scratch-16nov>/root-good\app\AgentEyesApp.exe --tray
+2026-11-16 18:21:11 [ProcessAppLauncher] Launch: starting detached (no inherited handles, own console) in <scratch-16nov>\root-good\app: <scratch-16nov>/root-good\app\AgentEyesApp.exe --tray
+2026-11-16 18:21:14 [ProcessAppLauncher] Launch: started <scratch-16nov>/root-good\app\AgentEyesApp.exe as pid 8680
+2026-11-16 18:21:14 [UpdateRestartCycle] Relaunch: started pid 8680
+2026-11-16 18:21:14 [UpdateRestartCycle] RunAsync: restarted the running app (pid 19972 -> pid 8680)
+2026-11-16 18:21:14 [UpdateRestartCycle] RunAsync: note: the stopped process (pid 19972) was running from %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, not from the installed <scratch-16nov>/root-good\app\AgentEyesApp.exe; the installed build was started. If that other build is started again it will not report this update's version.
+2026-11-16 18:21:14 [Program] RunAsync: command=install exit=0
+## root-bad
+2026-11-16 18:21:14 [Program] RunAsync: command=install positionals=[] flags=[no-finalize] options=[release-dir=<scratch-16nov>/corrupt,root=<scratch-16nov>/root-bad] root=<scratch-16nov>/root-bad
+2026-11-16 18:21:14 [UpdatePlanner] Plan: 4 components, 4 install, 0 update, 0 missing-asset.
+2026-11-16 18:21:14 [UpdateRestartCycle] RunAsync: looking for a running AgentEyes
+2026-11-16 18:21:14 [RunningAppHandle] Find: pid 8680, exe <scratch-16nov>\root-good\app\AgentEyesApp.exe, arguments: --tray
+2026-11-16 18:21:14 [UpdateRestartCycle] RunAsync: AgentEyes is running (pid 8680, <scratch-16nov>\root-good\app\AgentEyesApp.exe, arguments: --tray) - it keeps running while the update is downloaded and verified
+2026-11-16 18:21:14 [UpdateRestartCycle] RunAsync: preparing (download + verify) before anything is stopped or replaced
+2026-11-16 18:21:14 [UpdateRunner] StageAsync: downloading and verifying 4 component(s) before anything is stopped or replaced
+2026-11-16 18:21:17 [UpdateRunner] StageAsync: app (absent) -> 1.12.0 verified at %USERPROFILE%\AppData\Local\Temp\agenteyes-setup-33b04f7198134590bc8ca694866f3d23-AgentEyesApp-win-x64.exe
+2026-11-16 18:21:20 [UpdateRunner] StageAsync: cli SHA-256 mismatch; rejecting
+2026-11-16 18:21:20 [UpdateAttemptMarker] WriteFailed: <scratch-16nov>/root-bad\config\setup\last-update-attempt.json - the update to v1.12.0 failed at 2026-11-16 18:21:20 (download: cli could not be downloaded and verified (SHA-256 mismatch; download rejected). Nothing was replaced and the running AgentEyes was not stopped - the installed version is unchanged. Check the connection (or the release) and run the update again.)
+2026-11-16 18:21:20 [Program] RunAsync: command=install exit=1

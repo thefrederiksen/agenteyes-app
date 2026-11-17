@@ -20,12 +20,21 @@ public static class ArchiveInstaller
     /// Returns every file placed, with its ".old" backup path (null for a file that
     /// was new), so an all-or-nothing update can roll it back (issue #86 review, B1b).
     /// </summary>
-    public static IReadOnlyList<(string Target, string? Backup)> Place(string targetDir, string stagedZip)
+    public static IReadOnlyList<(string Target, string? Backup)> Place(string targetDir, string stagedZip) =>
+        Place(targetDir, stagedZip, Path.GetTempPath());
+
+    /// <summary>
+    /// <see cref="Place(string, string)"/>, unpacking under <paramref name="extractParent"/> instead of %TEMP% -
+    /// an isolated install passes its own <see cref="InstallLayout.StagingDir"/> (issue #200).
+    /// </summary>
+    public static IReadOnlyList<(string Target, string? Backup)> Place(string targetDir, string stagedZip, string extractParent)
     {
         if (string.IsNullOrWhiteSpace(targetDir)) throw new ArgumentException("targetDir required", nameof(targetDir));
+        if (string.IsNullOrWhiteSpace(extractParent)) throw new ArgumentException("extractParent required", nameof(extractParent));
         if (!File.Exists(stagedZip)) throw new FileNotFoundException("Staged archive not found.", stagedZip);
 
-        var extractDir = Path.Combine(Path.GetTempPath(), $"agenteyes-setup-extract-{Guid.NewGuid():N}");
+        var extractDir = Path.Combine(extractParent, $"agenteyes-setup-extract-{Guid.NewGuid():N}");
+        EngineLog.Write($"[ArchiveInstaller] Place: {stagedZip} -> {targetDir} (unpacking in {extractDir})");
         Directory.CreateDirectory(extractDir);
         var placed = new List<(string Target, string? Backup)>();
         try

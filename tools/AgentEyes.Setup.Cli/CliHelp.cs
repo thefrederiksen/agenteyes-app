@@ -31,7 +31,7 @@ public static class CliHelp
     private const string OptComponent = "  --component <id|all>       Limit to one component (default all)";
     private const string OptAutostart = "  --autostart <on|off>       Set run-at-login (default: keep as-is) - install only";
     private const string OptDesktopShortcut = "  --desktop-shortcut         Also create a desktop shortcut - install only";
-    private const string OptRoot = "  --root <dir>               Override the per-user root %LOCALAPPDATA%\\AgentEyes (testing)";
+    private const string OptRoot = "  --root <dir>               Isolated install in <dir> (testing): never stops or starts an app, needs --no-finalize";
     private const string OptNoFinalize = "  --no-finalize              Skip PATH/shortcut/registry finalization (testing)";
     private const string OptDryRun = "  --dry-run                  Show what would change; download, apply and remove nothing";
     private const string OptJson = "  --json                     Machine-readable output";

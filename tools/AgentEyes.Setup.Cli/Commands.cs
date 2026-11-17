@@ -80,6 +80,11 @@ internal static class Commands
 
     public static async Task<int> UpdateAsync(CliArgs args, InstallLayout layout, bool json, bool installMode)
     {
+        // Issue #200: --root promises that nothing outside the root is touched. The per-user finalization
+        // cannot be scoped to a root, so asking for it under --root is refused here, before anything runs.
+        if (layout.IsIsolated)
+            RefuseWhatAnIsolatedRootCannotDo(args, installMode);
+
         // Updating can replace agenteyes-setup.exe ITSELF. A single-file exe must not swap
         // its own file while running (lazy assembly loads then read the WRONG bundle -
         // field-tested: Microsoft.Win32.Registry failed to load mid-update). Same
@@ -115,14 +120,22 @@ internal static class Commands
         // Inno v0.1 takeover wipes the app dir, so it is the first part of the swap step and every
         // component the release ships is installed fresh. With nothing to replace, the app is left alone.
         bool innoTakeover = installMode && InnoMigration.IsInnoInstall(layout);
+        if (innoTakeover && layout.IsIsolated)
+            throw new IsolatedRootRefusedException(
+                $"{layout.AppDir} holds an Inno v0.1 install; taking it over deletes a registry key outside --root. Nothing was touched.");
         var source = new ReleaseSource();
         var result = new UpdateRunResult { Results = Array.Empty<ApplyResult>() };
         if (plan.HasWork || innoTakeover)
         {
             string targetVersion = release.Manifest.Version;
-            var cycle = new UpdateRestartCycle(RunningAppHandleFactory(layout), AppLauncherFactory(layout), layout.PathFor(ComponentRegistry.App));
+            // Issue #200: an isolated root never stops or starts an app. The process-name handle found the
+            // person's REAL AgentEyes from a --root install and stopped it; the isolated handle leaves every
+            // app outside the root alone and refuses when one runs from inside it, and its launcher refuses.
+            var cycle = layout.IsIsolated
+                ? new UpdateRestartCycle(new IsolatedRootAppHandle(layout), new RefusingAppLauncher(), layout.PathFor(ComponentRegistry.App))
+                : new UpdateRestartCycle(RunningAppHandleFactory(layout), AppLauncherFactory(layout), layout.PathFor(ComponentRegistry.App));
             var runner = new UpdateRunner(layout, ComponentRegistry.All,
-                (item, innerCt) => source.DownloadAssetAsync(item.AssetName, release.DownloadUrls, innerCt));
+                (item, innerCt) => source.DownloadAssetAsync(item.AssetName, release.DownloadUrls, layout.StagingDir, innerCt));
             var stagePlan = innoTakeover ? TakeoverPlan(release) : plan;
             UpdateRestartOutcome<UpdateRunResult> outcome;
             try
@@ -151,7 +164,7 @@ internal static class Commands
                 return Error;
             }
             result = outcome.Result;
-            PrintRun(result, installMode, json, outcome.Restart);
+            PrintRun(result, installMode, json, outcome.Restart, layout.IsIsolated);
         }
         else
         {
@@ -217,9 +230,16 @@ internal static class Commands
             return Ok;
         }
 
+        // Issue #200: an isolated root only cares about a copy running from INSIDE it (that one holds the
+        // files); the person's real AgentEyes elsewhere is not this root's and must not block or be touched.
+        // Find() throws, naming the pid, when a copy runs from inside the root.
+        if (layout.IsIsolated)
+        {
+            new IsolatedRootAppHandle(layout).Find();
+        }
         // Uninstall keeps its manual-quit behavior (out of scope for issue #95); only the
         // detection is consolidated onto the shared, correctly-named helper.
-        if (RunningApp.IsRunning(layout))
+        else if (RunningApp.IsRunning(layout))
         {
             const string msg = "ERROR: AgentEyes is running. Quit it (tray icon -> Quit) and re-run uninstall.";
             if (json) Program.WriteJson(new { failed = msg }); else Console.Error.WriteLine(msg);
@@ -239,7 +259,8 @@ internal static class Commands
         }
         else
         {
-            Console.WriteLine(report.Success ? "Uninstall complete (your data under %LOCALAPPDATA%\\AgentEyes is preserved):" : "Uninstall finished with errors:");
+            var dataRoot = layout.IsIsolated ? layout.LocalRoot : "%LOCALAPPDATA%\\AgentEyes";
+            Console.WriteLine(report.Success ? $"Uninstall complete (your data under {dataRoot} is preserved):" : "Uninstall finished with errors:");
             foreach (var s in report.Steps) Console.WriteLine($"  {s}");
             foreach (var e in report.Errors) Console.WriteLine($"  ERROR: {e}");
         }
@@ -260,7 +281,11 @@ internal static class Commands
             !self.StartsWith(layout.AppDir, StringComparison.OrdinalIgnoreCase))
             return false;
 
-        var temp = Path.Combine(Path.GetTempPath(), $"agenteyes-setup-{what}-{Guid.NewGuid():N}.exe");
+        // %TEMP% for the real install; the root's own staging dir under --root, which must not write
+        // outside its root (issue #200).
+        Directory.CreateDirectory(layout.StagingDir);
+        var temp = Path.Combine(layout.StagingDir, $"agenteyes-setup-{what}-{Guid.NewGuid():N}.exe");
+        EngineLog.Write($"[Commands] RelaunchFromTempIfInsideInstall: {what} continues from {temp}");
         File.Copy(self, temp);
         var psi = new ProcessStartInfo(temp) { UseShellExecute = false };
         // The temp copy must NOT unpack its own native DLLs into the bundle dir it is about
@@ -272,6 +297,27 @@ internal static class Commands
         Process.Start(psi);
         if (!json) Console.WriteLine($"Continuing {what} from a temporary copy...");
         return true;
+    }
+
+    /// <summary>
+    /// Issue #200: the per-user finalization of an install - the PATH entry, the native-extraction variable,
+    /// the Start Menu and desktop shortcuts, the run-at-login key and the Add/Remove Programs entry - lives
+    /// outside any install root and points at ONE install, the real one. Under --root none of it can be
+    /// scoped, so it is refused rather than written: the command must say --no-finalize (or be a --dry-run),
+    /// and --autostart / --desktop-shortcut, which only finalization honours, are refused outright instead of
+    /// being silently ignored.
+    /// </summary>
+    private static void RefuseWhatAnIsolatedRootCannotDo(CliArgs args, bool installMode)
+    {
+        var mode = installMode ? "install" : "update";
+        EngineLog.Write($"[Commands] RefuseWhatAnIsolatedRootCannotDo: mode={mode} {args}");
+        if (args.Option("autostart") is not null)
+            throw new UsageException("--autostart cannot be used with --root: the run-at-login entry is outside the root and would point at it instead of the real install.");
+        if (args.HasFlag("desktop-shortcut"))
+            throw new UsageException("--desktop-shortcut cannot be used with --root: the shortcut is outside the root and would point at it instead of the real install.");
+        if (!args.HasFlag("no-finalize") && !args.HasFlag("dry-run"))
+            throw new UsageException($"{mode} with --root needs --no-finalize: finalizing writes the PATH, DOTNET_BUNDLE_EXTRACT_BASE_DIR, "
+                                     + "the Start Menu shortcut and the Add/Remove Programs entry - all outside the root. Nothing was touched.");
     }
 
     /// <summary>The Inno v0.1 takeover wipes the whole app dir (inside the swap step, with the app stopped), so
@@ -342,8 +388,14 @@ internal static class Commands
         Console.WriteLine($"Actionable: {plan.Actionable.Count} ({plan.ToInstall.Count} install, {plan.ToUpdate.Count} update)");
     }
 
-    private static void PrintRun(UpdateRunResult result, bool installMode, bool json, AppRestartReport restart)
+    /// <summary>The line an isolated (--root) install prints instead of the restart report (issue #200): the
+    /// report's "AgentEyes was not running" would be false when the person's real app is running elsewhere.</summary>
+    internal const string IsolatedRestartLine =
+        "isolated --root install: no AgentEyes was stopped or started (any running outside the root was left alone)";
+
+    private static void PrintRun(UpdateRunResult result, bool installMode, bool json, AppRestartReport restart, bool isolated)
     {
+        string restartLine = isolated ? IsolatedRestartLine : restart.Describe();
         if (json)
         {
             Program.WriteJson(new
@@ -369,7 +421,7 @@ internal static class Commands
                     arguments = restart.Stopped?.Arguments,
                     stoppedExe = restart.Stopped?.ExePath,
                     startedExe = restart.StartedExe,
-                    message = restart.Describe(),
+                    message = restartLine,
                     note = restart.Note,
                 },
             });
@@ -386,7 +438,7 @@ internal static class Commands
         Console.WriteLine($"installed={result.Installed} updated={result.Updated} failed={result.Failed}");
         // Issue #86: the pids when the running app was stopped and started again, or that it was not running;
         // and a second line when the stopped process was not running from the installed exe (review N2).
-        Console.WriteLine(restart.Describe());
+        Console.WriteLine(restartLine);
         if (restart.Note != null) Console.WriteLine(restart.Note);
     }
 }

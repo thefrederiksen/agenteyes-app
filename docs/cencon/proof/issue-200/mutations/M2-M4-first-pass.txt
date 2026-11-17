@@ -1,0 +1,12 @@
+=== M2 downloads staged in %TEMP% again
+    0 Error(s)
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_StagesEveryDownloadAndExtractionInsideTheRoot [104 ms]
+Failed!  - Failed:     1, Passed:    24, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+=== M3 finalize refusal removed
+    0 Error(s)
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_WithoutNoFinalize_IsRefusedBeforeAnythingIsTouched [532 ms]
+Failed!  - Failed:     1, Passed:    24, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+=== M4 a copy inside the root is ignored
+    1 Error(s)
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_WithoutNoFinalize_IsRefusedBeforeAnythingIsTouched [324 ms]
+Failed!  - Failed:     1, Passed:    24, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)

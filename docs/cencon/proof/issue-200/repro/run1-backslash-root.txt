@@ -1,0 +1,38 @@
+?=== snapshot: BEFORE (control: v1.12.0 setup, unfixed) at 2026-11-17 03:44:10.700
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=10060 name=AgentEyesApp.exe started=18:28:41 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmdline="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe"
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+=== command: agenteyes-setup-1.12.0.exe install --release-dir <scratch>\release --root <scratch>\repro-root --no-finalize
+exit=0
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+restarted the running app (pid 10060 -> pid 21984)
+note: the stopped process (pid 10060) was running from %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, not from the installed <scratch>\repro-root\app\AgentEyesApp.exe; the installed build was started. If that other build is started again it will not report this update's version.
+=== snapshot: AFTER +0s at 2026-11-17 03:44:24.870
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=21984 name=AgentEyesApp.exe started=03:44:24 exe=<scratch>\repro-root\app\AgentEyesApp.exe cmdline=<scratch>\repro-root\app\AgentEyesApp.exe
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+=== snapshot: AFTER +15s at 2026-11-17 03:44:41.617
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=21984 name=AgentEyesApp.exe started=03:44:24 exe=<scratch>\repro-root\app\AgentEyesApp.exe cmdline=<scratch>\repro-root\app\AgentEyesApp.exe
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+--- .NET Runtime / Application Error events since the command
