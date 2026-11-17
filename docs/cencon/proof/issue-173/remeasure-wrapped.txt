@@ -1,0 +1,38 @@
+# Issue #173 - re-measured after the QA round 1 bounce. devthrottle-mac-mini, 2026-11-17, Python 3.14.6.
+# BEFORE = main da85516 (current main; merged into this branch at eae905b, no rebase, no force-push).
+# AFTER  = e28a068 (this branch: the wrapped redaction + guard + verifier fix).
+# Every blob in the tree, case-insensitive; addresses in @, %40, %2540, \u0040, &#64;, &#x40;, &commat; forms.
+# WRAPPED = matched only with a line break (CRLF or LF, plus indentation) somewhere inside it.
+
+$ python3 docs/cencon/proof/issue-173/remeasure-wrapped.py da85516 <owner-file> <second-file> <username>
+rev da85516: 2251 blobs
+  owner address (plain+encoded)      single-line    87 occ /  82 files | WRAPPED 0 occ / 0 files []
+  second address (plain+encoded)     single-line     3 occ /   1 files | WRAPPED 0 occ / 0 files []
+  /home/<username>                   single-line   794 occ / 400 files | WRAPPED 0 occ / 0 files []
+  /Users/<username>                  single-line   330 occ /  50 files | WRAPPED 0 occ / 0 files []
+  Users\+<username>                  single-line  3522 occ / 118 files | WRAPPED 1 occ / 1 files ['docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53']
+
+$ python3 docs/cencon/proof/issue-173/remeasure-wrapped.py e28a068 <owner-file> <second-file> <username>
+rev e28a068: 2263 blobs
+  owner address (plain+encoded)      single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  second address (plain+encoded)     single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  /home/<username>                   single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  /Users/<username>                  single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  Users\+<username>                  single-line     1 occ /   1 files | WRAPPED 0 occ / 0 files []
+
+# The 1 remaining single-line Users\<username> is tests/AgentEyes.Tests/CameraFailurePathTests.cs:77 (test data,
+# out of scope, declared). 0 in docs/. 0 wrapped anywhere. Owner 87 = 81 in docs + 6 in AccountStateTests.cs;
+# with the second's 3 that is the 90 occurrences in handoff.md.
+
+# Independent cross-check: QA's own wrapped search (qa/qa-wrapped.py), unchanged:
+$ python3 docs/cencon/proof/issue-173/qa/qa-wrapped.py da85516 <owner-file> <second-file> <username>
+WRAPPED home Users<sep><user>: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53
+(end of output, exit=0)
+$ python3 docs/cencon/proof/issue-173/qa/qa-wrapped.py e28a068 <owner-file> <second-file> <username>
+(end of output, exit=0)
+
+# The guard over e28a068's evidence dirs:
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1686 files, 23203874 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string and no named home path in committed evidence, as written or across line wraps
+exit=0

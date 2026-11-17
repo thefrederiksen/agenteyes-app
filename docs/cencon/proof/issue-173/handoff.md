@@ -3,6 +3,38 @@
 Branch `issue-173-scrub-identity`, from main `02a4622`. Scope is the issue body as CORRECTED by the
 lead's comment 6943321310 (84-ish files, not five; `AccountStateTests.cs` brought IN).
 
+## QA round 1 bounce (2026-11-17) - what changed, read before the rest
+
+QA (comment 6944138900, `qa/qa-report.html`) found ONE survivor: a Windows home path split across a
+PowerShell console wrap in `docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53-54` (`C:\Us` /
+`ers\<username>\...`). Every line-by-line search - my sweep, `verify-sweep.py`, the guard - missed it.
+
+| Fix | Proof |
+|---|---|
+| (1) Redacted: line 54's username became `<user>`. | `remeasure-wrapped.txt` |
+| (2) **The guard sees wrapped strings.** It scans every file as written AND with line breaks (and the indentation after them) removed; a hit that spans a break is reported `WRAPPED` with file and line. A joined hit whose part before the break was already a complete string is left to the as-written scan (so `user@example.com` followed by a line is not glued into a false hit). | `guard-wrapped-red-green.txt` |
+| (2b) **The guard now checks home paths too** (`/home/`, `/Users/`, `<drive>:\Users\` with any number of backslashes): a user segment that is a name, not a placeholder, is red. The real defect was a path, and an address-only guard could not have caught it wrapped or not. Allowed: `<...>` placeholders, `...`, and GitHub's `runner` / `runneradmin`; a `/home/` mid-path (`$SCRATCH/x/home/.config`, a sandbox HOME) is not a home directory. Zero false positives on the 1,683-file tree. | same |
+| Wrapped probes fired: the real defect (7ffa6d5's copy): OLD guard exit 0, NEW guard exit 1 naming `run-rc-main.txt:53`. Planted `C:\Us` CRLF `ers\planted-probe\...` (the defect's exact shape), `/home` LF `/planted-probe`, an address split inside its domain with an indented continuation, and `%4` CRLF `0`: each OLD-guard green where run, NEW-guard red, file and line named. False-positive controls green. Removed: exit 0. | same |
+| CI positive control extended: every run plants an address, a home path, a wrapped address and a CRLF-wrapped home path, requires red naming file AND line for each, then green with all removed. Run locally from the workflow YAML: all four `[OK]`, final exit 0. | `.github/workflows/ci.yml` |
+| (3) **`verify-sweep.py` pairs each old value with its token** (QA: it was green on a valid-token swap). One swapped occurrence: RED with and without the value files. Every occurrence swapped: RED (84 = 81 + 3) with the value files; GREEN without them, and the script prints a WARNING saying exactly that. Its home-path prefix now tolerates a wrap, so it also REQUIRES the wrapped redaction (red on 7ffa6d5's copy, where the round-1 verifier was green). | `sweep-verify.txt` (last section) |
+| Rule: `DEVELOPMENT_METHOD.md` 6a - search across line wraps; what the guard now checks and does not. | the diff |
+
+**Re-measured against main `da85516` (merged in at eae905b; no rebase, no force-push) -> this branch at `e28a068`**, every blob,
+case-insensitive, single-line AND wrapped: owner address 87 occ / 82 files -> 0; second 3 / 1 -> 0; `/home/<username>`
+794 / 400 -> 0; `/Users/<username>` 330 / 50 -> 0; `Users\+<username>` 3,522 / 118 -> 1 / 1 (the declared
+`CameraFailurePathTests.cs:77`); WRAPPED 1 (this defect) -> 0. QA's own `qa/qa-wrapped.py`: 1 hit on da85516, 0 on
+e28a068. `verify-sweep.py da85516`: 556 files, 4,730 values (4,729 + this one), 0 failures, exact with the value files.
+
+**Still OUT, stated, not fixed:** git history (the address is in author metadata of commits on main); the home path
+in `CameraFailurePathTests.cs:77`; the username in pipe names, host names and `ls` owner columns (host names are
+#212); and **the four still-open evidence PRs #190 #198 #199 #177 - the zero above does NOT cover them.** Their
+heads merged onto e28a068 are green under the NEW guard (`open-evidence-prs.txt` UPDATE 2), and that is all it says.
+
+Gates this round: Linux 474 passed / 3 skipped / 0 failed (477); Mac 433 / 2 / 0 (435); SDK 10.0.403,
+`DOTNET_ROLL_FORWARD=LatestMajor`. **The Windows suite is unrun by me (cannot build on a Mac).** No C# changed
+this round; `AccountStateTests.cs` (Windows suite only) is covered by CI run 44052259594, job windows
+133932729592 on `a0d6e67`: 2524 passed, 16 skipped, 0 failed. This branch's next CI run re-runs it.
+
 ## Read this first: what this does NOT do
 
 **Git history is not rewritten.** The address is in past commits of a public repository, so it is
@@ -92,8 +124,9 @@ Example (`docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json`, one of th
   did not touch them (`git diff 02a4622 -- docs/cencon/proof/issue-116/mac-gate.txt` is empty).
 - **It caught this note.** A first draft of this handoff illustrated the shape with literal
   placeholder addresses; the guard went red on three of them (file and line named) before commit.
-- **Does not check** home paths, user names or host names (stated in the file and in the rule), and
-  cannot read text inside an image.
+- **Does not check** host names or user names outside a home path (stated in the file and in the rule),
+  and cannot read text inside an image. (Round 1 said "home paths" here too; since the QA bounce it DOES
+  check home paths, as written and wrapped - see the section at the top.)
 
 ## Gates
 

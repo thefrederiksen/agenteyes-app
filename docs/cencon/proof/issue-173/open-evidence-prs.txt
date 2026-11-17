@@ -44,3 +44,17 @@ PR    head      base     files  (a)hits    (b)own      (c)merge       (c)guard/h
 * So the guard rejects none of the seven, and the zero in handoff.md covers #191 and #192 (on main) and was checked
   against the four still open at the heads above. A later push to any of them is NOT covered - the guard
   in CI is what covers that.
+
+## UPDATE 2 - QA round 1 bounce (2026-11-17): the guard grew, so the four open PRs were re-checked with it
+# The guard now ALSO fails on a named home path and on a wrapped address or home path. A PR that was
+# green before could go red under it, so each open head was merged (git merge-tree --write-tree) on top of
+# this branch at e28a068 and the NEW guard was run over the merged tree's docs/cencon/proof + review.
+# Heads re-fetched from refs/pull/<n>/head; unchanged since UPDATE 1.
+* #190 head 5cefff8: merge clean (exit 0), guard scanned 1695 files: [OK] exit 0
+* #198 head 85c8e5f: merge clean (exit 0), guard scanned 1691 files: [OK] exit 0
+* #199 head 69462d0: merge clean (exit 0), guard scanned 1692 files: [OK] exit 0
+* #177 head a559c76: merge clean (exit 0), guard scanned 1686 files: [OK] exit 0
+* So the extended guard rejects none of them. STILL TRUE AND STILL A LIMIT: these four are OPEN, so the zero
+  measured on e28a068 (remeasure-wrapped.txt) does NOT cover them. It was checked at the heads above only;
+  a later push to any of them is covered by the CI guard, not by this measurement.
+* Host names are NOT checked by the guard or by this sweep. They are issue #212, out of scope here.
