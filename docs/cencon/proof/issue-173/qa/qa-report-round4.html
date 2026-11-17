@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>#173 QA round 4 (rescoped)</title>
+<style>body{font-family:system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem;line-height:1.45}
+table{border-collapse:collapse;margin:.5rem 0}td,th{border:1px solid #999;padding:.25rem .5rem;text-align:left;vertical-align:top}
+code{background:#eee;padding:0 .2rem}.pass{color:#060;font-weight:bold}.note{background:#fff7e0;padding:.5rem;border-left:4px solid #c90}</style></head>
+<body>
+<h1>Issue #173 - QA round 4 (rescoped) - PASS</h1>
+<p>PR #206, tip <code>79ab0e7</code> (main <code>5e6e727</code> merged in at <code>b3e5725</code>; sweep tree <code>445153e</code>).
+QA seat on macOS, 17 Nov 2026. Scope as split by the owner under Section 7a: the sweep, the test fixture, the redacted
+wrapped occurrence and SINGLE-LINE guard detection. Wrap detection is #218 and was not judged here.</p>
+
+<p class="pass">VERIFIED - every in-scope criterion met. Label: flow:ready-gate. QA does not merge (D7).</p>
+
+<div class="note"><b>Read this before relying on a green guard:</b> CI does NOT detect wrapped leaks until #218 lands.
+A home path or an address that a console wrapped across two lines passes <code>check-proof-identity.py</code> on this
+tree. The one wrapped leak that existed is redacted; the next one would not be caught.</div>
+
+<h2>1. The wrap work is parked, not deleted</h2>
+<ul>
+<li>Branch <code>origin/issue-218-wrap-detection</code> exists at <code>f382eec</code>, exactly one commit whose parent is
+<code>445153e</code> (<code>git log issue-173-scrub-identity..f382eec</code> = 1 commit).</li>
+<li><b>Cherry-pick tested the way #218 will do it:</b> scratch worktree at <code>origin/main</code> (5e6e727), PR #206
+squash-merged on top, then <code>git cherry-pick f382eec</code>. Result: <b>applied cleanly</b>, no conflict
+(22 files; the 14 wrapped shapes move from declared-miss back to red).</li>
+<li>Corpus runner on the picked tree: <b>green 25, red 24, declared-miss 5, declared-flag 3 = 57/57</b> as declared.
+Guard on the picked tree (1706 files): exit 0, "as written or across line wraps".</li>
+<li>#218 records my round-3 findings as its spec: item 1 (the 80 gate vs PowerShell's width-minus-one 79-column
+wraps) and item 2 (indented continuation / split at the separator). Not re-raised here.</li>
+</ul>
+
+<h2>2. The single-line guard: green on a tree including 5e6e727, red on a probe; the allowances</h2>
+<table><tr><th>Check (run by QA)</th><th>Expected</th><th>Actual</th></tr>
+<tr><td>Guard on the 79ab0e7 tree (ancestor check: 5e6e727 included)</td><td>exit 0</td><td>exit 0, 1705 files, 23397092 bytes</td></tr>
+<tr><td>Planted single-line gmail.com address in a scratch proof file</td><td>exit 1, file:line named</td><td>exit 1, <code>zz-qa-probe.txt:2</code>, masked</td></tr>
+<tr><td>Planted single-line Windows home path with a made-up name</td><td>exit 1</td><td>exit 1, <code>zz-qa-probe.txt:3</code></td></tr>
+<tr><td>Developer's controls <code>round4-controls.py 5e6e727</code> with value files outside the repo</td><td>19/19</td><td>19/19; tester/qauser removed -&gt; 22 hits</td></tr>
+<tr><td>Own count of the two container accounts in evidence</td><td>22</td><td>qauser 10 (issue-194/qa/install-transcript.txt) + 9 (issue-194/qa/qa-evidence.txt), tester 3 (issue-194/handoff.md) = 22</td></tr>
+</table>
+<p><b>Allowance narrowness - verdict: NARROW.</b> <code>HOME_USER_ALLOWED</code> is
+<code>^(?:&lt;...&gt;|\.+|runner|runneradmin|tester|qauser)$</code>, anchored at both ends and case-sensitive, applied to
+the whole user segment (the segment class includes <code>._$%-</code> and letters/digits, so a longer name is one
+segment). QA probe, 33 cases, 0 mismatches: the segments <code>testers</code>, <code>tester2</code>, <code>qauser1</code>,
+<code>atester</code>, <code>Tester</code>, <code>QAUSER</code>, <code>tester.jones</code>, <code>tester-x</code>,
+<code>tester_x</code>, <code>qauser_jane</code> and <code>runner_jane</code> are all RED under /home/; the exact
+accounts are green. Provenance holds: <code>scripts/linux/release-smoke.sh:53</code> runs <code>useradd -m ... tester</code>;
+issue-194's QA transcript line 2 names qauser as the fresh container user. A real person whose login is literally
+"tester" or "qauser" would pass - inherent to any name allowance, and stated in the docstring.</p>
+
+<h2>3. The .target reasoning - checked against the root zone, and it is the correct rule, not just the cautious one</h2>
+<p>Fetched <code>https://data.iana.org/TLD/tlds-alpha-by-domain.txt</code>, "Version 2026111700" (the version the docstring
+cites). systemd's unit types are exactly eleven: service, socket, device, mount, automount, swap, target, path, timer,
+slice, scope. Of these, <b>only TARGET is delegated</b>; the other ten are not. SERVICES (plural) is delegated, and the
+guard keeps it red.</p>
+<p>So a blanket "unit-looking suffix" rule would have been <b>wrong</b>, not merely loose: a mailbox name, an at sign, then <code>company.target</code>
+is a syntactically valid address under a delegated TLD, and allowing all <code>.target</code> would have whitelisted it.
+The narrower rule (the ten undelegated types allowed with any instance; <code>.target</code> only with an all-digit
+instance, the per-user manager form) is the one that follows from the zone. Probes: named-instance <code>.target</code>
+RED, numeric-instance <code>.target</code> green, a <code>.services</code> address RED, a named <code>.service</code>/<code>.timer</code> instance green.</p>
+<p>Two caveats, neither a defect: (a) the docstring says no mailbox domain can be an all-digit label under .target -
+all-digit labels are legal in DNS (RFC 1123), so this is "vanishingly unlikely on a single-registrant brand TLD",
+not "impossible"; (b) the ten-type allowance is dated to root zone 2026111700 - if ICANN ever delegates one of
+those strings, the allowance becomes a hole. Both are acceptable residual risk for a guard of this kind.</p>
+<p>Also confirmed the correction in 6945920030: the 22 hits on 5e6e727 were home paths, not addresses; the per-user
+manager unit and the reserved-domain address were already green (the controls show both rules load-bearing:
+14 and 26 hits when removed). <b>Note for #218:</b> its body still says those two are "a live false positive on main";
+that text predates the correction and its AC3 is already satisfied by #173.</p>
+
+<h2>4. verify-sweep.py carries no identity</h2>
+<ul>
+<li>Searched (outside-repo value files, case-insensitive) for the username, the owner's surname, both address
+local parts and both domains in <code>verify-sweep.py</code>, <code>round4-controls.py</code>,
+<code>check-proof-identity.py</code>, <code>test-check-proof-identity.py</code> and <code>ci.yml</code>: <b>0 hits each</b>.
+Home paths are matched by shape (<code>HOME_PREFIX</code> + <code>HOME_USER</code>), no-person segments by the same
+<code>NO_PERSON</code> list as the guard.</li>
+<li>Red arms, QA's own mutations (not the developer's): one sweep-redacted <code>/home/&lt;user&gt;/</code> in
+issue-102/qa-linux/systemctl-status.txt put back to the real name -&gt; <b>RED</b>, "under-redaction: a home path that
+names someone was left as it was"; the no-person segment after <code>&lt;user&gt;</code> turned into
+<code>&lt;user&gt;</code> -&gt; <b>RED</b>; a plain word turned into the owner token -&gt; <b>RED</b>. Tree restored, clean.</li>
+</ul>
+
+<h2>5. The sweep did not move</h2>
+<p><code>verify-sweep.py 5e6e727 &lt;owner-file&gt; &lt;second-file&gt;</code> at 79ab0e7: <b>files=556 values=4730
+digit_runs=165617 json=324 addresses=2 failures=0, mapping exact</b> - identical to round 3.</p>
+<table><tr><th>Form (QA's qa-forms.py + remeasure-wrapped.py, every blob)</th><th>5e6e727</th><th>445153e</th><th>79ab0e7</th></tr>
+<tr><td>Owner address, plain</td><td>87</td><td>0</td><td>0</td></tr>
+<tr><td>Owner local part + any @ encoding</td><td>90</td><td>0</td><td>0</td></tr>
+<tr><td>Second address, plain (and every encoded form)</td><td>3</td><td>0</td><td>0</td></tr>
+<tr><td>/home/&lt;username&gt;</td><td>794</td><td>0</td><td>0</td></tr>
+<tr><td>/Users/&lt;username&gt;</td><td>330</td><td>0</td><td>0</td></tr>
+<tr><td>Users\&lt;username&gt; (1-4 backslashes)</td><td>3522</td><td>1</td><td>1 (CameraFailurePathTests.cs:77, declared)</td></tr>
+<tr><td>Wrapped home path</td><td>1</td><td>0</td><td>0</td></tr>
+</table>
+<p>Owner domain in any file at 79ab0e7 and at f382eec: 0. Commit messages 5e6e727..f382eec: no identity, no attribution.
+The two lines in this diff that carry the bare username are a <code>ps</code>/<code>ls</code> owner column, already on
+main and disclosed (#212's class).</p>
+
+<h2>6. Gates</h2>
+<ul>
+<li>CI run <b>44077091273</b> (push, head 79ab0e7): success on all four jobs - windows 134017795458
+(AgentEyes.Tests 2528/16/0, ffmpeg arm 2547/1/0, DesktopApp 23/0/0 twice), linux 134017795205, macos 134017794904,
+evidence-identity 134017795383 (positive control, negative control + corpus green 27/red 10/declared-miss 19/declared-flag 1,
+tree scan green). PR run 44077099103 on 79ab0e7: success.</li>
+<li>Local, this seat (SDK 10.0.403, net8.0 tests rolled forward): Mac 433/2/0, Linux 474/3/0. Corpus runner on the PR tip:
+27/10/19/1 as declared. AgentEyes.sln does not build on macOS; the Windows suite is cited from CI above.</li>
+<li>Scope drift: outside docs/cencon/proof, docs/cencon/review and the corpus, the diff touches only .gitattributes
+(corpus <code>-text</code>), ci.yml, DEVELOPMENT_METHOD.md (the identity rule, stating #218), the two guard scripts
+and the AccountStateTests fixture (reserved-domain addresses). No product source.</li>
+</ul>
+
+<h2>7. OUT of scope - each confirmed recorded (handoff.md "Still NOT covered" and the guard docstring)</h2>
+<ul>
+<li>Git history: the address stays in the author metadata of 67 commits; not rewritten.</li>
+<li><code>tests/AgentEyes.Tests/CameraFailurePathTests.cs:77</code> stays.</li>
+<li>#212: machine names and the bare username elsewhere (224 files; 83 files at this tip still carry the bare username).</li>
+<li>Open evidence PRs #190, #198, #199, #177 are not covered by this zero.</li>
+<li><b>WRAPPED LEAKS ARE NOT DETECTED UNTIL #218.</b></li>
+</ul>
+</body></html>
