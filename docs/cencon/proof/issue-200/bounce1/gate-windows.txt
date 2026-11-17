@@ -1,0 +1,11 @@
+status before: idle
+dotnet SDK: 10.0.301 (building net8.0; runtime 8.0.21)
+--- dotnet build AgentEyes.sln -c Release
+Build succeeded.
+    22 Warning(s)
+    0 Error(s)
+--- dotnet test AgentEyes.sln -c Release (default gate)
+Passed!  - Failed:     0, Passed:    23, Skipped:     0, Total:    23, Duration: 581 ms - AgentEyes.Tests.DesktopApp.dll (net8.0)
+Passed!  - Failed:     0, Passed:  2551, Skipped:    16, Total:  2567, Duration: 1 m 3 s - AgentEyes.Tests.dll (net8.0)
+wall: 69 s
+note: the build shows the solution's pre-existing warnings whenever the test project recompiles (22 here; 23 distinct on a --no-incremental rebuild: xUnit analyzer rules in untouched test files and one CS8602 in AlwaysOnEngine.cs). 0 are in any file this change touches, checked by filtering the --no-incremental warning list.

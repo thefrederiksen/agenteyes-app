@@ -1,0 +1,46 @@
+QA #200 - item 4: the isolated crash (0xC00000FD) vs the end-to-end crash (DllNotFoundException).
+Script: crash.ps1 (this folder). It starts the PUBLISHED v1.12.0 AgentEyesApp-win-x64.exe (copied to
+<scratch>\crash\app\AgentEyesApp.exe) with --tray and ONE environment variable, DOTNET_BUNDLE_EXTRACT_BASE_DIR,
+redirects stderr/stdout, and reads the .NET Runtime / Application Error events. The real app (pid 17580/20576)
+held the single-instance lock throughout and its pid was unchanged before and after every case.
+
+Why the lock does not explain the difference: App.OnStartup takes the lock (src/AgentEyes.App/App.xaml.cs:63);
+the end-to-end stack (HwndSubclass.SubclassWndProc -> SetWindowLongPtrWndProc) is the Dispatcher's first
+window, which runs BEFORE OnStartup. Both failures happen before the lock is ever reached.
+
+Case  bundle dir                                   parent dir   exit         stderr / events                                  bundle extracted
+A     <scratch>\crash\bs1\bundle (backslash)       missing      0x00000000   none (second instance refused, quiet)            yes, all 5 WPF dlls
+B     <scratch-fwd>/crash/fs1\bundle               MISSING      0xC00000FD   no stderr; Application Error 1000, ntdll.dll,    NOTHING
+                                                                             0xc00000fd, offset 0x40e54; no .NET Runtime event
+D     <scratch-fwd>/crash/fs3\bundle (repeat)      MISSING      0xC00000FD   same as B (ntdll, 0xc00000fd, offset 0x40e54)    NOTHING
+C     <scratch-fwd>/crash/fs2\bundle               EXISTS       0xC000041D   stderr "Unhandled exception. System.             yes, all 5 WPF dlls
+                                                                             DllNotFoundException: Dll was not found. at        (PresentationNative_cor3.dll
+                                                                             MS.Internal.WindowsBase.NativeMethodsSetLastError.  among them)
+                                                                             SetWindowLongPtrWndProc ... HwndSubclass.SubclassWndProc";
+                                                                             events 1026 DllNotFound -> 1000 0xe0434352 -> 1000 0xc000041d,
+                                                                             KERNELBASE offset 0xc569a
+E     <scratch-fwd>/crash/fs4\bundle, CreateNoWindow=true   EXISTS   0xC000041D  identical to C
+
+The end-to-end crash in the developer's run 3 (repro/run3-forward-slash-root.txt): 1026 DllNotFoundException at
+SetWindowLongPtrWndProc -> 1000 0xe0434352 -> 1000 0xc000041d, KERNELBASE offset 0xc569a. Cases C and E match it
+event for event and offset for offset.
+
+RESOLUTION: two DIFFERENT failures share the forward-slash trigger, split by whether the extraction dir's parent
+exists.
+ * Parent exists (the end-to-end case: the --root install had already created <root>\, so <root>\bundle's parent
+   was there) -> the apphost extracts the native DLLs, then the runtime cannot load PresentationNative_cor3.dll
+   from the mixed-slash path -> DllNotFoundException. Reproduced in isolation 2/2 (C, E), with and without
+   CREATE_NO_WINDOW - so the launch flags are not the variable.
+ * Parent missing (the developer's isolated experiment created a fresh iso-fs folder name) -> the process dies
+   in NATIVE code (ntdll) with a stack overflow before anything is extracted and before the runtime starts -
+   consistent with the apphost's recursive directory creation not terminating on a forward-slash path. 2/2 (B, D).
+   That is NOT the end-to-end failure. The developer's isolated experiment reproduced this second failure and
+   read it as confirmation; the attribution to the forward-slash variable was nevertheless right, and is now
+   confirmed with a matching symptom.
+NOT measured: the exact apphost frame that recurses (no native dump was taken). The inference "recursive
+directory creation" rests on: native fault in ntdll, nothing extracted, depends only on the parent existing.
+
+Relevance: the PR makes both unreachable under --root (root normalised by Path.GetFullPath; nothing launched).
+Both remain reachable outside --root by a forward-slash AGENTEYES_ROOT (handoff "Not fixed"); the filing for that
+should name BOTH symptoms, because the stack-overflow one is what a user-wide variable with a not-yet-created
+parent would produce.

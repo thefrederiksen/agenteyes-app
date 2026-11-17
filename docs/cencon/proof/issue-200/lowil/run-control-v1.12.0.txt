@@ -1,0 +1,42 @@
+?=== #200 low-integrity harness, run 'control-v1.12.0' at 2026-11-17 04:04:41
+binary: <scratch>\v1120\agenteyes-setup.exe  version: 1.12.0+02a4622774f50382e35b3599c90c65bc2abb4608
+--- (1) DENIAL CONTROL (low-integrity probe; real app pid 20576)
+P0 this probe runs at integrity: Low (S-1-16-4096)
+P1 write a file in the real per-user root: DENIED - Exception calling "WriteAllText" with "2" argument(s): "Access to the path '%USERPROFILE%\AppData\Local\AgentEyes\agenteyes-200-probe-c9ca678d4e2c4f0183aaf733fc24f4de.txt' is denied."
+P2 write a file in %TEMP%: DENIED - Exception calling "WriteAllText" with "2" argument(s): "Access to the path '%USERPROFILE%\AppData\Local\Temp\agenteyes-200-probe-c9ca678d4e2c4f0183aaf733fc24f4de.txt' is denied."
+P3 write a file in the Start Menu: DENIED - Exception calling "WriteAllText" with "2" argument(s): "Access to the path '%USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\agenteyes-200-probe-c9ca678d4e2c4f0183aaf733fc24f4de.txt' is denied."
+P4 write a value in HKCU\Environment: DENIED - Exception calling "OpenSubKey" with "2" argument(s): "Requested registry access is not allowed."
+P5 write a value in HKCU Run: DENIED - Exception calling "OpenSubKey" with "2" argument(s): "Requested registry access is not allowed."
+P6 open the real app process with full access (never used): DENIED - Exception calling "GetProcessById" with "1" argument(s): "Process with an Id of 20576 is not running."
+P7 open the real app quit event for modify (never set): DENIED - Exception calling "OpenExisting" with "2" argument(s): "Access to the path is denied."
+P8 write a file in the scratch root (must be ALLOWED): ALLOWED
+CONTROL PROVEN: low integrity; P1-P7 denied by the kernel; P8 (the scratch root) allowed.
+--- (3a) real install BEFORE
+Pids      : 20576 started 03:48:10
+Health    : {"ok":true,"app":"AgentEyes"}
+StartMenu : 2026-11-17 04:00:18.957
+Uninstall : 1.12.0 at %USERPROFILE%\AppData\Local\AgentEyes\app
+RunKey    : "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+UserPath  : %USERPROFILE%\AppData\Local\AgentEyes\app
+BundleVar : %USERPROFILE%\AppData\Local\AgentEyes\bundle
+--- (2) agenteyes-setup install --release-dir <release> --root <scratch>\root --no-finalize   (at LOW integrity)
+exit=1
+ERROR: app could not be downloaded and verified (download failed: Access to the path '%USERPROFILE%\AppData\Local\Temp\agenteyes-setup-083c453003464a9eb344c70543909a7f-AgentEyesApp-win-x64.exe' is denied.). Nothing was replaced and the running AgentEyes was not stopped - the installed version is unchanged. Check the connection (or the release) and run the update again.
+--- the CLI's own log (inside the scratch root), the lines that name a process, a path outside, or a failure
+2026-11-17 04:04:43 [UpdateRestartCycle] RunAsync: looking for a running AgentEyes
+2026-11-17 04:04:43 [RunningAppHandle] Find: no AgentEyesApp process
+2026-11-17 04:04:43 [UpdateRestartCycle] RunAsync: AgentEyes is not running
+2026-11-17 04:04:43 [UpdateRestartCycle] RunAsync: preparing (download + verify) before anything is stopped or replaced
+2026-11-17 04:04:43 [UpdateRunner] StageAsync: app download FAILED: Access to the path '%USERPROFILE%\AppData\Local\Temp\agenteyes-setup-083c453003464a9eb344c70543909a7f-AgentEyesApp-win-x64.exe' is denied.
+2026-11-17 04:04:43 [UpdateAttemptMarker] WriteFailed: <scratch>\lowil-runs\lowroot-control-v1.12.0\root\config\setup\last-update-attempt.json - the update to v1.12.0 failed at 2026-11-17 04:04:43 (download: app could not be downloaded and verified (download failed: Access to the path '%USERPROFILE%\AppData\Local\Temp\agenteyes-setup-083c453003464a9eb344c70543909a7f-AgentEyesApp-win-x64.exe' is denied.). Nothing was replaced and the running AgentEyes was not stopped - the installed version is unchanged. Check the connection (or the release) and run the update again.)
+--- files the CLI placed in the scratch root
+         563 \config\setup\last-update-attempt.json
+        2050 \logs\setup-cli.log
+--- (3b) real install AFTER
+Pids      : 20576 started 03:48:10
+Health    : {"ok":true,"app":"AgentEyes"}
+StartMenu : 2026-11-17 04:00:18.957
+Uninstall : 1.12.0 at %USERPROFILE%\AppData\Local\AgentEyes\app
+RunKey    : "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+UserPath  : %USERPROFILE%\AppData\Local\AgentEyes\app
+BundleVar : %USERPROFILE%\AppData\Local\AgentEyes\bundle

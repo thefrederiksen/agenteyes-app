@@ -1,0 +1,19 @@
+=== M4 a copy running INSIDE the root is treated as outside
+  file=tools/AgentEyes.Setup.Engine/IsolatedRootAppHandle.cs matches=1
+  diff: tools/AgentEyes.Setup.Engine/IsolatedRootAppHandle.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+  build errors: 0
+  Failed AgentEyes.Tests.SetupRootIsolationTests.IsolatedHandleFind_ProcessInsideTheRoot_RefusesNamingThePid [12 ms]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.IsolatedHandleFind_RealProcessNamedAgentEyesApp_OutsideIsLeftRunning_InsideIsRefused [204 ms]
+  Failed!  - Failed:     2, Passed:    23, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+  restored: clean
+=== M5 (QA) isolated uninstall Plan() lists the real outside targets again (Plan is pure; Apply untouched)
+  file=tools/AgentEyes.Setup.Engine/Uninstaller.cs matches=1
+  diff: tools/AgentEyes.Setup.Engine/Uninstaller.cs | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+  build errors: 0
+  Failed AgentEyes.Tests.SetupRootIsolationTests.UninstallerPlan_Isolated_ListsOnlyTargetsInsideTheRoot [40 ms]
+  Failed!  - Failed:     1, Passed:    24, Skipped:     0, Total:    25, Duration: 926 ms - AgentEyes.Tests.dll (net8.0)
+  restored: clean
+=== unmutated re-run
+  Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 933 ms - AgentEyes.Tests.dll (net8.0)

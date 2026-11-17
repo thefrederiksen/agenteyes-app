@@ -1,0 +1,38 @@
+?=== snapshot: BEFORE run 2 (real app --tray, v1.12.0 setup, unfixed) at 2026-11-17 03:45:28.473
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=19132 name=AgentEyesApp.exe started=03:45:16 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmdline="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+=== command: agenteyes-setup-1.12.0.exe install --release-dir <scratch>\release --root <scratch>\repro-root2 --no-finalize
+exit=0
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+restarted the running app (pid 19132 -> pid 14464)
+note: the stopped process (pid 19132) was running from %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, not from the installed <scratch>\repro-root2\app\AgentEyesApp.exe; the installed build was started. If that other build is started again it will not report this update's version.
+=== snapshot: AFTER run 2 +0s at 2026-11-17 03:45:40.415
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=14464 name=AgentEyesApp.exe started=03:45:40 exe=<scratch>\repro-root2\app\AgentEyesApp.exe cmdline=<scratch>\repro-root2\app\AgentEyesApp.exe --tray
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+=== snapshot: AFTER run 2 +15s at 2026-11-17 03:45:57.016
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=14464 name=AgentEyesApp.exe started=03:45:40 exe=<scratch>\repro-root2\app\AgentEyesApp.exe cmdline=<scratch>\repro-root2\app\AgentEyesApp.exe --tray
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+--- .NET Runtime / Application Error events since the command

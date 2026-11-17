@@ -1,0 +1,36 @@
+QA #200 - PRIORITY ONE: the real install on the laptop, checked BEFORE any verification (2026-11-17 ~04:12).
+Read-only. Every item the finalizer writes (tools/AgentEyes.Setup.Engine/InstallFinalizer.cs) was enumerated
+from the code: user PATH, DOTNET_BUNDLE_EXTRACT_BASE_DIR, Start Menu .lnk, desktop .lnk, HKCU Run value,
+HKCU Uninstall key. It writes no file association (checked anyway: assoc and HKCU\Software\Classes have no
+AgentEyes entry).
+
+LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk
+  Target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+  WorkDir=%USERPROFILE%\AppData\Local\AgentEyes\app
+  Icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe,0
+  Modified=11/17/2026 04:00:18   (the developer's repair run)
+LNK %USERPROFILE%\Desktop\AgentEyes.lnk
+  Target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+  Modified=11/16/2026 18:26:46   (untouched by the incident)
+KEY HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\AgentEyes
+  DisplayVersion=1.12.0
+  InstallLocation=%USERPROFILE%\AppData\Local\AgentEyes\app
+  DisplayIcon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+  UninstallString="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall
+  QuietUninstallString="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall --json
+RUN HKCU\...\Run : AgentEyes="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+ENV DOTNET_BUNDLE_EXTRACT_BASE_DIR=%USERPROFILE%\AppData\Local\AgentEyes\bundle
+ENV PATH entry: %USERPROFILE%\AppData\Local\AgentEyes\app
+    (one other PATH entry under %TEMP% exists - %LOCALAPPDATA%/Temp/cc-test-installer\bin - it belongs to a
+     different product's test installer, not AgentEyes)
+AGENTEYES_ROOT (user env): not set
+No .lnk under Start Menu or Desktop targets a Temp / test folder.
+
+Installed app: AgentEyesApp.exe FileVersion 1.12.0.0, ProductVersion 1.12.0+02a4622774f50382e35b3599c90c65bc2abb4608
+               agenteyes-setup.exe ProductVersion 1.12.0+02a4622774f50382e35b3599c90c65bc2abb4608
+Process: pid 20576 %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe --tray, started 03:48:10
+/health: {"ok": true, "app": "AgentEyes"}
+/status: State=idle, PendingTranscriptions=0, LastStopFailed=false
+7882: listening (HTTP.sys, pid 4; attribution by the app log line "[pid N] REST API listening")
+
+VERDICT: CLEAN. Nothing points at a test folder. The developer's repair holds.

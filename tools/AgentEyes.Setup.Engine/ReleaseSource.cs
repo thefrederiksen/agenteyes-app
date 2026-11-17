@@ -144,12 +144,24 @@ public sealed class ReleaseSource
     /// (release-dir mode); each is handled explicitly. Throws when no source is
     /// known for the asset.
     /// </summary>
-    public async Task<string> DownloadAssetAsync(string assetName, IReadOnlyDictionary<string, string> urls, CancellationToken ct)
+    public Task<string> DownloadAssetAsync(string assetName, IReadOnlyDictionary<string, string> urls, CancellationToken ct) =>
+        DownloadAssetAsync(assetName, urls, Path.GetTempPath(), ct);
+
+    /// <summary>
+    /// Stage an asset into <paramref name="stagingDir"/> (created when missing) and return its path. An
+    /// isolated install passes its own <see cref="InstallLayout.StagingDir"/> so that nothing is written
+    /// outside its root (issue #200).
+    /// </summary>
+    public async Task<string> DownloadAssetAsync(string assetName, IReadOnlyDictionary<string, string> urls, string stagingDir, CancellationToken ct)
     {
         if (!urls.TryGetValue(assetName, out var source))
             throw new InvalidOperationException($"No source for asset '{assetName}'. Use latest or a release dir.");
+        if (string.IsNullOrWhiteSpace(stagingDir))
+            throw new ArgumentException("stagingDir must not be empty.", nameof(stagingDir));
 
-        var dest = Path.Combine(Path.GetTempPath(), $"agenteyes-setup-{Guid.NewGuid():N}-{assetName}");
+        Directory.CreateDirectory(stagingDir);
+        var dest = Path.Combine(stagingDir, $"agenteyes-setup-{Guid.NewGuid():N}-{assetName}");
+        EngineLog.Write($"[ReleaseSource] DownloadAssetAsync: {assetName} -> {dest}");
 
         if (source.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             source.StartsWith("https://", StringComparison.OrdinalIgnoreCase))

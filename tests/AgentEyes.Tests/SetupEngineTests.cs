@@ -228,6 +228,40 @@ namespace AgentEyes.Tests
             }
         }
 
+        /// <summary>
+        /// Issue #200 QA bounce: the shortcut code moved into <see cref="WindowsUserShell"/>, the real store a test
+        /// run never uses. Its shortcut half takes a path, so it is exercised here for real (WScript.Shell COM)
+        /// against a temp path - never the Start Menu or desktop. Its registry half cannot be unit-tested without
+        /// writing the real HKCU, which is what the seam exists to prevent; it is a verbatim move of the old code.
+        /// </summary>
+        [Fact]
+        public void WindowsUserShell_WriteShortcutToATempPath_CreatesALnkTargetingTheExe_AndDeleteRemovesIt()
+        {
+            string lnk = Path.Combine(_temp, "shell", "Programs", "AgentEyes.lnk");
+            string exe = Path.Combine(_temp, "app", "AgentEyesApp.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(exe)!);
+            File.WriteAllText(exe, "app");
+            var shell = new WindowsUserShell();
+
+            shell.WriteShortcut(lnk, exe);
+
+            Assert.True(shell.ShortcutExists(lnk));
+            Assert.Equal(exe, ShortcutTarget(lnk), ignoreCase: true);
+            shell.DeleteShortcut(lnk);
+            Assert.False(shell.ShortcutExists(lnk));
+        }
+
+        private static string ShortcutTarget(string lnk)
+        {
+            var shellType = Type.GetTypeFromProgID("WScript.Shell")!;
+            object com = Activator.CreateInstance(shellType)!;
+            object shortcut = shellType.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, com, new object[] { lnk })!;
+            string target = (string)shortcut.GetType().InvokeMember("TargetPath", System.Reflection.BindingFlags.GetProperty, null, shortcut, null)!;
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(shortcut);
+            System.Runtime.InteropServices.Marshal.ReleaseComObject(com);
+            return target;
+        }
+
         [Fact]
         public void UninstallPlan_IncludesTheBundleDirectoryAndItsVariable()
         {

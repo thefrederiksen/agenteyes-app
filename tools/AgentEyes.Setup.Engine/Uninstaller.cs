@@ -16,6 +16,11 @@ public sealed record UninstallReport(bool Success, IReadOnlyList<string> Steps, 
 /// run-at-login key, and the Add/Remove Programs entry. It NEVER deletes the per-user root
 /// itself, so user data that lives alongside the install (config.json, presets,
 /// recordings metadata, Whisper models) is preserved.
+///
+/// For an ISOLATED layout (<c>--root</c>, issue #200) it removes only what lies inside the root: the PATH entry,
+/// the variable, the shortcuts, the run-at-login key and the Add/Remove Programs entry are outside it and belong
+/// to the real install - an isolated uninstall once deleted the person's real shortcuts and uninstall entry
+/// by fixed name. They are listed as not touched, so the omission is said rather than silent.
 /// </summary>
 public sealed class Uninstaller
 {
@@ -29,6 +34,8 @@ public sealed class Uninstaller
     /// <summary>What an uninstall would remove (existence-checked). Pure: no side effects.</summary>
     public IReadOnlyList<UninstallTarget> Plan()
     {
+        if (_layout.IsIsolated)
+            return InsideTheRoot();
         var startMenu = InstallFinalizer.StartMenuShortcutPath();
         var desktop = InstallFinalizer.DesktopShortcutPath();
         return
@@ -38,22 +45,43 @@ public sealed class Uninstaller
             new UninstallTarget(UninstallKind.Directory, "Native extraction cache", _layout.BundleExtractDir, Directory.Exists(_layout.BundleExtractDir)),
             new UninstallTarget(UninstallKind.PathEntry, "PATH entry", _layout.AppDir, InstallFinalizer.IsAppDirOnPath(_layout)),
             new UninstallTarget(UninstallKind.EnvVar, $"{InstallFinalizer.BundleExtractBaseDirVariable} variable", _layout.BundleExtractDir, InstallFinalizer.IsBundleExtractBaseDirSet(_layout)),
-            new UninstallTarget(UninstallKind.Shortcut, "Start Menu shortcut", startMenu, File.Exists(startMenu)),
-            new UninstallTarget(UninstallKind.Shortcut, "Desktop shortcut", desktop, File.Exists(desktop)),
+            new UninstallTarget(UninstallKind.Shortcut, "Start Menu shortcut", startMenu, InstallFinalizer.UserShell.ShortcutExists(startMenu)),
+            new UninstallTarget(UninstallKind.Shortcut, "Desktop shortcut", desktop, InstallFinalizer.UserShell.ShortcutExists(desktop)),
             new UninstallTarget(UninstallKind.RunKey, "Run-at-login entry", @"HKCU\...\Run\AgentEyes", InstallFinalizer.IsAutostartEnabled()),
             new UninstallTarget(UninstallKind.ArpEntry, "Add/Remove Programs entry", @"HKCU\...\Uninstall\AgentEyes", true),
         ];
     }
+
+    /// <summary>The targets that lie inside the root - all an isolated (--root) uninstall may remove.</summary>
+    private IReadOnlyList<UninstallTarget> InsideTheRoot() =>
+    [
+        new UninstallTarget(UninstallKind.Directory, "App binaries", _layout.AppDir, Directory.Exists(_layout.AppDir)),
+        new UninstallTarget(UninstallKind.SetupState, "Setup bookkeeping", _layout.SetupStateDir, Directory.Exists(_layout.SetupStateDir)),
+        new UninstallTarget(UninstallKind.Directory, "Native extraction cache", _layout.BundleExtractDir, Directory.Exists(_layout.BundleExtractDir)),
+    ];
+
+    /// <summary>What an isolated uninstall leaves alone, in the words its report uses.</summary>
+    public const string OutsideTheRootNotTouched =
+        "outside the --root, not touched: the PATH entry, DOTNET_BUNDLE_EXTRACT_BASE_DIR, the Start Menu and desktop "
+        + "shortcuts, the run-at-login entry and the Add/Remove Programs entry (they belong to the real install)";
 
     /// <summary>Remove everything in scope. Best-effort: collects per-step errors.</summary>
     public UninstallReport Apply()
     {
         var steps = new List<string>();
         var errors = new List<string>();
-        EngineLog.Write("[Uninstaller] Apply");
+        EngineLog.Write($"[Uninstaller] Apply: root={_layout.LocalRoot} isolated={_layout.IsIsolated}");
 
         RemoveAppDir(steps, errors);
         RemoveSetupState(steps, errors);
+
+        if (_layout.IsIsolated)
+        {
+            DeleteDirectoryWithRetry(_layout.BundleExtractDir, "Native extraction cache", steps, errors);
+            steps.Add(OutsideTheRootNotTouched);
+            EngineLog.Write($"[Uninstaller] Apply done (isolated): success={errors.Count == 0}, errors={errors.Count}; {OutsideTheRootNotTouched}");
+            return new UninstallReport(errors.Count == 0, steps, errors);
+        }
 
         Try(steps, errors, "PATH entry", () =>
             InstallFinalizer.RemoveAppDirFromPath(_layout) ? $"removed PATH entry: {_layout.AppDir}" : "PATH entry: not present");
@@ -146,8 +174,8 @@ public sealed class Uninstaller
 
     private static void RemoveShortcut(string lnk, string desc, List<string> steps, List<string> errors)
     {
-        if (!File.Exists(lnk)) { steps.Add($"{desc}: not present"); return; }
-        try { File.Delete(lnk); steps.Add($"removed {desc}: {lnk}"); }
+        if (!InstallFinalizer.UserShell.ShortcutExists(lnk)) { steps.Add($"{desc}: not present"); return; }
+        try { InstallFinalizer.UserShell.DeleteShortcut(lnk); steps.Add($"removed {desc}: {lnk}"); }
         catch (Exception ex) { errors.Add($"{desc} ({lnk}): {ex.Message}"); }
     }
 

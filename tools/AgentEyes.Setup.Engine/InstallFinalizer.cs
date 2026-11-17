@@ -1,7 +1,3 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
-using Microsoft.Win32;
-
 namespace AgentEyes.Setup.Engine;
 
 /// <summary>
@@ -13,14 +9,15 @@ namespace AgentEyes.Setup.Engine;
 /// </summary>
 public static class InstallFinalizer
 {
-    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string RunValueName = "AgentEyes";
-    private const string UninstallKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\AgentEyes";
-
     /// <summary>Where the user PATH and DOTNET_BUNDLE_EXTRACT_BASE_DIR are read and written. The
     /// user's registry in the product; a test host swaps in an in-memory store so a test run never
     /// changes the variables the installed app depends on (issue #78).</summary>
     internal static IUserEnvironment UserEnvironment { get; set; } = new RegistryUserEnvironment();
+
+    /// <summary>Where the shortcuts, the run-at-login value and the Add/Remove Programs entry are read and
+    /// written. The user's shell folders and HKCU in the product; a test host swaps in an in-memory store so
+    /// no test - whatever the code under test does - can create, repoint or delete the real ones (issue #200).</summary>
+    internal static IUserShell UserShell { get; set; } = new WindowsUserShell();
 
     // ---- PATH ---------------------------------------------------------------
 
@@ -139,12 +136,10 @@ public static class InstallFinalizer
     // ---- shortcuts ----------------------------------------------------------
 
     /// <summary>Start Menu shortcut path ("AgentEyes.lnk" - same name the Inno installer used).</summary>
-    public static string StartMenuShortcutPath() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", "AgentEyes.lnk");
+    public static string StartMenuShortcutPath() => UserShell.StartMenuShortcutPath;
 
     /// <summary>Desktop shortcut path.</summary>
-    public static string DesktopShortcutPath() => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "AgentEyes.lnk");
+    public static string DesktopShortcutPath() => UserShell.DesktopShortcutPath;
 
     /// <summary>Create (or overwrite) the Start Menu shortcut for the app. No-op if the exe is absent.</summary>
     public static bool CreateStartMenuShortcut(InstallLayout layout) =>
@@ -160,27 +155,7 @@ public static class InstallFinalizer
         var exe = layout.PathFor(ComponentRegistry.App);
         if (!File.Exists(exe)) return false;
 
-        var dir = Path.GetDirectoryName(lnk);
-        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-        var shellType = Type.GetTypeFromProgID("WScript.Shell")
-            ?? throw new InvalidOperationException("WScript.Shell COM object not available.");
-        var shell = Activator.CreateInstance(shellType)
-            ?? throw new InvalidOperationException("Could not create WScript.Shell.");
-        var shortcut = shell.GetType().InvokeMember("CreateShortcut",
-            BindingFlags.InvokeMethod, null, shell, [lnk])
-            ?? throw new InvalidOperationException("CreateShortcut returned null.");
-
-        var t = shortcut.GetType();
-        t.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, [exe]);
-        t.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, [Path.GetDirectoryName(exe)]);
-        t.InvokeMember("IconLocation", BindingFlags.SetProperty, null, shortcut, [$"{exe},0"]);
-        t.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, ["AgentEyes"]);
-        t.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
-
-        Marshal.ReleaseComObject(shortcut);
-        Marshal.ReleaseComObject(shell);
-
+        UserShell.WriteShortcut(lnk, exe);
         EngineLog.Write($"[InstallFinalizer] created shortcut: {lnk}");
         return true;
     }
@@ -191,27 +166,21 @@ public static class InstallFinalizer
     public static void SetAutostart(InstallLayout layout, bool enabled)
     {
         ArgumentNullException.ThrowIfNull(layout);
-        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true)
-            ?? throw new InvalidOperationException($"Could not open HKCU\\{RunKeyPath}.");
         if (enabled)
         {
             var exe = layout.PathFor(ComponentRegistry.App);
-            key.SetValue(RunValueName, $"\"{exe}\" --tray");
+            UserShell.SetRunValue($"\"{exe}\" --tray");
             EngineLog.Write("[InstallFinalizer] autostart enabled");
         }
-        else if (key.GetValue(RunValueName) != null)
+        else if (UserShell.GetRunValue() != null)
         {
-            key.DeleteValue(RunValueName, throwOnMissingValue: false);
+            UserShell.SetRunValue(null);
             EngineLog.Write("[InstallFinalizer] autostart removed");
         }
     }
 
     /// <summary>True when the run-at-login Run key is set.</summary>
-    public static bool IsAutostartEnabled()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath);
-        return key?.GetValue(RunValueName) != null;
-    }
+    public static bool IsAutostartEnabled() => UserShell.GetRunValue() != null;
 
     // ---- Add/Remove Programs entry --------------------------------------------
 
@@ -228,27 +197,22 @@ public static class InstallFinalizer
         var appExe = layout.PathFor(ComponentRegistry.App);
         var setupCli = layout.PathFor(ComponentRegistry.SetupCli);
 
-        using var key = Registry.CurrentUser.CreateSubKey(UninstallKeyPath, writable: true)
-            ?? throw new InvalidOperationException($"Could not create HKCU\\{UninstallKeyPath}.");
-        key.SetValue("DisplayName", "AgentEyes");
-        key.SetValue("DisplayVersion", version);
-        key.SetValue("Publisher", "Soren Frederiksen");
-        key.SetValue("InstallLocation", layout.AppDir);
-        key.SetValue("DisplayIcon", appExe);
-        key.SetValue("UninstallString", $"\"{setupCli}\" uninstall");
-        key.SetValue("QuietUninstallString", $"\"{setupCli}\" uninstall --json");
-        key.SetValue("NoModify", 1, RegistryValueKind.DWord);
-        key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+        UserShell.WriteUninstallEntry(new UninstallEntry(
+            DisplayName: "AgentEyes",
+            DisplayVersion: version,
+            Publisher: "Soren Frederiksen",
+            InstallLocation: layout.AppDir,
+            DisplayIcon: appExe,
+            UninstallString: $"\"{setupCli}\" uninstall",
+            QuietUninstallString: $"\"{setupCli}\" uninstall --json"));
         EngineLog.Write($"[InstallFinalizer] registered Add/Remove Programs entry (v{version})");
     }
 
     /// <summary>Remove the Add/Remove Programs entry (used on uninstall).</summary>
     public static bool RemoveUninstallEntry()
     {
-        using var parent = Registry.CurrentUser.OpenSubKey(Path.GetDirectoryName(UninstallKeyPath)!, writable: true);
-        if (parent?.OpenSubKey("AgentEyes") is not { } existing) return false;
-        existing.Dispose();
-        parent.DeleteSubKeyTree("AgentEyes", throwOnMissingSubKey: false);
+        if (!UserShell.UninstallEntryExists()) return false;
+        UserShell.DeleteUninstallEntry();
         EngineLog.Write("[InstallFinalizer] removed Add/Remove Programs entry");
         return true;
     }

@@ -225,6 +225,43 @@ namespace AgentEyes.Tests
             Assert.IsNotType<RegistryUserEnvironment>(InstallFinalizer.UserEnvironment);
         }
 
+        /// <summary>Issue #200 QA bounce: the shortcuts, the run-at-login value and the Add/Remove Programs
+        /// entry a test can reach are the test run's own, in memory, so a test that drives the real finalizer
+        /// or uninstaller cannot touch the machine's real ones even when the code under test has regressed.</summary>
+        [Fact]
+        public void InstallFinalizer_InATestRun_KeepsTheShellEntriesInMemoryNotTheRealFolders()
+        {
+            Assert.Same(TestRunIsolation.UserShell, InstallFinalizer.UserShell);
+            Assert.IsNotType<WindowsUserShell>(InstallFinalizer.UserShell);
+            Assert.True(IsUnder(InstallFinalizer.StartMenuShortcutPath(), TestRunIsolation.RunRoot), InstallFinalizer.StartMenuShortcutPath());
+            Assert.True(IsUnder(InstallFinalizer.DesktopShortcutPath(), TestRunIsolation.RunRoot), InstallFinalizer.DesktopShortcutPath());
+        }
+
+        /// <summary>
+        /// The seam above only protects what goes THROUGH it. So every registry call in the setup engine and
+        /// the setup CLI must sit inside <see cref="WindowsUserShell"/>, the real store the test run replaces (the
+        /// Run value, the Add/Remove Programs entry and the Inno key). A new HKCU write anywhere else would bypass
+        /// the in-memory store and reach the real machine from a test; this fails first.
+        /// </summary>
+        [Fact]
+        public void RegistryCalls_InTheSetupEngineAndCli_AreOnlyInsideTheRealUserShell()
+        {
+            var assemblies = new[] { CompiledCode.EngineAssembly, typeof(AgentEyes.Setup.Cli.Commands).Assembly.Location };
+            var sites = assemblies
+                .SelectMany(a => CompiledCode.CallSites(a, c => c.StartsWith("Microsoft.Win32.Registry", StringComparison.Ordinal)))
+                .ToList();
+
+            // Instrument check: the real store's own calls must be SEEN, or "none outside" certifies nothing.
+            Assert.Contains(sites, s => s.Method.StartsWith("AgentEyes.Setup.Engine.WindowsUserShell::", StringComparison.Ordinal));
+            var outside = sites
+                .Where(s => !s.Method.StartsWith("AgentEyes.Setup.Engine.WindowsUserShell::", StringComparison.Ordinal))
+                .Select(s => $"{s.Assembly}!{s.Method} -> {s.Callee}")
+                .ToList();
+            Assert.True(outside.Count == 0,
+                "registry calls outside WindowsUserShell - a test would reach the real registry through them:" + Environment.NewLine
+                + string.Join(Environment.NewLine, outside));
+        }
+
         // ---- the compiled-code guard -----------------------------------------------------------
 
         /// <summary>
@@ -238,9 +275,10 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.AppDataPaths::get_Videos -> MyVideos x1",
             // The install root: honors AGENTEYES_ROOT first, which the test host sets for its own process.
             "AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallLayout::Default -> LocalApplicationData x1",
-            // Shortcut PATHS. Tests only read them (the uninstall plan checks existence); none creates one.
-            "AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallFinalizer::DesktopShortcutPath -> DesktopDirectory x1",
-            "AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.InstallFinalizer::StartMenuShortcutPath -> StartMenu x1",
+            // Shortcut PATHS, only in the real user shell - which a test run replaces with an in-memory one
+            // whose paths are under the run folder (issue #200), so no test resolves the real ones at all.
+            "AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.WindowsUserShell::get_DesktopShortcutPath -> DesktopDirectory x1",
+            "AgentEyes.Setup.Engine.dll!AgentEyes.Setup.Engine.WindowsUserShell::get_StartMenuShortcutPath -> StartMenu x1",
             // Where Windows PowerShell lives, for the plugin packaging test. Tool locations, not state.
             "AgentEyes.Tests.dll!AgentEyes.Tests.PluginRegistryChannelTests::WindowsPowerShellHome -> System x1",
             "AgentEyes.Tests.dll!AgentEyes.Tests.PluginRegistryChannelTests::WindowsPowerShellModulePath -> ProgramFiles x1",

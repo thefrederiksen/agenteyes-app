@@ -1,0 +1,39 @@
+MUTATION: Uninstaller.Apply's isolated branch (Uninstaller.cs:78) disabled - the pre-PR behaviour
+  - if (_layout.IsIsolated)
+  + if (false && _layout.IsIsolated) // MUTATION: isolated branch disabled
+
+=== fingerprint: BEFORE the mutation run at 2026-11-17 04:55:20.809
+1-2 LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-17 04:00:18.957 sha256=901B71BB9FC498A8
+1-2 LNK %USERPROFILE%\Desktop\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-16 18:26:46.480 sha256=494F392F1D96AEF4
+3 ARP ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app uninstall="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+4 RUN "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+5 PATH-AgentEyes %USERPROFILE%\AppData\Local\AgentEyes\app
+6 DOTNET_BUNDLE_EXTRACT_BASE_DIR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+APP pid=17580 started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+health: { "ok": true, "app": "AgentEyes" }
+
+--- dotnet build AgentEyes.sln -c Release (mutated)
+Build succeeded.
+    0 Error(s)
+--- dotnet test AgentEyes.sln --filter UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone (mutated)
+[xUnit.net 00:00:01.02]     AgentEyes.Tests.SetupRootIsolationTests.UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone [FAIL]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone [75 ms]
+  Error Message:
+   an isolated uninstall wrote outside the root: DeleteShortcut %USERPROFILE%\AppData\Local\Temp\agenteyes-tests\run-20261117-045532-952\Shell\StartMenu\Programs\AgentEyes.lnk | DeleteShortcut %USERPROFILE%\AppData\Local\Temp\agenteyes-tests\run-20261117-045532-952\Shell\Desktop\AgentEyes.lnk | SetRunValue (removed) | DeleteUninstallEntry
+  Stack Trace:
+     at AgentEyes.Tests.SetupRootIsolationTests.UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone() in <repo>\tests\AgentEyes.Tests\SetupRootIsolationTests.cs:line 233
+Failed!  - Failed:     1, Passed:     0, Skipped:     0, Total:     1, Duration: 75 ms - AgentEyes.Tests.dll (net8.0)
+
+=== fingerprint: AFTER the mutation run at 2026-11-17 04:55:33.188
+1-2 LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-17 04:00:18.957 sha256=901B71BB9FC498A8
+1-2 LNK %USERPROFILE%\Desktop\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-16 18:26:46.480 sha256=494F392F1D96AEF4
+3 ARP ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app uninstall="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+4 RUN "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+5 PATH-AgentEyes %USERPROFILE%\AppData\Local\AgentEyes\app
+6 DOTNET_BUNDLE_EXTRACT_BASE_DIR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+APP pid=17580 started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+health: { "ok": true, "app": "AgentEyes" }
+
+Uninstaller.cs restored byte-for-byte; rebuild:
+Build succeeded.
+    0 Error(s)

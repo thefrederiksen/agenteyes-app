@@ -62,7 +62,7 @@ public static class Program
         var json = args.HasFlag("json");
         var layout = ResolveLayout(args);
         WireLogging(layout);
-        EngineLog.Write($"[Program] RunAsync: {args} root={layout.LocalRoot}");
+        EngineLog.Write($"[Program] RunAsync: {args} root={layout.LocalRoot} isolated={layout.IsIsolated}");
 
         try
         {
@@ -92,10 +92,17 @@ public static class Program
         }
     }
 
+    /// <summary>
+    /// The layout when no --root is given. A test seam (issue #200): --root now means an ISOLATED install that
+    /// never stops or starts an app, so the tests that drive the CLI's stop -> swap -> relaunch cycle against a
+    /// temp root point the default layout there instead of passing --root.
+    /// </summary>
+    internal static Func<InstallLayout> DefaultLayoutFactory { get; set; } = InstallLayout.Default;
+
     private static InstallLayout ResolveLayout(CliArgs args)
     {
         var root = args.Option("root");
-        return root is null ? InstallLayout.Default() : new InstallLayout(root);
+        return root is null ? DefaultLayoutFactory() : InstallLayout.Isolated(root);
     }
 
     private static void WireLogging(InstallLayout layout)

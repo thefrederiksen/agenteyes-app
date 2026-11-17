@@ -1,0 +1,70 @@
+binary under test: tools\AgentEyes.Setup.Cli\bin\Release\net8.0-windows\agenteyes-setup.exe (this branch, uncommitted at the time of the run), at normal (Medium) integrity
+=== snapshot: BEFORE (fixed build) at 2026-11-17 04:05:08.493
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=20576 name=AgentEyesApp.exe started=03:48:10 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmdline="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+finalizer: StartMenu.lnk written 04:00:18.957; uninstall entry 1.12.0 at %USERPROFILE%\AppData\Local\AgentEyes\app; Run="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray; bundle var=%USERPROFILE%\AppData\Local\AgentEyes\bundle
+=== run A backslash root: agenteyes-setup install --release-dir <release> --root <scratch>\after-root-* --no-finalize
+exit=0
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+isolated --root install: no AgentEyes was stopped or started (any running outside the root was left alone)
+=== snapshot: AFTER run A +0s at 2026-11-17 04:05:17.911
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=20576 name=AgentEyesApp.exe started=03:48:10 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmdline="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+=== run B forward-slash root (the Git Bash shape that crashed the scratch copy): agenteyes-setup install --release-dir <release> --root <scratch>\after-root-* --no-finalize
+exit=0
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+isolated --root install: no AgentEyes was stopped or started (any running outside the root was left alone)
+=== snapshot: AFTER run B +0s at 2026-11-17 04:05:27.976
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=20576 name=AgentEyesApp.exe started=03:48:10 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmdline="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+=== run C: agenteyes-setup install --root <scratch>\after-root-bs  (no --no-finalize: must be refused)
+exit=2
+usage error: install with --root needs --no-finalize: finalizing writes the PATH, DOTNET_BUNDLE_EXTRACT_BASE_DIR, the Start Menu shortcut and the Add/Remove Programs entry - all outside the root. Nothing was touched.
+Run 'agenteyes-setup help' or 'agenteyes-setup <command> --help'.
+=== run D: agenteyes-setup uninstall --root <scratch>\after-root-bs
+exit=0
+Uninstall complete (your data under %LOCALAPPDATA%\AgentEyes is preserved):
+  removed App binaries: <scratch>\after-root-bs\app
+  removed Setup bookkeeping: <scratch>\after-root-bs\config\setup
+  Native extraction cache: not present (<scratch>\after-root-bs\bundle)
+  outside the --root, not touched: the PATH entry, DOTNET_BUNDLE_EXTRACT_BASE_DIR, the Start Menu and desktop shortcuts, the run-at-login entry and the Add/Remove Programs entry (they belong to the real install)
+=== snapshot: AFTER all runs +15s at 2026-11-17 04:05:43.724
+--- AgentEyesApp / ffmpeg / agenteyes processes (Win32_Process)
+pid=20576 name=AgentEyesApp.exe started=03:48:10 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmdline="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+--- service state: GET http://127.0.0.1:7882/health
+{   "ok": true,   "app": "AgentEyes" }
+--- service state: GET /status (State field)
+State=idle Mode=
+--- who owns 127.0.0.1:7882
+listening pid=4
+finalizer: StartMenu.lnk written 04:00:18.957; uninstall entry 1.12.0 at %USERPROFILE%\AppData\Local\AgentEyes\app; Run="%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray; bundle var=%USERPROFILE%\AppData\Local\AgentEyes\bundle
+--- .NET Runtime / Application Error events during these runs
+(none)

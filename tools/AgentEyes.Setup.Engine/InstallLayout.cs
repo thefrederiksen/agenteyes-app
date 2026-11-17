@@ -17,11 +17,39 @@ public sealed class InstallLayout
     /// <summary>%LOCALAPPDATA%\AgentEyes (or the AGENTEYES_ROOT override) - per-user, no admin.</summary>
     public string LocalRoot { get; }
 
-    public InstallLayout(string localRoot)
+    /// <summary>
+    /// True for a layout made by <see cref="Isolated"/> - the setup CLI's <c>--root</c> (issue #200). An
+    /// isolated layout promises that NOTHING outside <see cref="LocalRoot"/> is touched: no running AgentEyes
+    /// is stopped or started (the app finds its install by process name and keeps its data under the REAL
+    /// per-user root whatever this layout says, so neither can be scoped), no per-user finalization (PATH,
+    /// the native-extraction variable, shortcuts, the run-at-login key, the Add/Remove Programs entry), no
+    /// Inno takeover (it deletes a registry key), and every staged download and extraction stays under the
+    /// root (<see cref="StagingDir"/>). A step that cannot honour that refuses; it never quietly proceeds.
+    /// </summary>
+    public bool IsIsolated { get; }
+
+    public InstallLayout(string localRoot) : this(localRoot, isolated: false) { }
+
+    private InstallLayout(string localRoot, bool isolated)
     {
         if (string.IsNullOrWhiteSpace(localRoot))
             throw new ArgumentException("localRoot must not be empty.", nameof(localRoot));
         LocalRoot = localRoot;
+        IsIsolated = isolated;
+    }
+
+    /// <summary>
+    /// The layout for an explicit install root that must stay isolated from the real install (the setup
+    /// CLI's <c>--root</c>, issue #200). The root is made absolute so that every path derived from it - and
+    /// every refusal that names one - is the path Windows will actually use.
+    /// </summary>
+    public static InstallLayout Isolated(string localRoot)
+    {
+        if (string.IsNullOrWhiteSpace(localRoot))
+            throw new ArgumentException("localRoot must not be empty.", nameof(localRoot));
+        var full = Path.GetFullPath(localRoot);
+        EngineLog.Write($"[InstallLayout] Isolated: root={full} - nothing outside it will be touched");
+        return new InstallLayout(full, isolated: true);
     }
 
     /// <summary>The production layout, honoring AGENTEYES_ROOT for the per-user root.</summary>
@@ -61,6 +89,23 @@ public sealed class InstallLayout
     /// Install-owned, not user data - the uninstaller removes it.
     /// </summary>
     public string BundleExtractDir => Path.Combine(LocalRoot, "bundle");
+
+    /// <summary>
+    /// Where downloads are staged and archives are unpacked before they are placed. %TEMP% for the real
+    /// install (unchanged); <c>&lt;root&gt;\staging</c> for an <see cref="IsIsolated"/> one, because %TEMP%
+    /// is outside the root (issue #200).
+    /// </summary>
+    public string StagingDir => IsIsolated ? Path.Combine(LocalRoot, "staging") : Path.GetTempPath();
+
+    /// <summary>True when <paramref name="path"/> is <see cref="LocalRoot"/> itself or lies beneath it.</summary>
+    public bool Contains(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(LocalRoot));
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        return string.Equals(full, root, StringComparison.OrdinalIgnoreCase)
+               || full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>The on-disk file whose presence/version represents the component.</summary>
     public string PathFor(Component component)

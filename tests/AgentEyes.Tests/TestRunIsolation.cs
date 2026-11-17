@@ -21,7 +21,9 @@ namespace AgentEyes.Tests
     ///   %TEMP%\agenteyes-tests\run-yyyyMMdd-HHmmss-pid\Videos\AgentEyes\...        (recordings, clips)
     ///
     /// and swaps the setup engine's user-environment store for an in-memory one, so no test changes the
-    /// user PATH or DOTNET_BUNDLE_EXTRACT_BASE_DIR the installed app relies on. AGENTEYES_ROOT is set for
+    /// user PATH or DOTNET_BUNDLE_EXTRACT_BASE_DIR the installed app relies on, and its user-shell store
+    /// (shortcuts, run-at-login value, Add/Remove Programs entry) for an in-memory one, so no test - even
+    /// one whose code under test has regressed - can create, repoint or delete the real ones (issue #200). AGENTEYES_ROOT is set for
     /// THIS process only (never the user's environment) so <see cref="InstallLayout.Default"/> lands in the
     /// run folder too.
     ///
@@ -55,6 +57,11 @@ namespace AgentEyes.Tests
 
         /// <summary>The in-memory user environment the setup engine writes to in this run.</summary>
         internal static InMemoryUserEnvironment UserEnvironment { get; } = new();
+
+        /// <summary>The in-memory shortcuts, run-at-login value and Add/Remove Programs entry the setup engine
+        /// reads and writes in this run (issue #200). Its shortcut paths are under this run's folder, so even a
+        /// read never resolves the real Start Menu or desktop.</summary>
+        internal static InMemoryUserShell UserShell { get; private set; } = null!;
 
         /// <summary>
         /// This run's log, read WITHOUT colliding with the writer (issue #84, second fix).
@@ -90,12 +97,14 @@ namespace AgentEyes.Tests
                 $"{RunPrefix}{now.ToString(StampFormat, CultureInfo.InvariantCulture)}-{Environment.ProcessId}");
             LocalAppData = Path.Combine(RunRoot, "LocalAppData");
             Videos = Path.Combine(RunRoot, "Videos");
+            UserShell = new InMemoryUserShell(Path.Combine(RunRoot, "Shell"));
             Directory.CreateDirectory(LocalAppData);
             Directory.CreateDirectory(Videos);
 
             AppDataPaths.RedirectForThisProcess(LocalAppData, Videos);
             Environment.SetEnvironmentVariable("AGENTEYES_ROOT", Path.Combine(LocalAppData, AppDataPaths.ProductFolder));
             InstallFinalizer.UserEnvironment = UserEnvironment;
+            InstallFinalizer.UserShell = UserShell;
 
             Log.Info($"[TestRunIsolation] RedirectEverything: run={RunRoot}");
             PruneOldRuns(RunsParent, now, KeepRunsFor);
@@ -163,6 +172,108 @@ namespace AgentEyes.Tests
             {
                 if (value == null) _values.Remove(name);
                 else _values[name] = value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The shortcuts, run-at-login value and Add/Remove Programs entry of a test run - what the setup engine
+    /// reads and writes instead of the real shell folders and HKCU (issue #200). The Run value and the entry
+    /// live in memory. The shortcuts are real placeholder files under this run's folder, so a delete that goes
+    /// AROUND the seam (a File.Delete on the path the seam handed out) still shows in <see cref="Snapshot"/>.
+    /// Every write through the seam is recorded in <see cref="Writes"/>, so a test can assert that a command
+    /// wrote NOTHING here, not merely that the end state happens to match.
+    /// </summary>
+    internal sealed class InMemoryUserShell : IUserShell
+    {
+        private readonly List<string> _writes = new();
+        private readonly object _gate = new();
+        private string? _runValue;
+        private UninstallEntry? _uninstallEntry;
+
+        public InMemoryUserShell(string folder)
+        {
+            StartMenuShortcutPath = Path.Combine(folder, "StartMenu", "Programs", "AgentEyes.lnk");
+            DesktopShortcutPath = Path.Combine(folder, "Desktop", "AgentEyes.lnk");
+        }
+
+        public string StartMenuShortcutPath { get; }
+        public string DesktopShortcutPath { get; }
+
+        /// <summary>Every write, in order, as "Operation target".</summary>
+        public IReadOnlyList<string> Writes { get { lock (_gate) return _writes.ToArray(); } }
+
+        /// <summary>The whole store as one comparable line; shortcuts are read from disk.</summary>
+        public string Snapshot()
+        {
+            lock (_gate)
+            {
+                return $"startmenu={File.Exists(StartMenuShortcutPath)} desktop={File.Exists(DesktopShortcutPath)} "
+                     + $"run={_runValue ?? "(none)"} arp={(_uninstallEntry == null ? "(none)" : _uninstallEntry.InstallLocation)}";
+            }
+        }
+
+        public bool ShortcutExists(string lnk) => File.Exists(lnk);
+
+        public void WriteShortcut(string lnk, string targetExe)
+        {
+            lock (_gate)
+            {
+                _writes.Add($"WriteShortcut {lnk}");
+                Directory.CreateDirectory(Path.GetDirectoryName(lnk)!);
+                File.WriteAllText(lnk, targetExe);
+            }
+        }
+
+        public void DeleteShortcut(string lnk)
+        {
+            lock (_gate) { _writes.Add($"DeleteShortcut {lnk}"); File.Delete(lnk); }
+        }
+
+        public string? GetRunValue() { lock (_gate) return _runValue; }
+
+        public void SetRunValue(string? commandLine)
+        {
+            lock (_gate) { _writes.Add($"SetRunValue {commandLine ?? "(removed)"}"); _runValue = commandLine; }
+        }
+
+        public bool UninstallEntryExists() { lock (_gate) return _uninstallEntry != null; }
+
+        public void WriteUninstallEntry(UninstallEntry entry)
+        {
+            lock (_gate) { _writes.Add($"WriteUninstallEntry {entry.InstallLocation}"); _uninstallEntry = entry; }
+        }
+
+        public void DeleteUninstallEntry()
+        {
+            lock (_gate) { _writes.Add("DeleteUninstallEntry"); _uninstallEntry = null; }
+        }
+
+        public void DeleteInnoUninstallEntry()
+        {
+            lock (_gate) _writes.Add("DeleteInnoUninstallEntry");
+        }
+
+        /// <summary>Put the store in a known state WITHOUT recording writes - a test's arrange step.</summary>
+        public void Seed(bool shortcuts, string? runValue, UninstallEntry? entry)
+        {
+            lock (_gate)
+            {
+                foreach (string lnk in new[] { StartMenuShortcutPath, DesktopShortcutPath })
+                {
+                    if (shortcuts)
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(lnk)!);
+                        File.WriteAllText(lnk, "seeded");
+                    }
+                    else if (File.Exists(lnk))
+                    {
+                        File.Delete(lnk);
+                    }
+                }
+                _runValue = runValue;
+                _uninstallEntry = entry;
+                _writes.Clear();
             }
         }
     }

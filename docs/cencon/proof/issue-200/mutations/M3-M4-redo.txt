@@ -1,0 +1,13 @@
+real finalizer state BEFORE: lnk=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe lnkWritten=04:00:18.957 arp=1.12.0 %USERPROFILE%\AppData\Local\AgentEyes\app
+=== M3 finalize refusal removed
+Build succeeded.
+    0 Error(s)
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_WithoutNoFinalize_IsRefusedBeforeAnythingIsTouched [52 ms]
+Failed!  - Failed:     1, Passed:    24, Skipped:     0, Total:    25, Duration: 967 ms - AgentEyes.Tests.dll (net8.0)
+=== M4 a copy inside the root is treated as outside
+Build succeeded.
+    0 Error(s)
+  Failed AgentEyes.Tests.SetupRootIsolationTests.IsolatedHandleFind_ProcessInsideTheRoot_RefusesNamingThePid [14 ms]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.IsolatedHandleFind_RealProcessNamedAgentEyesApp_OutsideIsLeftRunning_InsideIsRefused [95 ms]
+Failed!  - Failed:     2, Passed:    23, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+real finalizer state AFTER:  lnk=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe lnkWritten=04:00:18.957 arp=1.12.0 %USERPROFILE%\AppData\Local\AgentEyes\app
