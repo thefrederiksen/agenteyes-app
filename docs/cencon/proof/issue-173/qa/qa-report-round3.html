@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Issue 173 - QA round 3 - FAIL</title>
+<style>
+body{font-family:Segoe UI,Helvetica,Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1b1b1b;background:#fff;line-height:1.45}
+h1{font-size:22px}h2{font-size:18px;margin-top:28px;border-bottom:1px solid #ccc}
+table{border-collapse:collapse;width:100%;margin:8px 0}td,th{border:1px solid #bbb;padding:5px 7px;vertical-align:top;font-size:14px;text-align:left}
+th{background:#f0f0f0}code,pre{font-family:Consolas,Menlo,monospace;font-size:13px}pre{background:#f6f6f6;padding:8px;overflow-x:auto}
+.fail{color:#a00;font-weight:bold}.pass{color:#060;font-weight:bold}.warn{color:#8a5a00;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Issue #173 - QA round 3: <span class="fail">FAIL (flow:qa-failed)</span></h1>
+<p>PR #206, branch <code>issue-173-scrub-identity</code>. <b>Tip verified: 04a2160</b> (code at 388b111). This was done
+by the QA seat on devthrottle-mac-mini on 2026-11-17. The round covers the console-wrap discriminator and how honest
+its declarations are. This report contains no address and no real username. Where a shape has to be shown,
+<code>[AT]</code> stands for the at-sign, <code>[LF]</code> for a line break and <code>Us+ers</code> for the home-root
+word, so the report does not trip the guard itself.</p>
+
+<p><b>One-line verdict:</b> the discriminator is good on the false-positive side. 13 of 14 new identity-free shapes
+are green, and the 14th falls inside a declared flag. The corpus, its controls and all four mutations reproduce
+exactly. <b>But there are three blocking problems:</b></p>
+<ul>
+<li><b>D1:</b> on top of today's main 5e6e727, the guard is red (22 hits). The PR cannot merge green.</li>
+<li><b>D2:</b> the 80-column gate is off by one for PowerShell. PowerShell's own wraps on an 80-column console are
+79 columns, and those are missed. The corpus does not pin 80 against any lower value.</li>
+<li><b>D3:</b> the docstring says a split right after the home prefix is caught, but it is not caught when the
+continuation is indented, which is how PowerShell Format-List writes it.</li>
+</ul>
+<p>Under Section 7a this is the <b>third failed QA pass</b>. The orchestrator should consider <code>flow:needs-human</code>
+or a scope split. Each defect below is narrow and cheap to fix.</p>
+
+<h2>D1 (blocking): merged with main 5e6e727, the guard is red</h2>
+<table>
+<tr><th>Expected</th><td>The guard is green on the tree PR #206 produces when merged into the current main. Otherwise
+merging turns main's <code>evidence-identity</code> CI job red.</td></tr>
+<tr><th>Actual</th><td class="fail">Exit 1 with <b>22 hits</b>, all in #194 evidence that landed on main in 5e6e727
+(PR #205): <code>issue-194/handoff.md</code> 3, <code>issue-194/qa/install-transcript.txt</code> 10 and
+<code>issue-194/qa/qa-evidence.txt</code> 9. The user segments are two synthetic Linux installer-test accounts, first
+letters t and q, six characters each. Neither is a person, so this is not a leak. But the guard has no allowance for
+them, and the method allows no per-file exemption.</td></tr>
+<tr><th>Reproduce</th><td>Merge 04a2160 with origin/main 5e6e727 in a throwaway worktree (it merges cleanly), then run
+<code>python3 scripts/check-proof-identity.py .</code>. Output: <code>qa/qa-r3-main-merge.txt</code>. The sweep and
+CI were measured against main da85516, before #205 merged.</td></tr>
+<tr><th>Fix</th><td>Rebase onto main. Then either redact the two test accounts to <code>&lt;user&gt;</code> in #194's
+evidence, or add them as a declared synthetic-account allowance with the reason beside it, as is done for runner.
+Re-measure on the rebased tip.</td></tr>
+</table>
+
+<h2>D2 (blocking): the 80-column gate misses an 80-column PowerShell, the original tool</h2>
+<p>A tier-2 break (beside punctuation) is joined only if the line before it is at least 80 bytes long, padding
+included. The defect that started this issue tells us what width PowerShell actually writes:</p>
+<pre>main da85516: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt line 53
+  119 content bytes (120 with the LF); no redaction falls inside it; ends  ...access the file 'C:\Us
+  line 54 begins  ers\&lt;name&gt;\AppData\...           (the Remove-Item error, Windows PowerShell, 120-column console)</pre>
+<p>On a 120-column console, Windows PowerShell's formatter wraps at <b>width - 1</b>. pwsh 7.6.6 on this Mac does the
+same: Format-List with no console attached formats at 80 and writes lines of at most 79 columns. So an
+<b>80-column PowerShell writes 79-column lines</b>, and a tier-2 break on one of them is never joined. 80 columns is
+not an edge case. It is the default for macOS Terminal, Linux terminals, an ssh pty, and pwsh with no console.</p>
+<table>
+<tr><th>Probe (qa/qa-r3-probes.py, all on one test console width)</th><th>Expected</th><th>Actual</th></tr>
+<tr><td>79-column col-0 wrap: <code>... C:\Us+ers\</code> [LF] <code>planted-probe\AppData</code></td><td>red</td><td class="fail">GREEN (missed)</td></tr>
+<tr><td>79-column col-0 wrap inside the prefix: <code>... C:\</code> [LF] <code>Us+ers\planted-probe\...</code></td><td>red</td><td class="fail">GREEN (missed)</td></tr>
+<tr><td>79-column col-0 wrap before the at-sign: <code>... planted.probe</code> [LF] <code>[AT]acme-widgets.io</code></td><td>red</td><td class="fail">GREEN (missed)</td></tr>
+<tr><td>The same split at 119 columns (a 120-column console)</td><td>red</td><td class="pass">red</td></tr>
+</table>
+<p><b>Is 80 the right threshold or a convenient one? Convenient.</b> Nothing in the corpus pins it. With
+<code>WRAP_WIDTH</code> set to 79, 72, 60 or 40, all 50 corpus files still behave as declared, and the whole tree
+still has 0 hits (<code>qa/qa-r3-mutations.txt</code>). Every false positive that needs the gate has a short line
+before the break, under 40 columns. So 80 blocks nothing measured, and it lets through a width the original tool
+really produces. The declaration in <code>declared-miss/</code> and the docstring also understate the miss: they say
+"narrower than 80", but an 80-column PowerShell is missed too.</p>
+<p><b>Fix:</b> set the gate to 79 or lower, with the reason in the docstring (PowerShell writes width - 1). Add red
+corpus files at 79 columns (after the prefix, inside the prefix, before the at-sign). Add at least one green file
+whose line length sits just under the chosen gate, so the number is pinned from both sides.</p>
+
+<h2>D3 (blocking): an indented split right at the separator is missed, and the docstring says it is caught</h2>
+<p>The docstring says: "A home path split after its prefix is still caught as written, because the partial name is
+itself a name". That is true when the split leaves at least one name character on the first line. It is false when
+the split falls exactly on the separator: the first line ends in <code>C:\Us+ers\</code> with no name, and the
+indented next line starts with the name. Neither line holds a match.</p>
+<p>PowerShell Format-List writes exactly this shape. pwsh 7.6.6 here, <code>[pscustomobject]@{Message="... C:\Us+ers\planted-probe\..."} | Format-List</code>,
+breaks a long value mid-path and continues at column 10:</p>
+<pre>Message : Cannot remove item because it is being used by another process at
+          the long location C:\Us+ers\planted-probe\AppData\Local\AgentEyes\reco
+          rdings\2026-11-17\x.mp4</pre>
+<p>Probe <code>L-formatlist-indented-split-at-separator</code> is GREEN (missed). miss03 (a split inside the prefix)
+is the same mechanism, and it is a plausible real leak for the same reason. Format-List of an error or exception
+object, with a path inside its message, is an ordinary thing for an agent to dump into evidence.</p>
+<p><b>Fix:</b> either catch it (for example, join an indented continuation when the line before it ends at a bare
+home prefix or mid-prefix, and the indent matches a <code>Label : </code> value column), or correct the docstring
+and pin this exact shape in <code>declared-miss/</code> with the Format-List reason. Correcting the docstring alone
+is acceptable only if the lead accepts the Format-List gap.</p>
+
+<h2>1. The declared misses, one by one</h2>
+<table>
+<tr><th>Declared miss</th><th>Could a real leak land there?</th><th>Verdict</th></tr>
+<tr><td>miss01/02: a wrap beside punctuation on a console under 80 columns</td><td>Yes, at exactly 80 columns. PowerShell writes 79 (D2). Narrower than that (a split pane) is rarer.</td><td class="fail">Defect (D2)</td></tr>
+<tr><td>miss03: an indented continuation split inside the prefix</td><td>Yes. This is PowerShell Format-List's own wrap shape. The split-at-separator variant is not even declared (D3).</td><td class="fail">Defect (D3)</td></tr>
+<tr><td>miss04: runner followed by a name with no path after it</td><td>Only if a real account name starts with "runner" AND the wrap lands right after those 6 letters AND nothing path-like follows. The owner's account does not start with runner. The variant with a path after it is red.</td><td class="pass">Acceptable as declared</td></tr>
+<tr><td>miss05: UTF-32 and other encodings</td><td>The tree has no UTF-32 text and no compressed or media file. Of 1691 files, all are txt, json, md, png, log, py and similar, with no zip, gz, pdf, mp4 or wav. Windows tools write UTF-16, and that is covered. Images are a separate, declared gap.</td><td class="pass">Acceptable as declared</td></tr>
+</table>
+
+<h2>2. NEW false-positive shapes aimed at this discriminator</h2>
+<p>All are in <code>qa/qa-r3-probes.py</code>, with output in <code>qa/qa-r3-probes.txt</code>. Each probe was checked
+first: no single line of it is a hit on its own, so a red result can only come from the join. (My first draft had
+four probes that broke this rule and were red as written. They were rebuilt, not counted.)</p>
+<table>
+<tr><th>Shape</th><th>Result</th></tr>
+<tr><td>G1: an 80+ line ending in <code>/</code> (a URL directory), then a line starting <code>/var/log/...</code></td><td class="pass">green</td></tr>
+<tr><td>G1b: an 80+ line ending in <code>/</code>, then <code>/home/runner/work/...</code></td><td class="pass">green</td></tr>
+<tr><td>G1c: an 80+ npm URL ending in <code>/</code>, then <code>[AT]types/node</code></td><td class="pass">green</td></tr>
+<tr><td>G2 / G2b: prose with placeholders, a reserved-domain address and a mention, hard-cut mid-word every 80 and every 120 columns</td><td class="pass">green / green</td></tr>
+<tr><td>G3: minified JSON (escaped Windows and macOS placeholder paths, npm scopes, reserved address) hard-cut at 80</td><td class="pass">green</td></tr>
+<tr><td>G3b / G3c: a 48 KB random base64 blob and a slash-heavy base64 blob, both wrapped at 76 (MIME)</td><td class="pass">green / green</td></tr>
+<tr><td>G4: a long GitHub Actions URL hard-cut at 80</td><td class="pass">green</td></tr>
+<tr><td>G4b: an 80+ API URL ending in <code>Us+ers</code>, then <code>/&lt;user&gt;/profile</code></td><td class="pass">green</td></tr>
+<tr><td>G5: 80+ table rows ending in a backslash</td><td class="pass">green</td></tr>
+<tr><td>G5b: 80+ ASCII-art rows ending in a backslash, then a prose line starting <code>Us+ers</code></td><td class="pass">green</td></tr>
+<tr><td>G6: a shell backslash continuation onto a column-0 <code>--flag</code> line</td><td class="pass">green</td></tr>
+<tr><td>G7: an 80+ CSV header ending in a word, then a row starting <code>[AT]ci.nightly</code></td><td class="warn">red. This is inside declared-flag (an 80+ line ending mid-word, then a line that completes an address). It is contrived.</td></tr>
+</table>
+<p><b>Three side observations (non-blocking, as-written rule, not this round's discriminator):</b> the macOS shared
+folder (<code>/Us+ers/</code> + Shared), the Windows Public and Default profiles, and a URL path segment
+<code>/Us+ers/settings</code> are all red as written. None is in the tree today. A follow-up could allow the system
+profile names.</p>
+
+<h2>3. The two declared flags</h2>
+<p><b>They are the right call.</b> Both need an 80+ line that ends exactly at a home prefix or mid-word, followed by a
+column-0 line that completes an identity. That is the exact structure of a real wrap. The guard cannot tell the two
+apart, so flagging is the safe side, and rewriting the line with a placeholder costs little. In 13 new shapes, the
+only flag that fired was G7, and it falls inside the declared class. The flags do not reach further than declared.</p>
+
+<h2>4. The corpus and its controls (re-run by QA)</h2>
+<table>
+<tr><th>Check</th><th>Expected</th><th>Actual</th></tr>
+<tr><td><code>scripts/test-check-proof-identity.py</code> at 04a2160</td><td>21 green, 22 red, 5 declared-miss, 2 declared-flag, all as declared</td><td class="pass">all 50 as declared</td></tr>
+<tr><td>Round-2 guard (06e9ade) against the corpus</td><td>25 fail</td><td class="pass">25</td></tr>
+<tr><td>Width gate removed (tier 2 always joins)</td><td>13</td><td class="pass">13</td></tr>
+<tr><td>No joining</td><td>16</td><td class="pass">16</td></tr>
+<tr><td>No UTF-16 scan</td><td>5</td><td class="pass">5</td></tr>
+<tr><td>Guard over the tree at 04a2160</td><td>0 hits</td><td class="pass">1691 files, 0 hits. The developer's 1690 predates guard-round3.txt.</td></tr>
+<tr><td>CI run 44064860037 on 04a2160</td><td>green</td><td class="pass">success: evidence-identity, windows, macos and linux. Windows 2527/16/0 is the developer's figure from that run.</td></tr>
+</table>
+<p>The mutations were written independently from the descriptions and reproduce exactly (<code>qa/qa-r3-mutations.sh</code>).
+The gap is the one in D2: no mutation moves the threshold, so the corpus cannot notice if 80 is changed.</p>
+
+<h2>5. Adjudication: probe B2</h2>
+<p><b>The developer is right and my round-2 probe was wrong.</b> In the bytes of
+<code>qa/qa-r2-probes.py</code> line 12, the body is <code>path /ho</code> TAB LF <code>/me/planted-probe/x</code>.
+The second line starts with a slash, so joining the break in any way gives <code>/ho/me/...</code>, and no home path
+appears in any reading. The intended shape (<code>/ho</code> TAB LF <code>me/...</code>) is
+<code>red/leak04-trailing-tab-lf.txt</code> and is red. The literal is <code>green/fp19</code>. I checked both with
+xxd. My round-2 report listed B2 as a miss of the round-2 guard. That entry was not valid evidence, and I withdraw it.
+B and B3 were the valid trailing-whitespace findings.</p>
+
+<h2>6. verify-sweep.py:39 and the OUT list</h2>
+<ul>
+<li><code>docs/cencon/proof/issue-173/verify-sweep.py:39</code> holds the bare account name as a constant. The
+developer recorded it, and its class is #212 (the account name outside the three path forms, about 699 times in docs).
+<b>It is out of scope here and not quietly in.</b> One point: this PR introduced the line (it came in with 00ed0f2 and
+is not on main). Recommendation, non-blocking: read it from a file outside the repository, as the QA scripts do.</li>
+<li>Recorded as OUT and unchanged: git history (the address is in the author metadata of 67 commits),
+<code>CameraFailurePathTests.cs:77</code>, #212 (open), and the open evidence PRs #190, #198, #199 and #177, which this
+zero does not cover.</li>
+</ul>
+
+<h2>What would pass round 4</h2>
+<ol>
+<li>Rebased onto current main, with the guard green over the merged tree (D1).</li>
+<li>A tier-2 gate at 79 or lower, with 79-column red files and a near-gate green file in the corpus. Docstring and
+declared-miss wording corrected (D2).</li>
+<li>The indented split right at the separator either caught or truthfully declared and pinned (D3).</li>
+</ol>
+<p>Files: <code>qa/qa-r3-probes.py</code> and <code>.txt</code>, <code>qa/qa-r3-mutations.sh</code> and <code>.txt</code>,
+<code>qa/qa-r3-main-merge.txt</code>. Not merged; QA does not merge (D7).</p>
+</body>
+</html>

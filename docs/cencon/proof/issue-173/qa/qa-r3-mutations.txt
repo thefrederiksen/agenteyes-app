@@ -1,0 +1,8 @@
+r2: 25 corpus files fail
+nowidth: 13 corpus files fail
+nojoin: 16 corpus files fail
+noutf16: 5 corpus files fail
+WRAP_WIDTH=79: corpus fails 0; whole tree 0 hits
+WRAP_WIDTH=72: corpus fails 0; whole tree 0 hits
+WRAP_WIDTH=60: corpus fails 0; whole tree 0 hits
+WRAP_WIDTH=40: corpus fails 0; whole tree 0 hits
