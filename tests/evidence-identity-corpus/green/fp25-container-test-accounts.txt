@@ -1,0 +1,3 @@
+[OK] installed /home/tester/.local/lib/agenteyes, unit /home/tester/.config/systemd/user/agenteyes.service
+[sudo] password for qauser:
+qauser     /home/qauser/.local/share/agenteyes

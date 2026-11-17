@@ -314,18 +314,20 @@ one JSON per poll and every response carried the signed-in account. Before you c
 - **Search across line wraps.** A console wraps long output at its width, so a path or an address
   can be split across two lines (`C:\Us` at the end of one, `ers\<name>\...` at the start of the
   next). A line-by-line search cannot see it: #173's sweep and its first guard both missed one that
-  QA found. When you check your own evidence, search with the line breaks removed as well.
+  QA found. When you check your own evidence, search with the line breaks removed as well - CI does
+  not do this for you yet (issue #218).
 - CI enforces the rule: `scripts/check-proof-identity.py` (the `evidence-identity` job) fails on any
   email-shaped string, and on any home path (`/home/`, `/Users/`, `<drive>:\Users\`) whose user
-  segment is a name rather than a placeholder, under `docs/cencon/proof/` or `docs/cencon/review/` -
-  both as written and with every break that has the structure of a console wrap removed (the next
-  line starts at column 0, and the break falls inside a word, or after a line of 80+ columns), so a
-  wrapped one is caught too, in UTF-16 text as well. It does NOT join every break: that reads
-  `import pytest` followed by a decorator line as an address. Every CI run first plants each leak
-  shape, wrapped and unwrapped, and requires red; then plants an identity-free pytest file and
+  segment is a name rather than a placeholder, under `docs/cencon/proof/` or `docs/cencon/review/`,
+  in UTF-16 text as well. It scans SINGLE LINES: a console-wrapped leak is a declared miss, and
+  wrap-aware detection is issue #218. It allows only shapes that cannot be a person: RFC 2606 /
+  RFC 6761 reserved domains, systemd unit names (`name@instance.service` and the other unit types
+  that are not top-level domains), and the throwaway accounts the Linux container tests create.
+  Every CI run first plants an address and named home paths and requires red; then plants an
+  identity-free file (a pytest decorator, systemd unit names, a reserved-domain address) and
   requires green; then runs the committed corpus (`scripts/test-check-proof-identity.py` over
   `tests/evidence-identity-corpus/`), which pins what must stay green, what must go red, and what
-  the wrap rule misses and flags by design. A change to the guard that moves a corpus file fails CI;
+  the guard misses and flags by design. A change to the guard that moves a corpus file fails CI;
   add a file to the corpus when you find a new shape. It does
   not check host names, pipe names or any other place a username appears (#212 tracks host names) -
   those are on you. It also does not undo the past: addresses already in git history stay there, and

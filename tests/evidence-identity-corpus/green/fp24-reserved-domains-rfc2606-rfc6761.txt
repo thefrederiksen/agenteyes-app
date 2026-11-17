@@ -1,0 +1,2 @@
+export GIT_AUTHOR_NAME=scratch GIT_AUTHOR_EMAIL=scratch@example.invalid
+fixtures: first.tester@example.com, x@example.net, y@example.org, z@mail.example, ci@runner.test, dev@app.localhost

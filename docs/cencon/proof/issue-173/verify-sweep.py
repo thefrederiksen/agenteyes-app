@@ -13,7 +13,12 @@ parses every .json file before and after.
 
 It also PAIRS each old value with the token that replaced it (QA round 1 found the split alone was
 green when one valid token was swapped for the other, because a split forgets which token stood where):
-  * a home path must become the same prefix + <user>, and an existing token must stay itself;
+  * a home path is matched by SHAPE (any user segment): it either stays byte-identical, or becomes
+    the same prefix + <user>. Turning a segment that names no person (<user> or any placeholder,
+    "...", runner, runneradmin, tester, qauser - the CI guard's allowances) into <user> is
+    over-redaction and fails; leaving a segment that DOES name someone as it was is
+    under-redaction and fails (so undoing the wrapped redaction is red without naming anyone).
+    An existing token must stay itself;
   * an address must become a token, and each distinct address must map to ONE token and each token
     from ONE address, across every file - so a single swapped occurrence is red;
   * given owner-file and second-file (each holding one address, kept OUTSIDE the repository and never
@@ -25,8 +30,9 @@ Home-path prefixes are matched across a console line wrap (a CRLF or LF, plus an
 any two characters), because one sweep redaction (#173 QA round 1) was C:\\Us / ers\\<user> split by
 a PowerShell wrap.
 
-It contains no address: addresses are matched by SHAPE. The home-path username is the repository
-owner's handle.
+It contains no identity: addresses AND home-path usernames are matched by SHAPE (QA round 3: an
+earlier version carried the owner's username as a constant). The only values it can be given are the
+optional owner-file and second-file, which live outside the repository.
 
 Exit 0 = every changed file passes. Exit 1 = at least one fails (named). Exit 2 = nothing to check.
 """
@@ -36,7 +42,6 @@ import re
 import subprocess
 import sys
 
-USERNAME = rb"soren"
 OWNER_TOKEN = b"<owner account>"
 SECOND_TOKEN = b"<owner second account>"
 TOKENS = (OWNER_TOKEN, SECOND_TOKEN)
@@ -49,20 +54,26 @@ def wrappable(literal: str) -> bytes:
 
 
 # The three home-path prefixes, each tolerant of a wrap inside it.
-HOME_PREFIX = (rb"(" + wrappable("/home/") + rb"|" + wrappable("/Users/") + rb"|(?:\\" + WRAP + rb")+"
+# As in the CI guard, a /home/ that is not at the start of a path ($R/home/.config, a sandbox HOME)
+# is not a home directory.
+HOME_PREFIX = (rb"((?<![A-Za-z0-9._$-])" + wrappable("/home/") + rb"|" + wrappable("/Users/") + rb"|(?:\\" + WRAP + rb")+"
                + wrappable("Users") + WRAP + rb"(?:\\" + WRAP + rb")+)")
+# A home-path user segment, by shape: a placeholder in angle brackets, or a run of name characters.
+HOME_USER = rb"(?:<[^<>\s]*>|[A-Za-z0-9._-]+)(?![A-Za-z0-9._-])"
+# User segments that name no person (the CI guard's allowances): redacting one is over-redaction.
+NO_PERSON = re.compile(rb"^(?:<[^<>\s]*>|\.+|runner|runneradmin|tester|qauser)$")
 # Old side: an email-shaped string (not a systemd instance unit such as a per-user manager unit,
-# which the CI guard also allows), a token already present before the sweep, or a home-path
-# username. The capture group keeps the path prefix so prefixes are compared too.
+# which the CI guard also allows), a token already present before the sweep, or any home path.
+# The capture group keeps the path prefix so prefixes are compared too.
 OLD = re.compile(
     rb"[A-Za-z0-9._%+-]+@(?![0-9]+\.(?:service|socket|target|slice|scope|timer)\b)"
     rb"(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?![A-Za-z0-9-])"
     rb"|<owner account>|<owner second account>"
-    rb"|" + HOME_PREFIX + rb"(?:" + USERNAME + rb"|<user>)(?![A-Za-z0-9._-])"
+    rb"|" + HOME_PREFIX + HOME_USER
 )
 NEW = re.compile(
     rb"<owner account>|<owner second account>"
-    rb"|" + HOME_PREFIX + rb"<user>(?![A-Za-z0-9._-])"
+    rb"|" + HOME_PREFIX + HOME_USER
 )
 DIGITS = re.compile(rb"\d+")
 
@@ -71,12 +82,22 @@ def git(*args: str) -> bytes:
     return subprocess.run(["git", *args], capture_output=True, check=True).stdout
 
 
-def pair_failure(old: bytes, new: bytes, mapping: dict, values: dict):
+def pair_failure(old_match, new_match, mapping: dict, values: dict):
     """Why the replacement old -> new is wrong, or None. Records address -> token in mapping."""
+    old, new = old_match.group(0), new_match.group(0)
     if old in TOKENS:
         return None if new == old else "an existing token was changed"
-    if old.endswith(b"<user>") or old.lower().endswith(USERNAME):
-        return None if new.endswith(b"<user>") and new not in TOKENS else "a home path did not become <user>"
+    if old_match.group(1) is not None:
+        if old == new:
+            if NO_PERSON.match(old[len(old_match.group(1)):]):
+                return None
+            return "under-redaction: a home path that names someone was left as it was"
+        prefix = old_match.group(1)
+        if new_match.group(1) != prefix or new != prefix + b"<user>":
+            return "a home path did not become the same prefix + <user>"
+        if NO_PERSON.match(old[len(prefix):]):
+            return "over-redaction: a home path that names no person became <user>"
+        return None
     if new not in TOKENS:
         return "an address did not become a token"
     key = old.lower()
@@ -116,12 +137,13 @@ def main(base: str, owner_file: str = None, second_file: str = None) -> int:
             failures += 1
             continue
         for o, n in zip(OLD.finditer(old), NEW.finditer(new)):
-            why = pair_failure(o.group(0), n.group(0), mapping, values)
+            why = pair_failure(o, n, mapping, values)
             if why:
                 line = old.count(b"\n", 0, o.start()) + 1
                 print(f"[FAIL] {why}: {name}:{line}")
                 failures += 1
-        redacted += sum(1 for m in OLD.finditer(old) if not m.group(0).endswith(b">"))
+        redacted += sum(1 for o, n in zip(OLD.finditer(old), NEW.finditer(new))
+                        if o.group(0) != n.group(0) and o.group(0) not in TOKENS)
         a, b = DIGITS.findall(old), DIGITS.findall(new)
         if a != b:
             print(f"[FAIL] digit runs differ: {name}")

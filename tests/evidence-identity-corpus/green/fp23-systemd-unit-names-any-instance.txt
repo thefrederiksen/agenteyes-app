@@ -1,0 +1,4 @@
+Nov 17 10:00:01 host systemd[1]: Started getty@tty1.service - Getty on tty1.
+Nov 17 10:00:02 host systemd[1]: Started serial-getty@ttyS0.service.
+Nov 17 10:00:03 host systemd[1]: Listening on sshd@vsock.socket, dbus@0.mount, backup@daily.timer, foo@bar.slice, a@b.scope, p@q.path, s@w.swap, d@e.device, m@n.automount
+Reached target user@1000.target.

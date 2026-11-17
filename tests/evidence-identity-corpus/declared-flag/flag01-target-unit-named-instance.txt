@@ -1,0 +1,1 @@
+Reached target planted-probe@acme-widgets.target (a template target with a NAMED instance)
