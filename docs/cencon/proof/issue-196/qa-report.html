@@ -100,6 +100,35 @@ So a stale value misleads users. It does not break the updater.</td>
 <td class="pass">CORRECT</td></tr>
 </table>
 
+<h2>Addendum - the second fix (git exit codes), the release.yml claim, and the counts</h2>
+<table>
+<tr><th>Item</th><th>QA's evidence</th><th>Result</th></tr>
+<tr><td>Old script tags a commit it never made</td>
+<td>I reproduced this under criterion 1 (scratch clone, main 02a4622). <code>git add</code> failed, there was no release commit (HEAD stayed 02a4622), and <code>v9.9.9</code> was still created on 02a4622 with <code>exit=0</code>.</td><td class="pass">REPRODUCED</td></tr>
+<tr><td>New script stops when a git step fails</td>
+<td>I made each git step fail in a scratch clone at 3eeab87, running <code>pwsh scripts/new-release.ps1 9.9.9</code>:
+<pre>A: git commit fails (a pre-commit hook that exits 1)
+   git commit failed (exit 1); NOT tagged
+   exit=1  HEAD=3eeab87 (no release commit)  tag v9.9.9: none
+B: git add fails (.git/index.lock held)
+   git add failed (exit 128); nothing committed or tagged
+   exit=1  HEAD=3eeab87  tag v9.9.9: none
+C: git tag fails (v9.9.9 already exists on 6b7180e)
+   git tag v9.9.9 failed (exit 128); the release commit exists but is not tagged
+   exit=1  HEAD=0ab5901 Release v9.9.9  tag v9.9.9 still -&gt; 6b7180e (not moved)</pre>
+In A and B, the five bumped csproj files are left modified and uncommitted in the working tree. That is visible and recoverable with <code>git checkout -- .</code>. The script does not say so in the message (finding F5).</td><td class="pass">PASS</td></tr>
+<tr><td>"A disagreeing tree now fails the release before publishing"</td>
+<td><b>Read from the YAML and confirmed in CI, NOT exercised as a red release run.</b> I did not trigger <code>release.yml</code> and created no tag, as the brief forbids. What I did establish:
+<ul>
+<li>From the YAML, the order is <code>Verify tag</code> (line 31), <code>Run tests</code> (line 59: <code>dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj</code>), then <code>Publish release assets</code> (68) and <code>Publish release</code> (167). No step has <code>continue-on-error</code>.</li>
+<li>Measured: the three new tests compile into <code>AgentEyes.Tests.dll</code> on Windows and pass there. The CI count is 2546 against 2543 on the v1.12.0 release run (+3).</li>
+<li>Exercised red, on Mac and Linux only: the same source file fails on a disagreeing tree (criterion 3).</li>
+</ul>
+<b>Not exercised:</b> the test going red in the Windows suite, and a release run stopping on it. The way to exercise it would be a throwaway branch with one version out of step, pushed to trigger <code>ci</code> (not <code>release</code>). That pushes to the shared remote, so I left it for the lead to authorise rather than doing it unasked.</td><td class="note">READ, NOT EXERCISED</td></tr>
+<tr><td>Test counts</td>
+<td>I measured both commits on SDK 10.0.403. On main 02a4622: Mac <b>430 passed / 2 skipped (432)</b>, which matches the #197 seats, and Linux 471/3 (474). On the PR at 3eeab87: Mac 433/2 (435) and Linux 474/3 (477). The difference is +3 on each suite, and <code>--list-tests</code> shows exactly 3 <code>ReleaseVersionTests</code> in each. Nothing is missing or unexplained.</td><td class="pass">RECONCILED</td></tr>
+</table>
+
 <h2>Review findings (none blocks a criterion)</h2>
 <table>
 <tr><th>#</th><th>Finding</th><th>Severity</th></tr>
@@ -107,6 +136,7 @@ So a stale value misleads users. It does not break the updater.</td>
 <tr><td>F2</td><td>The script's <code>-replace</code> runs on the raw file, so a <code>&lt;Version&gt;</code> inside an XML comment would also be rewritten. Counting and validation correctly ignore comments. No project has one today.</td><td class="note">latent</td></tr>
 <tr><td>F3</td><td>The script searches TRACKED files (<code>git ls-files</code>). The test walks the file system, which also covers untracked files. The test is the broader of the two, which is the right way round. An untracked project would not be in the release commit anyway.</td><td class="note">info</td></tr>
 <tr><td>F4</td><td>Pre-existing, outside this issue: the About text says "for Linux" on every platform (the developer noted this). <code>build-app.sh:61</code> rejects a <code>-rc.N</code> version, so the macOS bundle cannot be built for a pre-release. It fails loudly, not silently.</td><td class="note">out of scope</td></tr>
+<tr><td>F5</td><td>When <code>git add</code> or <code>git commit</code> fails, the script stops with no tag, which is correct. But the bumped project files are left modified in the working tree, and the message does not tell the person to revert them (<code>git checkout -- .</code>).</td><td class="note">minor</td></tr>
 </table>
 
 <p><b>VERIFIED - all acceptance criteria met</b>, with the stated limit that the Windows gate evidence is CI's, not a QA run. -&gt; <code>flow:ready-gate</code>.</p>
