@@ -1,0 +1,125 @@
+=== real tree fingerprint BEFORE
+6b7180ee641917caeab14badb74cfccb155624e1
+c9309e0209f3cdd466bded3911f5b178dcddffed  -
+
+=== C1 REPRODUCED: old script (main 02a4622) on a scratch clone, bump to 9.9.9
+bumped: src\AgentEyes.App\AgentEyes.App.csproj
+bumped: src\AgentEyes.Core\AgentEyes.Core.csproj
+bumped: tools\AgentEyes.Setup\AgentEyes.Setup.csproj
+bumped: tools\AgentEyes.Setup.Cli\AgentEyes.Setup.Cli.csproj
+fatal: pathspec 'src\AgentEyes.App\AgentEyes.App.csproj' did not match any files
+On branch scratch
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   src/AgentEyes.App/AgentEyes.App.csproj
+	modified:   src/AgentEyes.Core/AgentEyes.Core.csproj
+	modified:   tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj
+	modified:   tools/AgentEyes.Setup/AgentEyes.Setup.csproj
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+Tagged v9.9.9. Push with:
+  git push origin main v9.9.9
+script exit=0
+-- versions after:
+src/AgentEyes.App/AgentEyes.App.csproj:8:    <Version>9.9.9</Version>
+src/AgentEyes.Core/AgentEyes.Core.csproj:19:    <Version>9.9.9</Version>
+src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj:45:    <Version>1.12.0</Version>
+tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj:12:    <Version>9.9.9</Version>
+tools/AgentEyes.Setup/AgentEyes.Setup.csproj:11:    <Version>9.9.9</Version>
+-- git status:
+ M src/AgentEyes.App/AgentEyes.App.csproj
+ M src/AgentEyes.Core/AgentEyes.Core.csproj
+ M tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj
+ M tools/AgentEyes.Setup/AgentEyes.Setup.csproj
+-- HEAD and tag:
+02a4622 release: v1.12.0 - version bump and release notes with the known-defect list (#193) (#195)
+02a4622 release: v1.12.0 - version bump and release notes with the known-defect list (#193) (#195)
+
+=== C2 FIXED: six projects (throwaway tools/AgentEyes.Throwaway added at 1.12.0), bump to 9.9.9
+version files found: 6
+bumped: src/AgentEyes.App/AgentEyes.App.csproj
+bumped: src/AgentEyes.Core/AgentEyes.Core.csproj
+bumped: src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj
+bumped: tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj
+bumped: tools/AgentEyes.Setup/AgentEyes.Setup.csproj
+bumped: tools/AgentEyes.Throwaway/AgentEyes.Throwaway.csproj
+[scratch f61c483] Release v9.9.9
+ 6 files changed, 6 insertions(+), 6 deletions(-)
+
+Tagged v9.9.9. Push with:
+  git push origin main v9.9.9
+script exit=0
+-- versions after:
+src/AgentEyes.App/AgentEyes.App.csproj:8:    <Version>9.9.9</Version>
+src/AgentEyes.Core/AgentEyes.Core.csproj:19:    <Version>9.9.9</Version>
+src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj:45:    <Version>9.9.9</Version>
+tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj:12:    <Version>9.9.9</Version>
+tools/AgentEyes.Setup/AgentEyes.Setup.csproj:11:    <Version>9.9.9</Version>
+tools/AgentEyes.Throwaway/AgentEyes.Throwaway.csproj:4:    <Version>9.9.9</Version>
+-- git status:
+-- tag v9.9.9 points at:
+f61c483 Release v9.9.9
+ src/AgentEyes.App/AgentEyes.App.csproj               | 2 +-
+ src/AgentEyes.Core/AgentEyes.Core.csproj             | 2 +-
+ src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj | 2 +-
+ tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj | 2 +-
+ tools/AgentEyes.Setup/AgentEyes.Setup.csproj         | 2 +-
+ tools/AgentEyes.Throwaway/AgentEyes.Throwaway.csproj | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)
+dotnet test Linux exit=0
+Passed!  - Failed:     0, Passed:     3, Skipped:     0, Total:     3, Duration: 15 ms - AgentEyes.Tests.Linux.dll (net8.0)
+-- throwaway project removed (scratch clone deleted with it):
+before
+fp-before
+vt.log
+
+=== C3 RED: DesktopApp set out of step (1.11.0), the shared test on both suites
+src/AgentEyes.App/AgentEyes.App.csproj:8:    <Version>1.12.0</Version>
+src/AgentEyes.Core/AgentEyes.Core.csproj:19:    <Version>1.12.0</Version>
+src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj:45:    <Version>1.11.0</Version>
+tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj:12:    <Version>1.12.0</Version>
+tools/AgentEyes.Setup/AgentEyes.Setup.csproj:11:    <Version>1.12.0</Version>
+dotnet test Mac exit=1
+  Error Message:
+   Project versions disagree. src/AgentEyes.App/AgentEyes.App.csproj (the one release.yml checks the tag against) declares 1.12.0, but:
+  src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj declares 1.11.0
+Run scripts/new-release.ps1, which bumps every declared version, or fix the file(s) by hand.
+  Stack Trace:
+Failed!  - Failed:     1, Passed:     2, Skipped:     0, Total:     3, Duration: 16 ms - AgentEyes.Tests.Mac.dll (net8.0)
+dotnet test Linux exit=1
+  Error Message:
+   Project versions disagree. src/AgentEyes.App/AgentEyes.App.csproj (the one release.yml checks the tag against) declares 1.12.0, but:
+  src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj declares 1.11.0
+Run scripts/new-release.ps1, which bumps every declared version, or fix the file(s) by hand.
+  Stack Trace:
+Failed!  - Failed:     1, Passed:     2, Skipped:     0, Total:     3, Duration: 18 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+=== C3b RED: a NEW sixth project out of step (1.0.0) is found and named
+dotnet test Linux exit=1
+  Error Message:
+   Project versions disagree. src/AgentEyes.App/AgentEyes.App.csproj (the one release.yml checks the tag against) declares 1.12.0, but:
+  tools/AgentEyes.Throwaway/AgentEyes.Throwaway.csproj declares 1.0.0
+Run scripts/new-release.ps1, which bumps every declared version, or fix the file(s) by hand.
+  Stack Trace:
+Failed!  - Failed:     1, Passed:     2, Skipped:     0, Total:     3, Duration: 19 ms - AgentEyes.Tests.Linux.dll (net8.0)
+
+=== REFUSAL leaves the tree untouched: a project declaring TWO <Version> elements
+  47 |  ... ed -ne 1) { throw "$f declares $declared <Version> elements; expected ...
+     | tools/AgentEyes.Setup/AgentEyes.Setup.csproj declares 2 <Version>
+script exit=1
+-- git status (expect empty):
+
+=== NO TAG ON A FAILED COMMIT: a pre-commit hook that refuses
+scratch hook: refusing the commit
+  76 |  ... DE -ne 0) { throw "git commit failed (exit $LASTEXITCODE); NOT tagged ...
+     | git commit failed (exit 1); NOT tagged
+-- tags matching v9* (expect none):
+-- HEAD:
+6b7180e fix(release): #196 new-release.ps1 finds every declared version; a test goes red when they disagree
+
+=== real tree fingerprint AFTER
+6b7180ee641917caeab14badb74cfccb155624e1
+c9309e0209f3cdd466bded3911f5b178dcddffed  -
+[OK] real tree unchanged

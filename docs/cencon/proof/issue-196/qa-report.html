@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Issue 196 QA Report</title>
+<style>
+ body{font-family:Segoe UI,Arial,sans-serif;max-width:1100px;margin:24px auto;padding:0 16px;color:#1b1b1b;background:#fff;line-height:1.45}
+ h1{font-size:1.5em} h2{font-size:1.2em;margin-top:1.6em;border-bottom:1px solid #ccc}
+ table{border-collapse:collapse;width:100%;margin:10px 0;font-size:.93em}
+ th,td{border:1px solid #bbb;padding:5px 8px;vertical-align:top;text-align:left}
+ th{background:#f0f0f0}
+ code,pre{font-family:Consolas,monospace;font-size:.9em}
+ pre{background:#f6f6f6;padding:8px;overflow-x:auto;white-space:pre-wrap}
+ .pass{color:#0a6b1f;font-weight:bold} .fail{color:#a00;font-weight:bold} .note{color:#7a5200;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Issue #196 - independent QA report (macOS, devthrottle-mac-mini)</h1>
+
+<table>
+<tr><th>Verdict</th><td><span class="pass">PASS</span> -&gt; <code>flow:ready-gate</code>. QA does not merge (method D7). The Review Gate decides.</td></tr>
+<tr><th>Branch under test</th><td>PR #202, <code>issue-196-release-script-all-versions</code> @ <b>3eeab87</b> (fix at 6b7180e), on main <b>02a4622</b>.</td></tr>
+<tr><th>Implementation type</th><td><b>A SEARCH, not a longer list.</b> <code>scripts/new-release.ps1</code> runs <code>git ls-files -- '*.csproj' '*.props' '*.targets'</code>, drops <code>docs/*</code>, strips XML comments, and keeps every file with a <code>&lt;Version&gt;</code> element. There is no project name in the script. The test (<code>tests/Shared/ReleaseVersionTests.cs</code>) walks the file system the same way. Its <code>KnownVersionFiles</code> list of five is only a floor ("the search must find at least these"). The disagreement check itself compares every file the search found.</td></tr>
+<tr><th>Machine / SDK</th><td>macOS (Darwin 25.5.0), .NET SDK 10.0.403, net8.0 test hosts on runtime 10 via <code>DOTNET_ROLL_FORWARD=LatestMajor</code>. pwsh for the script.</td></tr>
+<tr><th>Gates (QA's own run)</th><td>
+<code>dotnet test tests/AgentEyes.Tests.Mac -c Release</code>: <b>Passed 433, Skipped 2, Failed 0 (Total 435)</b>. That is main's 432 plus the 3 new tests.<br>
+<code>dotnet test tests/AgentEyes.Tests.Linux -c Release</code> (on macOS): <b>Passed 474, Skipped 3, Failed 0 (Total 477)</b>.<br>
+<b>WINDOWS GATE NOT RUN BY QA.</b> <code>AgentEyes.sln</code> cannot build on a Mac, so I did not run <code>dotnet build/test AgentEyes.sln</code>. The Windows evidence below comes from CI logs, not from a Windows run of mine.</td></tr>
+<tr><th>CI (read from the run logs by QA)</th><td>Two runs on head 3eeab87, both green on windows, linux and macos: 44050099679 (push) and 44050128663 (pull_request). In each run, Windows <code>AgentEyes.Tests</code> gave 2526 passed / 16 skipped of 2542 (default), and 2545 / 1 of 2546 with the ffmpeg opt-in. Linux gave 477 total with 0 failed, and macOS 435 total with 0 failed. The v1.12.0 release run on main 02a4622 (43977360554) had 2543 Windows tests. 2546 - 2543 = 3, so the three new tests run in the Windows suite, which is the suite <code>release.yml</code> runs before it publishes.</td></tr>
+</table>
+
+<h2>Expected vs Actual, per criterion</h2>
+<table>
+<tr><th>#</th><th>Expected</th><th>Actual (QA's own run unless marked)</th><th>Result</th></tr>
+
+<tr><td>1</td><td>The old script leaves DesktopApp behind on a scratch bump.</td>
+<td>A scratch clone at main 02a4622, running <code>pwsh scripts/new-release.ps1 9.9.9</code>:
+<pre>Tagged v9.9.9. Push with:
+  git push origin main v9.9.9
+exit=0
+tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj:    &lt;Version&gt;9.9.9&lt;/Version&gt;
+src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj:    &lt;Version&gt;1.12.0&lt;/Version&gt;
+src/AgentEyes.Core/AgentEyes.Core.csproj:    &lt;Version&gt;9.9.9&lt;/Version&gt;
+src/AgentEyes.App/AgentEyes.App.csproj:    &lt;Version&gt;9.9.9&lt;/Version&gt;
+tools/AgentEyes.Setup/AgentEyes.Setup.csproj:    &lt;Version&gt;9.9.9&lt;/Version&gt;
+HEAD 02a4622 (no release commit); tags at HEAD: v1.12.0 v9.9.9</pre>
+The old script bumped four files and left DesktopApp at 1.12.0. I also confirmed the developer's second finding. On macOS, <code>git add</code> fails on the backslash paths, so nothing is committed. The script still tags the UN-bumped commit and exits 0.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>2</td><td>All five move together. A sixth project added later is found.</td>
+<td>A scratch clone at 3eeab87.<br><b>Five:</b> <code>version files found: 5</code>. All five went to 9.9.9, and DesktopApp is among them. The tag is on the release commit (tag v9.9.9 -&gt; 3cf0d0d, HEAD 3cf0d0d).<br>
+<b>Sixth:</b> I committed a throwaway <code>tools/QaSixth/QaSixth.csproj</code> with <code>&lt;Version&gt;1.12.0&lt;/Version&gt;</code>:
+<pre>version files found: 6
+bumped: src/AgentEyes.App/AgentEyes.App.csproj
+bumped: src/AgentEyes.Core/AgentEyes.Core.csproj
+bumped: src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj
+bumped: tools/AgentEyes.Setup.Cli/AgentEyes.Setup.Cli.csproj
+bumped: tools/AgentEyes.Setup/AgentEyes.Setup.csproj
+bumped: tools/QaSixth/QaSixth.csproj
+tag v9.9.9 -&gt; f21a5d5 HEAD=f21a5d5  (release commit: 6 files changed, 6 insertions(+), 6 deletions(-))</pre>
+The script found a project name it has never seen, so this is a search. I then removed the throwaway project, reset the clone and deleted the tag.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>3</td><td>Put one project out of step and the check goes red, naming the file. The check must reach a project it was not written with.</td>
+<td>A scratch clone at 3eeab87, running <code>dotnet test tests/AgentEyes.Tests.{Mac,Linux} -c Release --filter ReleaseVersionTests</code>.<br>
+<b>RED 1:</b> DesktopApp set to 1.11.0. Mac and Linux both exit 1:
+<pre>Project versions disagree. src/AgentEyes.App/AgentEyes.App.csproj (the one release.yml checks the tag against) declares 1.12.0, but:
+  src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj declares 1.11.0
+Run scripts/new-release.ps1, which bumps every declared version, or fix the file(s) by hand.
+Failed!  - Failed:     1, Passed:     2, Skipped:     0, Total:     3 - AgentEyes.Tests.Mac.dll (net8.0)
+Failed!  - Failed:     1, Passed:     2, Skipped:     0, Total:     3 - AgentEyes.Tests.Linux.dll (net8.0)</pre>
+<b>GREEN</b> after <code>git checkout -- src</code>: Mac 3/3 and Linux 3/3 passed, exit 0.<br>
+<b>RED 2, the check's reach:</b> I planted <code>src/QaSixth/QaSixth.csproj</code> declaring <code>1.0.0</code>. No test or script names this file. Mac and Linux both exit 1:
+<pre>Project versions disagree. src/AgentEyes.App/AgentEyes.App.csproj (the one release.yml checks the tag against) declares 1.12.0, but:
+  src/QaSixth/QaSixth.csproj declares 1.0.0</pre>
+<b>GREEN</b> after removing it: Mac 3/3 and Linux 3/3 passed. The check compares every file it finds, not only the five it was written with.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>4</td><td>No release behaviour changes for a correctly bumped tree. Rehearsals leave the repository unchanged.</td>
+<td><code>.github/workflows/release.yml</code> is not in the diff, so what it publishes is unchanged. The script still has the same params, version regex, clean-tree check, commit message <code>Release vX.Y.Z</code>, tag <code>vX.Y.Z</code> and push hint. The release commit changes only the <code>&lt;Version&gt;</code> lines (shown above).<br>
+Pre-release paths, on a scratch clone: <code>1.13.0-rc.1</code> -&gt; 5 found, 5 x <code>&lt;Version&gt;1.13.0-rc.1&lt;/Version&gt;</code>, tagged. Then <code>1.13.0</code> -&gt; 5 x <code>1.13.0</code>, tagged. Re-running the same version is refused, the tree stays clean and no tag is created. (The refusal message has a wording bug, finding F1.)<br>
+The one intended change is that DesktopApp, and any future project, is now bumped too. The new tests also run in the <code>release.yml</code> test step (CI count +3 above), so an out-of-step tree now fails the release before it publishes.<br>
+<b>Tree unchanged:</b> every rehearsal ran in throwaway clones in a scratch directory outside the repo. In the QA clone afterwards: <code>git status --porcelain</code> was empty, the local tag count was still 26, there was no <code>v9*</code> or <code>v1.13*</code> tag locally or on <code>origin</code> (<code>git ls-remote --tags</code> was empty), and there was no <code>QaSixth</code> under <code>src/</code> or <code>tools/</code>. I deleted the scratch clones.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>5</td><td>Gates green on all three platforms with counts. CI green across more than one run.</td>
+<td>macOS 433/2/0 (435) and Linux 474/3/0 (477), both run by QA. Windows comes from CI only: 2542 default and 2546 opt-in, 0 failed, in two runs (44050099679 and 44050128663). <b>QA did not run the Windows gate</b> (AgentEyes.sln does not build on a Mac). The Review Gate should know that the Windows number is CI's, not a QA bench run.</td>
+<td class="pass">PASS (Windows via CI)</td></tr>
+
+<tr><td>Scope</td><td>State what the DesktopApp's version is used for.</td>
+<td>The developer's answer is correct. I checked it against the code:
+<ul>
+<li><b>About box:</b> <code>src/AgentEyes.DesktopApp/Views/MainWindow.axaml.cs:886</code> <code>typeof(MainWindow).Assembly.GetName().Version?.ToString(3)</code>. The SDK derives that AssemblyVersion from <code>&lt;Version&gt;</code>, so a stale value shows to the user here.</li>
+<li><b>macOS bundle:</b> <code>scripts/mac/build-app.sh:60</code> reads <code>dotnet msbuild -getProperty:Version</code> and writes it into <code>Info.plist</code> <code>CFBundleShortVersionString</code> and <code>CFBundleVersion</code> (<code>__VERSION__</code> at Info.plist lines 43 and 45). Finder's Get Info shows it.</li>
+<li><b>Window title:</b> no version. <code>MainWindow.axaml:5</code> is <code>Title="AgentEyes"</code>.</li>
+<li><b>Updater:</b> none. Nothing in <code>src/AgentEyes.DesktopApp</code> compares versions.</li>
+</ul>
+So a stale value misleads users. It does not break the updater.</td>
+<td class="pass">CORRECT</td></tr>
+</table>
+
+<h2>Addendum - the second fix (git exit codes), the release.yml claim, and the counts</h2>
+<table>
+<tr><th>Item</th><th>QA's evidence</th><th>Result</th></tr>
+<tr><td>Old script tags a commit it never made</td>
+<td>I reproduced this under criterion 1 (scratch clone, main 02a4622). <code>git add</code> failed, there was no release commit (HEAD stayed 02a4622), and <code>v9.9.9</code> was still created on 02a4622 with <code>exit=0</code>.</td><td class="pass">REPRODUCED</td></tr>
+<tr><td>New script stops when a git step fails</td>
+<td>I made each git step fail in a scratch clone at 3eeab87, running <code>pwsh scripts/new-release.ps1 9.9.9</code>:
+<pre>A: git commit fails (a pre-commit hook that exits 1)
+   git commit failed (exit 1); NOT tagged
+   exit=1  HEAD=3eeab87 (no release commit)  tag v9.9.9: none
+B: git add fails (.git/index.lock held)
+   git add failed (exit 128); nothing committed or tagged
+   exit=1  HEAD=3eeab87  tag v9.9.9: none
+C: git tag fails (v9.9.9 already exists on 6b7180e)
+   git tag v9.9.9 failed (exit 128); the release commit exists but is not tagged
+   exit=1  HEAD=0ab5901 Release v9.9.9  tag v9.9.9 still -&gt; 6b7180e (not moved)</pre>
+In A and B, the five bumped csproj files are left modified and uncommitted in the working tree. That is visible and recoverable with <code>git checkout -- .</code>. The script does not say so in the message (finding F5).</td><td class="pass">PASS</td></tr>
+<tr><td>"A disagreeing tree now fails the release before publishing"</td>
+<td><b>Read from the YAML and confirmed in CI, NOT exercised as a red release run.</b> I did not trigger <code>release.yml</code> and created no tag, as the brief forbids. What I did establish:
+<ul>
+<li>From the YAML, the order is <code>Verify tag</code> (line 31), <code>Run tests</code> (line 59: <code>dotnet test tests/AgentEyes.Tests/AgentEyes.Tests.csproj</code>), then <code>Publish release assets</code> (68) and <code>Publish release</code> (167). No step has <code>continue-on-error</code>.</li>
+<li>Measured: the three new tests compile into <code>AgentEyes.Tests.dll</code> on Windows and pass there. The CI count is 2546 against 2543 on the v1.12.0 release run (+3).</li>
+<li>Exercised red, on Mac and Linux only: the same source file fails on a disagreeing tree (criterion 3).</li>
+</ul>
+<b>Not exercised:</b> the test going red in the Windows suite, and a release run stopping on it. The way to exercise it would be a throwaway branch with one version out of step, pushed to trigger <code>ci</code> (not <code>release</code>). That pushes to the shared remote, so I left it for the lead to authorise rather than doing it unasked.</td><td class="note">READ, NOT EXERCISED</td></tr>
+<tr><td>Test counts</td>
+<td>I measured both commits on SDK 10.0.403. On main 02a4622: Mac <b>430 passed / 2 skipped (432)</b>, which matches the #197 seats, and Linux 471/3 (474). On the PR at 3eeab87: Mac 433/2 (435) and Linux 474/3 (477). The difference is +3 on each suite, and <code>--list-tests</code> shows exactly 3 <code>ReleaseVersionTests</code> in each. Nothing is missing or unexplained.</td><td class="pass">RECONCILED</td></tr>
+</table>
+
+<h2>Review findings (none blocks a criterion)</h2>
+<table>
+<tr><th>#</th><th>Finding</th><th>Severity</th></tr>
+<tr><td>F1</td><td><code>scripts/new-release.ps1:51</code> throws <code>"... (is it X.Y.Z, or already $Version?). Nothing was changed."</code>. PowerShell parses <code>$Version?</code> as a variable named <code>Version?</code>, which is empty. The message actually printed: <code>(is it X.Y.Z, or already ). Nothing was changed.</code> The refusal itself is correct (nothing written, no tag). The fix is <code>${Version}?</code>.</td><td class="note">cosmetic</td></tr>
+<tr><td>F2</td><td>The script's <code>-replace</code> runs on the raw file, so a <code>&lt;Version&gt;</code> inside an XML comment would also be rewritten. Counting and validation correctly ignore comments. No project has one today.</td><td class="note">latent</td></tr>
+<tr><td>F3</td><td>The script searches TRACKED files (<code>git ls-files</code>). The test walks the file system, which also covers untracked files. The test is the broader of the two, which is the right way round. An untracked project would not be in the release commit anyway.</td><td class="note">info</td></tr>
+<tr><td>F4</td><td>Pre-existing, outside this issue: the About text says "for Linux" on every platform (the developer noted this). <code>build-app.sh:61</code> rejects a <code>-rc.N</code> version, so the macOS bundle cannot be built for a pre-release. It fails loudly, not silently.</td><td class="note">out of scope</td></tr>
+<tr><td>F5</td><td>When <code>git add</code> or <code>git commit</code> fails, the script stops with no tag, which is correct. But the bumped project files are left modified in the working tree, and the message does not tell the person to revert them (<code>git checkout -- .</code>).</td><td class="note">minor</td></tr>
+</table>
+
+<p><b>VERIFIED - all acceptance criteria met</b>, with the stated limit that the Windows gate evidence is CI's, not a QA run. -&gt; <code>flow:ready-gate</code>.</p>
+</body>
+</html>

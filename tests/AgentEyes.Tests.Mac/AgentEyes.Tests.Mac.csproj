@@ -75,6 +75,8 @@
          Windows suite so the repo has one convention. -->
     <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
     <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
+    <!-- Issue #196: every project that declares a version declares the same one (reads csproj files only). -->
+    <Compile Include="../Shared/ReleaseVersionTests.cs" Link="Shared/ReleaseVersionTests.cs" />
   </ItemGroup>
 
 </Project>

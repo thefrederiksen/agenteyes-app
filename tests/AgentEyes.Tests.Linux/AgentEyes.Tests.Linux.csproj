@@ -25,6 +25,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Issue #196: ReleaseVersionTests reads every project file in the repo, so the repo root is stamped
+         in at build time (the same key the Windows and macOS suites stamp) rather than guessed. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>RepoRoot</_Parameter1>
+      <_Parameter2>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Pin the engine to its LINUX configuration. On Linux this changes nothing; on a Mac, where
          the macOS configuration is the default, it is what keeps this suite testing Linux instead of
          failing to compile against Platform/Mac. -->
@@ -72,6 +81,8 @@
          Windows suite so the repo has one convention. -->
     <Compile Include="../AgentEyes.Tests/FfmpegOptInAttributes.cs" Link="FfmpegOptInAttributes.cs" />
     <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
+    <!-- Issue #196: every project that declares a version declares the same one (reads csproj files only). -->
+    <Compile Include="../Shared/ReleaseVersionTests.cs" Link="Shared/ReleaseVersionTests.cs" />
   </ItemGroup>
 
 </Project>
