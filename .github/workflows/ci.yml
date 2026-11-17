@@ -21,8 +21,9 @@ permissions:
 jobs:
   # Issue #173: committed evidence must not carry an email address. The repository is public and
   # proof files are copied between seats, so one leak became 84 files. The check matches the SHAPE
-  # of an address and never names one (scripts/check-proof-identity.py says why and lists its two
-  # allowances). It stops the NEXT leak; addresses already in git history stay there.
+  # of an address or a named home path and never names one (scripts/check-proof-identity.py says
+  # why, lists its allowances, and states what its line-wrap rule misses and flags; the corpus in
+  # tests/evidence-identity-corpus/ pins both). It stops the NEXT leak; git history keeps the last.
   evidence-identity:
     runs-on: ubuntu-latest
     steps:
@@ -58,6 +59,26 @@ jobs:
           printf 'line one\nCannot remove C:\\Us\r\ners\\%s\\AppData\\Local\n' planted-probe > "$probe"
           check "home path wrapped across a CRLF line break" "2: WRAPPED"
           python3 scripts/check-proof-identity.py || { echo "[FAIL] the guard is still red with every probe removed"; exit 1; }
+
+      # ...and made to stay QUIET on an ordinary file. A guard that joins every line break reads
+      # "import pytest" + a decorator line as an address (#173 QA round 2), and the first person to
+      # commit such a file would be blocked. Plant one in the real tree and require green, then run
+      # the committed corpus: identity-free files that must stay green, every leak shape (wrapped,
+      # padded, lone CR, UTF-16) that must go red, and the declared misses and flags pinned both ways.
+      - name: Negative control - the guard must stay green on identity-free files, and the corpus must hold
+        shell: bash
+        run: |
+          probe=docs/cencon/proof/ci-identity-probe.py
+          printf 'import pytest\n%spytest.mark.parametrize("x", [1])\ndef test_x(x):\n    pass\n' '@' > "$probe"
+          set +e
+          out=$(python3 scripts/check-proof-identity.py)
+          code=$?
+          set -e
+          rm -f "$probe"
+          echo "$out"
+          test $code -eq 0 || { echo "[FAIL] the guard exited $code on an identity-free pytest file; expected 0 - it would block an ordinary commit"; exit 1; }
+          echo "[OK] the guard stays green on an identity-free pytest decorator file"
+          python3 scripts/test-check-proof-identity.py
 
       - name: No email address and no named home path in committed evidence
         run: python3 scripts/check-proof-identity.py

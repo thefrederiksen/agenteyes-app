@@ -1,0 +1,3 @@
+Searched under /home
+/opt/tools
+/srv/data

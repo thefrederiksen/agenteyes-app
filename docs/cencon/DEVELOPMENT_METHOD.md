@@ -318,8 +318,15 @@ one JSON per poll and every response carried the signed-in account. Before you c
 - CI enforces the rule: `scripts/check-proof-identity.py` (the `evidence-identity` job) fails on any
   email-shaped string, and on any home path (`/home/`, `/Users/`, `<drive>:\Users\`) whose user
   segment is a name rather than a placeholder, under `docs/cencon/proof/` or `docs/cencon/review/` -
-  both as written and with the line breaks removed, so a wrapped one is caught too. Every CI run first
-  plants each of those shapes, wrapped and unwrapped, and requires the guard to go red on it. It does
+  both as written and with every break that has the structure of a console wrap removed (the next
+  line starts at column 0, and the break falls inside a word, or after a line of 80+ columns), so a
+  wrapped one is caught too, in UTF-16 text as well. It does NOT join every break: that reads
+  `import pytest` followed by a decorator line as an address. Every CI run first plants each leak
+  shape, wrapped and unwrapped, and requires red; then plants an identity-free pytest file and
+  requires green; then runs the committed corpus (`scripts/test-check-proof-identity.py` over
+  `tests/evidence-identity-corpus/`), which pins what must stay green, what must go red, and what
+  the wrap rule misses and flags by design. A change to the guard that moves a corpus file fails CI;
+  add a file to the corpus when you find a new shape. It does
   not check host names, pipe names or any other place a username appears (#212 tracks host names) -
   those are on you. It also does not undo the past: addresses already in git history stay there, and
   the #173 sweep did not rewrite history.

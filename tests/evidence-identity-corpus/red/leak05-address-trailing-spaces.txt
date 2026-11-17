@@ -1,0 +1,2 @@
+as planted.probe@acme-wid   
+gets.io ok

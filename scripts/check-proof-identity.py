@@ -7,11 +7,42 @@ than a placeholder such as <user>. It matches SHAPES, never a particular value: 
 contain a real address or username, or the guard is the leak with a test around it.
 
 Line wraps. A console wraps long output at its width, so a path or an address can be split across
-two lines (QA found C:\\Us / ers\\<name>\\... in a PowerShell error that every line-by-line search
-missed). Every file is therefore scanned twice: as written, and as a JOINED view with each line break
-(and the indentation after it) removed. A joined-view hit that spans a break is reported as WRAPPED,
-unless the part before the break was already a complete match on its own (then the joined view is
-only gluing the next line onto a finished string, and the as-written scan has already judged it).
+lines (QA found C:\\Us / ers\\<name>\\... in a PowerShell error that every line-by-line search
+missed). Every file is therefore scanned twice: as written, and as a JOINED view in which SOME line
+breaks are removed. Removing every break (the round-2 guard) cannot tell a console wrap from two
+unrelated lines: "import pytest" followed by a decorator line reads as an address. So a break is
+joined only when it has the structure of a hard console wrap:
+  * the next line starts at column 0 with a visible character (a console continues a wrapped line
+    at column 0; an indented or blank next line is a new line, not a continuation);
+  * whitespace before the break is ignored (a console capture pads a line to its width);
+  * TIER 1, mid-word: the character before the break and the one after it are both word characters
+    (letter, digit, "_" or "-") - the break falls INSIDE a word, which a person ending a line almost
+    never does and a console does all the time. Joined at any line length.
+  * TIER 2, at punctuation: any other visible pair (a line ending in "/" or "\\", a line starting with
+    "@" or "/") is joined only when the line before the break is at least WRAP_WIDTH (80) columns
+    long, padding included. Lines that start with "@" or "/" are ordinary in code and listings
+    (decorators, mentions, scoped packages, ls output), so a short line before them is a new line.
+The break may be CRLF, LF or a lone CR. A joined-view hit that spans a joined break is reported as
+WRAPPED, unless the part before the break was already a complete match on its own (then the joined
+view is only gluing the next line onto a finished string, which the as-written scan judged) - except
+an ALLOWED home path (/home/runner) whose next line carries on with a path separator, which is
+reported, since that is a name that merely begins with an allowed one.
+Text stored as UTF-16 (any run of 4+ ASCII characters each followed by a NUL byte, which is how
+Windows tools write text and how .NET binaries hold their strings; UTF-16BE matches the same run one
+byte along) is decoded and scanned the same way, wherever it sits in a file.
+
+What the wrap rule MISSES, by design:
+  * a wrap that lands next to punctuation ("C:\\Users\\" | "name", "user" | "@host") on a console
+    narrower than 80 columns;
+  * a wrap whose continuation is indented (a formatter such as PowerShell Format-List indents its
+    continuation lines). A home path split after its prefix is still caught as written, because the
+    partial name is itself a name; a split INSIDE the prefix or inside an address is not;
+  * an allowed home user (runner) followed by a wrapped name with no path separator after it on the
+    next line; an address whose reserved domain is extended by the next line;
+  * any other encoding: UTF-32, compressed or encrypted data, base64.
+What it FLAGS that is not a leak, by design: a line of 80+ columns that ends at a home prefix or in
+the middle of a word, followed by a line that completes a home path or an address. The committed
+corpus under tests/evidence-identity-corpus/ pins every one of these, both ways.
 
 What it does NOT do, stated so nobody reads more into a green run than it says:
   * It does not undo the past. Addresses already in git HISTORY stay there; the repository is
@@ -76,19 +107,47 @@ HOME_PATH = re.compile(
 )
 HOME_USER_ALLOWED = re.compile(rb"^(?:<[^<>\s]*>|\.+|runner|runneradmin)$")
 
-# A line break as a console wraps one: CRLF or LF, then any indentation the next line carries.
-LINE_BREAK = re.compile(rb"\r?\n[ \t]*")
+# A line break - CRLF, LF or a lone CR - with any whitespace before it (console padding) in group 1.
+LINE_BREAK = re.compile(rb"([ \t]*)(\r\n|\r|\n)")
+# A tier-1 break falls between two of these: inside a word.
+WORD_BYTES = frozenset(b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
+# A tier-2 break (beside punctuation) is joined only after a line at least this wide.
+WRAP_WIDTH = 80
+WHITESPACE = frozenset(b" \t\r\n")
+
+
+def is_console_wrap(data: bytes, line_start: int, match) -> bool:
+    """True when the break `match`, ending the line that began at line_start, has the structure of a
+    hard console wrap (see the module docstring): column-0 continuation, then mid-word at any width
+    or beside punctuation at WRAP_WIDTH or more."""
+    content_end = match.start()
+    nxt = match.end()
+    if content_end <= line_start or nxt >= len(data):
+        return False
+    before = data[content_end - 1]
+    after = data[nxt]
+    if after in WHITESPACE:
+        return False
+    if before in WORD_BYTES and after in WORD_BYTES:
+        return True
+    return match.start(2) - line_start >= WRAP_WIDTH
 
 
 def joined_view(data: bytes):
-    """Return (joined bytes, offsets, breaks): every line break removed; offsets[i] is the original
-    offset of joined byte i; breaks holds the joined offsets where a break was removed."""
+    """Return (joined bytes, offsets, breaks): every console-wrap break (and the padding before it)
+    removed; offsets[i] is the original offset of joined byte i; breaks holds the joined offsets
+    where a break was removed. Breaks that are not console wraps stay in place."""
     parts = []
     offsets = []
     breaks = set()
     pos = 0
     length = 0
+    line_start = 0
     for m in LINE_BREAK.finditer(data):
+        joined = is_console_wrap(data, line_start, m)
+        line_start = m.end()
+        if not joined:
+            continue
         chunk = data[pos:m.start()]
         parts.append(chunk)
         offsets.extend(range(pos, m.start()))
@@ -135,19 +194,27 @@ def home_hits(text: bytes):
             yield match.start(), match.end(), "home path naming user " + mask_home(user)
 
 
-def complete_on_its_own(text: bytes) -> bool:
-    """True when text, the part of a joined-view hit before its first line break, is already a
-    whole address or home path - so the joined view merely glued the next line onto it."""
-    if ADDRESS.fullmatch(text):
+def already_judged(head: bytes, tail: bytes) -> bool:
+    """True when head, the part of a joined-view hit before its first line break, is already a whole
+    address or home path on its own - so the joined view merely glued the next line onto it, and the
+    as-written scan has judged it. The exception: an ALLOWED home user (runner) whose continuation
+    goes on as a path ("bob/Videos") is a longer name that only begins with an allowed one."""
+    if ADDRESS.fullmatch(head):
         return True
-    return bool(HOME_PATH.fullmatch(text))
+    home = HOME_PATH.fullmatch(head)
+    if not home:
+        return False
+    if not HOME_USER_ALLOWED.match(home.group(1)):
+        return True
+    word = tail.split(None, 1)[0] if tail.split(None, 1) else b""
+    return not (b"/" in word or b"\\" in word)
 
 
-def file_hits(data: bytes):
-    """(line, description) for every hit in one file, as written and across line wraps."""
+def text_hits(data: bytes):
+    """(offset, description) for every hit in data, as written and across console wraps."""
     found = []
     for start, _end, shown in [*address_hits(data), *home_hits(data)]:
-        found.append((data.count(b"\n", 0, start) + 1, shown))
+        found.append((start, shown))
     joined, offsets, breaks = joined_view(data)
     if not breaks:
         return found
@@ -155,11 +222,36 @@ def file_hits(data: bytes):
         inner = [b for b in breaks if start < b < end]
         if not inner:
             continue
-        head = joined[start:min(inner)]
-        if complete_on_its_own(head):
+        first = min(inner)
+        if already_judged(joined[start:first], joined[first:]):
             continue
-        original = offsets[start]
-        found.append((data.count(b"\n", 0, original) + 1, "WRAPPED across a line break: " + shown))
+        found.append((offsets[start], "WRAPPED across a line break: " + shown))
+    return found
+
+
+# Text stored as UTF-16LE: 4+ ASCII characters (printable, tab, CR, LF), each followed by a NUL.
+# UTF-16BE text matches too, one byte along (its NUL comes first), so both byte orders are read.
+UTF16LE_RUN = re.compile(rb"(?:[\t\n\r\x20-\x7e]\x00){4,}")
+
+
+def utf16_runs(data: bytes):
+    """(original offset of the run, decoded ASCII bytes) for every run of UTF-16 text in data."""
+    for m in UTF16LE_RUN.finditer(data):
+        yield m.start(), m.group(0)[0::2]
+
+
+def file_hits(data: bytes):
+    """(line, description) for every hit in one file, as written, across console wraps, and in any
+    UTF-16 text it holds. Line numbers count LF bytes, so they hold for UTF-16LE text too."""
+    found = []
+    for offset, shown in text_hits(data):
+        found.append((data.count(b"\n", 0, offset) + 1, shown))
+    for run_start, decoded in utf16_runs(data):
+        for offset, shown in text_hits(decoded):
+            original = run_start + 2 * offset
+            hit = (data.count(b"\n", 0, original) + 1, "UTF-16 text: " + shown)
+            if hit not in found:
+                found.append(hit)
     return found
 
 

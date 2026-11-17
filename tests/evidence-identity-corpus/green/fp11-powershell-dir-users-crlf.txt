@@ -1,0 +1,2 @@
+PS> dir C:\Users\
+Directory listing follows

@@ -144,7 +144,10 @@ def main(base: str, owner_file: str = None, second_file: str = None) -> int:
         failures += 1
     print(f"files={len(names)} identity_values_redacted={redacted} digit_runs_compared={digit_runs} "
           f"json_parsed_before_and_after={json_files} distinct_addresses={len(mapping)} failures={failures}")
-    if values:
+    if values and failures:
+        print(f"[FAIL] mapping checked against the given owner and second values: NOT exact - "
+              f"{failures} failure(s), see the [FAIL] lines above")
+    elif values:
         print("mapping checked against the given owner and second values: exact")
     else:
         print("WARNING no owner/second value files given: per-occurrence swaps are caught by the "
