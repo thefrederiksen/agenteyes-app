@@ -1,0 +1,69 @@
+# Issue #173 round 4 - whole-tree re-measure. devthrottle-mac-mini, 2026-11-17, Python 3.14.6.
+# BEFORE = main 5e6e727. AFTER = 445153e (this branch, main 5e6e727 merged at b3e5725).
+# Values read from files outside the repository; the username is masked to <username> before commit.
+
+$ python3 docs/cencon/proof/issue-173/qa/qa-forms.py <rev> <owner-file> <second-file> <username>
+rev=5e6e727 files_scanned=2259
+  owner plain                                             occ=   87 files=82
+  owner url %40                                           occ=    0 files=0
+  owner json \u0040                                       occ=    0 files=0
+  owner html &#64;                                        occ=    0 files=0
+  owner html &#x40;                                       occ=    0 files=0
+  owner html &commat;                                     occ=    0 files=0
+  owner [at] obfusc                                       occ=    0 files=0
+  owner dbl-url %2540                                     occ=    0 files=0
+  owner local-part+@ any                                  occ=   90 files=82
+  second plain                                            occ=    3 files=1  -> docs/cencon/review/archived-pr-188-issue-187-review-round3.md
+  second url %40                                          occ=    0 files=0
+  second json \u0040                                      occ=    0 files=0
+  second html &#64;                                       occ=    0 files=0
+  second html &#x40;                                      occ=    0 files=0
+  second html &commat;                                    occ=    0 files=0
+  second [at] obfusc                                      occ=    0 files=0
+  second dbl-url %2540                                    occ=    0 files=0
+  second local-part+@ any                                 occ=   90 files=82
+  home: /home/<u>                                         occ=  794 files=400
+  home: /Users/<u>                                        occ=  330 files=50
+  home: Users\<u> (1-4 backslashes)                       occ= 3522 files=118
+  home: any sep Users|home <sep> <u> (url/json-unicode too) occ= 4646 files=554
+  home: ~<u>                                              occ=    0 files=0
+  home: 8.3 short <USERNAME>~1                            occ=    0 files=0
+rev=445153e files_scanned=2344
+  owner plain                                             occ=    0 files=0
+  owner url %40                                           occ=    0 files=0
+  owner json \u0040                                       occ=    0 files=0
+  owner html &#64;                                        occ=    0 files=0
+  owner html &#x40;                                       occ=    0 files=0
+  owner html &commat;                                     occ=    0 files=0
+  owner [at] obfusc                                       occ=    0 files=0
+  owner dbl-url %2540                                     occ=    0 files=0
+  owner local-part+@ any                                  occ=    0 files=0
+  second plain                                            occ=    0 files=0
+  second url %40                                          occ=    0 files=0
+  second json \u0040                                      occ=    0 files=0
+  second html &#64;                                       occ=    0 files=0
+  second html &#x40;                                      occ=    0 files=0
+  second html &commat;                                    occ=    0 files=0
+  second [at] obfusc                                      occ=    0 files=0
+  second dbl-url %2540                                    occ=    0 files=0
+  second local-part+@ any                                 occ=    0 files=0
+  home: /home/<u>                                         occ=    0 files=0
+  home: /Users/<u>                                        occ=    0 files=0
+  home: Users\<u> (1-4 backslashes)                       occ=    1 files=1  -> tests/AgentEyes.Tests/CameraFailurePathTests.cs
+  home: any sep Users|home <sep> <u> (url/json-unicode too) occ=    1 files=1  -> tests/AgentEyes.Tests/CameraFailurePathTests.cs
+  home: ~<u>                                              occ=    0 files=0
+  home: 8.3 short <USERNAME>~1                            occ=    0 files=0
+
+$ python3 docs/cencon/proof/issue-173/remeasure-wrapped.py <rev> <owner-file> <second-file> <username>
+rev 5e6e727: 2259 blobs
+  owner address (plain+encoded)      single-line    87 occ /  82 files | WRAPPED 0 occ / 0 files []
+  second address (plain+encoded)     single-line     3 occ /   1 files | WRAPPED 0 occ / 0 files []
+  /home/<username>                   single-line   794 occ / 400 files | WRAPPED 0 occ / 0 files []
+  /Users/<username>                  single-line   330 occ /  50 files | WRAPPED 0 occ / 0 files []
+  Users\+<username>                  single-line  3522 occ / 118 files | WRAPPED 1 occ / 1 files ['docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53']
+rev 445153e: 2344 blobs
+  owner address (plain+encoded)      single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  second address (plain+encoded)     single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  /home/<username>                   single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  /Users/<username>                  single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  Users\+<username>                  single-line     1 occ /   1 files | WRAPPED 0 occ / 0 files []

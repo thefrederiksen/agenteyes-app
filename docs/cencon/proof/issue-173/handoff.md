@@ -3,6 +3,101 @@
 Branch `issue-173-scrub-identity`, from main `02a4622`. Scope is the issue body as CORRECTED by the
 lead's comment 6943321310 (84-ish files, not five; `AccountStateTests.cs` brought IN).
 
+## Round 4 - RESCOPED by the owner (Section 7a split, 2026-11-17); read this first
+
+#173 hit the three-strike rule. Every failure was in the guard's WRAP detection, never in the sweep, so
+the owner split the issue. **#173 now merges: the sweep, the test fixture, the redacted wrapped
+occurrence, and SINGLE-LINE guard detection. Wrap detection is #218.** Everything below this section
+is the history of rounds 1 to 3 and still describes the sweep accurately; where it describes the
+guard's joined view, that guard now lives on the park branch, not here.
+
+### 1. Where the wrap work is parked, and how #218 picks it up
+Branch **`issue-218-wrap-detection`**, commit **`f382eec`** (pushed). It is this branch's `445153e`
+plus ONE commit that restores the wrap detector, `scripts/test-check-proof-identity.py`, the full
+`tests/evidence-identity-corpus/` (green, red, declared-miss, declared-flag), the CI wrapped controls
+and the method paragraph exactly as at `388b111`, with this round's allowances ported in. Corpus 57/57
+as declared; green on a tree including main 5e6e727. QA round 3's D2 and D3 are left open on purpose:
+they are #218's spec. **Pickup:** after #173 squash-merges, `git checkout -b issue-218-<slug>
+origin/main && git cherry-pick f382eec` (steps and conflict rule in
+`docs/cencon/proof/issue-218/parked-from-173.md` on that branch).
+
+### 2. The guard: single-line, green on a tree that includes main 5e6e727, red on a planted probe
+- `scripts/check-proof-identity.py`: the joined view and the console-wrap discriminator are removed.
+  UTF-16 text is still decoded and scanned, line by line. The docstring states the wrapped shape as a
+  declared miss owned by #218.
+- **What main 5e6e727 actually tripped.** All 22 hits were HOME PATHS, not addresses: two throwaway
+  Linux container accounts in #194's evidence - `tester` (3 hits in `issue-194/handoff.md`,
+  created by `scripts/linux/release-smoke.sh` with `useradd`) and `qauser` (19 hits in
+  `qa/install-transcript.txt` and `qa/qa-evidence.txt`, the #194 QA container user). Both are now allowed home users, with that
+  provenance in the docstring.
+- **`user@1000.service` and `scratch@example.invalid` were already green** on the round-3 guard
+  (the numeric-instance unit rule and the RFC 2606 / 6761 reserved-name rule both existed), so they
+  were not among the 22. The owner's point still stands for the GENERAL case, and it was a real gap:
+  `getty@tty1.service`, `sshd@vsock.socket`, `backup@daily.timer` - any NAMED instance - read as an
+  address. **TLD plausibility rule:** a last label of service, socket, device, mount, automount, swap,
+  path, timer, slice or scope is a unit type, not a TLD. I checked each against the IANA root zone
+  list (version 2026111700): none is delegated, **except `target`, which IS a delegated brand TLD** -
+  so `.target` stays allowed only with a numeric instance, and a named-instance `.target` is a
+  declared flag (`declared-flag/flag01`). `.services` (plural) is a real TLD and stays red (`leak24`).
+- Reserved names kept: `example.com/.net/.org`, `.example`, `.invalid`, `.test`, `.localhost`.
+- Proof, `round4-controls.txt` Part 2: guard on the tree **exit 0**; with a planted single-line
+  address **exit 1**, naming the file and line. Each allowance is load-bearing - a copy of the guard
+  with it removed goes red: tester/qauser removed -> **22 hits** (exactly main's #194 evidence);
+  unit-TLD rule removed -> the named-instance units are red; both unit rules removed ->
+  `issue-102/qa-linux/systemctl-status.txt` (the `user@1000.service` line) is red; reserved rule
+  removed -> `issue-196/proof.sh` (`scratch@example.invalid`) is red.
+- Corpus (this branch): green 27, red 10, declared-miss 19, declared-flag 1, all as declared. The 14
+  wrapped leak shapes moved to `declared-miss/wrapped-*` (pinned GREEN: the single-line guard does not
+  see them, and the runner fails if one turns red without the docstring changing); the two wrap flags
+  moved to `green/was-*`. New: `green/fp22-fp25` (unit names, reserved domains, container accounts),
+  `red/leak23-24`, `declared-flag/flag01`.
+- CI: the positive control plants single-line shapes only (address, Windows and Linux home paths);
+  the negative control plants a pytest decorator, `user@1000.service`, `getty@tty1.service` and a
+  `.invalid` address in the real tree and requires green; then the corpus.
+
+### 3. The username this PR introduced: removed from `verify-sweep.py`
+`verify-sweep.py` carries no identity now. Home paths are matched by SHAPE (any user segment, the same
+sandbox-HOME lookbehind as the guard): a path that changed must become the same prefix + `<user>`; a
+segment that names no person (`<...>`, `...`, runner, runneradmin, tester, qauser) turned into `<user>`
+is **over-redaction** and fails; a segment that names someone left as it was is **under-redaction**
+and fails - so undoing the wrapped redaction is still red without the script holding the name.
+
+### 4. Re-measured - the sweep did not move
+Base main **5e6e727** (merged into this branch at `b3e5725`, no rebase, no force-push):
+
+| Measure | Round 3 (base da85516) | Round 4 (base 5e6e727) |
+|---|---|---|
+| `verify-sweep.py` files / values redacted | 556 / 4730 | **556 / 4730** |
+| digit runs compared / JSON parsed both sides | 165617 / 324 | **165617 / 324** |
+| distinct addresses / failures / mapping | 2 / 0 / exact | **2 / 0 / exact** |
+
+Controls (`round4-controls.txt` Part 1, value files outside the repo): RED on one digit moved, one
+token swapped, a token replaced by a non-convention stand-in, an LF turned into CRLF, over-redaction
+(`AppData` -> `<user>`) and under-redaction (the wrapped redaction undone). 19/19 as stated; 18/18
+without the value files (the under-redaction run needs the username file and is skipped, saying so).
+
+Whole tree, every blob, QA's own `qa/qa-forms.py` and `remeasure-wrapped.py` (5e6e727 -> `445153e`):
+owner address 87 occ / 82 files -> **0**; second address 3 / 1 -> **0**; `/home/<username>` 794 / 400
+-> **0**; `/Users/<username>` 330 / 50 -> **0**; Windows `Users\<username>` 3522 / 118 -> **1**
+(`tests/AgentEyes.Tests/CameraFailurePathTests.cs`, declared); WRAPPED 1 -> **0**. Every encoded form
+(%40, \u0040, &#64;, &#x40;, &commat;, [at], %2540) is 0 at the tip. Output in `round4-measure.txt`.
+
+Gates: Linux 474/3/0 (477) and Mac 433/2/0 (435), SDK 10.0.403, on this branch. No C# changed in this
+round. Windows suite (AccountStateTests is in it): CI run on the pushed tip - see the #173 comment.
+
+### Still NOT covered - stated plainly
+- **Git history is not rewritten.** The address is in the author metadata of 67 commits on a public
+  repository; it is already out. This guard stops the next leak, not the last.
+- **`tests/AgentEyes.Tests/CameraFailurePathTests.cs:77` stays** (outside the evidence directories,
+  declared since round 1).
+- **#212 is out**: machine names and the bare username elsewhere (pipe names, host names, `ps`/`ls`
+  owner columns - 224 files). Two such lines appear in this PR's diff only because the sweep
+  redacted the home path on lines that also carry an `ls`/`ps` owner column; that column is on main
+  already and is #212's.
+- **The open evidence PRs #190, #198, #199 and #177 are not covered by this zero.** They branch
+  from an older main; whichever merges after #173 meets the guard then.
+- **Wrapped leaks are not detected by CI** until #218 lands. The one that existed is redacted.
+
 ## QA round 2 bounce (2026-11-17) - the guard joins only console-wrap breaks; read this first
 
 QA (comment 6945003526, `qa/qa-report-round2.html`) passed the sweep and judged the verifier residual
