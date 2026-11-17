@@ -3,6 +3,19 @@
 # a GitHub Release. The setup wizard/CLI and the in-app updater consume the
 # manifest from "latest".
 #
+# Linux (issue #194): a separate linux job builds agenteyes-linux-x64.tar.gz (the prebuilt recorder
+# and desktop app with the installer) and agenteyes-install-linux-x64.sh (download, verify against
+# release-manifest.json, install), and installs them in a fresh systemd container - a one-byte
+# corrupted copy must be REFUSED and the real one must come up with /health answering - before the
+# Windows job may start. The Windows job NEEDS it: a Linux build or install that fails means no
+# release at all, never a Windows-only one. Both Linux assets are hashed into the same
+# release-manifest.json and are part of the exact asset set the publish step demands.
+#
+# Dry run (issue #194): workflow_dispatch on any branch runs every step - both platforms' tests,
+# builds, the manifest, the exact-set checks and both install smokes - and uploads the release it
+# WOULD publish as a workflow artifact. It never publishes: the tag check and the publish step run
+# only on a tag push.
+#
 # Signing: the four first-party exes are code-signed as "Center Consulting Inc."
 # via Azure Trusted Signing (docs/signing.md) BETWEEN publish and manifest, so
 # release-manifest.json records the SHA-256 of the SIGNED bytes. Signing is gated
@@ -14,12 +27,59 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install ffmpeg
+        run: command -v ffmpeg || { sudo apt-get update -q && sudo apt-get install -y -q ffmpeg; }
+
+      # A release is built with every test, as on Windows: the Linux suite with its opt-in ffmpeg tests.
+      - name: Run the Linux tests
+        env:
+          AGENTEYES_FFMPEG_TESTS: "1"
+        run: dotnet test tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj -c Release
+
+      - name: Build the Linux release assets
+        run: scripts/linux/build-release.sh dist/linux
+
+      # The smoke needs a manifest holding the tarball's entry. It is written by the SAME script the
+      # Windows job runs over the whole release, from the same bytes; the Windows job then checks that
+      # the final manifest's Linux entries are exactly these.
+      - name: Write the manifest the Linux install smoke verifies against
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist/linux/smoke | Out-Null
+          Copy-Item dist/linux/release/* dist/linux/smoke/
+          scripts/write-manifest.ps1 -ReleaseDir dist/linux/smoke -VersionsFile dist/linux/asset-versions-linux.json
+
+      - name: Install the Linux asset on a clean machine (corrupted copy refused, real one serves /health)
+        run: scripts/linux/release-smoke.sh dist/linux/smoke
+
+      - name: Hand the Linux assets to the release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          if-no-files-found: error
+          path: |
+            dist/linux/release/agenteyes-linux-x64.tar.gz
+            dist/linux/release/agenteyes-install-linux-x64.sh
+            dist/linux/asset-versions-linux.json
+            dist/linux/smoke/release-manifest.json
+
   release:
+    needs: linux
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +89,7 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Verify tag matches project version
+        if: github.event_name == 'push'
         shell: pwsh
         run: |
           $version = ([xml](Get-Content src/AgentEyes.App/AgentEyes.App.csproj)).Project.PropertyGroup.Version
@@ -87,13 +148,48 @@ jobs:
           azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           certificate-profile-name: ${{ vars.SIGNING_CERT_PROFILE }}
 
-      # Hash the assets AS THEY NOW SIT (signed, if the step above ran) into
-      # release-manifest.json - the sha256 the setup engine verifies at install.
-      - name: Write release manifest (hashes signed binaries)
-        shell: pwsh
-        run: scripts/write-manifest.ps1
+      # The Linux job's assets join the release here, AFTER build-release.ps1 (which empties
+      # dist/release) and after signing (which must not touch them), BEFORE the manifest.
+      - name: Fetch the Linux assets
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-release
+          path: dist/linux
 
-      - name: Verify completeness
+      - name: Add the Linux assets to the release
+        shell: pwsh
+        run: |
+          Copy-Item dist/linux/release/agenteyes-linux-x64.tar.gz, dist/linux/release/agenteyes-install-linux-x64.sh dist/release/
+          Get-ChildItem dist/release
+
+      # Hash the assets AS THEY NOW SIT (signed, if the step above ran) into
+      # release-manifest.json - the sha256 the setup engine verifies at install, and the sha256
+      # agenteyes-install-linux-x64.sh verifies the Linux tarball against.
+      - name: Write release manifest (hashes signed binaries and the Linux assets)
+        shell: pwsh
+        run: scripts/write-manifest.ps1 -VersionsFile dist/asset-versions.json, dist/linux/asset-versions-linux.json
+
+      # The Linux install smoke verified against a manifest written in the Linux job. The manifest
+      # being published must say the SAME thing about those two assets, or the smoke proved nothing
+      # about it.
+      - name: The published manifest's Linux entries are the ones the Linux smoke installed
+        shell: pwsh
+        run: |
+          $smoke = Get-Content dist/linux/smoke/release-manifest.json -Raw | ConvertFrom-Json
+          $final = Get-Content dist/release/release-manifest.json -Raw | ConvertFrom-Json
+          if ($final.version -ne $smoke.version) { throw "manifest version $($final.version) is not the smoke-tested $($smoke.version)" }
+          foreach ($name in 'agenteyes-linux-x64.tar.gz', 'agenteyes-install-linux-x64.sh') {
+            $a = $final.assets.$name; $b = $smoke.assets.$name
+            if (-not $a -or -not $b) { throw "$name is missing from a manifest" }
+            if ($a.sha256 -ne $b.sha256 -or $a.size -ne $b.size -or $a.platform -ne 'linux') {
+              throw "$name in the release manifest ($($a.sha256), $($a.size), $($a.platform)) is not the smoke-tested one ($($b.sha256), $($b.size))"
+            }
+            "[OK] $name sha256 $($a.sha256) size $($a.size) platform $($a.platform)"
+          }
+
+      # EXACT, not merely complete (issue #194): every asset present AND nothing else, so the dry run
+      # proves the same set the publish step demands. The publish step checks it again itself.
+      - name: Verify completeness (the asset set is exact)
         shell: pwsh
         run: |
           $required = @(
@@ -102,10 +198,18 @@ jobs:
             'agenteyes-setup-cli-win-x64.exe',
             'AgentEyes-Setup-win-x64.exe',
             'agenteyes-ffmpeg-win-x64.zip',
+            'agenteyes-linux-x64.tar.gz',
+            'agenteyes-install-linux-x64.sh',
             'release-manifest.json'
           )
           $missing = $required | Where-Object { -not (Test-Path "dist/release/$_") }
           if ($missing) { throw "missing release assets: $($missing -join ', ')" }
+          $extra = Get-ChildItem dist/release | Where-Object { $required -notcontains $_.Name } | ForEach-Object Name
+          if ($extra) { throw "unexpected release assets: $($extra -join ', ')" }
+          $manifest = Get-Content dist/release/release-manifest.json -Raw | ConvertFrom-Json
+          $hashed = @($manifest.assets.PSObject.Properties.Name)
+          $unhashed = $required | Where-Object { $_ -ne 'release-manifest.json' -and $hashed -notcontains $_ }
+          if ($unhashed) { throw "assets with no entry in release-manifest.json: $($unhashed -join ', ')" }
           Get-ChildItem dist/release
 
       - name: Smoke-test an offline install from the built release
@@ -116,6 +220,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "offline install smoke test failed" }
           if (-not (Test-Path "$root/app/AgentEyesApp.exe")) { throw "app exe missing after install" }
           if (-not (Test-Path "$root/app/ffmpeg.exe")) { throw "bundled ffmpeg missing after install" }
+
+      # Dry run only: the exact release this run would have published, for inspection and for
+      # installing by hand. Nothing is published on a dry run.
+      - name: Dry run - keep the release that would have been published
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run
+          if-no-files-found: error
+          path: dist/release/
 
       # THE ONE PUBLISH. This workflow has exactly one command that creates or changes
       # a release anywhere, and it is this one: an OWN-REPO `gh release create` with the
@@ -165,6 +279,7 @@ jobs:
       # UpdateChannelTests only scans the files under .github for two literal retired
       # names, and says so in its own comments.
       - name: Publish release to this repo's own releases
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -175,6 +290,8 @@ jobs:
             'dist/release/agenteyes-setup-cli-win-x64.exe',
             'dist/release/AgentEyes-Setup-win-x64.exe',
             'dist/release/agenteyes-ffmpeg-win-x64.zip',
+            'dist/release/agenteyes-linux-x64.tar.gz',
+            'dist/release/agenteyes-install-linux-x64.sh',
             'dist/release/release-manifest.json'
           )
           $onDisk = @(Get-ChildItem dist/release | ForEach-Object { 'dist/release/' + $_.Name })
@@ -186,7 +303,7 @@ jobs:
             --repo "${{ github.repository }}" `
             --verify-tag `
             --title "AgentEyes ${{ github.ref_name }}" `
-            --notes "AgentEyes ${{ github.ref_name }}. Download AgentEyes-Setup-win-x64.exe and run it." `
+            --notes "AgentEyes ${{ github.ref_name }}. Windows: download AgentEyes-Setup-win-x64.exe and run it. Linux (X11, x64): download agenteyes-install-linux-x64.sh and run it with bash; it verifies agenteyes-linux-x64.tar.gz against release-manifest.json before installing." `
             @prerelease
           if ($LASTEXITCODE -ne 0) { throw "publish to this repo's own releases failed" }
 

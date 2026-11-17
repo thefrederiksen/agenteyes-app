@@ -113,6 +113,47 @@ namespace AgentEyes.Tests
             Assert.Equal(2, plan.Actionable.Count);
         }
 
+        /// <summary>
+        /// Issue #194: a release now also carries the Linux assets, hashed into the SAME
+        /// release-manifest.json. The Windows setup engine and the in-app updater (which hands over to
+        /// it) must plan exactly their four Windows components from such a manifest, read the Linux
+        /// entries' platform as "linux", and never plan, download or verify a Linux asset.
+        /// </summary>
+        [Fact]
+        public void Planner_ManifestWithLinuxAssets_PlansOnlyTheWindowsComponents()
+        {
+            var manifest = ReleaseManifest.Parse("""
+                {
+                  "version": "1.13.0",
+                  "assets": {
+                    "AgentEyesApp-win-x64.exe": { "version": "1.13.0", "sha256": "aa", "platform": "windows", "size": 1 },
+                    "agenteyes-win-x64.exe": { "version": "1.13.0", "sha256": "bb", "platform": "windows", "size": 1 },
+                    "agenteyes-setup-cli-win-x64.exe": { "version": "1.13.0", "sha256": "cc", "platform": "windows", "size": 1 },
+                    "AgentEyes-Setup-win-x64.exe": { "version": "1.13.0", "sha256": "dd", "platform": "windows", "size": 1 },
+                    "agenteyes-ffmpeg-win-x64.zip": { "version": "7.1.1", "sha256": "ee", "platform": "windows", "size": 1 },
+                    "agenteyes-linux-x64.tar.gz": { "version": "1.13.0", "sha256": "ff", "platform": "linux", "size": 1 },
+                    "agenteyes-install-linux-x64.sh": { "version": "1.13.0", "sha256": "11", "platform": "linux", "size": 1 }
+                  }
+                }
+                """);
+            var installed = new Dictionary<string, InstalledComponent>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["app"] = new("app", true, "1.12.0", "x"),
+                ["cli"] = new("cli", true, "1.12.0", "x"),
+                ["setup-cli"] = new("setup-cli", true, "1.12.0", "x"),
+                ["ffmpeg"] = new("ffmpeg", true, "7.1.1", "x"),
+            };
+
+            var plan = UpdatePlanner.Plan(ComponentRegistry.All, installed, manifest);
+
+            Assert.Equal("linux", manifest.TryGetAsset("agenteyes-linux-x64.tar.gz")!.Platform);
+            Assert.Equal(new[] { "app", "cli", "setup-cli", "ffmpeg" }, plan.Items.Select(i => i.ComponentId).ToArray());
+            Assert.DoesNotContain(plan.Items, i => i.AssetName.Contains("linux", StringComparison.Ordinal));
+            Assert.Equal(PlanItemKind.UpToDate, plan.Items.Single(i => i.ComponentId == "ffmpeg").Kind);
+            Assert.Equal(3, plan.Actionable.Count);
+            Assert.All(plan.Actionable, i => Assert.Equal(PlanItemKind.Update, i.Kind));
+        }
+
         // ---- swapper --------------------------------------------------------
 
         [Fact]
