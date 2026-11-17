@@ -16,13 +16,16 @@ namespace AgentEyes.Tests
     /// <summary>
     /// Issue #200: <c>agenteyes-setup --root &lt;scratch&gt;</c> - the option whose whole purpose is to install
     /// somewhere other than the real location - found the person's REAL AgentEyes by process name, stopped it,
-    /// and started the scratch copy in its place (measured on SORENLAPTOP, 16 and 17 November 2026).
+    /// and started the scratch copy in its place (measured on the developer's Windows laptop, 16 and 17 November 2026).
     ///
     /// These tests run the CLI's real entry point with --root and assert that nothing outside the root is
     /// reached. The running-app and launcher seams are replaced by SPIES that report a running AgentEyes
     /// OUTSIDE the root - the exact situation of the incident - so an isolated install that consults them at
     /// all, or stops or starts anything, fails here instead of stopping a real recorder. The spies are also
     /// what makes a regression safe to run: it fails these tests rather than stopping the developer's own app.
+    /// The shortcuts, the run-at-login value and the Add/Remove Programs entry are equally out of reach: the
+    /// test run swaps <see cref="InstallFinalizer.UserShell"/> for an in-memory store, so a regression that
+    /// writes or deletes them changes that store and fails here, and the real ones are never touched.
     /// </summary>
     [Collection(ReleaseTransportSeamCollection.Name)]
     public sealed class SetupRootIsolationTests : IDisposable
@@ -53,6 +56,7 @@ namespace AgentEyes.Tests
             CliCommands.RunningAppHandleFactory = _ => _spy;
             CliCommands.AppLauncherFactory = _ => _launcher;
 
+            TestRunIsolation.UserShell.Seed(shortcuts: false, runValue: null, entry: null);
             _pathBefore = TestRunIsolation.UserEnvironment.Get("Path");
             _bundleVarBefore = TestRunIsolation.UserEnvironment.Get(InstallFinalizer.BundleExtractBaseDirVariable);
         }
@@ -63,6 +67,7 @@ namespace AgentEyes.Tests
             CliCommands.AppLauncherFactory = _launcherBefore;
             TestRunIsolation.UserEnvironment.Set("Path", _pathBefore);
             TestRunIsolation.UserEnvironment.Set(InstallFinalizer.BundleExtractBaseDirVariable, _bundleVarBefore);
+            TestRunIsolation.UserShell.Seed(shortcuts: false, runValue: null, entry: null);
             EngineLog.Sink = null;
             try { Directory.Delete(_temp, recursive: true); } catch (IOException) { }
         }
@@ -80,6 +85,7 @@ namespace AgentEyes.Tests
             Assert.Empty(_launcher.Launches);
             Assert.Contains(CliCommands.IsolatedRestartLine, stdout);
             Assert.DoesNotContain("restarted the running app", stdout);
+            Assert.Empty(TestRunIsolation.UserShell.Writes);
             // The install itself happened, inside the root.
             Assert.Equal("app build 9.9.9", File.ReadAllText(Path.Combine(_root, "app", "AgentEyesApp.exe")));
             Assert.True(File.Exists(Path.Combine(_root, "app", "ffmpeg.exe")));
@@ -95,6 +101,7 @@ namespace AgentEyes.Tests
             Assert.Equal(0, _spy.StopCalls);
             Assert.Empty(_launcher.Launches);
             Assert.Contains("\"restarted\": false", stdout);
+            Assert.Empty(TestRunIsolation.UserShell.Writes);
         }
 
         [Fact]
@@ -113,14 +120,17 @@ namespace AgentEyes.Tests
             var layout = InstallLayout.Isolated(_root);
             foreach (var path in staged.Concat(unpacked.Select(u => u.TrimEnd(')'))))
                 Assert.True(layout.Contains(path), $"staged outside the root: {path}");
+            Assert.Empty(TestRunIsolation.UserShell.Writes);
         }
 
         // ---- refusals: steps that cannot be scoped to a root -------------------------------------
 
         // The refusal tests below pass a release dir that does NOT exist. The refusal comes first, so a correct
-        // build never reads it; a build whose refusal has regressed fails reading it - BEFORE the finalizer, which
-        // writes the REAL Start Menu shortcut and Add/Remove Programs entry (no test seam reaches those). Measured
-        // the hard way: a mutation run of this test with a real release dir repointed both at a test folder.
+        // build never reads it; a build whose refusal has regressed fails reading it - before the finalizer. That
+        // was once the ONLY protection: a mutation run of this test with a real release dir repointed the real
+        // Start Menu shortcut and Add/Remove Programs entry at a test folder. Since the #200 QA bounce the finalizer
+        // reaches those only through InstallFinalizer.UserShell, which this test run keeps in memory, and every
+        // test here asserts that store saw no write.
 
         [Fact]
         public async Task InstallWithRoot_WithoutNoFinalize_IsRefusedBeforeAnythingIsTouched()
@@ -134,6 +144,7 @@ namespace AgentEyes.Tests
             Assert.Empty(_launcher.Launches);
             Assert.Equal(_pathBefore, TestRunIsolation.UserEnvironment.Get("Path"));
             Assert.Equal(_bundleVarBefore, TestRunIsolation.UserEnvironment.Get(InstallFinalizer.BundleExtractBaseDirVariable));
+            Assert.Empty(TestRunIsolation.UserShell.Writes);
         }
 
         [Theory]
@@ -150,6 +161,7 @@ namespace AgentEyes.Tests
             Assert.Equal(2, exit);
             Assert.Contains($"{option} cannot be used with --root", stderr);
             Assert.False(Directory.Exists(Path.Combine(_root, "app")));
+            Assert.Empty(TestRunIsolation.UserShell.Writes);
         }
 
         [Fact]
@@ -161,6 +173,7 @@ namespace AgentEyes.Tests
             Assert.Contains("Plan:", stdout);
             Assert.False(Directory.Exists(Path.Combine(_root, "app")));
             Assert.Equal(0, _spy.FindCalls);
+            Assert.Empty(TestRunIsolation.UserShell.Writes);
         }
 
         [Fact]
@@ -175,12 +188,36 @@ namespace AgentEyes.Tests
             Assert.Equal(1, exit);
             Assert.Contains("Inno", stderr);
             Assert.True(File.Exists(marker), "the Inno install must be left exactly as it was");
+            Assert.Empty(TestRunIsolation.UserShell.Writes);
             Assert.False(File.Exists(Path.Combine(_root, "app", "AgentEyesApp.exe")));
         }
 
+        /// <summary>
+        /// This drives the REAL <see cref="Uninstaller.Apply"/>. It is safe to run against a regressed build
+        /// (QA, issue #200 bounce) because the shortcuts, the run-at-login value and the Add/Remove Programs
+        /// entry are reached only through <see cref="InstallFinalizer.UserShell"/>, which the test run swaps
+        /// for an in-memory store before any test runs. The test asserts that swap FIRST, so a run where it
+        /// did not happen fails before the uninstall instead of deleting the machine's real entries. Its
+        /// safety therefore does not depend on the isolated branch it is checking.
+        /// </summary>
         [Fact]
         public async Task UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone()
         {
+            // Fail closed: never reach Apply unless the shell entries it could delete are the test run's own.
+            var shell = Assert.IsType<InMemoryUserShell>(InstallFinalizer.UserShell);
+            Assert.Same(TestRunIsolation.UserShell, shell);
+            Assert.StartsWith(TestRunIsolation.RunRoot, shell.StartMenuShortcutPath, StringComparison.OrdinalIgnoreCase);
+            Assert.StartsWith(TestRunIsolation.RunRoot, shell.DesktopShortcutPath, StringComparison.OrdinalIgnoreCase);
+
+            // The REAL install's shell entries, as on the incident machine: both shortcuts, the Run value and
+            // the uninstall entry, all pointing at an install OUTSIDE the root. An isolated uninstall that
+            // regressed to the full one removes all four - here, in memory, where this test sees it.
+            string realApp = Path.Combine(_temp, "real", "app");
+            shell.Seed(shortcuts: true, runValue: $"\"{Path.Combine(realApp, "AgentEyesApp.exe")}\" --tray",
+                entry: new UninstallEntry("AgentEyes", "1.12.0", "test", realApp, Path.Combine(realApp, "AgentEyesApp.exe"),
+                    $"\"{Path.Combine(realApp, "agenteyes-setup.exe")}\" uninstall", $"\"{Path.Combine(realApp, "agenteyes-setup.exe")}\" uninstall --json"));
+            string shellBefore = shell.Snapshot();
+
             var layout = InstallLayout.Isolated(_root);
             Directory.CreateDirectory(layout.AppDir);
             File.WriteAllText(layout.PathFor(ComponentRegistry.App), "app");
@@ -193,6 +230,11 @@ namespace AgentEyes.Tests
 
             var (exit, stdout, stderr) = await Run("uninstall", "--root", _root);
 
+            // The shortcuts, the Run value and the uninstall entry FIRST: not one write, and all still there. A
+            // regression fails here naming every write it made - to the in-memory store, never the machine.
+            Assert.True(shell.Writes.Count == 0,
+                "an isolated uninstall wrote outside the root: " + string.Join(" | ", shell.Writes));
+            Assert.Equal(shellBefore, shell.Snapshot());
             Assert.True(exit == 0, $"exit {exit}; stderr: {stderr}; stdout: {stdout}");
             Assert.False(Directory.Exists(layout.AppDir));
             Assert.False(Directory.Exists(layout.SetupStateDir));
@@ -200,6 +242,10 @@ namespace AgentEyes.Tests
             Assert.Contains(Uninstaller.OutsideTheRootNotTouched, stdout);
             Assert.Equal(layout.AppDir, TestRunIsolation.UserEnvironment.Get("Path"));
             Assert.Equal(layout.BundleExtractDir, TestRunIsolation.UserEnvironment.Get(InstallFinalizer.BundleExtractBaseDirVariable));
+            Assert.True(shell.ShortcutExists(shell.StartMenuShortcutPath), "the real Start Menu shortcut was removed");
+            Assert.True(shell.ShortcutExists(shell.DesktopShortcutPath), "the real desktop shortcut was removed");
+            Assert.NotNull(shell.GetRunValue());
+            Assert.True(shell.UninstallEntryExists(), "the real Add/Remove Programs entry was removed");
         }
 
         [Fact]

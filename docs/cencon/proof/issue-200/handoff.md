@@ -1,9 +1,160 @@
 # Issue #200 - Developer handoff: `agenteyes-setup --root` stops the real installed app
 
-Machine: SORENLAPTOP. Branch `issue-200-setup-root-isolation` from main 02a4622. SDK 10.0.301 building
+Machine: the developer's Windows laptop. Branch `issue-200-setup-root-isolation` from main 02a4622. SDK 10.0.301 building
 net8.0, runtime 8.0.21. The installed app on this machine is v1.12.0 (1.12.0+02a4622). Paths in the proof
 files are scrubbed: `%USERPROFILE%`, `<scratch>` (this seat's scratch folder) and `<scratch-16nov>` (the
 16 November seat's scratch folder).
+
+## QA bounce 1 (17 Nov): the test that guards `uninstall --root` could delete the real install
+
+Files: `bounce1/`. Branch at QA's 7d226df; main is da85516. Nothing in the product fix of round 1 changed.
+
+**QA's defect, confirmed by reading the code.** `UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone`
+drives the real CLI into the real `Uninstaller.Apply`. Suppose the isolated branch at `Uninstaller.cs:78` regressed.
+`Apply` would then delete the real Start Menu and desktop shortcuts, the Run value and the uninstall entry,
+and only after that would the test go red. The test's safety depended on the correctness of the code it
+tests. It is the same mechanism as my own M3 incident in round 1, and I had designed that out only for the
+refusal tests.
+
+### How the test was made safe, and why this option
+
+Three options were open. I chose the seam:
+
+| Option | Verdict |
+|--------|---------|
+| Assert on `Uninstaller.Plan` instead of calling `Apply` | **Rejected.** The regression QA named lives in `Apply` (line 78), not in `Plan`. A Plan-only test passes with `Apply` regressed. That is the "safe by no longer checking the dangerous path" outcome. `Plan` already has its own test. |
+| A precondition that refuses to run unless the targets are inside the root | **Not on its own.** The shortcut paths and HKCU keys are fixed by the OS, so they can never be inside a temp root. Without a seam, such a precondition can only ever refuse, so the test would never run. It is kept as the FIRST assert, on top of the seam (below). |
+| **Put the removals behind a seam the whole test run redirects** | **Chosen.** It is the pattern this repo already uses for PATH and `DOTNET_BUNDLE_EXTRACT_BASE_DIR` (`IUserEnvironment`, issue #78). It keeps the test driving the real `Apply` through the real CLI, so the dangerous path is still checked. And the redirect is installed by the test assembly's module initializer, not by this test. So it protects every test in the assembly, not just the one QA found. |
+
+What changed:
+
+- **`tools/AgentEyes.Setup.Engine/UserShell.cs` (new).** `IUserShell` holds the shortcut paths and the
+  shortcut, Run-value, uninstall-entry and Inno-key reads and writes. `WindowsUserShell` is the real store:
+  the old `InstallFinalizer` and `InnoMigration` code, moved verbatim (the same keys, values, COM calls and
+  `GetFolderPath` lookups).
+- **`InstallFinalizer` / `Uninstaller` / `InnoMigration`.** Every touch of those entries now goes through
+  `InstallFinalizer.UserShell`. That includes `Uninstaller.Plan`'s existence checks and `RemoveShortcut`'s
+  `File.Exists` / `File.Delete`. In the product the behaviour is unchanged.
+- **`TestRunIsolation.RedirectEverything`** (the module initializer, which runs before any test) sets
+  `InstallFinalizer.UserShell` to an `InMemoryUserShell`:
+  - Its shortcut paths are under the test run's folder.
+  - Its shortcuts are real placeholder files, so even a delete that goes AROUND the seam shows.
+  - The Run value and the uninstall entry are in memory.
+  - Every write through it is recorded.
+- **The uninstall test now:**
+  1. FIRST asserts the seam is the in-memory store and its shortcut paths are under the run folder. A run
+     without the redirect fails here, before the uninstall runs.
+  2. Seeds the store with the REAL install's four entries, pointing at an install outside the root.
+  3. Runs `uninstall --root` and asserts no write reached the store, the snapshot is unchanged, and all
+     four entries are still present.
+  4. Then makes every assertion it made before.
+
+  So it proves MORE than it did. It previously could not check that the shortcuts survive, because a
+  regression would have deleted the real ones.
+- **Two guards in `TestIsolationTests`, so the protection cannot quietly erode:**
+  - `InstallFinalizer_InATestRun_KeepsTheShellEntriesInMemoryNotTheRealFolders`
+  - `RegistryCalls_InTheSetupEngineAndCli_AreOnlyInsideTheRealUserShell`: an IL scan. Every
+    `Microsoft.Win32.Registry*` call in the setup engine and CLI must sit inside `WindowsUserShell`, so a new
+    HKCU write that bypasses the seam fails a test. Its instrument check requires that the scan SEES
+    `WindowsUserShell`'s own calls.
+  - The pinned folder lookups move from `InstallFinalizer` to `WindowsUserShell`.
+- **`WindowsUserShell_WriteShortcutToATempPath_...`** exercises the moved COM shortcut code for real
+  against a temp path. The moved REGISTRY code has no unit test. Testing it means writing the real HKCU,
+  which is exactly what this change forbids. It is a verbatim move, and QA may want to read it side by side.
+
+### The proof: red without deleting (`bounce1/M-uninstall-78-red-without-deleting.txt`)
+
+`bounce1/mutate-uninstall-78.ps1`, rerunnable. It disables the isolated branch
+(`if (false && _layout.IsIsolated)`), fingerprints the REAL six finalizer writes with `bounce1/fingerprint.ps1`,
+builds, runs the test through `AgentEyes.sln` (the fresh `bin\x64` build), fingerprints again, and restores
+the file byte-for-byte.
+
+```
+Failed UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone
+  an isolated uninstall wrote outside the root:
+    DeleteShortcut <run folder>\Shell\StartMenu\Programs\AgentEyes.lnk |
+    DeleteShortcut <run folder>\Shell\Desktop\AgentEyes.lnk |
+    SetRunValue (removed) | DeleteUninstallEntry
+```
+
+The regressed `Apply` made all four deletions QA predicted. Every one landed in the test run's store.
+
+Real finalizer writes, BEFORE (04:55:20.809) and AFTER (04:55:33.188) the mutation run, identical line for line:
+
+```
+1-2 LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-17 04:00:18.957 sha256=901B71BB9FC498A8
+1-2 LNK %USERPROFILE%\Desktop\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-16 18:26:46.480 sha256=494F392F1D96AEF4
+3 ARP ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app uninstall="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+4 RUN "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+5 PATH-AgentEyes %USERPROFILE%\AppData\Local\AgentEyes\app
+6 DOTNET_BUNDLE_EXTRACT_BASE_DIR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+APP pid=17580 started=04:22:21   health: { "ok": true, "app": "AgentEyes" }
+```
+
+Each shortcut line carries its write time to the millisecond and a hash of the .lnk bytes. So a delete, a
+re-create or a repoint would all change the line.
+
+**Two more mutations, aimed at the safety net itself** (`bounce1/mutate-safety-net.ps1` -> `bounce1/M-safety-net.txt`).
+The real fingerprint is identical around each.
+
+- **M-B, a delete that goes around the seam:** the isolated branch also does
+  `File.Delete(InstallFinalizer.StartMenuShortcutPath())`. No seam write is recorded, but the test goes red
+  on the snapshot (`Assert.Equal() Failure: Strings differ`), because the store's shortcuts are real files.
+- **M-C, the safety net removed:** the module initializer no longer swaps the seam. This run used the
+  product CORRECT, so nothing real could have been deleted even if the guard failed. The uninstall test
+  fails at its precondition (`Assert.IsType() Failure`) before the uninstall runs, and the
+  `KeepsTheShellEntriesInMemory` guard fails too.
+
+**A finding of my own on the way.** The first `:78` run recorded only `SetRunValue | DeleteUninstallEntry`,
+with no shortcut deletes. My edit to `Uninstaller.RemoveShortcut` had silently not applied (a line-ending
+mismatch in a scripted replace), so that path still called `File.Exists` / `File.Delete` directly. That was
+harmless, because the path itself came from the seam and resolved under the run folder, but it bypassed
+the store. The mutation exposed it. It is fixed, and the M-B placeholder files now make any such bypass
+visible. Also: one early targeted run used `dotnet test tests/AgentEyes.Tests` (the PROJECT). That picked up
+the stale `bin\Release` DLL, which is the same trap recorded below, and its "54 passed" is discarded. Every
+result quoted here ran through `AgentEyes.sln` against `bin\x64`.
+
+### Sibling sweep: tests that call a real Apply / Finalize or write outside a temp root
+
+The pattern was copied. Every test below relied on product correctness to stay away from the real shell
+entries. All of them are now protected by the seam, because the redirect is assembly-wide.
+
+| Test(s) | What they drive | Exposure before | Now |
+|---------|-----------------|-----------------|-----|
+| `SetupRootIsolationTests`: install/update `--root --no-finalize` (3), `--dry-run` (1), refusals (4 cases), Inno (1) | real CLI `install`/`update` | If `--no-finalize` or a refusal regressed, the finalizer wrote the real Start Menu shortcut and ARP entry (and the Run value or desktop shortcut for `--autostart` / `--desktop-shortcut`). This is exactly my round-1 M3 incident. The Inno path's HKCU key delete was likewise unguarded. | through the seam; each test now also asserts `UserShell.Writes` is empty |
+| `SetupCliRestartTests` (11 runs of `update`/`install --no-finalize`) | real CLI on the default layout (AGENTEYES_ROOT-redirected temp root) | Same shape: a regression in honouring `--no-finalize` would have finalized the REAL Start Menu shortcut and ARP entry, pointing at a temp folder | through the seam (no assertion added: that class tests the restart cycle) |
+| `WizardInstallRunnerTests` | the wizard's `EngineInstallRunner.ApplyAsync` | Its own comment says it is safe because the failure paths "return before the wizard's finalize step, which writes the real" entries. That is safety by product correctness again. Its Inno takeover deletes an HKCU key the same way. | through the seam |
+| `SetupEngineTests.UninstallPlan_IncludesTheBundleDirectoryAndItsVariable` | `Uninstaller.Plan` on a non-isolated layout | READ-only: it read the real shortcuts' existence and the real HKCU Run value | reads the test store |
+
+**Found but not fixed here:**
+- `WizardInstallRunnerTests` writes its setup log into the real `%LOCALAPPDATA%\AgentEyes\logs\setup` (QA's
+  non-blocking note). That is a log, not a finalizer write, and is outside this bounce. Recommend filing it.
+- No test reaches the WPF app's own Run-key writer (`src/AgentEyes.App/Autostart.cs`). Nothing in `tests/`
+  references it, and the suite never launches the app. It stays outside the seam.
+
+### Gate (bounce 1) - `bounce1/gate-windows.txt`
+
+SDK 10.0.301 building net8.0, runtime 8.0.21.
+
+- `dotnet build AgentEyes.sln -c Release`: Build succeeded, 0 Error(s). The final build showed 22 warnings,
+  because the test project recompiled. A `--no-incremental` rebuild lists 23 distinct warnings, all
+  pre-existing: xUnit analyzer rules in untouched test files and one CS8602 in `AlwaysOnEngine.cs`. None is in a
+  file this change touches, checked by filtering that list.
+- `dotnet test AgentEyes.sln -c Release`:
+  - **AgentEyes.Tests 2567 total, 2551 passed, 16 skipped (opt-in), 0 failed.** That is 3 more tests than
+    round 1's 2564: the two guards and the COM shortcut test.
+  - **AgentEyes.Tests.DesktopApp 23/23.**
+
+### For QA (bounce 1)
+
+1. Fingerprint the real machine (`bounce1/fingerprint.ps1 -Label before`).
+2. Run `bounce1/mutate-uninstall-78.ps1`. Expected: the test is red, naming four writes to the run folder,
+   and the before and after fingerprints are identical.
+3. Optionally run `bounce1/mutate-safety-net.ps1` (M-B and M-C).
+4. Read `WindowsUserShell` against the removed `InstallFinalizer` and `InnoMigration` code: it must be a
+   verbatim move.
+
+The real install is now safe to mutate against for this test and its siblings. That was not true in round 1.
 
 ## The answer in three lines
 
@@ -61,12 +212,18 @@ refuses to start any app under `--root` instead of trying to "start the right on
   - backslash: it reached the single-instance check and logged `second instance refused`, exit 0;
   - forward slashes, twice: it died before its first log line, **exit 0xC00000FD**.
   The real app's pid was unchanged across all three.
-  **Stated honestly:** the end-to-end crash and the isolated crash share the trigger and die at the same
-  point (before logging, in native loading), but their terminal symptom differs. One is DllNotFoundException
-  (0xe0434352), the other a stack overflow (0xc00000fd). I did not characterise why. The end-to-end launch
-  also had a forward-slash exe path and working directory, and goes through CreateProcess with
-  CREATE_NO_WINDOW. That the trigger is the forward-slash extraction dir is measured; the exact loader path
-  inside the runtime is not.
+  **Two failures, one trigger (resolved by QA, `qa/crash-0xC00000FD-vs-DllNotFound.txt`, 2/2 each).** The
+  forward-slash `DOTNET_BUNDLE_EXTRACT_BASE_DIR` produces one of TWO different failures. Which one depends on
+  whether the extraction directory's PARENT already exists:
+  - **Parent exists:** the native DLLs extract, then the WPF app dies with `DllNotFoundException`
+    (0xe0434352). This is event-for-event the end-to-end crash of the incident and run 3. The scratch
+    install had created the root, so the parent existed.
+  - **Parent missing:** a native stack overflow in ntdll (0xC00000FD) before anything is extracted. My
+    isolated runs above hit this one, because they pointed the variable at a folder whose parent did not
+    exist.
+  My first write-up named the first mechanism and reported the second as an unexplained difference. It is
+  not unexplained: both come from the same forward-slash value, and the attribution to that value stands.
+  The exact loader path inside the runtime is not characterised.
 - The bundle folder of the incident's scratch root is complete (all five WPF native DLLs extracted
   18:21:14.03-.32), so a missing file is not the explanation either.
 
@@ -165,6 +322,11 @@ the finalizer. The M3 rerun (`mutations/M3-M4-redo.txt`) fails the test and leav
 write time and the uninstall entry exactly as they were. The same first pass's M4 result is INVALID: its
 mutation did not compile, so it tested M3's binary. It was redone with a compiling mutation.
 
+**I designed that incident out for the refusal tests only, not for the uninstall test.** QA found the gap
+(bounce 1, below). Since bounce 1 the finalizer and the uninstaller reach the shortcuts, the Run value and
+the uninstall entry only through a seam, and the test run keeps that seam in memory. So the release dir that
+does not exist is no longer the only thing between a regressed refusal and the real Start Menu.
+
 ## 7. The kernel-level deny (the #161 method, on Windows)
 
 `lowil/harness.ps1` + `lowil/probe.ps1`, rerunnable. Mandatory Integrity Control: the CLI runs at **Low
@@ -252,7 +414,14 @@ scratch root is labelled Low.
   wanted. It is also the "installs nothing on a version match" behaviour #148 is about, and this branch
   does not change it.
 
-## Machine state at handoff
+## Machine state at handoff (bounce 1, `bounce1/machine-state-end.txt`)
+
+After the final gate: the real app is pid 17580 (v1.12.0, started 04:22:21, the same pid QA left), `/health`
+ok, idle. The six finalizer writes are identical to the fingerprint taken before any bounce-1 test run: both
+shortcuts have the same target, write time and hash, and the ARP entry, Run value, PATH and bundle variable
+all point at the real install. No ffmpeg is running and none was touched. No recording was made or deleted.
+
+## Machine state at handoff (round 1)
 
 The real app is running, answering `/health`, v1.12.0 (1.12.0+02a4622), started by me with `--tray`
 (the Run key's own arguments) at 03:48:10 after run 3. The real Start Menu shortcut, desktop shortcut, Run

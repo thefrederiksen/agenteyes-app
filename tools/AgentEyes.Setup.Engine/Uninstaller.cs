@@ -45,8 +45,8 @@ public sealed class Uninstaller
             new UninstallTarget(UninstallKind.Directory, "Native extraction cache", _layout.BundleExtractDir, Directory.Exists(_layout.BundleExtractDir)),
             new UninstallTarget(UninstallKind.PathEntry, "PATH entry", _layout.AppDir, InstallFinalizer.IsAppDirOnPath(_layout)),
             new UninstallTarget(UninstallKind.EnvVar, $"{InstallFinalizer.BundleExtractBaseDirVariable} variable", _layout.BundleExtractDir, InstallFinalizer.IsBundleExtractBaseDirSet(_layout)),
-            new UninstallTarget(UninstallKind.Shortcut, "Start Menu shortcut", startMenu, File.Exists(startMenu)),
-            new UninstallTarget(UninstallKind.Shortcut, "Desktop shortcut", desktop, File.Exists(desktop)),
+            new UninstallTarget(UninstallKind.Shortcut, "Start Menu shortcut", startMenu, InstallFinalizer.UserShell.ShortcutExists(startMenu)),
+            new UninstallTarget(UninstallKind.Shortcut, "Desktop shortcut", desktop, InstallFinalizer.UserShell.ShortcutExists(desktop)),
             new UninstallTarget(UninstallKind.RunKey, "Run-at-login entry", @"HKCU\...\Run\AgentEyes", InstallFinalizer.IsAutostartEnabled()),
             new UninstallTarget(UninstallKind.ArpEntry, "Add/Remove Programs entry", @"HKCU\...\Uninstall\AgentEyes", true),
         ];
@@ -174,8 +174,8 @@ public sealed class Uninstaller
 
     private static void RemoveShortcut(string lnk, string desc, List<string> steps, List<string> errors)
     {
-        if (!File.Exists(lnk)) { steps.Add($"{desc}: not present"); return; }
-        try { File.Delete(lnk); steps.Add($"removed {desc}: {lnk}"); }
+        if (!InstallFinalizer.UserShell.ShortcutExists(lnk)) { steps.Add($"{desc}: not present"); return; }
+        try { InstallFinalizer.UserShell.DeleteShortcut(lnk); steps.Add($"removed {desc}: {lnk}"); }
         catch (Exception ex) { errors.Add($"{desc} ({lnk}): {ex.Message}"); }
     }
 

@@ -1,5 +1,3 @@
-using Microsoft.Win32;
-
 namespace AgentEyes.Setup.Engine;
 
 /// <summary>
@@ -12,12 +10,6 @@ namespace AgentEyes.Setup.Engine;
 /// </summary>
 public static class InnoMigration
 {
-    /// <summary>The Inno AppId from the legacy MyQuietShadow installer (installer/MyQuietShadow.iss),
-    /// as Windows registered it. Kept verbatim - it must still match the genuine pre-AgentEyes
-    /// registry key. With the AgentEyes clean-break rename this path no longer fires in practice.</summary>
-    private const string InnoUninstallKeyPath =
-        @"Software\Microsoft\Windows\CurrentVersion\Uninstall\{7C2F4D7A-30A2-4E8B-9B57-MyQuietShadow}_is1";
-
     /// <summary>True when the app dir holds an Inno v0.1 install.</summary>
     public static bool IsInnoInstall(InstallLayout layout)
     {
@@ -35,7 +27,7 @@ public static class InnoMigration
         ArgumentNullException.ThrowIfNull(layout);
         if (!IsInnoInstall(layout)) return;
 
-        Registry.CurrentUser.DeleteSubKeyTree(InnoUninstallKeyPath, throwOnMissingSubKey: false);
+        InstallFinalizer.UserShell.DeleteInnoUninstallEntry();
         EngineLog.Write("[InnoMigration] removed Inno uninstall registry entry");
 
         Directory.Delete(layout.AppDir, recursive: true);

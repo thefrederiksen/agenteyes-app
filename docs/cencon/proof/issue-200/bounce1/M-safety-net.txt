@@ -1,0 +1,69 @@
+==================== M-B shortcut delete around the seam (tools/AgentEyes.Setup.Engine/Uninstaller.cs)
+  - DeleteDirectoryWithRetry(_layout.BundleExtractDir, "Native extraction cache", steps, errors);
+  - steps.Add(OutsideTheRootNotTouched);
+  + DeleteDirectoryWithRetry(_layout.BundleExtractDir, "Native extraction cache", steps, errors);
+  + File.Delete(InstallFinalizer.StartMenuShortcutPath()); // MUTATION: bypasses the seam
+  + steps.Add(OutsideTheRootNotTouched);
+=== fingerprint: BEFORE M-B shortcut delete around the seam at 2026-11-17 04:56:08.465
+1-2 LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-17 04:00:18.957 sha256=901B71BB9FC498A8
+1-2 LNK %USERPROFILE%\Desktop\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-16 18:26:46.480 sha256=494F392F1D96AEF4
+3 ARP ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app uninstall="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+4 RUN "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+5 PATH-AgentEyes %USERPROFILE%\AppData\Local\AgentEyes\app
+6 DOTNET_BUNDLE_EXTRACT_BASE_DIR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+APP pid=17580 started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+health: { "ok": true, "app": "AgentEyes" }
+Build succeeded.
+    0 Error(s)
+[xUnit.net 00:00:01.54]     AgentEyes.Tests.SetupRootIsolationTests.UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone [FAIL]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+Failed!  - Failed:     1, Passed:     1, Skipped:     0, Total:     2, Duration: 94 ms - AgentEyes.Tests.dll (net8.0)
+=== fingerprint: AFTER M-B shortcut delete around the seam at 2026-11-17 04:56:20.447
+1-2 LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-17 04:00:18.957 sha256=901B71BB9FC498A8
+1-2 LNK %USERPROFILE%\Desktop\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-16 18:26:46.480 sha256=494F392F1D96AEF4
+3 ARP ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app uninstall="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+4 RUN "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+5 PATH-AgentEyes %USERPROFILE%\AppData\Local\AgentEyes\app
+6 DOTNET_BUNDLE_EXTRACT_BASE_DIR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+APP pid=17580 started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+health: { "ok": true, "app": "AgentEyes" }
+tools/AgentEyes.Setup.Engine/Uninstaller.cs restored byte-for-byte.
+
+==================== M-C safety net removed (product correct) (tests/AgentEyes.Tests/TestRunIsolation.cs)
+  - InstallFinalizer.UserShell = UserShell;
+  + // InstallFinalizer.UserShell = UserShell; // MUTATION: the test run no longer swaps the shell
+=== fingerprint: BEFORE M-C safety net removed (product correct) at 2026-11-17 04:56:20.673
+1-2 LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-17 04:00:18.957 sha256=901B71BB9FC498A8
+1-2 LNK %USERPROFILE%\Desktop\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-16 18:26:46.480 sha256=494F392F1D96AEF4
+3 ARP ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app uninstall="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+4 RUN "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+5 PATH-AgentEyes %USERPROFILE%\AppData\Local\AgentEyes\app
+6 DOTNET_BUNDLE_EXTRACT_BASE_DIR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+APP pid=17580 started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+health: { "ok": true, "app": "AgentEyes" }
+Build succeeded.
+    0 Error(s)
+[xUnit.net 00:00:01.06]     AgentEyes.Tests.SetupRootIsolationTests.UninstallWithRoot_RemovesOnlyWhatIsInsideTheRoot_AndSaysWhatItLeftAlone [FAIL]
+[xUnit.net 00:00:01.07]     AgentEyes.Tests.TestIsolationTests.InstallFinalizer_InATestRun_KeepsTheShellEntriesInMemoryNotTheRealFolders [FAIL]
+  Error Message:
+   Assert.IsType() Failure: Value is not the exact type
+  Error Message:
+   Assert.Same() Failure: Values are not the same instance
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+Failed!  - Failed:     2, Passed:     0, Skipped:     0, Total:     2, Duration: 45 ms - AgentEyes.Tests.dll (net8.0)
+=== fingerprint: AFTER M-C safety net removed (product correct) at 2026-11-17 04:56:35.114
+1-2 LNK %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-17 04:00:18.957 sha256=901B71BB9FC498A8
+1-2 LNK %USERPROFILE%\Desktop\AgentEyes.lnk target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=2026-11-16 18:26:46.480 sha256=494F392F1D96AEF4
+3 ARP ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app uninstall="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall icon=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+4 RUN "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+5 PATH-AgentEyes %USERPROFILE%\AppData\Local\AgentEyes\app
+6 DOTNET_BUNDLE_EXTRACT_BASE_DIR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+APP pid=17580 started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+health: { "ok": true, "app": "AgentEyes" }
+tests/AgentEyes.Tests/TestRunIsolation.cs restored byte-for-byte.
+
+--- rebuild after both reverts
+Build succeeded.
+    0 Error(s)
