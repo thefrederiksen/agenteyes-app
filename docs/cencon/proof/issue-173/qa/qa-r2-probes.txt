@@ -1,0 +1,27 @@
+#### LEAK probes - each SHOULD be red (exit 1)
+## A2-name-split-mid.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/A2-name-split-mid.txt:1: home path naming user p***
+## B-trailing-space-crlf.txt exit=0 -> WRONG
+## B2-trailing-tab-lf.txt exit=0 -> WRONG
+## B3-trailing-space-address.txt exit=0 -> WRONG
+## C-three-lines.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/C-three-lines.txt:1: WRAPPED across a line break: home path naming user p***
+## C2-four-lines-address.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/C2-four-lines-address.txt:1: WRAPPED across a line break: email-shaped string p***@***.io
+## D-lone-cr.txt exit=0 -> WRONG
+## F-runner-prefix.txt exit=0 -> WRONG
+## E-utf16le-not-wrapped.txt exit=0 -> WRONG
+#### NO-LEAK probes - each SHOULD be green (exit 0)
+## A-split-inside-token.txt exit=0 -> as expected
+## FP1-python-decorator.py exit=1 -> WRONG
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/FP1-python-decorator.py:1: WRAPPED across a line break: email-shaped string p***@***.parametrize
+## FP2-property-setter.py exit=1 -> WRONG
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/FP2-property-setter.py:3: WRAPPED across a line break: email-shaped string s***@***.setterdef
+## FP3-ls-home-then-output.txt exit=1 -> WRONG
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/FP3-ls-home-then-output.txt:1: WRAPPED across a line break: home path naming user v***
+## FP4-csharp-verbatim.cs exit=0 -> as expected
+## FP5-md-mention.md exit=1 -> WRONG
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/FP5-md-mention.md:1: WRAPPED across a line break: email-shaped string g***@***.com
+## FP6-users-heading.md exit=1 -> WRONG
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/FP6-users-heading.md:1: WRAPPED across a line break: home path naming user S***
+#### clean tree after every probe removed: exit=0
