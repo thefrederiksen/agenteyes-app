@@ -29,3 +29,18 @@ PR    head      base     files  (a)hits    (b)own      (c)merge       (c)guard/h
 * Order matters only if one of them lands BEFORE this: then this branch needs a rebase, and the sweep
   must be rerun on what they added. Their own files carry neither the address nor a home path, so that
   rerun should change nothing - but rerun it rather than assume.
+
+## UPDATE - re-measured against main da85516 after #191 (ffa737b) and #192 (befabfb) merged
+# State at measurement: #191 MERGED, #192 MERGED, #185 CLOSED unmerged (superseded by #192),
+# #190 #198 #199 #177 still OPEN. Heads re-fetched; 'own' = files the PR adds or modifies vs its merge-base with main.
+# Positive control for the own-file count: on 02a4622, issue-123/qa-report-linux.md -> addresses=1 homepaths=12;
+# issue-113/qa-runs/round2/stop/after.json -> addresses=1 homepaths=2.
+* #191 and #192: main's counts did not move when they merged (files with the address: 82 at 02a4622, 82 at
+  da85516; home-path occurrences: 4646 at both). They added neither.
+* #190 head 5cefff8: own files 12, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* #198 head 85c8e5f: own files 7, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* #199 head 69462d0: own files 8, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* #177 head a559c76: own files 2, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* So the guard rejects none of the seven, and the zero in handoff.md covers #191 and #192 (on main) and was checked
+  against the four still open at the heads above. A later push to any of them is NOT covered - the guard
+  in CI is what covers that.

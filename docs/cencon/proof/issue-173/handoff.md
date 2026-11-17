@@ -11,7 +11,17 @@ stops the NEXT leak. It does not undo the last one. (Commit author metadata is a
 own commits already carry the owner's addresses as author email, and that is a git-config matter, not
 a file in the tree.)
 
-## Measured before and after (main 02a4622 -> this branch)
+## Which commit these counts are true of
+
+**Measured against main `da85516`** (current main at handoff; this branch has main merged in, no force-push).
+Between `02a4622` and `da85516` main took #191 (`ffa737b`), #192 (`befabfb`) and #202; none of them moved
+either count (address files 82 at both, home-path occurrences 4,646 at both), and the verifier re-ran
+clean against `da85516` (`sweep-verify.txt`). **Still OPEN and so NOT covered by this zero: #190, #198,
+#199, #177.** At their current heads they add no address and no home path of their own and merge cleanly
+on top of this branch with the guard green (`open-evidence-prs.txt`); a later push to them is covered by
+the CI guard, not by this measurement. #185 was closed unmerged (superseded by #192).
+
+## Measured before and after (main 02a4622 / da85516 -> this branch)
 
 Search: `git grep` over the whole tree, the address matched case-insensitively in `@` and `%40` forms,
 home paths as `(/home/|/Users/|\\+Users\\+)<username>` (the `\\+` catches the JSON-escaped

@@ -128,3 +128,9 @@ exit=2
 [OK] the guard fails on a planted address and names the file
 exit=0
 (probe file removed by the step)
+
+## 2b. GREEN again after merging main da85516 (#191 and #192 merged in)
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1679 files, 23149094 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string in committed evidence
+exit=0

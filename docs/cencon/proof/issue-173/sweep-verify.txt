@@ -19,3 +19,9 @@ exit=1
 # Restored; rerun:
 files=556 identity_values_redacted=4729 digit_runs_compared=163334 json_parsed_before_and_after=324 failures=0
 exit=0
+
+## Re-run after merging current main da85516 into this branch (2026-11-17; #191 and #192 had merged)
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516
+files=556 identity_values_redacted=4729 digit_runs_compared=165617 json_parsed_before_and_after=324 failures=0
+exit=0
+# (digit runs rose from 163334 to 165617 because #192 extended qa-report-macos.md, one of the swept files.)
