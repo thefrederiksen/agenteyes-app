@@ -1,0 +1,101 @@
+# Issue #142 rows 4-6 re-run - which binary was running, SORENLAPTOP 2026-11-16
+
+## Installed on arrival (embedded commit = ProductVersion; sha256)
+agenteyes-setup.exe 1.11.11+93681fa5e163624b2098c17f0acd3fc8a49a19c1 B68A646D6CD39CA4BB49F6EBCF7C7FDEFB49C0F7612EFA27384352BFFF86CDD7
+agenteyes.exe 1.11.11+93681fa5e163624b2098c17f0acd3fc8a49a19c1 1C4B3EF17C155A46721F00E1F0A22AE745C6C206700EC047A9D78DF7B7EB4FDF
+AgentEyesApp.exe 1.11.11+93681fa5e163624b2098c17f0acd3fc8a49a19c1 38524E3C9882163F72FB4A8D0AB6B9EAA0C36D62A359B4607F1D1D15C4F57011
+ffmpeg.exe  3256173F3F8BFFD7DF12227C68ADF68025EDB1832273A9530688A7BB1ED8EDEC
+ffprobe.exe  F0D36ECBBDD3BCFAC3EFA078C96C7271C2E68B3810595552AC3B7F17E9A65C52
+
+Running on arrival: AgentEyesApp.exe --tray pid 16160, started 2026-11-15 13:37:32, /status State=idle. Quit through its own quit event AgentEyes-quit-16160 at 16:00:14 (log: 'QuitRequested: the setup engine asked for a planned stop'), exited in 0.5 s.
+
+## Build under test: scripts\build-release.ps1 on main b0e6ae8 (clean tree), dist\release
+agenteyes-setup-cli-win-x64.exe 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb 247F8F088CCFF6E47EB87F06127ADD180929A1837082895DC1F3C52C6BDABECF
+AgentEyes-Setup-win-x64.exe 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb 4DFCE63402F8D8DF3E731122A0E02720B2063C43E267970212509B36A4398B21
+agenteyes-win-x64.exe 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb F04B26BC19C35AFE45B33F6BD685AB52DA34D34D1D5436154CAB0688A34CC730
+AgentEyesApp-win-x64.exe 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb CB2B5ED36134F85A92A99340EA0792A7DE6869355041C2232971F47FE8BCFF09
+
+## agenteyes-setup plan --release-dir dist\release (before reinstall) - W3 still present
+  app UpToDate (1.11.11) / cli UpToDate / setup-cli UpToDate / ffmpeg UpToDate (8.1.1) - Actionable: 0
+
+## Reinstall transcript (uninstall, then install --release-dir dist\release --autostart on --desktop-shortcut)
+=== uninstall 2026-11-16T16:00:21.4720318-05:00
+Uninstall finished with errors:
+  removed App binaries: %USERPROFILE%\AppData\Local\AgentEyes\app
+  removed Setup bookkeeping: %USERPROFILE%\AppData\Local\AgentEyes\config\setup
+  removed PATH entry: %USERPROFILE%\AppData\Local\AgentEyes\app
+  removed DOTNET_BUNDLE_EXTRACT_BASE_DIR variable
+  removed Start Menu shortcut: %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk
+  removed desktop shortcut: %USERPROFILE%\Desktop\AgentEyes.lnk
+  removed run-at-login entry (if present)
+  removed Add/Remove Programs entry
+  ERROR: Native extraction cache (%USERPROFILE%\AppData\Local\AgentEyes\bundle): Access to the path 'av_libglesv2.dll' is denied.
+uninstall exit=1
+=== install 2026-11-16T16:00:26.5238572-05:00
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+AgentEyes was not running - it was not started
+PATH: added %USERPROFILE%\AppData\Local\AgentEyes\app (open a new terminal to use agenteyes)
+Native extraction dir: DOTNET_BUNDLE_EXTRACT_BASE_DIR=%USERPROFILE%\AppData\Local\AgentEyes\bundle
+Start Menu shortcut: created
+Add/Remove Programs: registered v1.11.11
+install exit=0
+
+app\recordings (2 recordings, 6 files, from 2026-11-07) copied out before the uninstall and restored after it; sha256 of all 6 files identical before and after.
+
+## The app's own launch update (setup-cli.log, verbatim)
+2026-11-16 16:01:10 [Program] RunAsync: command=update exit=0
+2026-11-16 16:01:10 [Program] RunAsync: command=update positionals=[] flags=[relaunched] options=[] root=%USERPROFILE%\AppData\Local\AgentEyes
+2026-11-16 16:01:10 [ReleaseSource] FetchLatestAsync: channel=https://api.github.com/repos/thefrederiksen/agenteyes-app/releases/latest
+2026-11-16 16:01:11 [UpdatePlanner] Plan: 4 components, 0 install, 1 update, 0 missing-asset.
+2026-11-16 16:01:11 [UpdateRestartCycle] RunAsync: looking for a running AgentEyes
+2026-11-16 16:01:12 [RunningAppHandle] Find: pid 11524, exe %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, arguments: --tray
+2026-11-16 16:01:12 [UpdateRestartCycle] RunAsync: AgentEyes is running (pid 11524, %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, arguments: --tray) - it keeps running while the update is downloaded and verified
+2026-11-16 16:01:12 [UpdateRestartCycle] RunAsync: preparing (download + verify) before anything is stopped or replaced
+2026-11-16 16:01:12 [UpdateRunner] StageAsync: downloading and verifying 1 component(s) before anything is stopped or replaced
+2026-11-16 16:01:19 [UpdateRunner] StageAsync: ffmpeg 8.1.1 -> 9.0.2 verified at %USERPROFILE%\AppData\Local\Temp\agenteyes-setup-5207c556005b46249d63d685aecf68e1-agenteyes-ffmpeg-win-x64.zip
+2026-11-16 16:01:19 [UpdateRunner] StageAsync: all 1 component(s) verified; nothing installed has been touched
+2026-11-16 16:01:19 [UpdateRestartCycle] RunAsync: prepared; stopping pid 11524 before anything is replaced
+2026-11-16 16:01:19 [RunningApp] StopAndWait: name=AgentEyesApp, graceful=30s, timeout=60s
+2026-11-16 16:01:19 [RunningApp] StopAndWait: 1 instance(s) running - stopping
+2026-11-16 16:01:19 [QuitRequest] TrySignal: quit requested from pid=11524 via AgentEyes-quit-11524
+2026-11-16 16:01:19 [RunningApp] StopAndWait: quit request delivered=True; waiting up to 30s for a clean exit
+2026-11-16 16:01:19 [RunningApp] StopAndWait: gone=True
+2026-11-16 16:01:19 [UpdateRestartCycle] RunAsync: pid 11524 is gone - replacing
+2026-11-16 16:01:19 [UpdateRunner] Swap: placing 1 verified component(s)
+2026-11-16 16:01:24 [InstallSwapper] Place: swapped %USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe (backup %USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe.old)
+2026-11-16 16:01:27 [InstallSwapper] Place: swapped %USERPROFILE%\AppData\Local\AgentEyes\app\ffprobe.exe (backup %USERPROFILE%\AppData\Local\AgentEyes\app\ffprobe.exe.old)
+2026-11-16 16:01:27 [ArchiveInstaller] placed 2 file(s) into %USERPROFILE%\AppData\Local\AgentEyes\app
+2026-11-16 16:01:27 [UpdateRunner] Swap: ffmpeg Updated
+2026-11-16 16:01:27 [UpdateRunner] Swap done: installed=0, updated=1
+2026-11-16 16:01:27 [UpdateRestartCycle] Relaunch: starting the installed %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe with argument(s): --tray
+2026-11-16 16:01:27 [ProcessAppLauncher] BuildCommandLine: 1 argument(s) -> %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe --tray
+2026-11-16 16:01:27 [ProcessAppLauncher] Launch: starting detached (no inherited handles, own console) in %USERPROFILE%\AppData\Local\AgentEyes\app: %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe --tray
+2026-11-16 16:01:27 [ProcessAppLauncher] Launch: started %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe as pid 19972
+2026-11-16 16:01:27 [UpdateRestartCycle] Relaunch: started pid 19972
+2026-11-16 16:01:27 [UpdateRestartCycle] RunAsync: restarted the running app (pid 11524 -> pid 19972)
+2026-11-16 16:01:27 [InstallFinalizer] DOTNET_BUNDLE_EXTRACT_BASE_DIR already set: %USERPROFILE%\AppData\Local\AgentEyes\bundle
+2026-11-16 16:01:27 [InstallFinalizer] created shortcut: %USERPROFILE%\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\AgentEyes.lnk
+2026-11-16 16:01:27 [InstallFinalizer] registered Add/Remove Programs entry (v1.11.11)
+2026-11-16 16:01:27 [Program] RunAsync: command=update exit=0
+
+## Installed after the launch update (the binaries that answered rows 4-6)
+agenteyes-setup.exe 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb 247F8F088CCFF6E47EB87F06127ADD180929A1837082895DC1F3C52C6BDABECF
+agenteyes.exe 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb F04B26BC19C35AFE45B33F6BD685AB52DA34D34D1D5436154CAB0688A34CC730
+AgentEyesApp.exe 1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb CB2B5ED36134F85A92A99340EA0792A7DE6869355041C2232971F47FE8BCFF09
+ffmpeg.exe  3256173F3F8BFFD7DF12227C68ADF68025EDB1832273A9530688A7BB1ED8EDEC
+ffprobe.exe  F0D36ECBBDD3BCFAC3EFA078C96C7271C2E68B3810595552AC3B7F17E9A65C52
+ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+Answering process: AgentEyesApp.exe --tray pid 19972, started 2026-11-16 16:01:27 by the launch update; every row log line carries [pid 19972].
+
+## Test gate on main b0e6ae8 (dotnet build / dotnet test AgentEyes.sln -c Release; SDK 10.0.301, net8.0, runtime 8.0.21)
+    24 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:49.48
+Passed!  - Failed:     0, Passed:    23, Skipped:     0, Total:    23, Duration: 3 s - AgentEyes.Tests.DesktopApp.dll (net8.0)
+Passed!  - Failed:     0, Passed:  2523, Skipped:    16, Total:  2539, Duration: 1 m 23 s - AgentEyes.Tests.dll (net8.0)

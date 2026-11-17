@@ -1,0 +1,65 @@
+# Issue #142 row 6, sharpened criterion and truncation control - SORENLAPTOP 2026-11-16
+# Expected length = the driver's own clock, start request 16:17:39.180 -> stop request 16:27:52.237 = 613.057 s.
+# Check: |ffprobe duration - expected| <= 2 s AND >= 40 decoded video frames (20 fps) with pts in the last 2 s of the EXPECTED length.
+# Truncation control: COPIES in a scratch folder cut to 98% and 50% of their bytes; the recordings themselves were not modified.
+
+## Real files
+file=recording.mp4 size=28332797 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+  duration=613.400000  |duration-expected|=0.343  -> OK
+  full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+  decoded frames with pts in [611.057, 613.107]: 60 (need >= 40)  last decoded pts=613.366667  -> OK
+  VERDICT: PASS
+file=recording.original.mp4 size=25666852 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+  duration=614.100000  |duration-expected|=1.043  -> OK
+  full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+  decoded frames with pts in [611.057, 613.107]: 60 (need >= 40)  last decoded pts=613.366667  -> OK
+  VERDICT: PASS
+
+## Truncated copies (must FAIL)
+file=capture-trunc98.mp4 size=25153515 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+  duration=600.066667  |duration-expected|=12.99  -> FAIL
+  full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+  decoded frames with pts in [611.057, 613.107]: 0 (need >= 40)  last decoded pts=none  -> FAIL
+  VERDICT: FAIL
+file=capture-trunc50.mp4 size=12833426 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+  duration=307.333333  |duration-expected|=305.724  -> FAIL
+  full decode exit=0 (reported, not judged: a truncated file can decode to 0)
+  decoded frames with pts in [611.057, 613.107]: 0 (need >= 40)  last decoded pts=306.7  -> FAIL
+  VERDICT: FAIL
+file=final-trunc98.mp4 size=27766141 expected=613.057 s tolerance=+-2 s window=last 2 s of the expected length
+  duration=[mov,mp4,m4a,3gp,3g2,mj2 @ 00000249c3561ac0] error reading header  |duration-expected|=n/a  -> FAIL
+  full decode exit=-541478725 (reported, not judged: a truncated file can decode to 0)
+  decoded frames with pts in [611.057, 613.107]: 0 (need >= 40)  last decoded pts=none  -> FAIL
+  VERDICT: FAIL
+
+## The previous form (full decode exit 0 + a frame read near the end of the DATA) on the truncated capture copies
+  capture-trunc98 full decode exit=0
+  capture-trunc98 frame read 2 s before the end of the data: exit=69 png_bytes=0
+  capture-trunc50 full decode exit=0
+  capture-trunc50 frame read 2 s before the end of the data: exit=0 png_bytes=981979
+
+## The check script (endcheck.ps1)
+param(
+  [Parameter(Mandatory)] [string]$File,
+  [Parameter(Mandatory)] [double]$Expected,   # expected take length in seconds, from the driver's own clock
+  [double]$Tolerance = 2.0,
+  [double]$Window = 2.0,
+  [double]$MinFps = 20.0                      # frames required per second in the end window
+)
+# Row 6 check, sharpened: duration matches the EXPECTED length AND frames decode AT the expected end.
+$ffp = "$env:LOCALAPPDATA\AgentEyes\app\ffprobe.exe"; $ff = "$env:LOCALAPPDATA\AgentEyes\app\ffmpeg.exe"
+"file=$(Split-Path $File -Leaf) size=$((Get-Item $File).Length) expected=$Expected s tolerance=+-$Tolerance s window=last $Window s of the expected length"
+$dur = & $ffp -v error -select_streams v:0 -show_entries 'format=duration' -of csv=p=0 $File 2>&1 | Select-Object -First 1
+$durOk = $false; $d = 0.0
+if ([double]::TryParse(("$dur").Trim(), [ref]$d)) { $durOk = [math]::Abs($d - $Expected) -le $Tolerance }
+"  duration=$dur  |duration-expected|=$(if ($d) { [math]::Round([math]::Abs($d-$Expected),3) } else { 'n/a' })  -> $(if ($durOk) { 'OK' } else { 'FAIL' })"
+& $ff -hide_banner -v error -i $File -f null - 2>$null; "  full decode exit=$LASTEXITCODE (reported, not judged: a truncated file can decode to 0)"
+$lo = $Expected - $Window; $hi = $Expected + 0.05
+$start = [math]::Max(0, $lo - 3)
+$pts = & $ffp -v error -select_streams v:0 -read_intervals "$start%" -show_entries 'frame=pts_time' -of csv=p=0 $File 2>$null |
+  ForEach-Object { $x = 0.0; if ([double]::TryParse(("$_").Trim().TrimEnd(','), [ref]$x)) { $x } }
+$inWin = @($pts | Where-Object { $_ -ge $lo -and $_ -le $hi })
+$need = [math]::Floor($MinFps * $Window)
+$endOk = $inWin.Count -ge $need
+"  decoded frames with pts in [$([math]::Round($lo,3)), $([math]::Round($hi,3))]: $($inWin.Count) (need >= $need)  last decoded pts=$(if ($pts) { ($pts | Measure-Object -Maximum).Maximum } else { 'none' })  -> $(if ($endOk) { 'OK' } else { 'FAIL' })"
+"  VERDICT: $(if ($durOk -and $endOk) { 'PASS' } else { 'FAIL' })"
