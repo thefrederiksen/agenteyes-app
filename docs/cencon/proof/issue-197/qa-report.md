@@ -131,7 +131,7 @@ and the handoff.
 ## ASCII, attribution, identity (lines this PR adds: 349)
 
 - Non-ASCII: **0**. Control: a string with one e-acute is counted as 1.
-- Attribution (`claude|anthropic|co-authored|generated with`): 2 hits, both in the handoff, both
+- Attribution (the four banned strings from the project rules, case-insensitive): 2 hits, both in the handoff, both
   the filename `CLAUDE.md`. The allowed case. 0 hits in the notes.
 - Identity (owner name, domains, `/Users/`, `/home/`, machine names): the only hits are
   `thefrederiksen/agenteyes-app` (the repository's own URL) and the handoff describing its own
