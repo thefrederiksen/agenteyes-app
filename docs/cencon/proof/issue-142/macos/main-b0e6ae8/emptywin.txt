@@ -1,0 +1,26 @@
+=== run 1 17:00:47
+load (2.779296875, 3.3310546875, 2.8447265625) cores 10
+start POST sent -> returned 0.802 s; dir 2026-11-16_170048_video
+  t+ 0.000s  size         0  complete mdat fragments 0
+  t+ 2.888s  size   1271421  complete mdat fragments 1
+  first complete fragment copied (1271421 bytes): decodes to 60 frames
+  t+ 4.877s  size   2464395  complete mdat fragments 2
+  t+ 6.861s  size   3649850  complete mdat fragments 3
+  t+ 8.868s  size   4839911  complete mdat fragments 4
+  t+ 9.218s  size   5041769  complete mdat fragments 5
+  t+11.215s  size   6378612  complete mdat fragments 6
+stop: {"Dir": "~/Movies/AgentEyes/2026-11-16_170048_video", "File": "~/Movies/AgentEyes/2026-11-16_170048_video/recording.mp4", "DurationSeconds": 12.64, "Shots": 0}
+RESULT first byte on disk at t+2.888 s; first complete, decodable fragment at t+2.888 s (60 frames) - screen-only, 30 fps default, 10 cores
+=== run 2 17:01:01
+load (2.919921875, 3.3310546875, 2.85205078125) cores 10
+start POST sent -> returned 0.800 s; dir 2026-11-16_170101_video
+  t+ 0.000s  size         0  complete mdat fragments 0
+  t+ 2.909s  size   1311212  complete mdat fragments 1
+  first complete fragment copied (1311212 bytes): decodes to 60 frames
+  t+ 4.860s  size   2526204  complete mdat fragments 2
+  t+ 6.861s  size   3738353  complete mdat fragments 3
+  t+ 8.913s  size   4915412  complete mdat fragments 4
+  t+ 9.192s  size   5114824  complete mdat fragments 5
+  t+11.215s  size   6430839  complete mdat fragments 6
+stop: {"Dir": "~/Movies/AgentEyes/2026-11-16_170101_video", "File": "~/Movies/AgentEyes/2026-11-16_170101_video/recording.mp4", "DurationSeconds": 12.67, "Shots": 0}
+RESULT first byte on disk at t+2.909 s; first complete, decodable fragment at t+2.909 s (60 frames) - screen-only, 30 fps default, 10 cores

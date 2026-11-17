@@ -1,0 +1,145 @@
+17:13:28.412 [pid 88521] [INFO] [CaptureLock] TryAcquire: 2026-11-16_171328_video for capture session
+17:13:28.412 [pid 88521] [INFO] [CaptureLock] TryAcquire: 2026-11-16_171328_video claimed by capture session of pid 88521 on host devthrottle-mac-mini (started 2026-11-16T22:13:28.4122720Z)
+17:13:28.412 [pid 88521] [INFO] [RecordingWorkset] Attach: ~/Movies/AgentEyes/2026-11-16_171328_video#1363 now carries CaptureLock
+17:13:28.412 [pid 88521] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_171328_video - pid 88521 on devthrottle-mac-mini (process started 2026-11-16T21:36:20.7658330Z)
+17:13:29.078 [pid 88521] [INFO] [CaptureLock] NoteWriter: 2026-11-16_171328_video video pid 2399
+17:13:29.079 [pid 88521] [INFO] [CaptureLock] NoteWriter: 2026-11-16_171328_video video pid 2399 recorded (started 2026-11-16T22:13:28.6624070Z)
+17:13:29.219 [pid 88521] [INFO] [AudioCapture] ctor: #0 Yealink UH36 (AVFoundation :0)
+17:13:29.219 [pid 88521] [INFO] [AudioCapture] Start: ~/Movies/AgentEyes/2026-11-16_171328_video/mic_native.wav
+17:13:29.219 [pid 88521] [INFO] [AvfStream] Start mic: "/opt/homebrew/bin/ffmpeg" -hide_banner -nostats -loglevel info -f avfoundation -thread_queue_size 1024 -i :0 -ac 1 -ar 48000 -f s16le pipe:1
+17:13:29.418 [pid 88521] [INFO] [AvfStream] mic: capture clock start 353177.273625s
+17:13:29.531 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_171328_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+17:14:34.710 [pid 88521] [INFO] [AudioCapture] Stop
+17:14:34.710 [pid 88521] [INFO] [AvfStream] Stop mic: asking ffmpeg to finish
+17:14:34.892 [pid 88521] [INFO] [AvfStream] mic: reader finished (stopping=True)
+17:14:34.893 [pid 88521] [INFO] [AvfStream] Stop mic: ffmpeg reported [q] command received. Exiting. |  | [out#0/s16le @ 0x70d1dc180] video:0KiB audio:6135KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.000000% | size=    6135KiB time=00:01:05.44 bitrate= 768.0kbits/s speed=   1x elapsed=0:01:05.44
+17:14:34.893 [pid 88521] [INFO] [AvfStream] Stop mic: done (ffmpeg exit=0)
+17:14:34.893 [pid 88521] [INFO] [AudioCapture] Stop: wrote 6282240 bytes of PCM = 65.44s of audio over a 65.67s capture
+17:14:34.979 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 86ms (take 64918ms, media origin 1312ms) - full take captured
+17:14:35.540 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_171328_video released by pid 88521
+17:14:35.540 [pid 88521] [INFO] [RecordingWorkset] Release: ~/Movies/AgentEyes/2026-11-16_171328_video - attached CaptureLock released
+17:14:35.541 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171328_video (post-recording) - no owner record; nothing to clear
+17:14:35.544 [pid 88521] [INFO] [PostRecording] stage mux: start dir=2026-11-16_171328_video
+17:14:35.544 [pid 88521] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171328_video (finalize) - no capture holds it
+17:14:35.544 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171328_video (finalize) - no owner record; nothing to clear
+17:14:35.597 [pid 88521] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic video=~/Movies/AgentEyes/2026-11-16_171328_video/raw.mp4 intermediate=~/Movies/AgentEyes/2026-11-16_171328_video/audio_processed.wav muxing=~/Movies/AgentEyes/2026-11-16_171328_video/recording.mp4.muxing.tmp out=~/Movies/AgentEyes/2026-11-16_171328_video/recording.mp4
+17:14:35.597 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_171328_video/mic_native.wav -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='~/Library/Application Support/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]adelay=445.625:all=1,alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto ~/Movies/AgentEyes/2026-11-16_171328_video/audio_processed.wav
+17:14:35.607 [pid 88521] [INFO] [FfmpegChildRegistry] Register: pid 2530 [mux video+mic (audio)] owner pid 88521
+17:14:35.917 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)] ok
+17:14:35.917 [pid 88521] [INFO] ffmpeg [mux video+mic]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_171328_video/raw.mp4 -i ~/Movies/AgentEyes/2026-11-16_171328_video/audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 ~/Movies/AgentEyes/2026-11-16_171328_video/recording.mp4.muxing.tmp
+17:14:35.927 [pid 88521] [INFO] [FfmpegChildRegistry] Register: pid 2532 [mux video+mic] owner pid 88521
+17:14:37.044 [pid 88521] [INFO] ffmpeg [mux video+mic] ok
+17:14:37.044 [pid 88521] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic done out=~/Movies/AgentEyes/2026-11-16_171328_video/recording.mp4
+17:14:37.045 [pid 88521] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic removed the intermediate processed audio ~/Movies/AgentEyes/2026-11-16_171328_video/audio_processed.wav
+17:14:37.088 [pid 88521] [INFO] [PostRecording] stage mux: done dir=2026-11-16_171328_video in 1.5s
+17:14:37.242 [pid 88521] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171328_video (package) - no capture holds it
+17:14:37.242 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171328_video (package) - no owner record; nothing to clear
+17:14:37.323 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_104903_audio (post-recording) - no owner record; nothing to clear
+17:14:37.323 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_105029_audio (post-recording) - no owner record; nothing to clear
+17:14:37.324 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_112333_video (post-recording) - no owner record; nothing to clear
+17:14:37.324 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_112435_video (post-recording) - no owner record; nothing to clear
+17:14:37.325 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_113558_video (post-recording) - no owner record; nothing to clear
+17:14:37.326 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_114732_video (post-recording) - no owner record; nothing to clear
+17:14:37.326 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_114801_video (post-recording) - no owner record; nothing to clear
+17:14:37.327 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_115259_audio (post-recording) - no owner record; nothing to clear
+17:14:37.327 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_115328_video (post-recording) - no owner record; nothing to clear
+17:14:37.328 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_145851_video (post-recording) - no owner record; nothing to clear
+17:14:37.328 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-13_094437_video (post-recording) - no owner record; nothing to clear
+17:14:37.329 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_085412_video (post-recording) - no owner record; nothing to clear
+17:14:37.329 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_085801_video (post-recording) - no owner record; nothing to clear
+17:14:37.330 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_090831_video (post-recording) - no owner record; nothing to clear
+17:14:37.331 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_091724_video (post-recording) - no owner record; nothing to clear
+17:14:37.331 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092249_video (post-recording) - no owner record; nothing to clear
+17:14:37.332 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092527_video (post-recording) - no owner record; nothing to clear
+17:14:37.332 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092612_video (post-recording) - no owner record; nothing to clear
+17:14:37.333 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093028_video (post-recording) - no owner record; nothing to clear
+17:14:37.333 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093137_video (post-recording) - no owner record; nothing to clear
+17:14:37.334 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093235_video (post-recording) - no owner record; nothing to clear
+17:14:37.334 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093258_video (post-recording) - no owner record; nothing to clear
+17:14:37.335 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093321_video (post-recording) - no owner record; nothing to clear
+17:14:37.335 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094458_video (post-recording) - no owner record; nothing to clear
+17:14:37.336 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094643_video (post-recording) - no owner record; nothing to clear
+17:14:37.337 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094736_audio (post-recording) - no owner record; nothing to clear
+17:14:37.337 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094847_audio (post-recording) - no owner record; nothing to clear
+17:14:37.338 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094927_audio (post-recording) - no owner record; nothing to clear
+17:14:37.338 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_095136_audio (post-recording) - no owner record; nothing to clear
+17:14:37.339 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_095245_audio (post-recording) - no owner record; nothing to clear
+17:14:37.339 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_101446_video (post-recording) - no owner record; nothing to clear
+17:14:37.340 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_102725_video (post-recording) - no owner record; nothing to clear
+17:14:37.340 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103045_video (post-recording) - no owner record; nothing to clear
+17:14:37.341 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103338_video (post-recording) - no owner record; nothing to clear
+17:14:37.341 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103623_video (post-recording) - no owner record; nothing to clear
+17:14:37.342 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_104905_video (post-recording) - no owner record; nothing to clear
+17:14:37.342 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_110301_video (post-recording) - no owner record; nothing to clear
+17:14:37.343 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_111433_video (post-recording) - no owner record; nothing to clear
+17:14:37.344 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_120259_video (post-recording) - no owner record; nothing to clear
+17:14:37.344 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_120737_video (post-recording) - no owner record; nothing to clear
+17:14:37.345 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_121209_video (post-recording) - no owner record; nothing to clear
+17:14:37.345 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_093623_video (post-recording) - no owner record; nothing to clear
+17:14:37.346 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_111822_video (post-recording) - no owner record; nothing to clear
+17:14:37.346 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_112903_video (post-recording) - no owner record; nothing to clear
+17:14:37.347 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120112_video (post-recording) - no owner record; nothing to clear
+17:14:37.347 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120710_video (post-recording) - no owner record; nothing to clear
+17:14:37.348 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120810_video (post-recording) - no owner record; nothing to clear
+17:14:37.349 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_121304_video (post-recording) - no owner record; nothing to clear
+17:14:37.349 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_121934_video (post-recording) - no owner record; nothing to clear
+17:14:37.350 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122333_video (post-recording) - no owner record; nothing to clear
+17:14:37.350 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122456_video (post-recording) - no owner record; nothing to clear
+17:14:37.351 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122611_video (post-recording) - no owner record; nothing to clear
+17:14:37.351 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122713_video (post-recording) - no owner record; nothing to clear
+17:14:37.352 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_125649_video (post-recording) - no owner record; nothing to clear
+17:14:37.352 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130215_video (post-recording) - no owner record; nothing to clear
+17:14:37.353 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130411_video (post-recording) - no owner record; nothing to clear
+17:14:37.353 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130455_video (post-recording) - no owner record; nothing to clear
+17:14:37.354 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130825_video (post-recording) - no owner record; nothing to clear
+17:14:37.355 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134545_video (post-recording) - no owner record; nothing to clear
+17:14:37.355 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134706_video (post-recording) - no owner record; nothing to clear
+17:14:37.356 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134854_video (post-recording) - no owner record; nothing to clear
+17:14:37.356 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_142036_video (post-recording) - no owner record; nothing to clear
+17:14:37.357 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090238_video (post-recording) - no owner record; nothing to clear
+17:14:37.357 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090331_video (post-recording) - no owner record; nothing to clear
+17:14:37.358 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090503_video (post-recording) - no owner record; nothing to clear
+17:14:37.358 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090652_video (post-recording) - no owner record; nothing to clear
+17:14:37.359 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_123404_video (post-recording) - no owner record; nothing to clear
+17:14:37.359 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_130845_video (post-recording) - no owner record; nothing to clear
+17:14:37.360 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142104_video (post-recording) - no owner record; nothing to clear
+17:14:37.361 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142857_video (post-recording) - no owner record; nothing to clear
+17:14:37.361 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142931_video (post-recording) - no owner record; nothing to clear
+17:14:37.362 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_163736_video (post-recording) - no owner record; nothing to clear
+17:14:37.362 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164310_video (post-recording) - no owner record; nothing to clear
+17:14:37.363 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164424_video (post-recording) - no owner record; nothing to clear
+17:14:37.363 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164458_video (post-recording) - no owner record; nothing to clear
+17:14:37.364 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164737_video (post-recording) - no owner record; nothing to clear
+17:14:37.364 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170048_video (post-recording) - no owner record; nothing to clear
+17:14:37.365 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170101_video (post-recording) - no owner record; nothing to clear
+17:14:37.365 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171328_video (post-recording) - no owner record; nothing to clear
+17:14:41.441 [pid 88521] [INFO] [CaptureLock] TryAcquire: 2026-11-16_171441_video for capture session
+17:14:41.442 [pid 88521] [INFO] [CaptureLock] TryAcquire: 2026-11-16_171441_video claimed by capture session of pid 88521 on host devthrottle-mac-mini (started 2026-11-16T22:14:41.4418230Z)
+17:14:41.442 [pid 88521] [INFO] [RecordingWorkset] Attach: ~/Movies/AgentEyes/2026-11-16_171441_video#1523 now carries CaptureLock
+17:14:41.442 [pid 88521] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_171441_video - pid 88521 on devthrottle-mac-mini (process started 2026-11-16T21:36:20.7658330Z)
+17:14:42.040 [pid 88521] [INFO] [CaptureLock] NoteWriter: 2026-11-16_171441_video video pid 2621
+17:14:42.041 [pid 88521] [INFO] [CaptureLock] NoteWriter: 2026-11-16_171441_video video pid 2621 recorded (started 2026-11-16T22:14:41.6284080Z)
+17:14:42.178 [pid 88521] [INFO] [AudioCapture] ctor: #0 Yealink UH36 (AVFoundation :0)
+17:14:42.178 [pid 88521] [INFO] [AudioCapture] Start: ~/Movies/AgentEyes/2026-11-16_171441_video/mic_native.wav
+17:14:42.178 [pid 88521] [INFO] [AvfStream] Start mic: "/opt/homebrew/bin/ffmpeg" -hide_banner -nostats -loglevel info -f avfoundation -thread_queue_size 1024 -i :0 -ac 1 -ar 48000 -f s16le pipe:1
+17:14:42.378 [pid 88521] [INFO] [AvfStream] mic: capture clock start 353250.233500s
+17:14:42.492 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_171441_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+17:15:47.658 [pid 88521] [INFO] [AudioCapture] Stop
+17:15:47.658 [pid 88521] [INFO] [AvfStream] Stop mic: asking ffmpeg to finish
+17:15:47.825 [pid 88521] [INFO] [AvfStream] mic: reader finished (stopping=True)
+17:15:47.825 [pid 88521] [INFO] [AvfStream] Stop mic: ffmpeg reported [q] command received. Exiting. |  | [out#0/s16le @ 0xa8114c180] video:0KiB audio:6132KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.000000% | size=    6132KiB time=00:01:05.40 bitrate= 768.0kbits/s speed=   1x elapsed=0:01:05.41
+17:15:47.825 [pid 88521] [INFO] [AvfStream] Stop mic: done (ffmpeg exit=0)
+17:15:47.825 [pid 88521] [INFO] [AudioCapture] Stop: wrote 6279168 bytes of PCM = 65.41s of audio over a 65.65s capture
+17:15:47.958 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 132ms (take 64894ms, media origin 1303ms) - full take captured
+17:15:48.525 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_171441_video released by pid 88521
+17:15:48.526 [pid 88521] [INFO] [RecordingWorkset] Release: ~/Movies/AgentEyes/2026-11-16_171441_video - attached CaptureLock released
+17:15:48.526 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171441_video (post-recording) - no owner record; nothing to clear
+17:15:48.530 [pid 88521] [INFO] [PostRecording] stage mux: start dir=2026-11-16_171441_video
+17:15:48.530 [pid 88521] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171441_video (finalize) - no capture holds it
+17:15:48.531 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171441_video (finalize) - no owner record; nothing to clear
+17:15:48.573 [pid 88521] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic video=~/Movies/AgentEyes/2026-11-16_171441_video/raw.mp4 intermediate=~/Movies/AgentEyes/2026-11-16_171441_video/audio_processed.wav muxing=~/Movies/AgentEyes/2026-11-16_171441_video/recording.mp4.muxing.tmp out=~/Movies/AgentEyes/2026-11-16_171441_video/recording.mp4
+17:15:48.573 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_171441_video/mic_native.wav -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='~/Library/Application Support/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]adelay=453.333:all=1,alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto ~/Movies/AgentEyes/2026-11-16_171441_video/audio_processed.wav
+17:15:48.584 [pid 88521] [INFO] [FfmpegChildRegistry] Register: pid 2704 [mux video+mic (audio)] owner pid 88521
+17:15:48.905 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)] ok
+17:15:48.905 [pid 88521] [INFO] ffmpeg [mux video+mic]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_171441_video/raw.mp4 -i ~/Movies/AgentEyes/2026-11-16_171441_video/audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 ~/Movies/AgentEyes/2026-11-16_171441_video/recording.mp4.muxing.tmp
+17:15:48.915 [pid 88521] [INFO] [FfmpegChildRegistry] Register: pid 2706 [mux video+mic] owner pid 88521

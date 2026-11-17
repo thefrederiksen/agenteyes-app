@@ -1,0 +1,37 @@
+2026-11-16T21:37:36Z TAKE row4 body={"mode":"video","screen":1,"source":"none"} planned=20s
+load: { 2.45 2.20 2.02 }  cores: 10
+service pid: 88521 
+state before: idle
+start POST sent at epoch 1794865056.488, returned at 1794865057.404
+start response: {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "none",
+  "ElapsedSeconds": 0.7,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "~/Movies/AgentEyes/2026-11-16_163736_video",
+  "Camera": null,
+  "SignedIn": false,
+  "AccountEmail": null,
+  "PendingTranscriptions": 72,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+dir: ~/Movies/AgentEyes/2026-11-16_163736_video
+status just before stop: recording 20.83 none
+stop POST sent at epoch 1794865077.537, returned at 1794865077.561
+stop response: <h1>Length Required</h1>
+wall-clock take (start POST returned -> stop POST sent): 20.133 s;  outer bound (start sent -> stop returned): 21.073 s
+status after stop: recording LastStopFailed= False LastStopError= None
+TIMEOUT after 300s waiting for finish on disk: mux=None tmp=[] recording.mp4=True
+finished on disk after 300.3s of polling: mux=null
+manifest DurationSeconds: 0  VideoFile: recording.mp4
+FfmpegCommand: None
+PostProcessing: {}
+files: ['capture.lock', 'capture.owner.json', 'manifest.json', 'recording.mp4', 'shots']
+load after: { 2.77 2.18 2.04 }
+service pid after: 88521 
+idle None False

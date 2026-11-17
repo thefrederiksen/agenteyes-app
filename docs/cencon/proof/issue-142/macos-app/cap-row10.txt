@@ -1,0 +1,21 @@
+=== capture job com.agenteyes.qa142.row10 14:24:51  captures: row10-window-raised|-x -o -l 813;row10-item|-x -o -l 812;
+service before: pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+14:24:51 job com.agenteyes.qa142.row10 argv ['~/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/tools/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/cap/row10', 'QA_CAPTURES': 'row10-window-raised|-x -o -l 813;row10-item|-x -o -l 812;', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/cap/row10/com.agenteyes.qa142.row10.plist
+  exit=0  
+14:24:52 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa142.row10
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+--- hook report
+14:24:51.609 [hook] pid=60949 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+14:24:51.626 [hook] CGPreflightScreenCaptureAccess() = True
+14:24:51.630 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+14:24:51.631 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+14:24:51.631 [hook] row10-window-raised: screencapture -x -o -l 813 <scratch>/cap/row10/row10-window-raised.png
+14:24:51.696 [hook] row10-window-raised: exit=0 ms=64 file_bytes=74194 stderr=''
+14:24:51.696 [hook] row10-item: screencapture -x -o -l 812 <scratch>/cap/row10/row10-item.png
+14:24:51.749 [hook] row10-item: exit=0 ms=52 file_bytes=1428 stderr=''
+14:24:51.749 [hook] Environment.Exit(0) - the recorder's Main is never reached
+service after:  pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+qa142 launchd labels left: 0

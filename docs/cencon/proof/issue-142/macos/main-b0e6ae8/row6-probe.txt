@@ -1,0 +1,31 @@
+== final recording.mp4
+file: recording.mp4  bytes: 325009201  expected take: 607.200 s  tolerance: +/-1.0 s  tail window: [605.200, 607.200] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "607.200000"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "607.200000", "nb_frames": "18216"}
+stream: {"index": 1, "codec_name": "aac", "codec_type": "audio", "sample_rate": "48000", "channels": 1, "avg_frame_rate": "0/0", "duration": "472.763792", "nb_frames": "22162"}
+top-level atoms: {"ftyp": 1, "free": 1, "mdat": 1, "moov": 1}  moov at: [(324528271, 480930)]  last atom: ('moov', 324528271, 480930)  atom walk ends at 325009201 of 325009201 
+full decode: exit 0  stderr: ''
+decoded video frames: 18216  first ts 0.000  last ts 607.167  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [605.200, 607.200]: 60  (first 605.200, last 607.167)
+audio packets: 22162  first pts -0.021  audio end 472.764  video end 607.200  |video end - audio end| = 134.436 s
+ROW6-CHECK arm (a) last frame 607.167 vs expected 607.200: diff -0.033 s -> PASS
+ROW6-CHECK arm (b) 60 frames in the last 2 s of the expected take (need >= 54) -> PASS
+ROW6-CHECK PASS
+manifest CapturedSeconds: 607.13 DurationSeconds: 607.2
+
+== raw fragmented capture recording.original.mp4
+file: recording.original.mp4  bytes: 324631236  expected take: 607.200 s  tolerance: +/-1.0 s  tail window: [605.200, 607.200] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "607.200000"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "607.200000"}
+top-level atoms: {"ftyp": 1, "moov": 1, "moof": 363, "mdat": 363, "mfra": 1}  moov at: [(28, 769)]  last atom: ('mfra', 324624291, 6945)  atom walk ends at 324631236 of 324631236 
+full decode: exit 0  stderr: ''
+decoded video frames: 18216  first ts 0.000  last ts 607.167  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [605.200, 607.200]: 60  (first 605.200, last 607.167)
+audio packets: 0 (no audio stream)
+ROW6-CHECK arm (a) last frame 607.167 vs expected 607.200: diff -0.033 s -> PASS
+ROW6-CHECK arm (b) 60 frames in the last 2 s of the expected take (need >= 54) -> PASS
+ROW6-CHECK PASS
+mic_native.wav:
+472.384000

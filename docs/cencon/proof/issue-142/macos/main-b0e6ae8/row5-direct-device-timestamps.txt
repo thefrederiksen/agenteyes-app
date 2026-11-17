@@ -1,0 +1,33 @@
+17:01:51.409 [mic-hook] pid=98310 exe=~/Library/Application Support/AgentEyes/bin/agenteyes ffmpeg -hide_banner -nostats -y -f avfoundation -thread_queue_size 1024 -i :0 -ac 1 -ar 48000 -c:a pcm_s16le <scratch>/mic-direct2/direct.mkv
+17:02:11.862 [mic-hook] ffmpeg pid=98312 exit=0 wall-clock until 'q' 20.028 s, total 20.441 s, wav bytes 1532770 -> 15.966 s of 48 kHz mono s16
+17:02:11.862 [mic-hook] ffmpeg stderr:
+Input #0, avfoundation, from ':0':
+  Duration: N/A, start: 352479.421438, bitrate: 1536 kb/s
+  Stream #0:0: Audio: pcm_f32le, 48000 Hz, mono, flt, 1536 kb/s, start 352479.421438
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, matroska, to '<scratch>/mic-direct2/direct.mkv':
+  Metadata:
+    encoder         : Lavf63.1.102
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 48000 Hz, mono, s16, 768 kb/s
+    Metadata:
+      encoder         : Lavc63.1.102 pcm_s16le
+
+
+[q] command received. Exiting.
+
+[out#0/matroska @ 0xa791e0180] video:0KiB audio:1486KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.729859%
+size=    1497KiB time=00:00:20.26 bitrate= 605.0kbits/s speed=   1x elapsed=0:00:20.27    
+
+17:02:11.867 [mic-hook] Environment.Exit(0)
+
+== packet timestamp analysis of direct.mkv (ffprobe packet=pts_time,duration_time; Matroska timestamps have 1 ms resolution)
+packets 1486  pts span 20.266 s  (wall-clock until q: 20.028 s)
+inter-packet gaps > 5 ms: 414, total 4.694 s
+  gaps>5ms with pts in [0,4) s: 78
+  gaps>5ms with pts in [4,8) s: 83
+  gaps>5ms with pts in [8,12) s: 82
+  gaps>5ms with pts in [12,16) s: 82
+  gaps>5ms with pts in [16,20) s: 83
+median packet duration 0.01  median pts step 0.011

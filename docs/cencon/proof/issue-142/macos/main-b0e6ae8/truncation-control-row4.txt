@@ -1,0 +1,27 @@
+== control 1: copy of row 4 recording.mp4 (7291084 bytes) cut to 70% = 5103758 bytes, mid-atom
+file: row4-trunc70.mp4  bytes: 5103758  expected take: 20.760 s  tolerance: +/-1.0 s  tail window: [18.760, 20.760] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "16.333333"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "16.333333"}
+top-level atoms: {"ftyp": 1, "moov": 1, "moof": 9, "mdat": 9}  moov at: [(28, 769)]  last atom: ('mdat', 4901605, 653898)  atom walk ends at 5555503 of 5103758 (overrun = truncated last atom)
+full decode: exit 0  stderr: '[h264 @ 0xa39038700] Invalid NAL unit size (36535 > 17796).\n[h264 @ 0xa39038700] missing picture in access unit with size 17800\n[in#0/mov,mp4,m4a,3gp,3g2,mj2 @ 0xa38c1c000] stream 0, offset 0x4e29c1: partial file\n[h264 @ 0xa3903a680] Invalid NAL unit size (36535 > 17796).\n[h264 @ 0xa3903a680] Error splitting the input into NAL units.\n[vist#0:0/h264 @ 0xa39008300] [dec:h264 @ 0xa39010280] Decoding '
+decoded video frames: 446  first ts 0.000  last ts 14.833  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [18.760, 20.760]: 0
+audio packets: 0 (no audio stream)
+ROW6-CHECK arm (a) last frame 14.833 vs expected 20.760: diff -5.927 s -> FAIL
+ROW6-CHECK arm (b) 0 frames in the last 2 s of the expected take (need >= 54) -> FAIL
+ROW6-CHECK FAIL
+
+== control 2: copy cut at the start of fragment 9 (offset 4901025) - a clean fragment boundary
+file: row4-trunc-boundary.mp4  bytes: 4901025  expected take: 20.760 s  tolerance: +/-1.0 s  tail window: [18.760, 20.760] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "14.333333"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "14.333333"}
+top-level atoms: {"ftyp": 1, "moov": 1, "moof": 8, "mdat": 8}  moov at: [(28, 769)]  last atom: ('mdat', 4231048, 669977)  atom walk ends at 4901025 of 4901025 
+full decode: exit 0  stderr: ''
+decoded video frames: 430  first ts 0.000  last ts 14.300  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [18.760, 20.760]: 0
+audio packets: 0 (no audio stream)
+ROW6-CHECK arm (a) last frame 14.300 vs expected 20.760: diff -6.460 s -> FAIL
+ROW6-CHECK arm (b) 0 frames in the last 2 s of the expected take (need >= 54) -> FAIL
+ROW6-CHECK FAIL

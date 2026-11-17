@@ -1,0 +1,30 @@
+file: recording.mp4  bytes: 30984852  expected take: 66.500 s  tolerance: +/-1.0 s  tail window: [64.500, 66.500] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "66.500000"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "66.500000", "nb_frames": "1995"}
+stream: {"index": 1, "codec_name": "aac", "codec_type": "audio", "sample_rate": "48000", "channels": 1, "avg_frame_rate": "0/0", "duration": "65.885625", "nb_frames": "3090"}
+top-level atoms: {"ftyp": 1, "free": 1, "mdat": 1, "moov": 1}  moov at: [(30913726, 71126)]  last atom: ('moov', 30913726, 71126)  atom walk ends at 30984852 of 30984852 
+full decode: exit 0  stderr: ''
+decoded video frames: 1995  first ts 0.000  last ts 66.467  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [64.500, 66.500]: 60  (first 64.500, last 66.467)
+audio packets: 3090  first pts -0.021  audio end 65.886  video end 66.500  |video end - audio end| = 0.614 s
+ROW6-CHECK arm (a) last frame 66.467 vs expected 66.500: diff -0.033 s -> PASS
+ROW6-CHECK arm (b) 60 frames in the last 2 s of the expected take (need >= 54) -> PASS
+ROW6-CHECK PASS
+--- audio stream (ffprobe stream duration / sample_rate)
+stream|codec_name=aac|sample_rate=48000|channels=1|start_time=0.000000|duration=65.885625
+--- volumedetect on recording.mp4 audio
+[Parsed_volumedetect_0 @ 0x9570146c0] n_samples: 0
+[Parsed_volumedetect_0 @ 0x957014b40] n_samples: 3162510
+[Parsed_volumedetect_0 @ 0x957014b40] mean_volume: -71.2 dB
+[Parsed_volumedetect_0 @ 0x957014b40] max_volume: -54.3 dB
+[Parsed_volumedetect_0 @ 0x957014b40] histogram_54db: 8
+[Parsed_volumedetect_0 @ 0x957014b40] histogram_55db: 84
+[Parsed_volumedetect_0 @ 0x957014b40] histogram_56db: 108
+[Parsed_volumedetect_0 @ 0x957014b40] histogram_57db: 405
+[Parsed_volumedetect_0 @ 0x957014b40] histogram_58db: 1348
+[Parsed_volumedetect_0 @ 0x957014b40] histogram_59db: 2388
+--- mic_native.wav
+stream|sample_rate=48000|channels=1|duration=65.440000
+--- audio_16k.wav
+stream|sample_rate=16000|channels=1|duration=65.885625

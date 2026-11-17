@@ -1,0 +1,33 @@
+14:25:16 kill -TERM 60625 (the app I started; no app was running when I arrived)
+app processes now: 0
+lock: "CGSSessionScreenIsLocked"=Yes
+service: pid=50642 state = running
+348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022  ~/Library/Application Support/AgentEyes/bin/agenteyes
+1b9092d077892723730e042bf062eb18b32964326e3d67fa228df0874111ddb0  ~/Library/Application Support/AgentEyes/bin/agenteyes.dll
+health: {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+status State: idle
+ffmpeg running: 0
+qa142 launchd labels: 0
+library dirs: 82 (81 before + 1 made by row 9: 2026-11-16_142104_video)
+evidence recordings still present: 2026-11-16_123404_video 2026-11-16_130845_video 2026-11-16_142104_video 
+row 9 recording ffprobe: h264,1920,1080,169 5.633333 
+14:25  up 3 days, 23:18, 1 user, load averages: 2.15 2.17 2.05
+
+=== END STATE, re-measured after the row 9 return-to-idle reproduction
+14:30:08 kill -TERM 62329
+app processes now: 0
+lock: "CGSSessionScreenIsLocked"=Yes
+service: pid=50642 state = running
+348b93b81d867fc34529fc073bf93c0d23d9428923dbe65f3a5e36a1d2607022  ~/Library/Application Support/AgentEyes/bin/agenteyes
+1b9092d077892723730e042bf062eb18b32964326e3d67fa228df0874111ddb0  ~/Library/Application Support/AgentEyes/bin/agenteyes.dll
+health: {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+status State: idle
+ffmpeg running: 0
+qa142 launchd labels: 0
+library dirs: 84 (81 before + 3 made by row 9: 2026-11-16_142104_video, 2026-11-16_142857_video, 2026-11-16_142931_video)
+  2026-11-16_123404_video present=yes
+  2026-11-16_130845_video present=yes
+  2026-11-16_142104_video present=yes
+  2026-11-16_142857_video present=yes
+  2026-11-16_142931_video present=yes
+14:30  up 3 days, 23:23, 1 user, load averages: 2.12 2.10 2.05

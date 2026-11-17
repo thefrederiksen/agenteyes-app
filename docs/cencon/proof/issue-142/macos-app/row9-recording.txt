@@ -1,0 +1,16 @@
+ffmpeg before: 0
+14:21:04 State idle Elapsed 8.42 Dir -
+14:21:04 POST /record/start {"mode":"video","screen":1,"source":"none"}
+{  "State": "recording",  "Mode": "video",  "Source": "none",  "ElapsedSeconds": 0.7,  "Level": 0,  "MicLevel": 0,  "SystemLevel": 0,  "Dir": "~/Movies/AgentEyes/2026-11-16_142104_video",  "Camera": null,  "SignedIn": false,  "AccountEmail": null,  "PendingTranscriptions": 69,  "LastStopFailed": false,  "LastStopError": null,  "LastStopDir": null,  "CameraStuck": false,  "StuckCameras": [],  "PreviewScreenFrame": null,  "PreviewCameraFrame": null,  "PreviewAvailable": false,  "PreviewArmed": false,  "PreviewPublishing": false,  "PreviewScreenFramesRead": 0,  "PreviewCameraFramesRead": 0,  "PreviewFailed": false,  "PreviewOverlayCorner": null,  "PreviewOverlayShape": null}
+14:21:09 State recording Elapsed 4.75 Dir ~/Movies/AgentEyes/2026-11-16_142104_video
+14:21:10 State recording Elapsed 5.45 Dir ~/Movies/AgentEyes/2026-11-16_142104_video
+14:21:10 POST /record/stop {}
+{  "Dir": "~/Movies/AgentEyes/2026-11-16_142104_video",  "File": "~/Movies/AgentEyes/2026-11-16_142104_video/recording.mp4",  "DurationSeconds": 5.47,  "Shots": 0}
+14:21:13 State idle Elapsed 5.47 Dir -
+ffmpeg after: 0
+14:20:34.022 [pid 57343] [INFO] [MainWindow] RequestScan: 81 recording(s), 68 pending, 244 ms
+14:21:05.489 [pid 57343] [INFO] [TrayController] Render: idle -> recording
+14:21:05.573 [pid 57343] [INFO] [MainWindow] RequestScan: 82 recording(s), 69 pending, 92 ms
+14:21:05.591 [pid 57343] [INFO] [MainWindow] RequestScan: 82 recording(s), 69 pending, 16 ms
+14:21:11.172 [pid 57343] [INFO] [MainWindow] RequestScan: 82 recording(s), 69 pending, 17 ms
+14:21:11.849 [pid 57343] [INFO] [MainWindow] RequestScan: 82 recording(s), 69 pending, 31 ms

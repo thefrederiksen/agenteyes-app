@@ -1,0 +1,23 @@
+=== capture job com.agenteyes.qa142.row8 14:22:56  captures: row8-details|-x -o -l 807;row8-settings|-x -o -l 808;row8-dictionary|-x -o -l 796;
+service before: pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+14:22:56 job com.agenteyes.qa142.row8 argv ['~/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/tools/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/cap/row8', 'QA_CAPTURES': 'row8-details|-x -o -l 807;row8-settings|-x -o -l 808;row8-dictionary|-x -o -l 796;', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/cap/row8/com.agenteyes.qa142.row8.plist
+  exit=0  
+14:22:56 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa142.row8
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+--- hook report
+14:22:56.190 [hook] pid=59865 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+14:22:56.207 [hook] CGPreflightScreenCaptureAccess() = True
+14:22:56.211 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+14:22:56.212 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+14:22:56.212 [hook] row8-details: screencapture -x -o -l 807 <scratch>/cap/row8/row8-details.png
+14:22:56.265 [hook] row8-details: exit=0 ms=52 file_bytes=34291 stderr=''
+14:22:56.265 [hook] row8-settings: screencapture -x -o -l 808 <scratch>/cap/row8/row8-settings.png
+14:22:56.310 [hook] row8-settings: exit=0 ms=44 file_bytes=41186 stderr=''
+14:22:56.310 [hook] row8-dictionary: screencapture -x -o -l 796 <scratch>/cap/row8/row8-dictionary.png
+14:22:56.360 [hook] row8-dictionary: exit=0 ms=49 file_bytes=90952 stderr=''
+14:22:56.360 [hook] Environment.Exit(0) - the recorder's Main is never reached
+service after:  pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+qa142 launchd labels left: 0

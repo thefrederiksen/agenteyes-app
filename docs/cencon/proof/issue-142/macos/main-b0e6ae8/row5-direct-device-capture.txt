@@ -1,0 +1,23 @@
+16:46:48.418 [mic-hook] pid=92749 exe=~/Library/Application Support/AgentEyes/bin/agenteyes ffmpeg -hide_banner -nostats -y -f avfoundation -thread_queue_size 1024 -i :0 -ac 1 -ar 48000 -c:a pcm_s16le <scratch>/mic-direct1/direct.wav
+16:47:18.561 [mic-hook] ffmpeg pid=92751 exit=0 wall-clock until 'q' 30.033 s, total 30.124 s, wav bytes 2257998 -> 23.520 s of 48 kHz mono s16
+16:47:18.561 [mic-hook] ffmpeg stderr:
+Input #0, avfoundation, from ':0':
+  Duration: N/A, start: 351576.544604, bitrate: 1536 kb/s
+  Stream #0:0: Audio: pcm_f32le, 48000 Hz, mono, flt, 1536 kb/s, start 351576.544604
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to '<scratch>/mic-direct1/direct.wav':
+  Metadata:
+    ISFT            : Lavf63.1.102
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 48000 Hz, mono, s16, 768 kb/s
+    Metadata:
+      encoder         : Lavc63.1.102 pcm_s16le
+
+
+[q] command received. Exiting.
+
+[out#0/wav @ 0xb1b478180] video:0KiB audio:2205KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.003455%
+size=    2205KiB time=00:00:29.86 bitrate= 604.8kbits/s speed=   1x elapsed=0:00:29.87    
+
+16:47:18.565 [mic-hook] Environment.Exit(0)
