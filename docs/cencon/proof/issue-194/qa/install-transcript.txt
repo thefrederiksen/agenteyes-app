@@ -1,0 +1,65 @@
+# QA #194 - real install of the CI-built release bytes (run 44054835280, head 9fec224) on a clean ubuntu:24.04 systemd container
+# user qauser (never had AgentEyes), sudo WITH a password, typed only when sudo prompted, under a real pty
+# command: bash agenteyes-install-linux-x64.sh --release-dir . --no-signin
+
+3da330dba7acc9c83001e9e5488172678bf55aca016120ffff887f310be82b34  agenteyes-linux-x64.tar.gz
+7b8c6beacb40c527e73a2e6cc9c99d543c660be7f93a28dc294caaa241b7486b  agenteyes-install-linux-x64.sh
+===== bash agenteyes-install-linux-x64.sh --release-dir . --no-signin =====
+AgentEyes 1.12.0 for Linux
+[OK] took agenteyes-linux-x64.tar.gz and release-manifest.json from .
+[OK] verified agenteyes-linux-x64.tar.gz against release-manifest.json (sha256 3da330dba7acc9c83001e9e5488172678bf55aca016120ffff887f310be82b34, 86841853 bytes)
+[OK] extracted AgentEyes 1.12.0
+ffmpeg is not installed - AgentEyes records through it. Installing it now (this needs your permission) ...
+[sudo] password for qauser: 
+<<QA: sudo prompted for a password - typed it (prompt 1)>>
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+Suggested packages:
+The following NEW packages will be installed:
+0 upgraded, 90 newly installed, 0 to remove and 3 not upgraded.
+Need to get 71.1 MB of archives.
+After this operation, 187 MB of additional disk space will be used.
+(Reading database ... 
+(Reading database ... 12057 files and directories currently installed.)
+[OK] ffmpeg installed
+The video playback library (libvlc) is not installed. Installing it now (this needs your permission) ...
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+Suggested packages:
+Recommended packages:
+The following NEW packages will be installed:
+The following packages will be upgraded:
+1 upgraded, 104 newly installed, 0 to remove and 2 not upgraded.
+Need to get 22.4 MB of archives.
+After this operation, 99.0 MB of additional disk space will be used.
+(Reading database ... 
+(Reading database ... 25359 files and directories currently installed.)
+(Reading database ... 
+(Reading database ... 25359 files and directories currently installed.)
+[OK] video playback library installed
+[OK] using the prebuilt recorder /tmp/tmp.DkeYSCqgeo/bundle/agenteyes-linux-x64/prebuilt/agenteyes/agenteyes
+[OK] installed /home/qauser/.local/lib/agenteyes, linked /home/qauser/.local/bin/agenteyes, unit /home/qauser/.config/systemd/user/agenteyes.service
+[OK] enabled at login (graphical-session.target)
+[OK] using the prebuilt app /tmp/tmp.DkeYSCqgeo/bundle/agenteyes-linux-x64/prebuilt/agenteyes-app/AgentEyesDesktop
+[OK] installed the app (/home/qauser/.local/lib/agenteyes-app): 'AgentEyes' in the app grid, starts in the tray at login
+[OK] service is up: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
+Sign-in skipped (--no-signin). Recordings are not transcribed or titled until you run: agenteyes signin
+[OK] AgentEyes app started - its window opens, and the moon in the top bar stays when you close it
+Ready. Open AgentEyes from the app grid or the moon in the top bar. From a terminal:
+            record: agenteyes record start --mix --mic "<part of your mic name>"
+            stop:   agenteyes record stop
+<<QA: sudo password prompts answered: 1; exit 0>>
+exit=0
+--- on disk after the real install:
+  PRESENT /home/qauser/.local/lib/agenteyes
+  PRESENT /home/qauser/.local/lib/agenteyes-app
+  PRESENT /home/qauser/.config/systemd/user/agenteyes.service
+  PRESENT /home/qauser/.local/bin/agenteyes
+  PRESENT /home/qauser/.local/share/applications/agenteyes.desktop
+  PRESENT /home/qauser/.config/autostart/agenteyes.desktop
+  /health: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
+  /version: {"app":"AgentEyes","version":"1.12.0"}

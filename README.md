@@ -56,6 +56,28 @@ AgentEyes records **without an account**. Signing in to DevThrottle is optional 
 unlocks the AI stages (transcription, titles, walkthroughs) - capture, camera, preview and
 overlay all work signed out.
 
+### Linux (x64, X11 desktop)
+
+No repository and no .NET - the recorder and the app come prebuilt. In a terminal:
+
+```bash
+curl -fsSLO https://github.com/thefrederiksen/agenteyes-app/releases/latest/download/agenteyes-install-linux-x64.sh
+bash agenteyes-install-linux-x64.sh
+```
+
+The script downloads `agenteyes-linux-x64.tar.gz` from the same release and checks its SHA-256
+against `release-manifest.json` - a corrupt or altered download is refused before anything is
+installed. It then installs, for you alone, the recorder as a systemd user service
+(`~/.config/systemd/user/agenteyes.service`, Control API on `127.0.0.1:7882`) and the app (in the
+app grid, and in the tray at login). ffmpeg and libvlc come from your distribution: if either is
+missing it asks for permission to `apt-get install` it - the only step that needs root. It ends by
+signing you in to DevThrottle in your browser; `--no-signin` skips that (`agenteyes signin` later).
+To **update**, download the newer release's script and run it again; there is no in-app updater on
+Linux. Wayland sessions are not supported - log in with "Ubuntu on Xorg".
+
+The first release that carries the Linux asset is the one after v1.12.0; until it is cut, that
+URL answers 404 and Linux installs from source (`scripts/linux/install.sh`).
+
 ### Building the installer yourself
 
 Only needed if you are changing AgentEyes; the released installer is built by CI from the
