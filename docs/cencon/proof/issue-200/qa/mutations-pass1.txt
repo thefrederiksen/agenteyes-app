@@ -1,0 +1,51 @@
+=== M1 the defect back: --root uses the process-name handle and launcher
+  file=tools/AgentEyes.Setup.Cli/Commands.cs matches=1
+  diff: tools/AgentEyes.Setup.Cli/Commands.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+  build errors: 0
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_AnAppRunsOutsideTheRoot_IsNeverLookedUpStoppedOrStarted [314 ms]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.UpdateWithRoot_AnAppRunsOutsideTheRoot_IsNeverLookedUpStoppedOrStarted [108 ms]
+  Failed!  - Failed:     2, Passed:    23, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+  restored: clean
+=== M2 downloads and extraction staged in %TEMP% again
+  file=tools/AgentEyes.Setup.Engine/InstallLayout.cs matches=1
+  diff: tools/AgentEyes.Setup.Engine/InstallLayout.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+  build errors: 0
+  Failed AgentEyes.Tests.SetupRootIsolationTests.Isolated_IsMarked_IsAbsolute_AndStagesInsideTheRoot [428 ms]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_StagesEveryDownloadAndExtractionInsideTheRoot [94 ms]
+  Failed!  - Failed:     2, Passed:    23, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+  restored: clean
+=== M3 the up-front refusal removed (no --no-finalize / --autostart / --desktop-shortcut check)
+  file=tools/AgentEyes.Setup.Cli/Commands.cs matches=1
+  diff: tools/AgentEyes.Setup.Cli/Commands.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+  build errors: 0
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_WithoutNoFinalize_IsRefusedBeforeAnythingIsTouched [56 ms]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_AskingForSomethingOutsideTheRoot_IsRefused(option: "--autostart", value: "off") [12 ms]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_AskingForSomethingOutsideTheRoot_IsRefused(option: "--autostart", value: "on") [15 ms]
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_AskingForSomethingOutsideTheRoot_IsRefused(option: "--desktop-shortcut", value: null) [13 ms]
+  Failed!  - Failed:     4, Passed:    21, Skipped:     0, Total:    25, Duration: 976 ms - AgentEyes.Tests.dll (net8.0)
+  restored: clean
+=== M4 a copy running INSIDE the root is treated as outside
+  file=tools/AgentEyes.Setup.Engine/IsolatedRootAppHandle.cs matches=1
+  diff: tools/AgentEyes.Setup.Engine/IsolatedRootAppHandle.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+  build errors: 1
+  restored: clean
+=== M5 (QA) isolated uninstall Plan() lists the real outside targets again (Plan is pure; Apply untouched)
+  file=tools/AgentEyes.Setup.Engine/Uninstaller.cs matches=1
+  diff: tools/AgentEyes.Setup.Engine/Uninstaller.cs | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+  build errors: 1
+  restored: clean
+=== M6 (QA) only the zip extraction goes back to %TEMP% (downloads stay in the root)
+  file=tools/AgentEyes.Setup.Engine/UpdateRunner.cs matches=1
+  diff: tools/AgentEyes.Setup.Engine/UpdateRunner.cs | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+  build errors: 0
+  Failed AgentEyes.Tests.SetupRootIsolationTests.InstallWithRoot_StagesEveryDownloadAndExtractionInsideTheRoot [104 ms]
+  Failed!  - Failed:     1, Passed:    24, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)
+  restored: clean
+=== unmutated re-run
+  Passed!  - Failed:     0, Passed:    25, Skipped:     0, Total:    25, Duration: 1 s - AgentEyes.Tests.dll (net8.0)

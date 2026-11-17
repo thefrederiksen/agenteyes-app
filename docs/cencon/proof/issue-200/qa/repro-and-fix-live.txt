@@ -1,0 +1,76 @@
+QA #200 - criterion 1 (control on v1.12.0) and criterion 3 (PR build), live, with the real app running.
+Snapshot script: snap.ps1; real-state fingerprint: realstate.ps1 (both in this folder).
+Published v1.12.0 assets downloaded with gh release download v1.12.0 into <scratch>\rel1120.
+Real app idle, AlwaysOnEnabled=False, no ffmpeg running, before every run.
+
+################ CONTROL: published v1.12.0 setup (1.12.0+02a4622) ################
+=== snapshot: BEFORE control at 2026-11-17 04:21:48.304
+pid=20576 name=AgentEyesApp.exe started=03:48:10 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe cmd="..." --tray
+health: { "ok": true, "app": "AgentEyes" }
+status.State: idle
+7882 listener: yes (HTTP.sys pid 4)
+last 'REST API listening' log line: 03:48:10.995 [pid 20576] [INFO] REST API listening on http://127.0.0.1:7882/
+=== command: agenteyes-setup(v1.12.0) install --release-dir <scratch>\rel1120 --root <scratch>\ctl-root1 --no-finalize
+Install complete:
+  app        Installed
+  cli        Installed
+  setup-cli  Installed
+  ffmpeg     Installed
+installed=4 updated=0 failed=0
+restarted the running app (pid 20576 -> pid 23136)
+note: the stopped process (pid 20576) was running from %USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe, not from the installed <scratch>\ctl-root1\app\AgentEyesApp.exe; the installed build was started. ...
+exit=0
+=== snapshot: AFTER control +6s at 2026-11-17 04:22:06.892
+pid=23136 name=AgentEyesApp.exe started=04:22:00 exe=<scratch>\ctl-root1\app\AgentEyesApp.exe cmd=<scratch>\ctl-root1\app\AgentEyesApp.exe --tray
+health: { "ok": true, "app": "AgentEyes" }
+status.State: idle
+7882 listener: yes (HTTP.sys pid 4)
+last 'REST API listening' log line: 04:22:01.805 [pid 23136] [INFO] REST API listening on http://127.0.0.1:7882/
+RESULT: DEFECT REPRODUCED. The real pid 20576 is gone; the scratch exe (pid 23136) was started with the real
+app's --tray and wrote "REST API listening" into the REAL app log - it owns the real port on the real data.
+
+Restore: scratch pid 23136 confirmed to run from <scratch>\ctl-root1 and to have no child processes, stopped;
+the real app started as its Run key starts it ("...\AgentEyes\app\AgentEyesApp.exe" --tray).
+=== snapshot: real app restored at 2026-11-17 04:22:29.769
+pid=17580 name=AgentEyesApp.exe started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe --tray
+health ok, State idle, last listening line: 04:22:22.295 [pid 17580] REST API listening on 7882
+
+################ FIX: PR #207 build (1.12.0+2821837), tools\AgentEyes.Setup.Cli\bin\Release\net8.0-windows ################
+--- REAL STATE BEFORE
+LNK AgentEyes.lnk [Programs] target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=04:00:18.957
+LNK AgentEyes.lnk [Desktop] target=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe mtime=18:26:46.480
+UNINSTALL ver=1.12.0 loc=%USERPROFILE%\AppData\Local\AgentEyes\app str="%USERPROFILE%\AppData\Local\AgentEyes\app\agenteyes-setup.exe" uninstall
+RUNKEY "%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray
+BUNDLEVAR %USERPROFILE%\AppData\Local\AgentEyes\bundle
+PATH-AE %USERPROFILE%\AppData\Local\AgentEyes\app
+APP pid=17580 started=04:22:21 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+=== A: install --release-dir <scratch>\rel1120 --root <scratch>\fix-rootA --no-finalize (backslash)
+installed=4 updated=0 failed=0
+isolated --root install: no AgentEyes was stopped or started (any running outside the root was left alone)
+exit=0     -> after A: pid 17580 started 04:22:21, health ok, idle, last listening line still [pid 17580]
+=== B: install --release-dir <scratch>/rel1120 --root <scratch>/fix-rootB --no-finalize (FORWARD slashes)
+installed=4 updated=0 failed=0
+isolated --root install: no AgentEyes was stopped or started (any running outside the root was left alone)
+exit=0     -> after B: pid 17580 started 04:22:21, health ok, idle, last listening line still [pid 17580]
+   root B's own log: "Find: pid 17580 runs from outside the root (...\AgentEyes\app\AgentEyesApp.exe) - not this
+   install's; left alone"; root normalised to <scratch>\fix-rootB (backslashes); all 4 downloads to
+   <scratch>\fix-rootB\staging\..., the ffmpeg zip unpacked in <scratch>\fix-rootB\staging\agenteyes-setup-extract-...
+=== C: install --root without --no-finalize
+usage error: install with --root needs --no-finalize: finalizing writes the PATH, DOTNET_BUNDLE_EXTRACT_BASE_DIR, the Start Menu shortcut and the Add/Remove Programs entry - all outside the root. Nothing was touched.
+exit=2   (root C not created)
+=== D: install --root --no-finalize --autostart on
+usage error: --autostart cannot be used with --root: the run-at-login entry is outside the root and would point at it instead of the real install.
+exit=2
+=== D2: install --root --no-finalize --desktop-shortcut
+usage error: --desktop-shortcut cannot be used with --root: the shortcut is outside the root and would point at it instead of the real install.
+exit=2   (root D not created)
+=== E: uninstall --root <scratch>\fix-rootA
+Uninstall complete (your data under <scratch>\fix-rootA is preserved):
+  removed App binaries: <scratch>\fix-rootA\app
+  removed Setup bookkeeping: <scratch>\fix-rootA\config\setup
+  Native extraction cache: not present (<scratch>\fix-rootA\bundle)
+  outside the --root, not touched: the PATH entry, DOTNET_BUNDLE_EXTRACT_BASE_DIR, the Start Menu and desktop shortcuts, the run-at-login entry and the Add/Remove Programs entry (they belong to the real install)
+exit=0
+=== after E +5s: pid 17580 started 04:22:21, health ok, idle, last listening line still [pid 17580]
+--- REAL STATE AFTER: identical to BEFORE, line for line (Compare-Object: no differences)
+RESULT: FIX HOLDS. Same pid, same start time, same version, 7882 still pid 17580's, finalizer state unchanged.
