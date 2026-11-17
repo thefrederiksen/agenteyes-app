@@ -1,0 +1,136 @@
+# Issue #173 round 4 (rescope) - controls. devthrottle-mac-mini, 2026-11-17, Python 3.14.6.
+# Tree: branch issue-173-scrub-identity at 81d2602 + round4-controls.py; includes main 5e6e727 (merged at b3e5725, no rebase).
+# <owner-file> <second-file> <username-file> are outside the repository and never printed.
+
+$ python3 docs/cencon/proof/issue-173/round4-controls.py 5e6e727 <owner-file> <second-file> <username-file>
+## Part 1 - verify-sweep.py against base 5e6e727 (WITH the owner/second value files)
+[OK]   unmutated tree: exit 0, expected 0
+         files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=0
+         mapping checked against the given owner and second values: exact
+[OK]   one digit moved: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+         files=556 identity_values_redacted=4727 digit_runs_compared=165572 json_parsed_before_and_after=323 distinct_addresses=2 failures=1
+         [FAIL] mapping checked against the given owner and second values: NOT exact - 1 failure(s), see the [FAIL] lines above
+[OK]   token swap: one <owner second account> -> <owner account>: exit 1, expected 1
+         [FAIL] an address became the OTHER token: docs/cencon/review/archived-pr-188-issue-187-review-round3.md:45
+         files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+         [FAIL] mapping checked against the given owner and second values: NOT exact - 1 failure(s), see the [FAIL] lines above
+[OK]   token replaced by a non-convention stand-in: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+         files=556 identity_values_redacted=4727 digit_runs_compared=165572 json_parsed_before_and_after=323 distinct_addresses=2 failures=1
+         [FAIL] mapping checked against the given owner and second values: NOT exact - 1 failure(s), see the [FAIL] lines above
+[OK]   CRLF: the first LF turned into CRLF: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+         files=556 identity_values_redacted=4727 digit_runs_compared=165572 json_parsed_before_and_after=323 distinct_addresses=2 failures=1
+         [FAIL] mapping checked against the given owner and second values: NOT exact - 1 failure(s), see the [FAIL] lines above
+[OK]   over-redaction: a non-identity path segment (AppData) became <user>: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt
+         files=556 identity_values_redacted=4725 digit_runs_compared=165380 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+         [FAIL] mapping checked against the given owner and second values: NOT exact - 1 failure(s), see the [FAIL] lines above
+[OK]   under-redaction: the WRAPPED redaction undone (ers\<user> back to the name): exit 1, expected 1
+         [FAIL] under-redaction: a home path that names someone was left as it was: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53
+         files=556 identity_values_redacted=4729 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+         [FAIL] mapping checked against the given owner and second values: NOT exact - 1 failure(s), see the [FAIL] lines above
+
+## Part 2 - check-proof-identity.py (single-line)
+[OK]   guard on the tree: exit 0, expected 0
+         [check-proof-identity] scanned 1703 files, 23371920 bytes under docs/cencon/proof, docs/cencon/review
+         [OK] no email-shaped string and no named home path in committed evidence (single-line scan; wrapped shapes are issue #218)
+[OK]   guard with a planted single-line address: exit 1, expected 1
+         [check-proof-identity] scanned 1704 files, 23371963 bytes under docs/cencon/proof, docs/cencon/review
+         [FAIL] docs/cencon/proof/round4-planted-probe.txt:1: email-shaped string p***@***.io
+         [FAIL] 1 identity hit(s) in committed evidence. Replace an address with <owner account> (or a reserved-domain stand-in such as user@example.com) and a home-path user with <user> - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+[OK]   tester/qauser allowance removed -> the #194 evidence from main 5e6e727 is red: exit 1, expected 1 (22 hit(s))
+         in docs/cencon/proof/issue-194/handoff.md
+         in docs/cencon/proof/issue-194/qa/install-transcript.txt
+         in docs/cencon/proof/issue-194/qa/qa-evidence.txt
+[OK]   unit-type TLD rule removed -> getty@tty1.service and the other named-instance units are red: exit 1, expected 1 (10 hit(s))
+         in docs/cencon/proof/fp23-systemd-unit-names-any-instance.txt
+[OK]   both unit rules removed -> user@1000.service in main's issue-102 systemctl status is red: exit 1, expected 1 (3 hit(s))
+         in docs/cencon/proof/issue-102/qa-linux/systemctl-status.txt
+         in docs/cencon/proof/issue-173/round4-controls.py
+[OK]   reserved-domain rule removed -> scratch@example.invalid in main's issue-196 proof is red: exit 1, expected 1 (20 hit(s))
+         in docs/cencon/proof/issue-173/fixture-proof.txt
+         in docs/cencon/proof/issue-173/guard-red-green.txt
+         in docs/cencon/proof/issue-173/guard-round3.txt
+         in docs/cencon/proof/issue-173/handoff.md
+         in docs/cencon/proof/issue-173/qa/qa-r3-main-merge.txt
+         in docs/cencon/proof/issue-173/qa/qa-report.html
+         in docs/cencon/proof/issue-173/round4-controls.py
+         in docs/cencon/proof/issue-196/proof.sh
+
+## Part 3 - pair_failure() on synthetic home paths
+[OK]   /home/runner/x -> /home/<user>/x: over-redaction: a home path that names no person became <user>
+[OK]   C:\Users\<qa>\x -> C:\Users\<user>\x: over-redaction: a home path that names no person became <user>
+[OK]   /Users/<planted name>/x -> /Users/<planted name>/x: under-redaction: a home path that names someone was left as it was
+[OK]   /home/<planted name>/x -> /Users/<user>/x: a home path did not become the same prefix + <user>
+[OK]   /home/<planted name>/x -> /home/<user>/x: accepted
+[OK]   /home/runner/x -> /home/runner/x: accepted
+
+[OK] 19/19 controls as stated
+exit=0
+
+$ python3 docs/cencon/proof/issue-173/round4-controls.py 5e6e727      # no value files
+## Part 1 - verify-sweep.py against base 5e6e727 (WITHOUT the owner/second value files)
+[OK]   unmutated tree: exit 0, expected 0
+         files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=0
+         WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+[OK]   one digit moved: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+         files=556 identity_values_redacted=4727 digit_runs_compared=165572 json_parsed_before_and_after=323 distinct_addresses=2 failures=1
+         WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+[OK]   token swap: one <owner second account> -> <owner account>: exit 1, expected 1
+         [FAIL] one address was replaced by BOTH tokens (a token was swapped somewhere)
+         files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+         WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+[OK]   token replaced by a non-convention stand-in: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+         files=556 identity_values_redacted=4727 digit_runs_compared=165572 json_parsed_before_and_after=323 distinct_addresses=2 failures=1
+         WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+[OK]   CRLF: the first LF turned into CRLF: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+         files=556 identity_values_redacted=4727 digit_runs_compared=165572 json_parsed_before_and_after=323 distinct_addresses=2 failures=1
+         WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+[OK]   over-redaction: a non-identity path segment (AppData) became <user>: exit 1, expected 1
+         [FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt
+         files=556 identity_values_redacted=4725 digit_runs_compared=165380 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+         WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+[SKIP] under-redaction of the wrapped occurrence: no username-file given
+
+## Part 2 - check-proof-identity.py (single-line)
+[OK]   guard on the tree: exit 0, expected 0
+         [check-proof-identity] scanned 1703 files, 23371920 bytes under docs/cencon/proof, docs/cencon/review
+         [OK] no email-shaped string and no named home path in committed evidence (single-line scan; wrapped shapes are issue #218)
+[OK]   guard with a planted single-line address: exit 1, expected 1
+         [check-proof-identity] scanned 1704 files, 23371963 bytes under docs/cencon/proof, docs/cencon/review
+         [FAIL] docs/cencon/proof/round4-planted-probe.txt:1: email-shaped string p***@***.io
+         [FAIL] 1 identity hit(s) in committed evidence. Replace an address with <owner account> (or a reserved-domain stand-in such as user@example.com) and a home-path user with <user> - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+[OK]   tester/qauser allowance removed -> the #194 evidence from main 5e6e727 is red: exit 1, expected 1 (22 hit(s))
+         in docs/cencon/proof/issue-194/handoff.md
+         in docs/cencon/proof/issue-194/qa/install-transcript.txt
+         in docs/cencon/proof/issue-194/qa/qa-evidence.txt
+[OK]   unit-type TLD rule removed -> getty@tty1.service and the other named-instance units are red: exit 1, expected 1 (10 hit(s))
+         in docs/cencon/proof/fp23-systemd-unit-names-any-instance.txt
+[OK]   both unit rules removed -> user@1000.service in main's issue-102 systemctl status is red: exit 1, expected 1 (3 hit(s))
+         in docs/cencon/proof/issue-102/qa-linux/systemctl-status.txt
+         in docs/cencon/proof/issue-173/round4-controls.py
+[OK]   reserved-domain rule removed -> scratch@example.invalid in main's issue-196 proof is red: exit 1, expected 1 (20 hit(s))
+         in docs/cencon/proof/issue-173/fixture-proof.txt
+         in docs/cencon/proof/issue-173/guard-red-green.txt
+         in docs/cencon/proof/issue-173/guard-round3.txt
+         in docs/cencon/proof/issue-173/handoff.md
+         in docs/cencon/proof/issue-173/qa/qa-r3-main-merge.txt
+         in docs/cencon/proof/issue-173/qa/qa-report.html
+         in docs/cencon/proof/issue-173/round4-controls.py
+         in docs/cencon/proof/issue-196/proof.sh
+
+## Part 3 - pair_failure() on synthetic home paths
+[OK]   /home/runner/x -> /home/<user>/x: over-redaction: a home path that names no person became <user>
+[OK]   C:\Users\<qa>\x -> C:\Users\<user>\x: over-redaction: a home path that names no person became <user>
+[OK]   /Users/<planted name>/x -> /Users/<planted name>/x: under-redaction: a home path that names someone was left as it was
+[OK]   /home/<planted name>/x -> /Users/<user>/x: a home path did not become the same prefix + <user>
+[OK]   /home/<planted name>/x -> /home/<user>/x: accepted
+[OK]   /home/runner/x -> /home/runner/x: accepted
+
+[OK] 18/18 controls as stated
+exit=0
