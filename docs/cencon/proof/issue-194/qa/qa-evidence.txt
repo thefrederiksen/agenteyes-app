@@ -1,0 +1,204 @@
+QA #194 (LINUX HALF) - raw evidence, verbatim from the QA session, 2026-11-17
+PR #205, head 9fec224. Verified in a separate fresh clone of the repository, never in the developer's tree.
+Release bytes: the "release-dry-run" artifact of release run 44054835280 (head 9fec224), downloaded with
+gh run download. 8 files, exactly the set the publish step names. Their hashes:
+  3da330dba7acc9c83001e9e5488172678bf55aca016120ffff887f310be82b34  agenteyes-linux-x64.tar.gz  (86841853 bytes)
+  7b8c6beacb40c527e73a2e6cc9c99d543c660be7f93a28dc294caaa241b7486b  agenteyes-install-linux-x64.sh (5121 bytes)
+Both equal the entries in that artifact's release-manifest.json (the 7-asset manifest the Windows job wrote).
+
+=====================================================================================================
+THE CLEAN MACHINE
+=====================================================================================================
+New container from public ubuntu:24.04, systemd as PID 1, one new user "qauser" who has a sudo PASSWORD
+(not passwordless: "sudo -n true" -> "sudo: a password is required"). Preinstalled by QA: systemd, dbus,
+sudo, curl, python3, x11-xserver-utils, Xvfb, x11-apps (xclock/xeyes as on-screen content), pulseaudio.
+Before the install:
+  dotnet    not installed
+  ffmpeg    not installed
+  agenteyes not installed
+  vlc       not installed
+  libvlc entries in ldconfig: 0
+  ~/.local/lib/agenteyes, ~/.local/lib/agenteyes-app, ~/.config/systemd/user/agenteyes.service,
+  ~/.local/bin/agenteyes, ~/Videos/AgentEyes: all "No such file or directory"
+  :7882 not answering
+
+=====================================================================================================
+CRITERION 3 - QA'S OWN CORRUPTIONS (different places from the developer's mid-file XOR at size/2)
+=====================================================================================================
+A: offset 1000: 0x8e -> 0x0e          (bit 7 flipped, start of the deflate stream; size unchanged)
+B: last byte truncated                 (gzip trailer damaged; size changes)
+dlA: 86841853 bytes, sha256 b7c3be126b98b8b7dd9475b7ed75c3ec6075daeb84b8e15ffcf6ded81cdd3970
+dlB: 86841852 bytes, sha256 717a31ed20862a1f57f508fcc22a16d58068c81f4def0b4d9f5af6d4ba7c7e0f
+real: 86841853 bytes, sha256 3da330dba7acc9c83001e9e5488172678bf55aca016120ffff887f310be82b34
+tmp.* dirs before: 0
+===== dlA: bash dlA/agenteyes-install-linux-x64.sh --release-dir dlA (at a real terminal) =====
+AgentEyes 1.12.0 for Linux
+[OK] took agenteyes-linux-x64.tar.gz and release-manifest.json from dlA
+[FAIL] agenteyes-linux-x64.tar.gz does NOT match release-manifest.json - it is corrupt or has been altered.
+       expected: sha256 3da330dba7acc9c83001e9e5488172678bf55aca016120ffff887f310be82b34, 86841853 bytes
+       got:      sha256 b7c3be126b98b8b7dd9475b7ed75c3ec6075daeb84b8e15ffcf6ded81cdd3970, 86841853 bytes
+       Nothing was extracted and nothing was installed. Download it again.
+<<QA: sudo password prompts answered: 0; exit 1>>
+exit=1
+--- on disk after dlA:
+  absent  /home/qauser/.local/lib/agenteyes
+  absent  /home/qauser/.local/lib/agenteyes-app
+  absent  /home/qauser/.config/systemd/user/agenteyes.service
+  absent  /home/qauser/.local/bin/agenteyes
+  absent  /home/qauser/.local/share/applications/agenteyes.desktop
+  absent  /home/qauser/.config/autostart/agenteyes.desktop
+  ffmpeg: absent  libvlc: 0  unit-known: 0  :7882: 000
+  tmp.* dirs left: 0
+===== dlB: bash dlB/agenteyes-install-linux-x64.sh --release-dir dlB (at a real terminal) =====
+AgentEyes 1.12.0 for Linux
+[OK] took agenteyes-linux-x64.tar.gz and release-manifest.json from dlB
+[FAIL] agenteyes-linux-x64.tar.gz does NOT match release-manifest.json - it is corrupt or has been altered.
+       expected: sha256 3da330dba7acc9c83001e9e5488172678bf55aca016120ffff887f310be82b34, 86841853 bytes
+       got:      sha256 717a31ed20862a1f57f508fcc22a16d58068c81f4def0b4d9f5af6d4ba7c7e0f, 86841852 bytes
+       Nothing was extracted and nothing was installed. Download it again.
+<<QA: sudo password prompts answered: 0; exit 1>>
+exit=1
+--- on disk after dlB:
+  (same six paths: all absent)
+  ffmpeg: absent  libvlc: 0  unit-known: 0  :7882: 000
+  tmp.* dirs left: 0
+POSITIVE CONTROL for the on-disk check: after the real install (install-transcript.txt) the SAME check
+prints PRESENT for all six paths. ffmpeg and libvlc still being absent after A and B proves the refusal
+came before the first apt step, not merely before extraction.
+
+=====================================================================================================
+CRITERION 2 - THE REAL INSTALL (full transcript: install-transcript.txt)
+=====================================================================================================
+One sudo password prompt (typed when it appeared; sudo cached it for the libvlc step), exit 0.
+After the install:
+  ffmpeg: /usr/bin/ffmpeg from ffmpeg 7:6.1.1-3ubuntu5
+  libvlc entries: 3   dotnet: not installed
+  unit: active / enabled  ExecStart=path=/home/qauser/.local/lib/agenteyes/agenteyes
+  app: 2297 /home/qauser/.local/lib/agenteyes-app/AgentEyesDesktop
+  tmp.* left: 0
+  /health: {"ok":true,"app":"AgentEyes","host":"headless","platform":"linux"}
+  /version: {"app":"AgentEyes","version":"1.12.0"}
+Audio: the user manager's socket-activated pulseaudio.service (what the unit's After= expects on a desktop),
+given a null sink "QA_Speakers" playing a 440 Hz sine, and a sine source "QA_Mic" at 880 Hz.
+  GET /devices -> mics: [{'Number': 0, 'Name': 'QA_Mic'}] | systemAudio: Monitor of QA_Speakers (qa_speakers.monitor)
+
+=====================================================================================================
+CRITERION 2 - A RECORDING FROM THE INSTALLED ASSET, AND IT DECODES
+=====================================================================================================
+Recording 1 - exactly the command the installer's last lines tell the user to run:
+$ agenteyes record start --mix --mic "QA"
+[ok] recording -> AgentEyes/2026-11-17_100737_video
+     source=mixed mode=video
+== status mid-recording
+{"State":"recording","Mode":"video","Source":"mixed","ElapsedSeconds":4.48,"Level":0.5,"MicLevel":0.5,"SystemLevel":0.5,...}
+$ agenteyes record stop
+[ok] saved AgentEyes/2026-11-17_100737_video (10.7s)
+Files: recording.mp4 (423731 B), recording.original.mp4, system.original.wav, audio_16k.wav, thumb.jpg, manifest.json
+Manifest PostProcessing: mux done, thumbnail done, package failed "Not signed in to DevThrottle" (expected: --no-signin)
+Independent probe and FULL decode (ffmpeg -v error -i F -map 0 -f null -):
+== recording.mp4
+index=0|codec_name=h264|codec_type=video|width=1280|height=720|r_frame_rate=30/1|nb_frames=470
+index=1|codec_name=aac|codec_type=audio|sample_rate=48000|channels=2|nb_frames=821
+format_name=mov,mp4,m4a,3gp,3g2,mj2|duration=17.480000
+  full decode exit=0
+  decoded video frame=470
+  audio mean_volume: -13.6 dB
+  audio max_volume: -2.5 dB
+== recording.original.mp4   full decode exit=0, decoded video frame=470, audio mean -9.0 dB
+== system.original.wav      pcm_s16le 48000 2ch, 12.29 s, full decode exit=0, mean -9.0 dB
+== audio_16k.wav            pcm_s16le 16000 1ch, 17.49 s, full decode exit=0, mean -13.6 dB
+Frame at 5 s, extracted from recording.mp4: recording-frame-at-5s.png - it shows the installed AgentEyes app
+(started by the installer) in its Record view: STOP button, "REC 00:04", MIC and SYS meters live.
+
+OBSERVATION (not this PR): recording 1 is 17.48 s long for 10.7 s of wall clock. ffmpeg's own log says why:
+  frame=  470 fps= 33 q=-1.0 Lsize= 340kB time=00:00:17.45 bitrate= 159.6kbits/s dup=59 drop=57 speed=1.21x
+The capture's clock ran 1.21x real time. Recording 2 removes the audio inputs and the stretch disappears,
+so it comes from the virtual pulse sine source, which has no hardware clock - the family of #157 (listed in
+the v1.12.0 known defects as measured on virtual inputs). This PR does not touch the recorder.
+
+Recording 2 - REST API, screen only:
+POST /record/start {"mode":"video","source":"none"} -> {"State":"recording","Mode":"video","Source":"none",...}
+POST /record/stop -> {"Dir":"AgentEyes/2026-11-17_100854_video","File":".../recording.mp4","DurationSeconds":10.44,"Shots":0}
+wall clock start->stop: 10.86 s
+recording.mp4: h264 1280x720, duration=10.600000, full decode exit=0
+
+=====================================================================================================
+THE DESIGN ARGUMENT - "a .deb would have to enable the unit globally" - MEASURED
+=====================================================================================================
+Same container, systemd 255 (255.4-1ubuntu8.18). As ROOT (a maintainer script runs as root), a user unit
+shipped to the system path /usr/lib/systemd/user/qa-deb-demo.service, and a second account "otheruser":
+# systemctl --user --machine=qauser@.host enable --now qa-deb-demo.service
+Created symlink /home/qauser/.config/systemd/user/default.target.wants/qa-deb-demo.service -> /usr/lib/systemd/user/qa-deb-demo.service.
+exit=0
+qauser:    enabled=enabled active=active
+global enablement (what dh_installsystemduser does): disabled
+otheruser has a link: 0 files
+(demo unit, its link and otheruser removed afterwards)
+=> Root CAN enable and start a user unit for ONE account without enabling it globally. The second
+alternative needs no postinst at all: ship the unit disabled and let the user (or the app's first run)
+enable it. The load-bearing sentence in the handoff is false; see the report for what does hold.
+
+=====================================================================================================
+CRITERION 5 - THE EXACT-SET CHECKS, MADE TO FIRE
+=====================================================================================================
+Local: the two run: blocks copied byte-for-byte out of the PR's release.yml by a YAML parser ("Verify
+completeness (the asset set is exact)" and the publish step's own Compare-Object check, cut just before
+the gh release create line), run under pwsh 7.4.11 against copies of the 8-file dry-run release:
+case       verify           publish-step check
+ok         exit 0           exit 0  (positive control)
+absent     exit 1  missing release assets: agenteyes-linux-x64.tar.gz
+                            exit 1  not exactly the asset set ... dist/release/agenteyes-linux-x64.tar.gz <=
+misnamed   exit 1  missing release assets: agenteyes-linux-x64.tar.gz      (file renamed to .tgz)
+                            exit 1  ... agenteyes-linux-x64.tgz => / agenteyes-linux-x64.tar.gz <=
+noinst     exit 1  missing release assets: agenteyes-install-linux-x64.sh
+                            exit 1  ... dist/release/agenteyes-install-linux-x64.sh <=
+extra      exit 1  unexpected release assets: agenteyes-linux-arm64.tar.gz
+                            exit 1  ... dist/release/agenteyes-linux-arm64.tar.gz =>
+unhashed   exit 1  assets with no entry in release-manifest.json: agenteyes-linux-x64.tar.gz
+                            exit 0  (presence-only by design; the verify step before it is the one that fires)
+
+CI: two scratch branches off 9fec224, each one change, dispatched as dry runs, then deleted.
+R1 run 44062426788 (qa194-negctl-linux-misnamed): build-release.sh writes agenteyes-linux-x64.tgz
+  job linux: failure - "Build the Linux release assets: success" (the build itself does not check the
+  name), "Write the manifest the Linux install smoke verifies against: failure":
+    write-manifest.ps1:56 throw "missing asset: $name" -> missing asset: agenteyes-linux-x64.tar.gz
+  smoke and upload: skipped.   job release (Windows, publishes): SKIPPED. No release possible.
+R2 run 44062431625 (qa194-negctl-extra-asset): one stray agenteyes-linux-x64-STRAY.tar.gz copied in
+  the Windows job. job linux: success. job release: failure at
+  "Verify completeness (the asset set is exact)": unexpected release assets: agenteyes-linux-x64-STRAY.tar.gz
+  After it: offline smoke, dry-run upload and "Publish release to this repo's own releases": skipped.
+Afterwards: both branches deleted (0 qa194-* heads on the remote), gh release list latest = v1.12.0,
+highest tag = v1.12.0.
+
+=====================================================================================================
+THE 1-IN-10 LINUX FAILURE
+=====================================================================================================
+The developer's session log names no test (its output was filtered to the summary line). It does fix
+the circumstances: 09:02:13 "dotnet test tests/AgentEyes.Tests.Linux -c Release" (building) started in
+parallel with "dotnet build tests/AgentEyes.Tests -p:EnableWindowsTargeting=true" (which fails on Linux
+with MSB4019), 4 s after a GET /status to the live service. Result: Failed 1, Passed 472, Skipped 1.
+QA runs, AGENTEYES_FFMPEG_TESTS=1, each logged to TRX:
+  41 quiet                                       41/41 green (474 total, 473 passed, 1 skipped)
+  20 under a continuous DesktopApp rebuild loop  20/20 green
+  24 as 12 pairs of concurrent suite runs        24/24 green
+  10 exact replays of the developer's pairing    10/10 green
+  => 95 full-suite runs, 0 failures. Not reproduced.
+The #174 mechanism, tested directly: HeadlessControlServerFramingTests.FreePort() binds 127.0.0.1:0,
+reads the port, releases it, and the server binds that port again later. With a bounded helper holding
+4000 random loopback ports at a time (about 14 percent of the ephemeral range, nowhere near exhaustion):
+  15 runs of that class (20 tests each): 5 failures in 4 runs (C01, C06, C08 x2, C15), every one:
+  "the Control API could not listen on http://127.0.0.1:<port>/ (Address already in use)" or
+  "System.Net.HttpListenerException : Address already in use"
+  e.g. OtherPosts_NoBodyNoContentLength_Rejected411BeforeHandler(path: "/record/shot")
+
+=====================================================================================================
+GATES (QA's own runs, SDK 8.0.134 on Linux)
+=====================================================================================================
+dotnet test tests/AgentEyes.Tests.Linux -c Release (AGENTEYES_FFMPEG_TESTS=1): Failed 0, Passed 473,
+  Skipped 1, Total 474 - and 95 repeats above, 0 failed.
+dotnet test tests/AgentEyes.Tests.DesktopApp -c Release: Failed 0, Passed 23, Total 23.
+dotnet build tests/AgentEyes.Tests.Mac -c Release: Build succeeded, 0 Error(s).
+AgentEyes.sln (WPF) cannot build on Linux; its gate on CI at 9fec224 (ci push 44054850880, ci PR 44054836420):
+  windows AgentEyes.Tests: 2540 total, 2524 passed, 16 skipped, 0 failed; with ffmpeg tests 2544, 2543 passed,
+  1 skipped, 0 failed. DesktopApp 23/23. macos 432 total, 431 passed, 1 skipped, 0 failed.
+  linux 474 total, 0 failed (both configurations).

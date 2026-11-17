@@ -2,8 +2,14 @@
 # Install (or update) AgentEyes on Linux: the recorder as a systemd USER service (issue #102) and the
 # desktop app - library, player, record, settings and the tray icon (issue #107).
 #
-#   scripts/linux/install.sh            build, install, enable at login, (re)start both
-#   scripts/linux/install.sh --no-start build and install, enable at login, do not start now
+#   scripts/linux/install.sh                  build, install, enable at login, (re)start both
+#   scripts/linux/install.sh --no-start       build and install, enable at login, do not start now
+#   scripts/linux/install.sh --prebuilt DIR   install the builds in DIR instead of building (issue #194):
+#                                             DIR/agenteyes (the recorder) and DIR/agenteyes-app (the app),
+#                                             both self-contained linux-x64. This is how the release asset
+#                                             agenteyes-linux-x64.tar.gz installs; it needs no .NET SDK.
+#   scripts/linux/install.sh --no-signin      do not run the DevThrottle sign-in at the end (it opens a
+#                                             browser and waits for you); run 'agenteyes signin' later
 #
 # What it puts where:
 #   ~/.local/lib/agenteyes/            the self-contained linux-x64 build of agenteyes
@@ -19,13 +25,32 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 lib="$HOME/.local/lib/agenteyes"
 bin="$HOME/.local/bin"
 unit_dir="$HOME/.config/systemd/user"
-start=1
-[[ "${1:-}" == "--no-start" ]] && start=0
 
 fail() { echo "[FAIL] $*" >&2; exit 1; }
 ok()   { echo "[OK] $*"; }
 
-command -v dotnet >/dev/null  || fail "dotnet is not installed (sudo apt install -y dotnet-sdk-8.0)"
+start=1
+signin=1
+prebuilt=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-start)  start=0 ;;
+        --no-signin) signin=0 ;;
+        --prebuilt)
+            [[ $# -ge 2 ]] || fail "--prebuilt needs a folder: --prebuilt <dir holding agenteyes/ and agenteyes-app/>"
+            prebuilt="$(cd "$2" && pwd)" || fail "--prebuilt folder not found: $2"
+            shift ;;
+        *) fail "unknown option: $1 (options: --no-start, --no-signin, --prebuilt <dir>)" ;;
+    esac
+    shift
+done
+
+if [[ -n "$prebuilt" ]]; then
+    [[ -x "$prebuilt/agenteyes/agenteyes" ]] || fail "--prebuilt $prebuilt has no executable agenteyes/agenteyes"
+    [[ -x "$prebuilt/agenteyes-app/AgentEyesDesktop" ]] || fail "--prebuilt $prebuilt has no executable agenteyes-app/AgentEyesDesktop"
+else
+    command -v dotnet >/dev/null || fail "dotnet is not installed (sudo apt install -y dotnet-sdk-8.0)"
+fi
 
 # Root, asked for the way the person can answer. AgentEyes is meant to be installed BY AN AGENT
 # (a coding agent session) that has no terminal to type a password into, so with no tty the request
@@ -67,13 +92,21 @@ if [[ "$shared_libs" != *"libvlc.so "* || "$shared_libs" != *"libvlccore.so"* ]]
 fi
 [[ "${XDG_SESSION_TYPE:-x11}" == "wayland" ]] && fail "this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')"
 
-echo "Building agenteyes (Release, linux-x64, self-contained) ..."
-stage="$(mktemp -d)"
-trap 'rm -rf "$stage"' EXIT
-dotnet publish "$repo/src/AgentEyes.Core/AgentEyes.Core.csproj" -c Release -f net8.0 -r linux-x64 \
-    --self-contained true -p:Platform=x64 -o "$stage" -v q --nologo
-[[ -x "$stage/agenteyes" ]] || fail "the build did not produce $stage/agenteyes"
-ok "built $stage/agenteyes"
+# The temporary build folders this script made, removed on exit. A --prebuilt folder is never in it.
+made=()
+trap 'rm -rf "${made[@]}"' EXIT
+if [[ -n "$prebuilt" ]]; then
+    stage="$prebuilt/agenteyes"
+    ok "using the prebuilt recorder $stage/agenteyes"
+else
+    echo "Building agenteyes (Release, linux-x64, self-contained) ..."
+    stage="$(mktemp -d)"
+    made+=("$stage")
+    dotnet publish "$repo/src/AgentEyes.Core/AgentEyes.Core.csproj" -c Release -f net8.0 -r linux-x64 \
+        --self-contained true -p:Platform=x64 -o "$stage" -v q --nologo
+    [[ -x "$stage/agenteyes" ]] || fail "the build did not produce $stage/agenteyes"
+    ok "built $stage/agenteyes"
+fi
 
 if systemctl --user is-active --quiet agenteyes.service; then
     echo "Stopping the running service (a running recording is stopped and kept) ..."
@@ -101,13 +134,17 @@ ok "enabled at login (graphical-session.target)"
 app_lib="$HOME/.local/lib/agenteyes-app"
 apps_dir="$HOME/.local/share/applications"
 autostart_dir="$HOME/.config/autostart"
-echo "Building the AgentEyes app (Release, linux-x64, self-contained) ..."
-app_stage="$(mktemp -d)"
-trap 'rm -rf "$stage" "$app_stage"' EXIT
-dotnet publish "$repo/src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj" -c Release -r linux-x64 \
-    --self-contained true -p:Platform=x64 -o "$app_stage" -v q --nologo
-[[ -x "$app_stage/AgentEyesDesktop" ]] || fail "the build did not produce $app_stage/AgentEyesDesktop"
-install -m 0644 "$repo/assets/icon-256.png" "$app_stage/agenteyes.png"
+if [[ -n "$prebuilt" ]]; then
+    app_stage="$prebuilt/agenteyes-app"
+    ok "using the prebuilt app $app_stage/AgentEyesDesktop"
+else
+    echo "Building the AgentEyes app (Release, linux-x64, self-contained) ..."
+    app_stage="$(mktemp -d)"
+    made+=("$app_stage")
+    dotnet publish "$repo/src/AgentEyes.DesktopApp/AgentEyes.DesktopApp.csproj" -c Release -r linux-x64 \
+        --self-contained true -p:Platform=x64 -o "$app_stage" -v q --nologo
+    [[ -x "$app_stage/AgentEyesDesktop" ]] || fail "the build did not produce $app_stage/AgentEyesDesktop"
+fi
 # Stop the running app by the path it was started from. Not "pgrep -x <name>": a process name is cut
 # to 15 characters on Linux, so AgentEyesDesktop (16) would never match and the old app would keep
 # running. AgentEyesLinux is the name the app had before issue #116: an install over an older one must
@@ -116,6 +153,7 @@ install -m 0644 "$repo/assets/icon-256.png" "$app_stage/agenteyes.png"
 for p in $(pgrep -f "^$app_lib/AgentEyes(Desktop|Linux)( |\$)" || true); do kill "$p"; done
 rm -rf "$app_lib.new"
 cp -a "$app_stage" "$app_lib.new"
+install -m 0644 "$repo/assets/icon-256.png" "$app_lib.new/agenteyes.png"
 rm -rf "$app_lib"
 mv "$app_lib.new" "$app_lib"
 mkdir -p "$apps_dir" "$autostart_dir"
@@ -153,7 +191,9 @@ fi
 
 # First run: sign in to DevThrottle, which transcribes and titles the recordings. The service
 # cannot ask (it has no window), so the installer does, once. Already signed in = nothing to do.
-if "$bin/agenteyes" account | grep -q '^signed in as'; then
+if [[ $signin -eq 0 ]]; then
+    echo "Sign-in skipped (--no-signin). Recordings are not transcribed or titled until you run: agenteyes signin"
+elif "$bin/agenteyes" account | grep -q '^signed in as'; then
     ok "$("$bin/agenteyes" account)"
 else
     echo "Not signed in to DevThrottle - recordings would not be transcribed or titled. Signing in now ..."

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QA report - issue #194 (Linux half) / PR #205</title>
+<style>
+  body { font-family: Segoe UI, Arial, sans-serif; max-width: 1100px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1, h2, h3 { color: #123; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0 20px; font-size: 14px; }
+  th, td { border: 1px solid #bbb; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #eef; }
+  code, pre { font-family: Consolas, monospace; font-size: 13px; }
+  pre { background: #f6f6f6; border: 1px solid #ddd; padding: 8px; overflow-x: auto; }
+  .pass { color: #060; font-weight: bold; }
+  .open { color: #850; font-weight: bold; }
+  .finding { color: #a40; font-weight: bold; }
+  .verdict { border: 2px solid #060; padding: 10px; background: #efe; }
+</style>
+</head>
+<body>
+
+<h1>QA report - issue #194 (LINUX HALF) / PR #205</h1>
+<p><b>Issue:</b> [Release] The release pipeline builds no Linux or macOS assets (thefrederiksen/agenteyes-app #194), scoped to the
+Linux half by the lead's comment of 2026-11-17 08:41 UTC.<br>
+<b>PR:</b> #205, branch <code>issue-194-linux-release-asset</code>, head <code>9fec224</code>.<br>
+<b>Where QA worked:</b> a separate fresh clone of the repository, with the PR head fetched as a local branch. It was never the developer's working tree.<br>
+<b>QA date:</b> 2026-11-17<br>
+<b>Bytes under test:</b> the <code>release-dry-run</code> artifact of release run 44054835280 (head 9fec224). It has exactly 8 files, and its
+<code>release-manifest.json</code> is the 7-asset manifest the Windows job writes: the bytes a tag push would publish.<br>
+<b>Raw evidence:</b> <code>qa/qa-evidence.txt</code>, <code>qa/install-transcript.txt</code>, <code>qa/recording-frame-at-5s.png</code>.</p>
+
+<div class="verdict">
+<p><b>VERIFIED - every Linux-half criterion (2, 3, 4, 5, 6) met, with three findings recorded below and none of them blocking.</b>
+A recording WAS made from the installed asset, and it decodes: H.264 1280x720, 470 frames, stereo AAC, not silent, and a
+full <code>ffmpeg -f null</code> decode exits 0. QA's own corruptions in two new places were refused, and the result was asserted on disk.
+Criterion 5 was EXTENDED, not relaxed, and QA watched it go red twice in CI and six ways locally. The dry-run trigger cannot reach
+the publish step. The macOS half (criterion 1, and criteria 3 and 4 for macOS) is <span class="open">OPEN</span> and untouched;
+#194 stays open for it. Label: <code>flow:ready-gate</code>. QA does not merge (D7).</p>
+</div>
+
+<h2>1. Gates, run by QA</h2>
+<pre>SDK 8.0.134, Linux
+AGENTEYES_FFMPEG_TESTS=1 dotnet test tests/AgentEyes.Tests.Linux -c Release
+  Passed!  - Failed: 0, Passed: 473, Skipped: 1, Total: 474        (95 full-suite runs in all, 0 failures - section 8)
+dotnet test tests/AgentEyes.Tests.DesktopApp -c Release
+  Passed!  - Failed: 0, Passed: 23, Skipped: 0, Total: 23
+dotnet build tests/AgentEyes.Tests.Mac -c Release   -> Build succeeded, 0 Error(s)
+
+AgentEyes.sln is WPF and does not build on Linux. Its gate, CI at 9fec224 (ci push 44054850880, ci PR 44054836420):
+  windows AgentEyes.Tests       2540 total, 2524 passed, 16 skipped, 0 failed
+  windows AgentEyes.Tests (+ffmpeg opt-in) 2544 total, 2543 passed, 1 skipped, 0 failed
+  macos   AgentEyes.Tests.Mac   432 total, 431 passed, 1 skipped, 0 failed
+  linux   AgentEyes.Tests.Linux 474 total, 0 failed (both configurations)</pre>
+
+<h2>2. Per criterion</h2>
+<table>
+<tr><th>#</th><th>Expected</th><th>Actual (QA's own evidence)</th><th>Result</th></tr>
+
+<tr><td>2</td><td>A Linux asset is published and installs on a clean machine: the unit started, <code>/health</code> answering. The lead added that it must be
+shown to RECORD, not just answer <code>/health</code>.</td>
+<td>The clean machine is a new ubuntu:24.04 container with systemd as PID 1 and a never-used user. Unlike the developer's run, this user
+has a <b>real sudo password</b>, and the installer ran under a real pty, so the person-at-a-terminal branch of <code>as_root</code> was exercised:
+one password prompt, typed when it appeared and cached for the libvlc step. Before the install there were no dotnet, ffmpeg, vlc,
+libvlc or AgentEyes paths and nothing on :7882. After it: exit 0, unit <code>active</code>/<code>enabled</code>,
+<code>/health</code> <code>{"ok":true,...,"platform":"linux"}</code>, <code>/version</code> 1.12.0, ffmpeg 7:6.1.1-3ubuntu5 from the distribution,
+libvlc present, <b>no dotnet</b>, the app running, and no temp folders left.<br>
+<b>Recording 1</b> used the exact command the installer prints at the end: <code>agenteyes record start --mix --mic "QA"</code>, then
+<code>agenteyes record stop</code>. While it ran, MicLevel and SystemLevel both read 0.5. <code>recording.mp4</code>: h264 1280x720 30 fps, 470 frames decoded;
+aac 48 kHz stereo, mean -13.6 dB; full decode exit 0. The mux and thumbnail stages reported <code>done</code>. The frame at 5 s
+(<code>qa/recording-frame-at-5s.png</code>) shows the installed app itself mid-recording, "REC 00:04".<br>
+<b>Recording 2</b> went through the REST API, screen only: 10.60 s file for 10.86 s of wall clock, full decode exit 0.</td>
+<td class="pass">PASS (Linux)</td></tr>
+
+<tr><td>3</td><td>The asset is in <code>release-manifest.json</code> with its SHA-256, and the install path verifies the hash, shown failing on a deliberately
+corrupted download.</td>
+<td>The manifest has <code>agenteyes-linux-x64.tar.gz</code> (3da330db...2b34, 86841853, linux) and <code>agenteyes-install-linux-x64.sh</code>
+(7b8c6bea...486b, 5121, linux), and both equal the artifact's actual bytes. <b>QA's own corruptions</b>, in places other than the developer's
+size/2 XOR: (A) bit 7 of the byte at offset 1000 flipped, size unchanged; (B) the last byte truncated, which damages the gzip trailer and changes the size.
+Each printed expected vs got, <b>exit 1</b>, and on disk all six install paths were absent, the unit was unknown, :7882 was dead and no temp folder was left.
+ffmpeg and libvlc were <b>still absent</b>, which proves the refusal came before the first apt step. Positive control: the same on-disk check prints
+PRESENT for all six paths after the real install.</td>
+<td class="pass">PASS (Linux)</td></tr>
+
+<tr><td>4</td><td>The updater's behaviour is stated for Linux and for a platform with no asset, and shown.</td>
+<td>Linux has no in-app updater. QA's grep for <code>ReleaseSource|releases/latest|api.github.com</code> over Core, DesktopApp and LinuxApp finds
+nothing, and the same grep over <code>src/AgentEyes.App</code> finds <code>UpdateChecker.cs</code> (positive control). The update path is to re-run the newer script;
+the README says so. <code>tools/AgentEyes.Setup.Engine</code> is byte-identical to v1.12.0 (<code>git diff --quiet</code>). The new test
+<code>Planner_ManifestWithLinuxAssets_PlansOnlyTheWindowsComponents</code> was read: it asserts exactly app/cli/setup-cli/ffmpeg are planned,
+no linux asset is planned, and <code>platform</code> parses as linux. It ran green on Windows CI (2539 -> 2540). The only loop over every
+manifest key (<code>ReleaseSource.LoadLocalReleaseDir</code>) maps local paths and is inert. The Windows dry-run step "Smoke-test an offline
+install" passed against the 7-asset manifest.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>5</td><td>A platform whose asset failed to build fails the release. The exact set is EXTENDED, not loosened.</td>
+<td><b>Extended:</b> in both lists every original name is still present, the two Linux names were added, and nothing was removed. The publish step's
+<code>Compare-Object</code> is unchanged. "Verify completeness" gained the extra-file and unhashed-asset throws. The release job has
+<code>needs: linux</code>, with no <code>continue-on-error</code> anywhere and no job-level <code>if</code>. Every step-level <code>if</code> lacks a
+status function, so the implicit <code>success() &amp;&amp;</code> applies.<br>
+<b>Fired locally</b>: the two run blocks were extracted verbatim by a YAML parser and run under pwsh 7.4.11 against copies of the dry-run release.
+The unmodified copy passes. absent, misnamed (.tgz), install script absent and extra all fail both checks with the exact name. An unhashed asset fails "Verify
+completeness".<br>
+<b>Fired in CI</b> on two scratch branches, deleted afterwards. R1 run <b>44062426788</b>, tarball misnamed in <code>build-release.sh</code>: the Linux
+job is red ("missing asset: agenteyes-linux-x64.tar.gz" from write-manifest.ps1) and <b>the Windows release job is SKIPPED</b>. R2 run
+<b>44062431625</b>, a stray extra asset: the Linux job is green, "Verify completeness" is red ("unexpected release assets:
+agenteyes-linux-x64-STRAY.tar.gz"), and the publish step is skipped.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>6</td><td>CI green across more than one run.</td>
+<td>da0b8da: ci push 44052237424, ci PR 44052286161 and release dry run 44052244930 are all success. 9fec224: ci push 44054850880, ci PR 44054836420
+and release dry run 44054835280 are all success. QA checked each with <code>gh run view</code>. QA's two red runs are the intended negative controls on scratch commits.</td>
+<td class="pass">PASS</td></tr>
+
+<tr><td>1</td><td>macOS asset.</td><td>Not started, by the lead's scoping. No file under any mac path is changed by the PR. It needs #181, a macOS job
+the release job <code>needs</code>, a <code>-mac-</code> rule in <code>write-manifest.ps1</code> (which today refuses such a name by design), a
+never-had-AgentEyes Mac with the Screen Recording prompt, and a corrupted-download refusal on the macOS path.</td>
+<td class="open">OPEN</td></tr>
+</table>
+
+<h2>3. The design decision, judged</h2>
+<p>The handoff says the per-user systemd unit decided it: "<i>A .deb is installed by dpkg as root ... it would have to ship the unit to
+/usr/lib/systemd/user, enable it globally for every account</i>". <span class="finding">That load-bearing sentence is false, and QA measured it.</span>
+In the same container (systemd 255), as root, a unit shipped to <code>/usr/lib/systemd/user</code> was enabled and started for ONE account with
+<code>systemctl --user --machine=qauser@.host enable --now</code>. The result was <code>enabled</code>/<code>active</code> for that user,
+<code>systemctl --global is-enabled</code> stayed <code>disabled</code>, and a second account got no link. A .deb has a second option too: ship the
+unit disabled and let the user, or the app's first run, enable it. That needs no maintainer-script trick at all.</p>
+<p><b>The conclusion still holds, for reasons the handoff touches but does not lead with:</b> (a) a postinst does not reliably know WHICH
+user to enable for. <code>$SUDO_USER</code> is absent under PackageKit or a software centre, and <code>--machine=user@</code> needs that user's manager running.
+(b) dpkg owns system paths, so the product would move out of <code>~/.local/lib</code>, the unit's <code>ExecStart=%h/.local/lib/...</code> would change,
+and every update would need root. Today only the one-time ffmpeg and libvlc installs do. (c) The tarball reuses the exact
+<code>install.sh</code> every fleet machine already runs. A .deb is a viable alternative with different trade-offs, not an impossibility. The false
+sentence lives only in the handoff and the issue comment. The README's claim, "installs, for you alone", is accurate.</p>
+
+<h2>4. The dry-run trigger: what actually prevents a publish</h2>
+<ul>
+<li>The publish step has <code>if: github.event_name == 'push' &amp;&amp; startsWith(github.ref, 'refs/tags/v')</code>, and the only triggers are a <code>v*</code> tag push
+and <code>workflow_dispatch</code>. A dispatch has <code>event_name == 'workflow_dispatch'</code>, so the step is skipped <b>whatever ref is chosen,
+including a tag ref</b>. It was skipped in 44052244930 and 44054835280. The dry-run upload is gated the opposite way.</li>
+<li><b>If that guard were wrong</b>, for example deleted: (1) a dispatch on a branch reaches <code>gh release create &lt;branch name&gt; --verify-tag</code>,
+which refuses because no tag of that name exists, so the step goes red and nothing is published. (2) A dispatch on a <b>tag</b> ref would publish that tag's
+release, <b>and the tag-equals-version check would not protect it</b>, because that check is also skipped on dispatch. If the tag already has a release,
+<code>gh</code> fails "already exists". The real exposure is therefore a future tag whose own tag-push run failed. Today's three tags with no release
+(v1.4.6, v1.4.7, v1.11.1) cannot be dispatched, because their workflow file has no <code>workflow_dispatch</code>.</li>
+<li><span class="finding">Latent finding, inert today:</span> <code>permissions: contents: write</code> and the signing step also apply to dispatch runs.
+The signing step's only gate is <code>vars.SIGNING_CERT_PROFILE != ''</code>, and <code>gh variable list</code> is empty today. Once signing is configured,
+any dispatch of any branch would sign that unreviewed branch's exes with the company certificate and upload them as the <code>release-dry-run</code>
+artifact. Suggested follow-up: also gate signing on <code>github.event_name == 'push'</code>. This is not a defect of this PR's criteria.</li>
+</ul>
+
+<h2>5. The 1-in-10 Linux test failure</h2>
+<p><b>Not identified by name, and QA will not pretend otherwise.</b> The developer's session log on this machine fixes the circumstances but not the
+name: at 09:02:13 the building <code>dotnet test tests/AgentEyes.Tests.Linux</code> ran in parallel with
+<code>dotnet build tests/AgentEyes.Tests -p:EnableWindowsTargeting=true</code>, 4 s after a <code>GET /status</code> to the live service, and the result was
+"Failed 1, Passed 472". The output was filtered to the summary line, so no test name exists anywhere.</p>
+<p>QA ran 95 full-suite runs with 0 failures: 41 quiet, 20 under a rebuild loop, 24 as concurrent pairs, and 10 exact replays of the developer's pairing.
+<b>The #174 mechanism was then shown live on this machine:</b> <code>HeadlessControlServerFramingTests.FreePort()</code> binds port 0, reads the number,
+releases it, and the server binds it again later. With a bounded helper holding 4000 random loopback ports (about 14 percent of the ephemeral range),
+15 runs of that class gave 5 failures in 4 runs, every one "Address already in use". A parallel build's NuGet restore opens outbound
+connections from the same ephemeral range, so #174 is the leading candidate. It is still a candidate, not a proven identity.</p>
+
+<h2>6. Recorded and OUT (not fixed here)</h2>
+<ul>
+<li><code>install.sh</code> never runs <code>apt-get update</code>. This is filed as <b>#213</b> (open). QA's container had package lists, as a desktop does.</li>
+<li>The 1-in-10 failure: see section 5 and #174.</li>
+<li>Observation, not this PR: recording 1 is 17.48 s long for 10.7 s of wall clock. ffmpeg logged <code>speed=1.21x</code>, and screen-only recording 2 has
+no stretch, so the cause is the virtual pulse sine source, which has no hardware clock. This is the #157 family, already in the v1.12.0 known defects.</li>
+</ul>
+
+<h2>7. What remains unproven, said plainly</h2>
+<ul>
+<li>The <b>curl download branch</b> and the URL <code>/releases/latest/download/agenteyes-install-linux-x64.sh</code> remain unmeasured. They 404 until a release carrying the asset is cut;
+verify them right after that cut. QA installed with <code>--release-dir</code> from the CI-built bytes, and the verify, extract and install path after the fetch is the same code.</li>
+<li>The downloaded install script verifies the tarball but nothing verifies the script itself or the manifest; both rely on HTTPS from the same release. That is the same trust model as Windows.</li>
+<li>The X server was Xvfb and the audio came from virtual pulse devices, not a GPU, compositor or hardware microphone. Sign-in was skipped with
+<code>--no-signin</code> because it waits for a browser, so the package stage reported "Not signed in", as expected. Wayland is refused by design.</li>
+<li>With no XDG Videos folder in the container, the library landed in <code>~/AgentEyes</code>; a desktop has <code>~/Videos</code>.</li>
+<li>Criterion 2's word "published" means published by the tag path, which was not run. The dry run executed every other step, by design.</li>
+</ul>
+
+<h2>8. Confirmations</h2>
+<ul>
+<li>No tag created and no release cut: latest is <b>v1.12.0</b>, the highest tag is v1.12.0, and both QA scratch branches were deleted (0 remaining).</li>
+<li>The live AgentEyes on the QA machine was never stopped or replaced. Every install ran inside QA's own container, and the host <code>/health</code> answered ok at the end.
+No ffmpeg outside QA's container was touched.</li>
+<li>CenCon: the privacy posture (visible, controllable) is unchanged and the component map is unchanged.</li>
+</ul>
+
+</body>
+</html>
