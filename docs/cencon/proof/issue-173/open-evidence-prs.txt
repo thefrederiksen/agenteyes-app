@@ -1,0 +1,31 @@
+# Issue #173 - would the new guard reject any of the seven open evidence PRs?
+# devthrottle-mac-mini, 2026-11-17. This branch at 00ed0f2 (base main 02a4622). PR heads fetched as pull/<n>/head.
+#
+# Three measurements per PR:
+#  (a) the guard over the PR head's docs/cencon as it stands (git archive of the head),
+#  (b) how many of (a)'s hits are in files the PR itself adds or changes (diff from its merge-base with main),
+#  (c) git merge-tree of the PR head with this branch: conflicts?, then the guard and a home-path count over the MERGED tree.
+# Positive controls: (b)'s filter finds the known hit when fed a known-leaky file name; the home-path count
+# over main 02a4622's docs/cencon is 4645, so a 0 below is a count, not a broken search.
+
+PR    head      base     files  (a)hits    (b)own      (c)merge       (c)guard/home
+#190  5cefff8   b0e6ae8  12     84         0           clean          0/0
+#191  d9f014d   b0e6ae8  9      84         0           clean          0/0
+#192  ee6f451   277a9bc  90     6          0           clean          0/0
+#185  31e192b   277a9bc  46     6          0           clean          0/0
+#198  85c8e5f   02a4622  7      84         0           clean          0/0
+#199  69462d0   02a4622  8      84         0           clean          0/0
+#177  a559c76   2d60f77  2      6          0           clean          0/0
+
+## Reading
+* No PR adds an address of its own: (b) is 0 for all seven. Every (a) hit is main's pre-sweep content the
+  PR inherited from its base (84 on a base that has the #113 round2 polls, 6 on older bases).
+* Merged on top of this branch, all seven merge cleanly and the merged tree is GREEN (0 address hits) with
+  0 home-path occurrences. #192 and #185 both edit docs/cencon/proof/issue-142/qa-report-macos.md, which
+  this sweep also edits (its owner home paths, lines 431-444); the 3-way merge keeps the redaction.
+* So the guard would REJECT NONE of them once this lands first. What WOULD go red is a PR head tested on
+  its own, unmerged tree after a rebase-free push to its branch - but its branch does not carry the new job
+  until it merges main, and GitHub's pull_request CI tests the merge with main, which is the (c) column.
+* Order matters only if one of them lands BEFORE this: then this branch needs a rebase, and the sweep
+  must be rerun on what they added. Their own files carry neither the address nor a home path, so that
+  rerun should change nothing - but rerun it rather than assume.
