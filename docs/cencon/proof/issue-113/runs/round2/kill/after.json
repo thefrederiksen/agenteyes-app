@@ -13,7 +13,7 @@
   "PendingTranscriptions": 1,
   "LastStopFailed": true,
   "LastStopError": "capture watchdog: capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 475529 bytes",
-  "LastStopDir": "/home/soren/Videos/AgentEyes/2026-11-14_132315_video",
+  "LastStopDir": "/home/<user>/Videos/AgentEyes/2026-11-14_132315_video",
   "CameraStuck": false,
   "StuckCameras": [],
   "PreviewScreenFrame": null,
@@ -33,5 +33,5 @@
   "CaptureSecondsSinceGrowth": null,
   "LastCaptureFault": "capture exited: the capture process exited (code 137) while recording; raw.mp4 holds 475529 bytes",
   "LastCaptureFaultUtc": "2026-11-14T18:23:38.169749Z",
-  "LastCaptureFaultDir": "/home/soren/Videos/AgentEyes/2026-11-14_132315_video"
+  "LastCaptureFaultDir": "/home/<user>/Videos/AgentEyes/2026-11-14_132315_video"
 }

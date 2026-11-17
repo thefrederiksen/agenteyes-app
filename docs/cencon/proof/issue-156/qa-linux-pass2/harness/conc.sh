@@ -5,7 +5,7 @@
 # Usage: conc.sh <run-dir-A> <run-dir-B> <portbase>      (both from FIX crash runs)
 set -u
 SP=${SCRATCH:?set SCRATCH to an empty scratch directory holding shim/ and wt-pre/}
-BIN=/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+BIN=/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
 A=$1; B=$2; PB=$3
 R=$SP/runs/conc-$(date -u +%H%M%S); mkdir -p "$R/home/.config" "$R/home/.local/share" "$R/home/Videos/AgentEyes" "$R/other/.local/share" "$R/w"
 export HOME=$R/home XDG_CONFIG_HOME=$R/home/.config XDG_DATA_HOME=$R/home/.local/share DISPLAY=:0 XDG_RUNTIME_DIR=/run/user/1000

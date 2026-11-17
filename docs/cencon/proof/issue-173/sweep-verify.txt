@@ -1,0 +1,175 @@
+# Issue #173 - the sweep changed only the redacted spans. Run on devthrottle-mac-mini, 2026-11-17,
+# branch issue-173-scrub-identity (working tree) against base main 02a4622. Python 3.14.6.
+
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py 02a4622
+files=556 identity_values_redacted=4729 digit_runs_compared=163334 json_parsed_before_and_after=324 failures=0
+exit=0
+
+# Control 1 - the verifier must go RED when one digit moves. Changing the first digit of docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json:
+#   byte 75 8 -> 9
+[FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+files=556 identity_values_redacted=4726 digit_runs_compared=163289 json_parsed_before_and_after=323 failures=1
+exit=1
+
+# Control 2 - RED when a redaction token is replaced by something else (a stand-in that is not the convention):
+[FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json
+files=556 identity_values_redacted=4726 digit_runs_compared=163289 json_parsed_before_and_after=323 failures=1
+exit=1
+
+# Restored; rerun:
+files=556 identity_values_redacted=4729 digit_runs_compared=163334 json_parsed_before_and_after=324 failures=0
+exit=0
+
+## Re-run after merging current main da85516 into this branch (2026-11-17; #191 and #192 had merged)
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516
+files=556 identity_values_redacted=4729 digit_runs_compared=165617 json_parsed_before_and_after=324 failures=0
+exit=0
+# (digit runs rose from 163334 to 165617 because #192 extended qa-report-macos.md, one of the swept files.)
+
+## QA round 1 bounce (2026-11-17) - verifier now PAIRS each old value with its token; home-path prefix wrap-tolerant
+# QA found: green when one valid token is swapped for the other. Fixed instrument, base main da85516, working tree
+# = e28a068's files. <owner-file>/<second-file> each hold one address, kept outside the repository, never printed.
+
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=0
+WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+exit=0
+# 4730 = the 4729 of the first sweep + the one wrapped home path redacted in this round.
+
+# Control A - ONE occurrence of <owner second account> swapped for <owner account> in docs/cencon/review/archived-pr-188-issue-187-review-round3.md (first occurrence only)
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 
+[FAIL] one address was replaced by BOTH tokens (a token was swapped somewhere)
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+exit=1
+
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 <owner-file> <second-file>
+[FAIL] an address became the OTHER token: docs/cencon/review/archived-pr-188-issue-187-review-round3.md:45
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+mapping checked against the given owner and second values: exact
+exit=1
+
+# Control B - EVERY sweep-made token swapped (files whose main copy held no token) in all 81 files: <owner account> <-> <owner second account>
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=0
+WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+exit=0
+
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 <owner-file> <second-file>
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/after.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-001.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-002.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-003.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-004.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-005.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-006.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-007.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-008.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-009.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-010.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-011.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-012.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-013.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-014.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-015.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-016.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-017.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-018.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-019.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-020.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-021.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-022.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-023.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-024.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-025.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-026.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-027.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-028.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-029.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-030.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-031.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-032.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-033.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-034.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-035.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-036.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-037.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-038.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-039.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-040.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-041.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-042.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-043.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-044.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-045.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-046.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-047.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-048.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-049.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-050.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-051.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-052.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-053.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-054.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-055.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-056.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-057.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-058.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-059.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/healthy600/start.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/after.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/before.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/healthy1.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/healthy2.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/left.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/named.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/run.txt:2
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/kill/start.txt:1
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/before.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/healthy1.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/healthy2.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/left.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/named.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/run.txt:2
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/stalled.json:12
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-113/qa-runs/round2/stop/start.txt:1
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-122/cli-log-extract.txt:106
+[FAIL] an address became the OTHER token: docs/cencon/proof/issue-123/qa-report-linux.md:25
+[FAIL] an address became the OTHER token: docs/cencon/review/archived-pr-188-issue-187-review-round3.md:39
+[FAIL] an address became the OTHER token: docs/cencon/review/archived-pr-188-issue-187-review-round3.md:45
+[FAIL] an address became the OTHER token: docs/cencon/review/archived-pr-188-issue-187-review-round3.md:54
+[FAIL] an address became the OTHER token: docs/cencon/review/archived-pr-188-issue-187-review-round3.md:54
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=0 failures=84
+mapping checked against the given owner and second values: exact
+exit=1
+
+# Restored; rerun:
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=0
+WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+exit=0
+
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 <owner-file> <second-file>
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=0
+mapping checked against the given owner and second values: exact
+exit=0
+
+# Reading: without the value files, Control B is GREEN and says so (WARNING line) - a swap of EVERY
+# occurrence keeps one-address-one-token, so only the values can catch it. With them, 84 failures =
+# 81 owner tokens + 3 second tokens, every one swapped. Control A is red in both modes.
+
+# Control C - the wrapped redaction undone (run-rc-main.txt line 54 back to the username, = 7ffa6d5's copy):
+# (file now equals the branch head before this fix)
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 
+[FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt
+files=556 identity_values_redacted=4725 digit_runs_compared=165380 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+exit=1
+# Control D - one digit moved on the wrapped line (2026-11-16 -> 2026-11-17 on line 54):
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 
+[FAIL] bytes outside the redactions differ: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt
+files=556 identity_values_redacted=4725 digit_runs_compared=165380 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+WARNING no owner/second value files given: per-occurrence swaps are caught by the one-address-one-token rule, a swap of EVERY occurrence at once is not
+exit=1
+# Reading C: the round-1 verifier was GREEN on this copy (neither side matched a wrapped prefix); now the wrapped home path must be redacted.

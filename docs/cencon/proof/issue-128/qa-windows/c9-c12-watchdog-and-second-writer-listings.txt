@@ -1,22 +1,22 @@
 launched L2 pid 8724 at 12:40:31.227
 --- process listing L2 attempt 2 stalling, BEFORE second attempt at 12:40:55.361 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
   8724 ppid   4596 AgentEyesApp.exe  cpu    1.3s  "C:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe" --tray 
- 15332 ppid   8724 ffmpeg.exe        cpu    4.2s  "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex [0:a]arnndn=m='C\:/Users/soren/AppData/Local/AgentEyes/models/bd.rnnn',s...
+ 15332 ppid   8724 ffmpeg.exe        cpu    4.2s  "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex [0:a]arnndn=m='C\:/Users/<user>/AppData/Local/AgentEyes/models/bd.rnnn',s...
 instrument check: 292 processes total visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System, 184 Registry
 manifest mux: {"State":"running","Attempts":2,"LastAttemptUtc":"2026-11-14T17:40:51.7380077Z"}
 CLI package started at 12:41:07.730
 CLI pid 15088
 --- process listing AFTER CLI package started (second attempt) at 12:41:11.494 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
   8724 ppid   4596 AgentEyesApp.exe  cpu    1.4s  "C:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe" --tray 
- 15332 ppid   8724 ffmpeg.exe        cpu   20.1s  "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex [0:a]arnndn=m='C\:/Users/soren/AppData/Local/AgentEyes/models/bd.rnnn',s...
- 15088 ppid   4424 agenteyes.exe     cpu    0.5s  "C:\ReposFred\agenteyes-app\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe" package C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128 
- 12196 ppid  15088 ffmpeg.exe        cpu    3.1s  "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex [0:a]arnndn=m='C\:/Users/soren/AppData/Local/AgentEyes/models/bd.rnnn',s...
+ 15332 ppid   8724 ffmpeg.exe        cpu   20.1s  "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex [0:a]arnndn=m='C\:/Users/<user>/AppData/Local/AgentEyes/models/bd.rnnn',s...
+ 15088 ppid   4424 agenteyes.exe     cpu    0.5s  "C:\ReposFred\agenteyes-app\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe" package C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128 
+ 12196 ppid  15088 ffmpeg.exe        cpu    3.1s  "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex [0:a]arnndn=m='C\:/Users/<user>/AppData/Local/AgentEyes/models/bd.rnnn',s...
 instrument check: 298 processes total visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System, 184 Registry
 record: 12196.json {"Pid":12196,"StartUtc":"2026-11-14T17:41:09.1065065Z","OwnerPid":15088,"OwnerStartUtc":"2026-11-14T17:41:07.8597231Z","Label":"process mic audio"}
 record: 15332.json {"Pid":15332,"StartUtc":"2026-11-14T17:40:51.7779381Z","OwnerPid":8724,"OwnerStartUtc":"2026-11-14T17:40:31.2149589Z","Label":"process mic audio"}
 manifest mux: {"State":"running","Attempts":2,"LastAttemptUtc":"2026-11-14T17:40:51.7380077Z"}
-pid 15332 ppid 8724 output-arg(last 80 chars): ... -b:a 160k C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
-pid 12196 ppid 15088 output-arg(last 80 chars): ... -b:a 160k C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
+pid 15332 ppid 8724 output-arg(last 80 chars): ... -b:a 160k C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
+pid 12196 ppid 15088 output-arg(last 80 chars): ... -b:a 160k C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
 both gone (or deadline) at 12:42:10.951
 --- process listing AFTER watchdog fired (L2 + CLI) at 12:42:13.986 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
   8724 ppid   4596 AgentEyesApp.exe  cpu    2.6s  "C:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe" --tray 
@@ -25,4 +25,4 @@ pid 15332 alive? False
 pid 12196 alive? False
 registry records: 
 recording.mp4: absent
-manifest mux: {"State":"failed","Attempts":2,"LastAttemptUtc":"2026-11-14T17:40:51.7380077Z","Error":"The process cannot access the file \u0027C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_130000_qa128\\recording.mp4\u0027 because it is being used by another process."}
+manifest mux: {"State":"failed","Attempts":2,"LastAttemptUtc":"2026-11-14T17:40:51.7380077Z","Error":"The process cannot access the file \u0027C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_130000_qa128\\recording.mp4\u0027 because it is being used by another process."}

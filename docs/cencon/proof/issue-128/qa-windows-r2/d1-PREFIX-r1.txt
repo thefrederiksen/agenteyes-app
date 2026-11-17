@@ -1,33 +1,33 @@
-=== d1-PREFIX-r1  cli=C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe
-dir=C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre
+=== d1-PREFIX-r1  cli=C:\Users\<user>\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\net8.0-windows10.0.19041.0\agenteyes.exe
+dir=C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre
 manifest mux before: 
 CLI A pid 4000 started 15:38:40.464
 --- after CLI A's mux started at 15:39:23.776 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
-    4000 ppid    696 agenteyes.exe     "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\ne...
-   21072 ppid   4000 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
+   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+    4000 ppid    696 agenteyes.exe     "C:\Users\<user>\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\ne...
+   21072 ppid   4000 ffmpeg.exe        "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
   instrument check: 295 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
 manifest mux: 
 CLI B pid 18096 started 15:39:23.859
 --- 6 s after CLI B started at 15:39:30.040 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
-    4000 ppid    696 agenteyes.exe     "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\ne...
-   21072 ppid   4000 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
-   18096 ppid    696 agenteyes.exe     "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\ne...
-   15588 ppid  18096 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
+   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+    4000 ppid    696 agenteyes.exe     "C:\Users\<user>\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\ne...
+   21072 ppid   4000 ffmpeg.exe        "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
+   18096 ppid    696 agenteyes.exe     "C:\Users\<user>\AppData\Local\Temp\qa-scratch\wt-r1\src\AgentEyes.Core\bin\x64\Release\ne...
+   15588 ppid  18096 ffmpeg.exe        "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
   instrument check: 298 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
 ffmpeg processes whose command line names this recording: 2
-  pid 21072 ppid 4000 output-arg: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
-  pid 15588 ppid 18096 output-arg: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
+  pid 21072 ppid 4000 output-arg: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
+  pid 15588 ppid 18096 output-arg: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4
 CLI B exited? False
 manifest mux: 
 CLI A exit ; CLI B exit  at 15:40:25.559
 CLI A stdout/err tail:
-  [error] The process cannot access the file 'C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4' because it is being used by another process.
+  [error] The process cannot access the file 'C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210000_qa128r2pre\recording.mp4' because it is being used by another process.
 CLI B stdout/err tail:
   [error] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 61s - process killed
 --- after both CLIs exited at 15:40:25.768 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
   instrument check: 293 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
 manifest mux after: 
 recording.mp4 present: False

@@ -94,9 +94,9 @@ Implemented by rule 1. Measured (from `real-binary-help-and-refusals.txt`):
 ```
 $ agenteyes record start --help
 --- before: 49 entries; newest 3:
-    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
-    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
-    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+    2026-11-14 10:51:13.347457292 /home/<user>/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/<user>/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/<user>/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     USAGE
       agenteyes record start [--mix | --loopback] [--mic "NAME"] [--screen N] [--camera "NAME"] [--fps N] [--audio-only]
@@ -112,9 +112,9 @@ $ agenteyes record start --help
       -h, --help                 print this help and exit; no command runs
 --- exit code: 0
 --- after:  49 entries; newest 3:
-    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
-    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
-    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+    2026-11-14 10:51:13.347457292 /home/<user>/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/<user>/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/<user>/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null
 ```
 
@@ -185,16 +185,16 @@ Implemented by rules 3-6. Measured:
 ```
 $ agenteyes record start --nonsense
 --- before: 49 entries; newest 3:
-    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
-    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
-    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+    2026-11-14 10:51:13.347457292 /home/<user>/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/<user>/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/<user>/Videos/AgentEyes/2026-11-14_110130_audio
 --- output (stdout+stderr):
     [error] unknown option --nonsense for 'agenteyes record start'. See: agenteyes record start --help
 --- exit code: 1
 --- after:  49 entries; newest 3:
-    2026-11-14 10:51:13.347457292 /home/soren/Videos/AgentEyes/2026-11-14_105106_audio
-    2026-11-14 11:01:30.056540130 /home/soren/Videos/AgentEyes/2026-11-14_110118_video
-    2026-11-14 11:01:36.928641518 /home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+    2026-11-14 10:51:13.347457292 /home/<user>/Videos/AgentEyes/2026-11-14_105106_audio
+    2026-11-14 11:01:30.056540130 /home/<user>/Videos/AgentEyes/2026-11-14_110118_video
+    2026-11-14 11:01:36.928641518 /home/<user>/Videos/AgentEyes/2026-11-14_110130_audio
 --- GET /status: "State": "idle" "Dir": null
 ```
 

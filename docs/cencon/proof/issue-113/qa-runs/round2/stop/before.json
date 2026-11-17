@@ -9,7 +9,7 @@
   "Dir": null,
   "Camera": null,
   "SignedIn": true,
-  "AccountEmail": "soren@centerconsulting.com",
+  "AccountEmail": "<owner account>",
   "PendingTranscriptions": 0,
   "LastStopFailed": false,
   "LastStopError": null,

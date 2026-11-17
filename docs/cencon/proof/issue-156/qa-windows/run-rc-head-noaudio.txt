@@ -24,6 +24,6 @@ At line:1 char:393
 At C:\ReposFred\agenteyes-app\docs\cencon\proof\issue-156\qa-windows\real-crash.ps1:73 char:78
 + ... Sz $raw), ((& ffprobe -v error -show_entries format=duration:stream=c ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (C:\Users\soren\...le or directory:String) [], RemoteException
+    + CategoryInfo          : NotSpecified: (C:\Users\<user>\...le or directory:String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
  

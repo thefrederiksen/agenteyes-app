@@ -1,7 +1,7 @@
 #!/bin/bash
 # usage: mutate.sh NAME FILE PYTHON-OLD PYTHON-NEW
 set -e
-cd /home/soren/ReposFred/agenteyes-app
+cd /home/<user>/ReposFred/agenteyes-app
 name=$1; file=$2; old=$3; new=$4
 cp "$file" "$file.orig"
 python3 -c "

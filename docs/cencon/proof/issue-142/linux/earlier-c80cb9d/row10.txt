@@ -4,7 +4,7 @@ main window:   Map State: IsUnMapped
 ## second launch: AgentEyesDesktop (no arguments) at 09:44:33.608582881
 second launch exit=0
 main window:   Map State: IsViewable
-AgentEyesDesktop processes now: 4100815 /home/soren/.local/lib/agenteyes-app/AgentEyesDesktop
+AgentEyesDesktop processes now: 4100815 /home/<user>/.local/lib/agenteyes-app/AgentEyesDesktop
 ## log, both processes (~/.local/share/AgentEyes/logs/AgentEyes-20261115.log)
 09:44:32.098 [pid 4100815] [INFO] [App] window closed to the tray
 09:44:33.713 [pid 14274] [INFO] [Program] Main: AgentEyes desktop app starting on linux (tray=False, pid=14274)

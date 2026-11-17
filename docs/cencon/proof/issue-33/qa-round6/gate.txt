@@ -33,7 +33,7 @@ Binaries actually exercised in the runtime probes:
             agenteyes.dll    77BD8314DCA8E96E5F89A431EED4351546F845A049CEB54CB2D1A79AB6D2DF76
 
 The installed v1.6.2 tray app was displaced for the duration of the probes and restored afterwards
-("C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray, the autostart command).
+("C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray, the autostart command).
 config.json and presets.json were restored byte-for-byte:
   config.json  D60F3C217FAD8F27C0DCC14F73F5DD570B5FE68DC1ED9E357CCB603189424C84 (before and after)
   presets.json BFFC4252433C9D4FAAE973E032B9E83874FF56DC83336719013BF42FA5C62219 (before and after)

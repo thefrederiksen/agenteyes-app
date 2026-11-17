@@ -5,7 +5,7 @@
 # Usage: eperm.sh <harness-tag> ; the CLI of the same build is used for the end-to-end arm.
 set -u
 B=$1; S=${SCRATCH:?}; H=$S/harness/out-$B/AgentEyes.Tests.Linux; LL=$S/harness/llprobe
-case $B in 9abbb01) BIN=/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; *) BIN=$S/wt-$B/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; esac
+case $B in 9abbb01) BIN=/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; *) BIN=$S/wt-$B/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; esac
 R=$S/runs/eperm-$B-$(date -u +%H%M%S); mkdir -p "$R/home/.config" "$R/home/.local/share" "$R/home/Videos/AgentEyes"
 export HOME=$R/home XDG_CONFIG_HOME=$R/home/.config XDG_DATA_HOME=$R/home/.local/share
 T=$R/transcript.txt; say() { printf '%s %s\n' "$(date -u +%H:%M:%S.%3N)" "$*" | tee -a "$T"; }

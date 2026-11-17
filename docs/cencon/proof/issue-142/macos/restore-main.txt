@@ -2,9 +2,9 @@
 [OK] ffmpeg: /opt/homebrew/bin/ffmpeg
 [OK] built
 [OK] stopped the running agent
-[OK] installed to /Users/soren/Library/Application Support/AgentEyes/bin
-[OK] linked /Users/soren/.local/bin/agenteyes
-[OK] wrote /Users/soren/Library/LaunchAgents/com.agenteyes.recorder.plist
+[OK] installed to /Users/<user>/Library/Application Support/AgentEyes/bin
+[OK] linked /Users/<user>/.local/bin/agenteyes
+[OK] wrote /Users/<user>/Library/LaunchAgents/com.agenteyes.recorder.plist
 [OK] agent loaded (starts at login)
 [OK] agent started
 --- verification ---

@@ -1,10 +1,10 @@
-$SP  = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$SP  = "C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
 $EXE = "D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
-$CFG = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
-$PREVIEW = "C:\Users\soren\AppData\Local\AgentEyes\preview"
-$VIDEOS = "C:\Users\soren\Videos\AgentEyes"
-$FFPROBE = "C:\Users\soren\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin\ffprobe.exe"
-$FFMPEG  = "C:\Users\soren\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
+$CFG = "C:\Users\<user>\AppData\Local\AgentEyes\config.json"
+$PREVIEW = "C:\Users\<user>\AppData\Local\AgentEyes\preview"
+$VIDEOS = "C:\Users\<user>\Videos\AgentEyes"
+$FFPROBE = "C:\Users\<user>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin\ffprobe.exe"
+$FFMPEG  = "C:\Users\<user>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 $CHURN = "$SP\churn\bin\Release\net8.0-windows\qachurn.exe"
 
 function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a } }

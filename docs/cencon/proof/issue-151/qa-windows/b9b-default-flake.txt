@@ -1,4 +1,4 @@
   Failed AgentEyes.Tests.MuxTwoPassTests.PassTwo_ReallyWritesTheMuxingTemp_AndNotTheFinalPath [1 s]
   Error Message:
-   expected the failed pass to surface as UsageException (or, on Windows, the KillOnCloseJob race's Win32Exception) but got System.IO.IOException: The process cannot access the file 'C:\Users\soren\AppData\Local\Temp\agenteyes-tests\run-20261116-071559-19784\LocalAppData\AgentEyes\models\bd.rnnn.tmp' because it is being used by another process.
+   expected the failed pass to surface as UsageException (or, on Windows, the KillOnCloseJob race's Win32Exception) but got System.IO.IOException: The process cannot access the file 'C:\Users\<user>\AppData\Local\Temp\agenteyes-tests\run-20261116-071559-19784\LocalAppData\AgentEyes\models\bd.rnnn.tmp' because it is being used by another process.
   Stack Trace:

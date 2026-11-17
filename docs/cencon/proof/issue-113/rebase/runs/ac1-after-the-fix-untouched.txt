@@ -1,5 +1,5 @@
 service pid 9208
-started 2026-11-15T17:23:34.583Z dir=/Users/soren/Movies/AgentEyes/2026-11-15_122333_video
+started 2026-11-15T17:23:34.583Z dir=/Users/<user>/Movies/AgentEyes/2026-11-15_122333_video
 INJECTED SIGSTOP on capture pid 9400 at 2026-11-15T17:23:56.627Z - NOTHING will touch it again
 2026-11-15T17:23:56.653Z +   0.0s State=recording   Liveness=growing Fault=no | capture pid 9400 state=T | service cpu=6.1% | dir: manifest.json mic_native.wav raw.mp4 shots
 2026-11-15T17:24:06.692Z +  10.1s State=recording   Liveness=not-growing Fault=no | capture pid 9400 state=T | service cpu=100.3% | dir: manifest.json mic_native.wav raw.mp4 shots

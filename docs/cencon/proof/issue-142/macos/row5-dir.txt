@@ -13,7 +13,7 @@ drwxr-xr-x@  2 soren  staff        64 Nov 15 13:47 shots
 -rw-r--r--@  1 soren  staff     16344 Nov 15 13:47 thumb.jpg
 
 === ffmpeg command line from the manifest (mic chain + mux) ===
-"/opt/homebrew/bin/ffmpeg" -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 30 /Users/soren/Movies/AgentEyes/2026-11-15_134706_video/raw.mp4
+"/opt/homebrew/bin/ffmpeg" -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 30 /Users/<user>/Movies/AgentEyes/2026-11-15_134706_video/raw.mp4
 
 DurationSeconds (manifest): 32.5
 PostProcessing: {

@@ -1,5 +1,5 @@
 flavour: AvfStream=1 PulseStream=0 (checked)
-16:26:40 binary: /Users/soren/ReposFred/agenteyes-dev156/src/AgentEyes.Core/bin/Release/net8.0/agenteyes
+16:26:40 binary: /Users/<user>/ReposFred/agenteyes-dev156/src/AgentEyes.Core/bin/Release/net8.0/agenteyes
 16:26:43 ARM live-plain: LIVE writer = my ffmpeg pid 72218 (uid 501), raw.mp4 262192 bytes and growing
 16:26:43   writer still running after package: YES
 16:26:43   package exit 1

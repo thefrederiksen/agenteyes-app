@@ -1,5 +1,5 @@
 16:42:29.067 === QA #156 pass 4 scenario=live binary=fix scratch=$SCRATCH/runs/live-fix-164229
-16:42:29.070 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+16:42:29.070 binary: /home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
 16:42:29.090 embedded version: 1.11.11+a70fd907ba0261f165c95225ae42b975644bd442
 16:42:29.163   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
 16:42:29.410 isolation: report-only housekeep (no service) -> root=$SCRATCH/runs/live-fix-164229/home/Videos/AgentEyes ; positive control under a second env -> $SCRATCH/runs/isoctrl-1617320/h/Videos/AgentEyes

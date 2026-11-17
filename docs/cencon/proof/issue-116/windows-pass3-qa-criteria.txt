@@ -23,7 +23,7 @@
 08:40:13.518 [pid 19552] [INFO] [App] ShowWindow
 08:40:13.739 [pid 19552] [INFO] [MainWindow] ctor
 08:40:13.932 [pid 19552] [INFO] [MainWindow] Opened
-08:40:13.940 [pid 19552] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\soren\Videos\AgentEyes
+08:40:13.940 [pid 19552] [INFO] [MainWindow] StartWatchingLibrary: C:\Users\<user>\Videos\AgentEyes
 08:40:14.583 [pid 19552] [INFO] [AppSettings] Save: screen=1 mic=Headset Microphone (Yealink UH36) system=True mode=grid
 08:40:18.301 [pid 19552] [INFO] [App] window closed to the tray
 08:40:19.563 [pid 73092] [INFO] [Program] Main: AgentEyes desktop app starting on windows (tray=False, pid=73092)

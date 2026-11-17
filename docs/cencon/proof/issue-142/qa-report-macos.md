@@ -428,9 +428,9 @@ report, and circulated a reference table: *main-without-#113 is `0446dd56`; #113
 **What I measured.** The same commit built from two different directories gives two different files:
 
 ```
-f9ef230, published from /Users/soren/ReposFred/agenteyes-qa-mac   -> 1b9092d0...
+f9ef230, published from /Users/<user>/ReposFred/agenteyes-qa-mac   -> 1b9092d0...
 f9ef230, published from a worktree at a different path            -> 81ae5fda...
-ad21557, published from /Users/soren/ReposFred/agenteyes-qa-mac   -> dc6ddf45...
+ad21557, published from /Users/<user>/ReposFred/agenteyes-qa-mac   -> dc6ddf45...
 ad21557, published from a worktree at a different path            -> 1ff0c669...
 ```
 
@@ -441,7 +441,7 @@ The build is otherwise perfectly deterministic - three publishes of `f9ef230` fr
 
 1. A .NET deterministic build embeds **absolute source paths**. They are visible in this machine's
    own log: every stack trace carries
-   `/Users/soren/ReposFred/agenteyes-qa-mac/src/AgentEyes.Core/...`. Change the clone, change the bytes.
+   `/Users/<user>/ReposFred/agenteyes-qa-mac/src/AgentEyes.Core/...`. Change the clone, change the bytes.
 2. The build also embeds the **git commit SHA**, in the informational version
    `1.11.11+<40 hex>`. So *every* commit produces a different dll - **including a docs-only commit**.
    `f9ef230` is a docs-only change on top of `90c9118`, and its dll still differs.

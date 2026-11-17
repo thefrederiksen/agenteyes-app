@@ -182,7 +182,7 @@ first instance pid for log: 1284082
 08:46:26.674 [pid 1279050] [INFO] [MainWindow] ctor
 08:46:26.935 [pid 1279050] [INFO] [MainWindow] Opened
 08:46:26.939 [pid 1279050] [INFO] [ControlClient] GetDevicesAsync
-08:46:26.950 [pid 1279050] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:46:26.950 [pid 1279050] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:46:26.966 [pid 1279050] [INFO] [AppState] PollAsync: service answering, state=idle
 08:46:26.967 [pid 1279050] [INFO] [TrayController] Render:  -> idle
 08:46:27.239 [pid 1279050] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 286 ms
@@ -195,7 +195,7 @@ first instance pid for log: 1284082
 08:46:32.738 [pid 1279050] [INFO] [App] ShowWindow
 08:46:32.740 [pid 1279050] [INFO] [MainWindow] Opened
 08:46:32.740 [pid 1279050] [INFO] [ControlClient] GetDevicesAsync
-08:46:32.748 [pid 1279050] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:46:32.748 [pid 1279050] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:46:32.785 [pid 1279050] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 36 ms
 08:46:33.172 [pid 1279050] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 08:46:33.179 [pid 1279050] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -246,7 +246,7 @@ first instance pid for log: 1284082
 08:47:13.163 [pid 1281736] [INFO] [MainWindow] ctor
 08:47:13.433 [pid 1281736] [INFO] [MainWindow] Opened
 08:47:13.437 [pid 1281736] [INFO] [ControlClient] GetDevicesAsync
-08:47:13.448 [pid 1281736] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:47:13.448 [pid 1281736] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:47:13.464 [pid 1281736] [INFO] [AppState] PollAsync: service answering, state=idle
 08:47:13.464 [pid 1281736] [INFO] [TrayController] Render:  -> idle
 08:47:13.588 [pid 1281736] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 138 ms
@@ -259,7 +259,7 @@ first instance pid for log: 1284082
 08:47:16.265 [pid 1281736] [INFO] [App] ShowWindow
 08:47:16.267 [pid 1281736] [INFO] [MainWindow] Opened
 08:47:16.267 [pid 1281736] [INFO] [ControlClient] GetDevicesAsync
-08:47:16.276 [pid 1281736] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:47:16.276 [pid 1281736] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:47:16.358 [pid 1281736] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 82 ms
 08:47:16.708 [pid 1281736] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 08:47:16.714 [pid 1281736] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -310,7 +310,7 @@ first instance pid for log: 1284082
 08:47:28.657 [pid 1282829] [INFO] [MainWindow] ctor
 08:47:28.930 [pid 1282829] [INFO] [MainWindow] Opened
 08:47:28.934 [pid 1282829] [INFO] [ControlClient] GetDevicesAsync
-08:47:28.946 [pid 1282829] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:47:28.946 [pid 1282829] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:47:28.966 [pid 1282829] [INFO] [AppState] PollAsync: service answering, state=idle
 08:47:28.966 [pid 1282829] [INFO] [TrayController] Render:  -> idle
 08:47:29.206 [pid 1282829] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 257 ms
@@ -323,7 +323,7 @@ first instance pid for log: 1284082
 08:47:31.679 [pid 1282829] [INFO] [App] ShowWindow
 08:47:31.681 [pid 1282829] [INFO] [MainWindow] Opened
 08:47:31.681 [pid 1282829] [INFO] [ControlClient] GetDevicesAsync
-08:47:31.689 [pid 1282829] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:47:31.689 [pid 1282829] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:47:31.736 [pid 1282829] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 47 ms
 08:47:32.097 [pid 1282829] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 08:47:32.106 [pid 1282829] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -374,7 +374,7 @@ first instance pid for log: 1284082
 08:47:44.127 [pid 1284082] [INFO] [MainWindow] ctor
 08:47:44.390 [pid 1284082] [INFO] [MainWindow] Opened
 08:47:44.394 [pid 1284082] [INFO] [ControlClient] GetDevicesAsync
-08:47:44.404 [pid 1284082] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:47:44.404 [pid 1284082] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:47:44.420 [pid 1284082] [INFO] [AppState] PollAsync: service answering, state=idle
 08:47:44.420 [pid 1284082] [INFO] [TrayController] Render:  -> idle
 08:47:44.639 [pid 1284082] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 232 ms
@@ -387,7 +387,7 @@ first instance pid for log: 1284082
 08:47:47.163 [pid 1284082] [INFO] [App] ShowWindow
 08:47:47.165 [pid 1284082] [INFO] [MainWindow] Opened
 08:47:47.165 [pid 1284082] [INFO] [ControlClient] GetDevicesAsync
-08:47:47.172 [pid 1284082] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:47:47.172 [pid 1284082] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:47:47.214 [pid 1284082] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 41 ms
 08:47:47.597 [pid 1284082] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 08:47:47.602 [pid 1284082] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -565,7 +565,7 @@ first instance pid for log: 1288177
 08:48:38.279 [pid 1287016] [INFO] [QA-INSTR] WindowOpened reached guard: type=AgentEyes.DesktopApp.Views.MainWindow isTrayPopup=False
 08:48:38.537 [pid 1287016] [INFO] [MainWindow] Opened
 08:48:38.540 [pid 1287016] [INFO] [ControlClient] GetDevicesAsync
-08:48:38.549 [pid 1287016] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:48:38.549 [pid 1287016] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:48:38.567 [pid 1287016] [INFO] [AppState] PollAsync: service answering, state=idle
 08:48:38.568 [pid 1287016] [INFO] [TrayController] Render:  -> idle
 08:48:38.809 [pid 1287016] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 257 ms
@@ -579,7 +579,7 @@ first instance pid for log: 1288177
 08:48:41.337 [pid 1287016] [INFO] [QA-INSTR] WindowOpened reached guard: type=AgentEyes.DesktopApp.Views.MainWindow isTrayPopup=False
 08:48:41.338 [pid 1287016] [INFO] [MainWindow] Opened
 08:48:41.338 [pid 1287016] [INFO] [ControlClient] GetDevicesAsync
-08:48:41.346 [pid 1287016] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:48:41.346 [pid 1287016] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:48:41.399 [pid 1287016] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 53 ms
 08:48:41.761 [pid 1287016] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 08:48:41.769 [pid 1287016] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -630,7 +630,7 @@ first instance pid for log: 1288177
 08:48:53.608 [pid 1288177] [INFO] [TrayPopupCloseGuard] guarding tray popup ''
 08:48:53.852 [pid 1288177] [INFO] [MainWindow] Opened
 08:48:53.856 [pid 1288177] [INFO] [ControlClient] GetDevicesAsync
-08:48:53.864 [pid 1288177] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:48:53.864 [pid 1288177] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:48:53.878 [pid 1288177] [INFO] [AppState] PollAsync: service answering, state=idle
 08:48:53.879 [pid 1288177] [INFO] [TrayController] Render:  -> idle
 08:48:54.127 [pid 1288177] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 259 ms
@@ -645,7 +645,7 @@ first instance pid for log: 1288177
 08:48:56.614 [pid 1288177] [INFO] [TrayPopupCloseGuard] guarding tray popup ''
 08:48:56.615 [pid 1288177] [INFO] [MainWindow] Opened
 08:48:56.615 [pid 1288177] [INFO] [ControlClient] GetDevicesAsync
-08:48:56.623 [pid 1288177] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:48:56.623 [pid 1288177] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:48:56.692 [pid 1288177] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 68 ms
 08:48:57.046 [pid 1288177] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 08:48:57.053 [pid 1288177] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -685,7 +685,7 @@ first instance pid for log: 1288177
 08:49:02.079 [pid 1288177] [INFO] [Program] Main: exited
 
 ## 7. Criteria 3 / 9 / 10 run (bin/Release/net8.0 output of 'dotnet build src/AgentEyes.DesktopApp -c Release')
-  AgentEyes.DesktopApp -> /home/soren/ReposFred/agenteyes-116/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop.dll
+  AgentEyes.DesktopApp -> /home/<user>/ReposFred/agenteyes-116/src/AgentEyes.DesktopApp/bin/Release/net8.0/AgentEyesDesktop.dll
 Build succeeded.
     1 Warning(s)
     0 Error(s)
@@ -721,7 +721,7 @@ ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory
 08:50:19.661 [pid 1292460] [INFO] [MainWindow] ctor
 08:50:19.989 [pid 1292460] [INFO] [MainWindow] Opened
 08:50:19.994 [pid 1292460] [INFO] [ControlClient] GetDevicesAsync
-08:50:20.010 [pid 1292460] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:50:20.010 [pid 1292460] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:50:20.028 [pid 1292460] [INFO] [AppState] PollAsync: service answering, state=idle
 08:50:20.029 [pid 1292460] [INFO] [TrayController] Render:  -> idle
 08:50:20.172 [pid 1292460] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 159 ms
@@ -732,7 +732,7 @@ ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory
 08:50:25.351 [pid 1292460] [INFO] [App] ShowWindow
 08:50:25.353 [pid 1292460] [INFO] [MainWindow] Opened
 08:50:25.353 [pid 1292460] [INFO] [ControlClient] GetDevicesAsync
-08:50:25.362 [pid 1292460] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:50:25.362 [pid 1292460] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:50:25.450 [pid 1292460] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 88 ms
 08:50:25.784 [pid 1292460] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 08:50:25.792 [pid 1292460] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -789,7 +789,7 @@ ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory
 08:51:33.832 [pid 1295561] [INFO] [MainWindow] ctor
 08:51:34.092 [pid 1295561] [INFO] [MainWindow] Opened
 08:51:34.096 [pid 1295561] [INFO] [ControlClient] GetDevicesAsync
-08:51:34.105 [pid 1295561] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+08:51:34.105 [pid 1295561] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 08:51:34.122 [pid 1295561] [INFO] [AppState] PollAsync: service answering, state=idle
 08:51:34.122 [pid 1295561] [INFO] [TrayController] Render:  -> idle
 08:51:34.368 [pid 1295561] [INFO] [MainWindow] RequestScan: 82 recording(s), 0 pending, 259 ms
@@ -807,7 +807,7 @@ ls: cannot access '/run/user/1000/agenteyes-app.sock': No such file or directory
 08:52:41.376 [pid 1295561] [INFO] [SingleInstance] Accept: ''
 
 ## 9. Owner's tray app restored
-08:53:03 restored owner app pid=1298614 cmdline=/home/soren/.local/lib/agenteyes-app/AgentEyesLinux --tray 
+08:53:03 restored owner app pid=1298614 cmdline=/home/<user>/.local/lib/agenteyes-app/AgentEyesLinux --tray 
 srwxrwxr-x 1 soren soren 0 2026-11-16 08:52:57.430238915 -0500 /run/user/1000/agenteyes-app.sock
 users:(("AgentEyesLinux",pid=1298614,fd=48))
 SNI=org.kde.StatusNotifierItem-1298614-0
@@ -830,7 +830,7 @@ index 63b782b..a8eab70 100644
          {
          }
  
-/home/soren/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs(88,13): warning xUnit2000: The literal or constant value AgentEyes.DesktopApp.Program.WmClass should be passed as the 'expected' argument in the call to 'Assert.Equal(expected, actual)' in method 'WmClass_IsTheAssemblyName' on type 'DesktopAppPlatformTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [/home/soren/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj]
+/home/<user>/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs(88,13): warning xUnit2000: The literal or constant value AgentEyes.DesktopApp.Program.WmClass should be passed as the 'expected' argument in the call to 'Assert.Equal(expected, actual)' in method 'WmClass_IsTheAssemblyName' on type 'DesktopAppPlatformTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [/home/<user>/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj]
   Failed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [22 ms]
    Assert.Contains() Failure: Sub-string not found
 Failed!  - Failed:     1, Passed:   291, Skipped:     0, Total:   292, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
@@ -849,7 +849,7 @@ index b88e2c9..8248247 100644
              menu.Add(quitItem);
  
              _tray = new TrayIcon { Icon = _offline, ToolTipText = "AgentEyes", Menu = menu, IsVisible = true };
-/home/soren/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs(88,13): warning xUnit2000: The literal or constant value AgentEyes.DesktopApp.Program.WmClass should be passed as the 'expected' argument in the call to 'Assert.Equal(expected, actual)' in method 'WmClass_IsTheAssemblyName' on type 'DesktopAppPlatformTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [/home/soren/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj]
+/home/<user>/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/DesktopAppPlatformTests.cs(88,13): warning xUnit2000: The literal or constant value AgentEyes.DesktopApp.Program.WmClass should be passed as the 'expected' argument in the call to 'Assert.Equal(expected, actual)' in method 'WmClass_IsTheAssemblyName' on type 'DesktopAppPlatformTests'. Swap the parameter values. (https://xunit.net/xunit.analyzers/rules/xUnit2000) [/home/<user>/ReposFred/agenteyes-116/tests/AgentEyes.Tests.Linux/AgentEyes.Tests.Linux.csproj]
   Failed AgentEyes.Tests.Shared.DesktopAppQuitTests.DesktopApp_LifetimeShutdown_IsReachedOnlyThroughDeferredQuit [18 ms]
    Assert.Equal() Failure: Collections differ
 Expected: string[]     ["App.axaml.cs"]

@@ -24,28 +24,28 @@
 11:20:02.685 [pid 2131495] [INFO] [CliDispatcher] Dispatch: running record start
 11:20:02.687 [pid 2131495] [INFO] [HeadlessCli] RecordStart
 11:20:02.757 [pid 2131495] [INFO] [HeadlessCli] Call: POST http://127.0.0.1:7882/record/start
-11:20:03.966 [pid 2131495] [INFO] [HeadlessCli] RecordStart: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_112002_video
+11:20:03.966 [pid 2131495] [INFO] [HeadlessCli] RecordStart: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_112002_video
 11:20:03.967 [pid 2131495] [INFO] [CliDispatcher] Run: exit=0
 11:20:08.124 [pid 2132024] [INFO] [CliDispatcher] Run: args=2 command=record
 11:20:08.135 [pid 2132024] [INFO] [CliDispatcher] Dispatch: parsed record stop options=[] positionals=0
 11:20:08.136 [pid 2132024] [INFO] [CliDispatcher] Dispatch: running record stop
 11:20:08.137 [pid 2132024] [INFO] [HeadlessCli] RecordStop
 11:20:08.140 [pid 2132024] [INFO] [HeadlessCli] Call: POST http://127.0.0.1:7882/record/stop
-11:20:09.325 [pid 2132024] [INFO] [HeadlessCli] RecordStop: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_112002_video
+11:20:09.325 [pid 2132024] [INFO] [HeadlessCli] RecordStop: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_112002_video
 11:20:09.325 [pid 2132024] [INFO] [CliDispatcher] Run: exit=0
 11:20:10.488 [pid 2132377] [INFO] [CliDispatcher] Run: args=5 command=record
 11:20:10.498 [pid 2132377] [INFO] [CliDispatcher] Dispatch: parsed record start options=[audio-only,mic] positionals=0
 11:20:10.500 [pid 2132377] [INFO] [CliDispatcher] Dispatch: running record start
 11:20:10.501 [pid 2132377] [INFO] [HeadlessCli] RecordStart
 11:20:10.572 [pid 2132377] [INFO] [HeadlessCli] Call: POST http://127.0.0.1:7882/record/start
-11:20:11.251 [pid 2132377] [INFO] [HeadlessCli] RecordStart: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_112010_audio
+11:20:11.251 [pid 2132377] [INFO] [HeadlessCli] RecordStart: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_112010_audio
 11:20:11.251 [pid 2132377] [INFO] [CliDispatcher] Run: exit=0
 11:20:15.409 [pid 2132769] [INFO] [CliDispatcher] Run: args=2 command=record
 11:20:15.418 [pid 2132769] [INFO] [CliDispatcher] Dispatch: parsed record stop options=[] positionals=0
 11:20:15.419 [pid 2132769] [INFO] [CliDispatcher] Dispatch: running record stop
 11:20:15.420 [pid 2132769] [INFO] [HeadlessCli] RecordStop
 11:20:15.422 [pid 2132769] [INFO] [HeadlessCli] Call: POST http://127.0.0.1:7882/record/stop
-11:20:15.611 [pid 2132769] [INFO] [HeadlessCli] RecordStop: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_112010_audio
+11:20:15.611 [pid 2132769] [INFO] [HeadlessCli] RecordStop: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_112010_audio
 11:20:15.611 [pid 2132769] [INFO] [CliDispatcher] Run: exit=0
 11:20:16.784 [pid 2132985] [INFO] [CliDispatcher] Run: args=2 command=record
 11:20:16.794 [pid 2132985] [INFO] [CliDispatcher] Dispatch: parsed record status options=[] positionals=0

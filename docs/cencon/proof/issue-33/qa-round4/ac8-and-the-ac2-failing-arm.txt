@@ -18,7 +18,7 @@ dll sha256: A55667D52AF8830D4206E5C44A056E8545A8B5C0057AEB9956F55AB7C50A8DD8
     preview HIDDEN: publishing=False frameFileExists=False framesRead=801
     STILL DRAINING while hidden: framesRead 801 -> 831   (EXPECT climbing - an unread pipe would stall the recording)
     preview SHOWN again: publishing=True frameFileExists=True corner=bottom-right
-  --- AC8 toggled-throughout recording : C:\Users\soren\Videos\AgentEyes\2026-08-29_011828_video ---
+  --- AC8 toggled-throughout recording : C:\Users\<user>\Videos\AgentEyes\2026-08-29_011828_video ---
     audio_16k.wav 3031800
     camera.mp4 309309110
     camera.mp4.ffmpeg.log 27826

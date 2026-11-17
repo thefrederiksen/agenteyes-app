@@ -34,7 +34,7 @@ $ nohup ./AgentEyesDesktop &   (09:01:06.50, pid 27892; DOTNET_ROOT and DOTNET_R
 09:01:08.433 [pid 27892] [INFO] [MainWindow] ctor
 09:01:08.518 [pid 27892] [INFO] [MainWindow] Opened
 09:01:08.520 [pid 27892] [INFO] [ControlClient] GetDevicesAsync
-09:01:08.585 [pid 27892] [INFO] [MainWindow] StartWatchingLibrary: /Users/soren/Movies/AgentEyes
+09:01:08.585 [pid 27892] [INFO] [MainWindow] StartWatchingLibrary: /Users/<user>/Movies/AgentEyes
 09:01:08.723 [pid 27892] [INFO] [AppState] PollAsync: service answering, state=idle
 09:01:08.724 [pid 27892] [INFO] [TrayController] Render:  -> idle
 09:01:08.725 [pid 27892] [INFO] [MainWindow] RequestScan: 75 recording(s), 66 pending, 139 ms
@@ -64,13 +64,13 @@ http=200
 
 ===== 4. Criterion 9 - live state, screen-only recording (no microphone: the only mic on the machine is 'Microsoft Teams Audio')
 09:02:38 POST /record/start {"mode":"video","screen":1,"source":"none"}  (screen only - no microphone, deliberately)
-http=200 {'State': 'recording', 'Mode': 'video', 'Source': 'none', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090238_video', 'error': None, 'code': None, 'message': None}
+http=200 {'State': 'recording', 'Mode': 'video', 'Source': 'none', 'Dir': '/Users/<user>/Movies/AgentEyes/2026-11-16_090238_video', 'error': None, 'code': None, 'message': None}
 09:02:47 GET /status
-{'State': 'recording', 'Mode': 'video', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090238_video', 'ElapsedSeconds': 8.7}
+{'State': 'recording', 'Mode': 'video', 'Dir': '/Users/<user>/Movies/AgentEyes/2026-11-16_090238_video', 'ElapsedSeconds': 8.7}
 09:02:47 POST /record/stop
 {
-  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090238_video",
-  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090238_video/recording.mp4",
+  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-16_090238_video",
+  "File": "/Users/<user>/Movies/AgentEyes/2026-11-16_090238_video/recording.mp4",
   "DurationSeconds": 8.74,
   "Shots": 0
 }
@@ -89,13 +89,13 @@ exit=0
 09:03:30 GET /status State=idle
 snap idle exit=0
 09:03:31 POST /record/start screen-only (source none)
-{'State': 'recording', 'Source': 'none', 'Dir': '/Users/soren/Movies/AgentEyes/2026-11-16_090331_video'}
+{'State': 'recording', 'Source': 'none', 'Dir': '/Users/<user>/Movies/AgentEyes/2026-11-16_090331_video'}
 09:03:37 GET /health
 {"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
 09:03:37 GET /status recording 5.73
 snap rec exit=0
 09:03:38 POST /record/stop
-{  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-16_090331_video",  "File": "/Users/soren/Movies/AgentEyes/2026-11-16_090331_video/recording.mp4",  "DurationSeconds": 6.84,  "Shots": 0}
+{  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-16_090331_video",  "File": "/Users/<user>/Movies/AgentEyes/2026-11-16_090331_video/recording.mp4",  "DurationSeconds": 6.84,  "Shots": 0}
 09:03:42 GET /status State=idle
 --- desktop app log
 09:03:28.189 [pid 28941] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:record'

@@ -1,2 +1,2 @@
-12:59:49.303 [pid 21132] [INFO] ffmpeg [process mic audio]: "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,arnndn=m='C\:/Users/soren/AppData/Local/AgentEyes/models/
+12:59:49.303 [pid 21132] [INFO] ffmpeg [process mic audio]: "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\raw.mp4 -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,arnndn=m='C\:/Users/<user>/AppData/Local/AgentEyes/models/
 12:59:51.550 [pid 21132] [INFO] ffmpeg [process mic audio] ok

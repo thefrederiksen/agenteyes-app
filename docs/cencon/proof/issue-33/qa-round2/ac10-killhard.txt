@@ -1,7 +1,7 @@
 [21:52:58.453] MODE=killhard screen=1 seconds=20 camera='eMeet' armed=True
 [21:52:59.672] churn window painting on monitor 1 at {X=1980,Y=55,Width=640,Height=400}
-[21:53:00.996] state=recording dir=C:\Users\soren\Videos\AgentEyes\2026-08-28_215259_video PreviewAvailable=True PreviewArmed=True
-[21:53:00.996] screenFrame=C:\Users\soren\AppData\Local\AgentEyes\preview\screen.jpg cameraFrame=C:\Users\soren\AppData\Local\AgentEyes\preview\camera.jpg
+[21:53:00.996] state=recording dir=C:\Users\<user>\Videos\AgentEyes\2026-08-28_215259_video PreviewAvailable=True PreviewArmed=True
+[21:53:00.996] screenFrame=C:\Users\<user>\AppData\Local\AgentEyes\preview\screen.jpg cameraFrame=C:\Users\<user>\AppData\Local\AgentEyes\preview\camera.jpg
 [21:53:05.609] --- ffmpeg processes: 2 ---
 [21:53:05.610]   pid=38844 (-f dshow)=1 (-i video=)=1 pipe:1=True mjpeg=True
 [21:53:05.610]   pid=7064 (-f dshow)=0 (-i video=)=0 pipe:1=True mjpeg=True
@@ -9,7 +9,7 @@
 [21:53:08.132] AC2 screen t0=186FBD4047EC8A1F len=8453  t+2.5=6A49960C3A9B6175 len=8471  DIFFER=True
 [21:53:08.132] AC3 camera t0=BFCFF47C6C30F66D len=12929  t+2.5=B3389CCC763B24B4 len=13067  DIFFER=True
 [21:53:08.132] framesRead screen 49->74  camera 50->75
-[21:53:08.139] KILL: deleting C:\Users\soren\AppData\Local\AgentEyes\preview framesRead=74
+[21:53:08.139] KILL: deleting C:\Users\<user>\AppData\Local\AgentEyes\preview framesRead=74
 [21:53:08.140] KILL: deleted
 [21:53:09.157]   +1s state=recording framesRead=85/86 PreviewFailed=True
 [21:53:10.168]   +2s state=recording framesRead=95/96 PreviewFailed=True
@@ -17,7 +17,7 @@
 [21:53:12.200]   +4s state=recording framesRead=115/116 PreviewFailed=True
 [21:53:13.219]   +5s state=recording framesRead=125/126 PreviewFailed=True
 [21:53:21.463] stopping at elapsed=20.5
-[21:53:26.785] --- results in C:\Users\soren\Videos\AgentEyes\2026-08-28_215259_video ---
+[21:53:26.785] --- results in C:\Users\<user>\Videos\AgentEyes\2026-08-28_215259_video ---
 [21:53:26.786]   camera.mp4 77248465
 [21:53:26.786]   camera.mp4.ffmpeg.log 9632
 [21:53:26.786]   manifest.json 1646
@@ -32,4 +32,4 @@
    "CameraComplete": "yes",
    "PreviewOverlayCorner": "bottom-left",
    "RawDurationSeconds": 20.51,
-[21:53:26.786] DONE C:\Users\soren\Videos\AgentEyes\2026-08-28_215259_video
+[21:53:26.786] DONE C:\Users\<user>\Videos\AgentEyes\2026-08-28_215259_video

@@ -1,10 +1,10 @@
 --- process listing BEFORE restart (planted orphan alive, app stopped) at 13:12:13.985 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-  3740 ppid  18852 ffmpeg.exe        cpu      8s  "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -loglevel error -f lavfi -i sine=f=200:r=48000 -f null - 
+  3740 ppid  18852 ffmpeg.exe        cpu      8s  "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -loglevel error -f lavfi -i sine=f=200:r=48000 -f null - 
 instrument check: 290 processes total visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System, 184 Registry
 --- process listing AFTER app start (reap) at 13:12:18.856 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
   7424 ppid  18852 AgentEyesApp.exe  cpu    0.7s  "C:\ReposFred\agenteyes-app\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe" --tray 
 instrument check: 289 processes total visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System, 184 Registry
 planted pid 3740 alive? False
-13:12:15.402 [pid 7424] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\soren\AppData\Local\AgentEyes\run\ffmpeg
+13:12:15.402 [pid 7424] [INFO] [FfmpegChildRegistry] ReapOrphans: folder=C:\Users\<user>\AppData\Local\AgentEyes\run\ffmpeg
 13:12:15.455 [pid 7424] [INFO] [FfmpegChildRegistry] ReapOrphans: pid 3740 [QA planted orphan]: ORPHAN (owner pid 22000 gone) - killed
 13:12:15.456 [pid 7424] [INFO] [RepairService] Start: orphan ffmpeg reap examined 1 record(s)

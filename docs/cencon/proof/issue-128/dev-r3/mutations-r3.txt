@@ -1,4 +1,4 @@
-# mutation run at 3a1165d, 2026-11-14 16:23:55, ffmpeg dir C:\Users\soren\AppData\Local\AgentEyes\app
+# mutation run at 3a1165d, 2026-11-14 16:23:55, ffmpeg dir C:\Users\<user>\AppData\Local\AgentEyes\app
 restore baseline: diff empty = True
 M1 | D1: FinalizePending takes no mux lock | Failed!  | ffmpeg left 0 | 108s
     AgentEyes.Tests.MuxCoordinatorTests.FinalizePending_LockHeldByAnotherProcess_RefusesWithoutStartingASecondWriter
@@ -90,7 +90,7 @@ N2 | R2-1: Outstanding does not consult NeedsMuxReconcile | Failed!  | ffmpeg le
     AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(attempts: 3, processingOn: True)
     AgentEyes.Tests.MuxCoordinatorTests.RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone
     restored, diff empty = True
-# mutation run at 3a1165d, 2026-11-15 09:30:11, ffmpeg dir C:\Users\soren\AppData\Local\AgentEyes\app
+# mutation run at 3a1165d, 2026-11-15 09:30:11, ffmpeg dir C:\Users\<user>\AppData\Local\AgentEyes\app
 restore baseline: diff empty = True
 N3 | R2-3: Reconcile does not publish a proven-complete mux (round two behaviour) | Failed!  | ffmpeg left 0 | 117s
     AgentEyes.Tests.MuxCoordinatorTests.Reconcile_FinalFilePresentButRawInputGone_KeepsTheFile

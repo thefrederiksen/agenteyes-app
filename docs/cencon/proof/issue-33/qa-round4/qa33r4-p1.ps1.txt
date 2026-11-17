@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-. "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
+. "C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa33r4-lib.ps1"
 $OUT = "$SP\ac-proof"
 New-Item -ItemType Directory -Force $OUT | Out-Null
 

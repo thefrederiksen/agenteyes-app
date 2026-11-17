@@ -1,10 +1,10 @@
 === ACTUAL MUX DURATIONS (from the product's own start/done log lines) ===
 --- 2026-11-15_134706_video ---
-13:47:39.659 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic video=/Users/soren/Movies/AgentEyes/2026-11-15_134706_
-13:47:40.155 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic done out=/Users/soren/Movies/AgentEyes/2026-11-15_1347
+13:47:39.659 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic video=/Users/<user>/Movies/AgentEyes/2026-11-15_134706_
+13:47:40.155 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic done out=/Users/<user>/Movies/AgentEyes/2026-11-15_1347
 --- 2026-11-15_134854_video ---
-13:59:00.868 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic video=/Users/soren/Movies/AgentEyes/2026-11-15_134854_
-13:59:14.549 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic done out=/Users/soren/Movies/AgentEyes/2026-11-15_1348
+13:59:00.868 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic video=/Users/<user>/Movies/AgentEyes/2026-11-15_134854_
+13:59:14.549 [pid 39753] [AudioMix] MuxInTwoPasses: mux video+mic done out=/Users/<user>/Movies/AgentEyes/2026-11-15_1348
 --- 2026-11-15_142036_video ---
-14:50:39.700 [pid 50642] [AudioMix] MuxInTwoPasses: mux video+mic video=/Users/soren/Movies/AgentEyes/2026-11-15_142036_
-14:51:20.323 [pid 50642] [AudioMix] MuxInTwoPasses: mux video+mic done out=/Users/soren/Movies/AgentEyes/2026-11-15_1420
+14:50:39.700 [pid 50642] [AudioMix] MuxInTwoPasses: mux video+mic video=/Users/<user>/Movies/AgentEyes/2026-11-15_142036_
+14:51:20.323 [pid 50642] [AudioMix] MuxInTwoPasses: mux video+mic done out=/Users/<user>/Movies/AgentEyes/2026-11-15_1420

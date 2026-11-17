@@ -13,9 +13,9 @@
 # Usage: eperm5.sh <before|after>
 set -u
 B=$1; S=${SCRATCH:?}; H=$S/harness/out-$B/AgentEyes.Tests.Linux; LL=$S/harness/llprobe
-case $B in before) BIN=$S/wt-before/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; after) BIN=/home/soren/ReposFred/agenteyes-116/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; esac
+case $B in before) BIN=$S/wt-before/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; after) BIN=/home/<user>/ReposFred/agenteyes-116/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes;; esac
 R=$S/runs/eperm5-$B-$(date -u +%H%M%S); mkdir -p "$R/home/.config" "$R/home/.local/share" "$R/home/Videos/AgentEyes"
-REAL_LIB=/home/soren/Videos/AgentEyes
+REAL_LIB=/home/<user>/Videos/AgentEyes
 lib_sig() { find "$REAL_LIB" -maxdepth 2 -printf '%p %s %T@\n' 2>/dev/null | sort | md5sum | cut -c1-32; }
 SIG0=$(lib_sig); touch "$R/start.marker"
 export HOME=$R/home XDG_CONFIG_HOME=$R/home/.config XDG_DATA_HOME=$R/home/.local/share

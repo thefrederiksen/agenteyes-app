@@ -1,0 +1,136 @@
+# Issue #173 - the CI guard, made to fail before its silence is believed.
+# devthrottle-mac-mini, 2026-11-17, Python 3.14.6. <stage> = a scratch directory outside the repo.
+# Every hit is printed MASKED (first character, then the TLD) so a public CI log does not republish it.
+
+## 1. RED on the real leak: main 02a4622's docs/cencon, extracted with git archive into <stage>/main-tree
+$ python3 scripts/check-proof-identity.py <stage>/main-tree
+[check-proof-identity] scanned 1572 files, 19656093 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/proof/issue-123/qa-report-linux.md:25: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/after.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/before.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/healthy1.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/healthy2.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/left.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/named.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/run.txt:2: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/stalled.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/stop/start.txt:1: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/after.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/before.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/healthy1.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/healthy2.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/left.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/named.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/run.txt:2: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/kill/start.txt:1: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/after.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-001.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-002.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-003.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-004.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-005.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-006.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-007.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-008.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-009.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-010.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-011.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-012.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-013.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-014.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-015.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-016.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-017.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-018.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-019.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-020.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-021.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-022.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-023.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-024.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-025.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-026.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-027.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-028.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-029.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-030.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-031.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-032.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-033.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-034.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-035.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-036.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-037.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-038.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-039.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-040.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-041.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-042.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-043.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-044.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-045.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-046.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-047.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-048.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-049.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-050.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-051.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-052.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-053.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-054.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-055.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-056.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-057.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-058.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/poll-059.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-113/qa-runs/round2/healthy600/start.json:12: email-shaped string s***@***.com
+[FAIL] docs/cencon/proof/issue-122/cli-log-extract.txt:106: email-shaped string s***@***.com
+[FAIL] docs/cencon/review/archived-pr-188-issue-187-review-round3.md:39: email-shaped string s***@***.com
+[FAIL] docs/cencon/review/archived-pr-188-issue-187-review-round3.md:45: email-shaped string s***@***.com
+[FAIL] docs/cencon/review/archived-pr-188-issue-187-review-round3.md:54: email-shaped string s***@***.com
+[FAIL] docs/cencon/review/archived-pr-188-issue-187-review-round3.md:54: email-shaped string s***@***.com
+[FAIL] 84 email-shaped string(s) in committed evidence. Replace each with <owner account> (or a reserved-domain stand-in such as user@example.com) - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+exit=1
+
+## 2. GREEN on this branch's redacted tree
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1575 files, 19674693 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string in committed evidence
+exit=0
+
+## 3. RED on a planted address-shaped string in a NEW proof file, then GREEN once it is removed
+$ mkdir -p docs/cencon/proof/issue-173 && printf "signed in as %s@%s
+" planted.probe acme-widgets.io > docs/cencon/proof/issue-173/planted-probe.txt
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1573 files, 19659902 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/proof/issue-173/planted-probe.txt:1: email-shaped string p***@***.io
+[FAIL] 1 email-shaped string(s) in committed evidence. Replace each with <owner account> (or a reserved-domain stand-in such as user@example.com) - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+exit=1
+$ rm docs/cencon/proof/issue-173/planted-probe.txt
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1572 files, 19659859 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string in committed evidence
+exit=0
+$ (variant) URL-encoded form: printf "%s%%40%s
+" planted.probe acme-widgets.io > docs/cencon/proof/issue-173/planted-probe.json
+[check-proof-identity] scanned 1573 files, 19659891 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/proof/issue-173/planted-probe.json:1: email-shaped string p***%40***.io
+[FAIL] 1 email-shaped string(s) in committed evidence. Replace each with <owner account> (or a reserved-domain stand-in such as user@example.com) - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+exit=1
+$ (instrument) point it at a root with no evidence directory
+[FAIL] instrument: docs/cencon/proof does not exist under <stage>/empty-root-does-not-exist - nothing was scanned
+exit=2
+
+## 4. The CI positive-control step (.github/workflows/ci.yml, job evidence-identity), run locally as written
+[check-proof-identity] scanned 1576 files, 19676710 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/proof/ci-identity-probe.txt:1: email-shaped string p***@***.io
+[FAIL] 1 email-shaped string(s) in committed evidence. Replace each with <owner account> (or a reserved-domain stand-in such as user@example.com) - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+[OK] the guard fails on a planted address and names the file
+exit=0
+(probe file removed by the step)
+
+## 2b. GREEN again after merging main da85516 (#191 and #192 merged in)
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1679 files, 23149094 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string in committed evidence
+exit=0

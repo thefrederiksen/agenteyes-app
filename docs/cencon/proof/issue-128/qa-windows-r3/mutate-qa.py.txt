@@ -10,7 +10,7 @@ import os, re, subprocess, sys, time
 REPO = sys.argv[1]
 OUT = sys.argv[2]
 ONLY = set(sys.argv[3:])
-FF = r"C:\Users\soren\AppData\Local\AgentEyes\app"
+FF = r"C:\Users\<user>\AppData\Local\AgentEyes\app"
 
 RS = "src/AgentEyes.Core/RecordingService.cs"
 PR = "src/AgentEyes.Core/PostRecording.cs"

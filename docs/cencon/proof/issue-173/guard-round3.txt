@@ -1,0 +1,257 @@
+# Issue #173 - QA round 2 bounce: the guard joins only console-wrap breaks. devthrottle-mac-mini, 2026-11-17.
+# Code commit 388b111 (branch tip before this proof file). Main = da85516 (unchanged since the last round).
+# Every name and address below is a fake (planted-probe, acme-widgets.io) or masked by the guard itself.
+
+## 1. The committed corpus, end to end through the real guard (scripts/test-check-proof-identity.py)
+$ python3 scripts/test-check-proof-identity.py
+[OK]   green/fp01-python-pytest-decorator.py: exit 0, expected 0
+[OK]   green/fp02-python-property-setter.py: exit 0, expected 0
+[OK]   green/fp03-ls-home-then-output.txt: exit 0, expected 0
+[OK]   green/fp04-csharp-verbatim-string.cs: exit 0, expected 0
+[OK]   green/fp05-markdown-mention.md: exit 0, expected 0
+[OK]   green/fp06-markdown-heading-users.md: exit 0, expected 0
+[OK]   green/fp07-placeholder-split-inside.txt: exit 0, expected 0
+[OK]   green/fp08-python-functools-decorator.py: exit 0, expected 0
+[OK]   green/fp09-markdown-thanks-mention.md: exit 0, expected 0
+[OK]   green/fp10-shell-cd-users-then-ls.txt: exit 0, expected 0
+[OK]   green/fp11-powershell-dir-users-crlf.txt: exit 0, expected 0
+[OK]   green/fp12-path-list-after-home.txt: exit 0, expected 0
+[OK]   green/fp13-markdown-hard-break-mention.md: exit 0, expected 0
+[OK]   green/fp14-indented-decorator.py: exit 0, expected 0
+[OK]   green/fp15-reserved-domain-then-word.txt: exit 0, expected 0
+[OK]   green/fp16-utf16le-placeholder-path.txt: exit 0, expected 0
+[OK]   green/fp17-utf16le-python-decorator.py: exit 0, expected 0
+[OK]   green/fp18-npm-scoped-after-word.md: exit 0, expected 0
+[OK]   green/fp19-qa-b2-literal-extra-slash.txt: exit 0, expected 0
+[OK]   green/fp20-systemd-user-unit-wrapped.txt: exit 0, expected 0
+[OK]   green/fp21-runner-then-separator.txt: exit 0, expected 0
+[OK]   red/leak01-defect-shape-crlf.txt: exit 1, expected 1
+[OK]   red/leak02-console-width-padded.txt: exit 1, expected 1
+[OK]   red/leak03-trailing-spaces-crlf.txt: exit 1, expected 1
+[OK]   red/leak04-trailing-tab-lf.txt: exit 1, expected 1
+[OK]   red/leak05-address-trailing-spaces.txt: exit 1, expected 1
+[OK]   red/leak06-three-lines.txt: exit 1, expected 1
+[OK]   red/leak07-address-four-lines.txt: exit 1, expected 1
+[OK]   red/leak08-lone-cr.txt: exit 1, expected 1
+[OK]   red/leak09-runner-prefix.txt: exit 1, expected 1
+[OK]   red/leak10-utf16le-not-wrapped.txt: exit 1, expected 1
+[OK]   red/leak11-name-split-mid.txt: exit 1, expected 1
+[OK]   red/leak12-plain-address.txt: exit 1, expected 1
+[OK]   red/leak13-plain-home-path.txt: exit 1, expected 1
+[OK]   red/leak14-long-line-ends-at-prefix.txt: exit 1, expected 1
+[OK]   red/leak15-long-line-wraps-before-at.txt: exit 1, expected 1
+[OK]   red/leak16-utf16le-wrapped.txt: exit 1, expected 1
+[OK]   red/leak17-utf16be-with-bom.txt: exit 1, expected 1
+[OK]   red/leak18-utf16le-inside-binary.bin: exit 1, expected 1
+[OK]   red/leak19-url-encoded-address-wrapped.txt: exit 1, expected 1
+[OK]   red/leak20-json-escaped-home-path.json: exit 1, expected 1
+[OK]   red/leak21-macos-home-wrapped.txt: exit 1, expected 1
+[OK]   red/leak22-utf16be-no-bom.txt: exit 1, expected 1
+[OK]   declared-miss/miss01-short-wrap-after-prefix.txt: exit 0, expected 0
+[OK]   declared-miss/miss02-short-wrap-before-at.txt: exit 0, expected 0
+[OK]   declared-miss/miss03-indented-continuation.txt: exit 0, expected 0
+[OK]   declared-miss/miss04-runner-prefix-no-separator.txt: exit 0, expected 0
+[OK]   declared-miss/miss05-utf32le.txt: exit 0, expected 0
+[OK]   declared-flag/flag01-long-prose-line-ends-at-home-prefix.md: exit 1, expected 1
+[OK]   declared-flag/flag02-long-line-then-decorator.py: exit 1, expected 1
+[OK] every corpus file behaved as its directory says (green 21, red 22, declared-miss 5, declared-flag 2)
+exit=0
+
+## 2. The corpus can fail: the same corpus against the round-2 guard (5cf4ba0) and three mutations of this one
+# r2      = git show 5cf4ba0:scripts/check-proof-identity.py (joins every break)
+# width0  = WRAP_WIDTH 80 -> 0 (joins every visible pair at any width: the round-2 greed, minus indentation)
+# nojoin  = no break is ever joined
+# noutf16 = the UTF-16 scan removed
+=== guard: r2
+[FAIL] green/fp01-python-pytest-decorator.py: exit 1, expected 0
+[FAIL] green/fp02-python-property-setter.py: exit 1, expected 0
+[FAIL] green/fp03-ls-home-then-output.txt: exit 1, expected 0
+[FAIL] green/fp05-markdown-mention.md: exit 1, expected 0
+[FAIL] green/fp06-markdown-heading-users.md: exit 1, expected 0
+[FAIL] green/fp08-python-functools-decorator.py: exit 1, expected 0
+[FAIL] green/fp09-markdown-thanks-mention.md: exit 1, expected 0
+[FAIL] green/fp10-shell-cd-users-then-ls.txt: exit 1, expected 0
+[FAIL] green/fp11-powershell-dir-users-crlf.txt: exit 1, expected 0
+[FAIL] green/fp12-path-list-after-home.txt: exit 1, expected 0
+[FAIL] green/fp14-indented-decorator.py: exit 1, expected 0
+[FAIL] red/leak02-console-width-padded.txt: exit 0, expected 1
+[FAIL] red/leak03-trailing-spaces-crlf.txt: exit 0, expected 1
+[FAIL] red/leak04-trailing-tab-lf.txt: exit 0, expected 1
+[FAIL] red/leak05-address-trailing-spaces.txt: exit 0, expected 1
+[FAIL] red/leak08-lone-cr.txt: exit 0, expected 1
+[FAIL] red/leak09-runner-prefix.txt: exit 0, expected 1
+[FAIL] red/leak10-utf16le-not-wrapped.txt: exit 0, expected 1
+[FAIL] red/leak16-utf16le-wrapped.txt: exit 0, expected 1
+[FAIL] red/leak17-utf16be-with-bom.txt: exit 0, expected 1
+[FAIL] red/leak18-utf16le-inside-binary.bin: exit 0, expected 1
+[FAIL] red/leak22-utf16be-no-bom.txt: exit 0, expected 1
+[FAIL] declared-miss/miss01-short-wrap-after-prefix.txt: exit 1, expected 0
+[FAIL] declared-miss/miss02-short-wrap-before-at.txt: exit 1, expected 0
+[FAIL] declared-miss/miss03-indented-continuation.txt: exit 1, expected 0
+[FAIL] 25 corpus file(s) did not behave as their directory says (green 21, red 22, declared-miss 5, declared-flag 2)
+=== guard: width0
+[FAIL] green/fp01-python-pytest-decorator.py: exit 1, expected 0
+[FAIL] green/fp03-ls-home-then-output.txt: exit 1, expected 0
+[FAIL] green/fp05-markdown-mention.md: exit 1, expected 0
+[FAIL] green/fp06-markdown-heading-users.md: exit 1, expected 0
+[FAIL] green/fp08-python-functools-decorator.py: exit 1, expected 0
+[FAIL] green/fp09-markdown-thanks-mention.md: exit 1, expected 0
+[FAIL] green/fp10-shell-cd-users-then-ls.txt: exit 1, expected 0
+[FAIL] green/fp11-powershell-dir-users-crlf.txt: exit 1, expected 0
+[FAIL] green/fp12-path-list-after-home.txt: exit 1, expected 0
+[FAIL] green/fp13-markdown-hard-break-mention.md: exit 1, expected 0
+[FAIL] green/fp17-utf16le-python-decorator.py: exit 1, expected 0
+[FAIL] declared-miss/miss01-short-wrap-after-prefix.txt: exit 1, expected 0
+[FAIL] declared-miss/miss02-short-wrap-before-at.txt: exit 1, expected 0
+[FAIL] 13 corpus file(s) did not behave as their directory says (green 21, red 22, declared-miss 5, declared-flag 2)
+=== guard: nojoin
+[FAIL] red/leak01-defect-shape-crlf.txt: exit 0, expected 1
+[FAIL] red/leak02-console-width-padded.txt: exit 0, expected 1
+[FAIL] red/leak03-trailing-spaces-crlf.txt: exit 0, expected 1
+[FAIL] red/leak04-trailing-tab-lf.txt: exit 0, expected 1
+[FAIL] red/leak05-address-trailing-spaces.txt: exit 0, expected 1
+[FAIL] red/leak06-three-lines.txt: exit 0, expected 1
+[FAIL] red/leak07-address-four-lines.txt: exit 0, expected 1
+[FAIL] red/leak08-lone-cr.txt: exit 0, expected 1
+[FAIL] red/leak09-runner-prefix.txt: exit 0, expected 1
+[FAIL] red/leak14-long-line-ends-at-prefix.txt: exit 0, expected 1
+[FAIL] red/leak15-long-line-wraps-before-at.txt: exit 0, expected 1
+[FAIL] red/leak16-utf16le-wrapped.txt: exit 0, expected 1
+[FAIL] red/leak19-url-encoded-address-wrapped.txt: exit 0, expected 1
+[FAIL] red/leak21-macos-home-wrapped.txt: exit 0, expected 1
+[FAIL] declared-flag/flag01-long-prose-line-ends-at-home-prefix.md: exit 0, expected 1
+[FAIL] declared-flag/flag02-long-line-then-decorator.py: exit 0, expected 1
+[FAIL] 16 corpus file(s) did not behave as their directory says (green 21, red 22, declared-miss 5, declared-flag 2)
+=== guard: noutf16
+[FAIL] red/leak10-utf16le-not-wrapped.txt: exit 0, expected 1
+[FAIL] red/leak16-utf16le-wrapped.txt: exit 0, expected 1
+[FAIL] red/leak17-utf16be-with-bom.txt: exit 0, expected 1
+[FAIL] red/leak18-utf16le-inside-binary.bin: exit 0, expected 1
+[FAIL] red/leak22-utf16be-no-bom.txt: exit 0, expected 1
+[FAIL] 5 corpus file(s) did not behave as their directory says (green 21, red 22, declared-miss 5, declared-flag 2)
+
+## 3. QA's round-2 probe script, unchanged, at 388b111
+$ python3 docs/cencon/proof/issue-173/qa/qa-r2-probes.py   # at 388b111
+#### LEAK probes - each SHOULD be red (exit 1)
+## A2-name-split-mid.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/A2-name-split-mid.txt:1: home path naming user p***
+## B-trailing-space-crlf.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/B-trailing-space-crlf.txt:1: WRAPPED across a line break: home path naming user p***
+## B2-trailing-tab-lf.txt exit=0 -> WRONG
+## B3-trailing-space-address.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/B3-trailing-space-address.txt:1: WRAPPED across a line break: email-shaped string p***@***.io
+## C-three-lines.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/C-three-lines.txt:1: WRAPPED across a line break: home path naming user p***
+## C2-four-lines-address.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/C2-four-lines-address.txt:1: WRAPPED across a line break: email-shaped string p***@***.io
+## D-lone-cr.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/D-lone-cr.txt:1: WRAPPED across a line break: home path naming user p***
+## F-runner-prefix.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/F-runner-prefix.txt:1: WRAPPED across a line break: home path naming user r***
+## E-utf16le-not-wrapped.txt exit=1 -> as expected
+    [FAIL] docs/cencon/review/qa-r2-probe/deep/er/E-utf16le-not-wrapped.txt:1: UTF-16 text: home path naming user p***
+#### NO-LEAK probes - each SHOULD be green (exit 0)
+## A-split-inside-token.txt exit=0 -> as expected
+## FP1-python-decorator.py exit=0 -> as expected
+## FP2-property-setter.py exit=0 -> as expected
+## FP3-ls-home-then-output.txt exit=0 -> as expected
+## FP4-csharp-verbatim.cs exit=0 -> as expected
+## FP5-md-mention.md exit=0 -> as expected
+## FP6-users-heading.md exit=0 -> as expected
+#### clean tree after every probe removed: exit=0
+# B2 is the one WRONG line, and it is a probe defect, not a miss: its body is 'path /ho<TAB>LF/me/planted-probe/x'.
+# Joined in any way that reads it, it is '/ho/me/planted-probe' - the second '/' means no home path exists in it.
+# The corrected shape ('/ho<TAB>LF' + 'me/planted-probe/x') is red/leak04-trailing-tab-lf.txt, red above;
+# QA's literal is pinned GREEN as green/fp19-qa-b2-literal-extra-slash.txt.
+
+## 4. The whole evidence tree under the new guard
+$ python3 scripts/check-proof-identity.py
+[check-proof-identity] scanned 1691 files, 23242279 bytes under docs/cencon/proof, docs/cencon/review
+[OK] no email-shaped string and no named home path in committed evidence, as written or across line wraps
+exit=0
+# Breaks in that tree: 214017. Joined: 29340 tier 1 (mid-word), 64663 tier 2 (beside punctuation after 80+ cols).
+# Zero hits from any of them - and section 1 shows that zero comes from an instrument that goes red on 22 leak shapes.
+
+## 5. Both CI steps of the evidence-identity job, run locally from the workflow YAML (only the [OK]/[FAIL] lines)
+[FAIL] docs/cencon/proof/ci-identity-probe.txt:1: email-shaped string p***@***.io
+[FAIL] 1 identity hit(s) in committed evidence. Replace an address with <owner account> (or a reserved-domain stand-in such as user@example.com) and a home-path user with <user> - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+[OK] the guard fails on a planted address and names the file and line
+[FAIL] docs/cencon/proof/ci-identity-probe.txt:2: WRAPPED across a line break: email-shaped string p***@***.io
+[FAIL] 1 identity hit(s) in committed evidence. Replace an address with <owner account> (or a reserved-domain stand-in such as user@example.com) and a home-path user with <user> - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+[OK] the guard fails on a planted address wrapped across a line and names the file and line
+[FAIL] docs/cencon/proof/ci-identity-probe.txt:1: home path naming user p***
+[FAIL] 1 identity hit(s) in committed evidence. Replace an address with <owner account> (or a reserved-domain stand-in such as user@example.com) and a home-path user with <user> - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+[OK] the guard fails on a planted home path and names the file and line
+[FAIL] docs/cencon/proof/ci-identity-probe.txt:2: WRAPPED across a line break: home path naming user p***
+[FAIL] 1 identity hit(s) in committed evidence. Replace an address with <owner account> (or a reserved-domain stand-in such as user@example.com) and a home-path user with <user> - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+[OK] the guard fails on a planted home path wrapped across a CRLF line break and names the file and line
+[OK] no email-shaped string and no named home path in committed evidence, as written or across line wraps
+exit=0
+[OK] no email-shaped string and no named home path in committed evidence, as written or across line wraps
+[OK] the guard stays green on an identity-free pytest decorator file
+[OK] every corpus file behaved as its directory says (green 21, red 22, declared-miss 5, declared-flag 2)
+exit=0
+
+## 6. Sweep counts re-measured at 388b111 (every blob; values from files outside the repository, never printed)
+$ python3 docs/cencon/proof/issue-173/remeasure-wrapped.py da85516 <owner-file> <second-file> <username>
+rev da85516: 2251 blobs
+  owner address (plain+encoded)      single-line    87 occ /  82 files | WRAPPED 0 occ / 0 files []
+  second address (plain+encoded)     single-line     3 occ /   1 files | WRAPPED 0 occ / 0 files []
+  /home/<username>                   single-line   794 occ / 400 files | WRAPPED 0 occ / 0 files []
+  /Users/<username>                  single-line   330 occ /  50 files | WRAPPED 0 occ / 0 files []
+  Users\+<username>                  single-line  3522 occ / 118 files | WRAPPED 1 occ / 1 files ['docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53']
+
+$ python3 docs/cencon/proof/issue-173/remeasure-wrapped.py 388b111 <owner-file> <second-file> <username>
+rev 388b111: 2320 blobs
+  owner address (plain+encoded)      single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  second address (plain+encoded)     single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  /home/<username>                   single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  /Users/<username>                  single-line     0 occ /   0 files | WRAPPED 0 occ / 0 files []
+  Users\+<username>                  single-line     1 occ /   1 files | WRAPPED 0 occ / 0 files []
+
+$ python3 docs/cencon/proof/issue-173/qa/qa-forms.py 388b111 <owner-file> <second-file> <username>
+rev=388b111 files_scanned=2320
+  owner plain                                             occ=    0 files=0
+  owner url %40                                           occ=    0 files=0
+  owner json \u0040                                       occ=    0 files=0
+  owner html &#64;                                        occ=    0 files=0
+  owner html &#x40;                                       occ=    0 files=0
+  owner html &commat;                                     occ=    0 files=0
+  owner [at] obfusc                                       occ=    0 files=0
+  owner dbl-url %2540                                     occ=    0 files=0
+  owner local-part+@ any                                  occ=    0 files=0
+  second plain                                            occ=    0 files=0
+  second url %40                                          occ=    0 files=0
+  second json \u0040                                      occ=    0 files=0
+  second html &#64;                                       occ=    0 files=0
+  second html &#x40;                                      occ=    0 files=0
+  second html &commat;                                    occ=    0 files=0
+  second [at] obfusc                                      occ=    0 files=0
+  second dbl-url %2540                                    occ=    0 files=0
+  second local-part+@ any                                 occ=    0 files=0
+  home: /home/<u>                                         occ=    0 files=0
+  home: /Users/<u>                                        occ=    0 files=0
+  home: Users\<u> (1-4 backslashes)                       occ=    1 files=1  -> tests/AgentEyes.Tests/CameraFailurePathTests.cs
+  home: any sep Users|home <sep> <u> (url/json-unicode too) occ=    1 files=1  -> tests/AgentEyes.Tests/CameraFailurePathTests.cs
+  home: ~<u>                                              occ=    0 files=0
+  home: 8.3 short <USERNAME>~1                            occ=    0 files=0
+
+$ python3 docs/cencon/proof/issue-173/qa/qa-wrapped-r2.py 388b111 <owner-file> <second-file> <username>
+(no output = no wrapped hit; it prints only hits) exit=0
+
+## 7. verify-sweep.py no longer says 'exact' on a failing run (QA round 2, minor)
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 <owner-file> <second-file>   # control A: one token swapped
+[FAIL] an address became the OTHER token: docs/cencon/review/archived-pr-188-issue-187-review-round3.md:45
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=1
+[FAIL] mapping checked against the given owner and second values: NOT exact - 1 failure(s), see the [FAIL] lines above
+exit=1
+$ python3 docs/cencon/proof/issue-173/verify-sweep.py da85516 <owner-file> <second-file>   # restored
+files=556 identity_values_redacted=4730 digit_runs_compared=165617 json_parsed_before_and_after=324 distinct_addresses=2 failures=0
+mapping checked against the given owner and second values: exact
+exit=0
+
+## 8. Gates
+# SDK 10.0.403, DOTNET_ROLL_FORWARD=LatestMajor. No C# changed this round.
+# dotnet test tests/AgentEyes.Tests.Linux -> Passed! Failed: 0, Passed: 474, Skipped: 3, Total: 477
+# dotnet test tests/AgentEyes.Tests.Mac   -> Passed! Failed: 0, Passed: 433, Skipped: 2, Total: 435
+# AgentEyes.sln (Windows) cannot build on a Mac: see the CI run named in handoff.md for this tip.

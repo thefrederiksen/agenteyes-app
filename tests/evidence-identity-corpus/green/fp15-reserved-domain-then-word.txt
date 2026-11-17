@@ -1,0 +1,2 @@
+user@example.com
+and nothing else

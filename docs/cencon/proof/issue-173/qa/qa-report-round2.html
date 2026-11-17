@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Issue 173 - QA round 2 - FAIL</title>
+<style>
+body{font-family:Segoe UI,Helvetica,Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1b1b1b;background:#fff;line-height:1.45}
+h1{font-size:22px}h2{font-size:18px;margin-top:28px;border-bottom:1px solid #ccc}
+table{border-collapse:collapse;width:100%;margin:8px 0}td,th{border:1px solid #bbb;padding:5px 7px;vertical-align:top;font-size:14px;text-align:left}
+th{background:#f0f0f0}code,pre{font-family:Consolas,Menlo,monospace;font-size:13px}pre{background:#f6f6f6;padding:8px;overflow-x:auto}
+.fail{color:#a00;font-weight:bold}.pass{color:#060;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Issue #173 - QA round 2: <span class="fail">FAIL (flow:qa-failed)</span></h1>
+<p>PR #206, branch <code>issue-173-scrub-identity</code>. <b>Tip verified: 5cf4ba0.</b> The developer also names
+<code>e28a068</code>. That is the parent of 5cf4ba0 and carries the code: the guard, the verifier, CI and the one
+redaction. 5cf4ba0 adds proof files only (handoff, re-measure, open-PR note, sweep-verify output). QA seat on
+devthrottle-mac-mini, 2026-11-17. This was a narrow round: the wrapped occurrence, the guard's wrap-awareness, and the
+verifier's swap residual, with the counts re-measured. This report contains no address. Where a shape has to be shown,
+<code>&amp;#64;</code> stands for the at-sign and <code>[LF]</code>/<code>[CRLF]</code> for a line break, so the report
+does not trip the guard itself.</p>
+
+<p><b>One-line verdict:</b> the tree is clean. The wrapped path is gone, every count is zero apart from the declared
+test fixture, and Windows CI ran on this tip. <b>But the new joined-view guard is red on ordinary, identity-free
+evidence.</b> Examples are a Python import line followed by a decorator, and an <code>ls</code> of the home root
+followed by its output. So the "0 false positives" claim holds only because no such file exists yet. The guard also
+misses three wrapped-leak shapes. The guard is the deliverable of this round, so this blocks.</p>
+
+<h2>The defect (blocking): the joined view glues unrelated lines into identities</h2>
+<table>
+<tr><th>Claim</th><td>Handoff (2): the guard scans each file with every line break removed, and "has 0 false positives on the
+1,683-file evidence tree". CI runs it on every push and PR, so a false positive makes every future PR red.</td></tr>
+<tr><th>Cause</th><td><code>scripts/check-proof-identity.py</code> <code>LINE_BREAK</code>/<code>joined_view</code> (lines 83-104) remove
+EVERY break, wherever it falls. A line that ends in an identifier, next to a line that starts with
+<code>&amp;#64;word.word</code> or <code>/word</code>, becomes an address or a home path. <code>complete_on_its_own</code>
+excuses only a head that is already a full match. Nothing asks whether the break could be a console wrap at all.</td></tr>
+<tr><th>Repro</th><td><code>python3 docs/cencon/proof/issue-173/qa/qa-r2-probes.py</code> from the repo root. It plants one file at a time
+under a new nested <code>docs/cencon/review/qa-r2-probe/deep/er/</code>, runs the guard and removes the file. Output:
+<code>qa-r2-probes.txt</code>. None of these files holds an identity, and each should be green:
+<table>
+<tr><th>Probe (no identity in it)</th><th>Expected</th><th>Actual</th></tr>
+<tr><td>FP1 <code>.py</code>: <code>import pytest</code> [LF] <code>&amp;#64;pytest.mark.parametrize(...)</code></td><td>exit 0</td><td class="fail">exit 1: FP1-python-decorator.py:1 WRAPPED ... email-shaped string p***&amp;#64;***.parametrize</td></tr>
+<tr><td>FP2 <code>.py</code>: <code>return self._x</code> [LF][LF] <code>&amp;#64;x.setter</code> (a property setter)</td><td>exit 0</td><td class="fail">exit 1: FP2-property-setter.py:3 WRAPPED ... s***&amp;#64;***.setterdef</td></tr>
+<tr><td>FP3 console: <code>$ ls</code> of the home root (no trailing slash) [LF] <code>/var/log/syslog</code></td><td>exit 0</td><td class="fail">exit 1: FP3-ls-home-then-output.txt:1 WRAPPED ... home path naming user v***</td></tr>
+<tr><td>FP5 <code>.md</code>: <code>Reviewed by the gate</code> [LF] <code>&amp;#64;github.com/actions note</code></td><td>exit 0</td><td class="fail">exit 1: FP5-md-mention.md:1 WRAPPED ... g***&amp;#64;***.com</td></tr>
+<tr><td>FP6 <code>.md</code>: a heading ending <code>/Users</code> [LF] <code>/Settings page</code></td><td>exit 0</td><td class="fail">exit 1: FP6-users-heading.md:1 WRAPPED ... home path naming user S***</td></tr>
+<tr><td>FP4 <code>.cs</code>: <code>var s = path</code> [LF] a verbatim string starting with the at-sign</td><td>exit 0</td><td class="pass">exit 0</td></tr>
+<tr><td>A: a redaction token split inside itself: <code>C:\Users\&lt;us</code> [CRLF] <code>er&gt;\AppData</code></td><td>exit 0</td><td class="pass">exit 0</td></tr>
+</table>
+FP1 and FP3 are not contrived. The evidence tree already holds 44 <code>.py</code> files under <code>docs/cencon</code>, and
+Linux transcripts list directories. Related: my first probe runner kept its shapes as printf strings with a literal
+backslash-n before the at-sign. The guard flagged that single-line form too: <code>n</code> + at-sign +
+<code>pytest.mark.parametrize</code> reads as an address. That line belongs to the address shape, not to the wrap logic,
+but it is the same lesson: a decorator-like token after any word character is red.</td></tr>
+<tr><th>Expected</th><td>The joined view counts a break only where a console wrap could have put it, and an identity-free file
+is green.</td></tr>
+<tr><th>Hint (not a prescription)</th><td>The real defect broke at column 119 (<code>run-rc-main.txt:53</code> is 119 characters).
+A break after a short line (FP1-FP6 are all short) is not a console wrap. One option is to join only where the line
+before the break is at least the file's wrap width (or a floor such as 79), after trailing whitespace is stripped. Any
+rule needs FP1-FP6 green and the six developer probes plus C/C2 below still red.</td></tr>
+</table>
+
+<h2>The guard's wrap-awareness: my own leak probes, shapes the developer did not use</h2>
+<table>
+<tr><th>Probe (fake name <code>planted-probe</code>)</th><th>Expected</th><th>Actual</th></tr>
+<tr><td>C: home path split across THREE lines with CRLF: <code>C:\U</code> [CRLF] <code>se</code> [CRLF] <code>rs\planted-probe\...</code></td><td>red</td><td class="pass">red: C-three-lines.txt:1 WRAPPED</td></tr>
+<tr><td>C2: address split across FOUR lines with LF</td><td>red</td><td class="pass">red: C2-four-lines-address.txt:1 WRAPPED</td></tr>
+<tr><td>A2: the name itself split (<code>...\planted-pr</code> [CRLF] <code>obe\...</code>)</td><td>red</td><td class="pass">red: A2-name-split-mid.txt:1 (as written: the first half is already a named path)</td></tr>
+<tr><td>All probes sit in a NEW nested directory, three levels deep, under <code>docs/cencon/review/</code></td><td>reached</td><td class="pass">reached: file:line named each time</td></tr>
+<tr><td>B: the defect's own shape with trailing SPACES before the CRLF: <code>C:\Us&nbsp;&nbsp;&nbsp;</code> [CRLF] <code>ers\planted-probe\...</code></td><td>red</td><td class="fail">GREEN (missed)</td></tr>
+<tr><td>B2: trailing TAB before an LF, the home prefix split as <code>/ho</code> [TAB][LF] <code>/me/planted-probe/x</code></td><td>red</td><td class="fail">GREEN (missed)</td></tr>
+<tr><td>B3: address split inside its domain, with trailing spaces before the LF</td><td>red</td><td class="fail">GREEN (missed)</td></tr>
+<tr><td>D: a lone CR as the break (<code>C:\Us</code> [CR] <code>ers\planted-probe</code>)</td><td>red</td><td class="fail">GREEN (missed)</td></tr>
+<tr><td>F: a name that begins with an allowed one, split after it (<code>runner</code> [LF] <code>bob/Videos</code>, i.e. user runnerbob)</td><td>red</td><td class="fail">GREEN (missed): <code>complete_on_its_own</code> excuses the head</td></tr>
+<tr><td>E: a UTF-16LE file (the Windows PowerShell 5.1 redirect default) holding an UNwrapped named home path</td><td>red</td><td class="fail">GREEN (missed): the byte regexes never see an ASCII run</td></tr>
+</table>
+<p>The trailing-whitespace misses (B, B2, B3) are the ones that matter: <code>LINE_BREAK</code> is
+<code>\r?\n[ \t]*</code>, so it removes whitespace AFTER a break but not BEFORE it. They belong in this fix. D, F and E
+are lower risk. Either fix them or declare them in the guard's "does NOT do" list, as it already does for pipe and host
+names. <b>Today's tree is clean in every one of these shapes</b> (next section), so these are gaps in the guard against
+the next leak, not leaks now.</p>
+
+<h2>1. The wrapped occurrence</h2>
+<table>
+<tr><th>Check</th><th>Expected</th><th>Actual</th><th></th></tr>
+<tr><td><code>run-rc-main.txt:53-54</code></td><td>the user segment after the <code>C:\Us</code>/<code>ers\</code> wrap is <code>&lt;user&gt;</code></td><td>line 54 reads <code>ers\&lt;user&gt;\AppData\Local\Temp\...</code></td><td class="pass">PASS</td></tr>
+<tr><td>my own <code>qa/qa-wrapped.py</code> (unchanged from round 1), whole tree, every blob</td><td>1 at da85516, 0 at tip</td><td>da85516: 1 (run-rc-main.txt:53). 7ffa6d5: 1. e28a068: 0. 5cf4ba0: 0.</td><td class="pass">PASS</td></tr>
+<tr><td><code>qa/qa-wrapped-r2.py</code> (new): the same search, but trailing spaces/tabs before the break and a lone CR also count as a wrap</td><td>0 at tip</td><td>da85516: 1 (the same defect). 5cf4ba0: 0.</td><td class="pass">PASS</td></tr>
+<tr><td>UTF-16 blobs anywhere in the tree (BOM or a NUL-interleaved prefix), each decoded and searched</td><td>none, or none with a hit</td><td>0 such files</td><td class="pass">PASS</td></tr>
+</table>
+
+<h2>2. Counts re-measured at 5cf4ba0 (<code>qa/qa-forms.py</code>, unchanged, every blob, 2265 files)</h2>
+<table>
+<tr><th>Form</th><th>da85516 (main)</th><th>5cf4ba0</th></tr>
+<tr><td>owner address, plain (case-insensitive)</td><td>87 occ / 82 files</td><td class="pass">0</td></tr>
+<tr><td>owner: %40, %2540, \u0040, &amp;#64;, &amp;#x40;, &amp;commat;, [at]</td><td>0</td><td class="pass">0</td></tr>
+<tr><td>second address</td><td>3 / 1 (archived-pr-188 ... round3.md)</td><td class="pass">0</td></tr>
+<tr><td><code>/home/&lt;username&gt;</code></td><td>794 / 400</td><td class="pass">0</td></tr>
+<tr><td><code>/Users/&lt;username&gt;</code></td><td>330 / 50</td><td class="pass">0</td></tr>
+<tr><td><code>Users\&lt;username&gt;</code>, 1-4 backslashes</td><td>3522 / 118</td><td class="pass">1 / 1: <code>tests/AgentEyes.Tests/CameraFailurePathTests.cs:77</code>, the declared one, nothing else</td></tr>
+<tr><td>any separator, URL/JSON-unicode forms</td><td>4646 / 554</td><td class="pass">1 / 1: the same line</td></tr>
+<tr><td>~&lt;username&gt;, 8.3 short name</td><td>0</td><td class="pass">0</td></tr>
+</table>
+<p>The developer's figures match mine exactly.</p>
+
+<h2>3. The verifier residual: reproduced, and judged acceptable</h2>
+<table>
+<tr><th>Control (base da85516)</th><th>No value files</th><th>With value files</th></tr>
+<tr><td>restored</td><td>exit 0, 556 files, 4730 values, WARNING printed last</td><td>exit 0, "mapping ... exact"</td></tr>
+<tr><td>ONE <code>&lt;owner second account&gt;</code> changed to <code>&lt;owner account&gt;</code></td><td class="pass">exit 1: one address replaced by BOTH tokens</td><td class="pass">exit 1: archived-pr-188-issue-187-review-round3.md:45</td></tr>
+<tr><td>EVERY sweep-made token swapped (82 files, 84 changes; the two files that held tokens before the sweep left alone)</td><td class="fail">exit 0, failures=0, WARNING printed last</td><td class="pass">exit 1, 84 failures</td></tr>
+</table>
+<p>Instrument note: my first wholesale-swap attempt was a shell loop that changed nothing. It came back green WITH
+value files and still reported distinct_addresses=2, so I discarded it and redid the swap in Python with a
+<code>git diff --stat</code> check (82 files changed) before running the verifier.</p>
+<p><b>Verdict: acceptable, as disclosed.</b> (a) Nothing automated runs it. <code>verify-sweep.py</code> appears in no
+workflow and no script (grep of <code>.github/</code> and <code>scripts/</code>). It is a one-off proof instrument run by
+hand by a seat, so no CI green can hide the residual. (b) A wholesale swap leaks nothing: both tokens are redactions, and
+the worst outcome is mislabelling which of the owner's two accounts appeared. The guard, not the verifier, protects
+privacy. (c) The WARNING is the LAST line of every run without value files, which is where a reader looks. <b>One
+cosmetic bug to fix while in there:</b> with value files the script prints "mapping checked against the given owner and
+second values: exact" even when it exits 1 with 84 failures (lines 147-148 print it unconditionally). The exit code is
+right; the sentence is not.</p>
+
+<h2>4. Windows gate: CI HAS run on the tip</h2>
+<table>
+<tr><th>Run</th><th>Head</th><th>Windows job</th><th>Result</th></tr>
+<tr><td>44060122082 (push)</td><td>5cf4ba0</td><td>133959519622</td><td class="pass">AgentEyes.Tests 2527 passed / 16 skipped / 0 failed; DesktopApp 23/0/0; ffmpeg arm 2546/1/0</td></tr>
+<tr><td>44060130232 (pull_request)</td><td>5cf4ba0</td><td>133959546808</td><td class="pass">success</td></tr>
+</table>
+<p>The gap the brief raised is closed: <code>AccountStateTests</code> has run on its own platform at this tip.
+evidence-identity, linux and macos are green on both runs. CI's four planted probes passing does not contradict the
+defect above. CI plants only identities, never an identity-free file shaped like FP1-FP6.</p>
+
+<h2>5. Gates run by QA on this Mac</h2>
+<p>SDK 10.0.403, <code>DOTNET_ROLL_FORWARD=LatestMajor</code>, building net8.0:
+<code>tests/AgentEyes.Tests.Mac</code> 433 passed / 2 skipped / 0 failed (435).
+<code>tests/AgentEyes.Tests.Linux</code> 474 / 3 / 0 (477). AgentEyes.sln does not build on a Mac; the Windows coverage is
+the CI run above.</p>
+
+<h2>OUT, confirmed recorded in handoff.md (not half-done)</h2>
+<ul>
+<li>Git history: the address stays in commit author metadata. Not rewritten.</li>
+<li><code>tests/AgentEyes.Tests/CameraFailurePathTests.cs:77</code>: the one remaining home path, declared.</li>
+<li>Usernames in pipe names, host names and ls owner columns: #212.</li>
+<li>Open evidence PRs #190 #198 #199 #177: not covered by this zero. The developer reports each merges clean and is green
+under the new guard. Note that once the false-positive fix lands, those heads need re-checking under the changed guard.</li>
+</ul>
+
+<h2>What the developer owes for round 3</h2>
+<ol>
+<li>The joined view must not join where no console wrap could be. FP1, FP2, FP3, FP5 and FP6 go green; FP4 and A stay green.</li>
+<li>Trailing whitespace before a break counts as part of the break (B, B2, B3 red).</li>
+<li>D (lone CR), F (allowed-prefix name) and E (UTF-16): fix, or name each in the guard's "does NOT do" docstring.</li>
+<li>Add at least one false-positive control to the CI positive-control step (for example FP1, assembled at run time). It
+must be GREEN, so the CI step proves the guard can stay silent as well as fire.</li>
+<li>verify-sweep.py: print "exact" only when the mapping check passed.</li>
+<li>Re-run <code>qa/qa-r2-probes.py</code>. The expected result is every line "as expected".</li>
+</ol>
+
+<p>Files: <code>qa/qa-r2-probes.py</code> + <code>qa/qa-r2-probes.txt</code> (this round's probes and their output),
+<code>qa/qa-wrapped-r2.py</code> (wrap search widened), and <code>qa/qa-wrapped.py</code>, <code>qa/qa-forms.py</code>
+(round 1, unchanged). The value files live outside the repository and are never printed.</p>
+</body>
+</html>

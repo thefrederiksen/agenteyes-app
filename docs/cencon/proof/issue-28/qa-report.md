@@ -87,7 +87,7 @@ issue text literally would make the output *inconsistent* with its own neighbour
 ### AC3 - Two separate files. PASS
 
 `POST /record/start {"mode":"video","screen":1,"source":"none","camera":"HD Webcam eMeet C960"}`
-then `POST /record/stop`, into `C:\Users\soren\Videos\AgentEyes\2026-08-28_093920_video`:
+then `POST /record/stop`, into `C:\Users\<user>\Videos\AgentEyes\2026-08-28_093920_video`:
 
 ```
 camera.mp4              37,098,952 bytes

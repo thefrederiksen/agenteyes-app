@@ -1,0 +1,43 @@
+# Issue #173 - the AccountStateTests fixture still proves propagation.
+# devthrottle-mac-mini, 2026-11-17. SDK 10.0.403, net8.0 test run on runtime 10 via DOTNET_ROLL_FORWARD=LatestMajor
+# (this Mac has no 8.x runtime). xunit 2.9.3, Microsoft.NET.Test.Sdk 17.11.1 (the versions tests/AgentEyes.Tests.Mac pins).
+#
+# WHY A HARNESS: AccountStateTests.cs is compiled only by tests/AgentEyes.Tests (net8.0-windows), which
+# cannot build on a Mac, and neither Unix suite includes it. So a scratch xunit project in <stage> compiled
+# the REAL test file (tests/AgentEyes.Tests/AccountStateTests.cs, by path) against the REAL
+# src/AgentEyes.Core/DevThrottle/AccountState.cs (copied unmodified for A, then mutated for B and C),
+# with two stubs for what Describe never touches: DevThrottleAccount.Load() and Log.Info().
+# THIS IS NOT THE WINDOWS GATE. QA must run dotnet test AgentEyes.sln -c Release on Windows.
+
+## The mutants (diff of AccountState.cs, Describe only)
+B (drops the address):
+<                     string.IsNullOrWhiteSpace(email) ? "Signed in to DevThrottle" : $"Signed in as {email}",
+<                     $"DevThrottle account: Signed in{(string.IsNullOrWhiteSpace(email) ? "" : $" as {email}")}")
+>                     string.IsNullOrWhiteSpace(email) ? "Signed in to DevThrottle" : "Signed in",
+>                     $"DevThrottle account: Signed in")
+C (prints a FIXED address - the first fixture - instead of the one it was given):
+>                     ... : $"Signed in as first.tester@example.com",
+>                     $"DevThrottle account: Signed in{(... ? "" : $" as first.tester@example.com")}")
+
+## Results
+== A: real Describe (unmodified source), new test file
+Passed!  - Failed:     0, Passed:     7, Skipped:     0, Total:     7, Duration: 3 ms - Harness.dll (net8.0)
+== B: mutant - Describe drops the address
+[xUnit.net 00:00:00.06]     AgentEyes.Tests.AccountStateTests.Describe_SignedInWithEmail_ShowsEmailInTooltipAndAutomationName(email: "first.tester@example.com") [FAIL]
+[xUnit.net 00:00:00.06]     AgentEyes.Tests.AccountStateTests.Describe_SignedInWithEmail_ShowsEmailInTooltipAndAutomationName(email: "second-tester@example.invalid") [FAIL]
+   Assert.Contains() Failure: Sub-string not found
+String:    "Signed in"
+   Assert.Contains() Failure: Sub-string not found
+String:    "Signed in"
+Failed!  - Failed:     2, Passed:     5, Skipped:     0, Total:     7, Duration: 6 ms - Harness.dll (net8.0)
+== C: mutant - Describe prints a FIXED address instead of the one given
+[xUnit.net 00:00:00.05]     AgentEyes.Tests.AccountStateTests.Describe_SignedInWithEmail_ShowsEmailInTooltipAndAutomationName(email: "second-tester@example.invalid") [FAIL]
+   Assert.Contains() Failure: Sub-string not found
+String:    "Signed in as first.tester@example.com"
+Failed!  - Failed:     1, Passed:     6, Skipped:     0, Total:     7, Duration: 6 ms - Harness.dll (net8.0)
+
+## Reading
+A: 7/7 (6 facts/cases before the change became 7: the signed-in case is now a Theory with two addresses).
+B: both signed-in cases fail - the test still notices when Describe stops propagating the address.
+C: the second case fails - a single-fixture test would pass a Describe that hard-codes its fixture;
+   two different addresses through the same assertion close that gap.

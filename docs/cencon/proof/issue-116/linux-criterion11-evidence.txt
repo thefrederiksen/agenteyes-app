@@ -106,7 +106,7 @@ first instance pid for log: 138248
 10:27:47.921 [pid 132923] [INFO] [MainWindow] ctor
 10:27:48.235 [pid 132923] [INFO] [MainWindow] Opened
 10:27:48.238 [pid 132923] [INFO] [ControlClient] GetDevicesAsync
-10:27:48.252 [pid 132923] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:27:48.252 [pid 132923] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 10:27:48.496 [pid 132923] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 254 ms
 10:27:48.574 [pid 132923] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 68 ms
 10:27:48.709 [pid 132923] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
@@ -129,7 +129,7 @@ first instance pid for log: 138248
 10:28:27.881 [pid 135675] [INFO] [MainWindow] ctor
 10:28:28.199 [pid 135675] [INFO] [MainWindow] Opened
 10:28:28.203 [pid 135675] [INFO] [ControlClient] GetDevicesAsync
-10:28:28.212 [pid 135675] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:28.212 [pid 135675] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 10:28:28.230 [pid 135675] [INFO] [AppState] PollAsync: service answering, state=idle
 10:28:28.231 [pid 135675] [INFO] [TrayController] Render: -> idle
 10:28:28.371 [pid 135675] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 156 ms
@@ -145,7 +145,7 @@ first instance pid for log: 138248
 10:28:29.557 [pid 135675] [INFO] [App] ShowWindow
 10:28:29.604 [pid 135675] [INFO] [MainWindow] Opened
 10:28:29.605 [pid 135675] [INFO] [ControlClient] GetDevicesAsync
-10:28:29.610 [pid 135675] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:29.610 [pid 135675] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 10:28:29.699 [pid 135675] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 88 ms
 10:28:30.019 [pid 135675] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 10:28:30.029 [pid 135675] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -201,7 +201,7 @@ first instance pid for log: 138248
 10:28:40.867 [pid 136999] [INFO] [MainWindow] ctor
 10:28:41.165 [pid 136999] [INFO] [MainWindow] Opened
 10:28:41.170 [pid 136999] [INFO] [ControlClient] GetDevicesAsync
-10:28:41.179 [pid 136999] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:41.179 [pid 136999] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 10:28:41.197 [pid 136999] [INFO] [AppState] PollAsync: service answering, state=idle
 10:28:41.197 [pid 136999] [INFO] [TrayController] Render: -> idle
 10:28:41.323 [pid 136999] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 142 ms
@@ -217,7 +217,7 @@ first instance pid for log: 138248
 10:28:42.400 [pid 136999] [INFO] [App] ShowWindow
 10:28:42.448 [pid 136999] [INFO] [MainWindow] Opened
 10:28:42.449 [pid 136999] [INFO] [ControlClient] GetDevicesAsync
-10:28:42.453 [pid 136999] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:42.453 [pid 136999] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 10:28:42.536 [pid 136999] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 82 ms
 10:28:42.861 [pid 136999] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 10:28:42.872 [pid 136999] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list
@@ -273,7 +273,7 @@ first instance pid for log: 138248
 10:28:53.787 [pid 138248] [INFO] [MainWindow] ctor
 10:28:54.089 [pid 138248] [INFO] [MainWindow] Opened
 10:28:54.093 [pid 138248] [INFO] [ControlClient] GetDevicesAsync
-10:28:54.102 [pid 138248] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:54.102 [pid 138248] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 10:28:54.120 [pid 138248] [INFO] [AppState] PollAsync: service answering, state=idle
 10:28:54.121 [pid 138248] [INFO] [TrayController] Render: -> idle
 10:28:54.380 [pid 138248] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 276 ms
@@ -289,7 +289,7 @@ first instance pid for log: 138248
 10:28:55.484 [pid 138248] [INFO] [App] ShowWindow
 10:28:55.521 [pid 138248] [INFO] [MainWindow] Opened
 10:28:55.521 [pid 138248] [INFO] [ControlClient] GetDevicesAsync
-10:28:55.525 [pid 138248] [INFO] [MainWindow] StartWatchingLibrary: /home/soren/Videos/AgentEyes
+10:28:55.525 [pid 138248] [INFO] [MainWindow] StartWatchingLibrary: /home/<user>/Videos/AgentEyes
 10:28:55.615 [pid 138248] [INFO] [MainWindow] RequestScan: 77 recording(s), 0 pending, 90 ms
 10:28:55.930 [pid 138248] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
 10:28:55.941 [pid 138248] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=list

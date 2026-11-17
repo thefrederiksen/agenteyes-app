@@ -43,8 +43,8 @@ committed to any branch, and building it is how D3 was found.
 ## How the runs were made safe, and what proves it
 
 - **Scratch library, proven before any service ran.** An independent net8.0 probe printed
-  `GetFolderPath(LocalApplicationData / MyVideos)` under the real env (`/home/soren/.local/share`,
-  `/home/soren/Videos`) and under the scratch env (both inside the scratch root). The positive control
+  `GetFolderPath(LocalApplicationData / MyVideos)` under the real env (`/home/<user>/.local/share`,
+  `/home/<user>/Videos`) and under the scratch env (both inside the scratch root). The positive control
   is in the same run, so the probe can tell the two apart. Every `agenteyes serve` was then SIGKILLed on the spot
   unless its own `recordings ->` line was inside its scratch root. Every service in every run printed
   a scratch root, so the abort never fired.

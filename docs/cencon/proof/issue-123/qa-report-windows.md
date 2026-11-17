@@ -79,8 +79,8 @@ headless host answers 411 does not happen. On Windows both answer with the same 
 10:16:26.139 == stop with Content-Length: 0 (curl -d '')
 HTTP/1.1 200 OK
 Content-Length: 210
-  "Dir": "C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_101622_video",
-  "File": "C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_101622_video\\recording.mp4",
+  "Dir": "C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_101622_video",
+  "File": "C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_101622_video\\recording.mp4",
   "DurationSeconds": 3.25,
 10:16:28.581 status:   "State": "idle",
 ```
@@ -96,7 +96,7 @@ Actual: an error (411), and the recording was still running. Response first, the
 
 ```
 10:15:46.863 == start (bodied) -> HTTP/1.1 200 OK, "State": "recording",
-             "Dir": "C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_101546_video"
+             "Dir": "C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_101546_video"
 10:15:52.284 == 1. bodyless POST /record/stop (curl -X POST, no -d)
 HTTP/1.1 411 Length Required
 Content-Type: text/html; charset=us-ascii
@@ -108,7 +108,7 @@ Content-Length: 344
 10:15:52.467 == 2. GET /status immediately after
   "State": "recording",
   "ElapsedSeconds": 5.08,
-  "Dir": "C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_101546_video",
+  "Dir": "C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_101546_video",
 ```
 
 **PASS.** Note: on Windows the 411 body is http.sys's HTML, not the server's JSON
@@ -144,8 +144,8 @@ Actual:
 ```
 10:16:07.129 == 3. bodied stop
 {
-  "Dir": "C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_101546_video",
-  "File": "C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_101546_video\\recording.mp4",
+  "Dir": "C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_101546_video",
+  "File": "C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_101546_video\\recording.mp4",
   "DurationSeconds": 19.75,
   "Shots": 1
 }
@@ -164,7 +164,7 @@ stop:
 
 ```
 10:16:07.211 [pid 5588] [INFO] [HeadlessControlServer] POST /record/stop
-10:16:09.001 [pid 5588] [INFO] [HeadlessControlServer] Stop: C:\Users\soren\Videos\AgentEyes\2026-11-14_101546_video saved; post-processing running in the background
+10:16:09.001 [pid 5588] [INFO] [HeadlessControlServer] Stop: C:\Users\<user>\Videos\AgentEyes\2026-11-14_101546_video saved; post-processing running in the background
 10:16:09.003 [pid 5588] [INFO] [HeadlessControlServer] POST /record/stop: 200 answer written (211 bytes)
 ```
 
@@ -172,7 +172,7 @@ The `Content-Length: 0` stop:
 
 ```
 10:16:26.239 [pid 5588] [INFO] [HeadlessControlServer] POST /record/stop
-10:16:28.518 [pid 5588] [INFO] [HeadlessControlServer] Stop: C:\Users\soren\Videos\AgentEyes\2026-11-14_101622_video saved; post-processing running in the background
+10:16:28.518 [pid 5588] [INFO] [HeadlessControlServer] Stop: C:\Users\<user>\Videos\AgentEyes\2026-11-14_101622_video saved; post-processing running in the background
 10:16:28.518 [pid 5588] [INFO] [HeadlessControlServer] POST /record/stop: 200 answer written (210 bytes)
 ```
 

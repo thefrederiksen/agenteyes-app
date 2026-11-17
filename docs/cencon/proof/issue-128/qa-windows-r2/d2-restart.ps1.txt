@@ -1,5 +1,5 @@
 param([string]$app, [string]$dir, [string]$cli, [string]$tag)
-$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\soren\AppData\Local\AgentEyes\app'
+$env:QA_RECORD_FFMPEG_DIR = 'C:\Users\<user>\AppData\Local\AgentEyes\app'
 $L = "$PSScriptRoot\listing.ps1"; $name = Split-Path $dir -Leaf
 function M { Get-Content "$dir\manifest.json" -Raw | ConvertFrom-Json }
 function Mux { (M).PostProcessing | ConvertTo-Json -Compress }

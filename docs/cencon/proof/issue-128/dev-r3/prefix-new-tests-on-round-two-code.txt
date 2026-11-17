@@ -16,7 +16,7 @@ A total of 1 test files matched the specified pattern.
   Error Message:
    Assert.Equal() Failure: Collections differ
                         ? (pos 0)
-Expected: string[]     ["C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"???]
+Expected: string[]     ["C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"???]
 Actual:   List<string> []
   Stack Trace:
      at AgentEyes.Tests.MuxCoordinatorTests.RepairPass_HardKillOnTheLastAttempt_IsDiscoveredReconciledAndThenLeftAlone() in C:\ReposFred\agenteyes-r3-prefix\tests\AgentEyes.Tests\MuxCoordinatorTests.cs:line 333
@@ -24,7 +24,7 @@ Actual:   List<string> []
   Failed AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose [52 ms]
   Error Message:
    Assert.Empty() Failure: Collection was not empty
-Collection: ["C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"???]
+Collection: ["C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"???]
   Stack Trace:
      at AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingKilledOnTheLastMuxAttempt_ReconcilesAndBurnsNoCompose() in C:\ReposFred\agenteyes-r3-prefix\tests\AgentEyes.Tests\MuxCoordinatorTests.cs:line 448
 --- End of stack trace from previous location ---
@@ -40,7 +40,7 @@ Actual:   PendingMuxInfo { FinalFile = "recording.mp4", MicWav = null, Mode = "v
   Error Message:
    Assert.Equal() Failure: Collections differ
                         ? (pos 0)
-Expected: string[]     ["C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"???]
+Expected: string[]     ["C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"???]
 Actual:   List<string> []
   Stack Trace:
      at AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(Int32 attempts, Boolean processingOn) in C:\ReposFred\agenteyes-r3-prefix\tests\AgentEyes.Tests\MuxCoordinatorTests.cs:line 375
@@ -58,7 +58,7 @@ Actual:   List<string> []
   Error Message:
    Assert.Equal() Failure: Collections differ
                         ? (pos 0)
-Expected: string[]     ["C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"???]
+Expected: string[]     ["C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"???]
 Actual:   List<string> []
   Stack Trace:
      at AgentEyes.Tests.MuxCoordinatorTests.RepairPass_DeathAfterTheMuxCompleted_PublishesTheFileAndRunsTheLaterStages(Int32 attempts, Boolean processingOn) in C:\ReposFred\agenteyes-r3-prefix\tests\AgentEyes.Tests\MuxCoordinatorTests.cs:line 375
@@ -75,7 +75,7 @@ Actual:   PendingMuxInfo { FinalFile = "recording.mp4", MicWav = null, Mode = "v
   Failed AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingWithAnExhaustedMux_BurnsNoComposeAndIsNotRediscovered [17 ms]
   Error Message:
    Assert.Empty() Failure: Collection was not empty
-Collection: ["C:\\Users\\soren\\AppData\\Local\\Temp\\agenteyes-"???]
+Collection: ["C:\\Users\\<user>\\AppData\\Local\\Temp\\agenteyes-"???]
   Stack Trace:
      at AgentEyes.Tests.MuxCoordinatorTests.RepairPass_CameraRecordingWithAnExhaustedMux_BurnsNoComposeAndIsNotRediscovered() in C:\ReposFred\agenteyes-r3-prefix\tests\AgentEyes.Tests\MuxCoordinatorTests.cs:line 426
 --- End of stack trace from previous location ---

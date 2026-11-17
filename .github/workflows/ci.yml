@@ -19,6 +19,66 @@ permissions:
   contents: read
 
 jobs:
+  # Issue #173: committed evidence must not carry an email address. The repository is public and
+  # proof files are copied between seats, so one leak became 84 files. The check matches the SHAPE
+  # of an address or a named home path and never names one (scripts/check-proof-identity.py says
+  # why and lists its allowances; the corpus in tests/evidence-identity-corpus/ pins them). It scans
+  # single lines: a console-WRAPPED leak is a declared miss, owned by issue #218. It stops the NEXT
+  # leak; git history keeps the last.
+  evidence-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The guard is made to fire on every run before its silence is believed: plant each shape it
+      # claims to see in a new proof file and require a red result that names that file and line.
+      # The planted values are assembled at run time so this workflow holds no such literal.
+      - name: Positive control - the guard must fail on each planted shape
+        shell: bash
+        run: |
+          probe=docs/cencon/proof/ci-identity-probe.txt
+          check() {
+            local what=$1 want=$2
+            set +e
+            out=$(python3 scripts/check-proof-identity.py)
+            code=$?
+            set -e
+            rm -f "$probe"
+            echo "$out"
+            test $code -eq 1 || { echo "[FAIL] the guard exited $code on a planted $what; expected 1 - it cannot fail, so its green means nothing"; exit 1; }
+            echo "$out" | grep -q "ci-identity-probe.txt:$want" || { echo "[FAIL] the guard went red on a planted $what but did not name ci-identity-probe.txt:$want"; exit 1; }
+            echo "[OK] the guard fails on a planted $what and names the file and line"
+          }
+          printf 'line one\nsigned in as %s@%s\n' planted.probe acme-widgets.io > "$probe"
+          check address "2:"
+          printf 'line one\noutput to %s:\\%s\\%s\\Videos\n' C Users planted-probe > "$probe"
+          check "Windows home path" "2:"
+          printf 'output to /%s/%s/.config\n' home planted-probe > "$probe"
+          check "Linux home path" "1:"
+          python3 scripts/check-proof-identity.py || { echo "[FAIL] the guard is still red with every probe removed"; exit 1; }
+
+      # ...and made to stay QUIET on ordinary evidence: an identity-free pytest file, a systemd unit
+      # name (which has the shape of an address) and a reserved-domain address, planted in the real
+      # tree, must stay green. Then the committed corpus runs: what must stay green, what must go
+      # red, and what the guard misses (every wrapped shape, #218) and flags by design.
+      - name: Negative control - the guard must stay green on identity-free files, and the corpus must hold
+        shell: bash
+        run: |
+          probe=docs/cencon/proof/ci-identity-probe.py
+          printf 'import pytest\n%spytest.mark.parametrize("x", [1])\ndef test_x(x):\n    pass\n# CGroup: /user.slice/user%s1000.service and getty%stty1.service\n# GIT_AUTHOR_EMAIL=scratch%sexample.invalid\n' '@' '@' '@' '@' > "$probe"
+          set +e
+          out=$(python3 scripts/check-proof-identity.py)
+          code=$?
+          set -e
+          rm -f "$probe"
+          echo "$out"
+          test $code -eq 0 || { echo "[FAIL] the guard exited $code on an identity-free file (pytest decorator, systemd units, reserved domain); expected 0 - it would block an ordinary commit"; exit 1; }
+          echo "[OK] the guard stays green on a pytest decorator, systemd unit names and a reserved-domain address"
+          python3 scripts/test-check-proof-identity.py
+
+      - name: No email address and no named home path in committed evidence
+        run: python3 scripts/check-proof-identity.py
+
   windows:
     runs-on: windows-latest
     steps:

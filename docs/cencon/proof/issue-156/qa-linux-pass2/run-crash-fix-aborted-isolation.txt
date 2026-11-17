@@ -1,5 +1,5 @@
 13:46:35.544 === QA #156 pass 2 scenario=crash binary=fix scratch=$SCRATCH/runs/crash-fix-134635
-13:46:35.547 binary: /home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
+13:46:35.547 binary: /home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes
 13:46:35.563 embedded version: 1.11.11+2594cfc733eb58103a36055ec7b7d1295fe4d8c5
 13:46:35.637   foreign go2rtc ffmpeg, re-identified by command line: pid 72110 alive=yes (never signalled)
 13:46:35.982 ABORT: positive control failed - the probe did not follow the env ('AgentEyes')

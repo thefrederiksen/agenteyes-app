@@ -1,4 +1,4 @@
-13:10:46.272 === issue #156 pass 2, criterion 4 control arm: binary=fix (/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes), scratch=$SP/runs/c4-fix-131046
+13:10:46.272 === issue #156 pass 2, criterion 4 control arm: binary=fix (/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes), scratch=$SP/runs/c4-fix-131046
 13:10:46.284 binary version: 1.11.11+760e6a7c33e3fa29e139c590486e3838ccf7f9cf
 13:10:46.372   foreign go2rtc ffmpeg (by command line): pid 72110 alive=yes
 13:10:46.629 isolation pre-check (report-only housekeep, no service): this-host root=$SP/runs/c4-fix-131046/home/Videos/AgentEyes, other-host root=$SP/runs/c4-fix-131046/home/Videos/AgentEyes, this-host data root=$SP/runs/c4-fix-131046/home/.local/share/AgentEyes, other-host data root=$SP/runs/c4-fix-131046/other/.local/share/AgentEyes

@@ -1,7 +1,7 @@
 param([string]$Label, [string]$Worktree, [int]$OptIn)
 $ErrorActionPreference = 'Stop'
 $S = Split-Path -Parent $MyInvocation.MyCommand.Path
-$real = 'C:\Users\soren\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin'
+$real = 'C:\Users\<user>\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.1-full_build\bin'
 $log = Join-Path $S "log-adv-$Label"; Remove-Item -Recurse -Force $log -ErrorAction SilentlyContinue; New-Item -ItemType Directory $log | Out-Null
 $out = Join-Path $S "adv-$Label.txt"
 function Say($m) { $l = "{0:O}  {1}" -f (Get-Date), $m; Write-Output $l; Add-Content -Path $out -Value $l }

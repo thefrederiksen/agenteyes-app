@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
-$SP  = "C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
+$SP  = "C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad"
 $EXE = "D:\ReposFred\agenteyes-qa33-r4\src\AgentEyes.App\bin\x64\Release\net8.0-windows10.0.19041.0\AgentEyesApp.exe"
-$cfg = "C:\Users\soren\AppData\Local\AgentEyes\config.json"
+$cfg = "C:\Users\<user>\AppData\Local\AgentEyes\config.json"
 
 function Hud($a, $b) { if ($b) { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a -Arg $b } else { & powershell -NoProfile -File "$SP\qa33r4-hud.ps1" -Action $a } }
 function Cfg($what) { Write-Output ("  config {0}: {1}" -f $what, (((Get-Content $cfg | Select-String 'HudWidth|HudHeight|HudLeft|HudTop|HudPreviewVisible') -join ' ') -replace '\s+', ' ')) }

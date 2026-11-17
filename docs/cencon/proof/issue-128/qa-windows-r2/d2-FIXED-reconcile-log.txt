@@ -1,7 +1,7 @@
 15:50:04.941 [pid 1876] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-14_210400_qa128r2kill needs mux
 15:50:04.959 [pid 1876] [INFO] [MuxLock] TryAcquire: 2026-11-14_210400_qa128r2kill (post-recording) - acquired by pid 1876
 15:50:04.960 [pid 1876] [INFO] [MuxCoordinator] Reconcile: 2026-11-14_210400_qa128r2kill
-15:50:09.887 [pid 22356] [INFO] [MuxCoordinator] RunForPackage: C:\Users\soren\Videos\AgentEyes\2026-11-14_210400_qa128r2kill
+15:50:09.887 [pid 22356] [INFO] [MuxCoordinator] RunForPackage: C:\Users\<user>\Videos\AgentEyes\2026-11-14_210400_qa128r2kill
 15:50:33.075 [pid 21516] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-14_210400_qa128r2kill needs mux
 15:50:33.091 [pid 21516] [INFO] [MuxLock] TryAcquire: 2026-11-14_210400_qa128r2kill (post-recording) - acquired by pid 21516
 15:50:33.091 [pid 21516] [INFO] [MuxCoordinator] Reconcile: 2026-11-14_210400_qa128r2kill

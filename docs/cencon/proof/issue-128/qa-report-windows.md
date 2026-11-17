@@ -195,10 +195,10 @@ App attempt 2 was stalling. Then `agenteyes package <dir>` was run from the same
 --- BEFORE second attempt (12:40:55.361): one ffmpeg, 15332 ppid 8724 (app)
 --- AFTER CLI package started (12:41:11.494)
  15332 ppid   8724 ffmpeg.exe   ...
- 15088 ppid   4424 agenteyes.exe ... package C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128
+ 15088 ppid   4424 agenteyes.exe ... package C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128
  12196 ppid  15088 ffmpeg.exe   ...
-pid 15332 ppid 8724  output-arg: ... -b:a 160k C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
-pid 12196 ppid 15088 output-arg: ... -b:a 160k C:\Users\soren\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
+pid 15332 ppid 8724  output-arg: ... -b:a 160k C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
+pid 12196 ppid 15088 output-arg: ... -b:a 160k C:\Users\<user>\Videos\AgentEyes\2026-11-14_130000_qa128\recording.mp4
 manifest mux: {"State":"running","Attempts":2}     <- the second attempt was not counted
 ```
 Two live writers on one output path. There is no enforcement across processes:
@@ -361,7 +361,7 @@ ffmpeg -y -f lavfi -i "testsrc2=size=1280x720:rate=15:duration=91" -f lavfi -i "
 - D2: `Stop-Process -Force` on the app during the mux, three times, then start it again.
 
 ## Left behind on this machine
-- Recording `C:\Users\soren\Videos\AgentEyes\2026-11-14_130010_video` (the 10-minute criterion 4
+- Recording `C:\Users\<user>\Videos\AgentEyes\2026-11-14_130010_video` (the 10-minute criterion 4
   run, a silent room) is kept as evidence.
 - The installed app is running again (pid 22200). There is no ffmpeg running and no registry
   records.

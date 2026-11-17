@@ -12,7 +12,7 @@ set -u
 TAG=$1; PB=$2; SCEN=$3
 SP=${SCRATCH:?set SCRATCH to an empty scratch directory holding shim/ and wt-pre/}
 case $TAG in
-  fix) BIN=/home/soren/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
+  fix) BIN=/home/<user>/ReposFred/agenteyes-app/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
   pre) BIN=$SP/wt-pre/src/AgentEyes.Core/bin/x64/Release/net8.0/agenteyes ;;
   *) echo usage; exit 2 ;;
 esac

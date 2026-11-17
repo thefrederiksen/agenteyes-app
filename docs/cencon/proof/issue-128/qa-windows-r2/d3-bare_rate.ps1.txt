@@ -1,5 +1,5 @@
 param($ff, $layout, $n, $filterPrefix, $tag)
-$model = "C\:/Users/soren/AppData/Local/AgentEyes/models/bd.rnnn"
+$model = "C\:/Users/<user>/AppData/Local/AgentEyes/models/bd.rnnn"
 $res = @()
 for ($i=1; $i -le $n; $i++) {
   $raw = "$PSScriptRoot\$tag-$i.f32"

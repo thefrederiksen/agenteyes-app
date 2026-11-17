@@ -10,14 +10,20 @@ namespace AgentEyes.Tests
     /// </summary>
     public class AccountStateTests
     {
-        [Fact]
-        public void Describe_SignedInWithEmail_ShowsEmailInTooltipAndAutomationName()
+        // Issue #173: the fixtures are synthetic addresses on reserved domains (RFC 2606 / RFC 6761),
+        // never a real person's. Two DIFFERENT addresses run through the same assertions, and each
+        // assertion checks the value it was given - so a Describe that stopped propagating the address
+        // (or printed a fixed one) fails at least one case.
+        [Theory]
+        [InlineData("first.tester@example.com")]
+        [InlineData("second-tester@example.invalid")]
+        public void Describe_SignedInWithEmail_ShowsEmailInTooltipAndAutomationName(string email)
         {
-            var d = AccountState.Describe(true, "soren@centerconsulting.com");
+            var d = AccountState.Describe(true, email);
 
             Assert.Equal("Signed in", d.Label);
-            Assert.Contains("soren@centerconsulting.com", d.ToolTip);
-            Assert.Contains("soren@centerconsulting.com", d.AutomationName);
+            Assert.Contains(email, d.ToolTip);
+            Assert.Contains(email, d.AutomationName);
             Assert.Contains("Signed in", d.AutomationName);
         }
 
@@ -57,10 +63,11 @@ namespace AgentEyes.Tests
         {
             // A rejected key still has an email on disk; the not-signed-in state must not present
             // it as though the account were live.
-            var d = AccountState.Describe(false, "soren@centerconsulting.com");
+            const string staleEmail = "stale.tester@example.invalid";
+            var d = AccountState.Describe(false, staleEmail);
 
-            Assert.DoesNotContain("soren@centerconsulting.com", d.ToolTip);
-            Assert.DoesNotContain("soren@centerconsulting.com", d.AutomationName);
+            Assert.DoesNotContain(staleEmail, d.ToolTip);
+            Assert.DoesNotContain(staleEmail, d.AutomationName);
         }
 
         [Fact]

@@ -1,32 +1,32 @@
 manifest mux before: 
 holder CLI pid 17172 started 15:44:39.611
 --- holder's mux running at 15:44:43.427 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
-   17172 ppid   8508 agenteyes.exe     "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.Core\bin\x64\Release...
-   17816 ppid  17172 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death\recording.mp4
+   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+   17172 ppid   8508 agenteyes.exe     "C:\Users\<user>\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.Core\bin\x64\Release...
+   17816 ppid  17172 ffmpeg.exe        "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death\recording.mp4
   instrument check: 293 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
 manifest mux: {"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T20:44:39.8669289Z"}
 mux.lock open by holder; fragment so far: 18350128 bytes
 taskkill /F holder pid 17172 at 15:44:43.480
 SUCCESS: The process with PID 17172 has been terminated.
 --- 2 s after the holder was killed at 15:44:45.846 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
   instrument check: 290 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
 manifest mux (left by the dead holder): {"State":"running","Attempts":1,"LastAttemptUtc":"2026-11-14T20:44:39.8669289Z"}
 fragment at final path after death: 18350128 bytes
 next CLI pid 19756 started 15:44:45.866
 next CLI's ffmpeg appeared after 1 s (or it exited: False)
 --- next CLI running at 15:44:48.563 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
-   19756 ppid   8508 agenteyes.exe     "C:\Users\soren\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.Core\bin\x64\Release...
-   17588 ppid  19756 ffmpeg.exe        "C:\Users\soren\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\soren\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\soren\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death\recording.mp4
+   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+   19756 ppid   8508 agenteyes.exe     "C:\Users\<user>\AppData\Local\Temp\qa-scratch\wt-headA\src\AgentEyes.Core\bin\x64\Release...
+   17588 ppid  19756 ffmpeg.exe        "C:\Users\<user>\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -progress pipe:1 -stats_period 1 -y -i C:\Users\<user>\AppData\Local\Temp\qa-scratch... | output-arg: C:\Users\<user>\AppData\Local\Temp\qa-scratch\recs\2026-11-14_210150_qa128r2death\recording.mp4
   instrument check: 297 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
 manifest mux: {"State":"running","Attempts":2,"LastAttemptUtc":"2026-11-14T20:44:46.1341432Z"}
 next CLI done at 15:45:47.742
 next CLI stdout/err tail:
   [error] ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 61s - process killed
 --- after the next CLI exited at 15:45:48.043 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+   22200 ppid  21724 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
   instrument check: 299 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System
 manifest mux after: {"State":"failed","Attempts":2,"LastAttemptUtc":"2026-11-14T20:44:46.1341432Z","Error":"ffmpeg stalled during process mic audio: output stopped advancing at 30.3s of output for 60s (limit 60s) after 61s - process killed"}
 recording.mp4 present: False

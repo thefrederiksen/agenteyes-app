@@ -9,7 +9,7 @@
   "Level": 0,
   "MicLevel": 0,
   "SystemLevel": 0,
-  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_134706_video",
+  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-15_134706_video",
 }
 18:47:07Z   t+0s recording 1.21 mic=0.0000 lvl=0.0000
 18:47:12Z   t+5s recording 6.28 mic=0.0000 lvl=0.0000
@@ -21,8 +21,8 @@
 18:47:38Z LOAD at stop: 2.60 2.65 2.85
 18:47:38Z STOP
 {
-  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-15_134706_video",
-  "File": "/Users/soren/Movies/AgentEyes/2026-11-15_134706_video/recording.mp4",
+  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-15_134706_video",
+  "File": "/Users/<user>/Movies/AgentEyes/2026-11-15_134706_video/recording.mp4",
   "DurationSeconds": 31.72,
 }
 18:47:39Z   +0s idle LastStopFailed=False LastStopError=None dir=None

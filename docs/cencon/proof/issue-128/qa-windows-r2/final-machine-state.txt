@@ -1,3 +1,3 @@
 --- after restarting the installed app at 15:55:54.249 (ffmpeg.exe + AgentEyesApp.exe + agenteyes.exe)
-   14864 ppid   6484 AgentEyesApp.exe  "C:\Users\soren\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
+   14864 ppid   6484 AgentEyesApp.exe  "C:\Users\<user>\AppData\Local\AgentEyes\app\AgentEyesApp.exe" --tray 
   instrument check: 278 processes visible to the query, e.g. 0 System Idle Process, 4 System, 140 Secure System

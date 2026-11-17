@@ -13,7 +13,7 @@
   "PendingTranscriptions": 1,
   "LastStopFailed": true,
   "LastStopError": "capture watchdog: capture stalled: raw.mp4 stopped growing at 513873 bytes and has not grown for 46s (limit 45s); last growth 2026-11-14T17:43:20.333Z",
-  "LastStopDir": "/home/soren/Videos/AgentEyes/2026-11-14_124257_video",
+  "LastStopDir": "/home/<user>/Videos/AgentEyes/2026-11-14_124257_video",
   "CameraStuck": false,
   "StuckCameras": [],
   "PreviewScreenFrame": null,
@@ -33,5 +33,5 @@
   "CaptureSecondsSinceGrowth": null,
   "LastCaptureFault": "capture stalled: raw.mp4 stopped growing at 513873 bytes and has not grown for 46s (limit 45s); last growth 2026-11-14T17:43:20.333Z",
   "LastCaptureFaultUtc": "2026-11-14T17:44:06.3413723Z",
-  "LastCaptureFaultDir": "/home/soren/Videos/AgentEyes/2026-11-14_124257_video"
+  "LastCaptureFaultDir": "/home/<user>/Videos/AgentEyes/2026-11-14_124257_video"
 }

@@ -27,8 +27,8 @@ what is verified end to end.
 
 ```json
 {
-  "Dir": "/Users/soren/Movies/AgentEyes/2026-11-14_103623_video",
-  "File": "/Users/soren/Movies/AgentEyes/2026-11-14_103623_video/recording.mp4",
+  "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-14_103623_video",
+  "File": "/Users/<user>/Movies/AgentEyes/2026-11-14_103623_video/recording.mp4",
   "DurationSeconds": 609.49,
   "Shots": 0
 }

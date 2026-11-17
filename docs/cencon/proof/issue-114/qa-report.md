@@ -129,7 +129,7 @@ Started 11:03:00, stopped 11:13:02 (600 s of wall clock between the two curl cal
 `/record/stop` response:
 
 ```json
-{"Dir":"/Users/soren/Movies/AgentEyes/2026-11-14_110301_video",
+{"Dir":"/Users/<user>/Movies/AgentEyes/2026-11-14_110301_video",
  "File":".../recording.mp4","DurationSeconds":601.24,"Shots":0}
 ```
 

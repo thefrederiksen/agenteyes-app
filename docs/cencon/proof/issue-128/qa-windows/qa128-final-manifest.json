@@ -47,7 +47,7 @@
       "State": "failed",
       "Attempts": 1,
       "LastAttemptUtc": "2026-11-14T17:43:51.5612815Z",
-      "Error": "ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 000001aa16a36a80] moov atom not found\r\n[in#0 @ 000001aa169d1b40] Error opening input: Invalid data found when processing input\r\nError opening input file C:\\Users\\soren\\Videos\\AgentEyes\\2026-11-14_130000_qa128\\recording.mp4.\r\nError ope"
+      "Error": "ffmpeg failed during poster thumbnail (exit -1094995529). [in#0 @ 000001aa16a36a80] moov atom not found\r\n[in#0 @ 000001aa169d1b40] Error opening input: Invalid data found when processing input\r\nError opening input file C:\\Users\\<user>\\Videos\\AgentEyes\\2026-11-14_130000_qa128\\recording.mp4.\r\nError ope"
     },
     "package": {
       "State": "failed",

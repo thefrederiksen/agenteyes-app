@@ -5,3 +5,7 @@ assets/models/*.rnnn -text
 # Linux service files (issue #102): run by bash and systemd, which reject CRLF.
 *.sh text eol=lf
 scripts/linux/*.service text eol=lf
+
+# Issue #173: the evidence-identity guard's corpus holds CRLF, lone-CR and UTF-16 files on purpose -
+# byte for byte, or the line-break shapes it tests are rewritten on checkout.
+tests/evidence-identity-corpus/** -text

@@ -298,6 +298,41 @@ note and the QA proof travel on the **pull request branch**:
 The QA Agent's proof report follows the same path: committed under `docs/cencon/proof/issue-<n>/`
 (e.g. `qa-report.html`) and linked from the `flow:done` (or `flow:qa-failed`) comment.
 
+**Scrub IDENTITY as well as paths before committing proof (issue #173).** The repository is public,
+and proof is the most-copied thing in it: one leaked address became 84 files because a poll loop wrote
+one JSON per poll and every response carried the signed-in account. Before you commit evidence:
+
+- An **email address** becomes `<owner account>` (a second, different one: `<owner second account>`).
+  Where a test or example needs an address, use a reserved domain (`user@example.com`, `*.invalid`).
+- The **username in a home path** becomes `<user>`: `/home/<user>`, `/Users/<user>`,
+  `C:\Users\<user>`. Keep the rest of the path - it is usually the evidence.
+- A **harness or temp staging path** becomes `<stage>`.
+- **Redact the identity, never the evidence.** No count, timestamp, verdict, pid, byte size or command
+  changes. Where a path's LENGTH is itself the evidence (a too-long path failure), leave it intact or
+  write the stand-in beside its original character count (`<stage> (57 chars)`), so the redaction
+  can still be checked against the measurement.
+- **Search across line wraps.** A console wraps long output at its width, so a path or an address
+  can be split across two lines (`C:\Us` at the end of one, `ers\<name>\...` at the start of the
+  next). A line-by-line search cannot see it: #173's sweep and its first guard both missed one that
+  QA found. When you check your own evidence, search with the line breaks removed as well - CI does
+  not do this for you yet (issue #218).
+- CI enforces the rule: `scripts/check-proof-identity.py` (the `evidence-identity` job) fails on any
+  email-shaped string, and on any home path (`/home/`, `/Users/`, `<drive>:\Users\`) whose user
+  segment is a name rather than a placeholder, under `docs/cencon/proof/` or `docs/cencon/review/`,
+  in UTF-16 text as well. It scans SINGLE LINES: a console-wrapped leak is a declared miss, and
+  wrap-aware detection is issue #218. It allows only shapes that cannot be a person: RFC 2606 /
+  RFC 6761 reserved domains, systemd unit names (`name@instance.service` and the other unit types
+  that are not top-level domains), and the throwaway accounts the Linux container tests create.
+  Every CI run first plants an address and named home paths and requires red; then plants an
+  identity-free file (a pytest decorator, systemd unit names, a reserved-domain address) and
+  requires green; then runs the committed corpus (`scripts/test-check-proof-identity.py` over
+  `tests/evidence-identity-corpus/`), which pins what must stay green, what must go red, and what
+  the guard misses and flags by design. A change to the guard that moves a corpus file fails CI;
+  add a file to the corpus when you find a new shape. It does
+  not check host names, pipe names or any other place a username appears (#212 tracks host names) -
+  those are on you. It also does not undo the past: addresses already in git history stay there, and
+  the #173 sweep did not rewrite history.
+
 ### 6b. Definition of Verified (QA Agent's bar)
 
 The gate (revised 2026-07-14): the Developer's gate is **build + `dotnet test`** (Section 6 item 4);

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Issue 173 - QA report - FAIL</title>
+<style>
+body{font-family:Segoe UI,Helvetica,Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1b1b1b;background:#fff;line-height:1.45}
+h1{font-size:22px}h2{font-size:18px;margin-top:28px;border-bottom:1px solid #ccc}
+table{border-collapse:collapse;width:100%;margin:8px 0}td,th{border:1px solid #bbb;padding:5px 7px;vertical-align:top;font-size:14px;text-align:left}
+th{background:#f0f0f0}code,pre{font-family:Consolas,Menlo,monospace;font-size:13px}pre{background:#f6f6f6;padding:8px;overflow-x:auto}
+.fail{color:#a00;font-weight:bold}.pass{color:#060;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>Issue #173 - QA report: <span class="fail">FAIL (flow:qa-failed)</span></h1>
+<p>PR #206, branch <code>issue-173-scrub-identity</code>. Verified at <b>7ffa6d5</b>: the head moved while QA ran.
+The brief named <code>a0d6e67</code>; the developer then merged main <code>da85516</code> (<code>eae905b</code>) and
+re-measured (<code>7ffa6d5</code>). Every check below was run against both heads, and the results are the same.
+QA seat on devthrottle-mac-mini, 2026-11-17. Scope: the issue body as rescoped by the lead's comment
+6943321310. This report contains no address, and the username appears only as <code>&lt;username&gt;</code>.</p>
+
+<p><b>One-line verdict:</b> no evidence byte changed outside a redaction, the guard is shape-only and goes red
+on my own probes, and the fixture test asserts the value it is given. <b>But the home-path count is NOT zero.</b>
+One home path survives in <code>docs/</code>, wrapped across a line break by PowerShell's console width, and every
+single-line search missed it: the developer's, the lead's, and my own first pass.</p>
+
+<h2>The defect (blocking)</h2>
+<table>
+<tr><th>Criterion</th><td>Rescoped criterion 1 / 2: the home-path sweep reaches zero in <code>docs/</code>. The handoff claims
+"4,645 home-path occurrences ... to zero" and "0 in docs/".</td></tr>
+<tr><th>Where</th><td><code>docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt</code> lines 53-54, a
+<code>Remove-Item</code> error message in a Windows QA transcript. Line 53 ends in <code>'C:\Us</code> and line 54 begins
+<code>ers\&lt;username&gt;\AppData\Local\Temp\&lt;qa-session&gt;\...</code>. The same path on line 52, which did not wrap,
+WAS redacted (<code>C:\Users\&lt;user&gt;\AppData...</code>). The wrapped copy was not.</td></tr>
+<tr><th>Expected</th><td><code>ers\&lt;user&gt;\AppData...</code>. 0 occurrences of the username in any home-path form under <code>docs/</code>.</td></tr>
+<tr><th>Actual</th><td>1 occurrence remains, at both <code>a0d6e67</code> and <code>7ffa6d5</code>, and on main <code>da85516</code> as well.</td></tr>
+<tr><th>Reproduce</th><td><code>git grep -niP 'ers\\&lt;username&gt;\\AppData' 7ffa6d5 -- docs</code> (one hit), or
+<code>python3 docs/cencon/proof/issue-173/qa/qa-wrapped.py 7ffa6d5 &lt;owner-file&gt; &lt;second-file&gt; &lt;username&gt;</code>
+which prints <code>WRAPPED home Users&lt;sep&gt;&lt;user&gt;: docs/cencon/proof/issue-156/qa-windows/run-rc-main.txt:53</code>.</td></tr>
+<tr><th>Why it matters</th><td>This is the failure the lead named: a zero is only as good as the search shape. The developer's
+search is <code>(/home/|/Users/|\\+Users\\+)&lt;username&gt;</code>, line by line, so it cannot match a path split by a newline. Neither can
+<code>verify-sweep.py</code>, so it reports the residual as correctly untouched evidence.</td></tr>
+<tr><th>Fix asked</th><td>(1) Redact that one occurrence: <code>ers\&lt;user&gt;</code>. Wrapped console output already changes line
+length when redacted, as on line 52. (2) Add a search that tolerates line wraps to the method, and re-state the
+zero with it. Whole tree, all four values (both addresses, <code>/home/</code> and <code>Users&lt;sep&gt;</code>): this was the ONLY
+wrapped hit, and no address is wrapped anywhere. (3) While re-handing off, record the host-name growth noted below.</td></tr>
+</table>
+
+<h2>Priority 1 - did the sweep alter any evidence? <span class="pass">No.</span></h2>
+<p>I wrote an independent check, <code>qa/qa-verify-tokens.py</code>, that uses a different method from the developer's
+split-at-regex. It diffs each changed file line by line, then token by token inside every changed line. EVERY
+non-equal token opcode must be exactly one of three single-token replacements: the owner address to
+<code>&lt;owner account&gt;</code>, the second address to <code>&lt;owner second account&gt;</code>, or the username to
+<code>&lt;user&gt;</code>, and the last only where the old text before it ends in a home-path prefix. It also requires identical
+LF and CR counts. For every JSON file, both sides must parse to the same structure with every non-string leaf
+(numbers, booleans, nulls, keys, array lengths) equal.</p>
+<table>
+<tr><th>Run</th><th>Result</th></tr>
+<tr><td>QA verifier, 02a4622 -&gt; a0d6e67</td><td>files=556, json_equal_nonstring=324, redactions owner=81 / second=3 / user=4645, failures=0</td></tr>
+<tr><td>QA verifier, da85516 -&gt; 7ffa6d5 (after the merge; this covers qa-report-macos.md, which #192 extended)</td><td>files=556, json_equal_nonstring=324, owner=81 / second=3 / user=4645, failures=0</td></tr>
+<tr><td>Developer verify-sweep.py 02a4622 / da85516</td><td>files=556, identity_values_redacted=4729, digit runs 163334 / 165617, json 324, failures=0 (both reproduced)</td></tr>
+<tr><td>QA red C1: one digit moved (133931 -&gt; 133932) in issue-113 round2 stop/after.json</td><td class="fail">exit 1, names the file</td></tr>
+<tr><td>QA red C2: <code>&lt;owner account&gt;</code> swapped for <code>&lt;owner second account&gt;</code> in the same file</td><td class="fail">exit 1, names the file</td></tr>
+<tr><td>QA red C3: one LF turned into CRLF in issue-78/qa-report.html</td><td class="fail">exit 1, names the file</td></tr>
+<tr><td>QA red C4: the username in a pipe name (not a home path) turned into <code>&lt;user&gt;</code></td><td class="fail">exit 1, names the file</td></tr>
+<tr><td>Developer red case, digit moved (re-run)</td><td class="fail">exit 1</td></tr>
+<tr><td>Developer verifier on the C2 swap</td><td><b>exit 0 - NOT caught.</b> See below.</td></tr>
+</table>
+<p>Instrument note (not blocking, because my check closes it): <code>verify-sweep.py</code> splits both sides at ANY
+identity value or token, so it cannot tell which token replaced which value. A swap between two valid tokens
+passes it. Its "Control 2" used a stand-in outside the convention, which is why it went red there. My token-level
+check shows the mapping is exact: 81 owner -&gt; owner token, 3 second -&gt; second token, 0 cross-mappings.</p>
+<p>Counts reconciled: the owner address appears 87 times on 02a4622 (81 in <code>docs/</code>, 6 in the test), and the second
+address 3 times. The handoff's "90 (84 in docs, 6 in the test)" folds the second address's 3 into the 84 and
+then lists those 3 again on their own line. That is wording, not a miscount.</p>
+
+<h2>Priority 2 - the guard <span class="pass">PASS</span></h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>(a) Is there an address-shaped literal in <code>scripts/check-proof-identity.py</code> or <code>ci.yml</code>?</td><td>One: <code>user@example.com</code>
+(RFC 2606 reserved, in the help text). The owner value and the second value: 0 hits in the guard, the workflow, the test and DEVELOPMENT_METHOD.md.
+The CI probe builds its address at run time with <code>printf '%s@%s'</code>. The guard matches by shape.</td></tr>
+<tr><td>Baseline at 7ffa6d5</td><td>scanned 1679 files, exit 0</td></tr>
+<tr><td>QA probe 1: a NEW nested dir under docs/cencon/<b>review</b>/, JSON, URL-encoded <code>%40</code>, line 3</td><td class="fail">exit 1, <code>...qa173-probe-dir/nested/session-dump.json:3</code>, masked</td></tr>
+<tr><td>QA probe 2: same file, plain <code>@</code>, plus-tag local part, multi-label domain</td><td class="fail">exit 1, file:3 named</td></tr>
+<tr><td>QA probe 3: the real owner value UPPER-CASED</td><td class="fail">exit 1, file:1 named, printed masked</td></tr>
+<tr><td>Probe removed</td><td class="pass">exit 0, file count back to baseline</td></tr>
+<tr><td>CI positive control, run 44052259594, job evidence-identity 133932729115</td><td>The planted probe went red with <code>ci-identity-probe.txt:1</code> named, then the real check passed: 1578 files.</td></tr>
+</table>
+<p>Recorded limits, stated in the guard itself: it scans only <code>docs/cencon/proof</code> and <code>docs/cencon/review</code>.
+It does not check home paths or host names, so it could not have caught the defect above. It cannot read
+images.</p>
+
+<h2>Priority 3 - the test fixture <span class="pass">PASS</span></h2>
+<p>The Windows suite cannot build on a Mac, so I compiled the REAL <code>src/AgentEyes.Core/DevThrottle/AccountState.cs</code> with the
+REAL <code>tests/AgentEyes.Tests/AccountStateTests.cs</code> in a scratch net8.0 xunit project (xunit 2.9.3, as the repo pins it),
+stubbing only <code>DevThrottleAccount.Load</code> and <code>Log.Info</code>, which <code>Describe</code> does not call. SDK 10.0.403, DOTNET_ROLL_FORWARD=LatestMajor.</p>
+<table>
+<tr><th>Mutant of Describe()</th><th>Result</th></tr>
+<tr><td>none</td><td class="pass">7 passed / 7</td></tr>
+<tr><td>M1: drop the address from the tooltip and the automation name</td><td class="fail">2 failed: both Theory cases</td></tr>
+<tr><td>M2a: print a FIXED address equal to fixture 1</td><td class="fail">1 failed: the fixture-2 case</td></tr>
+<tr><td>M2b: print a FIXED address equal to fixture 2</td><td class="fail">1 failed: the fixture-1 case</td></tr>
+<tr><td>M2c: print a fixed third address</td><td class="fail">2 failed</td></tr>
+<tr><td>M3 (extra): leak the address in the not-signed-in state</td><td class="fail">2 failed (NeverLeaksAStaleEmail, SaysWhatIsDisabled)</td></tr>
+</table>
+<p>M2a and M2b are the decisive ones. Whichever fixture a constant matches, the other case fails, so the Theory
+asserts the value it was given and not merely that some address appeared. Both fixtures use reserved domains
+(<code>example.com</code>, <code>.invalid</code>). The untouched <code>Describe_StatesAreDistinguishable</code> uses a two-letter
+placeholder address. That is noted, and it is out of scope.</p>
+
+<h2>Priority 4 - is the zero real, and which searches</h2>
+<p><code>qa/qa-forms.py</code> reads every blob in the tree (2258 files at 7ffa6d5). It decodes UTF-8, falls back to Latin-1, and
+also decodes UTF-16LE when a file has a BOM. All address forms are case-insensitive. Forms used:</p>
+<table>
+<tr><th>Form</th><th>02a4622</th><th>7ffa6d5</th></tr>
+<tr><td>owner address: plain <code>@</code></td><td>87 occ / 82 files</td><td>0</td></tr>
+<tr><td>owner and second: URL <code>%40</code>, double-URL <code>%2540</code>, JSON <code>\u0040</code>, HTML <code>&amp;#64;</code> <code>&amp;#x40;</code> <code>&amp;commat;</code>, <code>[at]</code>/<code>(at)</code></td><td>0 each</td><td>0 each</td></tr>
+<tr><td>local part followed by any of the @ encodings above</td><td>90 / 82 files</td><td>0</td></tr>
+<tr><td>second address: plain</td><td>3 / 1 file</td><td>0</td></tr>
+<tr><td><code>/home/&lt;username&gt;</code></td><td>794 / 400</td><td>0</td></tr>
+<tr><td><code>/Users/&lt;username&gt;</code></td><td>330 / 50</td><td>0</td></tr>
+<tr><td><code>Users</code> + 1 to 4 backslashes + username (plain, JSON-escaped, double-escaped)</td><td>3522 / 118</td><td>1 (CameraFailurePathTests.cs:77, declared)</td></tr>
+<tr><td>Users|home + any separator: <code>/ \ \\ %2F %5C %255C \u002f \u005c</code></td><td>4646 / 554</td><td>1 (the same declared test line)</td></tr>
+<tr><td><code>~&lt;username&gt;</code>, 8.3 short name <code>&lt;USERNAME&gt;~1</code></td><td>0</td><td>0</td></tr>
+<tr><td><b>Any of the above split by a line wrap</b> (<code>qa/qa-wrapped.py</code>: an optional CRLF/LF plus indent between any two characters)</td><td>-</td><td class="fail">1: issue-156 run-rc-main.txt:53 (the defect)</td></tr>
+</table>
+<p>The 118-file count for the backslash form includes the declared test file. The developer's 110 is <code>docs/</code> only, and
+the handoff tables are consistent with mine on occurrences (794 + 330 + 3521 + 1 = 4646).</p>
+
+<h2>Correctly left out - confirmed recorded, not half-done</h2>
+<table>
+<tr><th>Item</th><th>QA measurement</th><th>Recorded in the handoff?</th></tr>
+<tr><td>History not rewritten; addresses in commit metadata</td><td>On 02a4622, 67 commits carry the SECOND address and 21 the owner address as author or committer
+(88 of 98 commits). On da85516, 70 + 21 = 91 of 101.</td><td>Yes, qualitatively ("history is not rewritten", "author metadata untouched"), with no count.</td></tr>
+<tr><td>CameraFailurePathTests.cs:77 home path</td><td>1, the only home path left on any single line</td><td>Yes, flagged for follow-up</td></tr>
+<tr><td>Username in pipe names, ls owner columns, slugs, host names</td><td>At 7ffa6d5, in docs/: pipe and name 474, ls owner 77, slug 6, host 97, other 25 (mostly a second host name, plus a few prose mentions)</td><td>Yes (474 / 77 / 6 / 95 host)</td></tr>
+<tr><td>Host name growth from PR #191 (main, after the cut)</td><td>The host-name string tree-wide: 97 occ / 47 files on 02a4622 -&gt; 116 occ / 53 files on da85516 (+19). 8 files #191/#192 touched carry it.</td><td class="fail">NO. The re-measure says #191/#192 "added neither" (true for the address and home paths), but it does not record the host-name gap growing. Please add it in the re-handoff.</td></tr>
+</table>
+
+<h2>Gates</h2>
+<table>
+<tr><th>Gate</th><th>Result</th></tr>
+<tr><td>dotnet test tests/AgentEyes.Tests.Mac -c Release (QA, this Mac, SDK 10.0.403, net8.0 on runtime 10 via DOTNET_ROLL_FORWARD=LatestMajor)</td><td>Passed 430, Skipped 2, Failed 0, Total 432</td></tr>
+<tr><td>dotnet test tests/AgentEyes.Tests.Linux -c Release (QA, same)</td><td>Passed 471, Skipped 3, Failed 0, Total 474</td></tr>
+<tr><td><b>Windows suite including AccountStateTests.cs - NOT run by QA locally (cannot build on a Mac).</b> From CI: run 44052259594, job windows 133932729592, head a0d6e67</td><td>AgentEyes.Tests 2524 passed, 16 skipped, 0 failed (2540); with AGENTEYES_FFMPEG_TESTS=1 2543 passed, 1 skipped; DesktopApp 23/23.
+The log is at minimal verbosity and does not list AccountState tests by name. The file is compiled into AgentEyes.Tests.</td></tr>
+<tr><td>CI linux flake, run 44052293681 attempt 1</td><td><code>HeadlessControlServerFramingTests.OtherPosts_NoBodyNoContentLength_Rejected411BeforeHandler</code>:
+<code>HttpListenerException: Address already in use</code>. This is the known port clash, issue #174. The PR does not touch that test or src/.
+Attempt 2 passed.</td></tr>
+<tr><td>CI at 7ffa6d5 (runs 44055124452 / 44055114804)</td><td>evidence-identity, linux and macos green. Windows was still running when this report was written.</td></tr>
+<tr><td>Criterion 6: nothing else changed (vs main da85516)</td><td>Outside docs/, only ci.yml, scripts/check-proof-identity.py and AccountStateTests.cs changed. src/ diff is empty.</td></tr>
+<tr><td>Criterion 5: written rule</td><td>Present in DEVELOPMENT_METHOD.md 6a. It covers identity AND paths, says "redact the identity, never the evidence", and states that history is not rewritten.</td></tr>
+</table>
+
+<h2>Files</h2>
+<p><code>qa/qa-verify-tokens.py</code> (independent evidence check), <code>qa/qa-forms.py</code> (multi-form count), <code>qa/qa-wrapped.py</code> (wrap-tolerant
+search). All three read the identity values from files outside the repository and contain none of them.</p>
+</body>
+</html>

@@ -152,7 +152,7 @@ by an ordering that silently dropped a writer.
 ## 5. The mutant count - re-run, not accepted
 
 The repo's committed `mutate.py` defines only **12** mutants and points at a Linux path
-(`/home/soren/...`); the script that produced the committed 14-mutant macOS run was never committed.
+(`/home/<user>/...`); the script that produced the committed 14-mutant macOS run was never committed.
 A fresh harness was written for this round (`qa-round4/mutate-mac.py`), re-using rounds one and two's
 anchor definitions verbatim from the repo's `mutate.py` and defining B2 and N from the rebase
 report's description.

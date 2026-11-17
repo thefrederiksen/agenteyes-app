@@ -880,7 +880,7 @@ launch 1 pid 4064  at 12:01:50 -> 12:03:17 mux attempts=1 state=failed; recordin
 launch 2 pid 11648 at 12:03:18 -> 12:04:46 mux attempts=2 state=failed; recording.mp4 exists=False; ffmpeg running=False
 launch 3 pid 18628 at 12:04:47 -> 12:06:14 mux attempts=3 state=failed; recording.mp4 exists=False; ffmpeg running=False
 launch 4 pid 2728  at 12:06:15, waited 60 s:
-  12:06:35.877 [PostRecordingPlan] FindUnfinished: root=C:\Users\soren\Videos\AgentEyes, unfinished=0
+  12:06:35.877 [PostRecordingPlan] FindUnfinished: root=C:\Users\<user>\Videos\AgentEyes, unfinished=0
   --- 12:07:15 process listing (ffmpeg + AgentEyesApp):
     2728 ppid  22068 AgentEyesApp.exe
   recording.mp4 exists=False

@@ -1,4 +1,4 @@
-# mutation run at 43aa5bb, 2026-11-15 10:19:50, ffmpeg dir C:\Users\soren\AppData\Local\AgentEyes\app
+# mutation run at 43aa5bb, 2026-11-15 10:19:50, ffmpeg dir C:\Users\<user>\AppData\Local\AgentEyes\app
 restore baseline: diff empty = True
 M7 | D2: NeedsThumb trusts a file at the final path while the mux is pending | Failed!  | ffmpeg left 0 | 109s
     AgentEyes.Tests.MuxCoordinatorTests.NeedsThumb_PendingMuxWithAFileAtTheFinalPath_IsFalse

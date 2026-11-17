@@ -4,11 +4,11 @@
   toggle ON:               clicked 'Show preview' -> HUD rect: X=1537 Y=16 W=520 H=400
                            IMAGE: not found
 powershell.exe : 
-C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
+C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
 At line:1 char:425
 + ... cratchpad"; & powershell -NoProfile -File "$SP\qa33r3-ac7-e2e.ps1" -E ...
 +                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (C:\Users\soren\...d-uia-r3.ps1 : :String) [], RemoteException
+    + CategoryInfo          : NotSpecified: (C:\Users\<user>\...d-uia-r3.ps1 : :String) [], RemoteException
     + FullyQualifiedErrorId : NativeCommandError
  
 Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.String' and try again.
@@ -32,7 +32,7 @@ Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.Str
                            HUD rect after minimise/restore: X=940 Y=340 W=520 H=400
 -- mode -> both (camera preview live) --
 Exception calling "Invoke" with "0" argument(s): "Unrecognized error."
-At C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1:64 
+At C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1:64 
 char:9
 +         ($b.GetCurrentPattern([System.Windows.Automation.InvokePatter ...
 +         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -41,7 +41,7 @@ char:9
  
   mode both:               
 Exception calling "Invoke" with "0" argument(s): "Unrecognized error."
-At C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1:64 
+At C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1:64 
 char:9
 +         ($b.GetCurrentPattern([System.Windows.Automation.InvokePatter ...
 +         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,7 +55,7 @@ char:9
                            IMAGE: not found
   CanResize=True HUD rect after resize: X=940 Y=340 W=1560 H=400
   image after resize:      IMAGE: not found
-C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
+C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
 Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.String' and try again.
     + CategoryInfo          : InvalidArgument: (:) [qa-hud-uia-r3.ps1], ParentContainsErrorRecordException
     + FullyQualifiedErrorId : MissingArgument,qa-hud-uia-r3.ps1
@@ -66,7 +66,7 @@ Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.Str
 -- RECORDING 2: does the HUD come back at the size AND position it was left at? --
   HUD as opened:           HUD rect: X=940 Y=340 W=1560 H=400
                            IMAGE rect=1449,422,544,306
-C:\Users\soren\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
+C:\Users\<user>\AppData\Local\Temp\claude\D--ReposFred-agenteyes-app\c84aaf09-0bd8-4141-9d4b-8e07de379843\scratchpad\qa-hud-uia-r3.ps1 : 
 Missing an argument for parameter 'Arg'. Specify a parameter of type 'System.String' and try again.
     + CategoryInfo          : InvalidArgument: (:) [qa-hud-uia-r3.ps1], ParentContainsErrorRecordException
     + FullyQualifiedErrorId : MissingArgument,qa-hud-uia-r3.ps1

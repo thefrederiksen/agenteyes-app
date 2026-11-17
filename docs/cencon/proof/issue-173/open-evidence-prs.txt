@@ -1,0 +1,60 @@
+# Issue #173 - would the new guard reject any of the seven open evidence PRs?
+# devthrottle-mac-mini, 2026-11-17. This branch at 00ed0f2 (base main 02a4622). PR heads fetched as pull/<n>/head.
+#
+# Three measurements per PR:
+#  (a) the guard over the PR head's docs/cencon as it stands (git archive of the head),
+#  (b) how many of (a)'s hits are in files the PR itself adds or changes (diff from its merge-base with main),
+#  (c) git merge-tree of the PR head with this branch: conflicts?, then the guard and a home-path count over the MERGED tree.
+# Positive controls: (b)'s filter finds the known hit when fed a known-leaky file name; the home-path count
+# over main 02a4622's docs/cencon is 4645, so a 0 below is a count, not a broken search.
+
+PR    head      base     files  (a)hits    (b)own      (c)merge       (c)guard/home
+#190  5cefff8   b0e6ae8  12     84         0           clean          0/0
+#191  d9f014d   b0e6ae8  9      84         0           clean          0/0
+#192  ee6f451   277a9bc  90     6          0           clean          0/0
+#185  31e192b   277a9bc  46     6          0           clean          0/0
+#198  85c8e5f   02a4622  7      84         0           clean          0/0
+#199  69462d0   02a4622  8      84         0           clean          0/0
+#177  a559c76   2d60f77  2      6          0           clean          0/0
+
+## Reading
+* No PR adds an address of its own: (b) is 0 for all seven. Every (a) hit is main's pre-sweep content the
+  PR inherited from its base (84 on a base that has the #113 round2 polls, 6 on older bases).
+* Merged on top of this branch, all seven merge cleanly and the merged tree is GREEN (0 address hits) with
+  0 home-path occurrences. #192 and #185 both edit docs/cencon/proof/issue-142/qa-report-macos.md, which
+  this sweep also edits (its owner home paths, lines 431-444); the 3-way merge keeps the redaction.
+* So the guard would REJECT NONE of them once this lands first. What WOULD go red is a PR head tested on
+  its own, unmerged tree after a rebase-free push to its branch - but its branch does not carry the new job
+  until it merges main, and GitHub's pull_request CI tests the merge with main, which is the (c) column.
+* Order matters only if one of them lands BEFORE this: then this branch needs a rebase, and the sweep
+  must be rerun on what they added. Their own files carry neither the address nor a home path, so that
+  rerun should change nothing - but rerun it rather than assume.
+
+## UPDATE - re-measured against main da85516 after #191 (ffa737b) and #192 (befabfb) merged
+# State at measurement: #191 MERGED, #192 MERGED, #185 CLOSED unmerged (superseded by #192),
+# #190 #198 #199 #177 still OPEN. Heads re-fetched; 'own' = files the PR adds or modifies vs its merge-base with main.
+# Positive control for the own-file count: on 02a4622, issue-123/qa-report-linux.md -> addresses=1 homepaths=12;
+# issue-113/qa-runs/round2/stop/after.json -> addresses=1 homepaths=2.
+* #191 and #192: main's counts did not move when they merged (files with the address: 82 at 02a4622, 82 at
+  da85516; home-path occurrences: 4646 at both). They added neither.
+* #190 head 5cefff8: own files 12, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* #198 head 85c8e5f: own files 7, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* #199 head 69462d0: own files 8, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* #177 head a559c76: own files 2, own addresses 0, own home paths 0, merges cleanly with this branch, guard on the merged tree: [OK]
+* So the guard rejects none of the seven, and the zero in handoff.md covers #191 and #192 (on main) and was checked
+  against the four still open at the heads above. A later push to any of them is NOT covered - the guard
+  in CI is what covers that.
+
+## UPDATE 2 - QA round 1 bounce (2026-11-17): the guard grew, so the four open PRs were re-checked with it
+# The guard now ALSO fails on a named home path and on a wrapped address or home path. A PR that was
+# green before could go red under it, so each open head was merged (git merge-tree --write-tree) on top of
+# this branch at e28a068 and the NEW guard was run over the merged tree's docs/cencon/proof + review.
+# Heads re-fetched from refs/pull/<n>/head; unchanged since UPDATE 1.
+* #190 head 5cefff8: merge clean (exit 0), guard scanned 1695 files: [OK] exit 0
+* #198 head 85c8e5f: merge clean (exit 0), guard scanned 1691 files: [OK] exit 0
+* #199 head 69462d0: merge clean (exit 0), guard scanned 1692 files: [OK] exit 0
+* #177 head a559c76: merge clean (exit 0), guard scanned 1686 files: [OK] exit 0
+* So the extended guard rejects none of them. STILL TRUE AND STILL A LIMIT: these four are OPEN, so the zero
+  measured on e28a068 (remeasure-wrapped.txt) does NOT cover them. It was checked at the heads above only;
+  a later push to any of them is covered by the CI guard, not by this measurement.
+* Host names are NOT checked by the guard or by this sweep. They are issue #212, out of scope here.

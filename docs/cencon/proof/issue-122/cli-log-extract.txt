@@ -84,16 +84,16 @@ Window 2 = real-binary-correct-invocations.txt (11:01:18 - 11:01:40), on the pre
 == Window 2 (the presence control: the same log DOES record a handler run). The final 'Record: verb=start' is main's old binary (baseline).
 11:01:18.238 [INFO] [CliDispatcher] Dispatch: running record start
 11:01:18.241 [INFO] [HeadlessCli] RecordStart
-11:01:19.928 [INFO] [HeadlessCli] RecordStart: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110118_video
+11:01:19.928 [INFO] [HeadlessCli] RecordStart: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_110118_video
 11:01:24.180 [INFO] [CliDispatcher] Dispatch: running record stop
 11:01:24.182 [INFO] [HeadlessCli] RecordStop
-11:01:26.801 [INFO] [HeadlessCli] RecordStop: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110118_video
+11:01:26.801 [INFO] [HeadlessCli] RecordStop: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_110118_video
 11:01:29.974 [INFO] [CliDispatcher] Dispatch: running record start
 11:01:29.976 [INFO] [HeadlessCli] RecordStart
-11:01:30.979 [INFO] [HeadlessCli] RecordStart: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+11:01:30.979 [INFO] [HeadlessCli] RecordStart: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_110130_audio
 11:01:35.161 [INFO] [CliDispatcher] Dispatch: running record stop
 11:01:35.162 [INFO] [HeadlessCli] RecordStop
-11:01:35.450 [INFO] [HeadlessCli] RecordStop: ok dir=/home/soren/Videos/AgentEyes/2026-11-14_110130_audio
+11:01:35.450 [INFO] [HeadlessCli] RecordStop: ok dir=/home/<user>/Videos/AgentEyes/2026-11-14_110130_audio
 11:01:38.654 [INFO] [CliDispatcher] Dispatch: running record status
 11:01:38.656 [INFO] [HeadlessCli] RecordStatus
 11:01:38.759 [INFO] [HeadlessCli] RecordStatus: state=idle
@@ -102,5 +102,5 @@ Window 2 = real-binary-correct-invocations.txt (11:01:18 - 11:01:40), on the pre
 11:01:39.392 [INFO] [HeadlessCli] Record: verb=start
 
 == Credential file after 'agenteyes signout --help': mtime unchanged
-2026-10-15 18:21:52.867931445 /home/soren/.local/share/AgentEyes/devthrottle.cred
-$ agenteyes account -> signed in as soren@centerconsulting.com
+2026-10-15 18:21:52.867931445 /home/<user>/.local/share/AgentEyes/devthrottle.cred
+$ agenteyes account -> signed in as <owner account>

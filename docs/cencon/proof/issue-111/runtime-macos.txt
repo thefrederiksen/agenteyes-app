@@ -109,7 +109,7 @@ From the video recording started through the Control API (section 6):
   $ curl -X POST http://127.0.0.1:7882/record/start -H 'Content-Type: application/json' \
       -d '{"mode":"video","screen":1,"source":"mic","mic":"Yealink"}'
   { "State": "recording", "Mode": "video", "Source": "mic", "ElapsedSeconds": 0,
-    "MicLevel": 0, "Dir": "/Users/soren/Movies/AgentEyes/2026-11-12_104751_video", ... }
+    "MicLevel": 0, "Dir": "/Users/<user>/Movies/AgentEyes/2026-11-12_104751_video", ... }
 
   200 and State=recording - the start no longer dies on the first frame (pre-fix this call answered
   400 "ffmpeg exited immediately (code 8) ... may not match a DirectShow device"). But:

@@ -1,0 +1,28 @@
+# QA #173 round 3: PR tip 04a2160 merged (throwaway worktree, not pushed) with main 5e6e727 -> f5a5dfc
+# python3 scripts/check-proof-identity.py .
+[check-proof-identity] scanned 1696 files, 23332184 bytes under docs/cencon/proof, docs/cencon/review
+[FAIL] docs/cencon/proof/issue-194/handoff.md:98: home path naming user t***
+[FAIL] docs/cencon/proof/issue-194/handoff.md:98: home path naming user t***
+[FAIL] docs/cencon/proof/issue-194/handoff.md:105: home path naming user t***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:45: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:45: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:45: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:48: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:58: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:59: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:60: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:61: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:62: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/install-transcript.txt:63: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:44: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:45: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:46: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:47: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:48: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:49: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:76: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:77: home path naming user q***
+[FAIL] docs/cencon/proof/issue-194/qa/qa-evidence.txt:131: home path naming user q***
+[FAIL] 22 identity hit(s) in committed evidence. Replace an address with <owner account> (or a reserved-domain stand-in such as user@example.com) and a home-path user with <user> - see the evidence-identity rule in docs/cencon/DEVELOPMENT_METHOD.md. Issue #173.
+# exit=1
+# the two user segments are synthetic installer-test accounts from #194 (6 characters each, first letters t and q); neither is a person
