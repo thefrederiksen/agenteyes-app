@@ -1,0 +1,25 @@
+file: recording.mp4  bytes: 2020728599  expected take: 3661.870 s  tolerance: +/-1.0 s  tail window: [3659.870, 3661.870] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "3661.866667"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "3661.866667", "nb_frames": "109856"}
+stream: {"index": 1, "codec_name": "aac", "codec_type": "audio", "sample_rate": "48000", "channels": 1, "avg_frame_rate": "0/0", "duration": "3660.772229", "nb_frames": "171600"}
+top-level atoms: {"ftyp": 1, "free": 1, "mdat": 1, "moov": 1}  moov at: [(2017231177, 3497422)]  last atom: ('moov', 2017231177, 3497422)  atom walk ends at 2020728599 of 2020728599 
+full decode: exit 0  stderr: ''
+decoded video frames: 109856  first ts 0.000  last ts 3661.833  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [3659.870, 3661.870]: 59  (first 3659.900, last 3661.833)
+audio packets: 171600  first pts -0.021  audio end 3660.772  video end 3661.867  |video end - audio end| = 1.094 s
+ROW6-CHECK arm (a) last frame 3661.833 vs expected 3661.870: diff -0.037 s -> PASS
+ROW6-CHECK arm (b) 59 frames in the last 2 s of the expected take (need >= 54) -> PASS
+ROW6-CHECK PASS
+--- audio stream
+stream|codec_name=aac|sample_rate=48000|channels=1|start_time=0.000000|duration=3660.772229
+--- volumedetect recording.mp4
+[Parsed_volumedetect_0 @ 0xae5014b40] mean_volume: -66.7 dB
+[Parsed_volumedetect_0 @ 0xae5014b40] max_volume: -9.9 dB
+--- volumedetect mic_native.wav
+[Parsed_volumedetect_0 @ 0x7dac249c0] mean_volume: -52.3 dB
+[Parsed_volumedetect_0 @ 0x7dac249c0] max_volume: -3.7 dB
+--- mic_native.wav
+stream|sample_rate=48000|channels=1|duration=3660.320000
+--- audio_16k.wav
+stream|sample_rate=16000|channels=1|duration=3660.772250

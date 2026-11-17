@@ -1,0 +1,40 @@
+2026-11-16T21:43:10Z TAKE row4 body={"mode":"video","screen":1,"source":"none"} planned=20s
+load: { 2.66 2.18 2.04 }  cores: 10
+service pid: 88521 
+state before: idle
+start POST sent at epoch 1794865390.681, returned at 1794865391.472
+start response: {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "none",
+  "ElapsedSeconds": 0.62,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "~/Movies/AgentEyes/2026-11-16_164310_video",
+  "Camera": null,
+  "SignedIn": false,
+  "AccountEmail": null,
+  "PendingTranscriptions": 73,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+dir: ~/Movies/AgentEyes/2026-11-16_164310_video
+status just before stop: recording 20.72 none
+stop POST sent at epoch 1794865411.568, returned at 1794865412.262
+stop response: {
+  "Dir": "~/Movies/AgentEyes/2026-11-16_164310_video",
+  "File": "~/Movies/AgentEyes/2026-11-16_164310_video/recording.mp4",
+  "DurationSeconds": 20.76,
+  "Shots": 0
+}
+wall-clock take (start POST returned -> stop POST sent): 20.096 s;  outer bound (start sent -> stop returned): 21.581 s
+status after stop: idle LastStopFailed= False LastStopError= None
+finished on disk after 0.0s of polling: mux=null
+manifest DurationSeconds: 20.76  VideoFile: recording.mp4
+FfmpegCommand: "/opt/homebrew/bin/ffmpeg" -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 30 -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 ~/Movies/AgentEyes/2026-11-16_164310_video/recording.mp4
+PostProcessing: {}
+files: ['capture.lock', 'manifest.json', 'recording.mp4', 'recording.mp4.ffmpeg.log', 'shots']
+load after: { 2.67 2.21 2.05 }
+service pid after: 88521 

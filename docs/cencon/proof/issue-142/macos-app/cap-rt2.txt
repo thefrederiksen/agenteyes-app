@@ -1,0 +1,21 @@
+=== capture job com.agenteyes.qa142.rt2 14:29:07  captures: rt-item-after-stop|-x -o -l 816;rt-window-after-stop|-x -o -l 815;
+service before: pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+14:29:07 job com.agenteyes.qa142.rt2 argv ['~/Library/Application Support/AgentEyes/bin/agenteyes', '--version'] env {'DOTNET_STARTUP_HOOKS': '<scratch>/tools/hook/out/QaCaptureHook.dll', 'QA_OUT': '<scratch>/cap/rt2', 'QA_CAPTURES': 'rt-item-after-stop|-x -o -l 816;rt-window-after-stop|-x -o -l 815;', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'}
+$ launchctl bootstrap gui/501 <scratch>/cap/rt2/com.agenteyes.qa142.rt2.plist
+  exit=0  
+14:29:08 after 0.5s: state = not running last exit code = 0 
+$ launchctl bootout gui/501/com.agenteyes.qa142.rt2
+  exit=0  
+  post-bootout print exit=113 (non-zero = the label is gone)
+--- hook report
+14:29:07.709 [hook] pid=62467 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+14:29:07.727 [hook] CGPreflightScreenCaptureAccess() = True
+14:29:07.731 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+14:29:07.732 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+14:29:07.732 [hook] rt-item-after-stop: screencapture -x -o -l 816 <scratch>/cap/rt2/rt-item-after-stop.png
+14:29:07.796 [hook] rt-item-after-stop: exit=0 ms=63 file_bytes=1428 stderr=''
+14:29:07.796 [hook] rt-window-after-stop: screencapture -x -o -l 815 <scratch>/cap/rt2/rt-window-after-stop.png
+14:29:07.858 [hook] rt-window-after-stop: exit=0 ms=61 file_bytes=74194 stderr=''
+14:29:07.858 [hook] Environment.Exit(0) - the recorder's Main is never reached
+service after:  pid=50642  sha256=348b93b81d867fc3 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+qa142 launchd labels left: 0

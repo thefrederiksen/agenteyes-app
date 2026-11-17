@@ -1,0 +1,14 @@
+        Yealink UH36:
+
+          Default Input Device: Yes
+          Input Channels: 2
+          Manufacturer: Yealink
+          Current SampleRate: 16000
+          Transport: USB
+          Input Source: Default
+
+        Yealink UH36:
+
+          Default Output Device: Yes
+          Default System Output Device: Yes
+          Manufacturer: Yealink

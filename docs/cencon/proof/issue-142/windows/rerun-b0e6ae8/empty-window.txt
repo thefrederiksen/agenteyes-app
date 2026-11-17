@@ -1,0 +1,66 @@
+# Empty window on SORENLAPTOP: when the first byte reaches the capture file
+# Default settings (30 fps, screen only), 4 cores / 8 logical CPUs, load 8% before the takes. Polling Get-Item length every 50 ms, read-only.
+
+
+16:40:05.888 ffmpeg before: 0 process(es)
+16:40:06.548 start request 16:40:05.892, response after 0.607s, capture file recording.mp4
+16:40:06.724 capture ffmpeg pid=18728 ppid=19972 created 16:40:05.930
+16:40:26.822 stopped
+16:40:26.850   +0.830s from ffmpeg start: 0 bytes
+16:40:26.850   +3.086s from ffmpeg start: 177295 bytes
+16:40:26.850   +4.999s from ffmpeg start: 182435 bytes
+16:40:26.859   +6.977s from ffmpeg start: 187499 bytes
+16:40:26.861   +8.963s from ffmpeg start: 192469 bytes
+16:40:26.861   +9.599s from ffmpeg start: 193967 bytes
+16:40:26.861   +11.628s from ffmpeg start: 393117 bytes
+16:40:26.867   +13.759s from ffmpeg start: 398011 bytes
+16:40:26.868 FIRST BYTE: 3.086s after ffmpeg process creation, 3.124s after the start request
+16:40:26.874 DIR=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164005_video
+
+
+16:40:35.006 ffmpeg before: 0 process(es)
+16:40:35.482 start request 16:40:35.007, response after 0.473s, capture file recording.mp4
+16:40:35.600 capture ffmpeg pid=4136 ppid=19972 created 16:40:35.022
+16:40:55.883 stopped
+16:40:55.887   +0.581s from ffmpeg start: 0 bytes
+16:40:55.889   +2.983s from ffmpeg start: 170753 bytes
+16:40:55.892   +5.026s from ffmpeg start: 175880 bytes
+16:40:55.894   +7.006s from ffmpeg start: 180623 bytes
+16:40:55.898   +9.003s from ffmpeg start: 185366 bytes
+16:40:55.902   +9.382s from ffmpeg start: 186322 bytes
+16:40:55.904   +11.349s from ffmpeg start: 385521 bytes
+16:40:55.908   +13.381s from ffmpeg start: 390204 bytes
+16:40:55.912 FIRST BYTE: 2.983s after ffmpeg process creation, 2.998s after the start request
+16:40:55.913 DIR=%USERPROFILE%\Videos\AgentEyes\2026-11-16_164035_video
+
+## The measuring script (emptywindow.ps1)
+param([Parameter(Mandatory)] [string]$Out, [int]$Seconds = 20)
+# Measures when the first byte reaches the capture file, at default settings (30 fps), read-only polling.
+$api='http://127.0.0.1:7882'
+function W($s) { $l = "{0} {1}" -f (Get-Date -Format 'HH:mm:ss.fff'), $s; $l | Out-File -Append -Encoding ascii $Out; $l }
+"" | Out-File -Encoding ascii $Out
+W "ffmpeg before: $(@(Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'").Count) process(es)"
+$tReq = Get-Date
+$r = Invoke-RestMethod -Method Post -Uri "$api/record/start" -Body '{"mode":"video","screen":1,"source":"none"}' -ContentType 'application/json'
+$tResp = Get-Date
+$f = Join-Path $r.Dir $r.CaptureFile
+W ("start request {0}, response after {1:N3}s, capture file {2}" -f $tReq.ToString('HH:mm:ss.fff'), ($tResp-$tReq).TotalSeconds, (Split-Path $f -Leaf))
+$ff = Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Select-Object -First 1
+$ffStart = $ff.CreationDate
+W ("capture ffmpeg pid={0} ppid={1} created {2}" -f $ff.ProcessId, $ff.ParentProcessId, $ffStart.ToString('HH:mm:ss.fff'))
+$first = $null; $prev = -1; $changes = @()
+$end = $tReq.AddSeconds($Seconds)
+while ((Get-Date) -lt $end) {
+  $len = if (Test-Path $f) { (Get-Item $f).Length } else { -1 }
+  $now = Get-Date
+  if ($len -ne $prev) { $changes += ("  +{0:N3}s from ffmpeg start: {1} bytes" -f ($now-$ffStart).TotalSeconds, $len); $prev = $len }
+  if (-not $first -and $len -gt 0) { $first = $now }
+  Start-Sleep -Milliseconds 50
+}
+Invoke-RestMethod -Method Post -Uri "$api/record/stop" | Out-Null
+W "stopped"
+$changes | Select-Object -First 8 | ForEach-Object { W $_ }
+if ($first) {
+  W ("FIRST BYTE: {0:N3}s after ffmpeg process creation, {1:N3}s after the start request" -f ($first-$ffStart).TotalSeconds, ($first-$tReq).TotalSeconds)
+} else { W "FIRST BYTE: none within $Seconds s" }
+W "DIR=$($r.Dir)"

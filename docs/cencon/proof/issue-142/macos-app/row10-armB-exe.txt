@@ -1,0 +1,20 @@
+14:24:43 ARM B: $ ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop   (no arguments = 'show')
+second launch exit=0
+app processes: 60625 
+14:24:43.994 [pid 60866] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=60866)
+14:24:43.995 [pid 60866] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+14:24:43.998 [pid 60866] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+14:24:43.999 [pid 60625] [INFO] [SingleInstance] Accept: 'show'
+14:24:44.000 [pid 60625] [INFO] [App] Run: show
+14:24:44.001 [pid 60625] [INFO] [App] ShowWindow
+14:24:44.162 [pid 60625] [INFO] [MainWindow] ctor
+14:24:44.235 [pid 60625] [INFO] [MainWindow] Opened
+14:24:44.236 [pid 60625] [INFO] [ControlClient] GetDevicesAsync
+14:24:44.303 [pid 60625] [INFO] [MainWindow] StartWatchingLibrary: ~/Movies/AgentEyes
+14:24:44.320 [pid 60625] [INFO] [MainWindow] RequestScan: 82 recording(s), 69 pending, 82 ms
+14:24:44.359 [pid 60625] [INFO] [MainWindow] RequestScan: 82 recording(s), 69 pending, 36 ms
+14:24:44.674 [pid 60625] [INFO] [ControlClient] GetDevicesAsync: 1 monitor(s), 1 mic(s)
+14:24:44.684 [pid 60625] [INFO] [AppSettings] Save: screen=1 mic= system=True mode=grid
+--- window server, pid 60625
+pid=60625 owner="AgentEyes" window=813 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+probe exit=0

@@ -1,0 +1,32 @@
+lock: "CGSSessionScreenIsLocked"=Yes
+app processes before: 0
+layer-25 windows before launch:       10
+14:19:47.3N $ open ~/Applications/AgentEyes.app
+open exit=0
+app pid=57343  command=~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+--- this pid's log lines since the launch
+14:19:48.767 [pid 57343] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=57343)
+14:19:48.768 [pid 57343] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+14:19:48.775 [pid 57343] [INFO] [SingleInstance] TryAcquire: stale socket <TMPDIR>/agenteyes-app.sock (ConnectionRefused) - taking it over
+14:19:48.775 [pid 57343] [INFO] [SingleInstance] TryAcquire: listening on <TMPDIR>/agenteyes-app.sock
+14:19:48.918 [pid 57343] [INFO] [App] OnFrameworkInitializationCompleted
+14:19:48.919 [pid 57343] [INFO] [TrayPopupCloseGuard] Install: guarding Avalonia.Win32.TrayIconImpl+TrayPopupRoot
+14:19:48.940 [pid 57343] [INFO] [TrayController] ctor
+14:19:48.978 [pid 57343] [INFO] [AppSettings] Load: screen=1 mic= system=True mode=grid
+14:19:48.978 [pid 57343] [INFO] [AppState] StartPolling
+14:19:48.987 [pid 57343] [INFO] [App] Run: show
+14:19:48.987 [pid 57343] [INFO] [App] ShowWindow
+14:19:49.108 [pid 57343] [INFO] [MainWindow] ctor
+14:19:49.185 [pid 57343] [INFO] [MainWindow] Opened
+14:19:49.186 [pid 57343] [INFO] [ControlClient] GetDevicesAsync
+14:19:49.260 [pid 57343] [INFO] [MainWindow] StartWatchingLibrary: ~/Movies/AgentEyes
+14:19:49.284 [pid 57343] [INFO] [AppState] PollAsync: service answering, state=idle
+14:19:49.285 [pid 57343] [INFO] [TrayController] Render:  -> idle
+14:19:49.308 [pid 57343] [INFO] [MainWindow] RequestScan: 81 recording(s), 68 pending, 46 ms
+14:19:49.349 [pid 57343] [INFO] [MainWindow] RequestScan: 81 recording(s), 68 pending, 39 ms
+--- window server, pid 57343
+pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+probe exit=0
+layer-25 windows while running:       10; NEW since launch:
+pid=431 owner="Control Center" window=797 layer=25 onscreen=true alpha=1.0 bounds=38x30 at 1432,0 name=(name withheld: no Screen Recording grant)
+pid=431 owner="Control Center" window=794 layer=25 onscreen=false alpha=1.0 bounds=38x30 at 1432,0 name=(name withheld: no Screen Recording grant)

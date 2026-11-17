@@ -1,0 +1,39 @@
+16:37:37.358 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_163736_video/recording.mp4 (stall 45s, start-up 45s, every 2s)
+16:43:05.883 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 241ms (take 327397ms, media origin 1302ms) - full take captured
+16:43:06.422 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_163736_video released by pid 88521
+16:43:11.434 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_164310_video/recording.mp4 (stall 45s, start-up 45s, every 2s)
+16:43:31.668 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 86ms (take 19257ms, media origin 1302ms) - full take captured
+16:43:32.232 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_164310_video released by pid 88521
+16:44:25.717 [pid 88521] [INFO] [AudioCapture] ctor: #0 Microsoft Teams Audio (AVFoundation :0)
+16:44:26.030 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_164424_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:44:56.200 [pid 88521] [INFO] [RecordingService] Stop: mic/video alignment - video first frame at 351433.343500s, mic first sample at 351433.733896s, offset 0.390s
+16:44:56.396 [pid 88521] [WARN] [AudioCapture] Stop: wrote 2275328 bytes of PCM = 23.70s of audio over a 30.68s capture - 6.98s MISSING. The AVFoundation device dropped samples this end did not take in time; the recording will be short of audio by that much.
+16:44:56.484 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 87ms (take 29923ms, media origin 1303ms) - full take captured
+16:44:57.060 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_164424_video released by pid 88521
+16:44:57.067 [pid 88521] [INFO] [PostRecording] stage mux: start dir=2026-11-16_164424_video
+16:44:57.113 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_164424_video/mic_native.wav -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='~/Library/Application Support/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]adelay=390.396:all=1,alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto ~/Movies/AgentEyes/2026-11-16_164424_video/audio_processed.wav
+16:44:57.357 [pid 88521] [INFO] [PostRecording] stage mux: done dir=2026-11-16_164424_video in 0.3s
+16:44:59.248 [pid 88521] [INFO] [AudioCapture] ctor: #0 Microsoft Teams Audio (AVFoundation :0)
+16:44:59.561 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_164458_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:45:29.728 [pid 88521] [INFO] [RecordingService] Stop: mic/video alignment - video first frame at 351466.879333s, mic first sample at 351467.261917s, offset 0.383s
+16:45:29.836 [pid 88521] [WARN] [AudioCapture] Stop: wrote 2245632 bytes of PCM = 23.39s of audio over a 30.59s capture - 7.20s MISSING. The AVFoundation device dropped samples this end did not take in time; the recording will be short of audio by that much.
+16:45:29.925 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 88ms (take 29829ms, media origin 1303ms) - full take captured
+16:45:30.487 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_164458_video released by pid 88521
+16:45:30.494 [pid 88521] [INFO] [PostRecording] stage mux: start dir=2026-11-16_164458_video
+16:45:30.533 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_164458_video/mic_native.wav -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='~/Library/Application Support/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]adelay=382.584:all=1,alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto ~/Movies/AgentEyes/2026-11-16_164458_video/audio_processed.wav
+16:45:30.766 [pid 88521] [INFO] [PostRecording] stage mux: done dir=2026-11-16_164458_video in 0.3s
+16:47:38.208 [pid 88521] [INFO] [AudioCapture] ctor: #0 Microsoft Teams Audio (AVFoundation :0)
+16:47:38.520 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_164737_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:57:43.697 [pid 88521] [INFO] [RecordingService] Stop: mic/video alignment - video first frame at 351625.849500s, mic first sample at 351626.223292s, offset 0.374s
+16:57:44.151 [pid 88521] [WARN] [AudioCapture] Stop: wrote 45348864 bytes of PCM = 472.38s of audio over a 605.92s capture - 133.54s MISSING. The AVFoundation device dropped samples this end did not take in time; the recording will be short of audio by that much.
+16:57:44.700 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 548ms (take 605162ms, media origin 1295ms) - full take captured
+16:57:45.237 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_164737_video released by pid 88521
+16:57:45.243 [pid 88521] [INFO] [PostRecording] stage mux: start dir=2026-11-16_164737_video
+16:57:45.283 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_164737_video/mic_native.wav -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='~/Library/Application Support/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]adelay=373.792:all=1,alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto ~/Movies/AgentEyes/2026-11-16_164737_video/audio_processed.wav
+16:57:47.912 [pid 88521] [INFO] [PostRecording] stage mux: done dir=2026-11-16_164737_video in 2.7s
+17:00:48.794 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_170048_video/recording.mp4 (stall 45s, start-up 45s, every 2s)
+17:01:00.912 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 88ms (take 11131ms, media origin 1311ms) - full take captured
+17:01:01.457 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_170048_video released by pid 88521
+17:01:02.327 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_170101_video/recording.mp4 (stall 45s, start-up 45s, every 2s)
+17:01:14.948 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 547ms (take 11174ms, media origin 1311ms) - full take captured
+17:01:15.503 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_170101_video released by pid 88521

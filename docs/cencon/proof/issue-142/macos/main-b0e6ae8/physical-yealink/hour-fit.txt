@@ -1,0 +1,4 @@
+YESTERDAY'S FIT (n=20, f9ef230): deficit = 0.2593 s + 49.6 ppm * T, slope SE 17.5 ppm, resid sd 32.6 ms, t=2.83
+  new point T=3660.74s captured=3660.32s deficit=0.420s | predicted 0.441s, 95% PREDICTION interval 0.297..0.584 -> INSIDE | implied slope (deficit-0.2593)/T = 43.9 ppm
+REFIT WITH NEW POINTS (n=21): deficit = 0.2603 s + 44.9 ppm * T, slope SE 8.4 ppm, 95% CI 27.4..62.4 ppm, t=5.38
+REFIT WITH NEW POINTS (n=23): deficit = 0.2573 s + 46.2 ppm * T, slope SE 8.2 ppm, 95% CI 29.1..63.2 ppm, t=5.64

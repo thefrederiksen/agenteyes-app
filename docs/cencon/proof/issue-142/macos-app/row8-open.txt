@@ -1,0 +1,68 @@
+14:22:30 $ AgentEyesDesktop --details 2026-11-15_134545_video
+second launch exit=0
+14:22:30.932 [pid 59657] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=59657)
+14:22:30.934 [pid 59657] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+14:22:30.937 [pid 59657] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+14:22:30.937 [pid 57343] [INFO] [SingleInstance] Accept: 'show'
+14:22:30.938 [pid 57343] [INFO] [App] Run: show
+14:22:30.938 [pid 57343] [INFO] [App] ShowWindow
+--- window server
+pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=802 layer=0 onscreen=true alpha=1.0 bounds=1000x668 at 460,216 name=(name withheld: no Screen Recording grant)
+14:22:33 $ AgentEyesDesktop --settings general
+second launch exit=0
+14:22:33.137 [pid 59664] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=59664)
+14:22:33.139 [pid 59664] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='show'
+14:22:33.142 [pid 59664] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'show'
+14:22:33.142 [pid 57343] [INFO] [SingleInstance] Accept: 'show'
+14:22:33.143 [pid 57343] [INFO] [App] Run: show
+14:22:33.143 [pid 57343] [INFO] [App] ShowWindow
+--- window server
+pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=802 layer=0 onscreen=true alpha=1.0 bounds=1000x668 at 460,216 name=(name withheld: no Screen Recording grant)
+=== NOTE: the two launches above passed ONE argument each (zsh does not word-split $args) and so asked for 'show'. Re-run with separate arguments:
+14:22:43 $ AgentEyesDesktop --details 2026-11-15_134545_video
+second launch exit=0
+14:22:43.425 [pid 59726] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=59726)
+14:22:43.427 [pid 59726] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='details:2026-11-15_134545_video'
+14:22:43.430 [pid 59726] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'details:2026-11-15_134545_video'
+14:22:43.430 [pid 57343] [INFO] [SingleInstance] Accept: 'details:2026-11-15_134545_video'
+14:22:43.431 [pid 57343] [INFO] [App] Run: details:2026-11-15_134545_video
+14:22:43.431 [pid 57343] [INFO] [App] ShowWindow
+14:22:43.432 [pid 57343] [INFO] [MainWindow] RunCommand: details 2026-11-15_134545_video
+14:22:43.433 [pid 57343] [INFO] [MainWindow] OpenDetails: 2026-11-15_134545_video
+14:22:43.464 [pid 57343] [INFO] [DetailWindow] ctor: 2026-11-15_134545_video
+14:22:43.505 [pid 57343] [INFO] [TranscriptPresentation] For: dir=~/Movies/AgentEyes/2026-11-15_134545_video kind=None chars=0
+14:22:43.508 [pid 57343] [INFO] [DetailWindow] LoadAsync: 2026-11-15_134545_video transcript=None chars=0
+--- window server
+pid=57343 owner="AgentEyes" window=807 layer=0 onscreen=true alpha=1.0 bounds=680x668 at 620,216 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=802 layer=0 onscreen=true alpha=1.0 bounds=1000x668 at 460,216 name=(name withheld: no Screen Recording grant)
+14:22:45 $ AgentEyesDesktop --settings general
+second launch exit=0
+14:22:45.629 [pid 59734] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=59734)
+14:22:45.630 [pid 59734] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='settings:general'
+14:22:45.634 [pid 59734] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'settings:general'
+14:22:45.634 [pid 57343] [INFO] [SingleInstance] Accept: 'settings:general'
+14:22:45.634 [pid 57343] [INFO] [App] Run: settings:general
+14:22:45.635 [pid 57343] [INFO] [App] ShowWindow
+14:22:45.636 [pid 57343] [INFO] [MainWindow] RunCommand: settings general
+14:22:45.636 [pid 57343] [INFO] [MainWindow] OpenSettings: General
+14:22:45.698 [pid 57343] [INFO] [SettingsWindow] ctor: tab=General
+--- window server
+pid=57343 owner="AgentEyes" window=807 layer=0 onscreen=true alpha=1.0 bounds=680x668 at 620,216 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=808 layer=0 onscreen=true alpha=1.0 bounds=560x508 at 680,296 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)
+pid=57343 owner="AgentEyes" window=802 layer=0 onscreen=true alpha=1.0 bounds=1000x668 at 460,216 name=(name withheld: no Screen Recording grant)
+14:22:53 $ AgentEyesDesktop --view dictionary
+second launch exit=0
+14:22:53.930 [pid 59793] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=59793)
+14:22:53.932 [pid 59793] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='view:dictionary'
+14:22:53.935 [pid 59793] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:dictionary'
+14:22:53.935 [pid 57343] [INFO] [SingleInstance] Accept: 'view:dictionary'
+14:22:53.936 [pid 57343] [INFO] [App] Run: view:dictionary
+14:22:53.936 [pid 57343] [INFO] [App] ShowWindow
+14:22:53.938 [pid 57343] [INFO] [MainWindow] RunCommand: view dictionary
+14:22:53.939 [pid 57343] [INFO] [MainWindow] Rail_Changed: Dictionary
+14:22:53.942 [pid 57343] [INFO] [MainWindow] LoadDictionaryAsync
+14:22:53.953 [pid 57343] [INFO] dictionary: seeded starter file at ~/Library/Application Support/AgentEyes/dictionary.json

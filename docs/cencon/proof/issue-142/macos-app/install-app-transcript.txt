@@ -1,0 +1,27 @@
+[before] 14:19:01 service pid=50642  launchd pid = 50642 sha256 agenteyes=348b93b81d867fc3 agenteyes.dll=1b9092d077892723 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+$ scripts/mac/install-app.sh --no-start
+Building the AgentEyes app (Release, osx-arm64, self-contained, version 1.11.11) ...
+[OK] published
+[OK] assembled AgentEyes.app
+<tmp> replacing existing signature
+[OK] signed ad-hoc (656 files inside, then the bundle) and verified - NOT notarised
+[OK] built <tmp> (198M)
+[OK] installed ~/Applications/AgentEyes.app
+[OK] registered with Launch Services
+AgentEyes.app is in ~/Applications/AgentEyes.app - open it from Finder, Launchpad or Spotlight.
+It needs no permission of its own: recording is done by the AgentEyes service,
+which is the one that appears as "agenteyes" under System Settings > Privacy
+and Security > Screen and System Audio Recording.
+exit=
+[after] 14:19:12 service pid=50642  launchd pid = 50642 sha256 agenteyes=348b93b81d867fc3 agenteyes.dll=1b9092d077892723 health={"ok":true,"app":"AgentEyes","host":"headless","platform":"macos"}
+installed app AFTER: AgentEyesDesktop.dll 1.11.11+277a9bcf71c7f82547353177299178efc1020327
+Identifier=com.agenteyes.app
+Format=app bundle with Mach-O thin (arm64)
+CDHash=f137a81e35efa32b27ab84afdc949aa9eac33354
+Signature=adhoc
+codesign --verify --deep --strict exit=0
+com.agenteyes.app
+1.11.11
+AgentEyesDesktop
+bundle mtime Nov 16 14:19:12 2026
+198M	~/Applications/AgentEyes.app

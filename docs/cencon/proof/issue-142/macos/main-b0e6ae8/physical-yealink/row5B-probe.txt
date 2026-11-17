@@ -1,0 +1,32 @@
+file: recording.mp4  bytes: 38552029  expected take: 66.530 s  tolerance: +/-1.0 s  tail window: [64.530, 66.530] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "66.533333"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "66.533333", "nb_frames": "1996"}
+stream: {"index": 1, "codec_name": "aac", "codec_type": "audio", "sample_rate": "48000", "channels": 1, "avg_frame_rate": "0/0", "duration": "65.863312", "nb_frames": "3089"}
+top-level atoms: {"ftyp": 1, "free": 1, "mdat": 1, "moov": 1}  moov at: [(38489987, 62042)]  last atom: ('moov', 38489987, 62042)  atom walk ends at 38552029 of 38552029 
+full decode: exit 0  stderr: ''
+decoded video frames: 1996  first ts 0.000  last ts 66.500  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [64.530, 66.530]: 60  (first 64.533, last 66.500)
+audio packets: 3089  first pts -0.021  audio end 65.863  video end 66.533  |video end - audio end| = 0.670 s
+ROW6-CHECK arm (a) last frame 66.500 vs expected 66.530: diff -0.030 s -> PASS
+ROW6-CHECK arm (b) 60 frames in the last 2 s of the expected take (need >= 54) -> PASS
+ROW6-CHECK PASS
+--- audio stream (ffprobe stream duration / sample_rate)
+stream|codec_name=aac|sample_rate=48000|channels=1|start_time=0.000000|duration=65.863312
+--- volumedetect on recording.mp4 audio
+[Parsed_volumedetect_0 @ 0xb5b004c00] n_samples: 0
+[Parsed_volumedetect_0 @ 0xb5b005080] n_samples: 3161439
+[Parsed_volumedetect_0 @ 0xb5b005080] mean_volume: -69.3 dB
+[Parsed_volumedetect_0 @ 0xb5b005080] max_volume: -45.1 dB
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_45db: 11
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_46db: 48
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_47db: 119
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_48db: 218
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_49db: 478
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_50db: 786
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_51db: 1311
+[Parsed_volumedetect_0 @ 0xb5b005080] histogram_52db: 2003
+--- mic_native.wav
+stream|sample_rate=48000|channels=1|duration=65.408000
+--- audio_16k.wav
+stream|sample_rate=16000|channels=1|duration=65.863313

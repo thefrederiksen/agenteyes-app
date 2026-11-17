@@ -1,0 +1,28 @@
+14:28:55 $ open ~/Applications/AgentEyes.app
+app pid=62329
+item window=816 main window=815
+ffmpeg before: 0
+14:28:57 POST /record/start screen-only
+  -> recording 2026-11-16_142857_video
+14:29:00 State recording Elapsed 3.76
+14:29:01 POST /record/stop
+  -> 2026-11-16_142857_video 4.47
+14:29:07 State idle Elapsed 4.47
+--- app pid 62329: every TrayController / AppState / error line since launch
+14:28:55.320 [pid 62329] [INFO] [TrayController] ctor
+14:28:55.356 [pid 62329] [INFO] [AppState] StartPolling
+14:28:55.650 [pid 62329] [INFO] [AppState] PollAsync: service answering, state=idle
+14:28:55.650 [pid 62329] [INFO] [TrayController] Render:  -> idle
+14:28:57.952 [pid 62329] [INFO] [TrayController] Render: idle -> recording
+14:29:02.527 [pid 62329] [INFO] [TrayController] Render: recording -> idle
+sha1 item during: 562448ea56b2a804  after stop: 3d08460349df6e0e
+=== second attempt, Library view showing (the first instance's condition)
+14:29:31 POST /record/start screen-only
+  -> recording 2026-11-16_142931_video
+14:29:36 State recording Elapsed 4.67
+14:29:36 POST /record/stop
+  -> 2026-11-16_142931_video 4.71
+14:29:42 State idle Elapsed 4.71
+14:29:30.469 [pid 62329] [INFO] [MainWindow] Rail_Changed: Library
+14:29:32.437 [pid 62329] [INFO] [TrayController] Render: idle -> recording
+14:29:37.455 [pid 62329] [INFO] [TrayController] Render: recording -> idle

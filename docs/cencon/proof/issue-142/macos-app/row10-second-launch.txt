@@ -1,0 +1,22 @@
+running before: 57343 
+14:20:33 $ ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop --view library
+second launch exit=0 after 0.05 s; stdout+stderr bytes=       0
+--- every log line since, all pids
+14:20:33.767 [pid 57818] [INFO] [Program] Main: AgentEyes desktop app starting on mac (tray=False, pid=57818)
+14:20:33.768 [pid 57818] [INFO] [SingleInstance] TryAcquireSocket: <TMPDIR>/agenteyes-app.sock command='view:library'
+14:20:33.771 [pid 57818] [INFO] [SingleInstance] TryAcquire: another instance is running - sent it 'view:library'
+14:20:33.772 [pid 57343] [INFO] [SingleInstance] Accept: 'view:library'
+14:20:33.773 [pid 57343] [INFO] [App] Run: view:library
+14:20:33.773 [pid 57343] [INFO] [App] ShowWindow
+14:20:33.776 [pid 57343] [INFO] [MainWindow] RunCommand: view library
+14:20:33.777 [pid 57343] [INFO] [MainWindow] Rail_Changed: Library
+14:20:34.022 [pid 57343] [INFO] [MainWindow] RequestScan: 81 recording(s), 68 pending, 244 ms
+14:20:34.078 [pid 50642] [INFO] [HeadlessControlServer] GET /status
+14:20:34.091 [pid 50642] [INFO] [TranscriptionBacklog] FindPending: root=~/Movies/AgentEyes, pending=68
+14:20:34.092 [pid 50642] [INFO] [HeadlessControlServer] GET /status: 200 answer written (659 bytes)
+14:20:35.080 [pid 50642] [INFO] [HeadlessControlServer] GET /status
+14:20:35.094 [pid 50642] [INFO] [TranscriptionBacklog] FindPending: root=~/Movies/AgentEyes, pending=68
+14:20:35.095 [pid 50642] [INFO] [HeadlessControlServer] GET /status: 200 answer written (659 bytes)
+running after: 57343 
+--- window server
+pid=57343 owner="AgentEyes" window=796 layer=0 onscreen=true alpha=1.0 bounds=1280x748 at 320,162 name=(name withheld: no Screen Recording grant)

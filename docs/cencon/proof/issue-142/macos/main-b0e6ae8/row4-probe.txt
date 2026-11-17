@@ -1,0 +1,12 @@
+file: recording.mp4  bytes: 7291084  expected take: 20.760 s  tolerance: +/-1.0 s  tail window: [18.760, 20.760] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "20.866667"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "20.866667"}
+top-level atoms: {"ftyp": 1, "moov": 1, "moof": 13, "mdat": 13, "mfra": 1}  moov at: [(28, 769)]  last atom: ('mfra', 7290789, 295)  atom walk ends at 7291084 of 7291084 
+full decode: exit 0  stderr: ''
+decoded video frames: 626  first ts 0.000  last ts 20.833  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [18.760, 20.760]: 60  (first 18.767, last 20.733)
+audio packets: 0 (no audio stream)
+ROW6-CHECK arm (a) last frame 20.833 vs expected 20.760: diff +0.073 s -> PASS
+ROW6-CHECK arm (b) 60 frames in the last 2 s of the expected take (need >= 54) -> PASS
+ROW6-CHECK PASS

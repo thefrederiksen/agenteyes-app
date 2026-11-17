@@ -1,0 +1,16 @@
+file: recording.mp4  bytes: 17477216  expected take: 31.430 s  tolerance: +/-1.0 s  tail window: [29.430, 31.430] needs >= 54 frames
+ffprobe exit: 0 stderr: ''
+format: {"format_name": "mov,mp4,m4a,3gp,3g2,mj2", "duration": "31.433333"}
+stream: {"index": 0, "codec_name": "h264", "codec_type": "video", "avg_frame_rate": "30/1", "duration": "31.433333", "nb_frames": "943"}
+stream: {"index": 1, "codec_name": "aac", "codec_type": "audio", "sample_rate": "48000", "channels": 1, "avg_frame_rate": "0/0", "duration": "23.782583", "nb_frames": "1116"}
+top-level atoms: {"ftyp": 1, "free": 1, "mdat": 1, "moov": 1}  moov at: [(17452570, 24646)]  last atom: ('moov', 17452570, 24646)  atom walk ends at 17477216 of 17477216 
+full decode: exit 0  stderr: ''
+decoded video frames: 943  first ts 0.000  last ts 31.400  frames/(last-first+1/30): 30.0000 fps
+frames with ts in [29.430, 31.430]: 60  (first 29.433, last 31.400)
+audio packets: 1116  first pts -0.021  audio end 23.783  video end 31.433  |video end - audio end| = 7.651 s
+mic_native.wav:
+pcm_s16le,48000,1,23.392000
+[Parsed_volumedetect_0 @ 0xc210189c0] mean_volume: -91.0 dB
+[Parsed_volumedetect_0 @ 0xc210189c0] max_volume: -91.0 dB
+recording.mp4 audio [Parsed_volumedetect_0 @ 0xb3cc24b40] mean_volume: -91.0 dB
+recording.mp4 audio [Parsed_volumedetect_0 @ 0xb3cc24b40] max_volume: -91.0 dB

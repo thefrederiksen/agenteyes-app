@@ -1,0 +1,204 @@
+17:17:37.383 [pid 88521] [INFO] [RecordingStartSequence] Run: dir=~/Movies/AgentEyes/2026-11-16_171737_video steps=2
+17:17:37.383 [pid 88521] [INFO] [CaptureLock] TryAcquire: 2026-11-16_171737_video for capture session
+17:17:37.384 [pid 88521] [INFO] [CaptureLock] TryAcquire: 2026-11-16_171737_video claimed by capture session of pid 88521 on host devthrottle-mac-mini (started 2026-11-16T22:17:37.3840660Z)
+17:17:37.384 [pid 88521] [INFO] [RecordingWorkset] Attach: ~/Movies/AgentEyes/2026-11-16_171737_video#1685 now carries CaptureLock
+17:17:37.384 [pid 88521] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_171737_video - pid 88521 on devthrottle-mac-mini (process started 2026-11-16T21:36:20.7658330Z)
+17:17:37.392 [pid 88521] [INFO] [RecordingStartSequence] Run: starting video dir=~/Movies/AgentEyes/2026-11-16_171737_video
+17:17:37.990 [pid 88521] [INFO] [CaptureLock] NoteWriter: 2026-11-16_171737_video video pid 3880
+17:17:37.991 [pid 88521] [INFO] [CaptureLock] NoteWriter: 2026-11-16_171737_video video pid 3880 recorded (started 2026-11-16T22:17:37.5780110Z)
+17:17:37.991 [pid 88521] [INFO] [RecordingStartSequence] Run: starting microphone dir=~/Movies/AgentEyes/2026-11-16_171737_video
+17:17:38.130 [pid 88521] [INFO] [AudioCapture] ctor: #0 Yealink UH36 (AVFoundation :0)
+17:17:38.130 [pid 88521] [INFO] [AudioCapture] Start: ~/Movies/AgentEyes/2026-11-16_171737_video/mic_native.wav
+17:17:38.130 [pid 88521] [INFO] [AvfStream] Start mic: "/opt/homebrew/bin/ffmpeg" -hide_banner -nostats -loglevel info -f avfoundation -thread_queue_size 1024 -i :0 -ac 1 -ar 48000 -f s16le pipe:1
+17:17:38.327 [pid 88521] [INFO] [AvfStream] mic: capture clock start 353426.181563s
+17:17:38.444 [pid 88521] [INFO] [RecordingStartSequence] Run: dir=~/Movies/AgentEyes/2026-11-16_171737_video started with no failures
+17:17:38.444 [pid 88521] [INFO] [RecordingService] StartWatchdog: watching ~/Movies/AgentEyes/2026-11-16_171737_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+18:18:38.706 [pid 88521] [INFO] [RecordingStopSequence] Run: dir=~/Movies/AgentEyes/2026-11-16_171737_video steps=2
+18:18:38.706 [pid 88521] [INFO] [AudioCapture] Stop
+18:18:38.706 [pid 88521] [INFO] [AvfStream] Stop mic: asking ffmpeg to finish
+18:18:38.890 [pid 88521] [INFO] [AvfStream] mic: reader finished (stopping=True)
+18:18:38.890 [pid 88521] [INFO] [AvfStream] Stop mic: ffmpeg reported [q] command received. Exiting. |  | [out#0/s16le @ 0x9ff16c180] video:0KiB audio:343155KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.000000% | size=  343155KiB time=01:01:00.48 bitrate= 768.0kbits/s speed=   1x elapsed=1:01:00.53
+18:18:38.890 [pid 88521] [INFO] [AvfStream] Stop mic: done (ffmpeg exit=0)
+18:18:38.891 [pid 88521] [INFO] [AudioCapture] Stop: wrote 351390720 bytes of PCM = 3660.32s of audio over a 3660.74s capture
+18:18:39.307 [pid 88521] [INFO] [FfmpegRecorder] Stop: pipeline drained in 414ms (take 3659993ms, media origin 1299ms) - full take captured
+18:18:39.882 [pid 88521] [INFO] [RecordingStopSequence] Run: dir=~/Movies/AgentEyes/2026-11-16_171737_video completed with no failures
+18:18:39.884 [pid 88521] [INFO] [CaptureLock] Release: 2026-11-16_171737_video released by pid 88521
+18:18:39.885 [pid 88521] [INFO] [RecordingWorkset] Release: ~/Movies/AgentEyes/2026-11-16_171737_video - attached CaptureLock released
+18:18:39.885 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171737_video (post-recording) - no owner record; nothing to clear
+18:18:39.892 [pid 88521] [INFO] [PostRecording] stage mux: start dir=2026-11-16_171737_video
+18:18:39.892 [pid 88521] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171737_video (finalize) - no capture holds it
+18:18:39.892 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171737_video (finalize) - no owner record; nothing to clear
+18:18:39.965 [pid 88521] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic video=~/Movies/AgentEyes/2026-11-16_171737_video/raw.mp4 intermediate=~/Movies/AgentEyes/2026-11-16_171737_video/audio_processed.wav muxing=~/Movies/AgentEyes/2026-11-16_171737_video/recording.mp4.muxing.tmp out=~/Movies/AgentEyes/2026-11-16_171737_video/recording.mp4
+18:18:39.965 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_171737_video/mic_native.wav -filter_complex "[0:a]aeval=exprs='if(isnan(val(ch))+isinf(val(ch)),0,val(ch))':c=same,aformat=channel_layouts=mono,aresample=48000,asetnsamples=n=480:p=1,arnndn=m='~/Library/Application Support/AgentEyes/models/bd.rnnn',speechnorm=e=4:p=0.95,volume=1[m];[m]adelay=452.23:all=1,alimiter=limit=0.95:level=false[a]" -map [a] -c:a pcm_f32le -rf64 auto ~/Movies/AgentEyes/2026-11-16_171737_video/audio_processed.wav
+18:18:39.975 [pid 88521] [INFO] [FfmpegChildRegistry] Register: pid 27411 [mux video+mic (audio)] owner pid 88521
+18:18:56.853 [pid 88521] [INFO] ffmpeg [mux video+mic (audio)] ok
+18:18:56.853 [pid 88521] [INFO] ffmpeg [mux video+mic]: "/opt/homebrew/bin/ffmpeg" -y -i ~/Movies/AgentEyes/2026-11-16_171737_video/raw.mp4 -i ~/Movies/AgentEyes/2026-11-16_171737_video/audio_processed.wav -map 0:v -c:v copy -map 1:a -c:a aac -b:a 160k -f mp4 ~/Movies/AgentEyes/2026-11-16_171737_video/recording.mp4.muxing.tmp
+18:18:56.862 [pid 88521] [INFO] [FfmpegChildRegistry] Register: pid 27666 [mux video+mic] owner pid 88521
+18:19:54.921 [pid 88521] [INFO] ffmpeg [mux video+mic] ok
+18:19:54.921 [pid 88521] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic done out=~/Movies/AgentEyes/2026-11-16_171737_video/recording.mp4
+18:19:55.102 [pid 88521] [INFO] [AudioMix] MuxInTwoPasses: mux video+mic removed the intermediate processed audio ~/Movies/AgentEyes/2026-11-16_171737_video/audio_processed.wav
+18:19:55.173 [pid 88521] [INFO] [PostRecording] stage mux: done dir=2026-11-16_171737_video in 75.3s
+18:19:55.363 [pid 88521] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_171737_video (package) - no capture holds it
+18:19:55.363 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171737_video (package) - no owner record; nothing to clear
+18:19:56.901 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_104903_audio (post-recording) - no owner record; nothing to clear
+18:19:56.902 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_105029_audio (post-recording) - no owner record; nothing to clear
+18:19:56.902 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_112333_video (post-recording) - no owner record; nothing to clear
+18:19:56.903 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_112435_video (post-recording) - no owner record; nothing to clear
+18:19:56.903 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_113558_video (post-recording) - no owner record; nothing to clear
+18:19:56.904 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_114732_video (post-recording) - no owner record; nothing to clear
+18:19:56.904 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_114801_video (post-recording) - no owner record; nothing to clear
+18:19:56.905 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_115259_audio (post-recording) - no owner record; nothing to clear
+18:19:56.905 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_115328_video (post-recording) - no owner record; nothing to clear
+18:19:56.906 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_145851_video (post-recording) - no owner record; nothing to clear
+18:19:56.907 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-13_094437_video (post-recording) - no owner record; nothing to clear
+18:19:56.907 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_085412_video (post-recording) - no owner record; nothing to clear
+18:19:56.908 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_085801_video (post-recording) - no owner record; nothing to clear
+18:19:56.908 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_090831_video (post-recording) - no owner record; nothing to clear
+18:19:56.909 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_091724_video (post-recording) - no owner record; nothing to clear
+18:19:56.910 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092249_video (post-recording) - no owner record; nothing to clear
+18:19:56.910 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092527_video (post-recording) - no owner record; nothing to clear
+18:19:56.911 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092612_video (post-recording) - no owner record; nothing to clear
+18:19:56.911 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093028_video (post-recording) - no owner record; nothing to clear
+18:19:56.912 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093137_video (post-recording) - no owner record; nothing to clear
+18:19:56.912 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093235_video (post-recording) - no owner record; nothing to clear
+18:19:56.913 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093258_video (post-recording) - no owner record; nothing to clear
+18:19:56.913 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093321_video (post-recording) - no owner record; nothing to clear
+18:19:56.914 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094458_video (post-recording) - no owner record; nothing to clear
+18:19:56.914 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094643_video (post-recording) - no owner record; nothing to clear
+18:19:56.915 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094736_audio (post-recording) - no owner record; nothing to clear
+18:19:56.915 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094847_audio (post-recording) - no owner record; nothing to clear
+18:19:56.916 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094927_audio (post-recording) - no owner record; nothing to clear
+18:19:56.917 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_095136_audio (post-recording) - no owner record; nothing to clear
+18:19:56.917 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_095245_audio (post-recording) - no owner record; nothing to clear
+18:19:56.918 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_101446_video (post-recording) - no owner record; nothing to clear
+18:19:56.918 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_102725_video (post-recording) - no owner record; nothing to clear
+18:19:56.919 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103045_video (post-recording) - no owner record; nothing to clear
+18:19:56.919 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103338_video (post-recording) - no owner record; nothing to clear
+18:19:56.920 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103623_video (post-recording) - no owner record; nothing to clear
+18:19:56.920 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_104905_video (post-recording) - no owner record; nothing to clear
+18:19:56.921 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_110301_video (post-recording) - no owner record; nothing to clear
+18:19:56.921 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_111433_video (post-recording) - no owner record; nothing to clear
+18:19:56.922 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_120259_video (post-recording) - no owner record; nothing to clear
+18:19:56.922 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_120737_video (post-recording) - no owner record; nothing to clear
+18:19:56.923 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_121209_video (post-recording) - no owner record; nothing to clear
+18:19:56.923 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_093623_video (post-recording) - no owner record; nothing to clear
+18:19:56.924 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_111822_video (post-recording) - no owner record; nothing to clear
+18:19:56.925 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_112903_video (post-recording) - no owner record; nothing to clear
+18:19:56.925 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120112_video (post-recording) - no owner record; nothing to clear
+18:19:56.926 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120710_video (post-recording) - no owner record; nothing to clear
+18:19:56.926 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120810_video (post-recording) - no owner record; nothing to clear
+18:19:56.927 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_121304_video (post-recording) - no owner record; nothing to clear
+18:19:56.927 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_121934_video (post-recording) - no owner record; nothing to clear
+18:19:56.928 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122333_video (post-recording) - no owner record; nothing to clear
+18:19:56.928 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122456_video (post-recording) - no owner record; nothing to clear
+18:19:56.929 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122611_video (post-recording) - no owner record; nothing to clear
+18:19:56.929 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122713_video (post-recording) - no owner record; nothing to clear
+18:19:56.930 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_125649_video (post-recording) - no owner record; nothing to clear
+18:19:56.931 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130215_video (post-recording) - no owner record; nothing to clear
+18:19:56.931 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130411_video (post-recording) - no owner record; nothing to clear
+18:19:56.932 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130455_video (post-recording) - no owner record; nothing to clear
+18:19:56.932 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130825_video (post-recording) - no owner record; nothing to clear
+18:19:56.933 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134545_video (post-recording) - no owner record; nothing to clear
+18:19:56.933 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134706_video (post-recording) - no owner record; nothing to clear
+18:19:56.934 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134854_video (post-recording) - no owner record; nothing to clear
+18:19:56.934 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_142036_video (post-recording) - no owner record; nothing to clear
+18:19:56.935 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090238_video (post-recording) - no owner record; nothing to clear
+18:19:56.936 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090331_video (post-recording) - no owner record; nothing to clear
+18:19:56.936 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090503_video (post-recording) - no owner record; nothing to clear
+18:19:56.937 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090652_video (post-recording) - no owner record; nothing to clear
+18:19:56.937 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_123404_video (post-recording) - no owner record; nothing to clear
+18:19:56.938 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_130845_video (post-recording) - no owner record; nothing to clear
+18:19:56.938 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142104_video (post-recording) - no owner record; nothing to clear
+18:19:56.939 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142857_video (post-recording) - no owner record; nothing to clear
+18:19:56.939 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142931_video (post-recording) - no owner record; nothing to clear
+18:19:56.940 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_163736_video (post-recording) - no owner record; nothing to clear
+18:19:56.940 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164310_video (post-recording) - no owner record; nothing to clear
+18:19:56.941 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164424_video (post-recording) - no owner record; nothing to clear
+18:19:56.942 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164458_video (post-recording) - no owner record; nothing to clear
+18:19:56.942 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164737_video (post-recording) - no owner record; nothing to clear
+18:19:56.943 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170048_video (post-recording) - no owner record; nothing to clear
+18:19:56.943 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170101_video (post-recording) - no owner record; nothing to clear
+18:19:56.944 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171328_video (post-recording) - no owner record; nothing to clear
+18:19:56.944 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171441_video (post-recording) - no owner record; nothing to clear
+18:19:56.945 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171737_video (post-recording) - no owner record; nothing to clear
+18:21:42.137 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_104903_audio (post-recording) - no owner record; nothing to clear
+18:21:42.137 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_105029_audio (post-recording) - no owner record; nothing to clear
+18:21:42.138 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_112333_video (post-recording) - no owner record; nothing to clear
+18:21:42.138 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_112435_video (post-recording) - no owner record; nothing to clear
+18:21:42.139 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_113558_video (post-recording) - no owner record; nothing to clear
+18:21:42.139 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_114732_video (post-recording) - no owner record; nothing to clear
+18:21:42.140 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_114801_video (post-recording) - no owner record; nothing to clear
+18:21:42.141 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_115259_audio (post-recording) - no owner record; nothing to clear
+18:21:42.141 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_115328_video (post-recording) - no owner record; nothing to clear
+18:21:42.142 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-12_145851_video (post-recording) - no owner record; nothing to clear
+18:21:42.142 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-13_094437_video (post-recording) - no owner record; nothing to clear
+18:21:42.143 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_085412_video (post-recording) - no owner record; nothing to clear
+18:21:42.143 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_085801_video (post-recording) - no owner record; nothing to clear
+18:21:42.144 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_090831_video (post-recording) - no owner record; nothing to clear
+18:21:42.145 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_091724_video (post-recording) - no owner record; nothing to clear
+18:21:42.146 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092249_video (post-recording) - no owner record; nothing to clear
+18:21:42.146 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092527_video (post-recording) - no owner record; nothing to clear
+18:21:42.147 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_092612_video (post-recording) - no owner record; nothing to clear
+18:21:42.147 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093028_video (post-recording) - no owner record; nothing to clear
+18:21:42.148 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093137_video (post-recording) - no owner record; nothing to clear
+18:21:42.149 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093235_video (post-recording) - no owner record; nothing to clear
+18:21:42.149 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093258_video (post-recording) - no owner record; nothing to clear
+18:21:42.150 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_093321_video (post-recording) - no owner record; nothing to clear
+18:21:42.150 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094458_video (post-recording) - no owner record; nothing to clear
+18:21:42.151 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094643_video (post-recording) - no owner record; nothing to clear
+18:21:42.152 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094736_audio (post-recording) - no owner record; nothing to clear
+18:21:42.152 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094847_audio (post-recording) - no owner record; nothing to clear
+18:21:42.153 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_094927_audio (post-recording) - no owner record; nothing to clear
+18:21:42.153 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_095136_audio (post-recording) - no owner record; nothing to clear
+18:21:42.154 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_095245_audio (post-recording) - no owner record; nothing to clear
+18:21:42.154 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_101446_video (post-recording) - no owner record; nothing to clear
+18:21:42.155 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_102725_video (post-recording) - no owner record; nothing to clear
+18:21:42.156 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103045_video (post-recording) - no owner record; nothing to clear
+18:21:42.156 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103338_video (post-recording) - no owner record; nothing to clear
+18:21:42.157 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_103623_video (post-recording) - no owner record; nothing to clear
+18:21:42.157 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_104905_video (post-recording) - no owner record; nothing to clear
+18:21:42.158 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_110301_video (post-recording) - no owner record; nothing to clear
+18:21:42.159 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_111433_video (post-recording) - no owner record; nothing to clear
+18:21:42.159 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_120259_video (post-recording) - no owner record; nothing to clear
+18:21:42.160 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_120737_video (post-recording) - no owner record; nothing to clear
+18:21:42.160 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-14_121209_video (post-recording) - no owner record; nothing to clear
+18:21:42.161 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_093623_video (post-recording) - no owner record; nothing to clear
+18:21:42.162 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_111822_video (post-recording) - no owner record; nothing to clear
+18:21:42.162 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_112903_video (post-recording) - no owner record; nothing to clear
+18:21:42.163 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120112_video (post-recording) - no owner record; nothing to clear
+18:21:42.163 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120710_video (post-recording) - no owner record; nothing to clear
+18:21:42.164 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_120810_video (post-recording) - no owner record; nothing to clear
+18:21:42.165 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_121304_video (post-recording) - no owner record; nothing to clear
+18:21:42.165 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_121934_video (post-recording) - no owner record; nothing to clear
+18:21:42.166 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122333_video (post-recording) - no owner record; nothing to clear
+18:21:42.166 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122456_video (post-recording) - no owner record; nothing to clear
+18:21:42.167 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122611_video (post-recording) - no owner record; nothing to clear
+18:21:42.167 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_122713_video (post-recording) - no owner record; nothing to clear
+18:21:42.168 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_125649_video (post-recording) - no owner record; nothing to clear
+18:21:42.169 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130215_video (post-recording) - no owner record; nothing to clear
+18:21:42.169 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130411_video (post-recording) - no owner record; nothing to clear
+18:21:42.170 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130455_video (post-recording) - no owner record; nothing to clear
+18:21:42.170 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_130825_video (post-recording) - no owner record; nothing to clear
+18:21:42.171 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134545_video (post-recording) - no owner record; nothing to clear
+18:21:42.171 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134706_video (post-recording) - no owner record; nothing to clear
+18:21:42.172 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_134854_video (post-recording) - no owner record; nothing to clear
+18:21:42.173 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-15_142036_video (post-recording) - no owner record; nothing to clear
+18:21:42.173 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090238_video (post-recording) - no owner record; nothing to clear
+18:21:42.174 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090331_video (post-recording) - no owner record; nothing to clear
+18:21:42.174 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090503_video (post-recording) - no owner record; nothing to clear
+18:21:42.175 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_090652_video (post-recording) - no owner record; nothing to clear
+18:21:42.175 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_123404_video (post-recording) - no owner record; nothing to clear
+18:21:42.176 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_130845_video (post-recording) - no owner record; nothing to clear
+18:21:42.177 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142104_video (post-recording) - no owner record; nothing to clear
+18:21:42.177 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142857_video (post-recording) - no owner record; nothing to clear
+18:21:42.178 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_142931_video (post-recording) - no owner record; nothing to clear
+18:21:42.178 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_163736_video (post-recording) - no owner record; nothing to clear
+18:21:42.179 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164310_video (post-recording) - no owner record; nothing to clear
+18:21:42.179 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164424_video (post-recording) - no owner record; nothing to clear
+18:21:42.180 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164458_video (post-recording) - no owner record; nothing to clear
+18:21:42.181 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_164737_video (post-recording) - no owner record; nothing to clear
+18:21:42.181 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170048_video (post-recording) - no owner record; nothing to clear
+18:21:42.182 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_170101_video (post-recording) - no owner record; nothing to clear
+18:21:42.182 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171328_video (post-recording) - no owner record; nothing to clear
+18:21:42.183 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171441_video (post-recording) - no owner record; nothing to clear
+18:21:42.183 [pid 88521] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_171737_video (post-recording) - no owner record; nothing to clear

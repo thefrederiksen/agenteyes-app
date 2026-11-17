@@ -1,0 +1,176 @@
+# Issue #142 row4 re-run on main b0e6ae8 - SORENLAPTOP 2026-11-16
+# Produced by the QA seat's driver (Control API) and analysis (installed ffprobe/ffmpeg 9.0.2). Paths scrubbed.
+
+## Driver transcript (Control API; post-processing followed in manifest.json, not /status)
+
+16:04:21.436 app pid(s)=19972 exe=%USERPROFILE%\AppData\Local\AgentEyes\app\AgentEyesApp.exe
+16:04:21.482 app embedded=1.11.11+b0e6ae8213c9777781ba28b588c5edc04c0a85fb
+16:04:21.594 ffmpeg before start: 
+16:04:23.255 load before=14%
+16:04:23.255 POST /record/start {"mode":"video","screen":1,"source":"none"}
+16:04:23.929 start response: {"State":"recording","Mode":"video","Source":"none","ElapsedSeconds":0.48,"Level":0,"MicLevel":0,"SystemLevel":0,"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_160423_video","Camera":null,"SignedIn":true,"AccountEmail":"<redacted>","PendingTranscriptions":1,"LastStopFailed":false,"LastStopError":null,"LastStopDir":null,"CameraStuck":false,"StuckCameras":[],"PreviewScreenFrame":null,"PreviewCameraFrame":null,"PreviewAvailable":false,"PreviewArmed":false,"PreviewPublishing":false,"PreviewScreenFramesRead":0,"PreviewCameraFramesRead":0,"PreviewFailed":false,"PreviewOverlayCorner":null,"PreviewOverlayShape":null,"CaptureLiveness":"starting","CaptureFile":"recording.mp4","CaptureBytes":0,"CaptureLastGrowthUtc":null,"CaptureSecondsSinceGrowth":null,"LastCaptureFault":null,"LastCaptureFaultUtc":null,"LastCaptureFaultDir":null}
+16:04:23.997 dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:25.103 status State=recording Elapsed=0.64 Liveness=starting File=recording.mp4 Bytes=0 SinceGrowth= Fault= lockfile=True load=43%
+16:04:31.425 ffmpeg during capture: pid=17268 ppid=19972 cmd="%USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe" -hide_banner -y -f gdigrab -thread_queue_size 1024 -framerate 30 -offset_x 0 -offset_y 0 -video_size 192...
+16:04:36.662 status State=recording Elapsed=12.18 Liveness=growing File=recording.mp4 Bytes=184176 SinceGrowth=0 Fault= lockfile=True load=17%
+16:04:48.040 status State=recording Elapsed=23.57 Liveness=growing File=recording.mp4 Bytes=602944 SinceGrowth=0 Fault= lockfile=True load=18%
+16:04:53.278 status State=recording Elapsed=28.8 Liveness=growing File=recording.mp4 Bytes=823447 SinceGrowth=0 Fault= lockfile=True load=23%
+16:04:55.294 POST /record/stop
+16:04:56.093 stop response after 0.79s: {"Dir":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_160423_video","File":"%USERPROFILE%\\Videos\\AgentEyes\\2026-11-16_160423_video\\recording.mp4","DurationSeconds":32.04,"Shots":0}
+16:04:56.140 status after stop: State=idle LastStopFailed=False LastStopError= LastCaptureFault=
+16:04:57.827 manifest: thumbnail=done/1 package=failed/1  lockfile=True load=20%
+
+## Analysis
+=== analyze 2026-11-16_160423_video\recording.mp4  16:14:39  size=837893
+ffprobe: ffprobe version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers
+--- top-level boxes (first 12)
+  ftyp size=28 at=0
+  moov size=769 at=28
+  moof size=800 at=797
+  mdat size=166709 at=1597
+  moof size=580 at=168306
+  mdat size=4298 at=168886
+  moof size=580 at=173184
+  mdat size=4475 at=173764
+  moof size=580 at=178239
+  mdat size=4298 at=178819
+  moof size=196 at=183117
+  mdat size=863 at=183313
+  box counts: ftyp=1 mdat=19 mfra=1 moof=19 moov=1  walked-to=837893 of 837893
+--- streams
+  stream|index=0|codec_name=h264|codec_type=video|width=1920|height=1080|r_frame_rate=30/1|start_time=0.000000|duration=32.500000|nb_frames=N/A
+  format|format_name=mov,mp4,m4a,3gp,3g2,mj2|duration=32.500000
+--- decoded frame / packet counts
+  video stream|nb_read_frames=967
+--- last video and audio packet end times (pts_time + duration_time)
+  v:0: last packet ends at 32.500 s (967 packets)
+  a:0: no packets
+--- full decode: ffmpeg -v error -i FILE -f null -
+  exit=0  stderr_lines=0  took=1.3s  load_after=12%
+--- frame read near the end: -sseof -2 -i FILE -frames:v 1
+  exit=0 frame_file_bytes=981336
+
+## manifest.json PostProcessing (final)
+{
+    "thumbnail":  {
+                      "State":  "done",
+                      "Attempts":  1,
+                      "LastAttemptUtc":  "2026-11-16T21:04:56.3928779Z"
+                  },
+    "package":  {
+                    "State":  "failed",
+                    "Attempts":  1,
+                    "LastAttemptUtc":  "2026-11-16T21:04:56.5085217Z",
+                    "Error":  "ffmpeg failed during extract audio (exit -22). ...:32.50, start: 0.000000, bitrate: 206 kb/s\r\n  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, 203 kb/s, 29.75 fps, 30 tbr, 15360 tbn (default)\r\n    Metadata:\r\n      handler_name    : VideoHandler\r\n     "
+                }
+}
+
+## App log, pid 19972, lines naming this recording or the watchdog (first line of each entry; stack traces omitted)
+16:04:23.316 [pid 19972] [INFO] [RecordingStartSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video steps=1
+16:04:23.317 [pid 19972] [INFO] [RecordingService] BeginSession: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:23.321 [pid 19972] [INFO] [RecordingWorkset] TryClaim: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video claimed by Capture/capture session#1
+16:04:23.322 [pid 19972] [INFO] [CaptureLock] TryAcquire: 2026-11-16_160423_video for capture session
+16:04:23.342 [pid 19972] [INFO] [CaptureLock] TryAcquire: 2026-11-16_160423_video claimed by capture session of pid 19972 on host SORENLAPTOP (started 2026-11-16T21:04:23.3355657Z)
+16:04:23.343 [pid 19972] [INFO] [RecordingWorkset] Attach: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video#1 now carries CaptureLock
+16:04:23.344 [pid 19972] [INFO] [CaptureLock] OwnerForManifest: 2026-11-16_160423_video - pid 19972 on SORENLAPTOP (process started 2026-11-16T21:01:27.1407747Z)
+16:04:23.345 [pid 19972] [INFO] [ManifestStore] Replace: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:23.358 [pid 19972] [INFO] [ManifestStore] Replace: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:23.359 [pid 19972] [INFO] [RecordingStartSequence] Run: starting video dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:23.781 [pid 19972] [INFO] [RecordingService] NoteCaptureWriter: video pid=17268 dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:23.782 [pid 19972] [INFO] [CaptureLock] NoteWriter: 2026-11-16_160423_video video pid 17268
+16:04:23.790 [pid 19972] [INFO] [FfmpegChildRegistry] Register: pid 17268 [capture video (2026-11-16_160423_video)] owner pid 19972 (capture writer)
+16:04:23.791 [pid 19972] [INFO] [CaptureLock] NoteWriter: 2026-11-16_160423_video video pid 17268 recorded (started 2026-11-16T21:04:23.3649617Z)
+16:04:23.791 [pid 19972] [INFO] [RecordingStartSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video started with no failures
+16:04:23.796 [pid 19972] [INFO] [RecordingService] StartWatchdog: watching %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\recording.mp4 (stall 45s, start-up 45s, every 2s)
+16:04:23.799 [pid 19972] [INFO] start video src=None dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video camera=(none)
+16:04:55.344 [pid 19972] [INFO] [RecordingStop] Keep: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video mode=video
+16:04:55.345 [pid 19972] [INFO] [PostRecording] TrackWork: keep %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video (in flight=1)
+16:04:55.350 [pid 19972] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+16:04:55.352 [pid 19972] [INFO] [RecordingStopSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video steps=1
+16:04:55.453 [pid 19972] [INFO] [FfmpegRecorder] Stop: pipeline drained in 98ms (take 30931ms, media origin 1059ms) - full take captured
+16:04:56.065 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.073 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:56.074 [pid 19972] [INFO] [RecordingStopSequence] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video completed with no failures
+16:04:56.080 [pid 19972] [INFO] [CaptureLock] Release: 2026-11-16_160423_video released by pid 19972
+16:04:56.081 [pid 19972] [INFO] [RecordingWorkset] Release: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video - attached CaptureLock released
+16:04:56.081 [pid 19972] [INFO] [RecordingWorkset] Release: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video released by Capture/capture session#1
+16:04:56.082 [pid 19972] [INFO] stop: return dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video dur=32.0s deferredMux=False (HUD may close now)
+16:04:56.083 [pid 19972] [INFO] [RecordingStop] Keep: raw files saved, queuing post-processing for %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.084 [pid 19972] [INFO] [PostRecording] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video hostedWork=True
+16:04:56.084 [pid 19972] [INFO] [PostRecording] TrackWork: post-recording 2026-11-16_160423_video (in flight=2)
+16:04:56.085 [pid 19972] [INFO] [RecordingWorkset] TryClaim: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video claimed by FullPipeline/post-recording#2
+16:04:56.089 [pid 19972] [INFO] [PostRecording] Execute: 2026-11-16_160423_video - capture claim: no capture holds it
+16:04:56.091 [pid 19972] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_160423_video (post-recording) - no owner record; nothing to clear
+16:04:56.092 [pid 19972] [INFO] [PostRecording] Execute: 2026-11-16_160423_video - nothing to mux
+16:04:56.093 [pid 19972] [INFO] [PostRecording] Execute: 2026-11-16_160423_video - no camera to compose
+16:04:56.094 [pid 19972] [INFO] [PostRecording] stage thumbnail: start dir=2026-11-16_160423_video
+16:04:56.095 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.098 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:56.098 [pid 19972] [INFO] [Thumbnails] NoteThumbAttempt: 2026-11-16_160423_video attempt 1/3
+16:04:56.112 [pid 19972] [INFO] ffmpeg [poster thumbnail]: "%USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -ss 3.2 -i %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\recording.mp4 -frames:v 1 -vf "scale=480:-2" -q:v 4 %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\thumb.jpg
+16:04:56.390 [pid 19972] [INFO] [PostRecording] stage thumbnail: done dir=2026-11-16_160423_video in 0.3s
+16:04:56.391 [pid 19972] [INFO] [PostRecordingState] NoteDone: 2026-11-16_160423_video stage=thumbnail
+16:04:56.392 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.397 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:56.406 [pid 19972] [INFO] [PostRecording] stage package: start dir=2026-11-16_160423_video
+16:04:56.407 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.410 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:56.411 [pid 19972] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_160423_video attempt 1/3
+16:04:56.417 [pid 19972] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_160423_video (package) - no capture holds it
+16:04:56.417 [pid 19972] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_160423_video (package) - no owner record; nothing to clear
+16:04:56.418 [pid 19972] [INFO] [MuxCoordinator] RunForPackage: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.419 [pid 19972] [INFO] [MuxCoordinator] RunForPackage: 2026-11-16_160423_video - no pending mux
+16:04:56.421 [pid 19972] [INFO] ffmpeg [extract audio]: "%USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\recording.mp4 -vn -ac 1 -ar 16000 -f wav %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav
+16:04:56.488 [pid 19972] [ERROR] Output #0, wav, to '%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav':
+16:04:56.488 [pid 19972] [ERROR] Error opening output file %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav.
+16:04:56.507 [pid 19972] [ERROR] [PostRecording] stage package FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.507 [pid 19972] [ERROR] Output #0, wav, to '%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav':
+16:04:56.507 [pid 19972] [ERROR] Error opening output file %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav.
+16:04:56.507 [pid 19972] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_160423_video stage=package error=ffmpeg failed during extract audio (exit -22). ...:32.50, start: 0.000000, bitrate: 206 kb/s
+16:04:56.508 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.511 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:56.512 [pid 19972] [INFO] [PostRecording] Run: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video done
+16:04:56.513 [pid 19972] [INFO] [RecordingWorkset] Release: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video released by FullPipeline/post-recording#2
+16:04:56.513 [pid 19972] [INFO] [PostRecording] NotifyCompleted: dir=2026-11-16_160423_video
+16:04:56.514 [pid 19972] [INFO] [RepairService] RunAsync: trigger=recording finished (2026-11-16_160423_video)
+16:04:56.514 [pid 19972] [INFO] [PostRecording] TrackWork released: post-recording 2026-11-16_160423_video (in flight=1)
+16:04:56.515 [pid 19972] [INFO] [PostRecording] TrackWork released: keep %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video (in flight=0)
+16:04:56.689 [pid 19972] [INFO] [PostRecordingPlan] FindUnfinished: 2026-11-16_160423_video needs package
+16:04:56.693 [pid 19972] [INFO] [RecordingWorkset] TryAdmitPass: admitted for resume 2026-11-16_160423_video#3 (no claim)
+16:04:56.696 [pid 19972] [INFO] [PostRecording] Resume: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video hostedWork=True
+16:04:56.697 [pid 19972] [INFO] [PostRecording] TrackWork: resume 2026-11-16_160423_video (in flight=1)
+16:04:56.697 [pid 19972] [INFO] [RecordingWorkset] TryClaim: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video claimed by FullPipeline/resume#4
+16:04:56.698 [pid 19972] [INFO] [PostRecording] Execute: 2026-11-16_160423_video - capture claim: no capture holds it
+16:04:56.699 [pid 19972] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_160423_video (post-recording) - no owner record; nothing to clear
+16:04:56.700 [pid 19972] [INFO] [PostRecording] Execute: 2026-11-16_160423_video - nothing to mux
+16:04:56.701 [pid 19972] [INFO] [PostRecording] Execute: 2026-11-16_160423_video - no camera to compose
+16:04:56.702 [pid 19972] [INFO] [PostRecording] Execute: 2026-11-16_160423_video - thumbnail already present or not applicable
+16:04:56.703 [pid 19972] [INFO] [PostRecording] stage package: start dir=2026-11-16_160423_video
+16:04:56.704 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.708 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:56.708 [pid 19972] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_160423_video attempt 2/3
+16:04:56.709 [pid 19972] [INFO] [CaptureLock] ThrowIfLive: 2026-11-16_160423_video (package) - no capture holds it
+16:04:56.710 [pid 19972] [INFO] [CaptureLock] ClearStaleClaim: 2026-11-16_160423_video (package) - no owner record; nothing to clear
+16:04:56.710 [pid 19972] [INFO] [MuxCoordinator] RunForPackage: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.726 [pid 19972] [INFO] [MuxCoordinator] RunForPackage: 2026-11-16_160423_video - no pending mux
+16:04:56.726 [pid 19972] [INFO] ffmpeg [extract audio]: "%USERPROFILE%\AppData\Local\AgentEyes\app\ffmpeg.exe" -y -i %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\recording.mp4 -vn -ac 1 -ar 16000 -f wav %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav
+16:04:56.805 [pid 19972] [ERROR] Output #0, wav, to '%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav':
+16:04:56.805 [pid 19972] [ERROR] Error opening output file %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav.
+16:04:56.806 [pid 19972] [ERROR] [PostRecording] stage package FAILED: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.806 [pid 19972] [ERROR] Output #0, wav, to '%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav':
+16:04:56.806 [pid 19972] [ERROR] Error opening output file %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video\audio_16k.wav.
+16:04:56.806 [pid 19972] [INFO] [PostRecordingState] NoteFailed: 2026-11-16_160423_video stage=package error=ffmpeg failed during extract audio (exit -22). ...:32.50, start: 0.000000, bitrate: 206 kb/s
+16:04:56.807 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video
+16:04:56.810 [pid 19972] [INFO] [ManifestStore] Update: dir=%USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video written
+16:04:56.811 [pid 19972] [INFO] [RecordingWorkset] Release: %USERPROFILE%\Videos\AgentEyes\2026-11-16_160423_video released by FullPipeline/resume#4
+16:04:56.811 [pid 19972] [INFO] [PostRecording] TrackWork released: resume 2026-11-16_160423_video (in flight=0)
+16:04:56.813 [pid 19972] [INFO] [RecordingWorkset] EndStep: resume 2026-11-16_160423_video#3 (no claim) finished
+16:04:57.143 [pid 19972] [INFO] [RepairService] RunAsync: trigger=recording finished (2026-11-16_160423_video) done
+
+## Files in the recording directory at the end
+shots                        1
+capture.lock                 0
+manifest.json                1705
+recording.mp4                837893
+recording.mp4.ffmpeg.log     11487
+thumb.jpg                    26998

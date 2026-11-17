@@ -1,0 +1,6 @@
+running before: 57343 
+14:23:39 $ open ~/Applications/AgentEyes.app    (second launch through Launch Services, as Finder/Dock/Spotlight do)
+open exit=0
+running after: 57343 
+--- every app log line since (service lines dropped): 0 lines
+lsappinfo: "pid"=57343 "LSDisplayName"="AgentEyes"

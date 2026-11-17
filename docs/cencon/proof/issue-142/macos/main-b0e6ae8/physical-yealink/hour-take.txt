@@ -1,0 +1,40 @@
+2026-11-16T22:17:37Z TAKE hour body={"mode":"video","screen":1,"source":"mic","mic":"Yealink UH36"} planned=3660s
+load: { 2.92 2.62 2.45 }  cores: 10
+service pid: 88521 
+state before: idle
+start POST sent at epoch 1794867457.138, returned at 1794867458.483
+start response: {
+  "State": "recording",
+  "Mode": "video",
+  "Source": "mic",
+  "ElapsedSeconds": 1.06,
+  "Level": 0,
+  "MicLevel": 0,
+  "SystemLevel": 0,
+  "Dir": "~/Movies/AgentEyes/2026-11-16_171737_video",
+  "Camera": null,
+  "SignedIn": false,
+  "AccountEmail": null,
+  "PendingTranscriptions": 80,
+  "LastStopFailed": false,
+  "LastStopError": null,
+  "LastStopDir": null,
+  "CameraStuck": false,
+dir: ~/Movies/AgentEyes/2026-11-16_171737_video
+status just before stop: recording 3661.17 mic
+stop POST sent at epoch 1794871118.695, returned at 1794871119.902
+stop response: {
+  "Dir": "~/Movies/AgentEyes/2026-11-16_171737_video",
+  "File": "~/Movies/AgentEyes/2026-11-16_171737_video/recording.mp4",
+  "DurationSeconds": 3661.3,
+  "Shots": 0
+}
+wall-clock take (start POST returned -> stop POST sent): 3660.212 s;  outer bound (start sent -> stop returned): 3662.764 s
+status after stop: idle LastStopFailed= False LastStopError= None
+finished on disk after 75.5s of polling: mux={"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T23:18:39.886322Z", "AttemptedBy": ["attempt 1 at 2026-11-16T23:18:39.8863220Z by agenteyes pid 88521 on devthrottle-mac-mini"]}
+manifest DurationSeconds: 3661.87  VideoFile: recording.mp4
+FfmpegCommand: "/opt/homebrew/bin/ffmpeg" -y -f avfoundation -thread_queue_size 1024 -capture_cursor 1 -pixel_format nv12 -framerate 30 -i 0:none -c:v libx264 -preset veryfast -pix_fmt yuv420p -crf 23 -r 30 -movflags +frag_keyframe+empty_moov+default_base_moof+delay_moov -frag_duration 2000000 -flush_packets 1 ~/Movies/AgentEyes/2026-11-16_171737_video/raw.mp4
+PostProcessing: {"mux": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T23:18:39.886322Z", "AttemptedBy": ["attempt 1 at 2026-11-16T23:18:39.8863220Z by agenteyes pid 88521 on devthrottle-mac-mini"]}, "thumbnail": {"State": "done", "Attempts": 1, "LastAttemptUtc": "2026-11-16T23:19:55.357326Z"}}
+files: ['audio_16k.wav', 'capture.lock', 'manifest.json', 'mic_native.wav', 'mux.lock', 'raw.mp4.ffmpeg.log', 'recording.mp4', 'recording.original.mp4', 'shots', 'thumb.jpg']
+load after: { 3.57 4.54 4.57 }
+service pid after: 88521 

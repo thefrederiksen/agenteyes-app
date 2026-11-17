@@ -1,0 +1,5 @@
+16:35:28.221 [hook] pid=88098 exe=~/Library/Application Support/AgentEyes/bin/agenteyes
+16:35:28.238 [hook] CGPreflightScreenCaptureAccess() = True
+16:35:28.242 [hook] AXIsProcessTrusted() = False  (Accessibility: needed to press a menu item)
+16:35:28.243 [hook] CGPreflightPostEventAccess() = False  (needed to synthesize a click)
+16:35:28.243 [hook] Environment.Exit(0) - the recorder's Main is never reached

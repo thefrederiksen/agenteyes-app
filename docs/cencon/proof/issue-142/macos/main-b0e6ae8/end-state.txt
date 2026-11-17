@@ -1,0 +1,8 @@
+17:01:28 end state
+service pid 88521  state idle
+ffmpeg processes: 0
+qa launchd labels: 0
+load { 2.20 3.13 2.79 }
+screen: "CGSSessionScreenIsLocked"=Yes
+app: 89913 ~/Applications/AgentEyes.app/Contents/MacOS/AgentEyesDesktop
+library dirs: 91
