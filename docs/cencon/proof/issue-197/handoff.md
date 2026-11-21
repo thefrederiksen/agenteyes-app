@@ -8,6 +8,65 @@ the published body (acceptance criterion 3) is the lead's step after the gate me
 
     gh release edit v1.12.0 --repo thefrederiksen/agenteyes-app --notes-file docs/releases/v1.12.0.md
 
+## Gate bounce 1 - the Wayland bullet, and three small scope fixes
+
+The Review Gate (last comment on #197, head `e109b3f`) rejected one sentence: the Linux Wayland
+bullet sent "Current Ubuntu" users to choose "Ubuntu on Xorg" at the login screen, a choice a
+default install of newer Ubuntu releases does not have. Only `docs/releases/v1.12.0.md` and this
+file change. The before/after blocks below (1/7, 4c, 5, and the new G3) carry the new text.
+
+**The test machine's release, read from the machine on 20 November 2026** (the Linux machine the
+seats used; host label omitted on purpose):
+
+    $ cat /etc/os-release   (first four lines)
+    PRETTY_NAME="Ubuntu 24.04.5 LTS"
+    NAME="Ubuntu"
+    VERSION_ID="24.04"
+    VERSION="24.04.5 LTS (Noble Numbat)"
+
+    $ ls /usr/share/xsessions/
+    ubuntu.desktop  ubuntu-xorg.desktop
+
+    $ grep ^Name= /usr/share/xsessions/ubuntu-xorg.desktop
+    Name=Ubuntu on Xorg
+
+    $ loginctl show-session 2 -p Type     (the one graphical session; every other session is tty)
+    Type=x11
+
+So "the test machine runs Ubuntu 24.04, where an X11 session, 'Ubuntu on Xorg', is installed" and
+"the test machine runs X11" rest on these lines. What was NOT measured: the login screen itself was
+not looked at (the session file is what the login screen lists), and no newer Ubuntu release was
+installed or looked at. The sentence about newer releases therefore names no release number. It
+rests on the lead's reading that Ubuntu 25.10 dropped the X11 session packages from the default
+install (they remain in the repositories); I did not verify that, and nothing is said about any
+specific later release. Shorter and vaguer was chosen over a number nothing committed supports.
+
+New bullet:
+
+    - **Refuses to run on Wayland.** AgentEyes on Linux records X11 only, and the script stops if the
+      session is Wayland. Ubuntu logs in to Wayland by default. The test machine runs Ubuntu 24.04,
+      where an X11 session, "Ubuntu on Xorg", is installed. Newer Ubuntu releases do not install an
+      X11 session by default, so that choice may not be on your login screen, and AgentEyes has not
+      been tested on them. The refusal was read from the script, not seen: the test machine runs X11.
+
+**Gate non-blocking items 1-3, fixed in the same file:**
+
+1. Browser download: added "A real browser download was not measured: the test marked a
+   terminal-downloaded copy the way a browser would. A browser may show its own warning about the
+   file before any of this."
+2. Temporary file: now "On Linux, waiting on the temporary file does not work ... The other platforms
+   were not checked for this."
+3. #159: "Seen on all three platforms." -> "The early `idle` was seen on all three platforms." (the
+   entry already says the file itself was not looked for on Windows).
+
+Item 4 (uncommitted reversal scripts and counts) is left alone, as the lead asked.
+
+**Out of scope, owned by #221:** the same "Ubuntu on Xorg" remedy in the product's Linux display
+code, the install script's error string and README.md. Not touched here.
+
+**Not run:** `gh release edit`. The published page still carries the old text until the lead
+refreshes it after the gate merges.
+
 ## QA bounce 1 - two sentences changed, nothing else
 
 QA (`docs/cencon/proof/issue-197/qa-report.md`, comment 6943232861) failed two of my sentences. Both
@@ -181,7 +240,9 @@ After:
     window then shows "Publisher: Unknown publisher" and a second button, **"Run anyway"**. Click
     **"Run anyway"** and the installer opens. If the installer is started some other way, you may see an
     "Open File - Security Warning" box instead, saying the publisher could not be verified. Click
-    **"Run"**. On the test machine, the one-line terminal install showed no warning at all.
+    **"Run"**. On the test machine, the one-line terminal install showed no warning at all. A real
+    browser download was not measured: the test marked a terminal-downloaded copy the way a browser
+    would. A browser may show its own warning about the file before any of this.
     
     **Smart App Control has not been tested.** If it is switched on (Windows 11), it is expected to
     block the unsigned installer outright, with no "Run anyway" button. This is not measured: Smart
@@ -255,7 +316,18 @@ After:
 
     Until this is fixed,
       the only reliable "finished" signal is `PostProcessing.mux.State` in the recording's manifest.
-      Waiting on the temporary file does not work, because it is not there at first.
+      On Linux, waiting on the temporary file does not work, because it is not there at first. The
+      other platforms were not checked for this.
+
+### G3 (gate round) - #159 'seen on all three platforms'
+
+Before:
+
+    later `recording.mp4.muxing.tmp` appears. Seen on all three platforms. The wait
+
+After:
+
+    later `recording.mp4.muxing.tmp` appears. The early `idle` was seen on all three platforms. The wait
 
 ### 5 - Linux install section
 
@@ -269,9 +341,11 @@ After:
     
     Before you run it, know that the script:
     
-    - **Refuses to run on Wayland.** AgentEyes on Linux records X11 only. Current Ubuntu logs in to
-      Wayland by default, so log in to an X11 session first (on Ubuntu, choose "Ubuntu on Xorg" at
-      the login screen).
+    - **Refuses to run on Wayland.** AgentEyes on Linux records X11 only, and the script stops if the
+      session is Wayland. Ubuntu logs in to Wayland by default. The test machine runs Ubuntu 24.04,
+      where an X11 session, "Ubuntu on Xorg", is installed. Newer Ubuntu releases do not install an
+      X11 session by default, so that choice may not be on your login screen, and AgentEyes has not
+      been tested on them. The refusal was read from the script, not seen: the test machine runs X11.
     - **Needs `xrandr`**, and stops if it is missing (`sudo apt install -y x11-xserver-utils`).
     - **Installs the video playback library as root** if it is missing (`libvlc-dev`,
       `vlc-plugin-base`, `vlc-plugin-video-output`), asking for your permission the same way as for
