@@ -1,0 +1,26 @@
+== 212444
+{
+ "DurationSeconds": 16.5,
+ "CaptureFault": "behind",
+ "CaptureFaultDetail": "the capture wrote 10.86s of a 19.46s session; raw.mp4 is short by 8.60s",
+ "CaptureFaultDetectedUtc": "2026-11-21T02:25:04.5908925Z",
+ "CaptureFaultElapsedSeconds": 19.5
+}
+recording.original.mp4:
+codec_type=video|avg_frame_rate=15/1|duration=11.066667|nb_read_packets=166
+duration=11.066667
+recording.mp4:
+codec_type=video|avg_frame_rate=15/1|duration=11.066667|nb_read_packets=166
+codec_type=audio|avg_frame_rate=0/0|duration=16.500000|nb_read_packets=775
+duration=16.500000
+== 214911
+{
+ "DurationSeconds": 21.07
+}
+recording.original.mp4:
+codec_type=video|avg_frame_rate=15/1|duration=21.066667|nb_read_packets=316
+duration=21.066667
+recording.mp4:
+codec_type=video|avg_frame_rate=15/1|duration=21.066667|nb_read_packets=316
+codec_type=audio|avg_frame_rate=0/0|duration=19.760000|nb_read_packets=928
+duration=21.066667

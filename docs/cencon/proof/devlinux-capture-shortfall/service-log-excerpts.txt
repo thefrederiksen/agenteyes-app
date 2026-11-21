@@ -1,0 +1,12 @@
+# AgentEyes-20261120.log, run 1 (21:24:44 - 21:25:30), every WARN/ERROR line plus watchdog lines
+21:24:46.991 [pid 2690287] [INFO] [RecordingService] StartWatchdog: watching /home/<user>/Videos/AgentEyes/2026-11-20_212444_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+21:24:55.493 [pid 2690287] [WARN] [HeadlessControlServer] POST /record/stop REJECTED before any effect: no Content-Length and no chunked body (411 Length Required). Send a JSON body, or Content-Length: 0.
+21:25:03.600 [pid 2690287] [INFO] [RecordingService] StopWatchdog: capture watchdog stopped
+21:25:04.630 [pid 2690287] [WARN] stop: the screen capture wrote 10.86s of a 19.46s session - recording DurationSeconds=10.86, not the session length
+21:25:09.461 [pid 2690287] [ERROR] [Package] title generation FAILED for /home/<user>/Videos/AgentEyes/2026-11-20_212444_video: transcript is empty; nothing to title. - the recording keeps its preset name
+21:25:09.461 [pid 2690287] [ERROR] AgentEyes.UsageException: transcript is empty; nothing to title.
+21:25:09.461 [pid 2690287] [ERROR]    at AgentEyes.Packaging.TitleGenerator.GenerateAsync(IReadOnlyList`1 segments) in /home/<user>/ReposFred/agenteyes-116/src/AgentEyes.Core/Packaging/TitleGenerator.cs:line 37
+21:25:09.461 [pid 2690287] [ERROR]    at AgentEyes.Package.RunAsync(String dir, Double intervalSeconds, Nullable`1 sceneThreshold, Nullable`1 extractFrames) in /home/<user>/ReposFred/agenteyes-116/src/AgentEyes.Core/Package.cs:line 203
+
+# run 2 (21:49:10 - 21:49:45), every WARN line and every 'wrote' line
+21:49:31.906 [pid 2690287] [INFO] [LoopbackCapture] Stop: wrote 3793920 bytes of PCM
