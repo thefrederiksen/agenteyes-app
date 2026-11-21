@@ -1,0 +1,23 @@
+# test-gate-qa.txt - issue #142 Linux, PR #190 QA verification: the Linux suite re-run by the QA seat
+# tree: PR #190 head 8c92fc5 (code identical to main b0e6ae8); repo path shown as <repo>
+# commands: dotnet build src/AgentEyes.Core -c Release | tail -4 ; dotnet test tests/AgentEyes.Tests.Linux -c Release | tail -12
+start 2026-11-20 22:31:13 EST head 8c92fc5
+8.0.134
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:07.34
+Test run for <repo>/tests/AgentEyes.Tests.Linux/bin/Release/net8.0/AgentEyes.Tests.Linux.dll (.NETCoreApp,Version=v8.0)
+Microsoft (R) Test Execution Command Line Tool Version 17.8.1 (x64)
+Copyright (c) Microsoft Corporation.  All rights reserved.
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.96]     AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [SKIP]
+  Skipped AgentEyes.Tests.OwnedFfmpegTests.KillOwned_FailurePath_KillsTheStuckRunAndLeavesUnrelatedFfmpegRunning [1 ms]
+[xUnit.net 00:00:06.58]     AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [SKIP]
+  Skipped AgentEyes.Tests.ProcessIdentityTests.PackageCli_SandboxedProberLiveWriter_DeclinesUndeterminedAndKeepsTheClaim [1 ms]
+
+Passed!  - Failed:     0, Passed:   472, Skipped:     2, Total:   474, Duration: 6 s - AgentEyes.Tests.Linux.dll (net8.0)
+(an "exit=0" line printed here recorded the exit of the tail pipe, not of dotnet test, so it is not quoted; the result line above is the evidence)
+end 2026-11-20 22:31:44 EST

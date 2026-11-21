@@ -1,0 +1,14 @@
+# row4-probe-qa.txt - PR #190 QA verification: row 4 near-end probe re-derived independently, read-only
+# run 2026-11-20 22:34:51 EST by the QA seat; library path shown as ~
+== size 1958629 (row4.txt: 1958629)
+== sha256 edf952a910d72203e35a376939b762f55f1adbf290c777814181f8d94db0b544
+== keyframes: 0.000000, 8.333333 16.666667 25.000000 
+== ffprobe -read_intervals 24.7% -select_streams v -show_entries frame=pts_time: returned 271, first 16.666667
+== at or after 24.7: 30 frames, first 24.700000, last 25.666667
+== ffmpeg -v error -i <f> -f null - : stderr bytes 0
+== library directories present:
+   present ~/Videos/AgentEyes/2026-11-14_102532_video
+   present ~/Videos/AgentEyes/2026-11-16_155912_video
+   present ~/Videos/AgentEyes/2026-11-16_161009_video
+   present ~/Videos/AgentEyes/2026-11-16_161246_video
+   present ~/Videos/AgentEyes/2026-11-16_161509_video

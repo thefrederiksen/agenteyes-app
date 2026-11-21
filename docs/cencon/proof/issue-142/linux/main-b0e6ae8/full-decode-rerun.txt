@@ -1,0 +1,17 @@
+# full-decode-rerun.txt - issue #142 Linux rows 4-6, full decode re-run with stderr captured
+# run 2026-11-20 21:29 EST by the #190 correction seat, read-only on the library files (output to /dev/null via -f null)
+# why: the original probes committed only the exit code; the report also claimed 'no error output'
+# ffmpeg version 6.1.1-3ubuntu5 Copyright 
+# command per file: ffmpeg -v error -i <file> -f null -   ; stderr saved and its bytes/lines counted
+== 2026-11-16_155912_video/recording.mp4  size 1958629  exit=0  stderr_bytes=0  stderr_lines=0
+== 2026-11-16_161009_video/recording.mp4  size 9665330  exit=0  stderr_bytes=0  stderr_lines=0
+== 2026-11-16_161009_video/recording.original.mp4  size 9227482  exit=0  stderr_bytes=0  stderr_lines=0
+== 2026-11-16_161246_video/recording.mp4  size 8868454  exit=0  stderr_bytes=0  stderr_lines=0
+== 2026-11-16_161246_video/recording.original.mp4  size 8429916  exit=0  stderr_bytes=0  stderr_lines=0
+== 2026-11-16_161509_video/recording.mp4  size 59400228  exit=0  stderr_bytes=0  stderr_lines=0
+== 2026-11-16_161509_video/recording.original.mp4  size 56739548  exit=0  stderr_bytes=0  stderr_lines=0
+
+== POSITIVE CONTROL: the same command on a truncated COPY (scratch dir) of row 4's recording.mp4, half its bytes
+== half copy  size 979314  exit=0  stderr_bytes=430  stderr_lines=6
+   [NULL @ 0x61380f25b680] Invalid NAL unit size (1166 > 1126).
+   [NULL @ 0x61380f25b680] missing picture in access unit with size 1130

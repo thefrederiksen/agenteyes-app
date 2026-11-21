@@ -1,0 +1,14 @@
+# row4-probe-rerun.txt - issue #142 Linux, row 4 frame-near-the-end probe re-run
+# run 2026-11-20 21:26:14 EST by the #190 correction seat; read-only on the library file
+# ffprobe version 6.1.1-3ubuntu5 Copyright
+== file: ~/Videos/AgentEyes/2026-11-16_155912_video/recording.mp4
+   size 1958629 bytes (row4.txt recorded 1958629)
+   sha256 edf952a910d72203e35a376939b762f55f1adbf290c777814181f8d94db0b544
+== format duration
+   duration=25.700000
+== video keyframes (pts_time), from: ffprobe -select_streams v -skip_frame nokey -show_entries frame=pts_time
+   0.000000, 8.333333 16.666667 25.000000 
+== frames returned by: ffprobe -read_intervals 24.700000% -select_streams v -show_entries frame=pts_time
+   frames returned (unfiltered): 271
+   FIRST frame returned (unfiltered): 16.666667   <- the keyframe the seek lands on
+   frames decoded at or after 24.700000: 30, first 24.700000, LAST frame pts 25.666667

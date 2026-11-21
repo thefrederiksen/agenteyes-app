@@ -1,0 +1,55 @@
+# service-log-excerpt.txt - issue #142 Linux rows 4-6 on main b0e6ae8
+# extracted 2026-11-20 21:28 EST by the #190 correction seat from the service log ~/.local/share/AgentEyes/logs/AgentEyes-20261116.log
+# window: lines from 15:58:08 to 16:36:00 carrying [pid 2211032] (the service under test). Lines in window: 10144
+# home paths are shown as ~
+
+== counts in the window (grep -c, fixed strings)
+  [CaptureLock] TryAcquire                      8
+  [CaptureLock] Release                         4
+  [CaptureLock] ReadOrCreateHostId: created     1
+  StartWatchdog: watching                       4
+  stage package FAILED                          3
+  transcript is empty; nothing to title         6
+  CAPTURE FAULT                                 0
+  Abandon                                       0
+
+== POSITIVE CONTROL for the two zero counts: the same fixed-string searches on the 2026-11-14 log, where a stalled capture was ended
+  CAPTURE FAULT in AgentEyes-20261114.log       13
+  Abandon in AgentEyes-20261114.log             26
+11:50:47.808 [pid 2484896] [ERROR] [RecordingService] CAPTURE FAULT at elapsed=66.0s (detected 2026-11-14T16:50:47.807Z) dir=~/Videos/AgentEyes/2026-11-14_114940_video - capture stalled: raw
+11:50:47.891 [pid 2484896] [WARN] [FfmpegRecorder] Abandon: ~/Videos/AgentEyes/2026-11-14_114940_video/raw.mp4 - capture stalled: raw.mp4 stopped growing at 476220 bytes and has not grown fo
+
+== capture claim, watchdog and host-id lines (all takes)
+15:59:12.438 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_155912_video for capture session
+15:59:12.441 [pid 2211032] [INFO] [CaptureLock] ReadOrCreateHostId: created ~/.local/share/AgentEyes/host-id
+15:59:12.449 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_155912_video claimed by capture session of pid 2211032 on host devlinux (started 2026-11-16T20:59:12.4420631Z)
+15:59:12.951 [pid 2211032] [INFO] [RecordingService] StartWatchdog: watching ~/Videos/AgentEyes/2026-11-16_155912_video/recording.mp4 (stall 45s, start-up 45s, every 2s)
+15:59:38.481 [pid 2211032] [INFO] [CaptureLock] Release: 2026-11-16_155912_video released by pid 2211032
+16:10:09.423 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_161009_video for capture session
+16:10:09.423 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_161009_video claimed by capture session of pid 2211032 on host devlinux (started 2026-11-16T21:10:09.4232469Z)
+16:10:10.500 [pid 2211032] [INFO] [RecordingService] StartWatchdog: watching ~/Videos/AgentEyes/2026-11-16_161009_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:11:50.867 [pid 2211032] [INFO] [CaptureLock] Release: 2026-11-16_161009_video released by pid 2211032
+16:12:46.872 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_161246_video for capture session
+16:12:46.872 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_161246_video claimed by capture session of pid 2211032 on host devlinux (started 2026-11-16T21:12:46.8727253Z)
+16:12:47.912 [pid 2211032] [INFO] [RecordingService] StartWatchdog: watching ~/Videos/AgentEyes/2026-11-16_161246_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:14:28.038 [pid 2211032] [INFO] [CaptureLock] Release: 2026-11-16_161246_video released by pid 2211032
+16:15:09.296 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_161509_video for capture session
+16:15:09.297 [pid 2211032] [INFO] [CaptureLock] TryAcquire: 2026-11-16_161509_video claimed by capture session of pid 2211032 on host devlinux (started 2026-11-16T21:15:09.2969712Z)
+16:15:10.909 [pid 2211032] [INFO] [RecordingService] StartWatchdog: watching ~/Videos/AgentEyes/2026-11-16_161509_video/raw.mp4 (stall 45s, start-up 45s, every 2s)
+16:25:20.466 [pid 2211032] [INFO] [CaptureLock] Release: 2026-11-16_161509_video released by pid 2211032
+
+== row 4 package stage (known #126): every start, attempt and failure for 2026-11-16_155912_video
+15:59:38.929 [pid 2211032] [INFO] [PostRecording] stage package: start dir=2026-11-16_155912_video
+15:59:38.940 [pid 2211032] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_155912_video attempt 1/3
+15:59:39.088 [pid 2211032] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-16_155912_video
+15:59:39.145 [pid 2211032] [INFO] [PostRecording] stage package: start dir=2026-11-16_155912_video
+15:59:39.153 [pid 2211032] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_155912_video attempt 2/3
+15:59:39.289 [pid 2211032] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-16_155912_video
+16:12:00.004 [pid 2211032] [INFO] [PostRecording] stage package: start dir=2026-11-16_155912_video
+16:12:00.014 [pid 2211032] [INFO] [TranscriptionBacklog] NoteAttempt: 2026-11-16_155912_video attempt 3/3
+16:12:00.143 [pid 2211032] [ERROR] [PostRecording] stage package FAILED: dir=~/Videos/AgentEyes/2026-11-16_155912_video
+
+== title generation on rows 5 A, 5 B and 6
+16:11:59.923 [pid 2211032] [ERROR] [Package] title generation FAILED for ~/Videos/AgentEyes/2026-11-16_161009_video: transcript is empty; nothing to title. - the recording keeps its preset name
+16:14:37.696 [pid 2211032] [ERROR] [Package] title generation FAILED for ~/Videos/AgentEyes/2026-11-16_161246_video: transcript is empty; nothing to title. - the recording keeps its preset name
+16:26:15.024 [pid 2211032] [ERROR] [Package] title generation FAILED for ~/Videos/AgentEyes/2026-11-16_161509_video: transcript is empty; nothing to title. - the recording keeps its preset name
