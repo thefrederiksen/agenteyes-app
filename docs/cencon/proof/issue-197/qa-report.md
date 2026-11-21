@@ -135,7 +135,7 @@ and the handoff.
   the filename `CLAUDE.md`. The allowed case. 0 hits in the notes.
 - Identity (owner name, domains, `/Users/`, `/home/`, machine names): the only hits are
   `thefrederiksen/agenteyes-app` (the repository's own URL) and the handoff describing its own
-  grep. No email, home path or machine name. Control: `/Users/x` is counted as 1. The 3 hits in
+  grep. No email, home path or machine name. Control: a planted home path (`/Users/` followed by a one-letter name) is counted as 1. The 3 hits in
   `docs/cencon/proof/issue-142` belong to #173 and are out of scope.
 
 ## Tests - run by QA, and the 284 vs 430 count explained
