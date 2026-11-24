@@ -84,8 +84,9 @@ namespace AgentEyes.App
         private volatile bool _stopDone;        // our stop has finished: the file is final
         private bool _stopping;                 // our stop has been started
         private bool _finishRequested;          // Esc / Alt+F4 / last take while the camera was starting
-        private string? _sessionDir;
-        private string? _sessionFile;
+        private volatile bool _startFailed;     // the last StartCamera failed: nothing is coming
+        private volatile string? _sessionDir;
+        private volatile string? _sessionFile;
         private double _sessionStart;           // screen-clock second StartCamera returned
 
         // The cuts: one at a time, in the order they were marked.
@@ -196,6 +197,7 @@ namespace AgentEyes.App
         private void StartContinuous()
         {
             _phase = Phase.Starting;
+            _startFailed = false;
             ShowTakeText(visible: true);
             Show(_hint, "hint", "Starting the camera...");
             Show(_instruction, "instruction", "");
@@ -216,6 +218,7 @@ namespace AgentEyes.App
             if (error != null)
             {
                 Log.Error("[TakeRecordingWindow] OnContinuousStarted: the continuous recording did not start", error);
+                _startFailed = true;
                 if (_finishRequested) { CloseNow(); return; }
                 if (_phase == Phase.Recording)
                     Log.Error($"[TakeRecordingWindow] OnContinuousStarted: attempt {_attempt} of take {Current.Id} was marked "
@@ -232,8 +235,9 @@ namespace AgentEyes.App
 
             _recordingUp = true;
             _sessionStart = _clock.Elapsed.TotalSeconds;
-            _sessionDir = _svc.Status().Dir;
-            _sessionFile = _sessionDir == null ? null : Path.Combine(_sessionDir, "recording.mp4");
+            string? dir = _svc.Status().Dir;
+            _sessionDir = dir;
+            _sessionFile = dir == null ? null : Path.Combine(dir, "recording.mp4");
             Log.Info($"[TakeRecordingWindow] OnContinuousStarted: recording continuously into {_sessionFile ?? "(no folder reported)"} "
                      + $"at screen time {_sessionStart:F2}s");
             Show(_hint, "hint", "");
@@ -400,7 +404,7 @@ namespace AgentEyes.App
         }
 
         /// <summary>Space (or R): mark the start of an attempt. The recording is already running.</summary>
-        private void BeginAttempt()
+        private bool BeginAttempt()
         {
             string takeId = Current.Id;
             try
@@ -414,7 +418,7 @@ namespace AgentEyes.App
                 Log.Error($"[TakeRecordingWindow] BeginAttempt: take {takeId} cannot be recorded", ex);
                 _message.Foreground = TakesWindow.Red;
                 Show(_message, "message", "This take is no longer in the take list: " + ex.Message + "\nEsc to finish, then open the recording screen again.");
-                return;
+                return false;
             }
 
             _attemptStart = _clock.Elapsed.TotalSeconds;
@@ -429,6 +433,7 @@ namespace AgentEyes.App
             Show(_message, "message", "");
             Show(_keys, "keys", "Space stop - R retake - Esc finish");
             UpdateFooter();
+            return true;
         }
 
         /// <summary>Mark the end of the attempt in progress and queue its cut.</summary>
@@ -486,7 +491,15 @@ namespace AgentEyes.App
             while (true)
             {
                 if (_sessionFile == null)
-                    throw new InvalidOperationException("the continuous recording never started, so there is nothing to cut.");
+                {
+                    // Marked while the camera was still starting: wait for it, unless it failed.
+                    if (_startFailed || _recordingUp)
+                        throw new InvalidOperationException("the continuous recording never started, so there is nothing to cut.");
+                    if (waited.Elapsed > TimeSpan.FromMinutes(2))
+                        throw new TimeoutException("the camera did not start within two minutes, so there is nothing to cut.");
+                    Thread.Sleep(250);
+                    continue;
+                }
                 double? startFile = _fileClock.FileSeconds(startWall);
                 double? endFile = _fileClock.FileSeconds(endWall);
 
@@ -554,7 +567,7 @@ namespace AgentEyes.App
         private void Finish()
         {
             Log.Info($"[TakeRecordingWindow] Finish: phase={_phase} recordingUp={_recordingUp} cuts pending={_cutsPending}");
-            if (_phase == Phase.Starting || (_phase == Phase.Recording && !_recordingUp))
+            if (!_recordingUp && !_startFailed && (_phase is Phase.Starting or Phase.Recording))
             {
                 // The camera is still opening on another thread: finish once it has.
                 _finishRequested = true;
@@ -562,6 +575,7 @@ namespace AgentEyes.App
                 return;
             }
 
+            _finishRequested = false;
             _phase = Phase.Finishing;
             ShowTakeText(visible: false);
             Show(_hint, "hint", "");
@@ -636,11 +650,11 @@ namespace AgentEyes.App
             switch (_phase)
             {
                 case Phase.Starting:
-                    if (e.Key == Key.Space) BeginAttempt();          // recorded from the moment the camera is up
+                    if (e.Key == Key.Space) _ = BeginAttempt();      // recorded from the moment the camera is up
                     else if (e.Key == Key.Escape) Finish();
                     break;
                 case Phase.Ready:
-                    if (e.Key == Key.Space) BeginAttempt();
+                    if (e.Key == Key.Space) _ = BeginAttempt();
                     else if (e.Key == Key.Escape) Finish();
                     break;
                 case Phase.Recording:
@@ -660,8 +674,8 @@ namespace AgentEyes.App
                     else if (e.Key == Key.R)
                     {
                         EndAttempt("R - retake");
-                        BeginAttempt();
-                        Show(_message, "message", "Again - the last attempt is kept too.");
+                        if (BeginAttempt()) Show(_message, "message", "Again - the last attempt is kept too.");
+                        else ShowReady(_message.Text);
                     }
                     else if (e.Key == Key.Escape)
                     {
