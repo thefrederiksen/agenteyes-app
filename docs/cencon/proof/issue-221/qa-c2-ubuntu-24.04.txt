@@ -1,0 +1,64 @@
+== image
+Tue Nov 24 13:02:44 UTC 2026
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+VERSION_ID="24.04"
+VERSION_CODENAME=noble
+== apt-get update (archive as shipped in the image)
+== install ubuntu-desktop-minimal WITH recommends (the installer's default selection)
+apt exit=0
+== installed versions
+gdm3 46.2-1ubuntu1~24.04.9
+gnome-session-bin 46.0-1ubuntu4
+gnome-shell 46.0-0ubuntu6~24.04.17
+ubuntu-desktop-minimal 1.539.2
+ubuntu-session 46.0-1ubuntu4
+xserver-xorg-core 2:21.1.12-1ubuntu1.9
+xwayland 2:23.2.6-1ubuntu0.8
+== ls /usr/share/xsessions/
+total 28
+drwxr-xr-x 2 root root  4096 Nov 24 13:08 .
+drwxr-xr-x 1 root root 12288 Nov 24 13:11 ..
+-rw-r--r-- 1 root root   301 Apr 15  2024 ubuntu-xorg.desktop
+-rw-r--r-- 1 root root   318 Apr 15  2024 ubuntu.desktop
+== ls /usr/share/wayland-sessions/
+total 28
+drwxr-xr-x 2 root root  4096 Nov 24 13:08 .
+drwxr-xr-x 1 root root 12288 Nov 24 13:11 ..
+-rw-r--r-- 1 root root   330 Apr 15  2024 ubuntu-wayland.desktop
+-rw-r--r-- 1 root root   318 Apr 15  2024 ubuntu.desktop
+== Name= lines of every session file
+/usr/share/xsessions/ubuntu-xorg.desktop: Name=Ubuntu on Xorg
+/usr/share/xsessions/ubuntu.desktop: Name=Ubuntu
+/usr/share/wayland-sessions/ubuntu-wayland.desktop: Name=Ubuntu on Wayland
+/usr/share/wayland-sessions/ubuntu.desktop: Name=Ubuntu
+== who owns them
+ubuntu-session: /usr/share/xsessions
+ubuntu-session: /usr/share/wayland-sessions
+== files of ubuntu-session
+/usr/share/gnome-session/sessions/ubuntu.session
+/usr/share/wayland-sessions/ubuntu-wayland.desktop
+/usr/share/wayland-sessions/ubuntu.desktop
+/usr/share/xsessions/ubuntu-xorg.desktop
+/usr/share/xsessions/ubuntu.desktop
+== repository: any package whose file list would put an Xorg session in place? (candidates by name)
+gnome-session-bin - GNOME Session Manager - Minimal runtime
+gnome-session-canberra - GNOME session log in and log out sound events
+gnome-session-common - GNOME Session Manager - common files
+ubuntu-session - Ubuntu session with GNOME Shell
+gnome-session - GNOME Session Manager - GNOME 3 session
+gnome-session-flashback - traditional desktop session based on GNOME technologies
+openbox-gnome-session - command line utility to run Openbox as GNOME session
+== gnome-shell: does the installed binary offer an X11 mode?
+== done
+== QA: gnome-shell/mutter package relations to xwayland
+mutter-common
+libmutter-14-0:amd64 46.2-1ubuntu0.24.04.18
+mutter-common 46.2-1ubuntu0.24.04.18
+mutter-common-bin 46.2-1ubuntu0.24.04.18
+xwayland 2:23.2.6-1ubuntu0.8
+== QA: libmutter strings mentioning DISPLAY / Xwayland on-demand
+lib=/usr/lib/x86_64-linux-gnu/libmutter-14.so.0
+/m/extra.sh: line 8: strings: command not found
+== QA: mutter experimental/x11 gsettings keys
+== QA: gnome-shell --help (full x11 lines)
+exit=0

@@ -1,0 +1,13 @@
+QA re-run of the criterion 2 measurement: c2-measure.sh (the developer's, read in full first) plus the QA additions below, in clean ubuntu:<release> containers, run by QA 2026-11-24. apt progress lines removed.
+
+#!/bin/bash
+# QA additions: does mutter/gnome-shell start Xwayland and export DISPLAY by default?
+echo "== QA: gnome-shell/mutter package relations to xwayland"
+apt-cache depends gnome-shell mutter-common 2>/dev/null | grep -iE 'xwayland|mutter' | sort -u
+dpkg -l | awk '/^ii/ && $2 ~ /^(libmutter|mutter|xwayland)/ {print $2, $3}'
+echo "== QA: libmutter strings mentioning DISPLAY / Xwayland on-demand"
+L=$(ls /usr/lib/x86_64-linux-gnu/mutter-*/libmutter-*.so.* /usr/lib/x86_64-linux-gnu/libmutter-*.so.* 2>/dev/null | head -1); echo "lib=$L"
+strings "$L" | grep -E '^DISPLAY$|autostart-xwayland|xwayland-on-demand|Xwayland|XAUTHORITY' | sort -u | head -20
+echo "== QA: mutter experimental/x11 gsettings keys"
+for s in /usr/share/glib-2.0/schemas/org.gnome.mutter*.xml; do grep -E 'autostart-xwayland|xwayland' "$s" | head -5; done
+echo "== QA: gnome-shell --help (full x11 lines)"; gnome-shell --help 2>&1 | grep -iE 'x11|xwayland'
