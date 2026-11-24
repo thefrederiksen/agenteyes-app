@@ -171,6 +171,8 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Audio.RnnoiseModel::Ensure -> System.IO.File::Move x1",                 // ...then renamed into place
             "agenteyes.dll!AgentEyes.CaptureService::Delete -> System.IO.File::Delete x1",                   // a capture the user deleted
             "agenteyes.dll!AgentEyes.Commands::Audio -> System.IO.File::Move x1",                            // audio.original.wav backup
+            "agenteyes.dll!AgentEyes.Takes.TakeStore::SaveLocked -> System.IO.File::Move x1",                // takes.json (issue #230)
+            "agenteyes.dll!AgentEyes.Takes.TakeStore::SaveLocked -> System.IO.File::WriteAllText x1",        // takes.json.tmp (issue #230)
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Clear -> System.IO.File::Delete x1",    // the stored dt_ key
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Save -> System.IO.File::WriteAllBytes x1", // the DPAPI-protected dt_ key
             // Issues #55, #56, the Housekeeper. Every delete here is of a file the pure planner named -
@@ -342,6 +344,7 @@ namespace AgentEyes.Tests
             "user32.dll!SetWindowDisplayAffinity",  // WDA_EXCLUDEFROMCAPTURE for the HUD
             "user32.dll!SetWindowLong",
             "user32.dll!SetWindowLongPtr",
+            "user32.dll!SetWindowPos",              // places the Takes recording window on its monitor (issue #230)
             "user32.dll!SetWindowsHookEx",
             "user32.dll!UnhookWindowsHookEx",
         };

@@ -21,6 +21,7 @@ namespace AgentEyes.App
         private readonly Config _cfg;
         private readonly Action _showWindow;
         private readonly Action _showTests;
+        private readonly Action? _showTakes;
         private readonly AlwaysOnController? _alwaysOn;
         private readonly Action _showAlwaysOn;
         private readonly RecordingIndicator _indicator;
@@ -57,9 +58,11 @@ namespace AgentEyes.App
         private string? _shownStartError;
 
         public TrayHost(RecordingService svc, Config cfg, Action showWindow, Action showTests,
-            AlwaysOnController? alwaysOn = null, Action? showAlwaysOn = null, RecordingIndicator? indicator = null)
+            AlwaysOnController? alwaysOn = null, Action? showAlwaysOn = null, RecordingIndicator? indicator = null,
+            Action? showTakes = null)
         {
             _svc = svc; _cfg = cfg; _showWindow = showWindow; _showTests = showTests;
+            _showTakes = showTakes;
             _alwaysOn = alwaysOn;
             _indicator = indicator ?? new RecordingIndicator();
             _showAlwaysOn = showAlwaysOn ?? showWindow;
@@ -217,6 +220,8 @@ namespace AgentEyes.App
             menu.Items.Add(_showIndicatorItem);
 
             menu.Items.Add(new WinForms.ToolStripMenuItem("Show window", null, (_, _) => _showWindow()));
+            if (_showTakes != null)
+                menu.Items.Add(new WinForms.ToolStripMenuItem("Takes...", null, (_, _) => _showTakes()));
             menu.Items.Add(new WinForms.ToolStripMenuItem("Tests...", null, (_, _) => _showTests()));
             menu.Items.Add(new WinForms.ToolStripMenuItem("Quick screenshot", null, (_, _) => Safe(() => _svc.Screenshot(PrimaryScreen(), null))));
 

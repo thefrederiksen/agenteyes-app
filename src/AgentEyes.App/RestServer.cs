@@ -60,6 +60,9 @@ namespace AgentEyes.App
         /// housekeeping hooks; null until then, and a request in that window gets an honest 503.</summary>
         public AlwaysOnController? AlwaysOn { get; set; }
 
+        /// <summary>Issue #230: opens the Takes set-up window (on the UI thread). Set by the app.</summary>
+        public Action? ShowTakes { get; set; }
+
         /// <summary>The configured save-folder override (Capture-tab Settings, null = default).</summary>
         private string? CaptureOverride => _captureSaveFolder?.Invoke();
 
@@ -103,6 +106,34 @@ namespace AgentEyes.App
                     case ("GET", "/recordings"): Json(ctx, Recordings(ctx)); return;
                     case ("GET", "/captures"): Json(ctx, Captures()); return;
                     case ("GET", "/presets"): Json(ctx, Presets()); return;
+
+                    // Issue #230: the take list. POST loads one (id, title, text, targetSeconds,
+                    // instructions, background per take; optional camera, mic, readingMode, screen);
+                    // GET reads it back with every attempt's file and which attempt is chosen.
+                    case ("GET", "/takes"): JsonText(ctx, AgentEyes.Takes.TakeStore.ToJson(AgentEyes.Takes.TakeStore.Shared.Snapshot())); return;
+                    case ("POST", "/takes"):
+                    {
+                        using var reader = new StreamReader(ctx.Request.InputStream, ctx.Request.ContentEncoding);
+                        var list = AgentEyes.Takes.TakeStore.Shared.Load(AgentEyes.Takes.TakeStore.Parse(reader.ReadToEnd()));
+                        JsonText(ctx, AgentEyes.Takes.TakeStore.ToJson(list));
+                        return;
+                    }
+                    case ("POST", "/takes/choose"):
+                    {
+                        var b = Body(ctx);
+                        string take = GetStrOrNull(b, "take") ?? throw new UsageException("\"take\" (the take id) is required.");
+                        int? attempt = AgentEyes.Headless.ControlApiRequest.GetNullableInt(b, "attempt");
+                        AgentEyes.Takes.TakeStore.Shared.Choose(take, attempt);
+                        JsonText(ctx, AgentEyes.Takes.TakeStore.ToJson(AgentEyes.Takes.TakeStore.Shared.Snapshot()));
+                        return;
+                    }
+                    case ("POST", "/takes/open"):
+                    {
+                        if (ShowTakes == null) { Error(ctx, 503, "the Takes window is not available yet - the app is still starting", "unavailable"); return; }
+                        ShowTakes();
+                        Json(ctx, new { opened = true });
+                        return;
+                    }
 
                     // Issues #55, #56. GET says what housekeeping is set to do and what it last did;
                     // POST runs one pass now. Both are how the first release is verified, because the
@@ -496,6 +527,14 @@ namespace AgentEyes.App
                 _svc.StartAudio(screen, src, mic, opts);
                 return;
             }
+            if (mode == RecordingService.CameraOnlyMode)
+            {
+                // Issue #117: camera + microphone, no screen. Issue #229: optional exact camera size.
+                _svc.StartCamera(src, mic, camera, cameraFps,
+                    AgentEyes.Headless.ControlApiRequest.GetNullableInt(b, "cameraWidth"), AgentEyes.Headless.ControlApiRequest.GetNullableInt(b, "cameraHeight"),
+                    GetStrOrNull(b, "label"));
+                return;
+            }
 
             // Issue #47: the framing follows the same precedence as everything else here - the named
             // preset's own choice first, then the persisted overlay config - so a recording started
@@ -566,6 +605,7 @@ namespace AgentEyes.App
                 "GET /recordings/{id}/frame/{offset}",
                 "GET /captures", "GET /presets",
                 "GET /housekeeping", "POST /housekeeping/run",
+                "GET /takes", "POST /takes", "POST /takes/choose", "POST /takes/open",
                 "GET /always-on", "POST /always-on/start", "POST /always-on/stop",
                 "GET /always-on/history {since?, kind?:all|decisions|levels|problems}",
                 "POST /screenshot {screen, region?}",
@@ -757,6 +797,16 @@ namespace AgentEyes.App
         }
 
         private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
+
+        private static void JsonText(HttpListenerContext ctx, string json)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(json);
+            ctx.Response.StatusCode = 200;
+            ctx.Response.ContentType = "application/json";
+            ctx.Response.ContentLength64 = bytes.Length;
+            ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+            ctx.Response.OutputStream.Close();
+        }
 
         private static void Json(HttpListenerContext ctx, object payload)
         {

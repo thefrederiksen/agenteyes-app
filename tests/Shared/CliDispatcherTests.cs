@@ -349,7 +349,7 @@ namespace AgentEyes.Tests.Shared
             // The instrument is live: it found the reads it must find (an empty result is a broken
             // instrument, never a clean run).
             Assert.Equal(
-                new[] { "audio-only", "camera", "fps", "loopback", "mic", "mix", "screen" },
+                new[] { "audio-only", "camera", "camera-only", "camera-size", "fps", "loopback", "mic", "mix", "screen" },
                 CliArgsIl.KeysRead(Spec("record start").Run.Method).OrderBy(k => k, StringComparer.Ordinal));
             Assert.True(totalReads > 40, $"only {totalReads} flag reads found across every handler");
         }

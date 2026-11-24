@@ -40,6 +40,20 @@ namespace AgentEyes.Headless
             b.ValueKind == JsonValueKind.Object && b.TryGetProperty(k, out var v)
             && (v.ValueKind == JsonValueKind.True || v.ValueKind == JsonValueKind.False) ? v.GetBoolean() : def;
 
+        /// <summary>An optional integer field: null when absent.</summary>
+        public static int? GetNullableInt(JsonElement b, string k) =>
+            b.ValueKind == JsonValueKind.Object && b.TryGetProperty(k, out var v) && v.ValueKind == JsonValueKind.Number
+                ? v.GetInt32() : null;
+
+        /// <summary>"1920x1080" as (1920, 1080). Issue #229's --camera-size.</summary>
+        public static (int Width, int Height) ParseSize(string text)
+        {
+            var parts = (text ?? "").Trim().ToLowerInvariant().Split('x');
+            if (parts.Length == 2 && int.TryParse(parts[0], out int w) && int.TryParse(parts[1], out int h) && w > 0 && h > 0)
+                return (w, h);
+            throw new UsageException($"a camera size is WIDTHxHEIGHT, e.g. 1920x1080 - got '{text}'.");
+        }
+
         public static int[]? GetIntArray(JsonElement b, string k)
         {
             if (b.ValueKind != JsonValueKind.Object || !b.TryGetProperty(k, out var v) || v.ValueKind != JsonValueKind.Array) return null;
@@ -64,6 +78,8 @@ namespace AgentEyes.Headless
                 Fps = GetInt(b, "fps", 30),
                 Camera = GetStrOrNull(b, "camera"),
                 CameraFps = GetInt(b, "cameraFps", 30),
+                CameraWidth = GetNullableInt(b, "cameraWidth"),
+                CameraHeight = GetNullableInt(b, "cameraHeight"),
                 Options = new AudioMixOptions
                 {
                     NoiseSuppression = GetBool(b, "denoise", true),
@@ -87,6 +103,8 @@ namespace AgentEyes.Headless
         public int Fps { get; init; } = 30;
         public string? Camera { get; init; }
         public int CameraFps { get; init; } = 30;
+        public int? CameraWidth { get; init; }
+        public int? CameraHeight { get; init; }
         public AudioMixOptions Options { get; init; } = new();
     }
 }

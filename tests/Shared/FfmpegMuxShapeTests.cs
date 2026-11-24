@@ -456,6 +456,7 @@ namespace AgentEyes.Tests.Shared
             if (t == typeof(Rectangle?)) return new object?[] { new Rectangle(0, 0, 1920, 1080) }.ToList();
             if (t == typeof(Size)) return new object?[] { new Size(1920, 1080) }.ToList();
             if (t == typeof(CameraComposition)) return new object?[] { Composition() }.ToList();
+            if (t == typeof(CameraMode)) return new object?[] { null, new CameraMode("mjpeg", null, 1920, 1080, 30) }.ToList();
             if (t.IsEnum) return new object?[] { Enum.GetValues(t).GetValue(0) }.ToList();
             // The mix/mux builders take these. Suppression and the gate are OFF because both need
             // state a pure fixture cannot have (an RNNoise model on disk, a measured gate threshold)

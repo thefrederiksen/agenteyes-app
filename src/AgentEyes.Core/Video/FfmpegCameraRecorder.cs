@@ -375,6 +375,10 @@ namespace AgentEyes.Video
         /// <summary>Seconds of camera footage ffmpeg reported writing (0 before its first progress tick).</summary>
         public double CapturedSeconds => Interlocked.Read(ref _mediaMs) / 1000.0;
 
+        /// <summary>Issue #229: the device mode this recorder requested, or null when it left the
+        /// device at its default (macOS, Linux, and the test seam).</summary>
+        public CameraMode? Mode { get; private init; }
+
         public bool HasExited => _proc.HasExited;
 
         /// <summary>The OS process id of this camera's ffmpeg, or null before it is started - what
@@ -554,11 +558,16 @@ namespace AgentEyes.Video
         /// the only mechanism that can preview this camera at all while the recording runs, because
         /// this process holds the DirectShow device exclusively (assumption C1) - and it is the reason
         /// the preview cannot cost the recording its device.</param>
+        /// <param name="dshowMic">Issue #117: record this DirectShow microphone into the same file
+        /// (the camera-mic-no-screen mode). Windows only; null for the video-only camera track.</param>
+        /// <param name="width">Issue #229: an exact camera size to request, with <paramref name="height"/>;
+        /// null picks the largest the device offers at <paramref name="fps"/>.</param>
         public static FfmpegCameraRecorder Create(
-            string dshowCameraName, int fps, int crf, string outPath, Preview.PreviewTap? preview = null)
+            string dshowCameraName, int fps, int crf, string outPath, Preview.PreviewTap? preview = null,
+            string? dshowMic = null, int? width = null, int? height = null)
         {
             Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" fps={fps} crf={crf} "
-                     + $"out={outPath} preview={(preview != null ? "yes" : "no")}");
+                     + $"out={outPath} preview={(preview != null ? "yes" : "no")} mic={dshowMic ?? "(none)"}");
 
             // A DirectShow camera is EXCLUSIVE, so anything in this process that is holding one -
             // today that is the preset editor's live preview (issue #29) - is told to let go BEFORE
@@ -569,13 +578,24 @@ namespace AgentEyes.Video
 
             string exe = FfmpegLocator.Ffmpeg();
 #if WINDOWS
-            var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath, previewStream: preview != null);
+            // Issue #229: the mode comes from the device's own list - the camera has been released
+            // above, so listing can open it.
+            var mode = CameraModes.Choose(CameraModes.List(dshowCameraName), fps, width, height);
+            Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" mode={mode.Describe()}");
+            var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath, previewStream: preview != null,
+                mode: mode, dshowMic: dshowMic);
 #elif MACOS
+            CameraMode? mode = null;
+            if (dshowMic != null || width != null)
+                throw new UsageException("camera-only recording and a requested camera size are Windows-only for now.");
             // On macOS a camera is an AVFoundation index, and the index is re-read now because
             // plugging in a display renumbers the video inputs.
             var args = FfmpegArgs.AvfCameraCapture(
                 Platform.Mac.AvfDevices.RequireCameraIndex(dshowCameraName), fps, crf, outPath, previewStream: preview != null);
 #else
+            CameraMode? mode = null;
+            if (dshowMic != null || width != null)
+                throw new UsageException("camera-only recording and a requested camera size are Windows-only for now.");
             // Issue #102: on Linux the listed camera name carries its /dev/video node.
             var args = FfmpegArgs.V4l2CameraCapture(
                 Platform.Linux.V4l2Devices.DevicePath(dshowCameraName), fps, crf, outPath, previewStream: preview != null);
@@ -596,7 +616,10 @@ namespace AgentEyes.Video
 
             return new FfmpegCameraRecorder(
                 new FfmpegCameraProcess(psi, dshowCameraName, preview), dshowCameraName, outPath, cmd,
-                outPath + ".ffmpeg.log", DateTime.UtcNow, OpenTimeout, () => DateTime.UtcNow);
+                outPath + ".ffmpeg.log", DateTime.UtcNow, OpenTimeout, () => DateTime.UtcNow)
+            {
+                Mode = mode,
+            };
         }
 
         /// <summary>

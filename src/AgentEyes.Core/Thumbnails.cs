@@ -56,6 +56,7 @@ namespace AgentEyes
             switch (m.Mode)
             {
                 case "video":
+                case RecordingService.CameraOnlyMode:
                 {
                     string video = Path.Combine(dir, m.VideoFile ?? "recording.mp4");
                     if (!File.Exists(video))
@@ -183,7 +184,7 @@ namespace AgentEyes
             }
 
             // A screenshot's card image IS the shot; there is nothing to generate.
-            if (m.Mode != "video" && m.Mode != "audio") return false;
+            if (!RecordingService.IsVideoMode(m.Mode) && m.Mode != "audio") return false;
 
             // Issue #128 round two (D2): while the mux is pending, whatever sits at the final path
             // is not the finished recording - it is at most the fragment of an attempt that died.
@@ -194,7 +195,7 @@ namespace AgentEyes
             // The final media file only exists once the deferred mux has run (issues #77/#141).
             // Asking ffmpeg for a poster before then produces nothing, so such a recording is not
             // part of the backlog yet - it comes back on the next pass, once the mux has landed.
-            string media = m.Mode == "video"
+            string media = RecordingService.IsVideoMode(m.Mode)
                 ? Path.Combine(dir, m.VideoFile ?? "recording.mp4")
                 : Path.Combine(dir, m.AudioFile ?? "audio.wav");
             if (!File.Exists(media)) return false;

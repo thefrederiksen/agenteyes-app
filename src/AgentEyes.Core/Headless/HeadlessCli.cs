@@ -75,13 +75,24 @@ namespace AgentEyes.Headless
 
             var body = new Dictionary<string, object>
             {
-                ["mode"] = opts.Has("audio-only") ? "audio" : "video",
+                ["mode"] = opts.Has("camera-only") ? RecordingService.CameraOnlyMode
+                         : opts.Has("audio-only") ? "audio" : "video",
                 ["screen"] = opts.Has("screen") ? opts.RequireInt("screen", "--screen N") : 1,
                 ["source"] = source,
             };
             if (mic != null) body["mic"] = mic;
             if (opts.Get("camera") is { } camera) body["camera"] = camera;
             if (opts.Has("fps")) body["fps"] = opts.RequireInt("fps", "--fps N");
+            if (opts.Has("camera-only") && opts.Has("audio-only"))
+                throw new UsageException("--camera-only and --audio-only are exclusive.");
+            if (opts.Has("camera-only") && (opts.Get("camera") == null || mic == null || mix || loopback))
+                throw new UsageException("--camera-only needs --camera \"NAME\" and --mic \"NAME\" (it records the microphone only).");
+            if (opts.Get("camera-size") is { } size)
+            {
+                var (w, h) = ControlApiRequest.ParseSize(size);
+                body["cameraWidth"] = w;
+                body["cameraHeight"] = h;
+            }
             return body;
         }
 

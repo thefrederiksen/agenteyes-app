@@ -266,7 +266,12 @@ namespace AgentEyes.Headless
                 _svc.StartAudio(r.Screen, r.Source, r.Mic, r.Options);
                 return;
             }
-            if (r.Mode != "video") throw new UsageException($"unknown mode '{r.Mode}' (use 'video' or 'audio')");
+            if (r.Mode == RecordingService.CameraOnlyMode)
+            {
+                _svc.StartCamera(r.Source, r.Mic, r.Camera, r.CameraFps, r.CameraWidth, r.CameraHeight);
+                return;
+            }
+            if (r.Mode != "video") throw new UsageException($"unknown mode '{r.Mode}' (use 'video', 'audio' or '{RecordingService.CameraOnlyMode}')");
             _svc.StartVideo(r.Screen, r.Source, r.Mic, r.Region, r.Options, r.Fps, r.Camera, r.CameraFps, overlay: null);
         }
 

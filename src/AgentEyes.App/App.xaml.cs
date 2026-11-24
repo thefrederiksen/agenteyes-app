@@ -142,7 +142,8 @@ namespace AgentEyes.App
                 _alwaysOn = new AlwaysOnController(_service, _cfg);
                 if (_rest != null) _rest.AlwaysOn = _alwaysOn;
 
-                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests, _alwaysOn, ShowAlwaysOn, _indicator);
+                _tray = new TrayHost(_service, _cfg, ShowWindow, ShowTests, _alwaysOn, ShowAlwaysOn, _indicator, ShowTakes);
+                if (_rest != null) _rest.ShowTakes = () => Dispatcher.BeginInvoke(ShowTakes);
                 InstallCaptureHooks();
 
                 // Issue #86: the setup engine (an update from the CLI, the wizard or this app's own
@@ -314,6 +315,30 @@ namespace AgentEyes.App
         {
             ShowWindow();
             _window?.ShowAlwaysOnPage();
+        }
+
+        private TakesWindow? _takes;
+
+        /// <summary>Issue #230: the Takes set-up window - one at a time, brought forward if open.</summary>
+        private void ShowTakes()
+        {
+            try
+            {
+                AgentEyes.Log.Info("[App] ShowTakes");
+                if (_takes == null)
+                {
+                    _takes = new TakesWindow(_service!);
+                    _takes.Closed += (_, _) => _takes = null;
+                }
+                _takes.Show();
+                if (_takes.WindowState == WindowState.Minimized) _takes.WindowState = WindowState.Normal;
+                _takes.Activate();
+            }
+            catch (Exception ex)
+            {
+                AgentEyes.Log.Error("[App] ShowTakes FAILED", ex);
+                MessageBox.Show("The Takes window could not be opened: " + ex.Message, "AgentEyes");
+            }
         }
 
         private void ShowTests()
