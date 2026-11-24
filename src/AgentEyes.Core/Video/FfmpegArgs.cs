@@ -264,12 +264,16 @@ namespace AgentEyes.Video
         /// <param name="dshowMic">Issue #117 (camera-mic-no-screen): a DirectShow microphone opened
         /// in the SAME dshow input as the camera, so picture and sound share one clock and land in
         /// one file with an AAC track. Null keeps camera.mp4 video-only (decision 1 of issue #28).</param>
+        /// <param name="keyframeInterval">Issue #230 round 3: frames between keyframes ("-g"), or
+        /// null for the encoder's default.</param>
         public static List<string> CameraCapture(
             string dshowCameraName, int fps, int crf, string outPath, bool previewStream = false,
-            CameraMode? mode = null, string? dshowMic = null)
+            CameraMode? mode = null, string? dshowMic = null, int? keyframeInterval = null)
         {
             if (string.IsNullOrWhiteSpace(dshowCameraName))
                 throw new UsageException("a camera capture needs an exact DirectShow device name.");
+            if (keyframeInterval is <= 0)
+                throw new UsageException($"a keyframe interval must be at least one frame, got {keyframeInterval}.");
 
             var a = new List<string> { "-y", "-f", "dshow" };
             if (mode != null)
@@ -291,6 +295,10 @@ namespace AgentEyes.Video
                 "-pix_fmt", "yuv420p",
                 "-crf", crf.ToString(),
             });
+            // Issue #230 round 3: the takes screen's continuous recording is cut WHILE it is still
+            // being written. A fragment reaches disk at each keyframe, so a short keyframe interval
+            // keeps the file at most that far behind the live picture. Null keeps x264's default.
+            if (keyframeInterval != null) a.AddRange(new[] { "-g", keyframeInterval.Value.ToString() });
             if (dshowMic == null)
             {
                 // Explicitly no audio track: the input has none, and this says so in the output too

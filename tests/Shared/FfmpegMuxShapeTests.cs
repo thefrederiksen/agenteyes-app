@@ -439,6 +439,9 @@ namespace AgentEyes.Tests.Shared
             Type t = p.ParameterType;
             if (t == typeof(bool)) return new object?[] { false, true }.ToList();
             if (t == typeof(int)) return new object?[] { 30 }.ToList();
+            // A keyframe interval (issue #230 round 3) must be a whole number of frames: absent, or a
+            // real one. Keyed on the name, like the device-node path below.
+            if (t == typeof(int?) && p.Name == "keyframeInterval") return new object?[] { null, 30 }.ToList();
             if (t == typeof(int?)) return new object?[] { 0 }.ToList();
             if (t == typeof(double)) return new object?[] { 1.5 }.ToList();
             if (t == typeof(double?)) return new object?[] { 1.5 }.ToList();
