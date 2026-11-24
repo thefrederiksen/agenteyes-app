@@ -67,7 +67,6 @@ namespace AgentEyes.App
         private IReadOnlyList<string> _phrases = Array.Empty<string>();
         private int _countLeft;
         private bool _started;            // the recorder is running for this attempt
-        private bool _startFailed;
         private bool _finishWhenStarted;  // Esc pressed while the camera was still starting
         private bool _allowClose;
         private int _saved;
@@ -146,7 +145,7 @@ namespace AgentEyes.App
         private void ShowReady()
         {
             _phase = Phase.Ready;
-            _started = false; _startFailed = false;
+            _started = false;
             _attempt = _store.NextAttemptNumber(Current.Id);
             _phrases = TakeStore.Phrases(Current.Text);
             _phrase = 0;
@@ -213,6 +212,24 @@ namespace AgentEyes.App
         private void BeginStart()
         {
             Log.Info($"[TakeRecordingWindow] BeginStart: take={Current.Id} attempt={_attempt}");
+
+            // Name the attempt BEFORE leaving Ready: the take list can be replaced through the Control
+            // API while this screen is open, and a take that is no longer in it must not leave the
+            // window in Starting with no camera coming (review of #232).
+            var takeId = Current.Id;
+            TakeName name;
+            try
+            {
+                name = TakeName.For(_store.TakeNumber(takeId), Current, _attempt);
+            }
+            catch (UsageException ex)
+            {
+                Log.Error($"[TakeRecordingWindow] BeginStart: take {takeId} cannot be recorded", ex);
+                _message.Foreground = TakesWindow.Red;
+                _message.Text = "This take is no longer in the take list: " + ex.Message + "\nEsc to finish, then open the recording screen again.";
+                return;
+            }
+
             _phase = Phase.Starting;
             _count.Text = "";
             _countHint.Text = "Starting the camera...";
@@ -222,9 +239,7 @@ namespace AgentEyes.App
             _keys.Text = "Esc finish";
             UpdateFooter();
 
-            string label = $"take-{Current.Id}-attempt-{_attempt}";
-            var takeId = Current.Id;
-            var name = TakeName.For(_store.TakeNumber(takeId), Current, _attempt);
+            string label = $"take-{takeId}-attempt-{_attempt}";
             Ui.Run(() => _svc.StartCamera(AudioSourceKind.Mic, _mic, _camera, 30, label: label, take: name))
               .ContinueWith(t => Ui.Post(() => OnStarted(takeId, t.Exception?.GetBaseException())));
         }
@@ -234,7 +249,6 @@ namespace AgentEyes.App
             if (error != null)
             {
                 Log.Error($"[TakeRecordingWindow] OnStarted: the recording did not start for take {takeId}", error);
-                _startFailed = true;
                 if (_finishWhenStarted) { CloseNow(); return; }
                 ShowReady();
                 _message.Foreground = TakesWindow.Red;
@@ -427,7 +441,7 @@ namespace AgentEyes.App
             {
                 case Phase.Recording: StopAttempt(Then.Close); break;
                 case Phase.Countdown: StopAttempt(Then.Close); break;
-                case Phase.Starting: _finishWhenStarted = true; break;
+                case Phase.Starting: _finishWhenStarted = true; _message.Text = "Finishing..."; break;
                 case Phase.Busy: break;
                 default:
                     // Ready or Done: nothing is recording, so let THIS close go ahead. Calling Close()
