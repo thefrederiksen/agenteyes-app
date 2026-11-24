@@ -36,6 +36,12 @@ namespace AgentEyes
         public string Label { get; set; } = "";
         /// <summary>User-given name (Rename in the recent list); null = show the derived title.</summary>
         public string? DisplayName { get; set; }
+        /// <summary>
+        /// The take this recording is an attempt at (issue #230 round 2), or null for any other
+        /// recording. A take is named by its take ("Take 1 - The opening - attempt 2", in
+        /// <see cref="DisplayName"/>) and is never sent through the AI title/description step.
+        /// </summary>
+        public string? TakeId { get; set; }
         /// <summary>Short title auto-generated from the transcript (issue #8). DisplayName still wins.</summary>
         public string? Title { get; set; }
         /// <summary>One-line description auto-generated from the transcript (issue #8).</summary>

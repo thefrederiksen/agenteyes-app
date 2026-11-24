@@ -195,7 +195,10 @@ namespace AgentEyes
             // Issue #155: what this pass produced is held in LOCALS and applied to the manifest at
             // the end, against a fresh read - never to the copy loaded before transcription started.
             TitleGenerator.TitleResult? named = null;
-            if (segments.Count > 0 && TitleGenerator.IsConfigured)
+            // A take (issue #230 round 2) is named by its take and gets no AI title or description.
+            if (manifest.TakeId != null)
+                Log.Info($"[Package] {dir} is take '{manifest.TakeId}' - no AI title or description");
+            else if (segments.Count > 0 && TitleGenerator.IsConfigured)
             {
                 Console.WriteLine($"  naming the recording ({TitleGenerator.Model}) ...");
                 try

@@ -33,6 +33,23 @@ namespace AgentEyes.Takes
         public int? Chosen { get; set; }
     }
 
+    /// <summary>
+    /// What a take attempt's recording is called (issue #230 round 2): named by its take -
+    /// "Take 1 - The opening - attempt 2", or "Take 1 - attempt 2" when the take has no title -
+    /// and marked with the take id so the library never gives it an AI title or description.
+    /// </summary>
+    internal sealed record TakeName(string TakeId, string DisplayName)
+    {
+        public static TakeName For(int takeNumber, Take take, int attempt)
+        {
+            if (take == null) throw new ArgumentNullException(nameof(take));
+            string name = string.IsNullOrWhiteSpace(take.Title)
+                ? $"Take {takeNumber} - attempt {attempt}"
+                : $"Take {takeNumber} - {take.Title.Trim()} - attempt {attempt}";
+            return new TakeName(take.Id, name);
+        }
+    }
+
     /// <summary>The list a video session schedules (issue #230), with the devices to record with.</summary>
     internal sealed class TakeList
     {
@@ -40,7 +57,7 @@ namespace AgentEyes.Takes
         public string? Camera { get; set; }
         public string? Mic { get; set; }
 
-        /// <summary>"read-first" (default) or "teleprompter".</summary>
+        /// <summary>"teleprompter" (the default) or "read-first".</summary>
         public string? ReadingMode { get; set; }
 
         /// <summary>1-based monitor to record on, or null for the default (the first non-primary).</summary>
@@ -58,6 +75,10 @@ namespace AgentEyes.Takes
     {
         public const string ReadFirst = "read-first";
         public const string Teleprompter = "teleprompter";
+
+        /// <summary>The reading mode when a list does not say (issue #230 round 2): the teleprompter,
+        /// because read-first hides the text and that surprised the first live take.</summary>
+        public const string DefaultReadingMode = Teleprompter;
 
         private static readonly JsonSerializerOptions JsonOpts = new()
         {
@@ -133,7 +154,7 @@ namespace AgentEyes.Takes
                     Title = incoming.Title,
                     Camera = incoming.Camera ?? _list.Camera,
                     Mic = incoming.Mic ?? _list.Mic,
-                    ReadingMode = incoming.ReadingMode ?? _list.ReadingMode ?? ReadFirst,
+                    ReadingMode = incoming.ReadingMode ?? _list.ReadingMode ?? DefaultReadingMode,
                     Screen = incoming.Screen ?? _list.Screen,
                 };
                 foreach (var t in incoming.Takes)
@@ -193,6 +214,16 @@ namespace AgentEyes.Takes
 
         private static int NextAttemptNumber(Take take) =>
             take.Attempts.Count == 0 ? 1 : take.Attempts.Max(a => a.Number) + 1;
+
+        /// <summary>The take's 1-based position in the list - its "Take N".</summary>
+        public int TakeNumber(string takeId)
+        {
+            lock (_lock)
+            {
+                var take = RequireLocked(takeId);
+                return _list.Takes.IndexOf(take) + 1;
+            }
+        }
 
         /// <summary>Mark an attempt as the one to use; null clears the mark.</summary>
         public void Choose(string takeId, int? attemptNumber)

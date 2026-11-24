@@ -176,6 +176,16 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void NeedsTitle_TakeAttempt_False()
+        {
+            // Issue #230 round 2: a take is named by its take and never sent to the AI title step.
+            string dir = MakeTitled("2026-11-24_121149_take-opening-attempt-1", "");
+            ManifestStore.Update(dir, m => { m.TakeId = "opening"; m.DisplayName = "Take 1 - The opening - attempt 1"; });
+
+            Assert.False(TranscriptionBacklog.NeedsTitle(dir));
+        }
+
+        [Fact]
         public void NeedsTitle_TitlePresent_False()
         {
             Assert.False(TranscriptionBacklog.NeedsTitle(MakeTitled("2026-08-10_110002_video", "A real title")));

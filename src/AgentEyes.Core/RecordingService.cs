@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using AgentEyes.Audio;
 using AgentEyes.Preview;
+using AgentEyes.Takes;
 using AgentEyes.Video;
 using Drawing = System.Drawing;
 
@@ -881,10 +882,11 @@ namespace AgentEyes
         /// <param name="cameraWidth">Issue #229: an exact camera size, with cameraHeight; null for the
         /// largest the camera offers at <paramref name="cameraFps"/>.</param>
         public void StartCamera(AudioSourceKind src, string? micFragment, string? cameraFragment, int cameraFps = 30,
-            int? cameraWidth = null, int? cameraHeight = null, string? label = null)
+            int? cameraWidth = null, int? cameraHeight = null, string? label = null, TakeName? take = null)
         {
             Log.Info($"[RecordingService] StartCamera: src={src} mic={micFragment ?? "(none)"} camera={cameraFragment ?? "(none)"} "
-                     + $"fps={cameraFps} size={(cameraWidth == null ? "(largest)" : $"{cameraWidth}x{cameraHeight}")} label={label ?? "(none)"}");
+                     + $"fps={cameraFps} size={(cameraWidth == null ? "(largest)" : $"{cameraWidth}x{cameraHeight}")} label={label ?? "(none)"} "
+                     + $"take={take?.DisplayName ?? "(none)"}");
 #if !WINDOWS
             throw new UsageException($"the {CameraOnlyMode} mode is Windows-only for now.");
 #else
@@ -916,6 +918,12 @@ namespace AgentEyes
                 _manifest.VideoFile = "recording.mp4";
                 _manifest.Microphone = dshowMic;
                 _manifest.PendingMux = null;
+                if (take != null)
+                {
+                    // Issue #230 round 2: a take is named by its take, never by the AI title step.
+                    _manifest.TakeId = take.TakeId;
+                    _manifest.DisplayName = take.DisplayName;
+                }
 
                 string dir = _dir;
                 var steps = new List<RecordingStartStep>

@@ -19,16 +19,24 @@ namespace AgentEyes.App
     /// "take N of M - attempt K" at the bottom. Nothing to change. Keys only: Space (start / stop),
     /// R (retake), Esc (finish), and Right/Left to move the teleprompter's phrase.
     ///
-    /// Read first, then look: the line shows until Space, a 3-2-1 count runs while the camera
-    /// starts, the text goes away, he says it to the lens; Space stops and moves to the next take.
-    /// Teleprompter: one phrase at a time with the next one dimmed below; Space starts the same
-    /// count, then the phrases stay up and Right moves on.
+    /// Space opens the camera FIRST and the 3-2-1 count runs only once the camera is recording
+    /// (issue #230 round 2: the first live take lost its opening words because the camera opened
+    /// two seconds after the count ended). The kept file therefore starts just before the count.
+    ///
+    /// Teleprompter (the default): one phrase at a time with the next one dimmed below; the text
+    /// stays up the whole take and Right moves on. Read first: the line shows until Space, the
+    /// count runs, the text goes away and he says it to the lens. Every screen says, in large
+    /// type, what to press.
     ///
     /// Every attempt is kept: Space and R both stop-and-keep, R just stays on the same take.
     /// </summary>
     internal sealed class TakeRecordingWindow : Window
     {
-        private enum Phase { Ready, Countdown, Recording, Busy, Done }
+        private enum Phase { Ready, Starting, Countdown, Recording, Busy, Done }
+
+        internal const string StartInstruction = "Press Space to start recording. Space again to stop.";
+        internal const string ReadFirstInstruction = "Read the line. When you press Space the text disappears and you say it to the camera.";
+        internal const string RecordingInstruction = "Recording - Space to stop, R to start again";
 
         private readonly RecordingService _svc;
         private readonly TakeStore _store;
@@ -42,6 +50,7 @@ namespace AgentEyes.App
         private readonly TextBlock _next = new() { FontSize = 32, Foreground = new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)), TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 14, 0, 0), LineHeight = 42 };
         private readonly TextBlock _count = new() { FontSize = 110, FontWeight = FontWeights.Bold, Foreground = TakesWindow.Green, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 20, 0, 0) };
         private readonly TextBlock _countHint = new() { FontSize = 24, Foreground = TakesWindow.Green, HorizontalAlignment = HorizontalAlignment.Center };
+        private readonly TextBlock _instruction = new() { FontSize = 30, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 28, 0, 0), LineHeight = 40 };
         private readonly TextBlock _message = new() { FontSize = 18, Foreground = TakesWindow.Dim, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 20, 0, 0) };
         private readonly TextBlock _rec = new() { FontSize = 15, Foreground = TakesWindow.Red, Margin = new Thickness(0, 0, 18, 0) };
         private readonly TextBlock _where = new() { FontSize = 15, Foreground = TakesWindow.Dim };
@@ -58,7 +67,6 @@ namespace AgentEyes.App
         private IReadOnlyList<string> _phrases = Array.Empty<string>();
         private int _countLeft;
         private bool _started;            // the recorder is running for this attempt
-        private bool _startFailed;
         private bool _finishWhenStarted;  // Esc pressed while the camera was still starting
         private bool _allowClose;
         private int _saved;
@@ -86,6 +94,7 @@ namespace AgentEyes.App
             top.Children.Add(_next);
             top.Children.Add(_count);
             top.Children.Add(_countHint);
+            top.Children.Add(_instruction);
             top.Children.Add(_message);
 
             var bottomRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
@@ -136,17 +145,24 @@ namespace AgentEyes.App
         private void ShowReady()
         {
             _phase = Phase.Ready;
-            _started = false; _startFailed = false;
+            _started = false;
             _attempt = _store.NextAttemptNumber(Current.Id);
             _phrases = TakeStore.Phrases(Current.Text);
             _phrase = 0;
             Log.Info($"[TakeRecordingWindow] ShowReady: take {_index + 1}/{_takes.Count} id={Current.Id} attempt={_attempt}");
             ShowText(visible: true);
             _count.Text = ""; _countHint.Text = "";
+            _instruction.Foreground = Brushes.White;
+            _instruction.Text = ReadyInstruction(_teleprompter);
+            _message.Foreground = TakesWindow.Dim;
             _message.Text = "";
             _keys.Text = _teleprompter ? "Space start - Right next phrase - Esc finish" : "Space when you have it - Esc finish";
             UpdateFooter();
         }
+
+        /// <summary>What the screen says, in large type, before a take starts (issue #230 round 2).</summary>
+        internal static string ReadyInstruction(bool teleprompter) =>
+            teleprompter ? StartInstruction : ReadFirstInstruction + "\n" + StartInstruction;
 
         private void ShowText(bool visible)
         {
@@ -187,23 +203,44 @@ namespace AgentEyes.App
             }
         }
 
-        private void BeginCountdown()
+        /// <summary>
+        /// Space: open the camera FIRST (issue #230 round 2). Opening it takes seconds - on the C920
+        /// with the FDUCE mic it was 5.0s from Space to an open camera (device lookup, the camera's
+        /// mode list, the DirectShow open) - so the count waits for it and nothing said after the
+        /// count can be lost. The text stays on screen while the camera opens.
+        /// </summary>
+        private void BeginStart()
         {
-            Log.Info($"[TakeRecordingWindow] BeginCountdown: take={Current.Id} attempt={_attempt}");
-            _phase = Phase.Countdown;
-            _countLeft = 3;
-            _count.Text = "3";
-            _countHint.Text = "eyes on the camera";
+            Log.Info($"[TakeRecordingWindow] BeginStart: take={Current.Id} attempt={_attempt}");
+
+            // Name the attempt BEFORE leaving Ready: the take list can be replaced through the Control
+            // API while this screen is open, and a take that is no longer in it must not leave the
+            // window in Starting with no camera coming (review of #232).
+            var takeId = Current.Id;
+            TakeName name;
+            try
+            {
+                name = TakeName.For(_store.TakeNumber(takeId), Current, _attempt);
+            }
+            catch (UsageException ex)
+            {
+                Log.Error($"[TakeRecordingWindow] BeginStart: take {takeId} cannot be recorded", ex);
+                _message.Foreground = TakesWindow.Red;
+                _message.Text = "This take is no longer in the take list: " + ex.Message + "\nEsc to finish, then open the recording screen again.";
+                return;
+            }
+
+            _phase = Phase.Starting;
+            _count.Text = "";
+            _countHint.Text = "Starting the camera...";
+            _instruction.Text = "";
+            _message.Foreground = TakesWindow.Dim;
             _message.Text = "";
             _keys.Text = "Esc finish";
             UpdateFooter();
-            _countdown.Start();
 
-            // The camera starts NOW, under the count, so it is surely recording when the count ends.
-            // The take keeps those seconds as lead-in for the edit.
-            string label = $"take-{Current.Id}-attempt-{_attempt}";
-            var takeId = Current.Id;
-            Ui.Run(() => _svc.StartCamera(AudioSourceKind.Mic, _mic, _camera, 30, label: label))
+            string label = $"take-{takeId}-attempt-{_attempt}";
+            Ui.Run(() => _svc.StartCamera(AudioSourceKind.Mic, _mic, _camera, 30, label: label, take: name))
               .ContinueWith(t => Ui.Post(() => OnStarted(takeId, t.Exception?.GetBaseException())));
         }
 
@@ -212,8 +249,6 @@ namespace AgentEyes.App
             if (error != null)
             {
                 Log.Error($"[TakeRecordingWindow] OnStarted: the recording did not start for take {takeId}", error);
-                _countdown.Stop();
-                _startFailed = true;
                 if (_finishWhenStarted) { CloseNow(); return; }
                 ShowReady();
                 _message.Foreground = TakesWindow.Red;
@@ -221,12 +256,26 @@ namespace AgentEyes.App
                 return;
             }
 
-            Log.Info($"[TakeRecordingWindow] OnStarted: recording take {takeId}");
+            Log.Info($"[TakeRecordingWindow] OnStarted: the camera is recording take {takeId} - the count starts now");
             _started = true;
             _recClock.Restart();
             _tick.Start();
             if (_finishWhenStarted) { StopAttempt(then: Then.Close); return; }
-            if (_countLeft <= 0) EnterRecording();
+            BeginCountdown();
+        }
+
+        /// <summary>The 3-2-1 count, run while the camera is already recording; the take keeps these
+        /// seconds as lead-in for the edit.</summary>
+        private void BeginCountdown()
+        {
+            Log.Info($"[TakeRecordingWindow] BeginCountdown: take={Current.Id} attempt={_attempt}");
+            _phase = Phase.Countdown;
+            _countLeft = 3;
+            _count.Text = "3";
+            _countHint.Text = "eyes on the camera";
+            _keys.Text = "Esc finish";
+            UpdateFooter();
+            _countdown.Start();
         }
 
         private void CountdownTick()
@@ -234,18 +283,15 @@ namespace AgentEyes.App
             _countLeft--;
             if (_countLeft > 0) { _count.Text = _countLeft.ToString(); return; }
             _countdown.Stop();
-            if (_started) EnterRecording();
-            else if (!_startFailed)
-            {
-                _count.Text = "";
-                _countHint.Text = "starting the camera...";
-            }
+            EnterRecording();
         }
 
         private void EnterRecording()
         {
             _phase = Phase.Recording;
             _count.Text = ""; _countHint.Text = "";
+            _instruction.Foreground = TakesWindow.Red;
+            _instruction.Text = RecordingInstruction;
             _message.Foreground = TakesWindow.Dim;
             _message.Text = "";
             // Read first: the text goes away and he says it to the lens. Teleprompter: it stays.
@@ -265,7 +311,9 @@ namespace AgentEyes.App
             _tick.Stop();
             _recClock.Stop();
             _count.Text = ""; _countHint.Text = "";
+            _countdown.Stop();
             ShowText(visible: false);
+            _instruction.Text = "";
             _message.Foreground = TakesWindow.Dim;
             _message.Text = "Saving...";
             _keys.Text = "";
@@ -315,7 +363,8 @@ namespace AgentEyes.App
                         return;
                     }
                     _phase = Phase.Done;
-                    _message.Text = "All takes recorded.\nR to retake the last one, Esc to close.";
+                    _instruction.Text = "";
+                    _message.Text ="All takes recorded.\nR to retake the last one, Esc to close.";
                     _keys.Text = "R retake - Esc close";
                     UpdateFooter();
                     return;
@@ -333,19 +382,22 @@ namespace AgentEyes.App
             switch (_phase)
             {
                 case Phase.Ready:
-                    if (e.Key == Key.Space) BeginCountdown();
+                    if (e.Key == Key.Space) BeginStart();
                     else if (e.Key == Key.Escape) CloseNow();
                     else if (_teleprompter && e.Key is Key.Right or Key.Left) MovePhrase(e.Key == Key.Right ? 1 : -1);
                     break;
-                case Phase.Countdown:
+                case Phase.Starting:
                     if (e.Key == Key.Escape)
                     {
                         // The camera is starting on another thread: finish once it has, keeping what it got.
                         _finishWhenStarted = true;
-                        _countdown.Stop();
                         _message.Text = "Finishing...";
-                        if (_started) StopAttempt(Then.Close);
                     }
+                    break;
+                case Phase.Countdown:
+                    // The camera is already recording under the count: Esc keeps what it got.
+                    if (e.Key == Key.Escape) StopAttempt(Then.Close);
+                    else if (_teleprompter && e.Key is Key.Right or Key.Left) MovePhrase(e.Key == Key.Right ? 1 : -1);
                     break;
                 case Phase.Recording:
                     if (e.Key == Key.Space) StopAttempt(Then.NextTake);
@@ -388,7 +440,8 @@ namespace AgentEyes.App
             switch (_phase)
             {
                 case Phase.Recording: StopAttempt(Then.Close); break;
-                case Phase.Countdown: _finishWhenStarted = true; _countdown.Stop(); if (_started) StopAttempt(Then.Close); break;
+                case Phase.Countdown: StopAttempt(Then.Close); break;
+                case Phase.Starting: _finishWhenStarted = true; _message.Text = "Finishing..."; break;
                 case Phase.Busy: break;
                 default:
                     // Ready or Done: nothing is recording, so let THIS close go ahead. Calling Close()
