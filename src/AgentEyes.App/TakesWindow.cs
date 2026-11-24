@@ -43,8 +43,8 @@ namespace AgentEyes.App
         private readonly TextBlock _previewStatus = new() { Foreground = Dim, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) };
         private readonly ComboBox _camera = new() { Margin = new Thickness(0, 4, 0, 8) };
         private readonly ComboBox _mic = new() { Margin = new Thickness(0, 4, 0, 8) };
-        private readonly RadioButton _readFirst = new() { Content = "Read first, then look at the camera", Foreground = Text, GroupName = "reading", Margin = new Thickness(0, 4, 0, 2) };
-        private readonly RadioButton _prompter = new() { Content = "Teleprompter under the camera", Foreground = Text, GroupName = "reading", Margin = new Thickness(0, 2, 0, 2) };
+        private readonly RadioButton _readFirst = new() { Content = "Read first, then look at the camera", Foreground = Text, GroupName = "reading", Margin = new Thickness(0, 2, 0, 2) };
+        private readonly RadioButton _prompter = new() { Content = "Teleprompter under the camera (default)", Foreground = Text, GroupName = "reading", Margin = new Thickness(0, 4, 0, 2) };
         private readonly TextBlock _readingHelp = new() { Foreground = Dim, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 8) };
         private readonly ComboBox _screen = new() { Margin = new Thickness(0, 4, 0, 12) };
         private readonly Button _start = new() { Height = 40, FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, Background = Red, BorderThickness = new Thickness(0) };
@@ -102,8 +102,8 @@ namespace AgentEyes.App
             side.Children.Add(Label("MICROPHONE"));
             side.Children.Add(_mic);
             side.Children.Add(Label("HOW TO READ", 4));
-            side.Children.Add(_readFirst);
             side.Children.Add(_prompter);
+            side.Children.Add(_readFirst);
             side.Children.Add(_readingHelp);
             side.Children.Add(Label("RECORD ON"));
             side.Children.Add(_screen);
@@ -138,7 +138,8 @@ namespace AgentEyes.App
             };
 
             var list = _store.Snapshot();
-            (list.ReadingMode == TakeStore.Teleprompter ? _prompter : _readFirst).IsChecked = true;
+            // Issue #230 round 2: the teleprompter unless the list says read-first.
+            (list.ReadingMode == TakeStore.ReadFirst ? _readFirst : _prompter).IsChecked = true;
             RenderList(list);
             FillScreens(list.Screen);
             _camera.Items.Add("Loading cameras...");
@@ -257,7 +258,7 @@ namespace AgentEyes.App
         private void ReadingChanged()
         {
             _readingHelp.Text = _prompter.IsChecked == true
-                ? "Teleprompter: one phrase at a time under the camera, the next one dimmed. Right arrow moves on."
+                ? "Teleprompter: the text stays on screen the whole take, one phrase at a time under the camera, the next one dimmed. Right arrow moves on."
                 : "Read first: the line shows, you read it, press Space, a 3-2-1 count, the text is gone and you say it to the lens. Best for short takes.";
         }
 
@@ -410,7 +411,9 @@ namespace AgentEyes.App
         private void UpdateStart()
         {
             int n = SelectedTakes().Count;
-            _start.Content = n == 1 ? "Start - 1 take" : $"Start - {n} takes";
+            // Issue #230 round 2: the button says what it does - it opens the recording screen;
+            // recording itself starts there, with Space.
+            _start.Content = n == 1 ? "Open the recording screen - 1 take" : $"Open the recording screen - {n} takes";
             _start.IsEnabled = n > 0 && _devicesLoaded && !_recordingOpen;
         }
 

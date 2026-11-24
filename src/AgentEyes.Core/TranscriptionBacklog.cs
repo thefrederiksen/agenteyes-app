@@ -113,6 +113,7 @@ namespace AgentEyes
             var manifest = TryLoad(dir);
             if (manifest is null) return false;   // no manifest: nowhere to record a title
             if (!string.IsNullOrWhiteSpace(manifest.Title)) return false;
+            if (manifest.TakeId != null) return false;   // a take is named by its take (#230 round 2)
             if (!HasTitleableContent(dir)) return false;
 
             return IsTitleEligible(manifest.TitleAttempts, manifest.LastTitleAttemptUtc, nowUtc);
