@@ -2,12 +2,13 @@
 # Criterion 3: no fifth occurrence. Run from the repo root. Two forms of every search:
 #   LINE   - git grep, one line at a time
 #   JOINED - each file with line breaks collapsed: tr '\n' ' ' | tr -s ' '  (wrapped text, issue #218)
-# Scope: every tracked file EXCEPT docs/cencon/proof/ (the historical record, which quotes the old
-# strings on purpose). Pattern A is the remedy itself; pattern B is any mention of an Xorg session name.
+# Scope: every tracked file EXCEPT two, excluded by name because they quote the old strings on purpose:
+# docs/cencon/proof/ (the historical record) and tests/Shared/SessionRemedyGuardTests.cs (the guard's
+# own fixtures - its positive controls ARE the four strings). Pattern A is the remedy itself; pattern B is any mention of an Xorg session name.
 set -uo pipefail
 A="log in with ['\"]?Ubuntu on Xorg|choose ['\"]?Ubuntu on Xorg"
 B="Ubuntu on Xorg|GNOME on Xorg|on Xorg['\"]"
-scope=(-- . ':(exclude)docs/cencon/proof/**')
+scope=(-- . ':(exclude)docs/cencon/proof/**' ':(exclude)tests/Shared/SessionRemedyGuardTests.cs')
 line_search() { git grep -n -I -i -E "$1" "${scope[@]}"; }
 joined_search() {
     git ls-files -z "${scope[@]:1}" | while IFS= read -r -d '' f; do

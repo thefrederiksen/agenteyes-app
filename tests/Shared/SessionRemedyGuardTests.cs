@@ -11,7 +11,7 @@ using Xunit;
 // Four places told the user to log in with "Ubuntu on Xorg": the runtime refusal
 // (src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs), the installer refusal (scripts/linux/install.sh),
 // README.md, and a release-notes bullet (docs/releases/v1.12.0.md, caught by the Review Gate on PR #201).
-// That session is not installed by a default desktop install of the Ubuntu releases after 24.04, so the
+// That session is not installed by a default desktop install of Ubuntu 25.10 or 26.04 (measured), so the
 // only instruction a blocked user got was one they could not follow. The code cannot verify that a
 // login session exists on the reader's machine, so no product string may name one, and no document may
 // tell the reader to choose one.
@@ -83,7 +83,7 @@ namespace AgentEyes.Tests.Shared
 
             Assert.True(hits.Count == 0,
                 "A session remedy removed by issue #221 is back. That login session is not installed by a default "
-                + "desktop install of current Ubuntu, so the instruction cannot be followed. Hits: " + string.Join(" | ", hits));
+                + "desktop install of Ubuntu 25.10 or 26.04, so the instruction cannot be followed. Hits: " + string.Join(" | ", hits));
         }
 
         [Fact]

@@ -1,0 +1,54 @@
+Criterion 5: each removed string reinstated in its REAL file, one at a time, the Linux suite's guard
+run, then the file restored with git checkout. Branch head e9af3e4, 2026-11-24T12:37:49Z.
+
+### 1. reinstate in src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs
+  diff | -            "this is a Wayland session with no X display. AgentEyes on Linux records an X11 desktop "
+  diff | -            + "session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the "
+  diff | -            + "AgentEyes README.";
+  diff | +            "this is a Wayland session with no X display. AgentEyes on Linux records an X11 "
+  diff | +            + "session only - log in with 'Ubuntu on Xorg'.";
+  A session remedy removed by issue #221 is back. That login session is not installed by a default desktop install of current Ubuntu, so the instruction cannot be followed. Hits: src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs: "log in with 'Ubuntu on Xorg'"
+  Failed AgentEyes.Tests.Linux.LinuxDisplayTests.Resolve_WaylandDisplayWithoutXDisplay_ThrowsTheWaylandRefusal [3 ms]
+  Failed AgentEyes.Tests.Linux.LinuxDisplayTests.Resolve_WaylandRefusal_NamesNoLoginSession [17 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.ProductCode_SrcAndScripts_NamesNoLoginSession [194 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [168 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [218 ms]
+Failed!  - Failed:     5, Passed:    12, Skipped:     0, Total:    17, Duration: 811 ms - AgentEyes.Tests.Linux.dll (net8.0)
+  Shipped code names a login session; it runs on releases where that session may not exist (issue #221). Hits: src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs: "Ubuntu on Xorg"
+  User-facing text tells the reader to choose a named login session. AgentEyes cannot verify that session is installed on the reader's machine (issue #221). Hits: src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs: "log in with 'Ubuntu on Xorg"
+  restored: 0 changed path(s)
+
+### 2. reinstate in scripts/linux/install.sh
+  diff | -[[ "${XDG_SESSION_TYPE:-x11}" == "wayland" ]] && fail "this is a Wayland session. AgentEyes on Linux records an X11 desktop session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the AgentEyes README."
+  diff | +[[ "${XDG_SESSION_TYPE:-x11}" == "wayland" ]] && fail "this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')"
+  A session remedy removed by issue #221 is back. That login session is not installed by a default desktop install of current Ubuntu, so the instruction cannot be followed. Hits: scripts/linux/install.sh: "log in with 'Ubuntu on Xorg'"
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.ProductCode_SrcAndScripts_NamesNoLoginSession [181 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [164 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [191 ms]
+Failed!  - Failed:     3, Passed:    14, Skipped:     0, Total:    17, Duration: 740 ms - AgentEyes.Tests.Linux.dll (net8.0)
+  Shipped code names a login session; it runs on releases where that session may not exist (issue #221). Hits: scripts/linux/install.sh: "Ubuntu on Xorg"
+  User-facing text tells the reader to choose a named login session. AgentEyes cannot verify that session is installed on the reader's machine (issue #221). Hits: scripts/linux/install.sh: "log in with 'Ubuntu on Xorg"
+  restored: 0 changed path(s)
+
+### 3. reinstate in README.md
+  diff | -Linux. Wayland sessions are not supported (see [Supported Linux sessions](#supported-linux-sessions)).
+  diff | +Linux. Wayland sessions are not supported - log in with "Ubuntu on Xorg".
+  A session remedy removed by issue #221 is back. That login session is not installed by a default desktop install of current Ubuntu, so the instruction cannot be followed. Hits: README.md: "log in with "Ubuntu on Xorg""
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [201 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [292 ms]
+Failed!  - Failed:     2, Passed:    15, Skipped:     0, Total:    17, Duration: 956 ms - AgentEyes.Tests.Linux.dll (net8.0)
+  User-facing text tells the reader to choose a named login session. AgentEyes cannot verify that session is installed on the reader's machine (issue #221). Hits: README.md: "log in with "Ubuntu on Xorg"
+  restored: 0 changed path(s)
+
+### 4. reinstate in docs/releases/v1.12.0.md
+  diff | +  Wayland by default, so log in to an X11 session first (on Ubuntu, choose "Ubuntu on Xorg" at
+  diff | +  the login screen).
+  A session remedy removed by issue #221 is back. That login session is not installed by a default desktop install of current Ubuntu, so the instruction cannot be followed. Hits: docs/releases/v1.12.0.md: "choose "Ubuntu on Xorg" at the login screen"
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [179 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [173 ms]
+Failed!  - Failed:     2, Passed:    15, Skipped:     0, Total:    17, Duration: 757 ms - AgentEyes.Tests.Linux.dll (net8.0)
+  User-facing text tells the reader to choose a named login session. AgentEyes cannot verify that session is installed on the reader's machine (issue #221). Hits: docs/releases/v1.12.0.md: "log in to an X11 session first (on Ubuntu, choose "Ubuntu on Xorg"
+  restored: 0 changed path(s)
+
+### after all four restored
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 816 ms - AgentEyes.Tests.Linux.dll (net8.0)

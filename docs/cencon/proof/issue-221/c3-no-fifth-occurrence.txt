@@ -1,0 +1,72 @@
+repo head: e9af3e4, working tree 3 changed path(s)
+Pattern A (the remedy): log in with ['"]?Ubuntu on Xorg|choose ['"]?Ubuntu on Xorg
+Pattern B (any Xorg session name): Ubuntu on Xorg|GNOME on Xorg|on Xorg['"]
+
+== 1. POSITIVE CONTROL: plant a hit WRAPPED across a line break, as README.md:75-76 wrapped before
+  LINE   A: 4 hit(s)
+    tests/Shared/SessionRemedyGuardTests.cs:11:// Four places told the user to log in with "Ubuntu on Xorg": the runtime refusal
+    tests/Shared/SessionRemedyGuardTests.cs:36:            "log in with 'Ubuntu on Xorg'",
+    tests/Shared/SessionRemedyGuardTests.cs:125:            + "                        + \"session only - log in with 'Ubuntu on Xorg'.\");")]
+    tests/Shared/SessionRemedyGuardTests.cs:127:            "[[ \"${XDG_SESSION_TYPE:-x11}\" == \"wayland\" ]] && fail \"this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')\"")]
+  JOINED A: 5 hit(s)
+    docs/releases/zz-planted-control-221.md: log in with "Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with "Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+  planted file removed: yes
+
+== 2. POSITIVE CONTROL: plant a hit on ONE line
+  LINE   A: 5 hit(s)
+    docs/releases/zz-planted-control-221.md:1:log in with 'Ubuntu on Xorg'
+    tests/Shared/SessionRemedyGuardTests.cs:11:// Four places told the user to log in with "Ubuntu on Xorg": the runtime refusal
+    tests/Shared/SessionRemedyGuardTests.cs:36:            "log in with 'Ubuntu on Xorg'",
+    tests/Shared/SessionRemedyGuardTests.cs:125:            + "                        + \"session only - log in with 'Ubuntu on Xorg'.\");")]
+    tests/Shared/SessionRemedyGuardTests.cs:127:            "[[ \"${XDG_SESSION_TYPE:-x11}\" == \"wayland\" ]] && fail \"this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')\"")]
+  JOINED A: 5 hit(s)
+    docs/releases/zz-planted-control-221.md: log in with 'Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with "Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+  planted file removed: yes
+
+== 3. THE REAL SEARCH, nothing planted
+  LINE   A: 4 hit(s)
+    tests/Shared/SessionRemedyGuardTests.cs:11:// Four places told the user to log in with "Ubuntu on Xorg": the runtime refusal
+    tests/Shared/SessionRemedyGuardTests.cs:36:            "log in with 'Ubuntu on Xorg'",
+    tests/Shared/SessionRemedyGuardTests.cs:125:            + "                        + \"session only - log in with 'Ubuntu on Xorg'.\");")]
+    tests/Shared/SessionRemedyGuardTests.cs:127:            "[[ \"${XDG_SESSION_TYPE:-x11}\" == \"wayland\" ]] && fail \"this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')\"")]
+  JOINED A: 4 hit(s)
+    tests/Shared/SessionRemedyGuardTests.cs: log in with "Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: log in with 'Ubuntu on Xorg
+  LINE   B: 13 hit(s)
+    README.md:67:| 24.04 LTS | yes - `/usr/share/xsessions/` holds `ubuntu-xorg.desktop` ("Ubuntu on Xorg") | records; the release and session it is tested on |
+    docs/releases/v1.12.0.md:71:  where an X11 session, "Ubuntu on Xorg", is installed. Newer Ubuntu releases do not install an
+    tests/Shared/SessionRemedyGuardTests.cs:11:// Four places told the user to log in with "Ubuntu on Xorg": the runtime refusal
+    tests/Shared/SessionRemedyGuardTests.cs:36:            "log in with 'Ubuntu on Xorg'",
+    tests/Shared/SessionRemedyGuardTests.cs:38:            "log in with \"Ubuntu on Xorg\"",
+    tests/Shared/SessionRemedyGuardTests.cs:40:            "choose \"Ubuntu on Xorg\" at the login screen",
+    tests/Shared/SessionRemedyGuardTests.cs:44:        /// to a NAMED desktop session ("Ubuntu on Xorg", "GNOME on Wayland", "Plasma (X11)", ...).</summary>
+    tests/Shared/SessionRemedyGuardTests.cs:125:            + "                        + \"session only - log in with 'Ubuntu on Xorg'.\");")]
+    tests/Shared/SessionRemedyGuardTests.cs:127:            "[[ \"${XDG_SESSION_TYPE:-x11}\" == \"wayland\" ]] && fail \"this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')\"")]
+    tests/Shared/SessionRemedyGuardTests.cs:130:            + "Linux. Wayland sessions are not supported - log in with \"Ubuntu on Xorg\".")]
+    tests/Shared/SessionRemedyGuardTests.cs:133:            + "  Wayland by default, so log in to an X11 session first (on Ubuntu, choose \"Ubuntu on Xorg\" at\n"
+    tests/Shared/SessionRemedyGuardTests.cs:145:        [InlineData("log in with 'GNOME on Xorg'")]
+    tests/Shared/SessionRemedyGuardTests.cs:158:            string text = "The test machine runs Ubuntu 24.04,\n  where an X11 session, \"Ubuntu on Xorg\", is installed.";
+  JOINED B: 13 hit(s)
+    README.md: Ubuntu on Xorg
+    docs/releases/v1.12.0.md: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: GNOME on Xorg
+    tests/Shared/SessionRemedyGuardTests.cs: Ubuntu on Xorg
