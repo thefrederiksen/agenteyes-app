@@ -1,0 +1,35 @@
+QA round 2: remedy search, line form and whitespace-joined form (CR stripped), with a planted control wrapped across a CRLF break. The control was removed (git checkout) and the search re-run.
+---- search.sh
+#!/bin/bash
+# Line form and whitespace-joined form, per file. Patterns: the four removed remedies and any named remedy.
+pats=("log in with 'Ubuntu on Xorg'" 'log in with "Ubuntu on Xorg"' 'choose "Ubuntu on Xorg" at the login screen' 'Ubuntu on Xorg' 'gnome-session-flashback' 'flashback' 'xserver-xorg' 'install the X11' 'log in with' 'at the login screen' 'GNOME Flashback')
+files="README.md docs/releases/v1.12.0.md scripts/linux/install.sh scripts/linux/install-release.sh src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs tests/AgentEyes.Tests.Linux/LinuxDisplayTests.cs"
+for p in "${pats[@]}"; do
+  for f in $files; do
+    l=$(tr -d '\r' < "$f" | grep -ciF -- "$p"); j=$(tr -d '\r' < "$f" | tr '\n' ' ' | tr -s ' ' | grep -oiF -- "$p" | wc -l)
+    [[ $l -ne 0 || $j -ne 0 ]] && echo "HIT  [$p] $f LINE $l JOINED $j"
+  done
+done
+echo "(search end)"
+---- output
+== search at 8ec74ab
+HIT  [Ubuntu on Xorg] README.md LINE 1 JOINED 1
+HIT  [Ubuntu on Xorg] docs/releases/v1.12.0.md LINE 1 JOINED 1
+HIT  [log in with] src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs LINE 1 JOINED 1
+HIT  [log in with] tests/AgentEyes.Tests.Linux/LinuxDisplayTests.cs LINE 1 JOINED 1
+(search end)
+== control: plant 'install gnome-session-' / 'flashback' and 'log in with' / 'Ubuntu on Xorg' wrapped across a CRLF break in README.md
+HIT  [log in with "Ubuntu on Xorg"] README.md LINE 0 JOINED 1
+HIT  [Ubuntu on Xorg] README.md LINE 2 JOINED 2
+HIT  [Ubuntu on Xorg] docs/releases/v1.12.0.md LINE 1 JOINED 1
+HIT  [flashback] README.md LINE 1 JOINED 1
+HIT  [log in with] README.md LINE 1 JOINED 1
+HIT  [log in with] src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs LINE 1 JOINED 1
+HIT  [log in with] tests/AgentEyes.Tests.Linux/LinuxDisplayTests.cs LINE 1 JOINED 1
+(search end)
+== after removal
+HIT  [Ubuntu on Xorg] README.md LINE 1 JOINED 1
+HIT  [Ubuntu on Xorg] docs/releases/v1.12.0.md LINE 1 JOINED 1
+HIT  [log in with] src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs LINE 1 JOINED 1
+HIT  [log in with] tests/AgentEyes.Tests.Linux/LinuxDisplayTests.cs LINE 1 JOINED 1
+(search end)

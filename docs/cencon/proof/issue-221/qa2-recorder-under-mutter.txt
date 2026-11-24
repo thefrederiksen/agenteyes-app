@@ -1,0 +1,88 @@
+QA round 2: does the PR-head recorder refuse under a Wayland compositor that provides Xwayland? Throwaway ubuntu:26.04 and ubuntu:25.10 containers; nothing on the host touched.
+Recorder: dotnet publish src/AgentEyes.Core -c Release -f net8.0 -r linux-x64 --self-contained -p:Platform=x64, from 8ec74ab, mounted at /ae.
+NOT a GDM login session and NOT the systemd user service environment. First attempt's luminance filter missed the files (wrong path); this is the corrected re-run.
+
+---- run.sh
+#!/bin/bash
+set -u; export DEBIAN_FRONTEND=noninteractive
+grep PRETTY_NAME /etc/os-release
+apt-get update -q >/dev/null 2>&1
+apt-get install -y -q --no-install-recommends mutter xwayland dbus ffmpeg x11-xserver-utils libicu* ca-certificates pulseaudio >/tmp/i.log 2>&1; echo "apt exit=$?"
+dpkg-query -W -f='${Package} ${Version}\n' mutter xwayland
+export XDG_RUNTIME_DIR=/tmp/xdg HOME=/root; mkdir -p -m 700 $XDG_RUNTIME_DIR
+unset DISPLAY WAYLAND_DISPLAY
+timeout 300 dbus-run-session -- mutter --wayland --headless --virtual-monitor 1280x720 -- bash /inside.sh > /tmp/m.txt 2>&1; echo "mutter exit=$?"
+grep -E 'Running Mutter|X11 display|^==|^exit=|^WAYLAND|^DISPLAY|ok\]|error|FAIL|refus|Wayland' /tmp/m.txt | grep -vE 'Gtk-WARNING|libEGL|MESA' | head -40
+echo "== luminance of every png and mp4 written"
+find / -xdev \( -name '*.png' -o -name '*.mp4' \) -path '/tmp/recordings/*' 2>/dev/null | while read f; do
+  echo "$f ($(stat -c %s "$f") bytes)"
+  ffmpeg -hide_banner -i "$f" -vf signalstats,metadata=print -f null - 2>&1 | grep -oE 'lavfi.signalstats.(YAVG|YMAX)=[0-9.]+' | sort | uniq -c | sort -rn | head -4
+done
+---- inside.sh (the client mutter starts)
+#!/bin/bash
+echo "== client env"; for v in WAYLAND_DISPLAY DISPLAY; do echo "$v=${!v-<unset>}"; done
+cd /tmp
+echo "== agenteyes screens"; timeout 60 /ae/agenteyes screens 2>&1 | grep -v glamor | head -6; echo "exit=${PIPESTATUS[0]}"
+echo "== agenteyes shot --screen 1"; timeout 60 /ae/agenteyes shot --screen 1 > /tmp/shot.txt 2>&1; echo "exit=$?"; cat /tmp/shot.txt | tail -3
+echo "== agenteyes video --screen 1 --seconds 3"; timeout 90 /ae/agenteyes video --screen 1 --seconds 3 > /tmp/vid.txt 2>&1; echo "exit=$?"; tail -4 /tmp/vid.txt
+---- output
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+apt exit=0
+mutter 50.1-0ubuntu2.5
+xwayland 2:24.1.10-1
+mutter exit=0
+libmutter-Message: 14:12:49.419: Running Mutter (using mutter 50.1) as a Wayland display server
+libmutter-Message: 14:12:49.616: Using public X11 display :0, (using unix:/tmp/.X11-unix/X1 for managed services)
+libmutter-Message: 14:12:49.616: Using Wayland display name 'wayland-0'
+== client env
+WAYLAND_DISPLAY=wayland-0
+DISPLAY=:0
+== agenteyes screens
+Xwayland glamor: GBM Wayland interfaces not available
+exit=0
+== agenteyes shot --screen 1
+exit=0
+[ok] saved  /tmp/recordings/2026-11-24_141250_shot/shots/monitor1_full.png
+[ok] copied to clipboard
+== agenteyes video --screen 1 --seconds 3
+exit=0
+[ok] recording.mp4 (00m04s, 8 KB), 0 marker(s)
+[ok] manifest.json written to /tmp/recordings/2026-11-24_141250_video
+== luminance of every png and mp4 written
+/tmp/recordings/2026-11-24_141250_video/recording.mp4 (7884 bytes)
+    122 lavfi.signalstats.YMAX=240
+    122 lavfi.signalstats.YAVG=16.0139
+tmp/recordings/2026-11-24_141250_shot/shots/monitor1_full.png (4749 bytes)
+      1 lavfi.signalstats.YMAX=235
+      1 lavfi.signalstats.YAVG=16.0139
+-----
+PRETTY_NAME="Ubuntu 25.10"
+apt exit=0
+mutter 49.0-2ubuntu5.3
+xwayland 2:24.1.6-1ubuntu1.1
+mutter exit=0
+libmutter-Message: 14:16:22.832: Running Mutter (using mutter 49.0) as a Wayland display server
+libmutter-Message: 14:16:22.971: Using public X11 display :0, (using :1 for managed services)
+libmutter-Message: 14:16:22.971: Using Wayland display name 'wayland-0'
+== client env
+WAYLAND_DISPLAY=wayland-0
+DISPLAY=:0
+== agenteyes screens
+Xwayland glamor: GBM Wayland interfaces not available
+exit=0
+== agenteyes shot --screen 1
+exit=0
+[ok] saved  /tmp/recordings/2026-11-24_141623_shot/shots/monitor1_full.png
+[ok] copied to clipboard
+== agenteyes video --screen 1 --seconds 3
+exit=0
+[ok] recording.mp4 (00m04s, 8 KB), 0 marker(s)
+[ok] manifest.json written to /tmp/recordings/2026-11-24_141624_video
+== luminance of every png and mp4 written
+/tmp/recordings/2026-11-24_141624_video/recording.mp4 (7898 bytes)
+    122 lavfi.signalstats.YMAX=240
+    122 lavfi.signalstats.YAVG=16.0139
+/tmp/recordings/2026-11-24_141623_shot/shots/monitor1_full.png (3094 bytes)
+      1 lavfi.signalstats.YMAX=235
+      1 lavfi.signalstats.YAVG=16.0139
+-----
