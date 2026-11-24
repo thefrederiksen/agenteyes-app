@@ -56,9 +56,34 @@ AgentEyes records **without an account**. Signing in to DevThrottle is optional 
 unlocks the AI stages (transcription, titles, walkthroughs) - capture, camera, preview and
 overlay all work signed out.
 
+### Supported Linux sessions
+
+**AgentEyes on Linux records X11 desktop sessions only and does not support Wayland, so it cannot
+record on a default desktop install of Ubuntu 25.10 or 26.04, which installs no X11 session; it is
+tested on Ubuntu 24.04 LTS in an X11 session.**
+
+| Ubuntu release | X11 session in the default desktop install | AgentEyes on Linux |
+|---|---|---|
+| 24.04 LTS | yes - `/usr/share/xsessions/` holds `ubuntu-xorg.desktop` ("Ubuntu on Xorg") | records; the release and session it is tested on |
+| 25.10 | no - there is no `/usr/share/xsessions/` and no Xorg server | does not record |
+| 26.04 LTS | no - there is no `/usr/share/xsessions/` and no Xorg server | does not record |
+| any other | not measured | not tested |
+
+The 25.10 and 26.04 rows were measured at the package level: the default desktop package
+(`ubuntu-desktop-minimal`, with its recommended packages) installed into a clean container of each
+release, and its session files listed. That is what a default install puts on the login screen; it
+is not a photograph of one. On both releases the installed GNOME Shell also has no X11 mode
+(`gnome-shell --help` lists no `--x11`; on 24.04 it does), so AgentEyes names no packages to install
+there: there is no X11 GNOME session to install. Recording a Wayland session is not built. Proof:
+[docs/cencon/proof/issue-221/](docs/cencon/proof/issue-221/).
+
+On a Wayland session the installer stops, before it installs any part of AgentEyes, with "Wayland
+sessions are not supported". The recorder gives the same refusal when it finds a Wayland display and
+no X display.
+
 ### Linux (x64, X11 desktop)
 
-No repository and no .NET - the recorder and the app come prebuilt. In a terminal:
+Read [Supported Linux sessions](#supported-linux-sessions) first. No repository and no .NET - the recorder and the app come prebuilt. In a terminal:
 
 ```bash
 curl -fsSLO https://github.com/thefrederiksen/agenteyes-app/releases/latest/download/agenteyes-install-linux-x64.sh
@@ -73,7 +98,7 @@ app grid, and in the tray at login). ffmpeg and libvlc come from your distributi
 missing it asks for permission to `apt-get install` it - the only step that needs root. It ends by
 signing you in to DevThrottle in your browser; `--no-signin` skips that (`agenteyes signin` later).
 To **update**, download the newer release's script and run it again; there is no in-app updater on
-Linux. Wayland sessions are not supported - log in with "Ubuntu on Xorg".
+Linux. Wayland sessions are not supported (see [Supported Linux sessions](#supported-linux-sessions)).
 
 The first release that carries the Linux asset is the one after v1.12.0; until it is cut, that
 URL answers 404 and Linux installs from source (`scripts/linux/install.sh`).

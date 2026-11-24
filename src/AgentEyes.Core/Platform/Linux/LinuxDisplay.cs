@@ -9,19 +9,38 @@ namespace AgentEyes.Platform.Linux
     /// </summary>
     internal static class LinuxDisplay
     {
-        public static string Require()
+        /// <summary>
+        /// The refusal for a Wayland session with no X display (issue #221). It names NO remedy, on
+        /// purpose. It used to tell the user to log in with an X11 session by name, and that session is
+        /// not installed by a default desktop install of Ubuntu 25.10 or 26.04 (measured at the package
+        /// level, docs/cencon/proof/issue-221/), so the only instruction a blocked user got was one they
+        /// could not follow. A session the code has not verified is
+        /// present is never named here; README.md "Supported Linux sessions" is the supported-session
+        /// statement this points at.
+        /// </summary>
+        internal const string WaylandRefusal =
+            "this is a Wayland session with no X display. AgentEyes on Linux records an X11 desktop "
+            + "session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the "
+            + "AgentEyes README.";
+
+        internal const string NoDisplayRefusal =
+            "DISPLAY is not set, so there is no X screen to record. Run AgentEyes inside the "
+            + "desktop session; for the service, run 'systemctl --user import-environment DISPLAY XAUTHORITY' "
+            + "and restart it.";
+
+        public static string Require() =>
+            Resolve(Environment.GetEnvironmentVariable("DISPLAY"), Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
+
+        /// <summary>The display to record from the session's DISPLAY and WAYLAND_DISPLAY values, or the
+        /// refusal for a session that has no X display. Split from <see cref="Require"/> so the refusal
+        /// is tested without changing this process's environment.</summary>
+        internal static string Resolve(string? display, string? waylandDisplay)
         {
-            string? display = Environment.GetEnvironmentVariable("DISPLAY");
             if (string.IsNullOrWhiteSpace(display))
             {
-                if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
-                    throw new UsageException(
-                        "this is a Wayland session with no X display. AgentEyes on Linux records an X11 "
-                        + "session only - log in with 'Ubuntu on Xorg'.");
-                throw new UsageException(
-                    "DISPLAY is not set, so there is no X screen to record. Run AgentEyes inside the "
-                    + "desktop session; for the service, run 'systemctl --user import-environment DISPLAY XAUTHORITY' "
-                    + "and restart it.");
+                if (!string.IsNullOrWhiteSpace(waylandDisplay))
+                    throw new UsageException(WaylandRefusal);
+                throw new UsageException(NoDisplayRefusal);
             }
             return display.Trim();
         }
