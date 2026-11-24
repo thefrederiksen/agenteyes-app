@@ -300,6 +300,9 @@ namespace AgentEyes.Video
             else
             {
                 a.AddRange(new[] { "-c:a", "aac", "-b:a", "192k", "-ar", "48000" });
+                // The camera file IS the recording in this mode, so it is fragmented like the screen
+                // recording: a camera ffmpeg that dies mid-take still leaves a playable file.
+                a.AddRange(new[] { "-movflags", "+frag_keyframe+empty_moov+default_base_moof" });
             }
             a.Add(outPath);
 

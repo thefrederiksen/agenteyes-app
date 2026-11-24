@@ -390,7 +390,14 @@ namespace AgentEyes.App
                 case Phase.Recording: StopAttempt(Then.Close); break;
                 case Phase.Countdown: _finishWhenStarted = true; _countdown.Stop(); if (_started) StopAttempt(Then.Close); break;
                 case Phase.Busy: break;
-                default: CloseNow(); break;
+                default:
+                    // Ready or Done: nothing is recording, so let THIS close go ahead. Calling Close()
+                    // again from inside Closing throws in WPF.
+                    e.Cancel = false;
+                    _allowClose = true;
+                    _tick.Stop(); _countdown.Stop();
+                    Log.Info($"[TakeRecordingWindow] OnClosing: closing, {_saved} attempt(s) saved");
+                    break;
             }
         }
     }

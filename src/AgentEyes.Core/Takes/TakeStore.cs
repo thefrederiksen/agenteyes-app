@@ -41,7 +41,7 @@ namespace AgentEyes.Takes
         public string? Mic { get; set; }
 
         /// <summary>"read-first" (default) or "teleprompter".</summary>
-        public string ReadingMode { get; set; } = TakeStore.ReadFirst;
+        public string? ReadingMode { get; set; }
 
         /// <summary>1-based monitor to record on, or null for the default (the first non-primary).</summary>
         public int? Screen { get; set; }
@@ -133,7 +133,7 @@ namespace AgentEyes.Takes
                     Title = incoming.Title,
                     Camera = incoming.Camera ?? _list.Camera,
                     Mic = incoming.Mic ?? _list.Mic,
-                    ReadingMode = incoming.ReadingMode ?? _list.ReadingMode,
+                    ReadingMode = incoming.ReadingMode ?? _list.ReadingMode ?? ReadFirst,
                     Screen = incoming.Screen ?? _list.Screen,
                 };
                 foreach (var t in incoming.Takes)
