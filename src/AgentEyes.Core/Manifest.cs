@@ -69,6 +69,11 @@ namespace AgentEyes
         /// </summary>
         public string? CameraFile { get; set; }
 
+        /// <summary>Issue #229: the camera mode the recording asked the device for, as
+        /// "mjpeg 1920x1080@30" (input codec or raw pixel format, size, frame rate). Null when the
+        /// camera was left at its default mode or there is no camera.</summary>
+        public string? CameraMode { get; set; }
+
         /// <summary>
         /// Issue #47: true once the camera has been rendered INTO <see cref="VideoFile"/>, with the
         /// screen-only cut kept beside it as "recording.screen.mp4".

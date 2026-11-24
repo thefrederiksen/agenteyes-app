@@ -15,7 +15,7 @@ namespace AgentEyes
     internal sealed class RecordStatus
     {
         public string State { get; set; } = "idle";   // idle | recording | finalizing
-        public string? Mode { get; set; }              // audio | video
+        public string? Mode { get; set; }              // audio | video | camera-mic-no-screen
         public string? Source { get; set; }            // mic | system | mixed | none
         public double ElapsedSeconds { get; set; }
         public double Level { get; set; }              // 0..1 (peak)
@@ -26,6 +26,10 @@ namespace AgentEyes
         // The camera being recorded to camera.mp4 alongside the screen (issue #28), by its exact
         // DirectShow device name. Null when this recording has no camera track, and null while idle.
         public string? Camera { get; set; }
+
+        // Issue #229: the mode the camera was opened in ("mjpeg 1920x1080@30"). Null while idle and
+        // when the recording has no camera.
+        public string? CameraMode { get; set; }
 
         // DevThrottle account state (issue #129). Carried on /status so the sign-in indicator is
         // verifiable without a screenshot - recording works signed out, but the AI stages do not.
@@ -418,6 +422,7 @@ namespace AgentEyes
                 SystemLevel = Math.Round(_peakSys, 3),
                 Dir = _dir,
                 Camera = _state == "idle" ? null : _cameraName,
+                CameraMode = _state == "idle" ? null : _camera?.Mode?.Describe(),
                 SignedIn = DevThrottle.AccountState.IsSignedIn,
                 AccountEmail = DevThrottle.AccountState.Email,
                 PendingTranscriptions = TranscriptionBacklog.FindPending(RecordingPaths.Root).Count,
@@ -854,6 +859,90 @@ namespace AgentEyes
             }
         }
 
+        // ---- start camera only (issue #117) -------------------------------
+
+        /// <summary>The camera-and-microphone mode with no screen (issue #117) - the owner's own name
+        /// for it, used on the wire, in the manifest and on /status.</summary>
+        public const string CameraOnlyMode = "camera-mic-no-screen";
+
+        /// <summary>True for the modes whose final file is a video (recording.mp4).</summary>
+        public static bool IsVideoMode(string? mode) => mode is "video" or CameraOnlyMode;
+
+        /// <summary>
+        /// Record the camera and the microphone, no screen (issue #117): ONE ffmpeg opens the camera
+        /// and the microphone in the same DirectShow input and writes recording.mp4 directly - no
+        /// screen capture process, no deferred mux. The camera file IS the recording, so the library,
+        /// the thumbnail and transcription treat it like any video.
+        ///
+        /// Audio is the microphone only: "system" and "mixed" are refused, because one dshow input
+        /// cannot carry the loopback and a separate loopback would need the mux this mode exists to
+        /// avoid. "none" is refused too - a talking-head take without sound is not a take.
+        /// </summary>
+        /// <param name="cameraWidth">Issue #229: an exact camera size, with cameraHeight; null for the
+        /// largest the camera offers at <paramref name="cameraFps"/>.</param>
+        public void StartCamera(AudioSourceKind src, string? micFragment, string? cameraFragment, int cameraFps = 30,
+            int? cameraWidth = null, int? cameraHeight = null, string? label = null)
+        {
+            Log.Info($"[RecordingService] StartCamera: src={src} mic={micFragment ?? "(none)"} camera={cameraFragment ?? "(none)"} "
+                     + $"fps={cameraFps} size={(cameraWidth == null ? "(largest)" : $"{cameraWidth}x{cameraHeight}")} label={label ?? "(none)"}");
+#if !WINDOWS
+            throw new UsageException($"the {CameraOnlyMode} mode is Windows-only for now.");
+#else
+            if (src != AudioSourceKind.Mic)
+                throw new UsageException($"the {CameraOnlyMode} mode records the microphone only - source must be \"mic\", "
+                                         + $"got \"{src.ToString().ToLowerInvariant()}\" (system sound cannot share the camera's input).");
+            if (string.IsNullOrWhiteSpace(cameraFragment))
+                throw new UsageException($"the {CameraOnlyMode} mode needs a camera - pass \"camera\".");
+            if ((cameraWidth == null) != (cameraHeight == null))
+                throw new UsageException("a camera size needs both a width and a height.");
+
+            _stranded.Recover();
+
+            lock (_lock)
+            {
+                if (_state != "idle") throw new UsageException("already recording");
+
+                // Resolve both devices before touching disk, as the other modes do.
+                string dshowMic = DeviceResolver.ResolveName(FfmpegDevices.ListAudio(), Require(micFragment, "mic"));
+                string dshowCamera = DeviceResolver.ResolveCameraName(FfmpegDevices.ListVideo(), cameraFragment!);
+                Log.Info($"[RecordingService] StartCamera: camera \"{cameraFragment}\" -> \"{dshowCamera}\", mic -> \"{dshowMic}\"");
+
+                var mon = _seams.RequireMonitor(1);
+                Reset(mon, CameraOnlyMode, src, new AudioMixOptions());
+                _cameraName = dshowCamera;
+
+                _dir = _seams.NewRecordingDir(CameraOnlyMode, string.IsNullOrWhiteSpace(label) ? "camera" : label);
+                _manifest = NewManifest(CameraOnlyMode, mon);
+                _manifest.VideoFile = "recording.mp4";
+                _manifest.Microphone = dshowMic;
+                _manifest.PendingMux = null;
+
+                string dir = _dir;
+                var steps = new List<RecordingStartStep>
+                {
+                    new RecordingStartStep("camera and microphone", () =>
+                    {
+                        // Stored before ffmpeg exists, for the same reason StartVideo does (issue #28
+                        // gate round 3): a failed open is still stopped by the rollback.
+                        _camera = FfmpegCameraRecorder.Create(
+                            dshowCamera, cameraFps, 20, Path.Combine(dir, "recording.mp4"), null,
+                            dshowMic: dshowMic, width: cameraWidth, height: cameraHeight);
+                        _camera.Open();
+                        NoteCaptureWriter("camera", _camera.ProcessId);
+                        _manifest!.FfmpegCommand = _camera.CommandLine;
+                        _manifest.CameraMode = _camera.Mode?.Describe();
+                    }),
+                };
+
+                _sw.Restart();
+                StartSession(steps);
+
+                _state = "recording";
+                Log.Info($"start {CameraOnlyMode} dir={_dir} camera={dshowCamera} mic={dshowMic} mode={_camera?.Mode?.Describe() ?? "(default)"}");
+            }
+#endif
+        }
+
         // ---- marker screenshot during a session ---------------------------
 
         public string MarkerShot()
@@ -1065,7 +1154,17 @@ namespace AgentEyes
                 // is the only judgement among them, and it is three-state precisely so that the
                 // cases this code did not anticipate have somewhere honest to go instead of being
                 // rounded to "complete", which is what the boolean it replaces did three times.
-                if (camera != null)
+                if (camera != null && mode == CameraOnlyMode)
+                {
+                    // Issue #117: the camera file IS the recording, not a companion track - so no
+                    // CameraFile (which would send it to the compose stage), only its honest length.
+                    manifest.CapturedSeconds = Math.Round(camera.CapturedSeconds, 2);
+                    manifest.CameraMode = camera.Mode?.Describe();
+                    if (camera.LostMidRun)
+                        Log.Warn($"stop: the camera \"{camera.DeviceName}\" was lost during this {CameraOnlyMode} recording - "
+                                 + $"recording.mp4 covers {camera.CapturedSeconds:F1}s of a {elapsed:F1}s session");
+                }
+                else if (camera != null)
                 {
                     CameraTrackRecord.Write(manifest, camera);
                     if (camera.LostMidRun)
@@ -1102,6 +1201,7 @@ namespace AgentEyes
                     m.CaptureFaultDetail = manifest.CaptureFaultDetail;
                     m.CaptureFaultDetectedUtc = manifest.CaptureFaultDetectedUtc;
                     m.CaptureFaultElapsedSeconds = manifest.CaptureFaultElapsedSeconds;
+                    m.CameraMode = manifest.CameraMode ?? m.CameraMode;
                     m.PreviewOverlayCorner = manifest.PreviewOverlayCorner;
                     m.PreviewOverlayShape = manifest.PreviewOverlayShape;
                     m.PreviewOverlayCircle = manifest.PreviewOverlayCircle;
@@ -1120,7 +1220,7 @@ namespace AgentEyes
             RecordResult result;
             try
             {
-                Log.Info($"stop: saving {(mode == "video" ? "video" : "audio")} (flush raw + writers)");
+                Log.Info($"stop: saving {(IsVideoMode(mode) ? "video" : "audio")} (flush raw + writers)");
                 report = RecordingStopSequence.Run(
                     dir!,
                     steps,

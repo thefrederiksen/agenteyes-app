@@ -190,7 +190,7 @@ namespace AgentEyes
                 Headless.HeadlessHost.Run),
 
             new("record start",
-                "  agenteyes record start [--mix | --loopback] [--mic \"NAME\"] [--screen N] [--camera \"NAME\"] [--fps N] [--audio-only]",
+                "  agenteyes record start [--mix | --loopback] [--mic \"NAME\"] [--screen N] [--camera \"NAME\"] [--fps N] [--audio-only | --camera-only] [--camera-size WxH]",
                 new CliOption[]
                 {
                     new("mix", null, "record the mic AND system audio (needs --mic)"),
@@ -200,6 +200,8 @@ namespace AgentEyes
                     new("camera", "NAME", "webcam name fragment"),
                     new("fps", "N", "screen frame rate"),
                     new("audio-only", null, "record audio without the screen"),
+                    new("camera-only", null, "record the camera and the mic, no screen (needs --camera and --mic)"),
+                    new("camera-size", "WxH", "camera mode to request, e.g. 1920x1080 (default: the largest it offers)"),
                 }, 0,
                 Headless.HeadlessCli.RecordStart),
 

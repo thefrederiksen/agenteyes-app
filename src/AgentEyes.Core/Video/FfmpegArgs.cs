@@ -257,30 +257,54 @@ namespace AgentEyes.Video
         /// recording runs - ffmpeg holds the DirectShow device exclusively, so the preview cannot open
         /// it a second time (assumption C1). False - the default - produces byte-for-byte the command
         /// line this built before the HUD preview existed (AC11).</param>
+        /// <param name="mode">Issue #229: the device mode chosen from its own list
+        /// (<see cref="CameraModes.Choose"/>) - requested explicitly, with a large real-time buffer
+        /// because a 1080p mjpeg stream overruns DirectShow's default one. Null keeps the device's
+        /// default mode and the command line this built before.</param>
+        /// <param name="dshowMic">Issue #117 (camera-mic-no-screen): a DirectShow microphone opened
+        /// in the SAME dshow input as the camera, so picture and sound share one clock and land in
+        /// one file with an AAC track. Null keeps camera.mp4 video-only (decision 1 of issue #28).</param>
         public static List<string> CameraCapture(
-            string dshowCameraName, int fps, int crf, string outPath, bool previewStream = false)
+            string dshowCameraName, int fps, int crf, string outPath, bool previewStream = false,
+            CameraMode? mode = null, string? dshowMic = null)
         {
             if (string.IsNullOrWhiteSpace(dshowCameraName))
                 throw new UsageException("a camera capture needs an exact DirectShow device name.");
 
-            var a = new List<string>
+            var a = new List<string> { "-y", "-f", "dshow" };
+            if (mode != null)
             {
-                "-y",
-                "-f", "dshow",
+                a.AddRange(new[] { "-rtbufsize", "512M" });
+                if (mode.Codec != null) a.AddRange(new[] { "-vcodec", mode.Codec });
+                else a.AddRange(new[] { "-pixel_format", mode.PixelFormat! });
+                a.AddRange(new[] { "-video_size", $"{mode.Width}x{mode.Height}" });
+            }
+            a.AddRange(new[]
+            {
                 // Buffer input packets so a busy CPU during warmup does not drop camera frames -
                 // the same guard the gdigrab input carries.
                 "-thread_queue_size", "1024",
                 "-framerate", fps.ToString(),
-                "-i", $"video={dshowCameraName}",
+                "-i", dshowMic == null ? $"video={dshowCameraName}" : $"video={dshowCameraName}:audio={dshowMic}",
                 "-c:v", "libx264",
                 "-preset", "veryfast",
                 "-pix_fmt", "yuv420p",
                 "-crf", crf.ToString(),
+            });
+            if (dshowMic == null)
+            {
                 // Explicitly no audio track: the input has none, and this says so in the output too
                 // so camera.mp4 cannot acquire one by accident.
-                "-an",
-                outPath,
-            };
+                a.Add("-an");
+            }
+            else
+            {
+                a.AddRange(new[] { "-c:a", "aac", "-b:a", "192k", "-ar", "48000" });
+                // The camera file IS the recording in this mode, so it is fragmented like the screen
+                // recording: a camera ffmpeg that dies mid-take still leaves a playable file.
+                a.AddRange(new[] { "-movflags", "+frag_keyframe+empty_moov+default_base_moof" });
+            }
+            a.Add(outPath);
 
             if (previewStream) a.AddRange(PreviewOutput());
             return a;

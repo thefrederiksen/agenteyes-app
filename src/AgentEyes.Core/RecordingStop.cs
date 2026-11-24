@@ -88,7 +88,7 @@ namespace AgentEyes
             // One Status() call, not two - it scans the recordings root for the pending count.
             var status = svc.Status();
             string? dir = status.Dir;
-            bool isVideo = status.Mode == "video";
+            bool isVideo = RecordingService.IsVideoMode(status.Mode);
             Log.Info($"[RecordingStop] Keep: dir={dir ?? "(none)"} mode={(isVideo ? "video" : "audio")}");
 
             // Issue #152: post-recording work is in flight from the moment this stop is DECIDED, not
