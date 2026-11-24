@@ -1,0 +1,5 @@
+# git d38141c + working tree, 2026-11-24, macOS (darwin 25.5.0), dotnet SDK 10.0.403 building net8.0
+$ dotnet test tests/AgentEyes.Tests.Mac -c Release
+Passed!  - Failed:     0, Passed:   433, Skipped:     2, Total:   435, Duration: 3 s - AgentEyes.Tests.Mac.dll (net8.0)
+$ dotnet test tests/AgentEyes.Tests.Linux -c Release
+Passed!  - Failed:     0, Passed:   474, Skipped:     3, Total:   477, Duration: 2 s - AgentEyes.Tests.Linux.dll (net8.0)
