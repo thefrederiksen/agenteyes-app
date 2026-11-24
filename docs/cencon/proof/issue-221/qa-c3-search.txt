@@ -1,0 +1,92 @@
+QA priority 5 / criterion 3: independent search, LINE (git grep) and JOINED (tr '\n' ' ' | tr -s ' '). Scope: every tracked file except docs/cencon/proof/. Branch cd6d6c6.
+
+#!/usr/bin/env bash
+# QA independent search, issue #221. Scope: all tracked files except docs/cencon/proof/.
+set -uo pipefail
+P1='xorg'                                             # broadest: any Xorg mention at all
+P2='(log ?in|sign ?in|choose|select|switch to)[^.;]{0,60}(on xorg|on x11|\(x11\)|\(xorg\))'   # an instruction
+excl=':(exclude)docs/cencon/proof/**'
+line() { git grep -I -i -n -E "$1" -- . "$excl" | sed "s/^/    /"; }
+joined() { git ls-files -z -- . "$excl" | while IFS= read -r -d '' f; do
+  [ -f "$f" ] && grep -Iq . "$f" 2>/dev/null || continue
+  tr '\n' ' ' < "$f" | tr -s ' ' | grep -o -i -E ".{0,30}$1.{0,10}" | sed "s|^|    $f: |"; done; }
+for p in P1 P2; do pat=${!p}
+  l=$(line "$pat"); j=$(joined "$pat")
+  echo "== $p /$pat/  LINE=$(printf '%s' "$l" | grep -c .)  JOINED=$(printf '%s' "$j" | grep -c .)"
+  echo "-- line:"; printf '%s\n' "$l"; echo "-- joined:"; printf '%s\n' "$j"; done
+
+##### POSITIVE CONTROL: src/zz_qa_plant.cs = '// Wayland is unsupported - log in with\n// "Ubuntu on\n// Xorg".'  docs/zz_qa_plant.md = 'please choose\n"GNOME on\nXorg" at login'
+== P1 /xorg/  LINE=20  JOINED=23
+    docs/zz_qa_plant.md:3:Xorg" at login
+    src/zz_qa_plant.cs:3:// Xorg".
+    docs/zz_qa_plant.md: please choose "GNOME on Xorg" at login
+    src/zz_qa_plant.cs:  log in with // "Ubuntu on // Xorg". 
+== P2 /(log ?in|sign ?in|choose|select|switch to)[^.;]{0,60}(on xorg|on x11|\(x11\)|\(xorg\))/  LINE=10  JOINED=11
+    docs/zz_qa_plant.md: please choose "GNOME on Xorg" at login
+plants removed: 2/2 gone
+##### REAL SEARCH, nothing planted
+== P1 /xorg/  LINE=18  JOINED=21
+-- line:
+    README.md:67:| 24.04 LTS | yes - `/usr/share/xsessions/` holds `ubuntu-xorg.desktop` ("Ubuntu on Xorg") | records; the release and session it is tested on |
+    README.md:68:| 25.10 | no - there is no `/usr/share/xsessions/` and no Xorg server | does not record |
+    README.md:69:| 26.04 LTS | no - there is no `/usr/share/xsessions/` and no Xorg server | does not record |
+    docs/releases/v1.12.0.md:71:  where an X11 session, "Ubuntu on Xorg", is installed. Newer Ubuntu releases do not install an
+    tests/AgentEyes.Tests.Linux/LinuxDisplayTests.cs:33:            Assert.DoesNotContain("Xorg", ex.Message);
+    tests/Shared/SessionRemedyGuardTests.cs:11:// Four places told the user to log in with "Ubuntu on Xorg": the runtime refusal
+    tests/Shared/SessionRemedyGuardTests.cs:36:            "log in with 'Ubuntu on Xorg'",
+    tests/Shared/SessionRemedyGuardTests.cs:38:            "log in with \"Ubuntu on Xorg\"",
+    tests/Shared/SessionRemedyGuardTests.cs:40:            "choose \"Ubuntu on Xorg\" at the login screen",
+    tests/Shared/SessionRemedyGuardTests.cs:44:        /// to a NAMED desktop session ("Ubuntu on Xorg", "GNOME on Wayland", "Plasma (X11)", ...).</summary>
+    tests/Shared/SessionRemedyGuardTests.cs:47:            + @"\b(Ubuntu|GNOME|Plasma|KDE|Xfce|Cinnamon|MATE)\s*(on\s+(Xorg|X11|Wayland)|\((X11|Xorg|Wayland)\))",
+    tests/Shared/SessionRemedyGuardTests.cs:52:            @"\b(Ubuntu|GNOME|Plasma|KDE|Xfce|Cinnamon|MATE)\s*(on\s+(Xorg|X11|Wayland)|\((X11|Xorg|Wayland)\))",
+    tests/Shared/SessionRemedyGuardTests.cs:125:            + "                        + \"session only - log in with 'Ubuntu on Xorg'.\");")]
+    tests/Shared/SessionRemedyGuardTests.cs:127:            "[[ \"${XDG_SESSION_TYPE:-x11}\" == \"wayland\" ]] && fail \"this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')\"")]
+    tests/Shared/SessionRemedyGuardTests.cs:130:            + "Linux. Wayland sessions are not supported - log in with \"Ubuntu on Xorg\".")]
+    tests/Shared/SessionRemedyGuardTests.cs:133:            + "  Wayland by default, so log in to an X11 session first (on Ubuntu, choose \"Ubuntu on Xorg\" at\n"
+    tests/Shared/SessionRemedyGuardTests.cs:145:        [InlineData("log in with 'GNOME on Xorg'")]
+    tests/Shared/SessionRemedyGuardTests.cs:158:            string text = "The test machine runs Ubuntu 24.04,\n  where an X11 session, \"Ubuntu on Xorg\", is installed.";
+-- joined:
+    README.md: are/xsessions/` holds `ubuntu-xorg.desktop` 
+    README.md: ("Ubuntu on Xorg") | recor
+    README.md: /usr/share/xsessions/` and no Xorg server | 
+    README.md: /usr/share/xsessions/` and no Xorg server | 
+    docs/releases/v1.12.0.md: re an X11 session, "Ubuntu on Xorg", is inst
+    tests/AgentEyes.Tests.Linux/LinuxDisplayTests.cs: sage); Assert.DoesNotContain("Xorg", ex.Mess
+    tests/Shared/SessionRemedyGuardTests.cs: ser to log in with "Ubuntu on Xorg": the run
+    tests/Shared/SessionRemedyGuardTests.cs: ller) "log in with 'Ubuntu on Xorg'", // REA
+    tests/Shared/SessionRemedyGuardTests.cs: d:76 "log in with \"Ubuntu on Xorg\"", // do
+    tests/Shared/SessionRemedyGuardTests.cs: n PR #201 "choose \"Ubuntu on Xorg\" at the 
+    tests/Shared/SessionRemedyGuardTests.cs: D desktop session ("Ubuntu on Xorg", "GNOME 
+    tests/Shared/SessionRemedyGuardTests.cs: |Xfce|Cinnamon|MATE)\s*(on\s+(Xorg|X11|Wayla
+    tests/Shared/SessionRemedyGuardTests.cs: nd)|\((X11|Xorg|Wayland)\
+    tests/Shared/SessionRemedyGuardTests.cs: |Xfce|Cinnamon|MATE)\s*(on\s+(Xorg|X11|Wayla
+    tests/Shared/SessionRemedyGuardTests.cs: nd)|\((X11|Xorg|Wayland)\
+    tests/Shared/SessionRemedyGuardTests.cs: only - log in with 'Ubuntu on Xorg'.\");")] 
+    tests/Shared/SessionRemedyGuardTests.cs:  only (log in with 'Ubuntu on Xorg')\"")] [I
+    tests/Shared/SessionRemedyGuardTests.cs: ted - log in with \"Ubuntu on Xorg\".")] [In
+    tests/Shared/SessionRemedyGuardTests.cs: on Ubuntu, choose \"Ubuntu on Xorg\" at\n" +
+    tests/Shared/SessionRemedyGuardTests.cs: neData("log in with 'GNOME on Xorg'")] [Inli
+    tests/Shared/SessionRemedyGuardTests.cs: e an X11 session, \"Ubuntu on Xorg\", is ins
+== P2 /(log ?in|sign ?in|choose|select|switch to)[^.;]{0,60}(on xorg|on x11|\(x11\)|\(xorg\))/  LINE=10  JOINED=10
+-- line:
+    tests/Shared/SessionRemedyGuardTests.cs:11:// Four places told the user to log in with "Ubuntu on Xorg": the runtime refusal
+    tests/Shared/SessionRemedyGuardTests.cs:36:            "log in with 'Ubuntu on Xorg'",
+    tests/Shared/SessionRemedyGuardTests.cs:38:            "log in with \"Ubuntu on Xorg\"",
+    tests/Shared/SessionRemedyGuardTests.cs:40:            "choose \"Ubuntu on Xorg\" at the login screen",
+    tests/Shared/SessionRemedyGuardTests.cs:125:            + "                        + \"session only - log in with 'Ubuntu on Xorg'.\");")]
+    tests/Shared/SessionRemedyGuardTests.cs:127:            "[[ \"${XDG_SESSION_TYPE:-x11}\" == \"wayland\" ]] && fail \"this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')\"")]
+    tests/Shared/SessionRemedyGuardTests.cs:130:            + "Linux. Wayland sessions are not supported - log in with \"Ubuntu on Xorg\".")]
+    tests/Shared/SessionRemedyGuardTests.cs:133:            + "  Wayland by default, so log in to an X11 session first (on Ubuntu, choose \"Ubuntu on Xorg\" at\n"
+    tests/Shared/SessionRemedyGuardTests.cs:145:        [InlineData("log in with 'GNOME on Xorg'")]
+    tests/Shared/SessionRemedyGuardTests.cs:146:        [InlineData("select Plasma (X11) at the login screen")]
+-- joined:
+    tests/Shared/SessionRemedyGuardTests.cs:  Four places told the user to log in with "Ubuntu on Xorg": the run
+    tests/Shared/SessionRemedyGuardTests.cs: nd install.sh:93 (installer) "log in with 'Ubuntu on Xorg'", // REA
+    tests/Shared/SessionRemedyGuardTests.cs: DME.md:76 "log in with \"Ubuntu on Xorg\"", // do
+    tests/Shared/SessionRemedyGuardTests.cs: iew Gate rejected on PR #201 "choose \"Ubuntu on Xorg\" at the 
+    tests/Shared/SessionRemedyGuardTests.cs: an instruction to log in to / choose / select / switch /// to a NAMED desktop session ("Ubuntu on Xorg", "GNOME 
+    tests/Shared/SessionRemedyGuardTests.cs:  \"\n" + " + \"session only - log in with 'Ubuntu on Xorg'.\");")] 
+    tests/Shared/SessionRemedyGuardTests.cs: es on Linux records X11 only (log in with 'Ubuntu on Xorg')\"")] [I
+    tests/Shared/SessionRemedyGuardTests.cs:  sessions are not supported - log in with \"Ubuntu on Xorg\".")] [In
+    tests/Shared/SessionRemedyGuardTests.cs: n" + " Wayland by default, so log in to an X11 session first (on Ubuntu, choose \"Ubuntu on Xorg\" at\n" +
+    tests/Shared/SessionRemedyGuardTests.cs: ned); } [Theory] [InlineData("log in with 'GNOME on Xorg'")] [InlineData("select Plasma (X11) at the lo

@@ -1,0 +1,80 @@
+QA round 2: default desktop package set (apt-get install -s ubuntu-desktop-minimal, recommends on) - is each thing install.sh checks before the session check already present?
+---- sim.sh
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+grep PRETTY_NAME /etc/os-release
+apt-get update -q >/dev/null 2>&1; echo "update exit=$?"
+apt-get install -s -y ubuntu-desktop-minimal > /tmp/sim.txt 2>&1; echo "sim exit=$?"
+echo "Inst lines: $(grep -c '^Inst ' /tmp/sim.txt)"
+for p in ubuntu-desktop-minimal gnome-shell mutter-common xwayland x11-xserver-utils ffmpeg libvlc5 libvlccore9 vlc-plugin-base; do
+  if grep -qE "^Inst $p " /tmp/sim.txt; then echo "$p: IN default set ($(grep -E "^Inst $p " /tmp/sim.txt | head -1 | awk '{print $3}'))"; else echo "$p: NOT in default set"; fi
+done
+grep -E '^Inst (libvlc|ffmpeg|x11-xserver)' /tmp/sim.txt
+---- output
+PRETTY_NAME="Ubuntu 25.10"
+update exit=0
+sim exit=0
+Inst lines: 1287
+ubuntu-desktop-minimal: IN default set ((1.560)
+gnome-shell: IN default set ((49.0-1ubuntu1.3)
+mutter-common: IN default set ((49.0-2ubuntu5.3)
+xwayland: IN default set ((2:24.1.6-1ubuntu1.1)
+x11-xserver-utils: IN default set ((7.7+11)
+ffmpeg: NOT in default set
+libvlc5: NOT in default set
+libvlccore9: NOT in default set
+vlc-plugin-base: NOT in default set
+Inst x11-xserver-utils (7.7+11 Ubuntu:25.10/questing [amd64])
+----
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+update exit=0
+sim exit=0
+Inst lines: 1272
+ubuntu-desktop-minimal: IN default set ((1.570.4)
+gnome-shell: IN default set ((50.1-0ubuntu1.5)
+mutter-common: IN default set ((50.1-0ubuntu2.5)
+xwayland: IN default set ((2:24.1.10-1)
+x11-xserver-utils: IN default set ((7.7+11build1)
+ffmpeg: NOT in default set
+libvlc5: NOT in default set
+libvlccore9: NOT in default set
+vlc-plugin-base: NOT in default set
+Inst x11-xserver-utils (7.7+11build1 Ubuntu:26.04/resolute [amd64])
+----
+
+QA round 2: install.sh from 8ec74ab run as a sudo-capable non-root user with XDG_SESSION_TYPE=wayland, ffmpeg and libvlc absent, xrandr present (as in the default set above). ubuntu:26.04 container.
+---- inst.sh
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
+grep PRETTY_NAME /etc/os-release
+apt-get update -q >/dev/null 2>&1; apt-get install -y -q --no-install-recommends sudo x11-xserver-utils >/dev/null 2>&1; echo "base apt exit=$?"
+useradd -m tester; echo 'tester ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/t
+mkdir -p /pb/agenteyes /pb/agenteyes-app; printf '#!/bin/sh\necho FAKE\n' > /pb/agenteyes/agenteyes; cp /pb/agenteyes/agenteyes /pb/agenteyes-app/AgentEyesDesktop; chmod +x /pb/*/*
+echo "before: ffmpeg=$(command -v ffmpeg || echo none) libvlc5=$(dpkg-query -W -f='${Status}' libvlc5 2>/dev/null || echo none)"
+su tester -c 'cd /home/tester && XDG_SESSION_TYPE=wayland bash /repo/scripts/linux/install.sh --prebuilt /pb --no-start --no-signin' 2>&1 | grep -vE '^(Get|Preparing|Unpacking|Setting up|Selecting|Processing|\(Reading)' | tail -15
+echo "installer exit=${PIPESTATUS[0]}"
+echo "after: ffmpeg=$(command -v ffmpeg || echo none) libvlc5=$(dpkg-query -W -f='${Status}' libvlc5 2>/dev/null || echo none)"
+echo "AgentEyes files in the user's home after:"; find /home/tester -iname '*agenteyes*' | head; echo "(end)"
+---- output
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+base apt exit=0
+before: ffmpeg=none libvlc5=none
+0 upgraded, 76 newly installed, 0 to remove and 4 not upgraded.
+Need to get 12.0 MB of archives.
+After this operation, 49.9 MB of additional disk space will be used.
+Fetched 12.0 MB in 1s (12.5 MB/s)
+Adding 'diversion of /usr/bin/luit to /usr/bin/luit.x11-utils by luit'
+Adding 'diversion of /usr/share/man/man1/luit.1.gz to /usr/share/man/man1/luit.x11-utils.1.gz by luit'
+Creating group 'input' with GID 994.
+Creating group 'sgx' with GID 993.
+Creating group 'clock' with GID 992.
+Creating group 'kvm' with GID 991.
+Creating group 'render' with GID 990.
+update-alternatives: using /usr/bin/xdg-open to provide /usr/bin/open (open) in auto mode
+update-alternatives: warning: skip creation of /usr/share/man/man1/open.1.gz because associated file /usr/share/man/man1/xdg-open.1.gz (of link group open) does not exist
+[OK] video playback library installed
+[FAIL] this is a Wayland session. AgentEyes on Linux records an X11 desktop session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the AgentEyes README.
+installer exit=1
+after: ffmpeg=/usr/bin/ffmpeg libvlc5=install ok installed
+AgentEyes files in the user's home after:
+(end)

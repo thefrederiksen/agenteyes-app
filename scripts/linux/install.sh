@@ -90,7 +90,9 @@ if [[ "$shared_libs" != *"libvlc.so "* || "$shared_libs" != *"libvlccore.so"* ]]
         || fail "installing libvlc failed - run: sudo apt install -y libvlc-dev vlc-plugin-base vlc-plugin-video-output"
     ok "video playback library installed"
 fi
-[[ "${XDG_SESSION_TYPE:-x11}" == "wayland" ]] && fail "this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')"
+# Issue #221: the refusal names NO remedy. It used to name an X11 login session that a default install
+# of Ubuntu 25.10 and 26.04 does not have; a session this script has not verified is present is never named.
+[[ "${XDG_SESSION_TYPE:-x11}" == "wayland" ]] && fail "this is a Wayland session. AgentEyes on Linux records an X11 desktop session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the AgentEyes README."
 
 # The temporary build folders this script made, removed on exit. A --prebuilt folder is never in it.
 made=()

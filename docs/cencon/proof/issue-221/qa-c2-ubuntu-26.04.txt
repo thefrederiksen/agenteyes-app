@@ -1,0 +1,65 @@
+== image
+Tue Nov 24 13:02:44 UTC 2026
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+VERSION_ID="26.04"
+VERSION_CODENAME=resolute
+== apt-get update (archive as shipped in the image)
+== install ubuntu-desktop-minimal WITH recommends (the installer's default selection)
+apt exit=0
+== installed versions
+gdm3 50.1-0ubuntu0.1
+gnome-session-bin 50.1-0ubuntu0.1
+gnome-shell 50.1-0ubuntu1.5
+ubuntu-desktop-minimal 1.570.4
+ubuntu-session 50.1-0ubuntu0.1
+xserver-xorg-core 
+xwayland 2:24.1.10-1
+== ls /usr/share/xsessions/
+ls: cannot access '/usr/share/xsessions/': No such file or directory
+== ls /usr/share/wayland-sessions/
+total 24
+drwxr-xr-x 2 root root  4096 Nov 24 13:11 .
+drwxr-xr-x 1 root root 12288 Nov 24 13:13 ..
+-rw-r--r-- 1 root root   281 Jun 23 09:32 ubuntu.desktop
+== Name= lines of every session file
+/usr/share/wayland-sessions/ubuntu.desktop: Name=Ubuntu
+== who owns them
+dpkg-query: no path found matching pattern /usr/share/xsessions
+ubuntu-session: /usr/share/wayland-sessions
+== files of ubuntu-session
+/usr/share/gnome-session/sessions/ubuntu.session
+/usr/share/wayland-sessions/ubuntu.desktop
+== repository: any package whose file list would put an Xorg session in place? (candidates by name)
+gnome-session-bin - GNOME Session Manager - Minimal runtime
+gnome-session-canberra - GNOME session log in and log out sound events
+gnome-session-common - GNOME Session Manager - common files
+ubuntu-session - Ubuntu session with GNOME Shell
+gnome-session - GNOME Session Manager - default GNOME session
+gnome-session-flashback - traditional desktop session based on GNOME technologies
+openbox-gnome-session - command line utility to run Openbox as GNOME session
+== gnome-shell: does the installed binary offer an X11 mode?
+== done
+== QA: gnome-shell/mutter package relations to xwayland
+mutter-common
+libmutter-18-0:amd64 50.1-0ubuntu2.5
+mutter-common 50.1-0ubuntu2.5
+mutter-common-bin 50.1-0ubuntu2.5
+xwayland 2:24.1.10-1
+== QA: libmutter strings mentioning DISPLAY / Xwayland on-demand
+lib=/usr/lib/x86_64-linux-gnu/libmutter-18.so.0
+.mutter-Xwaylandauth.XXXXXX
+/usr/bin/Xwayland
+Can't send signal, Xwayland not running
+Cannot grant Xwayland grab to surface %p
+Failed to finish waiting for Xwayland: %s
+MetaWindowXwayland
+MetaXwaylandSurface
+Run wayland compositor without starting Xwayland
+XAUTHORITY
+Xwayland disappeared
+Xwayland exited unexpectedly
+Xwayland terminated, exiting since it was mandatory
+autoclose-xwayland disabled, requires Xwayland on demand
+== QA: mutter experimental/x11 gsettings keys
+== QA: gnome-shell --help (full x11 lines)
+exit=0

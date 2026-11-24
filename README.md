@@ -56,9 +56,45 @@ AgentEyes records **without an account**. Signing in to DevThrottle is optional 
 unlocks the AI stages (transcription, titles, walkthroughs) - capture, camera, preview and
 overlay all work signed out.
 
+### Supported Linux sessions
+
+**AgentEyes on Linux records X11 desktop sessions only and does not support Wayland, so it cannot
+record on a default desktop install of Ubuntu 25.10 or 26.04, which installs no X11 session; it is
+tested on Ubuntu 24.04 LTS in an X11 session.**
+
+| Ubuntu release | X11 session in the default desktop install | AgentEyes on Linux |
+|---|---|---|
+| 24.04 LTS | yes - `/usr/share/xsessions/` holds `ubuntu-xorg.desktop` ("Ubuntu on Xorg") | records; the release and session it is tested on |
+| 25.10 | no - there is no `/usr/share/xsessions/` and no Xorg server | not supported; a recording made there is black (see below) |
+| 26.04 LTS | no - there is no `/usr/share/xsessions/` and no Xorg server | not supported; a recording made there is black (see below) |
+| any other | not measured | not tested |
+
+The 25.10 and 26.04 rows were measured at the package level: the default desktop package
+(`ubuntu-desktop-minimal`, with its recommended packages) installed into a clean container of each
+release, and its session files listed. That is what a default install puts on the login screen; it
+is not a photograph of one. On both releases the installed GNOME Shell also has no X11 mode
+(`gnome-shell --help` lists no `--x11`; on 24.04 it does), so AgentEyes names no packages to install
+there. That is all that was measured: whether any other X11 session from the Ubuntu archive records
+with AgentEyes on these releases was not tested. Recording a Wayland session is not built. Proof:
+[docs/cencon/proof/issue-221/](docs/cencon/proof/issue-221/).
+
+On a Wayland session the installer stops with "Wayland sessions are not supported", but not first
+thing: it checks for ffmpeg and the video playback library (libvlc) before it checks the session, and
+installs whichever is missing with `apt-get`, asking for root. The default desktop package set of
+25.10 and 26.04 includes neither, so on those releases it asks for root and installs both, and only
+then stops. It stops before it installs the AgentEyes recorder or app.
+
+The recorder does NOT reliably refuse a Wayland session. It refuses only when the session has no X
+display at all. A Wayland session that also provides an X display through Xwayland is not refused: on
+mutter 50.1 (the compositor set both `WAYLAND_DISPLAY` and `DISPLAY=:0`), `agenteyes screens`, `shot`
+and `video` all exited 0 and printed `[ok]`, and the screenshot and the recording were black. That was
+measured on headless mutter in a container - not in a GDM login session and not in the environment of
+the recorder's systemd user service. The defect is tracked in
+[issue #227](https://github.com/thefrederiksen/agenteyes-app/issues/227).
+
 ### Linux (x64, X11 desktop)
 
-No repository and no .NET - the recorder and the app come prebuilt. In a terminal:
+Read [Supported Linux sessions](#supported-linux-sessions) first. No repository and no .NET - the recorder and the app come prebuilt. In a terminal:
 
 ```bash
 curl -fsSLO https://github.com/thefrederiksen/agenteyes-app/releases/latest/download/agenteyes-install-linux-x64.sh
@@ -73,7 +109,7 @@ app grid, and in the tray at login). ffmpeg and libvlc come from your distributi
 missing it asks for permission to `apt-get install` it - the only step that needs root. It ends by
 signing you in to DevThrottle in your browser; `--no-signin` skips that (`agenteyes signin` later).
 To **update**, download the newer release's script and run it again; there is no in-app updater on
-Linux. Wayland sessions are not supported - log in with "Ubuntu on Xorg".
+Linux. Wayland sessions are not supported (see [Supported Linux sessions](#supported-linux-sessions)).
 
 The first release that carries the Linux asset is the one after v1.12.0; until it is cut, that
 URL answers 404 and Linux installs from source (`scripts/linux/install.sh`).

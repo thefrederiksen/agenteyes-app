@@ -1,0 +1,197 @@
+QA priority 1: a GNOME compositor in Wayland mode - does it give its clients DISPLAY, and what does AgentEyes then do.
+Method: throwaway ubuntu:26.04 container; mutter 50.1 (libmutter-18, the library Ubuntu 26.04 gnome-shell 50.1 runs on)
+started as 'mutter --wayland --headless --virtual-monitor 1280x720 -- <client script>' under dbus-run-session.
+NOT a GDM-started gnome-shell login session. Nothing on the host was touched. /ae-main = recorder published from origin/main d38141c,
+/ae-branch = recorder published from cd6d6c6 (both: dotnet publish AgentEyes.Core -c Release -f net8.0 -r linux-x64 --self-contained).
+
+################ RUN 1 (env, xrandr, agenteyes screens main+branch, raw ffmpeg x11grab)
+#!/bin/bash
+set -u; export DEBIAN_FRONTEND=noninteractive
+grep PRETTY_NAME /etc/os-release
+apt-get update -q >/dev/null 2>&1
+apt-get install -y -q --no-install-recommends mutter xwayland dbus dbus-x11 ffmpeg x11-xserver-utils gtk-3-examples libicu* ca-certificates >/tmp/i.log 2>&1; echo "apt exit=$?"; tail -2 /tmp/i.log
+dpkg-query -W -f='${Package} ${Version}\n' mutter xwayland gnome-shell 2>&1
+echo "== mutter --help (relevant)"; mutter --help 2>&1 | grep -iE 'headless|virtual|x11|wayland|COMMAND|--$' 
+export XDG_RUNTIME_DIR=/tmp/xdg; mkdir -p -m 700 $XDG_RUNTIME_DIR
+unset DISPLAY WAYLAND_DISPLAY
+timeout 180 dbus-run-session -- mutter --wayland --headless --virtual-monitor 1280x720 -- bash /p1/inside.sh > /out/mutter-run.txt 2>&1; echo "mutter run exit=$?"
+grep -vE 'Gtk-WARNING|libEGL|MESA|dbind' /out/mutter-run.txt | head -80
+---- client script
+#!/bin/bash
+# Runs as the client command of a headless Wayland mutter. Prints what a client of the session sees.
+echo "== client env as given by the compositor"
+for v in WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE XAUTHORITY; do echo "$v=${!v-<unset>}"; done
+echo "== X sockets"; ls -la /tmp/.X11-unix/ 2>&1
+echo "== xrandr against \$DISPLAY"; timeout 20 xrandr 2>&1 | head -4
+for b in main branch; do
+  echo "== agenteyes ($b) screens"; timeout 30 /ae-$b/agenteyes screens 2>&1 | head -8; echo "exit=$?"
+done
+echo "== ffmpeg x11grab of \$DISPLAY root (what the recorder records), no X11 client drawing"
+timeout 30 ffmpeg -hide_banner -loglevel error -f x11grab -i "$DISPLAY" -frames:v 1 -y /out/root-empty.png; echo "ffmpeg exit=$?"
+ffmpeg -hide_banner -i /out/root-empty.png -vf signalstats,metadata=print:key=lavfi.signalstats.YMAX -f null - 2>&1 | grep -o 'YMAX=[0-9]*' | head -1
+echo "== a Wayland-native GTK window (GDK_BACKEND=wayland) and an X11 GTK window (GDK_BACKEND=x11)"
+GDK_BACKEND=wayland gtk3-demo --run=pickers >/tmp/w.log 2>&1 & W=$!
+sleep 6; timeout 30 ffmpeg -hide_banner -loglevel error -f x11grab -i "$DISPLAY" -frames:v 1 -y /out/root-with-wayland-client.png
+ffmpeg -hide_banner -i /out/root-with-wayland-client.png -vf signalstats,metadata=print:key=lavfi.signalstats.YMAX -f null - 2>&1 | grep -o 'YMAX=[0-9]*' | head -1
+echo "wayland client alive: $(kill -0 $W 2>/dev/null && echo yes || echo no)"; head -3 /tmp/w.log
+GDK_BACKEND=x11 gtk3-demo --run=pickers >/tmp/x.log 2>&1 & X=$!
+sleep 6; timeout 30 ffmpeg -hide_banner -loglevel error -f x11grab -i "$DISPLAY" -frames:v 1 -y /out/root-with-x11-client.png
+ffmpeg -hide_banner -i /out/root-with-x11-client.png -vf signalstats,metadata=print:key=lavfi.signalstats.YMAX -f null - 2>&1 | grep -o 'YMAX=[0-9]*' | head -1
+echo "x11 client alive: $(kill -0 $X 2>/dev/null && echo yes || echo no)"; head -3 /tmp/x.log
+kill $W $X 2>/dev/null; echo "== inside done"
+---- output
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+apt exit=0
+update-alternatives: warning: skip creation of /usr/share/man/man1/x-window-manager.1.gz because associated file /usr/share/man/man1/mutter.1.gz (of link group x-window-manager) does not exist
+Processing triggers for libc-bin (2.43-2ubuntu2.7) ...
+gnome-shell 
+mutter 50.1-0ubuntu2.5
+xwayland 2:24.1.10-1
+== mutter --help (relevant)
+  mutter [OPTION...] [[--] COMMAND [ARGUMENT...]]
+  --wayland                         Run as a wayland compositor
+  --no-x11                          Run wayland compositor without starting Xwayland
+  --wayland-display                 Specify Wayland display name to use
+  --headless                        Run as a headless display server
+  --virtual-monitor                 Add persistent virtual monitor (WxH or WxH@R)
+mutter run exit=0
+libmutter-Message: 13:18:35.991: Running Mutter (using mutter 50.1) as a Wayland display server
+libmutter-Message: 13:18:36.149: Created surfaceless renderer without GPU
+libmutter-Message: 13:18:36.192: Added virtual monitor Meta-0
+libmutter-Message: 13:18:36.198: Using public X11 display :0, (using unix:/tmp/.X11-unix/X1 for managed services)
+libmutter-Message: 13:18:36.198: Using Wayland display name 'wayland-0'
+
+(mutter:5456): mutter-WARNING **: 13:18:36.210: Failed to acquire org.freedesktop.locale1 proxy: Could not connect: No such file or directory
+
+(mutter:5456): libmutter-WARNING **: 13:18:36.221: Failed to connect to colord daemon: Could not connect: No such file or directory
+== client env as given by the compositor
+WAYLAND_DISPLAY=wayland-0
+DISPLAY=:0
+XDG_SESSION_TYPE=<unset>
+XAUTHORITY=/tmp/xdg/.mutter-Xwaylandauth.6R0BZ3
+== X sockets
+total 8
+drwxr-xr-t 2 root root 4096 Nov 24 13:18 .
+drwxrwxrwt 1 root root 4096 Nov 24 13:18 ..
+srwxr-xr-x 1 root root    0 Nov 24 13:18 X0
+srwxr-xr-x 1 root root    0 Nov 24 13:18 X1
+== xrandr against $DISPLAY
+Xwayland glamor: GBM Wayland interfaces not available
+Failed to initialize glamor, falling back to sw
+Screen 0: minimum 16 x 16, current 1280 x 720, maximum 32767 x 32767
+Meta-0 connected 1280x720+0+0 (normal left inverted right x axis y axis) 0mm x 0mm
+   1280x720      59.86*+
+   800x600       59.86  
+== agenteyes (main) screens
+MONITORS (X display :0, xrandr)
+  #  Resolution      Position        Primary  Name
+  1   1280 x 720    (0, 0)          yes      Meta-0
+
+MICROPHONES - PulseAudio sources (--mic "fragment" matches these)
+  (none found)
+
+SYSTEM AUDIO (--mix / --loopback record this)
+exit=0
+== agenteyes (branch) screens
+MONITORS (X display :0, xrandr)
+  #  Resolution      Position        Primary  Name
+  1   1280 x 720    (0, 0)          yes      Meta-0
+
+MICROPHONES - PulseAudio sources (--mic "fragment" matches these)
+  (none found)
+
+SYSTEM AUDIO (--mix / --loopback record this)
+exit=0
+== ffmpeg x11grab of $DISPLAY root (what the recorder records), no X11 client drawing
+ffmpeg exit=0
+YMAX=235
+== a Wayland-native GTK window (GDK_BACKEND=wayland) and an X11 GTK window (GDK_BACKEND=x11)
+YMAX=235
+wayland client alive: yes
+
+WARNING: Glycin running without sandbox.
+
+YMAX=235
+x11 client alive: yes
+
+WARNING: Glycin running without sandbox.
+== inside done
+(EE) failed to write to Xwayland fd: Broken pipe
+libmutter-Message: 13:18:50.163: Removed virtual monitor Meta-0
+
+################ RUN 2 (agenteyes shot main+branch, shot with a Wayland window, shot with an X11 window, agenteyes video)
+#!/bin/bash
+export DEBIAN_FRONTEND=noninteractive; grep PRETTY_NAME /etc/os-release
+apt-get update -q >/dev/null 2>&1
+apt-get install -y -q --no-install-recommends mutter xwayland dbus ffmpeg x11-xserver-utils x11-apps gtk-3-examples libicu* ca-certificates >/tmp/i.log 2>&1; echo "apt exit=$?"
+export XDG_RUNTIME_DIR=/tmp/xdg; mkdir -p -m 700 $XDG_RUNTIME_DIR; unset DISPLAY WAYLAND_DISPLAY
+timeout 300 dbus-run-session -- mutter --wayland --headless --virtual-monitor 1280x720 -- bash /p1/inside2.sh > /out/run2.txt 2>&1; echo "mutter exit=$?"
+grep -vE 'Gtk-WARNING|libEGL|MESA|dbind|Glycin|^$' /out/run2.txt | head -60
+---- client script
+#!/bin/bash
+echo "DISPLAY=${DISPLAY-<unset>} WAYLAND_DISPLAY=${WAYLAND_DISPLAY-<unset>}"
+stat_y() { ffmpeg -hide_banner -i "$1" -vf signalstats,metadata=print -f null - 2>&1 | grep -oE 'Y(AVG|MAX)=[0-9.]+' | head -2 | tr '\n' ' '; echo " md5=$(md5sum < "$1" | cut -c1-12)"; }
+for b in main branch; do
+  echo "== agenteyes ($b) shot --screen 1, nothing open"; timeout 60 /ae-$b/agenteyes shot --screen 1 --out /out/shot-$b --label empty 2>&1 | tail -3; echo "exit=$?"
+done
+f=$(find /out/shot-branch -name '*.png' | head -1); echo "branch shot file: $f"; [ -n "$f" ] && stat_y "$f" && cp "$f" /out/A-empty.png
+echo "== open a Wayland-native window (gtk3-demo, GDK_BACKEND=wayland)"
+GDK_BACKEND=wayland gtk3-demo >/tmp/w.log 2>&1 & W=$!; sleep 8; echo "alive: $(kill -0 $W 2>/dev/null && echo yes || echo no)"
+timeout 60 /ae-branch/agenteyes shot --screen 1 --out /out/shot-wl --label wl 2>&1 | tail -1
+f=$(find /out/shot-wl -name '*.png' | head -1); [ -n "$f" ] && stat_y "$f" && cp "$f" /out/B-wayland-window.png
+echo "== CONTROL: open an X11 window too (xclock -geometry 400x400+100+100 -bg white)"
+xclock -geometry 400x400+100+100 -bg white >/tmp/x.log 2>&1 & X=$!; sleep 5; echo "alive: $(kill -0 $X 2>/dev/null && echo yes || echo no)"; head -2 /tmp/x.log
+timeout 60 /ae-branch/agenteyes shot --screen 1 --out /out/shot-x --label x 2>&1 | tail -1
+f=$(find /out/shot-x -name '*.png' | head -1); [ -n "$f" ] && stat_y "$f" && cp "$f" /out/C-wayland-plus-x11-window.png
+echo "== agenteyes (branch) video --screen 1 --seconds 3"
+timeout 90 /ae-branch/agenteyes video --screen 1 --seconds 3 --out /out/vid --label v 2>&1 | tail -4; echo "exit=$?"
+find /out/vid -name '*.mp4' -exec ls -la {} \;
+kill $W $X 2>/dev/null; echo "== inside2 done"
+---- output
+PRETTY_NAME="Ubuntu 26.04.1 LTS"
+apt exit=0
+mutter exit=0
+libmutter-Message: 13:21:37.414: Running Mutter (using mutter 50.1) as a Wayland display server
+libmutter-Message: 13:21:37.557: Created surfaceless renderer without GPU
+libmutter-Message: 13:21:37.599: Added virtual monitor Meta-0
+libmutter-Message: 13:21:37.605: Using public X11 display :0, (using unix:/tmp/.X11-unix/X1 for managed services)
+libmutter-Message: 13:21:37.606: Using Wayland display name 'wayland-0'
+(mutter:5609): mutter-WARNING **: 13:21:37.618: Failed to acquire org.freedesktop.locale1 proxy: Could not connect: No such file or directory
+(mutter:5609): libmutter-WARNING **: 13:21:37.627: Failed to connect to colord daemon: Could not connect: No such file or directory
+DISPLAY=:0 WAYLAND_DISPLAY=wayland-0
+== agenteyes (main) shot --screen 1, nothing open
+Xwayland glamor: GBM Wayland interfaces not available
+Failed to initialize glamor, falling back to sw
+[ok] saved  /out/shot-main/shots/monitor1_full.png
+[ok] copied to clipboard
+exit=0
+== agenteyes (branch) shot --screen 1, nothing open
+[ok] saved  /out/shot-branch/shots/monitor1_full.png
+[ok] copied to clipboard
+exit=0
+branch shot file: /out/shot-branch/shots/monitor1_full.png
+YAVG=16.0139 YMAX=235  md5=f005d823e135
+== open a Wayland-native window (gtk3-demo, GDK_BACKEND=wayland)
+alive: yes
+[ok] copied to clipboard
+YAVG=16.0139 YMAX=235  md5=f005d823e135
+== CONTROL: open an X11 window too (xclock -geometry 400x400+100+100 -bg white)
+alive: yes
+[ok] copied to clipboard
+YAVG=16.0139 YMAX=235  md5=f005d823e135
+== agenteyes (branch) video --screen 1 --seconds 3
+     hotkeys: S=marker screenshot  Q=stop
+REC 00m00s   REC 00m00s   REC 00m00s   REC 00m00s   REC 00m01s   REC 00m01s   REC 00m01s   REC 00m01s   REC 00m02s   REC 00m02s   REC 00m02s   REC 00m02s   
+[ok] recording.mp4 (00m04s, 8 KB), 0 marker(s)
+[ok] manifest.json written to /out/vid
+exit=0
+-rw-r--r-- 1 root root 7884 Nov 24 13:21 /out/vid/recording.mp4
+== inside2 done
+libmutter-Message: 13:21:58.011: Removed virtual monitor Meta-0
+
+---- md5 of the shots
+f005d823e135ba7b53f637fe1da98227  shot-main/shots/monitor1_full.png
+f005d823e135ba7b53f637fe1da98227  shot-branch/shots/monitor1_full.png
+f005d823e135ba7b53f637fe1da98227  A-empty.png
+f005d823e135ba7b53f637fe1da98227  B-wayland-window.png
+f005d823e135ba7b53f637fe1da98227  C-wayland-plus-x11-window.png

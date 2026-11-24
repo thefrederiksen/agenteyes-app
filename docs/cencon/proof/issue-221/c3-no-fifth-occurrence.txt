@@ -1,0 +1,26 @@
+repo head: b74e2fd, working tree 1 changed path(s)
+Pattern A (the remedy): log in with ['"]?Ubuntu on Xorg|choose ['"]?Ubuntu on Xorg
+Pattern B (any Xorg session name): Ubuntu on Xorg|GNOME on Xorg|on Xorg['"]
+
+== 1. POSITIVE CONTROL: plant a hit WRAPPED across a line break, as README.md:75-76 wrapped before
+  LINE   A: 0 hit(s)
+  JOINED A: 1 hit(s)
+    docs/releases/zz-planted-control-221.md: log in with "Ubuntu on Xorg
+  planted file removed: yes
+
+== 2. POSITIVE CONTROL: plant a hit on ONE line
+  LINE   A: 1 hit(s)
+    docs/releases/zz-planted-control-221.md:1:log in with 'Ubuntu on Xorg'
+  JOINED A: 1 hit(s)
+    docs/releases/zz-planted-control-221.md: log in with 'Ubuntu on Xorg
+  planted file removed: yes
+
+== 3. THE REAL SEARCH, nothing planted
+  LINE   A: 0 hit(s)
+  JOINED A: 0 hit(s)
+  LINE   B: 2 hit(s)
+    README.md:67:| 24.04 LTS | yes - `/usr/share/xsessions/` holds `ubuntu-xorg.desktop` ("Ubuntu on Xorg") | records; the release and session it is tested on |
+    docs/releases/v1.12.0.md:71:  where an X11 session, "Ubuntu on Xorg", is installed. Newer Ubuntu releases do not install an
+  JOINED B: 2 hit(s)
+    README.md: Ubuntu on Xorg
+    docs/releases/v1.12.0.md: Ubuntu on Xorg

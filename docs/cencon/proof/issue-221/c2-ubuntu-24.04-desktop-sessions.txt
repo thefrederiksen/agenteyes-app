@@ -1,0 +1,64 @@
+== image
+Tue Nov 24 12:17:09 UTC 2026
+PRETTY_NAME="Ubuntu 24.04.5 LTS"
+VERSION_ID="24.04"
+VERSION_CODENAME=noble
+== apt-get update (archive as shipped in the image)
+Fetched 34.2 MB in 7s (4662 kB/s)
+Reading package lists...
+== install ubuntu-desktop-minimal WITH recommends (the installer's default selection)
+apt exit=0
+Processing triggers for libc-bin (2.39-0ubuntu8.12) ...
+Processing triggers for dbus (1.14.10-4ubuntu4.1) ...
+Processing triggers for sgml-base (1.31) ...
+== installed versions
+gdm3 46.2-1ubuntu1~24.04.9
+gnome-session-bin 46.0-1ubuntu4
+gnome-shell 46.0-0ubuntu6~24.04.17
+ubuntu-desktop-minimal 1.539.2
+ubuntu-session 46.0-1ubuntu4
+xserver-xorg-core 2:21.1.12-1ubuntu1.9
+xwayland 2:23.2.6-1ubuntu0.8
+== ls /usr/share/xsessions/
+total 28
+drwxr-xr-x 2 root root  4096 Nov 24 12:23 .
+drwxr-xr-x 1 root root 12288 Nov 24 12:26 ..
+-rw-r--r-- 1 root root   301 Apr 15  2024 ubuntu-xorg.desktop
+-rw-r--r-- 1 root root   318 Apr 15  2024 ubuntu.desktop
+== ls /usr/share/wayland-sessions/
+total 28
+drwxr-xr-x 2 root root  4096 Nov 24 12:23 .
+drwxr-xr-x 1 root root 12288 Nov 24 12:26 ..
+-rw-r--r-- 1 root root   330 Apr 15  2024 ubuntu-wayland.desktop
+-rw-r--r-- 1 root root   318 Apr 15  2024 ubuntu.desktop
+== Name= lines of every session file
+/usr/share/xsessions/ubuntu-xorg.desktop: Name=Ubuntu on Xorg
+/usr/share/xsessions/ubuntu.desktop: Name=Ubuntu
+/usr/share/wayland-sessions/ubuntu-wayland.desktop: Name=Ubuntu on Wayland
+/usr/share/wayland-sessions/ubuntu.desktop: Name=Ubuntu
+== who owns them
+ubuntu-session: /usr/share/xsessions
+ubuntu-session: /usr/share/wayland-sessions
+== files of ubuntu-session
+/usr/share/gnome-session/sessions/ubuntu.session
+/usr/share/wayland-sessions/ubuntu-wayland.desktop
+/usr/share/wayland-sessions/ubuntu.desktop
+/usr/share/xsessions/ubuntu-xorg.desktop
+/usr/share/xsessions/ubuntu.desktop
+== repository: any package whose file list would put an Xorg session in place? (candidates by name)
+gnome-session-bin - GNOME Session Manager - Minimal runtime
+gnome-session-canberra - GNOME session log in and log out sound events
+gnome-session-common - GNOME Session Manager - common files
+ubuntu-session - Ubuntu session with GNOME Shell
+gnome-session - GNOME Session Manager - GNOME 3 session
+gnome-session-flashback - traditional desktop session based on GNOME technologies
+openbox-gnome-session - command line utility to run Openbox as GNOME session
+== gnome-shell: does the installed binary offer an X11 mode?
+  --wayland                 Run as a wayland compositor
+  --nested                  Run as a nested compositor
+  --no-x11                  Run wayland compositor without starting Xwayland
+  --wayland-display         Specify Wayland display name to use
+  --display-server          Run as a full display server, rather than nested
+  --x11                     Run with X11 backend
+== done
+exit=0

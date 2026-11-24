@@ -1,0 +1,17 @@
+QA round 2: guard reinstated, one string at a time, in its real file (main's text), then restored. Runs: dotnet test tests/AgentEyes.Tests.Linux -c Release --filter FullyQualifiedName~SessionRemedyGuard
+== A: install.sh refusal reverted to main's text (line form)
+ scripts/linux/install.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [287 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [327 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.ProductCode_SrcAndScripts_NamesNoLoginSession [211 ms]
+Failed!  - Failed:     3, Passed:     9, Skipped:     0, Total:    12, Duration: 1 s - AgentEyes.Tests.Linux.dll (net8.0)
+== B: README.md main's sentence reinstated, WRAPPED across a CRLF line break between 'with' and the session name
+-Linux. Wayland sessions are not supported (see [Supported Linux sessions](#supported-linux-sessions)).^M$
++Linux. Wayland sessions are not supported - log in with^M$
++"Ubuntu on Xorg".^M$
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [336 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [400 ms]
+Failed!  - Failed:     2, Passed:    10, Skipped:     0, Total:    12, Duration: 1 s - AgentEyes.Tests.Linux.dll (net8.0)
+== restored: full Linux gate
+Passed!  - Failed:     0, Passed:   492, Skipped:     2, Total:   494, Duration: 7 s - AgentEyes.Tests.Linux.dll (net8.0)

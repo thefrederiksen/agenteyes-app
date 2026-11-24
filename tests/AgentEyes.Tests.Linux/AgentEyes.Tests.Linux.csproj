@@ -83,6 +83,8 @@
     <Compile Include="../Shared/MicChainOrderTests.cs" Link="Shared/MicChainOrderTests.cs" />
     <!-- Issue #196: every project that declares a version declares the same one (reads csproj files only). -->
     <Compile Include="../Shared/ReleaseVersionTests.cs" Link="Shared/ReleaseVersionTests.cs" />
+    <!-- Issue #221: no user-facing text tells the reader to log in with a named desktop session (reads files only). -->
+    <Compile Include="../Shared/SessionRemedyGuardTests.cs" Link="Shared/SessionRemedyGuardTests.cs" />
   </ItemGroup>
 
 </Project>

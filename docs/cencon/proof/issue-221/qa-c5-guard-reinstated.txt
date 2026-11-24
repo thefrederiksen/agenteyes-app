@@ -1,0 +1,54 @@
+QA priority 4: each removed string reinstated in its REAL file (python in-place edit), guard + LinuxDisplayTests run, file restored with git checkout. Branch cd6d6c6.
+### BASELINE (nothing reinstated)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 715 ms - AgentEyes.Tests.Linux.dll (net8.0)
+restored: 0 changed
+### 1 LinuxDisplay.cs WaylandRefusal <- main's text
+ src/AgentEyes.Core/Platform/Linux/LinuxDisplay.cs | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+-            "this is a Wayland session with no X display. AgentEyes on Linux records an X11 desktop "
+-            + "session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the "
+-            + "AgentEyes README.";
++            "this is a Wayland session with no X display. AgentEyes on Linux records an X11 "
++            + "session only - log in with 'Ubuntu on Xorg'.";
+  Failed AgentEyes.Tests.Linux.LinuxDisplayTests.Resolve_WaylandDisplayWithoutXDisplay_ThrowsTheWaylandRefusal [5 ms]
+  Failed AgentEyes.Tests.Linux.LinuxDisplayTests.Resolve_WaylandRefusal_NamesNoLoginSession [15 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [171 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [164 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.ProductCode_SrcAndScripts_NamesNoLoginSession [157 ms]
+Failed!  - Failed:     5, Passed:    12, Skipped:     0, Total:    17, Duration: 676 ms - AgentEyes.Tests.Linux.dll (net8.0)
+restored: 0 changed
+### 2 install.sh <- main's line 93
+ scripts/linux/install.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+-[[ "${XDG_SESSION_TYPE:-x11}" == "wayland" ]] && fail "this is a Wayland session. AgentEyes on Linux records an X11 desktop session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the AgentEyes README."
++[[ "${XDG_SESSION_TYPE:-x11}" == "wayland" ]] && fail "this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')"
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [205 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [185 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.ProductCode_SrcAndScripts_NamesNoLoginSession [183 ms]
+Failed!  - Failed:     3, Passed:    14, Skipped:     0, Total:    17, Duration: 776 ms - AgentEyes.Tests.Linux.dll (net8.0)
+restored: 0 changed
+### 3 README.md <- main's line 76
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+-Linux. Wayland sessions are not supported (see [Supported Linux sessions](#supported-linux-sessions)).
++Linux. Wayland sessions are not supported - log in with "Ubuntu on Xorg".
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [164 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [190 ms]
+Failed!  - Failed:     2, Passed:    15, Skipped:     0, Total:    17, Duration: 746 ms - AgentEyes.Tests.Linux.dll (net8.0)
+restored: 0 changed
+### 4 v1.12.0.md <- rejected PR #201 bullet (5a1543c)
+ docs/releases/v1.12.0.md | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+-  session is Wayland. Ubuntu logs in to Wayland by default. The test machine runs Ubuntu 24.04,
+-  where an X11 session, "Ubuntu on Xorg", is installed. Newer Ubuntu releases do not install an
+-  X11 session by default, so that choice may not be on your login screen, and AgentEyes has not
+-  been tested on them. The refusal was read from the script, not seen: the test machine runs X11.
++  Wayland by default, so log in to an X11 session first (on Ubuntu, choose "Ubuntu on Xorg" at
++  the login screen).
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_ContainsNoRemovedSessionRemedy [201 ms]
+  Failed AgentEyes.Tests.Shared.SessionRemedyGuardTests.UserFacingText_AnySurface_NeverTellsTheReaderToChooseANamedSession [181 ms]
+Failed!  - Failed:     2, Passed:    15, Skipped:     0, Total:    17, Duration: 827 ms - AgentEyes.Tests.Linux.dll (net8.0)
+restored: 0 changed
+### FINAL (all restored)
+Passed!  - Failed:     0, Passed:    17, Skipped:     0, Total:    17, Duration: 721 ms - AgentEyes.Tests.Linux.dll (net8.0)
+restored: 0 changed

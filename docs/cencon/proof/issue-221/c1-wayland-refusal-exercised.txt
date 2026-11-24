@@ -1,0 +1,52 @@
+Criterion 1 - the Wayland refusal, EXERCISED, both paths. 2026-11-24T12:39:44Z. Branch head b74e2fd, origin/main d38141c.
+
+WHAT THIS IS AND IS NOT. Every run is in a throwaway docker container from ubuntu:24.04 with ffmpeg,
+x11-xserver-utils and libvlc installed (so the installer reaches its session check), as an unprivileged
+user 'tester'. Nothing on the host is installed, changed, or read: not the desktop, not the login session,
+not the owner's AgentEyes data. NO real Wayland session was used:
+ - installer: XDG_SESSION_TYPE is set by hand to 'wayland', the value a Wayland login sets.
+ - runtime:   DISPLAY is unset and WAYLAND_DISPLAY is set by hand to 'wayland-0'; no compositor runs.
+This proves each refusal is reachable and shows its real output. It does not show a real Wayland desktop.
+Untested and NOT claimed: whether a real GNOME Wayland session sets DISPLAY (through Xwayland); if it
+does, the runtime refusal would not fire there at all. See handoff.md.
+
+=============== INSTALLER (scripts/linux/install.sh) ===============
+### BEFORE (origin/main d38141c): XDG_SESSION_TYPE=wayland bash scripts/linux/install.sh --prebuilt /stub --no-start --no-signin
+[FAIL] this is a Wayland session; AgentEyes on Linux records X11 only (log in with 'Ubuntu on Xorg')
+exit code: 1
+after: ls: cannot access '/home/tester/.local/lib/agenteyes': No such file or directory
+
+### AFTER (branch b74e2fd): XDG_SESSION_TYPE=wayland bash scripts/linux/install.sh --prebuilt /stub --no-start --no-signin
+[FAIL] this is a Wayland session. AgentEyes on Linux records an X11 desktop session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the AgentEyes README.
+exit code: 1
+after: ls: cannot access '/home/tester/.local/lib/agenteyes': No such file or directory
+
+### CONTROL, AFTER (branch b74e2fd), not Wayland - passes the check and installs into the container: XDG_SESSION_TYPE=x11 bash scripts/linux/install.sh --prebuilt /stub --no-start --no-signin
+[OK] using the prebuilt recorder /stub/agenteyes/agenteyes
+Failed to connect to bus: No medium found
+[OK] installed /home/tester/.local/lib/agenteyes, linked /home/tester/.local/bin/agenteyes, unit /home/tester/.config/systemd/user/agenteyes.service
+Failed to connect to bus: No medium found
+exit code: 1
+after: /home/tester/.local/lib/agenteyes
+
+=============== RUNTIME (LinuxDisplay.Require; self-contained linux-x64 publish) ===============
+### BEFORE (origin/main d38141c): env -u DISPLAY WAYLAND_DISPLAY=wayland-0 XDG_SESSION_TYPE=wayland agenteyes screens
+[error] this is a Wayland session with no X display. AgentEyes on Linux records an X11 session only - log in with 'Ubuntu on Xorg'.
+exit code: 1
+
+### AFTER (branch b74e2fd): env -u DISPLAY WAYLAND_DISPLAY=wayland-0 XDG_SESSION_TYPE=wayland agenteyes screens
+[error] this is a Wayland session with no X display. AgentEyes on Linux records an X11 desktop session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the AgentEyes README.
+exit code: 1
+
+### BEFORE (origin/main d38141c): env -u DISPLAY WAYLAND_DISPLAY=wayland-0 XDG_SESSION_TYPE=wayland agenteyes serve --port 7991
+[error] this is a Wayland session with no X display. AgentEyes on Linux records an X11 session only - log in with 'Ubuntu on Xorg'.
+exit code: 1
+
+### AFTER (branch b74e2fd): env -u DISPLAY WAYLAND_DISPLAY=wayland-0 XDG_SESSION_TYPE=wayland agenteyes serve --port 7991
+[error] this is a Wayland session with no X display. AgentEyes on Linux records an X11 desktop session only; Wayland sessions are not supported. See 'Supported Linux sessions' in the AgentEyes README.
+exit code: 1
+
+### CONTROL, AFTER (branch b74e2fd), no DISPLAY and no WAYLAND_DISPLAY: env -u DISPLAY  agenteyes screens
+[error] DISPLAY is not set, so there is no X screen to record. Run AgentEyes inside the desktop session; for the service, run 'systemctl --user import-environment DISPLAY XAUTHORITY' and restart it.
+exit code: 1
+
