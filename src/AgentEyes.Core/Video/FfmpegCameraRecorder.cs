@@ -562,9 +562,11 @@ namespace AgentEyes.Video
         /// (the camera-mic-no-screen mode). Windows only; null for the video-only camera track.</param>
         /// <param name="width">Issue #229: an exact camera size to request, with <paramref name="height"/>;
         /// null picks the largest the device offers at <paramref name="fps"/>.</param>
+        /// <param name="keyframeInterval">Issue #230 round 3: frames between keyframes, Windows only;
+        /// null for the encoder's default.</param>
         public static FfmpegCameraRecorder Create(
             string dshowCameraName, int fps, int crf, string outPath, Preview.PreviewTap? preview = null,
-            string? dshowMic = null, int? width = null, int? height = null)
+            string? dshowMic = null, int? width = null, int? height = null, int? keyframeInterval = null)
         {
             Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" fps={fps} crf={crf} "
                      + $"out={outPath} preview={(preview != null ? "yes" : "no")} mic={dshowMic ?? "(none)"}");
@@ -583,7 +585,7 @@ namespace AgentEyes.Video
             var mode = CameraModes.Choose(CameraModes.List(dshowCameraName), fps, width, height);
             Log.Info($"[FfmpegCameraRecorder] Create: camera=\"{dshowCameraName}\" mode={mode.Describe()}");
             var args = FfmpegArgs.CameraCapture(dshowCameraName, fps, crf, outPath, previewStream: preview != null,
-                mode: mode, dshowMic: dshowMic);
+                mode: mode, dshowMic: dshowMic, keyframeInterval: keyframeInterval);
 #elif MACOS
             CameraMode? mode = null;
             if (dshowMic != null || width != null)

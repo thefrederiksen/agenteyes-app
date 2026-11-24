@@ -292,6 +292,20 @@ namespace AgentEyes
         public float SystemLevel => _peakSys;
         public TimeSpan Elapsed => _sw.Elapsed;
 
+        /// <summary>
+        /// Issue #230 round 3: how many seconds of picture the camera ffmpeg has written so far (its
+        /// own "time=" position), or null when no camera is recording. The takes screen uses it to
+        /// place its marks in the continuous file and to know when a span is on disk to cut.
+        /// </summary>
+        public double? CameraPositionSeconds
+        {
+            get
+            {
+                var camera = _camera;
+                return _state == "recording" && camera != null ? camera.CapturedSeconds : null;
+            }
+        }
+
         /// <summary>The camera processes this service could not kill, for tests and for the status
         /// surface (issue #28, AC16).</summary>
         public StrandedCameraOwner StrandedCameras => _stranded;
@@ -882,11 +896,12 @@ namespace AgentEyes
         /// <param name="cameraWidth">Issue #229: an exact camera size, with cameraHeight; null for the
         /// largest the camera offers at <paramref name="cameraFps"/>.</param>
         public void StartCamera(AudioSourceKind src, string? micFragment, string? cameraFragment, int cameraFps = 30,
-            int? cameraWidth = null, int? cameraHeight = null, string? label = null, TakeName? take = null)
+            int? cameraWidth = null, int? cameraHeight = null, string? label = null, TakeName? take = null,
+            int? keyframeInterval = null)
         {
             Log.Info($"[RecordingService] StartCamera: src={src} mic={micFragment ?? "(none)"} camera={cameraFragment ?? "(none)"} "
                      + $"fps={cameraFps} size={(cameraWidth == null ? "(largest)" : $"{cameraWidth}x{cameraHeight}")} label={label ?? "(none)"} "
-                     + $"take={take?.DisplayName ?? "(none)"}");
+                     + $"take={take?.DisplayName ?? "(none)"} keyframes={keyframeInterval?.ToString() ?? "(default)"}");
 #if !WINDOWS
             throw new UsageException($"the {CameraOnlyMode} mode is Windows-only for now.");
 #else
@@ -934,7 +949,8 @@ namespace AgentEyes
                         // gate round 3): a failed open is still stopped by the rollback.
                         _camera = FfmpegCameraRecorder.Create(
                             dshowCamera, cameraFps, 20, Path.Combine(dir, "recording.mp4"), null,
-                            dshowMic: dshowMic, width: cameraWidth, height: cameraHeight);
+                            dshowMic: dshowMic, width: cameraWidth, height: cameraHeight,
+                            keyframeInterval: keyframeInterval);
                         _camera.Open();
                         NoteCaptureWriter("camera", _camera.ProcessId);
                         _manifest!.FfmpegCommand = _camera.CommandLine;

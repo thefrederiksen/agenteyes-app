@@ -108,6 +108,11 @@ namespace AgentEyes.App
             side.Children.Add(Label("RECORD ON"));
             side.Children.Add(_screen);
             side.Children.Add(_start);
+            side.Children.Add(new TextBlock
+            {
+                Foreground = Dim, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0),
+                Text = SessionNote(RecordingPaths.Root),
+            });
             side.Children.Add(_status);
             var sideBorder = new Border { Width = 330, Background = Panel, BorderBrush = Border, BorderThickness = new Thickness(1, 0, 0, 0), Child = new ScrollViewer { Content = side, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
             DockPanel.SetDock(sideBorder, Dock.Right);
@@ -346,6 +351,16 @@ namespace AgentEyes.App
                 Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 0, 0, 10), Child = grid,
             };
         }
+
+        /// <summary>
+        /// Issue #230 round 3: where the recording screen's continuous recording goes. The screen
+        /// records from the moment it opens until it closes; every attempt is cut out of that file,
+        /// and the file itself is kept, so nothing said on that screen is lost even if a cut fails.
+        /// </summary>
+        internal static string SessionNote(string recordingsRoot) =>
+            "The recording screen records continuously from the moment it opens until it closes. "
+            + "The whole session is kept in its own folder in " + recordingsRoot + " (named ..._takes-session), "
+            + "and each attempt is cut from it into that folder's takes\\<take id>\\ folder.";
 
         private UIElement AttemptChip(Take take, TakeAttempt a)
         {

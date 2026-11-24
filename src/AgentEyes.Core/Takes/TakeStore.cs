@@ -183,16 +183,23 @@ namespace AgentEyes.Takes
             return Snapshot();
         }
 
-        /// <summary>Record a finished attempt against its take; returns its number (1-based, per take).</summary>
-        public TakeAttempt AddAttempt(string takeId, string file, string dir, double durationSeconds)
+        /// <summary>
+        /// Record a finished attempt against its take; returns it. <paramref name="number"/> is the
+        /// number the recording screen gave the attempt when its start was marked (issue #230 round
+        /// 3: attempts are cut afterwards, so the number is fixed before the file exists); null
+        /// takes the next free number. A number already used is refused.
+        /// </summary>
+        public TakeAttempt AddAttempt(string takeId, string file, string dir, double durationSeconds, int? number = null)
         {
             TakeAttempt attempt;
             lock (_lock)
             {
                 var take = RequireLocked(takeId);
+                if (number is int n && (n < 1 || take.Attempts.Any(a => a.Number == n)))
+                    throw new UsageException($"take '{takeId}' cannot get attempt number {n}: it is taken or not positive.");
                 attempt = new TakeAttempt
                 {
-                    Number = NextAttemptNumber(take),
+                    Number = number ?? NextAttemptNumber(take),
                     File = file,
                     Dir = dir,
                     DurationSeconds = Math.Round(durationSeconds, 2),
