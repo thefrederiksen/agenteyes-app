@@ -6,10 +6,12 @@ using Xunit;
 namespace AgentEyes.Tests.Linux
 {
     /// <summary>
-    /// Issue #221: the runtime refusal for a Wayland session with no X display. It refuses (correct: there
-    /// is no X screen to record) and it names NO login session as a remedy, because the session it used to
-    /// name is not installed by a default desktop install of current Ubuntu. Driven through Resolve so the
-    /// process environment is never changed under the rest of the suite.
+    /// Issue #221: the runtime refusal for a Wayland session with NO X display. Only that case is refused
+    /// (there is no X screen to record); a Wayland session that also sets DISPLAY through Xwayland is not
+    /// refused and records a black frame (measured on mutter 50.1, issue #227). The refusal names NO login
+    /// session as a remedy, because the session it used to name is not installed by a default desktop
+    /// install of current Ubuntu. Driven through Resolve so the process environment is never changed under
+    /// the rest of the suite.
     /// </summary>
     public sealed class LinuxDisplayTests
     {

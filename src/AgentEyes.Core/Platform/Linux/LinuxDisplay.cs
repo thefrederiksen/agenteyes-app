@@ -10,7 +10,9 @@ namespace AgentEyes.Platform.Linux
     internal static class LinuxDisplay
     {
         /// <summary>
-        /// The refusal for a Wayland session with no X display (issue #221). It names NO remedy, on
+        /// The refusal for a Wayland session with NO X display (issue #221). Only that case is refused: a
+        /// Wayland session that also sets DISPLAY through Xwayland passes Resolve and records a black frame
+        /// (measured on mutter 50.1, headless; issue #227). It names NO remedy, on
         /// purpose. It used to tell the user to log in with an X11 session by name, and that session is
         /// not installed by a default desktop install of Ubuntu 25.10 or 26.04 (measured at the package
         /// level, docs/cencon/proof/issue-221/), so the only instruction a blocked user got was one they

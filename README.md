@@ -65,8 +65,8 @@ tested on Ubuntu 24.04 LTS in an X11 session.**
 | Ubuntu release | X11 session in the default desktop install | AgentEyes on Linux |
 |---|---|---|
 | 24.04 LTS | yes - `/usr/share/xsessions/` holds `ubuntu-xorg.desktop` ("Ubuntu on Xorg") | records; the release and session it is tested on |
-| 25.10 | no - there is no `/usr/share/xsessions/` and no Xorg server | does not record |
-| 26.04 LTS | no - there is no `/usr/share/xsessions/` and no Xorg server | does not record |
+| 25.10 | no - there is no `/usr/share/xsessions/` and no Xorg server | not supported; a recording made there is black (see below) |
+| 26.04 LTS | no - there is no `/usr/share/xsessions/` and no Xorg server | not supported; a recording made there is black (see below) |
 | any other | not measured | not tested |
 
 The 25.10 and 26.04 rows were measured at the package level: the default desktop package
@@ -74,12 +74,23 @@ The 25.10 and 26.04 rows were measured at the package level: the default desktop
 release, and its session files listed. That is what a default install puts on the login screen; it
 is not a photograph of one. On both releases the installed GNOME Shell also has no X11 mode
 (`gnome-shell --help` lists no `--x11`; on 24.04 it does), so AgentEyes names no packages to install
-there: there is no X11 GNOME session to install. Recording a Wayland session is not built. Proof:
+there. That is all that was measured: whether any other X11 session from the Ubuntu archive records
+with AgentEyes on these releases was not tested. Recording a Wayland session is not built. Proof:
 [docs/cencon/proof/issue-221/](docs/cencon/proof/issue-221/).
 
-On a Wayland session the installer stops, before it installs any part of AgentEyes, with "Wayland
-sessions are not supported". The recorder gives the same refusal when it finds a Wayland display and
-no X display.
+On a Wayland session the installer stops with "Wayland sessions are not supported", but not first
+thing: it checks for ffmpeg and the video playback library (libvlc) before it checks the session, and
+installs whichever is missing with `apt-get`, asking for root. The default desktop package set of
+25.10 and 26.04 includes neither, so on those releases it asks for root and installs both, and only
+then stops. It stops before it installs the AgentEyes recorder or app.
+
+The recorder does NOT reliably refuse a Wayland session. It refuses only when the session has no X
+display at all. A Wayland session that also provides an X display through Xwayland is not refused: on
+mutter 50.1 (the compositor set both `WAYLAND_DISPLAY` and `DISPLAY=:0`), `agenteyes screens`, `shot`
+and `video` all exited 0 and printed `[ok]`, and the screenshot and the recording were black. That was
+measured on headless mutter in a container - not in a GDM login session and not in the environment of
+the recorder's systemd user service. The defect is tracked in
+[issue #227](https://github.com/thefrederiksen/agenteyes-app/issues/227).
 
 ### Linux (x64, X11 desktop)
 

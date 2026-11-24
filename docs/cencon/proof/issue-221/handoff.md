@@ -142,3 +142,27 @@ No drift in the component map. The privacy posture (visible, controllable) is un
 now states a support boundary that was previously implied by silence: a default install of Ubuntu
 25.10 or 26.04 is unsupported by AgentEyes on Linux. That is the product decision the issue asked to
 have recorded. Recording Wayland sessions is not built and belongs in its own issue.
+
+## Round 2 - the Review Gate rejection of PR #226 at 990ff5f (wording only)
+
+The gate rejected new README text that promised a recorder refusal the recorder was measured not
+to perform. This round changes wording only. The refusal logic, the four removed remedy strings,
+the guard test, the container evidence and criterion 2's table are untouched.
+
+| Gate item | What changed |
+|---|---|
+| README.md:80-82 (recorder refusal) | Now says the recorder refuses only when there is no X display at all; a Wayland session that also provides one through Xwayland (measured on mutter 50.1) is not refused, exits 0 with `[ok]`, and the screenshot and recording are black. States the limit: headless mutter in a container, not a GDM login session, not the systemd user service environment. Points at issue #227. |
+| README.md:68-69 ("does not record") | Now "not supported; a recording made there is black (see below)". |
+| LinuxDisplayTests.cs:9-10, LinuxDisplay.cs:13 | Doc comments now say only the no-X-display case is refused, and that the Xwayland case passes Resolve and records black (#227). No code changed. |
+| README.md:80 ("before it installs any part") | Now says the installer checks ffmpeg and libvlc first, installs whichever is missing with apt-get as root, and on 25.10 and 26.04 (neither is in the default desktop set) does both before it refuses; it stops before installing the AgentEyes recorder or app. The check was NOT moved. |
+| README.md:76-77 ("no X11 GNOME session to install") | Narrowed to what was measured (GNOME Shell has no X11 mode), plus: whether any other X11 session from the archive records with AgentEyes was not tested. No package and no session is named. |
+| README.md line endings | Round 1 converted the whole file from CRLF to LF (main: 165 of 165 lines CRLF; branch: 0). That was not part of the fix and was not mentioned. Reverted: all 201 lines are CRLF, and `git diff origin/main -- README.md` now equals `git diff -w`: 38 insertions, 2 deletions. |
+
+Searches (README.md and both .cs files), each in line form and whitespace-joined form, for "does
+not record", "gives the same refusal", "before it installs any part", "no X11 GNOME session to
+install", "It refuses (correct": LINE 0, JOINED 0 in every file. Control: a planted "gives the
+same" / "refusal" wrapped across a CRLF line break in README.md gave LINE 0, JOINED 1; removed,
+back to 0.
+
+Gate, run by me at the round-2 head: `dotnet test tests/AgentEyes.Tests.Linux -c Release` ->
+494 total, 492 passed, 2 skipped, 0 failed. `git merge-tree` against main b5f5e2c: clean.
