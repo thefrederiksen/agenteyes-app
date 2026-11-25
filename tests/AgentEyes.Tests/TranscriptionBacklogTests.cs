@@ -42,6 +42,16 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
+        public void NeedsTranscription_TakeRecording_False()
+        {
+            // Issue #230 round 4 (review I4): a takes session or attempt is never transcribed.
+            string dir = MakeDir("2026-11-24_170000_takes-session");
+            ManifestStore.Replace(dir, new Manifest { Mode = "camera-mic-no-screen", TakeId = "takes-session", DisplayName = "Takes session - 1 take" });
+
+            Assert.False(TranscriptionBacklog.NeedsTranscription(dir));
+        }
+
+        [Fact]
         public void NeedsTranscription_AudioOnlyRecording_True()
         {
             string dir = MakeDir("2026-08-10_100001_audio", mediaName: "audio.wav");

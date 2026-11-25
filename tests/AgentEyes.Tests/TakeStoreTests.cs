@@ -92,8 +92,43 @@ namespace AgentEyes.Tests
         {
             string text = TakeRecordingWindow.ReadyInstruction(false);
 
-            Assert.StartsWith("Read the line. When you press Space the text disappears and you say it to the camera.", text);
+            Assert.StartsWith("Read the line. When you press Space a 3-2-1 count runs, then the text disappears and you say it to the camera.", text);
             Assert.EndsWith("Press Space to start recording. Space again to stop.", text);
+        }
+
+        [Fact]
+        public void HelpText_DescribesWhatTheRecordingScreenDoes()
+        {
+            // Round 4 (review D3): no phrase stepping, no Right arrow; read first has its count back.
+            Assert.DoesNotContain("Right arrow", TakesWindow.TeleprompterHelp);
+            Assert.DoesNotContain("phrase", TakesWindow.TeleprompterHelp);
+            Assert.Contains("3-2-1", TakesWindow.ReadFirstHelp);
+        }
+
+        [Fact]
+        public void AddAttempt_SessionFile_IsKept()
+        {
+            var store = NewStore();
+            store.Load(List(null, new Take { Id = "opening", Text = "Hello." }));
+
+            var a = store.AddAttempt("opening", @"s\takes\opening\attempt-1.mp4", @"s\takes\opening", 5.0, sessionFile: @"s\recording.mp4");
+
+            Assert.Equal(@"s\recording.mp4", a.SessionFile);
+            Assert.Equal(@"s\recording.mp4", store.Snapshot().Takes[0].Attempts[0].SessionFile);
+        }
+
+        [Fact]
+        public void LastTakeMessage_SaysSpaceRecordsAgainAndEscFinishes()
+        {
+            Assert.Contains("Space", TakeRecordingWindow.LastTakeMessage);
+            Assert.Contains("Esc", TakeRecordingWindow.LastTakeMessage);
+        }
+
+        [Fact]
+        public void WaitInstruction_DoesNotSayRecording()
+        {
+            Assert.DoesNotContain("Recording", TakeRecordingWindow.WaitInstruction);
+            Assert.Contains("wait", TakeRecordingWindow.WaitInstruction);
         }
     }
 }

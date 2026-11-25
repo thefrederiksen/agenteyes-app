@@ -39,14 +39,31 @@ namespace AgentEyes.App
     /// Everything is logged: each key with the screen state and take/attempt, every change of the
     /// text on screen, each mark with its time in the continuous file, each cut, and the microphone
     /// level about once a second.
+    ///
+    /// Round 4 (the full review, REVIEW-agenteyes-takes.md beside the video's mandate): no mark before
+    /// the camera is up; the continuous recording is encoded with zerolatency so its progress clock is
+    /// honest, and the final cuts take their anchor from the file itself; a short live cut is cut
+    /// again, never failed; the last take does not end the session; read first counts 3-2-1; a
+    /// screen that lost the keyboard says so; a deferred update waits for the cuts.
     /// </summary>
     internal sealed class TakeRecordingWindow : Window
     {
         private enum Phase { Starting, Ready, Recording, Finishing, Finished, Failed }
 
         internal const string StartInstruction = "Press Space to start recording. Space again to stop.";
-        internal const string ReadFirstInstruction = "Read the line. When you press Space the text disappears and you say it to the camera.";
+        internal const string ReadFirstInstruction = "Read the line. When you press Space a 3-2-1 count runs, then the text disappears and you say it to the camera.";
         internal const string RecordingInstruction = "Recording - Space to stop, R to start again";
+        /// <summary>Round 4 (review D2): nothing is recorded until the camera is up, and the screen says so instead of taking a mark.</summary>
+        internal const string WaitInstruction = "The camera is starting - wait.";
+        internal const string WaitKeys = "Wait for the camera - Esc finish";
+        /// <summary>Round 4 (review I1): the last take does not end the session; he can record it again.</summary>
+        internal const string LastTakeMessage = "All takes marked. Space records the last take again, Esc finishes.";
+        /// <summary>Round 4 (review R4): keys go to the active window; this screen says when that is not it.</summary>
+        internal const string NotListeningBanner = "This screen is not getting your keys - click it";
+        /// <summary>Round 4 (review I3): read first shows a 3-2-1 before the text goes, as the approved mockup had.</summary>
+        internal const int CountSeconds = 3;
+        private const double LineFontSize = 40;
+        private const double CountFontSize = 120;
 
         /// <summary>The continuous recording's keyframe interval in frames: one a second at 30 fps,
         /// so the live file is never more than a second behind what can be cut from it.</summary>
@@ -66,7 +83,8 @@ namespace AgentEyes.App
         private readonly TextBlock _message = new() { FontSize = 18, Foreground = TakesWindow.Dim, TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Margin = new Thickness(0, 20, 0, 0) };
         private readonly TextBlock _rec = new() { FontSize = 15, Foreground = TakesWindow.Red, Margin = new Thickness(0, 0, 18, 0) };
         private readonly TextBlock _where = new() { FontSize = 15, Foreground = TakesWindow.Dim };
-        private readonly TextBlock _keys = new() { FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(0x50, 0x50, 0x50)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
+        private readonly TextBlock _keys = new() { FontSize = 16, Foreground = TakesWindow.Dim, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
+        private readonly TextBlock _banner = new() { FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = TakesWindow.Red, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 14) };
 
         private readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromMilliseconds(250) };
         private readonly Stopwatch _clock = new();               // the screen's clock; marks are read off it
@@ -88,6 +106,7 @@ namespace AgentEyes.App
         private volatile string? _sessionDir;
         private volatile string? _sessionFile;
         private double _sessionStart;           // screen-clock second StartCamera returned
+        private double _stopWall;               // screen-clock second the stop was asked for (or the loss seen); read once _stopDone
 
         // The cuts: one at a time, in the order they were marked.
         private Task _cuts = Task.CompletedTask;
@@ -101,6 +120,8 @@ namespace AgentEyes.App
         private int _ticks;
 
         private bool _allowClose;
+        private double _countEnd;               // read first: screen-clock second the 3-2-1 ends; 0 when no count runs
+        private IDisposable? _work;             // round 4 (review R3): a deferred update restart waits for this screen
 
         public TakeRecordingWindow(RecordingService svc, TakeStore store, List<Take> takes, string camera, string mic,
             string readingMode, MonitorInfo monitor)
@@ -130,6 +151,7 @@ namespace AgentEyes.App
             bottomRow.Children.Add(_rec);
             bottomRow.Children.Add(_where);
             var bottom = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 18) };
+            bottom.Children.Add(_banner);
             bottom.Children.Add(bottomRow);
             bottom.Children.Add(_keys);
 
@@ -145,7 +167,18 @@ namespace AgentEyes.App
             Loaded += (_, _) => OnLoaded();
             PreviewKeyDown += OnKey;
             Closing += OnClosing;
-            Closed += (_, _) => StopMeter();
+            Closed += (_, _) => { StopMeter(); _work?.Dispose(); _work = null; };
+            // Round 4 (review R4): a click anywhere else takes the keys with it. Say so, and log it.
+            Activated += (_, _) =>
+            {
+                Log.Info($"[TakeRecordingWindow] activated in {_phase}: keys reach this screen");
+                Show(_banner, "banner", "");
+            };
+            Deactivated += (_, _) =>
+            {
+                Log.Info($"[TakeRecordingWindow] DEACTIVATED in {_phase}: keys go elsewhere until this screen is clicked");
+                if (!_allowClose) Show(_banner, "banner", NotListeningBanner);
+            };
             _tick.Tick += (_, _) => OnTick();
         }
 
@@ -186,7 +219,7 @@ namespace AgentEyes.App
             Focus();
             _clock.Start();
             _tick.Start();
-            StartMeter();
+            _work = PostRecording.TrackWork("takes session");
             StartContinuous();
         }
 
@@ -200,10 +233,11 @@ namespace AgentEyes.App
             _startFailed = false;
             ShowTakeText(visible: true);
             Show(_hint, "hint", "Starting the camera...");
-            Show(_instruction, "instruction", "");
+            _instruction.Foreground = Brushes.White;
+            Show(_instruction, "instruction", WaitInstruction);
             _message.Foreground = TakesWindow.Dim;
             Show(_message, "message", "");
-            Show(_keys, "keys", "Space start - Esc finish");
+            Show(_keys, "keys", WaitKeys);
             UpdateFooter();
 
             var name = new TakeName("takes-session", "Takes session - " + (_takes.Count == 1 ? "1 take" : $"{_takes.Count} takes"));
@@ -220,9 +254,6 @@ namespace AgentEyes.App
                 Log.Error("[TakeRecordingWindow] OnContinuousStarted: the continuous recording did not start", error);
                 _startFailed = true;
                 if (_finishRequested) { CloseNow(); return; }
-                if (_phase == Phase.Recording)
-                    Log.Error($"[TakeRecordingWindow] OnContinuousStarted: attempt {_attempt} of take {Current.Id} was marked "
-                              + "while the camera was starting - nothing was recorded for it");
                 _phase = Phase.Failed;
                 Show(_hint, "hint", "");
                 Show(_instruction, "instruction", "");
@@ -233,18 +264,23 @@ namespace AgentEyes.App
                 return;
             }
 
-            _recordingUp = true;
+            // The folder before the flag: a cut thread reads the flag first and the folder second.
             _sessionStart = _clock.Elapsed.TotalSeconds;
             string? dir = _svc.Status().Dir;
+            if (dir == null) Log.Error("[TakeRecordingWindow] OnContinuousStarted: the service is recording but reports no folder");
             _sessionDir = dir;
             _sessionFile = dir == null ? null : Path.Combine(dir, "recording.mp4");
+            _recordingUp = true;
             Log.Info($"[TakeRecordingWindow] OnContinuousStarted: recording continuously into {_sessionFile ?? "(no folder reported)"} "
                      + $"at screen time {_sessionStart:F2}s");
             Show(_hint, "hint", "");
 
+            // Round 4 (review R6): the meter opens the microphone only once the recording holds it, so
+            // a device that will not be shared can cost the log line and never the take.
+            if (_meter == null) StartMeter();
+
             if (_finishRequested) { Finish(); return; }
-            if (_phase == Phase.Starting) ShowReady(null);
-            else UpdateFooter();   // Recording: marked while the camera was starting, carry on
+            ShowReady(null);
         }
 
         /// <summary>
@@ -256,6 +292,7 @@ namespace AgentEyes.App
             Log.Error($"[TakeRecordingWindow] OnContinuousLost: the continuous recording stopped by itself in {_phase} "
                       + $"(service state {_svc.Status().State}); see the recording's manifest in {_sessionDir}");
             if (_phase == Phase.Recording) EndAttempt("the recording stopped by itself");
+            _stopWall = _clock.Elapsed.TotalSeconds;   // the closest this screen knows to when the file ended
             _stopping = true;
             _phase = Phase.Failed;
             ShowTakeText(visible: false);
@@ -286,6 +323,7 @@ namespace AgentEyes.App
             }
 
             UpdateFooter();
+            if (_countEnd > 0) ShowCount(now);
 
             // About once a second: the microphone level, and where the continuous file is.
             if (++_ticks % 4 == 0 && _meter != null)
@@ -354,8 +392,32 @@ namespace AgentEyes.App
         internal static string ReadyInstruction(bool teleprompter) =>
             teleprompter ? StartInstruction : ReadFirstInstruction + "\n" + StartInstruction;
 
-        /// <summary>The take's whole text, or nothing (read first, while recording).</summary>
-        private void ShowTakeText(bool visible) => Show(_line, "text", visible ? Current.Text : "");
+        /// <summary>The take's whole text, or nothing (read first, while recording). Ends any count.</summary>
+        private void ShowTakeText(bool visible)
+        {
+            _countEnd = 0;
+            _line.FontSize = LineFontSize;
+            Show(_line, "text", visible ? Current.Text : "");
+        }
+
+        /// <summary>
+        /// Read first (round 4, review I3): "3", "2", "1" in the text column, then nothing. The attempt
+        /// was marked at Space and the recording has been running all along; the count is only on the
+        /// screen, and the cut's margin covers it.
+        /// </summary>
+        private void ShowCount(double now)
+        {
+            int left = (int)Math.Ceiling(_countEnd - now);
+            if (left > 0)
+            {
+                _line.FontSize = CountFontSize;
+                Show(_line, "text", left.ToString(CultureInfo.InvariantCulture));
+                return;
+            }
+            _countEnd = 0;
+            _line.FontSize = LineFontSize;
+            Show(_line, "text", "");
+        }
 
         private void UpdateFooter()
         {
@@ -399,7 +461,7 @@ namespace AgentEyes.App
         {
             double? file = _fileClock.FileSeconds(wallSeconds);
             return file == null
-                ? $"screen {wallSeconds:F2}s (camera not up yet - placed in the file at cut time)"
+                ? $"screen {wallSeconds:F2}s (no progress reading yet - placed in the file at cut time)"
                 : $"screen {wallSeconds:F2}s = {file.Value:F2}s in the continuous file";
         }
 
@@ -424,9 +486,11 @@ namespace AgentEyes.App
             _attemptStart = _clock.Elapsed.TotalSeconds;
             Log.Info($"[TakeRecordingWindow] MARK start: take {_index + 1}/{_takes.Count} id={takeId} attempt={_attempt} at {MarkDescription(_attemptStart)}");
             _phase = Phase.Recording;
-            // Read first: the text goes away and he says it to the lens. Teleprompter: it stays.
-            ShowTakeText(visible: _teleprompter);
-            Show(_hint, "hint", _recordingUp ? "" : "Starting the camera...");
+            // Teleprompter: the text stays. Read first: a 3-2-1 on screen, then the text goes away and
+            // he says it to the lens (round 4, review I3). The recording has been running all along.
+            if (_teleprompter) ShowTakeText(visible: true);
+            else { _countEnd = _attemptStart + CountSeconds; ShowCount(_attemptStart); }
+            Show(_hint, "hint", "");
             _instruction.Foreground = TakesWindow.Red;
             Show(_instruction, "instruction", RecordingInstruction);
             _message.Foreground = TakesWindow.Dim;
@@ -463,64 +527,79 @@ namespace AgentEyes.App
             string label = $"take {takeNumber} ({take.Id}) attempt {number}";
             try
             {
-                var span = WaitForSpan(startWall, endWall, label);
-                string file = _sessionFile!;
+                string file = _sessionFile ?? throw new InvalidOperationException(
+                    "there is no continuous file - an attempt was marked before the camera was up, which this screen no longer allows.");
                 string folder = Path.Combine(_sessionDir!, "takes", SafeFolderName(take.Id));
                 string output = Path.Combine(folder, $"attempt-{number}.mp4");
-                Log.Info($"[TakeRecordingWindow] CUT {label}: span {span} of {file} -> {output}");
-                double duration = TakeCut.Cut(file, span, output);
-                _store.AddAttempt(take.Id, output, folder, duration, number);
+                double extra = 0;
+                double duration;
+                while (true)
+                {
+                    var span = WaitForSpan(startWall, endWall, label, extra, out bool final);
+                    Log.Info($"[TakeRecordingWindow] CUT {label}: span {span} of {file} -> {output}{(final ? " (final file)" : "")}");
+                    try { duration = TakeCut.Cut(file, span, output); break; }
+                    catch (ShortCutException ex) when (!final)
+                    {
+                        // Round 4 (review R2): the live file was not as far along as its progress said.
+                        // Wait longer and cut again; only a cut from the FINAL file is allowed to fail.
+                        extra += TakeCut.WrittenBeyondSeconds;
+                        Log.Warn($"[TakeRecordingWindow] CUT {label}: {ex.Message} - cutting again once the camera is "
+                                 + $"{extra:F0}s further on, or the file is final");
+                    }
+                }
+                _store.AddAttempt(take.Id, output, folder, duration, number, sessionFile: file);
                 Log.Info($"[TakeRecordingWindow] CUT {label}: saved, {duration:F2}s");
-                Ui.Post(() => OnCut(label, number, duration, null));
+                Ui.Post(() => OnCut(label, duration, null));
             }
             catch (Exception ex)
             {
                 Log.Error($"[TakeRecordingWindow] CUT {label} FAILED - it is still in the continuous recording {_sessionFile ?? "(none)"}", ex);
-                Ui.Post(() => OnCut(label, number, 0, ex));
+                Ui.Post(() => OnCut(label, 0, ex));
             }
         }
 
         /// <summary>
         /// Block until the continuous file holds the attempt's span plus its margin, then return the
-        /// span. While recording, that means the camera has written past it; once the recording is
-        /// stopped, the file is final and the span is clamped to its length.
+        /// span. While recording, that means the camera has written <paramref name="extraSeconds"/>
+        /// beyond the usual allowance past it; once the recording is stopped, the file is final, its
+        /// own length gives the exact anchor (round 4, review D1 and R1) and the span is clamped to it.
+        /// <paramref name="final"/> says which: only a cut from the final file is allowed to fail.
         /// </summary>
-        private CutSpan WaitForSpan(double startWall, double endWall, string label)
+        private CutSpan WaitForSpan(double startWall, double endWall, string label, double extraSeconds, out bool final)
         {
             var waited = Stopwatch.StartNew();
             while (true)
             {
-                if (_sessionFile == null)
-                {
-                    // Marked while the camera was still starting: wait for it, unless it failed.
-                    if (_startFailed || _recordingUp)
-                        throw new InvalidOperationException("the continuous recording never started, so there is nothing to cut.");
-                    if (waited.Elapsed > TimeSpan.FromMinutes(2))
-                        throw new TimeoutException("the camera did not start within two minutes, so there is nothing to cut.");
-                    Thread.Sleep(250);
-                    continue;
-                }
-                double? startFile = _fileClock.FileSeconds(startWall);
-                double? endFile = _fileClock.FileSeconds(endWall);
-
                 if (_stopDone)
                 {
-                    if (startFile == null || endFile == null)
-                        throw new InvalidOperationException("the camera never reported a position, so the marks cannot be placed in the file.");
-                    double length = AgentEyes.Video.MediaProbe.DurationSeconds(_sessionFile);
+                    double length = AgentEyes.Video.MediaProbe.DurationSeconds(_sessionFile!);
                     if (length <= 0) throw new InvalidOperationException($"the continuous recording {_sessionFile} has no readable length.");
-                    var final = TakeCut.Span(startFile.Value, endFile.Value, length);
-                    Log.Info($"[TakeRecordingWindow] CUT {label}: the continuous file is final ({length:F2}s); marks {startFile:F2}s-{endFile:F2}s");
-                    return final;
+                    double anchor = ContinuousClock.FinalAnchor(_stopWall, length);
+                    double? observed = _fileClock.AnchorSeconds;
+                    double startFile = ContinuousClock.FileSecondsAt(startWall, anchor);
+                    double endFile = ContinuousClock.FileSecondsAt(endWall, anchor);
+                    var finalSpan = TakeCut.Span(startFile, endFile, length);
+                    // The observed anchor beside the exact one: the real progress lag of the real
+                    // camera is in the log after every session.
+                    Log.Info($"[TakeRecordingWindow] CUT {label}: the continuous file is final ({length:F2}s); anchor from the file {anchor:F2}s, "
+                             + $"from progress readings {(observed?.ToString("F2", CultureInfo.InvariantCulture) ?? "-")}s "
+                             + $"(progress lag {(observed is double o ? (o - anchor).ToString("F2", CultureInfo.InvariantCulture) : "-")}s); "
+                             + $"marks {startFile:F2}s-{endFile:F2}s");
+                    final = true;
+                    return finalSpan;
                 }
 
-                if (startFile != null && endFile != null && _svc.CameraPositionSeconds is double position)
+                double? liveStart = _fileClock.FileSeconds(startWall);
+                double? liveEnd = _fileClock.FileSeconds(endWall);
+                if (liveStart != null && liveEnd != null && _svc.CameraPositionSeconds is double position)
                 {
-                    var span = TakeCut.Span(startFile.Value, endFile.Value, null);
-                    if (position >= TakeCut.PositionNeeded(span))
+                    var span = TakeCut.Span(liveStart.Value, liveEnd.Value, null);
+                    double needed = TakeCut.PositionNeeded(span) + extraSeconds;
+                    if (position >= needed)
                     {
-                        Log.Info($"[TakeRecordingWindow] CUT {label}: the camera is at {position:F2}s, past {TakeCut.PositionNeeded(span):F2}s; "
-                                 + $"marks {startFile:F2}s-{endFile:F2}s");
+                        Log.Info($"[TakeRecordingWindow] CUT {label}: the camera is at {position:F2}s, past {needed:F2}s; "
+                                 + $"marks {liveStart:F2}s-{liveEnd:F2}s");
+                        final = false;
                         return span;
                     }
                 }
@@ -537,7 +616,7 @@ namespace AgentEyes.App
             return new string(id.Select(c => bad.Contains(c) ? '-' : c).ToArray());
         }
 
-        private void OnCut(string label, int number, double duration, Exception? error)
+        private void OnCut(string label, double duration, Exception? error)
         {
             Interlocked.Decrement(ref _cutsPending);
             if (error != null)
@@ -552,7 +631,9 @@ namespace AgentEyes.App
                 if (_phase is Phase.Ready or Phase.Finishing)
                 {
                     _message.Foreground = TakesWindow.Dim;
-                    Show(_message, "message", $"Attempt {number} saved ({duration:F1} s).");
+                    // On the last take the hint stays with the news (round 4, review I1).
+                    bool lastTake = _phase == Phase.Ready && _index + 1 == _takes.Count;
+                    Show(_message, "message", $"Saved {label} ({duration:F1} s)." + (lastTake ? "\n" + LastTakeMessage : ""));
                 }
             }
             UpdateFooter();
@@ -567,7 +648,7 @@ namespace AgentEyes.App
         private void Finish()
         {
             Log.Info($"[TakeRecordingWindow] Finish: phase={_phase} recordingUp={_recordingUp} cuts pending={_cutsPending}");
-            if (!_recordingUp && !_startFailed && (_phase is Phase.Starting or Phase.Recording))
+            if (!_recordingUp && !_startFailed && _phase == Phase.Starting)
             {
                 // The camera is still opening on another thread: finish once it has.
                 _finishRequested = true;
@@ -586,6 +667,7 @@ namespace AgentEyes.App
             UpdateFooter();
 
             bool stopHere = _recordingUp && !_stopping;
+            if (stopHere) _stopWall = _clock.Elapsed.TotalSeconds;
             _stopping = true;
             Ui.Run(() =>
             {
@@ -650,8 +732,10 @@ namespace AgentEyes.App
             switch (_phase)
             {
                 case Phase.Starting:
-                    if (e.Key == Key.Space) _ = BeginAttempt();      // recorded from the moment the camera is up
-                    else if (e.Key == Key.Escape) Finish();
+                    // Round 4 (review D2): no mark before the camera is up - the screen used to say
+                    // "Recording" over three seconds that were never recorded.
+                    if (e.Key == Key.Escape) Finish();
+                    else Log.Info($"[TakeRecordingWindow] key {e.Key} ignored: the camera is still starting");
                     break;
                 case Phase.Ready:
                     if (e.Key == Key.Space) _ = BeginAttempt();
@@ -661,14 +745,16 @@ namespace AgentEyes.App
                     if (e.Key == Key.Space)
                     {
                         EndAttempt("Space");
+                        string marked = $"Take {_attemptTakeNumber} - attempt {_attempt} marked - saving it.";
                         if (_index + 1 < _takes.Count)
                         {
                             _index++;
-                            ShowReady($"Attempt {_attempt} of the last take marked - saving it.");
+                            ShowReady(marked);
                         }
                         else
                         {
-                            Finish();
+                            // Round 4 (review I1): the last take does not end the session by itself.
+                            ShowReady(marked + "\n" + LastTakeMessage);
                         }
                     }
                     else if (e.Key == Key.R)
@@ -714,7 +800,7 @@ namespace AgentEyes.App
             switch (_phase)
             {
                 case Phase.Recording:
-                    if (_recordingUp) EndAttempt("window closed");
+                    EndAttempt("window closed");
                     Finish();
                     break;
                 case Phase.Starting:

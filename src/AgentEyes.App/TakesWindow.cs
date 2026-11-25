@@ -31,6 +31,11 @@ namespace AgentEyes.App
         internal static readonly Brush Green = Frozen(0x7E, 0xE7, 0x87);
         internal static readonly Brush Red = Frozen(0xFF, 0x5F, 0x5F);
 
+        /// <summary>What the set-up screen says each reading mode does (issue #230 round 4, review D3):
+        /// what the recording screen does now, not what an earlier round did.</summary>
+        internal const string TeleprompterHelp = "Teleprompter: the whole line stays on screen under the camera for the whole take. Space marks the start and the end.";
+        internal const string ReadFirstHelp = "Read first: the line shows until you press Space. Then a 3-2-1 count, the text goes away and you say it to the camera. Best for short takes.";
+
         private readonly RecordingService _svc;
         private readonly TakeStore _store = TakeStore.Shared;
         private readonly CameraPreviewController _preview = new();
@@ -135,6 +140,15 @@ namespace AgentEyes.App
             _preview.FrameReceived += OnFrame;
 
             _store.Changed += OnStoreChanged;
+            // Issue #230 round 4 (review R5): this window owns the camera preview and the attempt list
+            // the recording screen reports into; it stays up until that screen is finished.
+            Closing += (_, e) =>
+            {
+                if (!_recordingOpen) return;
+                e.Cancel = true;
+                Log.Info("[TakesWindow] close refused: the recording screen is open");
+                _status.Text = "Finish the recording screen first (Esc on it).";
+            };
             Closed += (_, _) =>
             {
                 Log.Info("[TakesWindow] closed");
@@ -262,9 +276,7 @@ namespace AgentEyes.App
 
         private void ReadingChanged()
         {
-            _readingHelp.Text = _prompter.IsChecked == true
-                ? "Teleprompter: the text stays on screen the whole take, one phrase at a time under the camera, the next one dimmed. Right arrow moves on."
-                : "Read first: the line shows, you read it, press Space, a 3-2-1 count, the text is gone and you say it to the lens. Best for short takes.";
+            _readingHelp.Text = _prompter.IsChecked == true ? TeleprompterHelp : ReadFirstHelp;
         }
 
         // ---- the list ---------------------------------------------------------------------------

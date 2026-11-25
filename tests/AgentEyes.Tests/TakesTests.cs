@@ -163,21 +163,6 @@ namespace AgentEyes.Tests
         }
 
         [Fact]
-        public void Phrases_SplitsAtSentencesAndLongSentencesAtCommas()
-        {
-            var phrases = TakeStore.Phrases(
-                "In October I merged more than two thousand changes. In one month. "
-                + "Before I had a software factory, I merged fewer than seventy a month.");
-            Assert.Equal(new[]
-            {
-                "In October I merged more than two thousand changes.",
-                "In one month.",
-                "Before I had a software factory,",
-                "I merged fewer than seventy a month.",
-            }, phrases);
-        }
-
-        [Fact]
         public void StartBody_CameraOnly_SendsTheModeAndSize()
         {
             var body = HeadlessCli.StartBody(CliArgs.Parse(new[]

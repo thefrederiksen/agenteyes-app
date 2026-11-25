@@ -174,5 +174,41 @@ namespace AgentEyes.Tests
             Assert.Contains(@"C:\Users\x\Videos\AgentEyes", note);
             Assert.Contains("takes-session", note);
         }
+
+        [Fact]
+        public void CameraCapture_KeyframeInterval_TunesZeroLatency()
+        {
+            // Round 4 (review D1): measured 2.75-3.05 s of progress-clock lag with the defaults,
+            // 0.68-0.72 s with this tune; the 2 s cut margin only holds with it.
+            var args = AgentEyes.Video.FfmpegArgs.CameraCapture("cam", 30, 20, "o.mp4", dshowMic: "mic", keyframeInterval: 30);
+
+            int tune = args.IndexOf("-tune");
+            Assert.True(tune >= 0, "the continuous recording is tuned for zero latency so its progress clock is honest");
+            Assert.Equal("zerolatency", args[tune + 1]);
+        }
+
+        [Fact]
+        public void CameraCapture_NoKeyframeInterval_NoTune()
+        {
+            var args = AgentEyes.Video.FfmpegArgs.CameraCapture("cam", 30, 20, "o.mp4", dshowMic: "mic");
+
+            Assert.DoesNotContain("-tune", args);
+        }
+
+        [Fact]
+        public void FinalAnchor_IsTheStopMomentMinusTheFileLength()
+        {
+            double anchor = ContinuousClock.FinalAnchor(stopWallSeconds: 100.0, fileDurationSeconds: 40.0);
+
+            Assert.Equal(60.0, anchor, 3);
+            Assert.Equal(15.0, ContinuousClock.FileSecondsAt(75.0, anchor), 3);
+            Assert.Equal(0.0, ContinuousClock.FileSecondsAt(50.0, anchor), 3);
+        }
+
+        [Fact]
+        public void FinalAnchor_EmptyFile_Throws()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => ContinuousClock.FinalAnchor(10.0, 0.0));
+        }
     }
 }

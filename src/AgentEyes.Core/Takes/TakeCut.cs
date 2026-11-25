@@ -102,13 +102,24 @@ namespace AgentEyes.Takes
             if (got < span.DurationSeconds - ShortfallToleranceSeconds)
             {
                 string msg = string.Create(CultureInfo.InvariantCulture,
-                    $"the cut {output} is {got:F2}s long but its span is {span.DurationSeconds:F2}s - the continuous file did not hold the whole span.");
+                    $"the cut {output} came out {got:F2}s long but its span is {span.DurationSeconds:F2}s - the continuous file did not hold the whole span.");
                 Log.Error($"[TakeCut] Cut FAILED: {msg}");
-                throw new UsageException(msg);
+                // Round 4 (review R2): a short file never stays in the folder looking like an attempt.
+                File.Delete(output);
+                throw new ShortCutException(msg);
             }
             Log.Info($"[TakeCut] Cut: ok, {got:F2}s");
             return got;
         }
+    }
+
+    /// <summary>
+    /// A cut that came out shorter than its span (issue #230 round 4, review R2). The caller cuts
+    /// again once the continuous file has grown or is final; only a cut from the final file fails.
+    /// </summary>
+    internal sealed class ShortCutException : Exception
+    {
+        public ShortCutException(string message) : base(message) { }
     }
 
     /// <summary>
@@ -117,8 +128,11 @@ namespace AgentEyes.Takes
     /// The file's time 0 is the camera's first frame, which the screen never sees directly. What it
     /// sees is ffmpeg's own position ("time=") at moments it reads it. Each reading says time 0 was
     /// at or before (wall - position) - a reading can only lag the picture, never lead it - so the
-    /// smallest (wall - position) seen is the closest estimate, and it only gets better. Any error
-    /// left places a mark slightly EARLY, which the cut margin absorbs.
+    /// smallest (wall - position) seen is the closest estimate. What is left is not noise but the
+    /// encoder's delay, a constant the minimum cannot remove: every mark lands EARLY by that much,
+    /// and an early END mark eats the trailing margin. Round 4 (review D1) measured it at about
+    /// 2.5 s with x264's defaults and about 0.5 s with the zerolatency tune the continuous recording
+    /// now uses, and gives the final cuts an exact anchor from the file itself (<see cref="FinalAnchor"/>).
     /// </summary>
     internal sealed class ContinuousClock
     {
@@ -143,6 +157,23 @@ namespace AgentEyes.Takes
         /// <summary>The file time of the screen-clock moment <paramref name="wallSeconds"/>, clamped at 0,
         /// or null before the first reading.</summary>
         public double? FileSeconds(double wallSeconds) =>
-            AnchorSeconds is double a ? Math.Max(0, wallSeconds - a) : null;
+            AnchorSeconds is double a ? FileSecondsAt(wallSeconds, a) : null;
+
+        /// <summary>The file time of <paramref name="wallSeconds"/> for a known <paramref name="anchor"/>, clamped at 0.</summary>
+        public static double FileSecondsAt(double wallSeconds, double anchor) => Math.Max(0, wallSeconds - anchor);
+
+        /// <summary>
+        /// Round 4 (review D1, R1): the exact anchor once the file is final. The stop was asked for at
+        /// <paramref name="stopWallSeconds"/> on the screen clock and the final file holds
+        /// <paramref name="fileDurationSeconds"/>, so its time 0 was at the difference. It needs no
+        /// progress reading at all and carries none of the encoder's lag: a take ended before the
+        /// first reading, and a reading biased by the encoder, both place their marks right from this.
+        /// </summary>
+        public static double FinalAnchor(double stopWallSeconds, double fileDurationSeconds)
+        {
+            if (!(fileDurationSeconds > 0))
+                throw new ArgumentOutOfRangeException(nameof(fileDurationSeconds), "the final file has no length.");
+            return stopWallSeconds - fileDurationSeconds;
+        }
     }
 }
