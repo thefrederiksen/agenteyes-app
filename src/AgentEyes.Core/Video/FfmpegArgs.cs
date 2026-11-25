@@ -298,7 +298,15 @@ namespace AgentEyes.Video
             // Issue #230 round 3: the takes screen's continuous recording is cut WHILE it is still
             // being written. A fragment reaches disk at each keyframe, so a short keyframe interval
             // keeps the file at most that far behind the live picture. Null keeps x264's default.
-            if (keyframeInterval != null) a.AddRange(new[] { "-g", keyframeInterval.Value.ToString() });
+            //
+            // Round 4 (review D1): the takes screen places its marks from ffmpeg's own progress clock,
+            // and that clock trails the picture by x264's encoder delay. Measured on SOREN_NORTH with
+            // the app's ffmpeg and these exact options from a real-time source: 2.75-3.05 s with the
+            // veryfast defaults, 0.68-0.72 s with zerolatency (no lookahead, no B-frames, sliced
+            // threads; the same crf, so the same picture, a somewhat larger file). The 2 s cut margin
+            // only holds with the latter, so the tune travels with the keyframe interval.
+            if (keyframeInterval != null)
+                a.AddRange(new[] { "-g", keyframeInterval.Value.ToString(), "-tune", "zerolatency" });
             if (dshowMic == null)
             {
                 // Explicitly no audio track: the input has none, and this says so in the output too

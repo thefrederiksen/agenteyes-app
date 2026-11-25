@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace AgentEyes.Takes
 {
@@ -16,6 +15,10 @@ namespace AgentEyes.Takes
         public string Dir { get; set; } = "";
         public double DurationSeconds { get; set; }
         public DateTime RecordedUtc { get; set; }
+
+        /// <summary>The continuous recording this attempt was cut from (issue #230 round 4, review I5),
+        /// so a video session can reach everything said when a cut is not what it wanted.</summary>
+        public string? SessionFile { get; set; }
     }
 
     /// <summary>One line to say to camera (issue #230).</summary>
@@ -189,7 +192,8 @@ namespace AgentEyes.Takes
         /// 3: attempts are cut afterwards, so the number is fixed before the file exists); null
         /// takes the next free number. A number already used is refused.
         /// </summary>
-        public TakeAttempt AddAttempt(string takeId, string file, string dir, double durationSeconds, int? number = null)
+        public TakeAttempt AddAttempt(string takeId, string file, string dir, double durationSeconds, int? number = null,
+            string? sessionFile = null)
         {
             TakeAttempt attempt;
             lock (_lock)
@@ -204,6 +208,7 @@ namespace AgentEyes.Takes
                     Dir = dir,
                     DurationSeconds = Math.Round(durationSeconds, 2),
                     RecordedUtc = DateTime.UtcNow,
+                    SessionFile = sessionFile,
                 };
                 take.Attempts.Add(attempt);
                 SaveLocked();
@@ -298,37 +303,5 @@ namespace AgentEyes.Takes
         }
 
         public static string ToJson(object value) => JsonSerializer.Serialize(value, JsonOpts);
-
-        /// <summary>
-        /// The teleprompter's phrases (issue #230): the text split at sentence ends, and long
-        /// sentences split again at commas, so one phrase fits a short glance under the lens.
-        /// </summary>
-        public static IReadOnlyList<string> Phrases(string text, int maxWords = 9)
-        {
-            var phrases = new List<string>();
-            if (string.IsNullOrWhiteSpace(text)) return phrases;
-            string flat = Regex.Replace(text.Trim(), @"\s+", " ");
-            foreach (string sentence in Regex.Split(flat, @"(?<=[.!?])\s+"))
-            {
-                if (sentence.Length == 0) continue;
-                if (WordCount(sentence) <= maxWords) { phrases.Add(sentence); continue; }
-
-                string current = "";
-                foreach (string part in Regex.Split(sentence, @"(?<=[,;:])\s+"))
-                {
-                    string joined = current.Length == 0 ? part : current + " " + part;
-                    if (current.Length > 0 && WordCount(joined) > maxWords)
-                    {
-                        phrases.Add(current);
-                        current = part;
-                    }
-                    else current = joined;
-                }
-                if (current.Length > 0) phrases.Add(current);
-            }
-            return phrases;
-        }
-
-        private static int WordCount(string s) => s.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
     }
 }

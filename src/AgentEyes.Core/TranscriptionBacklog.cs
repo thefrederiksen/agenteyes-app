@@ -84,9 +84,16 @@ namespace AgentEyes
 
             if (File.Exists(Path.Combine(dir, "transcript.json"))) return false;
 
+            var manifest = TryLoad(dir);
+
+            // Issue #230 round 4 (review I4): a take is named by its take and judged by eye. Whisper
+            // over a whole session of retakes is minutes of CPU at the moment the attempts are being
+            // cut, for a transcript nothing reads.
+            if (manifest?.TakeId != null) return false;
+
             // Issue #128 round two (D2): a pending mux means the media file is not final - at most
             // the fragment of an attempt that died. QA measured a transcribe attempt burned on one.
-            if (TryLoad(dir)?.PendingMux != null) return false;
+            if (manifest?.PendingMux != null) return false;
 
             return AttemptsSoFar(dir) < MaxTranscribeAttempts;
         }

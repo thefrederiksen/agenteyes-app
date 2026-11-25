@@ -173,6 +173,7 @@ namespace AgentEyes.Tests
             "agenteyes.dll!AgentEyes.Commands::Audio -> System.IO.File::Move x1",                            // audio.original.wav backup
             "agenteyes.dll!AgentEyes.Takes.TakeStore::SaveLocked -> System.IO.File::Move x1",                // takes.json (issue #230)
             "agenteyes.dll!AgentEyes.Takes.TakeStore::SaveLocked -> System.IO.File::WriteAllText x1",        // takes.json.tmp (issue #230)
+            "agenteyes.dll!AgentEyes.Takes.TakeCut::Cut -> System.IO.File::Delete x1",                      // a cut that came out short, before it is cut again (issue #230 round 4)
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Clear -> System.IO.File::Delete x1",    // the stored dt_ key
             "agenteyes.dll!AgentEyes.DevThrottle.DevThrottleAccount::Save -> System.IO.File::WriteAllBytes x1", // the DPAPI-protected dt_ key
             // Issues #55, #56, the Housekeeper. Every delete here is of a file the pure planner named -
