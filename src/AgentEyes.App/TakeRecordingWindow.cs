@@ -51,7 +51,7 @@ namespace AgentEyes.App
         private enum Phase { Starting, Ready, Recording, Finishing, Finished, Failed }
 
         internal const string StartInstruction = "Press Space to start recording. Space again to stop.";
-        internal const string ReadFirstInstruction = "Read the line. When you press Space a 3-2-1 count runs, then the text disappears and you say it to the camera.";
+        internal const string ReadFirstInstruction = "Read the line. When you press Space the text is replaced by a 3-2-1 count, and you say it to the camera.";
         internal const string RecordingInstruction = "Recording - Space to stop, R to start again";
         /// <summary>Round 4 (review D2): nothing is recorded until the camera is up, and the screen says so instead of taking a mark.</summary>
         internal const string WaitInstruction = "The camera is starting - wait.";
@@ -68,6 +68,14 @@ namespace AgentEyes.App
         /// <summary>The continuous recording's keyframe interval in frames: one a second at 30 fps,
         /// so the live file is never more than a second behind what can be cut from it.</summary>
         private const int Fps = 30;
+
+        /// <summary>
+        /// PR 234 review, defect 1: in camera-only mode the service runs no capture watchdog, and a camera
+        /// ffmpeg that dies leaves the service "recording". The one sign is a position that stops moving;
+        /// ffmpeg reports it twice a second, and the first report comes about two seconds after the camera
+        /// is up, so five seconds without movement is a dead camera and never a slow one.
+        /// </summary>
+        private const double StallSeconds = 5;
 
         private readonly RecordingService _svc;
         private readonly TakeStore _store;
@@ -106,7 +114,9 @@ namespace AgentEyes.App
         private volatile string? _sessionDir;
         private volatile string? _sessionFile;
         private double _sessionStart;           // screen-clock second StartCamera returned
-        private double _stopWall;               // screen-clock second the stop was asked for (or the loss seen); read once _stopDone
+        private double _stopWall;               // screen-clock second the file is taken to end at; written BEFORE _stopDone, read once it is set
+        private double _lastPosition;           // the camera position last read (seconds written): the REC clock
+        private double _lastAdvanceWall;        // screen-clock second that position last moved; frozen means the camera died
 
         // The cuts: one at a time, in the order they were marked.
         private Task _cuts = Task.CompletedTask;
@@ -266,6 +276,8 @@ namespace AgentEyes.App
 
             // The folder before the flag: a cut thread reads the flag first and the folder second.
             _sessionStart = _clock.Elapsed.TotalSeconds;
+            _lastPosition = 0;
+            _lastAdvanceWall = _sessionStart;
             string? dir = _svc.Status().Dir;
             if (dir == null) Log.Error("[TakeRecordingWindow] OnContinuousStarted: the service is recording but reports no folder");
             _sessionDir = dir;
@@ -284,15 +296,19 @@ namespace AgentEyes.App
         }
 
         /// <summary>
-        /// The continuous recording stopped on its own (the capture fault check ended it, issue #113).
-        /// The attempt in progress ends here; the screen says so and only Esc is left.
+        /// The continuous recording stopped on its own: the service ended it (a capture fault, issue #113)
+        /// or - camera-only mode has no watchdog - the camera position froze (PR 234 review, defect 1).
+        /// The attempt in progress ends here, the file is taken to end at <paramref name="fileEndWall"/>,
+        /// the service is stopped when it does not know yet, and only Esc is left.
         /// </summary>
-        private void OnContinuousLost()
+        private void OnContinuousLost(string why, double fileEndWall)
         {
-            Log.Error($"[TakeRecordingWindow] OnContinuousLost: the continuous recording stopped by itself in {_phase} "
-                      + $"(service state {_svc.Status().State}); see the recording's manifest in {_sessionDir}");
+            Log.Error($"[TakeRecordingWindow] OnContinuousLost: {why} in {_phase} (service state {_svc.Status().State}); "
+                      + $"the file is taken to end at screen time {fileEndWall:F2}s; see the recording's manifest in {_sessionDir}");
+            // The stop moment BEFORE any cut is queued or _stopDone is published (PR 234 review, defect 3).
+            _stopWall = fileEndWall;
+            bool serviceStillRecording = _svc.IsRecording;
             if (_phase == Phase.Recording) EndAttempt("the recording stopped by itself");
-            _stopWall = _clock.Elapsed.TotalSeconds;   // the closest this screen knows to when the file ended
             _stopping = true;
             _phase = Phase.Failed;
             ShowTakeText(visible: false);
@@ -303,19 +319,65 @@ namespace AgentEyes.App
                                      + "What was recorded is kept. Esc to finish.");
             Show(_keys, "keys", "Esc finish");
             UpdateFooter();
+
+            if (serviceStillRecording)
+            {
+                // The service does not know: stop it, so the file is final and the camera is let go.
+                StopContinuous(error =>
+                {
+                    if (error == null) return;
+                    _message.Foreground = TakesWindow.Red;
+                    Show(_message, "message", "Stopping the recording FAILED: " + error.Message + "\nEsc to finish.");
+                });
+            }
+            else
+            {
+                _stopDone = _svc.Status().State == "idle";
+            }
+        }
+
+        /// <summary>
+        /// Stop the continuous recording on a background thread. <see cref="_stopDone"/> is set once the
+        /// stop returned - whatever is on disk after a failed stop is what the cuts get - and then
+        /// <paramref name="onDone"/> runs on the UI thread with the stop's error, or null.
+        /// </summary>
+        private void StopContinuous(Action<Exception?> onDone)
+        {
+            Log.Info($"[TakeRecordingWindow] StopContinuous: stopping the continuous recording {_sessionFile}");
+            Ui.Run(() =>
+            {
+                var stopped = RecordingStop.Keep(_svc);
+                Log.Info($"[TakeRecordingWindow] StopContinuous: the continuous recording is saved, {stopped.Result.DurationSeconds:F1}s in {stopped.Result.Dir}");
+            }).ContinueWith(stop =>
+            {
+                var error = stop.Exception?.GetBaseException();
+                if (error != null) Log.Error("[TakeRecordingWindow] StopContinuous: stopping the continuous recording FAILED", error);
+                _stopDone = true;
+                Ui.Post(() => onDone(error));
+            }, TaskScheduler.Default);
         }
 
         private void OnTick()
         {
             double now = _clock.Elapsed.TotalSeconds;
             double? position = _svc.CameraPositionSeconds;
-            if (_recordingUp && !_stopping) _fileClock.Observe(now, position);
-
-            // The service ended the recording without us (a capture fault): say so.
-            if (_recordingUp && !_stopping && !_svc.IsRecording)
+            if (_recordingUp && !_stopping)
             {
-                _stopDone = _svc.Status().State == "idle";
-                OnContinuousLost();
+                _fileClock.Observe(now, position);
+                if (position is double p && p > _lastPosition) { _lastPosition = p; _lastAdvanceWall = now; }
+
+                if (!_svc.IsRecording)
+                {
+                    // The service ended the recording without us (a capture fault): say so.
+                    OnContinuousLost("the service ended the recording", fileEndWall: now);
+                }
+                else if (now - _lastAdvanceWall > StallSeconds)
+                {
+                    // The camera died under a service that cannot see it (PR 234 review, defect 1). The
+                    // file ends where the position last moved, not where this was noticed.
+                    OnContinuousLost($"the camera position has not moved for {now - _lastAdvanceWall:F1}s (stuck at {_lastPosition:F2}s)",
+                        fileEndWall: _lastAdvanceWall);
+                }
             }
             else if (_stopping && !_stopDone && _phase == Phase.Failed && _svc.Status().State == "idle")
             {
@@ -423,7 +485,8 @@ namespace AgentEyes.App
         {
             string where = $"Take {_index + 1} of {_takes.Count} - attempt {_attempt}";
             double now = _clock.Elapsed.TotalSeconds;
-            string session = _recordingUp && !_stopping ? $"REC {TimeSpan.FromSeconds(now - _sessionStart):m\\:ss}" : "";
+            // What the camera has WRITTEN, not how long the screen has been open (PR 234 review, defect 1).
+            string session = _recordingUp && !_stopping ? $"REC {TimeSpan.FromSeconds(_lastPosition):m\\:ss}" : "";
             switch (_phase)
             {
                 case Phase.Recording:
@@ -576,6 +639,9 @@ namespace AgentEyes.App
                     if (length <= 0) throw new InvalidOperationException($"the continuous recording {_sessionFile} has no readable length.");
                     double anchor = ContinuousClock.FinalAnchor(_stopWall, length);
                     double? observed = _fileClock.AnchorSeconds;
+                    // Exact only if the file ran until the stop (PR 234 review, defect 1): a file that ended
+                    // early fails the cut loudly here, never cuts from the wrong place.
+                    ContinuousClock.RequireFileRanToTheStop(anchor, observed, _sessionStart);
                     double startFile = ContinuousClock.FileSecondsAt(startWall, anchor);
                     double endFile = ContinuousClock.FileSecondsAt(endWall, anchor);
                     var finalSpan = TakeCut.Span(startFile, endFile, length);
@@ -631,8 +697,10 @@ namespace AgentEyes.App
                 if (_phase is Phase.Ready or Phase.Finishing)
                 {
                     _message.Foreground = TakesWindow.Dim;
-                    // On the last take the hint stays with the news (round 4, review I1).
-                    bool lastTake = _phase == Phase.Ready && _index + 1 == _takes.Count;
+                    // On the last take the hint stays with the news (round 4, review I1) - only once that
+                    // take has an attempt from this screen (PR 234 review, defect 2); before that the
+                    // news is the previous take's and the last take is still to be recorded.
+                    bool lastTake = _phase == Phase.Ready && _index + 1 == _takes.Count && _nextNumber.ContainsKey(Current.Id);
                     Show(_message, "message", $"Saved {label} ({duration:F1} s)." + (lastTake ? "\n" + LastTakeMessage : ""));
                 }
             }
@@ -667,35 +735,23 @@ namespace AgentEyes.App
             UpdateFooter();
 
             bool stopHere = _recordingUp && !_stopping;
-            if (stopHere) _stopWall = _clock.Elapsed.TotalSeconds;
+            if (stopHere) _stopWall = _clock.Elapsed.TotalSeconds;   // before _stopping, long before _stopDone
             _stopping = true;
+            if (stopHere)
+            {
+                StopContinuous(error => _cuts.ContinueWith(c => Ui.Post(() => OnFinished(error)), TaskScheduler.Default));
+                return;
+            }
+
+            // The recording was already stopped - by the service (a capture fault) or by OnContinuousLost:
+            // wait for the service to be done writing before the cuts read the file as final.
             Ui.Run(() =>
             {
-                if (!stopHere)
-                {
-                    // The service stopped the recording itself (a capture fault): wait for it to be
-                    // done writing before the cuts read the file as final.
-                    var wait = Stopwatch.StartNew();
-                    while (_svc.Status().State != "idle" && wait.Elapsed < TimeSpan.FromSeconds(60)) Thread.Sleep(250);
-                    Log.Info($"[TakeRecordingWindow] Finish: the service is {_svc.Status().State} after {wait.Elapsed.TotalSeconds:F1}s");
-                }
-                else
-                {
-                    Log.Info($"[TakeRecordingWindow] Finish: stopping the continuous recording {_sessionFile}");
-                    var stopped = RecordingStop.Keep(_svc);
-                    Log.Info($"[TakeRecordingWindow] Finish: the continuous recording is saved, {stopped.Result.DurationSeconds:F1}s in {stopped.Result.Dir}");
-                }
+                var wait = Stopwatch.StartNew();
+                while (_svc.Status().State != "idle" && wait.Elapsed < TimeSpan.FromSeconds(60)) Thread.Sleep(250);
+                Log.Info($"[TakeRecordingWindow] Finish: the service is {_svc.Status().State} after {wait.Elapsed.TotalSeconds:F1}s");
                 _stopDone = true;
-            }).ContinueWith(stop =>
-            {
-                var stopError = stop.Exception?.GetBaseException();
-                if (stopError != null)
-                {
-                    Log.Error($"[TakeRecordingWindow] Finish: stopping the continuous recording FAILED", stopError);
-                    _stopDone = true;   // whatever is on disk is what the cuts get
-                }
-                _cuts.ContinueWith(_ => Ui.Post(() => OnFinished(stopError)), TaskScheduler.Default);
-            }, TaskScheduler.Default);
+            }).ContinueWith(t => _cuts.ContinueWith(c => Ui.Post(() => OnFinished(null)), TaskScheduler.Default), TaskScheduler.Default);
         }
 
         private void OnFinished(Exception? stopError)

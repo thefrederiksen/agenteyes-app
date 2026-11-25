@@ -34,7 +34,7 @@ namespace AgentEyes.App
         /// <summary>What the set-up screen says each reading mode does (issue #230 round 4, review D3):
         /// what the recording screen does now, not what an earlier round did.</summary>
         internal const string TeleprompterHelp = "Teleprompter: the whole line stays on screen under the camera for the whole take. Space marks the start and the end.";
-        internal const string ReadFirstHelp = "Read first: the line shows until you press Space. Then a 3-2-1 count, the text goes away and you say it to the camera. Best for short takes.";
+        internal const string ReadFirstHelp = "Read first: the line shows until you press Space. Then a 3-2-1 count replaces the text and you say it to the camera. Best for short takes.";
 
         private readonly RecordingService _svc;
         private readonly TakeStore _store = TakeStore.Shared;

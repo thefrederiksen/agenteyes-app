@@ -175,5 +175,28 @@ namespace AgentEyes.Takes
                 throw new ArgumentOutOfRangeException(nameof(fileDurationSeconds), "the final file has no length.");
             return stopWallSeconds - fileDurationSeconds;
         }
+
+        /// <summary>How much later than its bounds a final anchor may be before the file is known to have ended early.</summary>
+        public const double EarlyEndToleranceSeconds = 2.0;
+
+        /// <summary>
+        /// PR 234 review, defect 1: <see cref="FinalAnchor"/> is exact only when the file ran until the
+        /// stop. Two things bound the true anchor from above: a progress reading can only lag the picture
+        /// (<paramref name="observedAnchor"/> is never below the truth), and the screen saw the camera up
+        /// only after its first frame (<paramref name="cameraUpWall"/>). A healthy final anchor sits at or
+        /// a little below both. One above them by more than <paramref name="toleranceSeconds"/> means the
+        /// camera stopped sending that long before the stop - and a cut placed from it would be from the
+        /// wrong part of the file, so this throws instead. No falling back to the observed anchor: it is
+        /// right for attempts before the camera died and wrong for attempts after.
+        /// </summary>
+        public static void RequireFileRanToTheStop(double finalAnchor, double? observedAnchor, double cameraUpWall,
+            double toleranceSeconds = EarlyEndToleranceSeconds)
+        {
+            double bound = observedAnchor is double o ? Math.Min(o, cameraUpWall) : cameraUpWall;
+            double early = finalAnchor - bound;
+            if (early > toleranceSeconds)
+                throw new UsageException(string.Create(CultureInfo.InvariantCulture,
+                    $"the camera stopped sending about {early:F0}s before the stop - the continuous file ends early, so this attempt cannot be placed from the file's length."));
+        }
     }
 }

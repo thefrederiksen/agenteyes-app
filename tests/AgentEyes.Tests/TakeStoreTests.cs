@@ -92,7 +92,7 @@ namespace AgentEyes.Tests
         {
             string text = TakeRecordingWindow.ReadyInstruction(false);
 
-            Assert.StartsWith("Read the line. When you press Space a 3-2-1 count runs, then the text disappears and you say it to the camera.", text);
+            Assert.StartsWith("Read the line. When you press Space the text is replaced by a 3-2-1 count, and you say it to the camera.", text);
             Assert.EndsWith("Press Space to start recording. Space again to stop.", text);
         }
 

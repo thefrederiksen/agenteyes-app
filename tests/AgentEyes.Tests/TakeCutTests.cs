@@ -210,5 +210,37 @@ namespace AgentEyes.Tests
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => ContinuousClock.FinalAnchor(10.0, 0.0));
         }
+
+        [Fact]
+        public void RequireFileRanToTheStop_HealthyFile_Passes()
+        {
+            // The file ran until the stop: the final anchor is a touch below the camera-up moment and the
+            // observed anchor is above it by the encoder's lag (zerolatency: about 0.7 s).
+            ContinuousClock.RequireFileRanToTheStop(finalAnchor: 9.8, observedAnchor: 10.9, cameraUpWall: 10.3);
+        }
+
+        [Fact]
+        public void RequireFileRanToTheStop_CameraDiedTwentySecondsBeforeTheStop_Throws()
+        {
+            // PR 234 review, defect 1: file length 25 s, stop at 45 s, so the final anchor is 20 s late.
+            var ex = Assert.Throws<UsageException>(() =>
+                ContinuousClock.RequireFileRanToTheStop(finalAnchor: 20.0, observedAnchor: 0.7, cameraUpWall: 0.3));
+
+            Assert.Contains("about 20s before the stop", ex.Message);
+        }
+
+        [Fact]
+        public void RequireFileRanToTheStop_NoReadingEver_UsesTheCameraUpMoment()
+        {
+            ContinuousClock.RequireFileRanToTheStop(finalAnchor: -0.2, observedAnchor: null, cameraUpWall: 0.3);
+            Assert.Throws<UsageException>(() =>
+                ContinuousClock.RequireFileRanToTheStop(finalAnchor: 5.0, observedAnchor: null, cameraUpWall: 0.3));
+        }
+
+        [Fact]
+        public void RequireFileRanToTheStop_WithinTolerance_Passes()
+        {
+            ContinuousClock.RequireFileRanToTheStop(finalAnchor: 2.2, observedAnchor: 0.7, cameraUpWall: 0.3);
+        }
     }
 }
